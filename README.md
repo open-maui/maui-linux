@@ -6,6 +6,9 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 [![NuGet](https://img.shields.io/nuget/v/Microsoft.Maui.Controls.Linux)](https://www.nuget.org/packages/Microsoft.Maui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+**Developed by [MarketAlly LLC](https://marketally.com)**
+**Lead Architect: David H. Friedel Jr.**
+
 ## Overview
 
 This project brings .NET MAUI to Linux desktops with native X11/Wayland support, hardware-accelerated Skia rendering, and full platform service integration.
@@ -187,10 +190,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2025 MarketAlly LLC. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
+- [MarketAlly LLC](https://marketally.com) - Project development and maintenance
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community

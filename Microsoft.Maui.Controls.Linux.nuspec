@@ -4,33 +4,37 @@
     <id>Microsoft.Maui.Controls.Linux</id>
     <version>1.0.0-preview.1</version>
     <title>.NET MAUI Linux Controls</title>
-    <authors>MAUI Linux Community Contributors</authors>
-    <owners>MAUI Linux Community</owners>
+    <authors>MarketAlly LLC, David H. Friedel Jr.</authors>
+    <owners>MarketAlly LLC</owners>
     <license type="expression">MIT</license>
-    <projectUrl>https://github.com/dotnet/maui</projectUrl>
+    <projectUrl>https://github.com/open-maui/maui-linux</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/dotnet/maui/main/assets/icon.png</iconUrl>
     <description>
-Linux desktop support for .NET MAUI applications. This experimental package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
+Linux desktop support for .NET MAUI applications. This package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
 
 Features:
 - X11 display server support (primary)
 - Wayland support with XWayland fallback
-- Skia-rendered controls (Button, Label, Entry, CheckBox, Slider, Switch, layouts)
-- Input handling (keyboard, mouse, touch)
-- Platform services (Clipboard, FilePicker, Launcher, Preferences)
+- 35+ Skia-rendered controls (Button, Label, Entry, CarouselView, SwipeView, RefreshView, and more)
+- Full input handling (keyboard, mouse, touch, gestures)
+- Platform services (Clipboard, FilePicker, Notifications, DragDrop, GlobalHotkeys)
+- Accessibility support (AT-SPI2, High Contrast)
+- HiDPI and Input Method support
 
-Note: This is a community preview and not officially supported by Microsoft.
+Developed by MarketAlly LLC. Lead Architect: David H. Friedel Jr.
     </description>
     <releaseNotes>
-Initial community preview release:
+Initial release:
 - Core SkiaSharp-based rendering engine
-- X11 window management with input handling
-- Basic control set implementation
-- Handler alignment with MAUI interface contracts
+- X11 window management with full input handling
+- 35+ control implementations
+- 18 platform services
+- Accessibility support
+- 216 unit tests
     </releaseNotes>
-    <copyright>Copyright 2024-2025 .NET Foundation and Contributors</copyright>
+    <copyright>Copyright 2025 MarketAlly LLC</copyright>
     <tags>maui linux desktop skia gui cross-platform dotnet</tags>
-    <repository type="git" url="https://github.com/dotnet/maui.git" />
+    <repository type="git" url="https://github.com/open-maui/maui-linux.git" />
     <dependencies>
       <group targetFramework="net9.0">
         <dependency id="Microsoft.Maui.Controls" version="9.0.0" />

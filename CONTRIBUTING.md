@@ -1,6 +1,8 @@
 # Contributing to .NET MAUI Linux Platform
 
-Thank you for your interest in contributing to the .NET MAUI Linux Platform! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to the .NET MAUI Linux Platform! This project is developed and maintained by [MarketAlly LLC](https://marketally.com) under the leadership of David H. Friedel Jr.
+
+This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
