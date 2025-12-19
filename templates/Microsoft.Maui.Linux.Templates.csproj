@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageVersion>1.0.0-preview.4</PackageVersion>
+    <PackageId>Microsoft.Maui.Linux.Templates</PackageId>
+    <Title>.NET MAUI Linux Project Templates</Title>
+    <Authors>MAUI Linux Community Contributors</Authors>
+    <Description>Project templates for building .NET MAUI applications on Linux desktop.</Description>
+    <PackageTags>dotnet-new;templates;maui;linux;desktop</PackageTags>
+    <PackageProjectUrl>https://github.com/dotnet/maui</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <TargetFramework>netstandard2.0</TargetFramework>
+
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="maui-linux-app\**\*" Exclude="maui-linux-app\**\bin\**;maui-linux-app\**\obj\**" />
+    <Compile Remove="**\*" />
+  </ItemGroup>
+
+</Project>

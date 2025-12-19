@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "MAUI Linux Community",
+  "classifications": ["MAUI", "Linux", "Desktop", "App"],
+  "identity": "Microsoft.Maui.Linux.App",
+  "name": ".NET MAUI Linux Application",
+  "shortName": "maui-linux",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "MauiLinuxApp",
+  "preferNameDirectory": true,
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "net9.0",
+          "description": "Target .NET 9.0"
+        },
+        {
+          "choice": "net8.0",
+          "description": "Target .NET 8.0"
+        }
+      ],
+      "defaultValue": "net9.0",
+      "replaces": "net9.0"
+    },
+    "DisplayServer": {
+      "type": "parameter",
+      "description": "The display server to use.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "auto",
+          "description": "Auto-detect display server"
+        },
+        {
+          "choice": "x11",
+          "description": "Force X11"
+        },
+        {
+          "choice": "wayland",
+          "description": "Force Wayland"
+        }
+      ],
+      "defaultValue": "auto"
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "Skip automatic restore after project creation.",
+      "defaultValue": "false"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "MauiLinuxApp.csproj" }
+  ],
+  "postActions": [
+    {
+      "condition": "(!skipRestore)",
+      "description": "Restore NuGet packages required by this project.",
+      "manualInstructions": [{ "text": "Run 'dotnet restore'" }],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

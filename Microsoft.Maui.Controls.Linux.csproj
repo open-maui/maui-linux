@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Microsoft.Maui.Platform.Linux</RootNamespace>
+    <AssemblyName>Microsoft.Maui.Controls.Linux</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS0108;CS1591;CS0618</NoWarn>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>Microsoft.Maui.Controls.Linux</PackageId>
+    <Version>1.0.0-preview.4</Version>
+    <Authors>MAUI Linux Community Contributors</Authors>
+    <Company>.NET Foundation</Company>
+    <Product>.NET MAUI Linux Controls</Product>
+    <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers.</Description>
+    <Copyright>Copyright 2024-2025 .NET Foundation and Contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/dotnet/maui</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dotnet/maui.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland</PackageTags>
+    <PackageReleaseNotes>Preview 2 with Image, ImageButton, and GraphicsView controls.</PackageReleaseNotes>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MAUI Core packages -->
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="9.0.40" />
+
+    <!-- SkiaSharp for rendering -->
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.116.1" />
+
+    <!-- HarfBuzz for advanced text shaping -->
+    <PackageReference Include="HarfBuzzSharp" Version="7.3.0.3" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.3" />
+  </ItemGroup>
+
+  <!-- Include README in package -->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <!-- Exclude old handler files and samples -->
+  <ItemGroup>
+    <Compile Remove="Handlers/*.Linux.cs" />
+    <Compile Remove="samples/**/*.cs" />
+    <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="templates/**/*.cs" />
+  </ItemGroup>
+
+</Project>

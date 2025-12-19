@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Maui.Controls.Linux</id>
+    <version>1.0.0-preview.1</version>
+    <title>.NET MAUI Linux Controls</title>
+    <authors>MAUI Linux Community Contributors</authors>
+    <owners>MAUI Linux Community</owners>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/dotnet/maui</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/dotnet/maui/main/assets/icon.png</iconUrl>
+    <description>
+Linux desktop support for .NET MAUI applications. This experimental package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
+
+Features:
+- X11 display server support (primary)
+- Wayland support with XWayland fallback
+- Skia-rendered controls (Button, Label, Entry, CheckBox, Slider, Switch, layouts)
+- Input handling (keyboard, mouse, touch)
+- Platform services (Clipboard, FilePicker, Launcher, Preferences)
+
+Note: This is a community preview and not officially supported by Microsoft.
+    </description>
+    <releaseNotes>
+Initial community preview release:
+- Core SkiaSharp-based rendering engine
+- X11 window management with input handling
+- Basic control set implementation
+- Handler alignment with MAUI interface contracts
+    </releaseNotes>
+    <copyright>Copyright 2024-2025 .NET Foundation and Contributors</copyright>
+    <tags>maui linux desktop skia gui cross-platform dotnet</tags>
+    <repository type="git" url="https://github.com/dotnet/maui.git" />
+    <dependencies>
+      <group targetFramework="net9.0">
+        <dependency id="Microsoft.Maui.Controls" version="9.0.0" />
+        <dependency id="SkiaSharp" version="2.88.8" />
+        <dependency id="SkiaSharp.NativeAssets.Linux" version="2.88.8" />
+      </group>
+    </dependencies>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System.Runtime" targetFramework="net9.0" />
+    </frameworkAssemblies>
+  </metadata>
+  <files>
+    <file src="bin/Release/net9.0/Microsoft.Maui.Controls.Linux.dll" target="lib/net9.0" />
+    <file src="bin/Release/net9.0/Microsoft.Maui.Controls.Linux.xml" target="lib/net9.0" />
+    <file src="README.md" target="" />
+  </files>
+</package>

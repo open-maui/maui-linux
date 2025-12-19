@@ -1,0 +1,31 @@
+# Dependabot configuration for automatic dependency updates
+version: 2
+updates:
+  # NuGet packages
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      microsoft-maui:
+        patterns:
+          - "Microsoft.Maui*"
+      skiasharp:
+        patterns:
+          - "SkiaSharp*"
+          - "HarfBuzzSharp*"
+      testing:
+        patterns:
+          - "xunit*"
+          - "Moq*"
+          - "FluentAssertions*"
+          - "coverlet*"
+          - "Microsoft.NET.Test.Sdk"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3

@@ -1,0 +1,49 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+packages/
+
+# Test Results
+[Tt]est[Rr]esult*/
+*.coverage
+coverage*.xml
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# macOS
+.DS_Store
+._*
+
+# Publish output
+publish/
