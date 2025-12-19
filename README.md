@@ -104,6 +104,7 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 ## Documentation
 
 - [Getting Started Guide](docs/GETTING_STARTED.md)
+- [FAQ - Visual Studio Integration](docs/FAQ.md)
 - [API Reference](docs/API.md)
 - [Contributing Guide](CONTRIBUTING.md)
 
