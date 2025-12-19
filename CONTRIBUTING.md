@@ -45,7 +45,7 @@ dotnet test
 
 ### Reporting Bugs
 
-- Check if the bug has already been reported in [Issues](https://github.com/anthropics/maui-linux/issues)
+- Check if the bug has already been reported in [Issues](https://github.com/open-maui/maui-linux/issues)
 - Use the bug report template
 - Include reproduction steps, expected behavior, and actual behavior
 - Include system information (distro, .NET version, desktop environment)
@@ -242,7 +242,7 @@ Look for issues labeled `good-first-issue` for beginner-friendly tasks.
 
 ## Getting Help
 
-- Open a [Discussion](https://github.com/anthropics/maui-linux/discussions) for questions
+- Open a [Discussion](https://github.com/open-maui/maui-linux/discussions) for questions
 - Join the .NET community on Discord
 - Check existing issues and discussions
 

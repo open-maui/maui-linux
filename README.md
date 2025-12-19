@@ -2,7 +2,7 @@
 
 A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rendering.
 
-[![Build Status](https://github.com/anthropics/maui-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/anthropics/maui-linux/actions)
+[![Build Status](https://github.com/open-maui/maui-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/open-maui/maui-linux/actions)
 [![NuGet](https://img.shields.io/nuget/v/Microsoft.Maui.Controls.Linux)](https://www.nuget.org/packages/Microsoft.Maui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -141,7 +141,7 @@ app.Run();
 ## Building from Source
 
 ```bash
-git clone https://github.com/anthropics/maui-linux.git
+git clone https://github.com/open-maui/maui-linux.git
 cd maui-linux
 dotnet build
 dotnet test
