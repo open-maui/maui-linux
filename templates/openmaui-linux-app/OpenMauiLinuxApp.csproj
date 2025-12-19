@@ -5,14 +5,14 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>MauiLinuxApp</RootNamespace>
-    <AssemblyName>MauiLinuxApp</AssemblyName>
-    <ApplicationTitle>MauiLinuxApp</ApplicationTitle>
+    <RootNamespace>OpenMauiLinuxApp</RootNamespace>
+    <AssemblyName>OpenMauiLinuxApp</AssemblyName>
+    <ApplicationTitle>OpenMauiLinuxApp</ApplicationTitle>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- .NET MAUI Linux Platform -->
-    <PackageReference Include="Microsoft.Maui.Controls.Linux" Version="1.0.0-preview.4" />
+    <!-- OpenMaui Linux Platform -->
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="1.0.0-preview.1" />
 
     <!-- Core MAUI packages -->
     <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />

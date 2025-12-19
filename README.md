@@ -1,9 +1,9 @@
-# .NET MAUI Linux Platform
+# OpenMaui Linux Platform
 
 A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rendering.
 
 [![Build Status](https://github.com/open-maui/maui-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/open-maui/maui-linux/actions)
-[![NuGet](https://img.shields.io/nuget/v/Microsoft.Maui.Controls.Linux)](https://www.nuget.org/packages/Microsoft.Maui.Controls.Linux)
+[![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Developed by [MarketAlly LLC](https://marketally.com)**
@@ -28,10 +28,10 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 
 ```bash
 # Install the template
-dotnet new install Microsoft.Maui.Linux.Templates
+dotnet new install OpenMaui.Linux.Templates
 
 # Create a new project
-dotnet new maui-linux -n MyApp
+dotnet new openmaui-linux -n MyApp
 cd MyApp
 
 # Run
@@ -41,7 +41,7 @@ dotnet run
 ### Manual Installation
 
 ```bash
-dotnet add package Microsoft.Maui.Controls.Linux --prerelease
+dotnet add package OpenMaui.Controls.Linux --prerelease
 ```
 
 ## Supported Controls
@@ -110,7 +110,7 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 ## Sample Application
 
 ```csharp
-using Microsoft.Maui.Platform;
+using OpenMaui.Platform.Linux;
 
 var app = new LinuxApplication();
 

@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Microsoft.Maui.Controls.Linux.csproj" />
+    <ProjectReference Include="..\OpenMaui.Controls.Linux.csproj" />
   </ItemGroup>
 
 </Project>

@@ -3,7 +3,7 @@
 
 using Microsoft.Maui.Controls;
 
-namespace MauiLinuxApp;
+namespace OpenMauiLinuxApp;
 
 public class App : Application
 {

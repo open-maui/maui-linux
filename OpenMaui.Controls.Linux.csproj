@@ -4,26 +4,26 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>Microsoft.Maui.Platform.Linux</RootNamespace>
-    <AssemblyName>Microsoft.Maui.Controls.Linux</AssemblyName>
+    <RootNamespace>OpenMaui.Platform.Linux</RootNamespace>
+    <AssemblyName>OpenMaui.Controls.Linux</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS0108;CS1591;CS0618</NoWarn>
 
     <!-- NuGet Package Properties -->
-    <PackageId>Microsoft.Maui.Controls.Linux</PackageId>
-    <Version>1.0.0-preview.4</Version>
-    <Authors>MAUI Linux Community Contributors</Authors>
-    <Company>.NET Foundation</Company>
-    <Product>.NET MAUI Linux Controls</Product>
-    <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers.</Description>
-    <Copyright>Copyright 2024-2025 .NET Foundation and Contributors</Copyright>
+    <PackageId>OpenMaui.Controls.Linux</PackageId>
+    <Version>1.0.0-preview.1</Version>
+    <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly LLC</Company>
+    <Product>OpenMaui Linux Controls</Product>
+    <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers with 35+ controls, platform services, and accessibility support.</Description>
+    <Copyright>Copyright 2025 MarketAlly LLC</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/dotnet/maui</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/dotnet/maui.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland</PackageTags>
-    <PackageReleaseNotes>Preview 2 with Image, ImageButton, and GraphicsView controls.</PackageReleaseNotes>
+    <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
+    <PackageReleaseNotes>Initial preview release with 35+ controls and full platform services.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>

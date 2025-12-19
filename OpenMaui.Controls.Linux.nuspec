@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
-    <id>Microsoft.Maui.Controls.Linux</id>
+    <id>OpenMaui.Controls.Linux</id>
     <version>1.0.0-preview.1</version>
-    <title>.NET MAUI Linux Controls</title>
+    <title>OpenMaui Linux Controls</title>
     <authors>MarketAlly LLC, David H. Friedel Jr.</authors>
     <owners>MarketAlly LLC</owners>
     <license type="expression">MIT</license>
@@ -33,7 +33,7 @@ Initial release:
 - 216 unit tests
     </releaseNotes>
     <copyright>Copyright 2025 MarketAlly LLC</copyright>
-    <tags>maui linux desktop skia gui cross-platform dotnet</tags>
+    <tags>maui linux desktop skia gui cross-platform dotnet openmaui</tags>
     <repository type="git" url="https://github.com/open-maui/maui-linux.git" />
     <dependencies>
       <group targetFramework="net9.0">
@@ -47,8 +47,8 @@ Initial release:
     </frameworkAssemblies>
   </metadata>
   <files>
-    <file src="bin/Release/net9.0/Microsoft.Maui.Controls.Linux.dll" target="lib/net9.0" />
-    <file src="bin/Release/net9.0/Microsoft.Maui.Controls.Linux.xml" target="lib/net9.0" />
+    <file src="bin/Release/net9.0/OpenMaui.Controls.Linux.dll" target="lib/net9.0" />
+    <file src="bin/Release/net9.0/OpenMaui.Controls.Linux.xml" target="lib/net9.0" />
     <file src="README.md" target="" />
   </files>
 </package>

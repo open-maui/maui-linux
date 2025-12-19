@@ -31,7 +31,7 @@ sudo pacman -S libx11 libxrandr libxcursor libxi mesa fontconfig
 
 1. Install the template:
 ```bash
-dotnet new install Microsoft.Maui.Linux.Templates
+dotnet new install OpenMaui.Linux.Templates
 ```
 
 2. Create a new project:
@@ -55,13 +55,13 @@ cd MyMauiLinuxApp
 
 2. Add the NuGet package:
 ```bash
-dotnet add package Microsoft.Maui.Controls.Linux --prerelease
+dotnet add package OpenMaui.Controls.Linux --prerelease
 ```
 
 3. Update your `Program.cs`:
 ```csharp
 using Microsoft.Maui.Platform;
-using Microsoft.Maui.Platform.Linux;
+using OpenMaui.Platform.Linux;
 
 var app = new LinuxApplication();
 

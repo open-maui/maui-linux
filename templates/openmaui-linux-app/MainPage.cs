@@ -4,7 +4,7 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 
-namespace MauiLinuxApp;
+namespace OpenMauiLinuxApp;
 
 public class MainPage : ContentPage
 {
@@ -13,7 +13,7 @@ public class MainPage : ContentPage
 
     public MainPage()
     {
-        Title = "MauiLinuxApp";
+        Title = "OpenMauiLinuxApp";
 
         _counterLabel = new Label
         {
