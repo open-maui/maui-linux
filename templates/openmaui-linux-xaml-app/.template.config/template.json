@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "MarketAlly LLC",
+  "classifications": ["MAUI", "Linux", "Desktop", "App", "OpenMaui", "XAML"],
+  "identity": "OpenMaui.Linux.XamlApp",
+  "name": "OpenMaui Linux XAML Application",
+  "shortName": "openmaui-linux-xaml",
+  "description": "A .NET MAUI application for Linux using standard XAML syntax with OpenMaui platform support.",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "OpenMauiXamlApp",
+  "preferNameDirectory": true,
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "net9.0",
+          "description": "Target .NET 9.0"
+        }
+      ],
+      "defaultValue": "net9.0",
+      "replaces": "net9.0"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "OpenMauiXamlApp.csproj" }
+  ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages required by this project.",
+      "manualInstructions": [{ "text": "Run 'dotnet restore'" }],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

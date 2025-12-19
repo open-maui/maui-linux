@@ -7,8 +7,12 @@
     <Title>OpenMaui Linux Project Templates</Title>
     <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
     <Company>MarketAlly LLC</Company>
-    <Description>Project templates for building .NET MAUI applications on Linux desktop using OpenMaui.</Description>
-    <PackageTags>dotnet-new;templates;maui;linux;desktop;openmaui</PackageTags>
+    <Description>Project templates for building .NET MAUI applications on Linux desktop using OpenMaui.
+
+Templates included:
+- openmaui-linux: Basic Linux app with code-based UI
+- openmaui-linux-xaml: Full XAML support with standard MAUI syntax</Description>
+    <PackageTags>dotnet-new;templates;maui;linux;desktop;openmaui;xaml</PackageTags>
     <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright 2025 MarketAlly LLC</Copyright>
@@ -23,7 +27,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Code-based template -->
     <Content Include="openmaui-linux-app\**\*" Exclude="openmaui-linux-app\**\bin\**;openmaui-linux-app\**\obj\**" />
+    <!-- XAML-based template -->
+    <Content Include="openmaui-linux-xaml-app\**\*" Exclude="openmaui-linux-xaml-app\**\bin\**;openmaui-linux-xaml-app\**\obj\**" />
     <Compile Remove="**\*" />
   </ItemGroup>
 

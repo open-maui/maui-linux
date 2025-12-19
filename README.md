@@ -27,14 +27,14 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 ### Installation
 
 ```bash
-# Install the template
+# Install the templates
 dotnet new install OpenMaui.Linux.Templates
 
-# Create a new project
-dotnet new openmaui-linux -n MyApp
-cd MyApp
+# Create a new project (choose one):
+dotnet new openmaui-linux -n MyApp           # Code-based UI
+dotnet new openmaui-linux-xaml -n MyApp      # XAML-based UI (recommended)
 
-# Run
+cd MyApp
 dotnet run
 ```
 
@@ -42,6 +42,32 @@ dotnet run
 
 ```bash
 dotnet add package OpenMaui.Controls.Linux --prerelease
+```
+
+## XAML Support
+
+OpenMaui fully supports standard .NET MAUI XAML syntax. Use the familiar XAML workflow:
+
+```xml
+<!-- MainPage.xaml -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="MyApp.MainPage">
+    <VerticalStackLayout>
+        <Label Text="Hello, OpenMaui!" FontSize="32" />
+        <Button Text="Click me" Clicked="OnButtonClicked" />
+        <Entry Placeholder="Enter text..." />
+        <Slider Minimum="0" Maximum="100" />
+    </VerticalStackLayout>
+</ContentPage>
+```
+
+```csharp
+// MauiProgram.cs
+var builder = MauiApp.CreateBuilder();
+builder
+    .UseMauiApp<App>()
+    .UseOpenMauiLinux();  // Enable Linux with XAML support
 ```
 
 ## Supported Controls

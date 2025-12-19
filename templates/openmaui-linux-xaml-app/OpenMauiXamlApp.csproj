@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OpenMauiXamlApp</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Enable XAML compilation -->
+    <EnableDefaultXamlItems>true</EnableDefaultXamlItems>
+
+    <!-- Linux Runtime -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- OpenMaui Linux Platform -->
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="1.0.0-preview.*" />
+
+    <!-- Core MAUI packages (includes XAML support) -->
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.*" />
+  </ItemGroup>
+
+  <!-- XAML Files -->
+  <ItemGroup>
+    <MauiXaml Update="**/*.xaml" />
+    <MauiXaml Update="App.xaml" />
+    <MauiXaml Update="MainPage.xaml" />
+  </ItemGroup>
+
+  <!-- Embedded Resources -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\**\*" />
+  </ItemGroup>
+
+</Project>
