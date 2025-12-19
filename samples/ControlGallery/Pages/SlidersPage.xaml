@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ControlGallery.Pages.SlidersPage"
+             Title="Sliders">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="20">
+
+            <Label Text="Slider Controls" FontSize="24" FontAttributes="Bold" />
+
+            <!-- Basic Slider -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Basic Slider" FontAttributes="Bold" />
+                    <Slider x:Name="BasicSlider" Minimum="0" Maximum="100" ValueChanged="OnSliderValueChanged" />
+                    <Label x:Name="SliderValueLabel" Text="Value: 0" TextColor="{StaticResource Gray500}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Styled Slider -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Styled Slider" FontAttributes="Bold" />
+                    <Slider Minimum="0" Maximum="100"
+                            MinimumTrackColor="#4CAF50"
+                            MaximumTrackColor="#E0E0E0"
+                            ThumbColor="#388E3C" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Stepper -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Stepper" FontAttributes="Bold" />
+                    <HorizontalStackLayout Spacing="15">
+                        <Stepper x:Name="MyStepper" Minimum="0" Maximum="10" Increment="1" ValueChanged="OnStepperValueChanged" />
+                        <Label x:Name="StepperValueLabel" Text="Value: 0" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Stepper with Custom Increment -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Stepper (Increment: 0.5)" FontAttributes="Bold" />
+                    <HorizontalStackLayout Spacing="15">
+                        <Stepper x:Name="DecimalStepper" Minimum="0" Maximum="5" Increment="0.5" ValueChanged="OnDecimalStepperValueChanged" />
+                        <Label x:Name="DecimalStepperLabel" Text="Value: 0.0" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Interactive Demo -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Interactive Demo" FontAttributes="Bold" />
+                    <Label Text="Adjust the slider to change the box size:" TextColor="{StaticResource Gray500}" />
+                    <Slider x:Name="SizeSlider" Minimum="50" Maximum="200" Value="100" ValueChanged="OnSizeSliderChanged" />
+                    <BoxView x:Name="DemoBox"
+                             WidthRequest="100"
+                             HeightRequest="100"
+                             Color="{StaticResource Primary}"
+                             HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

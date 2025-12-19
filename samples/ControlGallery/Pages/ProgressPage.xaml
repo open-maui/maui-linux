@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ControlGallery.Pages.ProgressPage"
+             Title="Progress">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="20">
+
+            <Label Text="Progress Controls" FontSize="24" FontAttributes="Bold" />
+
+            <!-- ProgressBar -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="ProgressBar" FontAttributes="Bold" />
+                    <ProgressBar x:Name="DemoProgress" Progress="0.5" />
+                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Button Text="0%" Clicked="OnProgress0" />
+                        <Button Text="50%" Clicked="OnProgress50" />
+                        <Button Text="100%" Clicked="OnProgress100" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Styled ProgressBars -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Styled ProgressBars" FontAttributes="Bold" />
+                    <ProgressBar Progress="0.3" ProgressColor="{StaticResource Primary}" />
+                    <ProgressBar Progress="0.6" ProgressColor="#4CAF50" />
+                    <ProgressBar Progress="0.9" ProgressColor="#FF5722" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ActivityIndicator -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="ActivityIndicator" FontAttributes="Bold" />
+                    <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
+                        <ActivityIndicator IsRunning="True" Color="{StaticResource Primary}" />
+                        <ActivityIndicator IsRunning="True" Color="#4CAF50" />
+                        <ActivityIndicator IsRunning="True" Color="#FF5722" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Controlled ActivityIndicator -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Controlled ActivityIndicator" FontAttributes="Bold" />
+                    <ActivityIndicator x:Name="ControlledIndicator" IsRunning="False" Color="{StaticResource Primary}" />
+                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Button Text="Start" Clicked="OnStartIndicator" />
+                        <Button Text="Stop" Clicked="OnStopIndicator" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Animated Progress Demo -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Animated Progress" FontAttributes="Bold" />
+                    <ProgressBar x:Name="AnimatedProgress" Progress="0" />
+                    <Button Text="Animate to 100%" Clicked="OnAnimateProgress" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Loading Overlay Demo -->
+            <Frame Padding="15" CornerRadius="8" BackgroundColor="{StaticResource Secondary}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Loading State Demo" FontAttributes="Bold" />
+                    <Grid>
+                        <VerticalStackLayout x:Name="ContentPanel">
+                            <Label Text="This is some content that can be loading..." />
+                            <Button Text="Show Loading" Clicked="OnShowLoading" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout x:Name="LoadingPanel" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center">
+                            <ActivityIndicator IsRunning="True" Color="{StaticResource Primary}" />
+                            <Label Text="Loading..." HorizontalOptions="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

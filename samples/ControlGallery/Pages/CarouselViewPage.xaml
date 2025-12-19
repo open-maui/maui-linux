@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ControlGallery.Pages.CarouselViewPage"
+             Title="CarouselView">
+
+    <VerticalStackLayout Spacing="20" Padding="20">
+
+        <Label Text="CarouselView" FontSize="24" FontAttributes="Bold" />
+        <Label Text="Swipe left or right to navigate" TextColor="{StaticResource Gray500}" />
+
+        <CarouselView x:Name="Carousel"
+                      HeightRequest="300"
+                      Loop="True"
+                      CurrentItemChanged="OnCurrentItemChanged">
+            <CarouselView.ItemTemplate>
+                <DataTemplate>
+                    <Frame Margin="20" Padding="0" CornerRadius="20" HasShadow="True">
+                        <Grid BackgroundColor="{Binding Color}">
+                            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10">
+                                <Label Text="{Binding Icon}"
+                                       FontSize="64"
+                                       HorizontalOptions="Center" />
+                                <Label Text="{Binding Title}"
+                                       FontSize="28"
+                                       FontAttributes="Bold"
+                                       TextColor="White"
+                                       HorizontalOptions="Center" />
+                                <Label Text="{Binding Description}"
+                                       FontSize="16"
+                                       TextColor="White"
+                                       Opacity="0.8"
+                                       HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CarouselView.ItemTemplate>
+        </CarouselView>
+
+        <IndicatorView x:Name="CarouselIndicator"
+                       HorizontalOptions="Center"
+                       IndicatorColor="{StaticResource Gray300}"
+                       SelectedIndicatorColor="{StaticResource Primary}" />
+
+        <Label x:Name="CurrentItemLabel"
+               Text="Slide 1 of 5"
+               HorizontalOptions="Center"
+               TextColor="{StaticResource Gray500}" />
+
+        <HorizontalStackLayout HorizontalOptions="Center" Spacing="20">
+            <Button Text="Previous" Clicked="OnPreviousClicked" />
+            <Button Text="Next" Clicked="OnNextClicked" />
+        </HorizontalStackLayout>
+
+    </VerticalStackLayout>
+
+</ContentPage>

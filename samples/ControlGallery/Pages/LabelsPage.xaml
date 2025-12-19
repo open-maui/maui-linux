@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ControlGallery.Pages.LabelsPage"
+             Title="Labels">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="20">
+
+            <Label Text="Label Controls" FontSize="24" FontAttributes="Bold" />
+
+            <!-- Font Sizes -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Font Sizes" FontAttributes="Bold" />
+                    <Label Text="Caption (12)" FontSize="12" />
+                    <Label Text="Body (14)" FontSize="14" />
+                    <Label Text="Subtitle (18)" FontSize="18" />
+                    <Label Text="Title (24)" FontSize="24" />
+                    <Label Text="Header (32)" FontSize="32" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Font Attributes -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Font Attributes" FontAttributes="Bold" />
+                    <Label Text="Normal Text" />
+                    <Label Text="Bold Text" FontAttributes="Bold" />
+                    <Label Text="Italic Text" FontAttributes="Italic" />
+                    <Label Text="Bold Italic" FontAttributes="Bold,Italic" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Text Colors -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Text Colors" FontAttributes="Bold" />
+                    <Label Text="Primary Color" TextColor="{StaticResource Primary}" />
+                    <Label Text="Tertiary Color" TextColor="{StaticResource Tertiary}" />
+                    <Label Text="Gray 500" TextColor="{StaticResource Gray500}" />
+                    <Label Text="Custom Red" TextColor="#FF5722" />
+                    <Label Text="Custom Green" TextColor="#4CAF50" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Text Alignment -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Text Alignment" FontAttributes="Bold" />
+                    <Label Text="Left Aligned" HorizontalTextAlignment="Start" BackgroundColor="{StaticResource Gray100}" />
+                    <Label Text="Center Aligned" HorizontalTextAlignment="Center" BackgroundColor="{StaticResource Gray100}" />
+                    <Label Text="Right Aligned" HorizontalTextAlignment="End" BackgroundColor="{StaticResource Gray100}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Text Decorations -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Text Decorations" FontAttributes="Bold" />
+                    <Label Text="Underlined Text" TextDecorations="Underline" />
+                    <Label Text="Strikethrough Text" TextDecorations="Strikethrough" />
+                    <Label Text="Both Decorations" TextDecorations="Underline,Strikethrough" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Line Break Modes -->
+            <Frame Padding="15" CornerRadius="8">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Line Break Modes" FontAttributes="Bold" />
+                    <Label Text="This is a long text that will wrap to multiple lines when it exceeds the available width."
+                           LineBreakMode="WordWrap" />
+                    <Label Text="This is truncated at the tail..."
+                           LineBreakMode="TailTruncation"
+                           MaxLines="1" />
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

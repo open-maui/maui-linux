@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ControlGallery.Pages.HomePage"
+             Title="OpenMaui Control Gallery">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="20" Padding="30">
+
+            <Label Text="OpenMaui"
+                   FontSize="48"
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource Primary}"
+                   HorizontalTextAlignment="Center" />
+
+            <Label Text="Control Gallery"
+                   FontSize="24"
+                   TextColor="{StaticResource Gray500}"
+                   HorizontalTextAlignment="Center" />
+
+            <BoxView HeightRequest="2" Color="{StaticResource Gray200}" Margin="0,10" />
+
+            <Label Text="Welcome to the OpenMaui Control Gallery! This sample app demonstrates all 35+ controls available in the OpenMaui Linux platform."
+                   FontSize="16"
+                   HorizontalTextAlignment="Center"
+                   LineBreakMode="WordWrap" />
+
+            <Frame BackgroundColor="{StaticResource Secondary}" Padding="20" CornerRadius="10">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Features" FontSize="20" FontAttributes="Bold" />
+                    <Label Text="• Full SkiaSharp rendering" />
+                    <Label Text="• X11 and Wayland support" />
+                    <Label Text="• AT-SPI2 accessibility" />
+                    <Label Text="• High DPI support" />
+                    <Label Text="• Platform services (clipboard, notifications, etc.)" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Label Text="Use the flyout menu to explore different control categories."
+                   FontSize="14"
+                   TextColor="{StaticResource Gray400}"
+                   HorizontalTextAlignment="Center" />
+
+            <Button Text="Get Started"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    CornerRadius="8"
+                    Clicked="OnGetStartedClicked" />
+
+            <Label Text="Developed by MarketAlly LLC"
+                   FontSize="12"
+                   TextColor="{StaticResource Gray400}"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,20,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

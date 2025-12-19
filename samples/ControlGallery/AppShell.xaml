@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:pages="clr-namespace:ControlGallery.Pages"
+       x:Class="ControlGallery.AppShell"
+       Title="OpenMaui Control Gallery">
+
+    <FlyoutItem Title="Home" Icon="home.png">
+        <ShellContent Title="Home" ContentTemplate="{DataTemplate pages:HomePage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Basic Controls" Icon="controls.png">
+        <ShellContent Title="Buttons" ContentTemplate="{DataTemplate pages:ButtonsPage}" />
+        <ShellContent Title="Labels" ContentTemplate="{DataTemplate pages:LabelsPage}" />
+        <ShellContent Title="Entry &amp; Editor" ContentTemplate="{DataTemplate pages:EntryPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Selection Controls" Icon="selection.png">
+        <ShellContent Title="Pickers" ContentTemplate="{DataTemplate pages:PickersPage}" />
+        <ShellContent Title="Sliders" ContentTemplate="{DataTemplate pages:SlidersPage}" />
+        <ShellContent Title="Toggles" ContentTemplate="{DataTemplate pages:TogglesPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Display Controls" Icon="display.png">
+        <ShellContent Title="Progress" ContentTemplate="{DataTemplate pages:ProgressPage}" />
+        <ShellContent Title="Images" ContentTemplate="{DataTemplate pages:ImagesPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Collections" Icon="list.png">
+        <ShellContent Title="CollectionView" ContentTemplate="{DataTemplate pages:CollectionViewPage}" />
+        <ShellContent Title="CarouselView" ContentTemplate="{DataTemplate pages:CarouselViewPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Gestures" Icon="gesture.png">
+        <ShellContent Title="SwipeView" ContentTemplate="{DataTemplate pages:SwipeViewPage}" />
+        <ShellContent Title="RefreshView" ContentTemplate="{DataTemplate pages:RefreshViewPage}" />
+    </FlyoutItem>
+
+</Shell>
