@@ -25,6 +25,7 @@
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
     <PackageReleaseNotes>Initial preview release with 35+ controls and full platform services.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
@@ -45,9 +46,10 @@
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.3" />
   </ItemGroup>
 
-  <!-- Include README in package -->
+  <!-- Include README and icon in package -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="assets/icon.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <!-- Exclude old handler files, samples, templates, and VSIX -->
