@@ -134,7 +134,16 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 - [API Reference](docs/API.md)
 - [Contributing Guide](CONTRIBUTING.md)
 
-## Sample Application
+## Sample Applications
+
+Full sample applications are available in the [maui-linux-samples](https://github.com/open-maui/maui-linux-samples) repository:
+
+| Sample | Description |
+|--------|-------------|
+| **[TodoApp](https://github.com/open-maui/maui-linux-samples/tree/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
+| **[ShellDemo](https://github.com/open-maui/maui-linux-samples/tree/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
+
+## Quick Example
 
 ```csharp
 using OpenMaui.Platform.Linux;
