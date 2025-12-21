@@ -20,7 +20,9 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             [nameof(IBorderView.Content)] = MapContent,
             [nameof(IBorderStroke.Stroke)] = MapStroke,
             [nameof(IBorderStroke.StrokeThickness)] = MapStrokeThickness,
+            ["StrokeShape"] = MapStrokeShape,  // StrokeShape is on Border, not IBorderStroke
             [nameof(IView.Background)] = MapBackground,
+            ["BackgroundColor"] = MapBackgroundColor,
             [nameof(IPadding.Padding)] = MapPadding,
         };
 
@@ -55,13 +57,25 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
 
     public static void MapContent(BorderHandler handler, IBorderView border)
     {
-        if (handler.PlatformView is null) return;
+        if (handler.PlatformView is null || handler.MauiContext is null) return;
 
         handler.PlatformView.ClearChildren();
 
-        if (border.PresentedContent?.Handler?.PlatformView is SkiaView skiaContent)
+        var content = border.PresentedContent;
+        if (content != null)
         {
-            handler.PlatformView.AddChild(skiaContent);
+            // Create handler for content if it doesn't exist
+            if (content.Handler == null)
+            {
+                Console.WriteLine($"[BorderHandler] Creating handler for content: {content.GetType().Name}");
+                content.Handler = content.ToHandler(handler.MauiContext);
+            }
+
+            if (content.Handler?.PlatformView is SkiaView skiaContent)
+            {
+                Console.WriteLine($"[BorderHandler] Adding content: {skiaContent.GetType().Name}");
+                handler.PlatformView.AddChild(skiaContent);
+            }
         }
     }
 
@@ -91,6 +105,17 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         }
     }
 
+    public static void MapBackgroundColor(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
     public static void MapPadding(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
@@ -100,5 +125,34 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.PaddingTop = (float)padding.Top;
         handler.PlatformView.PaddingRight = (float)padding.Right;
         handler.PlatformView.PaddingBottom = (float)padding.Bottom;
+    }
+
+    public static void MapStrokeShape(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        // StrokeShape is on the Border control class, not IBorderView interface
+        if (border is not Border borderControl) return;
+
+        var shape = borderControl.StrokeShape;
+        if (shape is Microsoft.Maui.Controls.Shapes.RoundRectangle roundRect)
+        {
+            // RoundRectangle can have different corner radii, but we use a uniform one
+            // Take the top-left corner as the uniform radius
+            var cornerRadius = roundRect.CornerRadius;
+            handler.PlatformView.CornerRadius = (float)cornerRadius.TopLeft;
+        }
+        else if (shape is Microsoft.Maui.Controls.Shapes.Rectangle)
+        {
+            handler.PlatformView.CornerRadius = 0;
+        }
+        else if (shape is Microsoft.Maui.Controls.Shapes.Ellipse)
+        {
+            // For ellipse, use half the min dimension as corner radius
+            // This will be applied during rendering when bounds are known
+            handler.PlatformView.CornerRadius = float.MaxValue; // Marker for "fully rounded"
+        }
+
+        handler.PlatformView.Invalidate();
     }
 }

@@ -15,6 +15,8 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// </summary>
 public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCollectionView>
 {
+    private bool _isUpdatingSelection;
+
     public static IPropertyMapper<CollectionView, CollectionViewHandler> Mapper =
         new PropertyMapper<CollectionView, CollectionViewHandler>(ViewHandler.ViewMapper)
         {
@@ -36,6 +38,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
             [nameof(StructuredItemsView.ItemsLayout)] = MapItemsLayout,
 
             [nameof(IView.Background)] = MapBackground,
+            [nameof(CollectionView.BackgroundColor)] = MapBackgroundColor,
         };
 
     public static CommandMapper<CollectionView, CollectionViewHandler> CommandMapper =
@@ -76,21 +79,34 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
     private void OnSelectionChanged(object? sender, CollectionSelectionChangedEventArgs e)
     {
-        if (VirtualView is null) return;
+        if (VirtualView is null || _isUpdatingSelection) return;
 
-        // Update virtual view selection
-        if (VirtualView.SelectionMode == SelectionMode.Single)
+        try
         {
-            VirtualView.SelectedItem = e.CurrentSelection.FirstOrDefault();
-        }
-        else if (VirtualView.SelectionMode == SelectionMode.Multiple)
-        {
-            // Clear and update selected items
-            VirtualView.SelectedItems.Clear();
-            foreach (var item in e.CurrentSelection)
+            _isUpdatingSelection = true;
+
+            // Update virtual view selection
+            if (VirtualView.SelectionMode == SelectionMode.Single)
             {
-                VirtualView.SelectedItems.Add(item);
+                var newItem = e.CurrentSelection.FirstOrDefault();
+                if (!Equals(VirtualView.SelectedItem, newItem))
+                {
+                    VirtualView.SelectedItem = newItem;
+                }
             }
+            else if (VirtualView.SelectionMode == SelectionMode.Multiple)
+            {
+                // Clear and update selected items
+                VirtualView.SelectedItems.Clear();
+                foreach (var item in e.CurrentSelection)
+                {
+                    VirtualView.SelectedItems.Add(item);
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
         }
     }
 
@@ -118,7 +134,65 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
     public static void MapItemTemplate(CollectionViewHandler handler, CollectionView collectionView)
     {
-        handler.PlatformView?.Invalidate();
+        if (handler.PlatformView is null || handler.MauiContext is null) return;
+
+        var template = collectionView.ItemTemplate;
+        if (template != null)
+        {
+            // Set up a renderer that creates views from the DataTemplate
+            handler.PlatformView.ItemViewCreator = (item) =>
+            {
+                try
+                {
+                    // Create view from template
+                    var content = template.CreateContent();
+                    if (content is View view)
+                    {
+                        // Set binding context FIRST so bindings evaluate
+                        view.BindingContext = item;
+
+                        // Force binding evaluation by accessing the visual tree
+                        // This ensures child bindings are evaluated before handler creation
+                        PropagateBindingContext(view, item);
+
+                        // Create handler for the view
+                        if (view.Handler == null && handler.MauiContext != null)
+                        {
+                            view.Handler = view.ToHandler(handler.MauiContext);
+                        }
+
+                        if (view.Handler?.PlatformView is SkiaView skiaView)
+                        {
+                            return skiaView;
+                        }
+                    }
+                    else if (content is ViewCell cell)
+                    {
+                        cell.BindingContext = item;
+                        var cellView = cell.View;
+                        if (cellView != null)
+                        {
+                            if (cellView.Handler == null && handler.MauiContext != null)
+                            {
+                                cellView.Handler = cellView.ToHandler(handler.MauiContext);
+                            }
+
+                            if (cellView.Handler?.PlatformView is SkiaView skiaView)
+                            {
+                                return skiaView;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore template creation errors
+                }
+                return null;
+            };
+        }
+
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapEmptyView(CollectionViewHandler handler, CollectionView collectionView)
@@ -146,19 +220,40 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
     public static void MapSelectedItem(CollectionViewHandler handler, CollectionView collectionView)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.SelectedItem = collectionView.SelectedItem;
+        if (handler.PlatformView is null || handler._isUpdatingSelection) return;
+
+        try
+        {
+            handler._isUpdatingSelection = true;
+            if (!Equals(handler.PlatformView.SelectedItem, collectionView.SelectedItem))
+            {
+                handler.PlatformView.SelectedItem = collectionView.SelectedItem;
+            }
+        }
+        finally
+        {
+            handler._isUpdatingSelection = false;
+        }
     }
 
     public static void MapSelectedItems(CollectionViewHandler handler, CollectionView collectionView)
     {
-        if (handler.PlatformView is null) return;
+        if (handler.PlatformView is null || handler._isUpdatingSelection) return;
 
-        // Sync selected items
-        var selectedItems = collectionView.SelectedItems;
-        if (selectedItems != null && selectedItems.Count > 0)
+        try
         {
-            handler.PlatformView.SelectedItem = selectedItems.First();
+            handler._isUpdatingSelection = true;
+
+            // Sync selected items
+            var selectedItems = collectionView.SelectedItems;
+            if (selectedItems != null && selectedItems.Count > 0)
+            {
+                handler.PlatformView.SelectedItem = selectedItems.First();
+            }
+        }
+        finally
+        {
+            handler._isUpdatingSelection = false;
         }
     }
 
@@ -214,9 +309,23 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
     {
         if (handler.PlatformView is null) return;
 
+        // Don't override if BackgroundColor is explicitly set
+        if (collectionView.BackgroundColor is not null)
+            return;
+
         if (collectionView.Background is SolidColorBrush solidBrush)
         {
             handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+        }
+    }
+
+    public static void MapBackgroundColor(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (collectionView.BackgroundColor is not null)
+        {
+            handler.PlatformView.BackgroundColor = collectionView.BackgroundColor.ToSKColor();
         }
     }
 
@@ -232,6 +341,34 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
         else if (scrollArgs.Item != null)
         {
             handler.PlatformView.ScrollToItem(scrollArgs.Item, scrollArgs.IsAnimated);
+        }
+    }
+
+    /// <summary>
+    /// Recursively propagates binding context to all child views to force binding evaluation.
+    /// </summary>
+    private static void PropagateBindingContext(View view, object? bindingContext)
+    {
+        view.BindingContext = bindingContext;
+
+        // Propagate to children
+        if (view is Layout layout)
+        {
+            foreach (var child in layout.Children)
+            {
+                if (child is View childView)
+                {
+                    PropagateBindingContext(childView, bindingContext);
+                }
+            }
+        }
+        else if (view is ContentView contentView && contentView.Content != null)
+        {
+            PropagateBindingContext(contentView.Content, bindingContext);
+        }
+        else if (view is Border border && border.Content is View borderContent)
+        {
+            PropagateBindingContext(borderContent, bindingContext);
         }
     }
 }

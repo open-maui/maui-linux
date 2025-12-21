@@ -6,45 +6,236 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered slider control.
+/// Skia-rendered slider control with full XAML styling support.
 /// </summary>
 public class SkiaSlider : SkiaView
 {
-    private bool _isDragging;
-    private double _value;
+    #region BindableProperties
 
-    public double Minimum { get; set; } = 0;
-    public double Maximum { get; set; } = 100;
+    /// <summary>
+    /// Bindable property for Minimum.
+    /// </summary>
+    public static readonly BindableProperty MinimumProperty =
+        BindableProperty.Create(
+            nameof(Minimum),
+            typeof(double),
+            typeof(SkiaSlider),
+            0.0,
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).OnRangeChanged());
 
-    public double Value
+    /// <summary>
+    /// Bindable property for Maximum.
+    /// </summary>
+    public static readonly BindableProperty MaximumProperty =
+        BindableProperty.Create(
+            nameof(Maximum),
+            typeof(double),
+            typeof(SkiaSlider),
+            100.0,
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).OnRangeChanged());
+
+    /// <summary>
+    /// Bindable property for Value.
+    /// </summary>
+    public static readonly BindableProperty ValueProperty =
+        BindableProperty.Create(
+            nameof(Value),
+            typeof(double),
+            typeof(SkiaSlider),
+            0.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).OnValuePropertyChanged((double)o, (double)n));
+
+    /// <summary>
+    /// Bindable property for TrackColor.
+    /// </summary>
+    public static readonly BindableProperty TrackColorProperty =
+        BindableProperty.Create(
+            nameof(TrackColor),
+            typeof(SKColor),
+            typeof(SkiaSlider),
+            new SKColor(0xE0, 0xE0, 0xE0),
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ActiveTrackColor.
+    /// </summary>
+    public static readonly BindableProperty ActiveTrackColorProperty =
+        BindableProperty.Create(
+            nameof(ActiveTrackColor),
+            typeof(SKColor),
+            typeof(SkiaSlider),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ThumbColor.
+    /// </summary>
+    public static readonly BindableProperty ThumbColorProperty =
+        BindableProperty.Create(
+            nameof(ThumbColor),
+            typeof(SKColor),
+            typeof(SkiaSlider),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for DisabledColor.
+    /// </summary>
+    public static readonly BindableProperty DisabledColorProperty =
+        BindableProperty.Create(
+            nameof(DisabledColor),
+            typeof(SKColor),
+            typeof(SkiaSlider),
+            new SKColor(0xBD, 0xBD, 0xBD),
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for TrackHeight.
+    /// </summary>
+    public static readonly BindableProperty TrackHeightProperty =
+        BindableProperty.Create(
+            nameof(TrackHeight),
+            typeof(float),
+            typeof(SkiaSlider),
+            4f,
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ThumbRadius.
+    /// </summary>
+    public static readonly BindableProperty ThumbRadiusProperty =
+        BindableProperty.Create(
+            nameof(ThumbRadius),
+            typeof(float),
+            typeof(SkiaSlider),
+            10f,
+            propertyChanged: (b, o, n) => ((SkiaSlider)b).InvalidateMeasure());
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// Gets or sets the minimum value.
+    /// </summary>
+    public double Minimum
     {
-        get => _value;
-        set
-        {
-            var clamped = Math.Clamp(value, Minimum, Maximum);
-            if (_value != clamped)
-            {
-                _value = clamped;
-                ValueChanged?.Invoke(this, new SliderValueChangedEventArgs(_value));
-                Invalidate();
-            }
-        }
+        get => (double)GetValue(MinimumProperty);
+        set => SetValue(MinimumProperty, value);
     }
 
-    public SKColor TrackColor { get; set; } = new SKColor(0xE0, 0xE0, 0xE0);
-    public SKColor ActiveTrackColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public SKColor ThumbColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public SKColor DisabledColor { get; set; } = new SKColor(0xBD, 0xBD, 0xBD);
-    public float TrackHeight { get; set; } = 4;
-    public float ThumbRadius { get; set; } = 10;
+    /// <summary>
+    /// Gets or sets the maximum value.
+    /// </summary>
+    public double Maximum
+    {
+        get => (double)GetValue(MaximumProperty);
+        set => SetValue(MaximumProperty, value);
+    }
 
+    /// <summary>
+    /// Gets or sets the current value.
+    /// </summary>
+    public double Value
+    {
+        get => (double)GetValue(ValueProperty);
+        set => SetValue(ValueProperty, Math.Clamp(value, Minimum, Maximum));
+    }
+
+    /// <summary>
+    /// Gets or sets the track color.
+    /// </summary>
+    public SKColor TrackColor
+    {
+        get => (SKColor)GetValue(TrackColorProperty);
+        set => SetValue(TrackColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the active track color.
+    /// </summary>
+    public SKColor ActiveTrackColor
+    {
+        get => (SKColor)GetValue(ActiveTrackColorProperty);
+        set => SetValue(ActiveTrackColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the thumb color.
+    /// </summary>
+    public SKColor ThumbColor
+    {
+        get => (SKColor)GetValue(ThumbColorProperty);
+        set => SetValue(ThumbColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the disabled color.
+    /// </summary>
+    public SKColor DisabledColor
+    {
+        get => (SKColor)GetValue(DisabledColorProperty);
+        set => SetValue(DisabledColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the track height.
+    /// </summary>
+    public float TrackHeight
+    {
+        get => (float)GetValue(TrackHeightProperty);
+        set => SetValue(TrackHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the thumb radius.
+    /// </summary>
+    public float ThumbRadius
+    {
+        get => (float)GetValue(ThumbRadiusProperty);
+        set => SetValue(ThumbRadiusProperty, value);
+    }
+
+    #endregion
+
+    private bool _isDragging;
+
+    /// <summary>
+    /// Event raised when the value changes.
+    /// </summary>
     public event EventHandler<SliderValueChangedEventArgs>? ValueChanged;
+
+    /// <summary>
+    /// Event raised when drag starts.
+    /// </summary>
     public event EventHandler? DragStarted;
+
+    /// <summary>
+    /// Event raised when drag completes.
+    /// </summary>
     public event EventHandler? DragCompleted;
 
     public SkiaSlider()
     {
         IsFocusable = true;
+    }
+
+    private void OnRangeChanged()
+    {
+        // Clamp value to new range
+        var clamped = Math.Clamp(Value, Minimum, Maximum);
+        if (Value != clamped)
+        {
+            Value = clamped;
+        }
+        Invalidate();
+    }
+
+    private void OnValuePropertyChanged(double oldValue, double newValue)
+    {
+        ValueChanged?.Invoke(this, new SliderValueChangedEventArgs(newValue));
+        Invalidate();
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -54,7 +245,7 @@ public class SkiaSlider : SkiaView
         var trackRight = bounds.Right - ThumbRadius;
         var trackWidth = trackRight - trackLeft;
 
-        var percentage = (Value - Minimum) / (Maximum - Minimum);
+        var percentage = Maximum > Minimum ? (Value - Minimum) / (Maximum - Minimum) : 0;
         var thumbX = trackLeft + (float)(percentage * trackWidth);
 
         // Draw inactive track
@@ -127,6 +318,7 @@ public class SkiaSlider : SkiaView
         _isDragging = true;
         UpdateValueFromPosition(e.X);
         DragStarted?.Invoke(this, EventArgs.Empty);
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
     }
 
     public override void OnPointerMoved(PointerEventArgs e)
@@ -141,6 +333,7 @@ public class SkiaSlider : SkiaView
         {
             _isDragging = false;
             DragCompleted?.Invoke(this, EventArgs.Empty);
+            SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
         }
     }
 
@@ -183,12 +376,21 @@ public class SkiaSlider : SkiaView
         }
     }
 
+    protected override void OnEnabledChanged()
+    {
+        base.OnEnabledChanged();
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+    }
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         return new SKSize(200, ThumbRadius * 2 + 16);
     }
 }
 
+/// <summary>
+/// Event args for slider value changed events.
+/// </summary>
 public class SliderValueChangedEventArgs : EventArgs
 {
     public double NewValue { get; }

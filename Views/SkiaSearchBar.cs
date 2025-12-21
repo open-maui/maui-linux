@@ -55,9 +55,11 @@ public class SkiaSearchBar : SkiaView
         _entry = new SkiaEntry
         {
             Placeholder = "Search...",
+            EntryBackgroundColor = SKColors.Transparent,
             BackgroundColor = SKColors.Transparent,
             BorderColor = SKColors.Transparent,
-            FocusedBorderColor = SKColors.Transparent
+            FocusedBorderColor = SKColors.Transparent,
+            BorderWidth = 0
         };
 
         _entry.TextChanged += (s, e) =>
@@ -193,10 +195,22 @@ public class SkiaSearchBar : SkiaView
             return;
         }
 
-        // Forward to entry for text input focus
+        // Forward to entry for text input focus and selection
         _entry.IsFocused = true;
         IsFocused = true;
+        _entry.OnPointerPressed(e);
         Invalidate();
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        if (!IsEnabled) return;
+        _entry.OnPointerMoved(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        _entry.OnPointerReleased(e);
     }
 
     public override void OnTextInput(TextInputEventArgs e)

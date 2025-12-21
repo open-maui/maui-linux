@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Maui.ApplicationModel;
@@ -8,9 +9,11 @@ using Microsoft.Maui.ApplicationModel.Communication;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Platform.Linux.Converters;
 using Microsoft.Maui.Storage;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Controls;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
@@ -47,57 +50,87 @@ public static class LinuxMauiAppBuilderExtensions
         builder.Services.TryAddSingleton<IBrowser, BrowserService>();
         builder.Services.TryAddSingleton<IEmail, EmailService>();
 
+        // Register type converters for XAML support
+        RegisterTypeConverters();
+
         // Register Linux-specific handlers
         builder.ConfigureMauiHandlers(handlers =>
         {
-            // Phase 1 - MVP controls
-            handlers.AddHandler<IButton, ButtonHandler>();
-            handlers.AddHandler<ILabel, LabelHandler>();
-            handlers.AddHandler<IEntry, EntryHandler>();
-            handlers.AddHandler<ICheckBox, CheckBoxHandler>();
-            handlers.AddHandler<ILayout, LayoutHandler>();
-            handlers.AddHandler<IStackLayout, StackLayoutHandler>();
-            handlers.AddHandler<IGridLayout, GridHandler>();
+            // Application handler
+            handlers.AddHandler<IApplication, ApplicationHandler>();
 
-            // Phase 2 - Input controls
-            handlers.AddHandler<ISlider, SliderHandler>();
-            handlers.AddHandler<ISwitch, SwitchHandler>();
-            handlers.AddHandler<IProgress, ProgressBarHandler>();
-            handlers.AddHandler<IActivityIndicator, ActivityIndicatorHandler>();
-            handlers.AddHandler<ISearchBar, SearchBarHandler>();
+            // Core controls
+            handlers.AddHandler<BoxView, BoxViewHandler>();
+            handlers.AddHandler<Button, TextButtonHandler>();
+            handlers.AddHandler<Label, LabelHandler>();
+            handlers.AddHandler<Entry, EntryHandler>();
+            handlers.AddHandler<Editor, EditorHandler>();
+            handlers.AddHandler<CheckBox, CheckBoxHandler>();
+            handlers.AddHandler<Switch, SwitchHandler>();
+            handlers.AddHandler<Slider, SliderHandler>();
+            handlers.AddHandler<Stepper, StepperHandler>();
+            handlers.AddHandler<RadioButton, RadioButtonHandler>();
 
-            // Phase 2 - Image & Graphics
-            handlers.AddHandler<IImage, ImageHandler>();
-            handlers.AddHandler<IImageButton, ImageButtonHandler>();
-            handlers.AddHandler<IGraphicsView, GraphicsViewHandler>();
+            // Layout controls
+            handlers.AddHandler<Grid, GridHandler>();
+            handlers.AddHandler<StackLayout, StackLayoutHandler>();
+            handlers.AddHandler<VerticalStackLayout, StackLayoutHandler>();
+            handlers.AddHandler<HorizontalStackLayout, StackLayoutHandler>();
+            handlers.AddHandler<AbsoluteLayout, LayoutHandler>();
+            handlers.AddHandler<FlexLayout, LayoutHandler>();
+            handlers.AddHandler<ScrollView, ScrollViewHandler>();
+            handlers.AddHandler<Frame, FrameHandler>();
+            handlers.AddHandler<Border, BorderHandler>();
+            handlers.AddHandler<ContentView, BorderHandler>();
 
-            // Phase 3 - Collection Views
+            // Picker controls
+            handlers.AddHandler<Picker, PickerHandler>();
+            handlers.AddHandler<DatePicker, DatePickerHandler>();
+            handlers.AddHandler<TimePicker, TimePickerHandler>();
+            handlers.AddHandler<SearchBar, SearchBarHandler>();
+
+            // Progress & Activity
+            handlers.AddHandler<ProgressBar, ProgressBarHandler>();
+            handlers.AddHandler<ActivityIndicator, ActivityIndicatorHandler>();
+
+            // Image & Graphics
+            handlers.AddHandler<Image, ImageHandler>();
+            handlers.AddHandler<ImageButton, ImageButtonHandler>();
+            handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
+
+            // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
+            handlers.AddHandler<ListView, CollectionViewHandler>();
 
-            // Phase 4 - Pages & Navigation
+            // Pages & Navigation
             handlers.AddHandler<Page, PageHandler>();
             handlers.AddHandler<ContentPage, ContentPageHandler>();
             handlers.AddHandler<NavigationPage, NavigationPageHandler>();
+            handlers.AddHandler<Shell, ShellHandler>();
+            handlers.AddHandler<FlyoutPage, FlyoutPageHandler>();
+            handlers.AddHandler<TabbedPage, TabbedPageHandler>();
 
-            // Phase 5 - Advanced Controls
-            handlers.AddHandler<IPicker, PickerHandler>();
-            handlers.AddHandler<IDatePicker, DatePickerHandler>();
-            handlers.AddHandler<ITimePicker, TimePickerHandler>();
-            handlers.AddHandler<IEditor, EditorHandler>();
-
-            // Phase 7 - Additional Controls
-            handlers.AddHandler<IStepper, StepperHandler>();
-            handlers.AddHandler<IRadioButton, RadioButtonHandler>();
-            handlers.AddHandler<IBorderView, BorderHandler>();
-
-            // Window handler
-            handlers.AddHandler<IWindow, WindowHandler>();
+            // Application & Window
+            handlers.AddHandler<Application, ApplicationHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Window, WindowHandler>();
         });
 
         // Store options for later use
         builder.Services.AddSingleton(options);
 
         return builder;
+    }
+
+    /// <summary>
+    /// Registers custom type converters for Linux platform.
+    /// </summary>
+    private static void RegisterTypeConverters()
+    {
+        // Register SkiaSharp type converters for XAML styling support
+        TypeDescriptor.AddAttributes(typeof(SKColor), new TypeConverterAttribute(typeof(SKColorTypeConverter)));
+        TypeDescriptor.AddAttributes(typeof(SKRect), new TypeConverterAttribute(typeof(SKRectTypeConverter)));
+        TypeDescriptor.AddAttributes(typeof(SKSize), new TypeConverterAttribute(typeof(SKSizeTypeConverter)));
+        TypeDescriptor.AddAttributes(typeof(SKPoint), new TypeConverterAttribute(typeof(SKPointTypeConverter)));
     }
 }
 

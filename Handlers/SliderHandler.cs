@@ -22,6 +22,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         [nameof(ISlider.MaximumTrackColor)] = MapMaximumTrackColor,
         [nameof(ISlider.ThumbColor)] = MapThumbColor,
         [nameof(IView.Background)] = MapBackground,
+        [nameof(IView.IsEnabled)] = MapIsEnabled,
     };
 
     public static CommandMapper<ISlider, SliderHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -48,6 +49,15 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         platformView.ValueChanged += OnValueChanged;
         platformView.DragStarted += OnDragStarted;
         platformView.DragCompleted += OnDragCompleted;
+
+        // Sync properties that may have been set before handler connection
+        if (VirtualView != null)
+        {
+            MapMinimum(this, VirtualView);
+            MapMaximum(this, VirtualView);
+            MapValue(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
     }
 
     protected override void DisconnectHandler(SkiaSlider platformView)
@@ -132,5 +142,12 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapIsEnabled(SliderHandler handler, ISlider slider)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = slider.IsEnabled;
+        handler.PlatformView.Invalidate();
     }
 }

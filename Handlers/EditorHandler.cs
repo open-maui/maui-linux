@@ -31,6 +31,7 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
             [nameof(IEditor.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
             [nameof(IEditor.VerticalTextAlignment)] = MapVerticalTextAlignment,
             [nameof(IView.Background)] = MapBackground,
+            ["BackgroundColor"] = MapBackgroundColor,
         };
 
     public static CommandMapper<IEditor, EditorHandler> CommandMapper =
@@ -82,6 +83,7 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Text = editor.Text ?? "";
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapPlaceholder(EditorHandler handler, IEditor editor)
@@ -163,6 +165,17 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
         if (editor.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+        }
+    }
+
+    public static void MapBackgroundColor(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (editor is VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
         }
     }
 }

@@ -6,37 +6,168 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered activity indicator (spinner) control.
+/// Skia-rendered activity indicator (spinner) control with full XAML styling support.
 /// </summary>
 public class SkiaActivityIndicator : SkiaView
 {
-    private bool _isRunning;
+    #region BindableProperties
+
+    /// <summary>
+    /// Bindable property for IsRunning.
+    /// </summary>
+    public static readonly BindableProperty IsRunningProperty =
+        BindableProperty.Create(
+            nameof(IsRunning),
+            typeof(bool),
+            typeof(SkiaActivityIndicator),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).OnIsRunningChanged());
+
+    /// <summary>
+    /// Bindable property for Color.
+    /// </summary>
+    public static readonly BindableProperty ColorProperty =
+        BindableProperty.Create(
+            nameof(Color),
+            typeof(SKColor),
+            typeof(SkiaActivityIndicator),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for DisabledColor.
+    /// </summary>
+    public static readonly BindableProperty DisabledColorProperty =
+        BindableProperty.Create(
+            nameof(DisabledColor),
+            typeof(SKColor),
+            typeof(SkiaActivityIndicator),
+            new SKColor(0xBD, 0xBD, 0xBD),
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Size.
+    /// </summary>
+    public static readonly BindableProperty SizeProperty =
+        BindableProperty.Create(
+            nameof(Size),
+            typeof(float),
+            typeof(SkiaActivityIndicator),
+            32f,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for StrokeWidth.
+    /// </summary>
+    public static readonly BindableProperty StrokeWidthProperty =
+        BindableProperty.Create(
+            nameof(StrokeWidth),
+            typeof(float),
+            typeof(SkiaActivityIndicator),
+            3f,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for RotationSpeed.
+    /// </summary>
+    public static readonly BindableProperty RotationSpeedProperty =
+        BindableProperty.Create(
+            nameof(RotationSpeed),
+            typeof(float),
+            typeof(SkiaActivityIndicator),
+            360f);
+
+    /// <summary>
+    /// Bindable property for ArcCount.
+    /// </summary>
+    public static readonly BindableProperty ArcCountProperty =
+        BindableProperty.Create(
+            nameof(ArcCount),
+            typeof(int),
+            typeof(SkiaActivityIndicator),
+            12,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// Gets or sets whether the indicator is running.
+    /// </summary>
+    public bool IsRunning
+    {
+        get => (bool)GetValue(IsRunningProperty);
+        set => SetValue(IsRunningProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the indicator color.
+    /// </summary>
+    public SKColor Color
+    {
+        get => (SKColor)GetValue(ColorProperty);
+        set => SetValue(ColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the disabled color.
+    /// </summary>
+    public SKColor DisabledColor
+    {
+        get => (SKColor)GetValue(DisabledColorProperty);
+        set => SetValue(DisabledColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the indicator size.
+    /// </summary>
+    public float Size
+    {
+        get => (float)GetValue(SizeProperty);
+        set => SetValue(SizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the stroke width.
+    /// </summary>
+    public float StrokeWidth
+    {
+        get => (float)GetValue(StrokeWidthProperty);
+        set => SetValue(StrokeWidthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the rotation speed in degrees per second.
+    /// </summary>
+    public float RotationSpeed
+    {
+        get => (float)GetValue(RotationSpeedProperty);
+        set => SetValue(RotationSpeedProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the number of arcs.
+    /// </summary>
+    public int ArcCount
+    {
+        get => (int)GetValue(ArcCountProperty);
+        set => SetValue(ArcCountProperty, value);
+    }
+
+    #endregion
+
     private float _rotationAngle;
     private DateTime _lastUpdateTime = DateTime.UtcNow;
 
-    public bool IsRunning
+    private void OnIsRunningChanged()
     {
-        get => _isRunning;
-        set
+        if (IsRunning)
         {
-            if (_isRunning != value)
-            {
-                _isRunning = value;
-                if (value)
-                {
-                    _lastUpdateTime = DateTime.UtcNow;
-                }
-                Invalidate();
-            }
+            _lastUpdateTime = DateTime.UtcNow;
         }
+        Invalidate();
     }
-
-    public SKColor Color { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public SKColor DisabledColor { get; set; } = new SKColor(0xBD, 0xBD, 0xBD);
-    public float Size { get; set; } = 32;
-    public float StrokeWidth { get; set; } = 3;
-    public float RotationSpeed { get; set; } = 360; // Degrees per second
-    public int ArcCount { get; set; } = 12;
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {

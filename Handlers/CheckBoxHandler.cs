@@ -18,6 +18,8 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
         [nameof(ICheckBox.IsChecked)] = MapIsChecked,
         [nameof(ICheckBox.Foreground)] = MapForeground,
         [nameof(IView.Background)] = MapBackground,
+        [nameof(IView.VerticalLayoutAlignment)] = MapVerticalLayoutAlignment,
+        [nameof(IView.HorizontalLayoutAlignment)] = MapHorizontalLayoutAlignment,
     };
 
     public static CommandMapper<ICheckBox, CheckBoxHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -82,5 +84,33 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapVerticalLayoutAlignment(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.VerticalOptions = checkBox.VerticalLayoutAlignment switch
+        {
+            Primitives.LayoutAlignment.Start => LayoutOptions.Start,
+            Primitives.LayoutAlignment.Center => LayoutOptions.Center,
+            Primitives.LayoutAlignment.End => LayoutOptions.End,
+            Primitives.LayoutAlignment.Fill => LayoutOptions.Fill,
+            _ => LayoutOptions.Fill
+        };
+    }
+
+    public static void MapHorizontalLayoutAlignment(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.HorizontalOptions = checkBox.HorizontalLayoutAlignment switch
+        {
+            Primitives.LayoutAlignment.Start => LayoutOptions.Start,
+            Primitives.LayoutAlignment.Center => LayoutOptions.Center,
+            Primitives.LayoutAlignment.End => LayoutOptions.End,
+            Primitives.LayoutAlignment.Fill => LayoutOptions.Fill,
+            _ => LayoutOptions.Start
+        };
     }
 }

@@ -4,37 +4,149 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
+/// <summary>
+/// Entry point for running MAUI applications on Linux.
+/// </summary>
 public static class LinuxProgramHost
 {
+    /// <summary>
+    /// Runs the MAUI application on Linux.
+    /// </summary>
+    /// <typeparam name="TApp">The application type.</typeparam>
+    /// <param name="args">Command line arguments.</param>
     public static void Run<TApp>(string[] args) where TApp : class, IApplication, new()
     {
         Run<TApp>(args, null);
     }
 
+    /// <summary>
+    /// Runs the MAUI application on Linux with additional configuration.
+    /// </summary>
+    /// <typeparam name="TApp">The application type.</typeparam>
+    /// <param name="args">Command line arguments.</param>
+    /// <param name="configure">Optional builder configuration action.</param>
     public static void Run<TApp>(string[] args, Action<MauiAppBuilder>? configure) where TApp : class, IApplication, new()
     {
+        // Build the MAUI application
         var builder = MauiApp.CreateBuilder();
         builder.UseLinux();
         configure?.Invoke(builder);
         builder.UseMauiApp<TApp>();
         var mauiApp = builder.Build();
 
+        // Get application options
         var options = mauiApp.Services.GetService<LinuxApplicationOptions>()
                      ?? new LinuxApplicationOptions();
         ParseCommandLineOptions(args, options);
 
+        // Create Linux application
         using var linuxApp = new LinuxApplication();
         linuxApp.Initialize(options);
 
-        // Create comprehensive demo UI with ALL controls
-        var rootView = CreateComprehensiveDemo();
-        linuxApp.RootView = rootView;
+        // Create MAUI context
+        var mauiContext = new LinuxMauiContext(mauiApp.Services, linuxApp);
 
+        // Get the MAUI application instance
+        var application = mauiApp.Services.GetService<IApplication>();
+
+        // Ensure Application.Current is set - required for Shell.Current to work
+        if (application is Application app && Application.Current == null)
+        {
+            // Use reflection to set Current since it has a protected setter
+            var currentProperty = typeof(Application).GetProperty("Current");
+            currentProperty?.SetValue(null, app);
+        }
+
+        // Try to render the application's main page
+        SkiaView? rootView = null;
+
+        if (application != null)
+        {
+            rootView = RenderApplication(application, mauiContext, options);
+        }
+
+        // Fallback to demo if no application view is available
+        if (rootView == null)
+        {
+            Console.WriteLine("No application page found. Showing demo UI.");
+            rootView = CreateDemoView();
+        }
+
+        linuxApp.RootView = rootView;
         linuxApp.Run();
+    }
+
+    /// <summary>
+    /// Renders the MAUI application and returns the root SkiaView.
+    /// </summary>
+    private static SkiaView? RenderApplication(IApplication application, LinuxMauiContext mauiContext, LinuxApplicationOptions options)
+    {
+        try
+        {
+            // For Applications, we need to create a window
+            if (application is Application app)
+            {
+                Page? mainPage = app.MainPage;
+
+                // If no MainPage set, check for windows
+                if (mainPage == null && application.Windows.Count > 0)
+                {
+                    var existingWindow = application.Windows[0];
+                    if (existingWindow.Content is Page page)
+                    {
+                        mainPage = page;
+                    }
+                }
+
+                if (mainPage != null)
+                {
+                    // Create a MAUI Window and add it to the application
+                    // This ensures Shell.Current works properly (it reads from Application.Current.Windows[0].Page)
+                    if (app.Windows.Count == 0)
+                    {
+                        var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
+
+                        // Try OpenWindow first
+                        app.OpenWindow(mauiWindow);
+
+                        // If that didn't work, use reflection to add directly to _windows
+                        if (app.Windows.Count == 0)
+                        {
+                            var windowsField = typeof(Application).GetField("_windows",
+                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                            if (windowsField?.GetValue(app) is System.Collections.IList windowsList)
+                            {
+                                windowsList.Add(mauiWindow);
+                            }
+                        }
+                    }
+
+                    return RenderPage(mainPage, mauiContext);
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error rendering application: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Renders a MAUI Page to a SkiaView.
+    /// </summary>
+    private static SkiaView? RenderPage(Page page, LinuxMauiContext mauiContext)
+    {
+        var renderer = new LinuxViewRenderer(mauiContext);
+        return renderer.RenderPage(page);
     }
 
     private static void ParseCommandLineOptions(string[] args, LinuxApplicationOptions options)
@@ -54,15 +166,22 @@ public static class LinuxProgramHost
                     options.Height = h;
                     i++;
                     break;
+                case "--demo":
+                    // Force demo mode
+                    options.ForceDemo = true;
+                    break;
             }
         }
     }
 
-    private static SkiaView CreateComprehensiveDemo()
+    /// <summary>
+    /// Creates a demo view showcasing all controls.
+    /// </summary>
+    public static SkiaView CreateDemoView()
     {
         // Create scrollable container
         var scroll = new SkiaScrollView();
-        
+
         var root = new SkiaStackLayout
         {
             Orientation = StackOrientation.Vertical,
@@ -72,18 +191,18 @@ public static class LinuxProgramHost
         root.Padding = new SKRect(20, 20, 20, 20);
 
         // ========== TITLE ==========
-        root.AddChild(new SkiaLabel 
-        { 
-            Text = "MAUI Linux Control Demo", 
-            FontSize = 28, 
+        root.AddChild(new SkiaLabel
+        {
+            Text = "OpenMaui Linux Control Demo",
+            FontSize = 28,
             TextColor = new SKColor(0x1A, 0x23, 0x7E),
             IsBold = true
         });
-        root.AddChild(new SkiaLabel 
-        { 
-            Text = "All controls rendered using SkiaSharp on X11", 
-            FontSize = 14, 
-            TextColor = SKColors.Gray 
+        root.AddChild(new SkiaLabel
+        {
+            Text = "All controls rendered using SkiaSharp on X11",
+            FontSize = 14,
+            TextColor = SKColors.Gray
         });
 
         // ========== LABELS SECTION ==========
@@ -100,7 +219,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Buttons"));
         var buttonSection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
-        
+
         var btnPrimary = new SkiaButton { Text = "Primary", FontSize = 14 };
         btnPrimary.BackgroundColor = new SKColor(0x21, 0x96, 0xF3);
         btnPrimary.TextColor = SKColors.White;
@@ -117,7 +236,7 @@ public static class LinuxProgramHost
         btnDanger.BackgroundColor = new SKColor(0xF4, 0x43, 0x36);
         btnDanger.TextColor = SKColors.White;
         buttonSection.AddChild(btnDanger);
-        
+
         root.AddChild(buttonSection);
 
         // ========== ENTRY SECTION ==========
@@ -139,9 +258,9 @@ public static class LinuxProgramHost
         // ========== EDITOR SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Editor (Multi-line)"));
-        var editor = new SkiaEditor 
-        { 
-            Placeholder = "Enter multiple lines of text...", 
+        var editor = new SkiaEditor
+        {
+            Placeholder = "Enter multiple lines of text...",
             FontSize = 14,
             BackgroundColor = SKColors.White
         };
@@ -277,7 +396,7 @@ public static class LinuxProgramHost
         };
         collectionView.ItemsSource =(new object[] { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape", "Honeydew" });
         var collectionLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = SKColors.Gray };
-        collectionView.SelectionChanged += (s, e) => 
+        collectionView.SelectionChanged += (s, e) =>
         {
             var selected = e.CurrentSelection.FirstOrDefault();
             collectionLabel.Text = $"Selected: {selected}";
@@ -289,7 +408,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("ImageButton"));
         var imageButtonSection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
-        
+
         // Create ImageButton with a generated icon (since we don't have image files)
         var imgBtn = new SkiaImageButton
         {
@@ -315,7 +434,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Image"));
         var imageSection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
-        
+
         // Create Image with a generated sample image
         var img = new SkiaImage();
         var sampleBitmap = CreateSampleImage(80, 60);
@@ -326,17 +445,17 @@ public static class LinuxProgramHost
 
         // ========== FOOTER ==========
         root.AddChild(CreateSeparator());
-        root.AddChild(new SkiaLabel 
-        { 
-            Text = "All 25+ controls are interactive - try them all!", 
-            FontSize = 16, 
+        root.AddChild(new SkiaLabel
+        {
+            Text = "All 25+ controls are interactive - try them all!",
+            FontSize = 16,
             TextColor = new SKColor(0x4C, 0xAF, 0x50),
             IsBold = true
         });
-        root.AddChild(new SkiaLabel 
-        { 
-            Text = "Scroll down to see more controls", 
-            FontSize = 12, 
+        root.AddChild(new SkiaLabel
+        {
+            Text = "Scroll down to see more controls",
+            FontSize = 12,
             TextColor = SKColors.Gray
         });
 

@@ -141,6 +141,7 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
 
 /// <summary>
 /// Skia window wrapper for Linux display servers.
+/// Handles rendering of content and popup overlays automatically.
 /// </summary>
 public class SkiaWindow
 {
@@ -162,6 +163,28 @@ public class SkiaWindow
             _content = value;
             ContentChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>
+    /// Renders the window content and popup overlays to the canvas.
+    /// This should be called by the platform rendering loop.
+    /// </summary>
+    public void Render(SKCanvas canvas)
+    {
+        // Clear background
+        canvas.Clear(SKColors.White);
+
+        // Draw main content
+        if (_content != null)
+        {
+            _content.Measure(new SKSize(_width, _height));
+            _content.Arrange(new SKRect(0, 0, _width, _height));
+            _content.Draw(canvas);
+        }
+
+        // Draw popup overlays on top (dropdowns, date pickers, etc.)
+        // This ensures popups always render above all other content
+        SkiaView.DrawPopupOverlays(canvas);
     }
 
     public string Title

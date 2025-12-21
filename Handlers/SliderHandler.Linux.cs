@@ -19,6 +19,8 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         [nameof(ISlider.MaximumTrackColor)] = MapMaximumTrackColor,
         [nameof(ISlider.ThumbColor)] = MapThumbColor,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
+        [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     public static CommandMapper<ISlider, SliderHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
@@ -99,5 +101,23 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
     {
         handler.PlatformView.IsEnabled = slider.IsEnabled;
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackground(SliderHandler handler, ISlider slider)
+    {
+        if (slider.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapBackgroundColor(SliderHandler handler, ISlider slider)
+    {
+        if (slider is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
+using System.Collections.Specialized;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -25,12 +26,15 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             [nameof(IPicker.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
             [nameof(IPicker.VerticalTextAlignment)] = MapVerticalTextAlignment,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(Picker.ItemsSource)] = MapItemsSource,
         };
 
     public static CommandMapper<IPicker, PickerHandler> CommandMapper =
         new(ViewHandler.ViewCommandMapper)
         {
         };
+
+    private INotifyCollectionChanged? _itemsCollection;
 
     public PickerHandler() : base(Mapper, CommandMapper)
     {
@@ -51,6 +55,13 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         base.ConnectHandler(platformView);
         platformView.SelectedIndexChanged += OnSelectedIndexChanged;
 
+        // Subscribe to items collection changes
+        if (VirtualView is Picker picker && picker.Items is INotifyCollectionChanged items)
+        {
+            _itemsCollection = items;
+            _itemsCollection.CollectionChanged += OnItemsCollectionChanged;
+        }
+
         // Load items
         ReloadItems();
     }
@@ -58,7 +69,19 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
     protected override void DisconnectHandler(SkiaPicker platformView)
     {
         platformView.SelectedIndexChanged -= OnSelectedIndexChanged;
+
+        if (_itemsCollection != null)
+        {
+            _itemsCollection.CollectionChanged -= OnItemsCollectionChanged;
+            _itemsCollection = null;
+        }
+
         base.DisconnectHandler(platformView);
+    }
+
+    private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        ReloadItems();
     }
 
     private void OnSelectedIndexChanged(object? sender, EventArgs e)
@@ -129,5 +152,10 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapItemsSource(PickerHandler handler, IPicker picker)
+    {
+        handler.ReloadItems();
     }
 }

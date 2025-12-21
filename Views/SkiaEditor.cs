@@ -6,90 +6,354 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered multiline text editor control.
+/// Skia-rendered multiline text editor control with full XAML styling support.
 /// </summary>
 public class SkiaEditor : SkiaView
 {
-    private string _text = "";
-    private string _placeholder = "";
-    private int _cursorPosition;
-    private int _selectionStart = -1;
-    private int _selectionLength;
-    private float _scrollOffsetY;
-    private bool _isReadOnly;
-    private int _maxLength = -1;
-    private bool _cursorVisible = true;
-    private DateTime _lastCursorBlink = DateTime.Now;
+    #region BindableProperties
 
-    // Cached line information
-    private List<string> _lines = new() { "" };
-    private List<float> _lineHeights = new();
+    /// <summary>
+    /// Bindable property for Text.
+    /// </summary>
+    public static readonly BindableProperty TextProperty =
+        BindableProperty.Create(
+            nameof(Text),
+            typeof(string),
+            typeof(SkiaEditor),
+            "",
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnTextPropertyChanged((string)o, (string)n));
 
-    // Styling
-    public SKColor TextColor { get; set; } = SKColors.Black;
-    public SKColor PlaceholderColor { get; set; } = new SKColor(0x80, 0x80, 0x80);
-    public SKColor BorderColor { get; set; } = new SKColor(0xBD, 0xBD, 0xBD);
-    public SKColor SelectionColor { get; set; } = new SKColor(0x21, 0x96, 0xF3, 0x60);
-    public SKColor CursorColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public string FontFamily { get; set; } = "Sans";
-    public float FontSize { get; set; } = 14;
-    public float LineHeight { get; set; } = 1.4f;
-    public float CornerRadius { get; set; } = 4;
-    public float Padding { get; set; } = 12;
-    public bool AutoSize { get; set; }
+    /// <summary>
+    /// Bindable property for Placeholder.
+    /// </summary>
+    public static readonly BindableProperty PlaceholderProperty =
+        BindableProperty.Create(
+            nameof(Placeholder),
+            typeof(string),
+            typeof(SkiaEditor),
+            "",
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for TextColor.
+    /// </summary>
+    public static readonly BindableProperty TextColorProperty =
+        BindableProperty.Create(
+            nameof(TextColor),
+            typeof(SKColor),
+            typeof(SkiaEditor),
+            SKColors.Black,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for PlaceholderColor.
+    /// </summary>
+    public static readonly BindableProperty PlaceholderColorProperty =
+        BindableProperty.Create(
+            nameof(PlaceholderColor),
+            typeof(SKColor),
+            typeof(SkiaEditor),
+            new SKColor(0x80, 0x80, 0x80),
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for BorderColor.
+    /// </summary>
+    public static readonly BindableProperty BorderColorProperty =
+        BindableProperty.Create(
+            nameof(BorderColor),
+            typeof(SKColor),
+            typeof(SkiaEditor),
+            new SKColor(0xBD, 0xBD, 0xBD),
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for SelectionColor.
+    /// </summary>
+    public static readonly BindableProperty SelectionColorProperty =
+        BindableProperty.Create(
+            nameof(SelectionColor),
+            typeof(SKColor),
+            typeof(SkiaEditor),
+            new SKColor(0x21, 0x96, 0xF3, 0x60),
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for CursorColor.
+    /// </summary>
+    public static readonly BindableProperty CursorColorProperty =
+        BindableProperty.Create(
+            nameof(CursorColor),
+            typeof(SKColor),
+            typeof(SkiaEditor),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FontFamily.
+    /// </summary>
+    public static readonly BindableProperty FontFamilyProperty =
+        BindableProperty.Create(
+            nameof(FontFamily),
+            typeof(string),
+            typeof(SkiaEditor),
+            "Sans",
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for FontSize.
+    /// </summary>
+    public static readonly BindableProperty FontSizeProperty =
+        BindableProperty.Create(
+            nameof(FontSize),
+            typeof(float),
+            typeof(SkiaEditor),
+            14f,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for LineHeight.
+    /// </summary>
+    public static readonly BindableProperty LineHeightProperty =
+        BindableProperty.Create(
+            nameof(LineHeight),
+            typeof(float),
+            typeof(SkiaEditor),
+            1.4f,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for CornerRadius.
+    /// </summary>
+    public static readonly BindableProperty CornerRadiusProperty =
+        BindableProperty.Create(
+            nameof(CornerRadius),
+            typeof(float),
+            typeof(SkiaEditor),
+            4f,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Padding.
+    /// </summary>
+    public static readonly BindableProperty PaddingProperty =
+        BindableProperty.Create(
+            nameof(Padding),
+            typeof(float),
+            typeof(SkiaEditor),
+            12f,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for IsReadOnly.
+    /// </summary>
+    public static readonly BindableProperty IsReadOnlyProperty =
+        BindableProperty.Create(
+            nameof(IsReadOnly),
+            typeof(bool),
+            typeof(SkiaEditor),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for MaxLength.
+    /// </summary>
+    public static readonly BindableProperty MaxLengthProperty =
+        BindableProperty.Create(
+            nameof(MaxLength),
+            typeof(int),
+            typeof(SkiaEditor),
+            -1);
+
+    /// <summary>
+    /// Bindable property for AutoSize.
+    /// </summary>
+    public static readonly BindableProperty AutoSizeProperty =
+        BindableProperty.Create(
+            nameof(AutoSize),
+            typeof(bool),
+            typeof(SkiaEditor),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// Gets or sets the text content.
+    /// </summary>
     public string Text
     {
-        get => _text;
-        set
-        {
-            var newText = value ?? "";
-            if (_maxLength > 0 && newText.Length > _maxLength)
-            {
-                newText = newText.Substring(0, _maxLength);
-            }
-
-            if (_text != newText)
-            {
-                _text = newText;
-                UpdateLines();
-                _cursorPosition = Math.Min(_cursorPosition, _text.Length);
-                TextChanged?.Invoke(this, EventArgs.Empty);
-                Invalidate();
-            }
-        }
+        get => (string)GetValue(TextProperty);
+        set => SetValue(TextProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the placeholder text.
+    /// </summary>
     public string Placeholder
     {
-        get => _placeholder;
-        set { _placeholder = value ?? ""; Invalidate(); }
+        get => (string)GetValue(PlaceholderProperty);
+        set => SetValue(PlaceholderProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the text color.
+    /// </summary>
+    public SKColor TextColor
+    {
+        get => (SKColor)GetValue(TextColorProperty);
+        set => SetValue(TextColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the placeholder color.
+    /// </summary>
+    public SKColor PlaceholderColor
+    {
+        get => (SKColor)GetValue(PlaceholderColorProperty);
+        set => SetValue(PlaceholderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the border color.
+    /// </summary>
+    public SKColor BorderColor
+    {
+        get => (SKColor)GetValue(BorderColorProperty);
+        set => SetValue(BorderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the selection color.
+    /// </summary>
+    public SKColor SelectionColor
+    {
+        get => (SKColor)GetValue(SelectionColorProperty);
+        set => SetValue(SelectionColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor color.
+    /// </summary>
+    public SKColor CursorColor
+    {
+        get => (SKColor)GetValue(CursorColorProperty);
+        set => SetValue(CursorColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font family.
+    /// </summary>
+    public string FontFamily
+    {
+        get => (string)GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font size.
+    /// </summary>
+    public float FontSize
+    {
+        get => (float)GetValue(FontSizeProperty);
+        set => SetValue(FontSizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the line height multiplier.
+    /// </summary>
+    public float LineHeight
+    {
+        get => (float)GetValue(LineHeightProperty);
+        set => SetValue(LineHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the corner radius.
+    /// </summary>
+    public float CornerRadius
+    {
+        get => (float)GetValue(CornerRadiusProperty);
+        set => SetValue(CornerRadiusProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the padding.
+    /// </summary>
+    public float Padding
+    {
+        get => (float)GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the editor is read-only.
+    /// </summary>
     public bool IsReadOnly
     {
-        get => _isReadOnly;
-        set { _isReadOnly = value; Invalidate(); }
+        get => (bool)GetValue(IsReadOnlyProperty);
+        set => SetValue(IsReadOnlyProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the maximum length. -1 for unlimited.
+    /// </summary>
     public int MaxLength
     {
-        get => _maxLength;
-        set { _maxLength = value; }
+        get => (int)GetValue(MaxLengthProperty);
+        set => SetValue(MaxLengthProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets whether the editor auto-sizes to content.
+    /// </summary>
+    public bool AutoSize
+    {
+        get => (bool)GetValue(AutoSizeProperty);
+        set => SetValue(AutoSizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor position.
+    /// </summary>
     public int CursorPosition
     {
         get => _cursorPosition;
         set
         {
-            _cursorPosition = Math.Clamp(value, 0, _text.Length);
+            _cursorPosition = Math.Clamp(value, 0, Text.Length);
             EnsureCursorVisible();
             Invalidate();
         }
     }
 
+    #endregion
+
+    private int _cursorPosition;
+    private int _selectionStart = -1;
+    private int _selectionLength;
+    private float _scrollOffsetY;
+    private bool _cursorVisible = true;
+    private DateTime _lastCursorBlink = DateTime.Now;
+    private List<string> _lines = new() { "" };
+    private float _wrapWidth = 0; // Available width for word wrapping
+    private bool _isSelecting; // For mouse-based text selection
+    private DateTime _lastClickTime = DateTime.MinValue;
+    private float _lastClickX;
+    private float _lastClickY;
+    private const double DoubleClickThresholdMs = 400;
+
+    /// <summary>
+    /// Event raised when text changes.
+    /// </summary>
     public event EventHandler? TextChanged;
+
+    /// <summary>
+    /// Event raised when editing is completed.
+    /// </summary>
     public event EventHandler? Completed;
 
     public SkiaEditor()
@@ -97,29 +361,92 @@ public class SkiaEditor : SkiaView
         IsFocusable = true;
     }
 
+    private void OnTextPropertyChanged(string oldText, string newText)
+    {
+        var text = newText ?? "";
+
+        if (MaxLength > 0 && text.Length > MaxLength)
+        {
+            text = text.Substring(0, MaxLength);
+            SetValue(TextProperty, text);
+            return;
+        }
+
+        UpdateLines();
+        _cursorPosition = Math.Min(_cursorPosition, text.Length);
+        _scrollOffsetY = 0; // Reset scroll when text changes externally
+        _selectionLength = 0;
+        TextChanged?.Invoke(this, EventArgs.Empty);
+        Invalidate();
+    }
+
     private void UpdateLines()
     {
         _lines.Clear();
-        if (string.IsNullOrEmpty(_text))
+        var text = Text ?? "";
+        if (string.IsNullOrEmpty(text))
         {
             _lines.Add("");
             return;
         }
 
-        var currentLine = "";
-        foreach (var ch in _text)
+        using var font = new SKFont(SKTypeface.Default, FontSize);
+
+        // Split by actual newlines first
+        var paragraphs = text.Split('\n');
+
+        foreach (var paragraph in paragraphs)
         {
-            if (ch == '\n')
+            if (string.IsNullOrEmpty(paragraph))
             {
-                _lines.Add(currentLine);
-                currentLine = "";
+                _lines.Add("");
+                continue;
+            }
+
+            // Word wrap this paragraph if we have a known width
+            if (_wrapWidth > 0)
+            {
+                WrapParagraph(paragraph, font, _wrapWidth);
             }
             else
             {
-                currentLine += ch;
+                _lines.Add(paragraph);
             }
         }
-        _lines.Add(currentLine);
+
+        if (_lines.Count == 0)
+        {
+            _lines.Add("");
+        }
+    }
+
+    private void WrapParagraph(string paragraph, SKFont font, float maxWidth)
+    {
+        var words = paragraph.Split(' ');
+        var currentLine = "";
+
+        foreach (var word in words)
+        {
+            var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
+            var lineWidth = MeasureText(testLine, font);
+
+            if (lineWidth > maxWidth && !string.IsNullOrEmpty(currentLine))
+            {
+                // Line too long, save current and start new
+                _lines.Add(currentLine);
+                currentLine = word;
+            }
+            else
+            {
+                currentLine = testLine;
+            }
+        }
+
+        // Add remaining text
+        if (!string.IsNullOrEmpty(currentLine))
+        {
+            _lines.Add(currentLine);
+        }
     }
 
     private (int line, int column) GetLineColumn(int position)
@@ -132,7 +459,7 @@ public class SkiaEditor : SkiaView
             {
                 return (i, position - pos);
             }
-            pos += lineLength + 1; // +1 for newline
+            pos += lineLength + 1;
         }
         return (_lines.Count - 1, _lines[^1].Length);
     }
@@ -148,11 +475,19 @@ public class SkiaEditor : SkiaView
         {
             pos += Math.Min(column, _lines[line].Length);
         }
-        return Math.Min(pos, _text.Length);
+        return Math.Min(pos, Text.Length);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Update wrap width if bounds changed and re-wrap text
+        var newWrapWidth = bounds.Width - Padding * 2;
+        if (Math.Abs(newWrapWidth - _wrapWidth) > 1)
+        {
+            _wrapWidth = newWrapWidth;
+            UpdateLines();
+        }
+
         // Handle cursor blinking
         if (IsFocused && (DateTime.Now - _lastCursorBlink).TotalMilliseconds > 500)
         {
@@ -192,21 +527,20 @@ public class SkiaEditor : SkiaView
 
         canvas.Save();
         canvas.ClipRect(contentRect);
-        canvas.Translate(0, -_scrollOffsetY);
+        // Don't translate - let the text draw at absolute positions
+        // canvas.Translate(0, -_scrollOffsetY);
 
-        if (string.IsNullOrEmpty(_text) && !string.IsNullOrEmpty(_placeholder))
+        if (string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Placeholder))
         {
-            // Draw placeholder
             using var placeholderPaint = new SKPaint(font)
             {
                 Color = PlaceholderColor,
                 IsAntialias = true
             };
-            canvas.DrawText(_placeholder, contentRect.Left, contentRect.Top + FontSize, placeholderPaint);
+            canvas.DrawText(Placeholder, contentRect.Left, contentRect.Top + FontSize, placeholderPaint);
         }
         else
         {
-            // Draw text with selection
             using var textPaint = new SKPaint(font)
             {
                 Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
@@ -227,15 +561,17 @@ public class SkiaEditor : SkiaView
                 var x = contentRect.Left;
 
                 // Draw selection for this line if applicable
-                if (_selectionStart >= 0 && _selectionLength > 0)
+                if (_selectionStart >= 0 && _selectionLength != 0)
                 {
-                    var selEnd = _selectionStart + _selectionLength;
+                    // Handle both positive and negative selection lengths
+                    var selStart = _selectionLength > 0 ? _selectionStart : _selectionStart + _selectionLength;
+                    var selEnd = _selectionLength > 0 ? _selectionStart + _selectionLength : _selectionStart;
                     var lineStart = charIndex;
                     var lineEnd = charIndex + line.Length;
 
-                    if (selEnd > lineStart && _selectionStart < lineEnd)
+                    if (selEnd > lineStart && selStart < lineEnd)
                     {
-                        var selStartInLine = Math.Max(0, _selectionStart - lineStart);
+                        var selStartInLine = Math.Max(0, selStart - lineStart);
                         var selEndInLine = Math.Min(line.Length, selEnd - lineStart);
 
                         var startX = x + MeasureText(line.Substring(0, selStartInLine), font);
@@ -245,7 +581,6 @@ public class SkiaEditor : SkiaView
                     }
                 }
 
-                // Draw line text
                 canvas.DrawText(line, x, y, textPaint);
 
                 // Draw cursor if on this line
@@ -267,7 +602,7 @@ public class SkiaEditor : SkiaView
                 }
 
                 y += lineSpacing;
-                charIndex += line.Length + 1; // +1 for newline
+                charIndex += line.Length + 1;
             }
         }
 
@@ -332,12 +667,12 @@ public class SkiaEditor : SkiaView
     {
         if (!IsEnabled) return;
 
-        // Request focus by notifying parent
         IsFocused = true;
 
-        // Calculate cursor position from click
-        var contentX = e.X - Bounds.Left - Padding;
-        var contentY = e.Y - Bounds.Top - Padding + _scrollOffsetY;
+        // Use screen coordinates for proper hit detection
+        var screenBounds = ScreenBounds;
+        var contentX = e.X - screenBounds.Left - Padding;
+        var contentY = e.Y - screenBounds.Top - Padding + _scrollOffsetY;
 
         var lineSpacing = FontSize * LineHeight;
         var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
@@ -346,7 +681,6 @@ public class SkiaEditor : SkiaView
         var line = _lines[clickedLine];
         var clickedCol = 0;
 
-        // Find closest character position
         for (int i = 0; i <= line.Length; i++)
         {
             var charX = MeasureText(line.Substring(0, i), font);
@@ -359,12 +693,77 @@ public class SkiaEditor : SkiaView
         }
 
         _cursorPosition = GetPosition(clickedLine, clickedCol);
-        _selectionStart = -1;
-        _selectionLength = 0;
+
+        // Check for double-click (select word)
+        var now = DateTime.UtcNow;
+        var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
+        var distanceFromLastClick = Math.Sqrt(Math.Pow(e.X - _lastClickX, 2) + Math.Pow(e.Y - _lastClickY, 2));
+
+        if (timeSinceLastClick < DoubleClickThresholdMs && distanceFromLastClick < 10)
+        {
+            // Double-click: select the word at cursor
+            SelectWordAtCursor();
+            _lastClickTime = DateTime.MinValue; // Reset to prevent triple-click issues
+            _isSelecting = false;
+        }
+        else
+        {
+            // Single click: start selection
+            _selectionStart = _cursorPosition;
+            _selectionLength = 0;
+            _isSelecting = true;
+            _lastClickTime = now;
+            _lastClickX = e.X;
+            _lastClickY = e.Y;
+        }
+
         _cursorVisible = true;
         _lastCursorBlink = DateTime.Now;
 
         Invalidate();
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        if (!IsEnabled || !_isSelecting) return;
+
+        // Calculate position from mouse coordinates
+        var screenBounds = ScreenBounds;
+        var contentX = e.X - screenBounds.Left - Padding;
+        var contentY = e.Y - screenBounds.Top - Padding + _scrollOffsetY;
+
+        var lineSpacing = FontSize * LineHeight;
+        var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
+
+        using var font = new SKFont(SKTypeface.Default, FontSize);
+        var line = _lines[clickedLine];
+        var clickedCol = 0;
+
+        for (int i = 0; i <= line.Length; i++)
+        {
+            var charX = MeasureText(line.Substring(0, i), font);
+            if (charX > contentX)
+            {
+                clickedCol = i > 0 ? i - 1 : 0;
+                break;
+            }
+            clickedCol = i;
+        }
+
+        var newPosition = GetPosition(clickedLine, clickedCol);
+        if (newPosition != _cursorPosition)
+        {
+            _cursorPosition = newPosition;
+            _selectionLength = _cursorPosition - _selectionStart;
+            _cursorVisible = true;
+            _lastCursorBlink = DateTime.Now;
+            Invalidate();
+        }
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        _isSelecting = false;
     }
 
     public override void OnKeyDown(KeyEventArgs e)
@@ -387,7 +786,7 @@ public class SkiaEditor : SkiaView
                 break;
 
             case Key.Right:
-                if (_cursorPosition < _text.Length)
+                if (_cursorPosition < Text.Length)
                 {
                     _cursorPosition++;
                     EnsureCursorVisible();
@@ -426,7 +825,7 @@ public class SkiaEditor : SkiaView
                 break;
 
             case Key.Enter:
-                if (!_isReadOnly)
+                if (!IsReadOnly)
                 {
                     InsertText("\n");
                 }
@@ -434,29 +833,75 @@ public class SkiaEditor : SkiaView
                 break;
 
             case Key.Backspace:
-                if (!_isReadOnly && _cursorPosition > 0)
+                if (!IsReadOnly)
                 {
-                    Text = _text.Remove(_cursorPosition - 1, 1);
-                    _cursorPosition--;
+                    if (_selectionLength != 0)
+                    {
+                        DeleteSelection();
+                    }
+                    else if (_cursorPosition > 0)
+                    {
+                        Text = Text.Remove(_cursorPosition - 1, 1);
+                        _cursorPosition--;
+                    }
                     EnsureCursorVisible();
                 }
                 e.Handled = true;
                 break;
 
             case Key.Delete:
-                if (!_isReadOnly && _cursorPosition < _text.Length)
+                if (!IsReadOnly)
                 {
-                    Text = _text.Remove(_cursorPosition, 1);
+                    if (_selectionLength != 0)
+                    {
+                        DeleteSelection();
+                    }
+                    else if (_cursorPosition < Text.Length)
+                    {
+                        Text = Text.Remove(_cursorPosition, 1);
+                    }
                 }
                 e.Handled = true;
                 break;
 
             case Key.Tab:
-                if (!_isReadOnly)
+                if (!IsReadOnly)
                 {
-                    InsertText("    "); // 4 spaces for tab
+                    InsertText("    ");
                 }
                 e.Handled = true;
+                break;
+
+            case Key.A:
+                if (e.Modifiers.HasFlag(KeyModifiers.Control))
+                {
+                    SelectAll();
+                    e.Handled = true;
+                }
+                break;
+
+            case Key.C:
+                if (e.Modifiers.HasFlag(KeyModifiers.Control))
+                {
+                    CopyToClipboard();
+                    e.Handled = true;
+                }
+                break;
+
+            case Key.V:
+                if (e.Modifiers.HasFlag(KeyModifiers.Control) && !IsReadOnly)
+                {
+                    PasteFromClipboard();
+                    e.Handled = true;
+                }
+                break;
+
+            case Key.X:
+                if (e.Modifiers.HasFlag(KeyModifiers.Control) && !IsReadOnly)
+                {
+                    CutToClipboard();
+                    e.Handled = true;
+                }
                 break;
         }
 
@@ -465,7 +910,11 @@ public class SkiaEditor : SkiaView
 
     public override void OnTextInput(TextInputEventArgs e)
     {
-        if (!IsEnabled || _isReadOnly) return;
+        if (!IsEnabled || IsReadOnly) return;
+
+        // Ignore control characters (Ctrl+key combinations send ASCII control codes)
+        if (!string.IsNullOrEmpty(e.Text) && e.Text.Length == 1 && e.Text[0] < 32)
+            return;
 
         if (!string.IsNullOrEmpty(e.Text))
         {
@@ -478,21 +927,21 @@ public class SkiaEditor : SkiaView
     {
         if (_selectionLength > 0)
         {
-            // Replace selection
-            _text = _text.Remove(_selectionStart, _selectionLength);
+            var currentText = Text;
+            Text = currentText.Remove(_selectionStart, _selectionLength);
             _cursorPosition = _selectionStart;
             _selectionStart = -1;
             _selectionLength = 0;
         }
 
-        if (_maxLength > 0 && _text.Length + text.Length > _maxLength)
+        if (MaxLength > 0 && Text.Length + text.Length > MaxLength)
         {
-            text = text.Substring(0, Math.Max(0, _maxLength - _text.Length));
+            text = text.Substring(0, Math.Max(0, MaxLength - Text.Length));
         }
 
         if (!string.IsNullOrEmpty(text))
         {
-            Text = _text.Insert(_cursorPosition, text);
+            Text = Text.Insert(_cursorPosition, text);
             _cursorPosition += text.Length;
             EnsureCursorVisible();
         }
@@ -508,6 +957,102 @@ public class SkiaEditor : SkiaView
         _scrollOffsetY = Math.Clamp(_scrollOffsetY - e.DeltaY * 3, 0, maxScroll);
         Invalidate();
     }
+
+    public override void OnFocusGained()
+    {
+        base.OnFocusGained();
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Focused);
+    }
+
+    public override void OnFocusLost()
+    {
+        base.OnFocusLost();
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Normal);
+    }
+
+    #region Selection and Clipboard
+
+    public void SelectAll()
+    {
+        _selectionStart = 0;
+        _cursorPosition = Text.Length;
+        _selectionLength = Text.Length;
+        Invalidate();
+    }
+
+    private void SelectWordAtCursor()
+    {
+        if (string.IsNullOrEmpty(Text)) return;
+
+        // Find word boundaries
+        int start = _cursorPosition;
+        int end = _cursorPosition;
+
+        // Move start backwards to beginning of word
+        while (start > 0 && IsWordChar(Text[start - 1]))
+            start--;
+
+        // Move end forwards to end of word
+        while (end < Text.Length && IsWordChar(Text[end]))
+            end++;
+
+        _selectionStart = start;
+        _cursorPosition = end;
+        _selectionLength = end - start;
+    }
+
+    private static bool IsWordChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
+    }
+
+    private void CopyToClipboard()
+    {
+        if (_selectionLength == 0) return;
+
+        var start = Math.Min(_selectionStart, _selectionStart + _selectionLength);
+        var length = Math.Abs(_selectionLength);
+        var selectedText = Text.Substring(start, length);
+
+        // Use system clipboard via xclip/xsel
+        SystemClipboard.SetText(selectedText);
+    }
+
+    private void CutToClipboard()
+    {
+        CopyToClipboard();
+        DeleteSelection();
+        Invalidate();
+    }
+
+    private void PasteFromClipboard()
+    {
+        // Get from system clipboard
+        var text = SystemClipboard.GetText();
+        if (string.IsNullOrEmpty(text)) return;
+
+        if (_selectionLength != 0)
+        {
+            DeleteSelection();
+        }
+
+        InsertText(text);
+    }
+
+    private void DeleteSelection()
+    {
+        if (_selectionLength == 0) return;
+
+        var start = Math.Min(_selectionStart, _selectionStart + _selectionLength);
+        var length = Math.Abs(_selectionLength);
+
+        Text = Text.Remove(start, length);
+        _cursorPosition = start;
+        _selectionStart = -1;
+        _selectionLength = 0;
+    }
+
+    #endregion
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {

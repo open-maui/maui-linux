@@ -60,6 +60,21 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
         platformView.Clicked += OnClicked;
         platformView.Pressed += OnPressed;
         platformView.Released += OnReleased;
+
+        // Manually map all properties on connect since MAUI may not trigger updates
+        // for properties that were set before handler connection
+        if (VirtualView != null)
+        {
+            MapText(this, VirtualView);
+            MapTextColor(this, VirtualView);
+            MapBackground(this, VirtualView);
+            MapFont(this, VirtualView);
+            MapPadding(this, VirtualView);
+            MapCornerRadius(this, VirtualView);
+            MapBorderColor(this, VirtualView);
+            MapBorderWidth(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
     }
 
     protected override void DisconnectHandler(SkiaButton platformView)
@@ -105,7 +120,8 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
         var background = button.Background;
         if (background is SolidColorBrush solidBrush && solidBrush.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            // Use ButtonBackgroundColor which is used for rendering, not base BackgroundColor
+            handler.PlatformView.ButtonBackgroundColor = solidBrush.Color.ToSKColor();
         }
         handler.PlatformView.Invalidate();
     }
@@ -156,6 +172,7 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
 
     public static void MapIsEnabled(ButtonHandler handler, IButton button)
     {
+        Console.WriteLine($"[ButtonHandler] MapIsEnabled called - Text='{handler.PlatformView.Text}', IsEnabled={button.IsEnabled}");
         handler.PlatformView.IsEnabled = button.IsEnabled;
         handler.PlatformView.Invalidate();
     }

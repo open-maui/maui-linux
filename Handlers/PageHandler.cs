@@ -58,6 +58,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
 
     private void OnAppearing(object? sender, EventArgs e)
     {
+        Console.WriteLine($"[PageHandler] OnAppearing received for: {VirtualView?.Title}");
         (VirtualView as IPageController)?.SendAppearing();
     }
 
@@ -133,17 +134,28 @@ public partial class ContentPageHandler : PageHandler
 
     public static void MapContent(ContentPageHandler handler, ContentPage page)
     {
-        if (handler.PlatformView is null) return;
+        if (handler.PlatformView is null || handler.MauiContext is null) return;
 
         // Get the platform view for the content
         var content = page.Content;
         if (content != null)
         {
-            // The content's handler should provide the platform view
-            var contentHandler = content.Handler;
-            if (contentHandler?.PlatformView is SkiaView skiaContent)
+            // Create handler for content if it doesn't exist
+            if (content.Handler == null)
             {
+                Console.WriteLine($"[ContentPageHandler] Creating handler for content: {content.GetType().Name}");
+                content.Handler = content.ToHandler(handler.MauiContext);
+            }
+
+            // The content's handler should provide the platform view
+            if (content.Handler?.PlatformView is SkiaView skiaContent)
+            {
+                Console.WriteLine($"[ContentPageHandler] Setting content: {skiaContent.GetType().Name}");
                 handler.PlatformView.Content = skiaContent;
+            }
+            else
+            {
+                Console.WriteLine($"[ContentPageHandler] Content handler PlatformView is not SkiaView: {content.Handler?.PlatformView?.GetType().Name ?? "null"}");
             }
         }
         else

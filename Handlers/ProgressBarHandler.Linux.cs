@@ -15,6 +15,8 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
         [nameof(IProgress.Progress)] = MapProgress,
         [nameof(IProgress.ProgressColor)] = MapProgressColor,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
+        [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     public static CommandMapper<IProgress, ProgressBarHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
@@ -39,5 +41,23 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
     {
         handler.PlatformView.IsEnabled = progress.IsEnabled;
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackground(ProgressBarHandler handler, IProgress progress)
+    {
+        if (progress.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapBackgroundColor(ProgressBarHandler handler, IProgress progress)
+    {
+        if (progress is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }

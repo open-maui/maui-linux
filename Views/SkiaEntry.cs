@@ -7,69 +7,513 @@ using Microsoft.Maui.Platform.Linux.Rendering;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered text entry control.
+/// Skia-rendered text entry control with full XAML styling and data binding support.
 /// </summary>
 public class SkiaEntry : SkiaView
 {
-    private string _text = "";
-    private int _cursorPosition;
-    private int _selectionStart;
-    private int _selectionLength;
-    private float _scrollOffset;
-    private DateTime _cursorBlinkTime = DateTime.UtcNow;
-    private bool _cursorVisible = true;
+    #region BindableProperties
 
+    /// <summary>
+    /// Bindable property for Text.
+    /// </summary>
+    public static readonly BindableProperty TextProperty =
+        BindableProperty.Create(
+            nameof(Text),
+            typeof(string),
+            typeof(SkiaEntry),
+            "",
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnTextPropertyChanged((string)o, (string)n));
+
+    /// <summary>
+    /// Bindable property for Placeholder.
+    /// </summary>
+    public static readonly BindableProperty PlaceholderProperty =
+        BindableProperty.Create(
+            nameof(Placeholder),
+            typeof(string),
+            typeof(SkiaEntry),
+            "",
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for PlaceholderColor.
+    /// </summary>
+    public static readonly BindableProperty PlaceholderColorProperty =
+        BindableProperty.Create(
+            nameof(PlaceholderColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            new SKColor(0x9E, 0x9E, 0x9E),
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for TextColor.
+    /// </summary>
+    public static readonly BindableProperty TextColorProperty =
+        BindableProperty.Create(
+            nameof(TextColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            SKColors.Black,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for EntryBackgroundColor.
+    /// </summary>
+    public static readonly BindableProperty EntryBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(EntryBackgroundColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for BorderColor.
+    /// </summary>
+    public static readonly BindableProperty BorderColorProperty =
+        BindableProperty.Create(
+            nameof(BorderColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            new SKColor(0xBD, 0xBD, 0xBD),
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FocusedBorderColor.
+    /// </summary>
+    public static readonly BindableProperty FocusedBorderColorProperty =
+        BindableProperty.Create(
+            nameof(FocusedBorderColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for SelectionColor.
+    /// </summary>
+    public static readonly BindableProperty SelectionColorProperty =
+        BindableProperty.Create(
+            nameof(SelectionColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            new SKColor(0x21, 0x96, 0xF3, 0x80),
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for CursorColor.
+    /// </summary>
+    public static readonly BindableProperty CursorColorProperty =
+        BindableProperty.Create(
+            nameof(CursorColor),
+            typeof(SKColor),
+            typeof(SkiaEntry),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FontFamily.
+    /// </summary>
+    public static readonly BindableProperty FontFamilyProperty =
+        BindableProperty.Create(
+            nameof(FontFamily),
+            typeof(string),
+            typeof(SkiaEntry),
+            "Sans",
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for FontSize.
+    /// </summary>
+    public static readonly BindableProperty FontSizeProperty =
+        BindableProperty.Create(
+            nameof(FontSize),
+            typeof(float),
+            typeof(SkiaEntry),
+            14f,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for IsBold.
+    /// </summary>
+    public static readonly BindableProperty IsBoldProperty =
+        BindableProperty.Create(
+            nameof(IsBold),
+            typeof(bool),
+            typeof(SkiaEntry),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for IsItalic.
+    /// </summary>
+    public static readonly BindableProperty IsItalicProperty =
+        BindableProperty.Create(
+            nameof(IsItalic),
+            typeof(bool),
+            typeof(SkiaEntry),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for CornerRadius.
+    /// </summary>
+    public static readonly BindableProperty CornerRadiusProperty =
+        BindableProperty.Create(
+            nameof(CornerRadius),
+            typeof(float),
+            typeof(SkiaEntry),
+            4f,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for BorderWidth.
+    /// </summary>
+    public static readonly BindableProperty BorderWidthProperty =
+        BindableProperty.Create(
+            nameof(BorderWidth),
+            typeof(float),
+            typeof(SkiaEntry),
+            1f,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Padding.
+    /// </summary>
+    public static readonly BindableProperty PaddingProperty =
+        BindableProperty.Create(
+            nameof(Padding),
+            typeof(SKRect),
+            typeof(SkiaEntry),
+            new SKRect(12, 8, 12, 8),
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for IsPassword.
+    /// </summary>
+    public static readonly BindableProperty IsPasswordProperty =
+        BindableProperty.Create(
+            nameof(IsPassword),
+            typeof(bool),
+            typeof(SkiaEntry),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for PasswordChar.
+    /// </summary>
+    public static readonly BindableProperty PasswordCharProperty =
+        BindableProperty.Create(
+            nameof(PasswordChar),
+            typeof(char),
+            typeof(SkiaEntry),
+            '*', // Use asterisk for universal font compatibility
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for MaxLength.
+    /// </summary>
+    public static readonly BindableProperty MaxLengthProperty =
+        BindableProperty.Create(
+            nameof(MaxLength),
+            typeof(int),
+            typeof(SkiaEntry),
+            0);
+
+    /// <summary>
+    /// Bindable property for IsReadOnly.
+    /// </summary>
+    public static readonly BindableProperty IsReadOnlyProperty =
+        BindableProperty.Create(
+            nameof(IsReadOnly),
+            typeof(bool),
+            typeof(SkiaEntry),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for HorizontalTextAlignment.
+    /// </summary>
+    public static readonly BindableProperty HorizontalTextAlignmentProperty =
+        BindableProperty.Create(
+            nameof(HorizontalTextAlignment),
+            typeof(TextAlignment),
+            typeof(SkiaEntry),
+            TextAlignment.Start,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for VerticalTextAlignment.
+    /// </summary>
+    public static readonly BindableProperty VerticalTextAlignmentProperty =
+        BindableProperty.Create(
+            nameof(VerticalTextAlignment),
+            typeof(TextAlignment),
+            typeof(SkiaEntry),
+            TextAlignment.Center,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ShowClearButton.
+    /// </summary>
+    public static readonly BindableProperty ShowClearButtonProperty =
+        BindableProperty.Create(
+            nameof(ShowClearButton),
+            typeof(bool),
+            typeof(SkiaEntry),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for CharacterSpacing.
+    /// </summary>
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(
+            nameof(CharacterSpacing),
+            typeof(float),
+            typeof(SkiaEntry),
+            0f,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// Gets or sets the text content.
+    /// </summary>
     public string Text
     {
-        get => _text;
-        set
-        {
-            if (_text != value)
-            {
-                var oldText = _text;
-                _text = value ?? "";
-                _cursorPosition = Math.Min(_cursorPosition, _text.Length);
-                TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
-                Invalidate();
-            }
-        }
+        get => (string)GetValue(TextProperty);
+        set => SetValue(TextProperty, value);
     }
 
-    public string Placeholder { get; set; } = "";
-    public SKColor PlaceholderColor { get; set; } = new SKColor(0x9E, 0x9E, 0x9E);
-    public SKColor TextColor { get; set; } = SKColors.Black;
-    public new SKColor BackgroundColor { get; set; } = SKColors.White;
-    public SKColor BorderColor { get; set; } = new SKColor(0xBD, 0xBD, 0xBD);
-    public SKColor FocusedBorderColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public SKColor SelectionColor { get; set; } = new SKColor(0x21, 0x96, 0xF3, 0x80);
-    public SKColor CursorColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public string FontFamily { get; set; } = "Sans";
-    public float FontSize { get; set; } = 14;
-    public bool IsBold { get; set; }
-    public bool IsItalic { get; set; }
-    public float CharacterSpacing { get; set; }
-    public float CornerRadius { get; set; } = 4;
-    public float BorderWidth { get; set; } = 1;
-    public SKRect Padding { get; set; } = new SKRect(12, 8, 12, 8);
-    public bool IsPassword { get; set; }
-    public char PasswordChar { get; set; } = '●';
-    public int MaxLength { get; set; } = 0; // 0 = unlimited
-    public bool IsReadOnly { get; set; }
-    public TextAlignment HorizontalTextAlignment { get; set; } = TextAlignment.Start;
-    public TextAlignment VerticalTextAlignment { get; set; } = TextAlignment.Center;
-    public bool ShowClearButton { get; set; }
+    /// <summary>
+    /// Gets or sets the placeholder text.
+    /// </summary>
+    public string Placeholder
+    {
+        get => (string)GetValue(PlaceholderProperty);
+        set => SetValue(PlaceholderProperty, value);
+    }
 
+    /// <summary>
+    /// Gets or sets the placeholder color.
+    /// </summary>
+    public SKColor PlaceholderColor
+    {
+        get => (SKColor)GetValue(PlaceholderColorProperty);
+        set => SetValue(PlaceholderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the text color.
+    /// </summary>
+    public SKColor TextColor
+    {
+        get => (SKColor)GetValue(TextColorProperty);
+        set => SetValue(TextColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the entry background color.
+    /// </summary>
+    public SKColor EntryBackgroundColor
+    {
+        get => (SKColor)GetValue(EntryBackgroundColorProperty);
+        set => SetValue(EntryBackgroundColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the border color.
+    /// </summary>
+    public SKColor BorderColor
+    {
+        get => (SKColor)GetValue(BorderColorProperty);
+        set => SetValue(BorderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the focused border color.
+    /// </summary>
+    public SKColor FocusedBorderColor
+    {
+        get => (SKColor)GetValue(FocusedBorderColorProperty);
+        set => SetValue(FocusedBorderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the selection color.
+    /// </summary>
+    public SKColor SelectionColor
+    {
+        get => (SKColor)GetValue(SelectionColorProperty);
+        set => SetValue(SelectionColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor color.
+    /// </summary>
+    public SKColor CursorColor
+    {
+        get => (SKColor)GetValue(CursorColorProperty);
+        set => SetValue(CursorColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font family.
+    /// </summary>
+    public string FontFamily
+    {
+        get => (string)GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font size.
+    /// </summary>
+    public float FontSize
+    {
+        get => (float)GetValue(FontSizeProperty);
+        set => SetValue(FontSizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the text is bold.
+    /// </summary>
+    public bool IsBold
+    {
+        get => (bool)GetValue(IsBoldProperty);
+        set => SetValue(IsBoldProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the text is italic.
+    /// </summary>
+    public bool IsItalic
+    {
+        get => (bool)GetValue(IsItalicProperty);
+        set => SetValue(IsItalicProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the corner radius.
+    /// </summary>
+    public float CornerRadius
+    {
+        get => (float)GetValue(CornerRadiusProperty);
+        set => SetValue(CornerRadiusProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the border width.
+    /// </summary>
+    public float BorderWidth
+    {
+        get => (float)GetValue(BorderWidthProperty);
+        set => SetValue(BorderWidthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the padding.
+    /// </summary>
+    public SKRect Padding
+    {
+        get => (SKRect)GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether this is a password field.
+    /// </summary>
+    public bool IsPassword
+    {
+        get => (bool)GetValue(IsPasswordProperty);
+        set => SetValue(IsPasswordProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the password masking character.
+    /// </summary>
+    public char PasswordChar
+    {
+        get => (char)GetValue(PasswordCharProperty);
+        set => SetValue(PasswordCharProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum text length. 0 = unlimited.
+    /// </summary>
+    public int MaxLength
+    {
+        get => (int)GetValue(MaxLengthProperty);
+        set => SetValue(MaxLengthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the entry is read-only.
+    /// </summary>
+    public bool IsReadOnly
+    {
+        get => (bool)GetValue(IsReadOnlyProperty);
+        set => SetValue(IsReadOnlyProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the horizontal text alignment.
+    /// </summary>
+    public TextAlignment HorizontalTextAlignment
+    {
+        get => (TextAlignment)GetValue(HorizontalTextAlignmentProperty);
+        set => SetValue(HorizontalTextAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the vertical text alignment.
+    /// </summary>
+    public TextAlignment VerticalTextAlignment
+    {
+        get => (TextAlignment)GetValue(VerticalTextAlignmentProperty);
+        set => SetValue(VerticalTextAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether to show the clear button.
+    /// </summary>
+    public bool ShowClearButton
+    {
+        get => (bool)GetValue(ShowClearButtonProperty);
+        set => SetValue(ShowClearButtonProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the character spacing.
+    /// </summary>
+    public float CharacterSpacing
+    {
+        get => (float)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor position.
+    /// </summary>
     public int CursorPosition
     {
         get => _cursorPosition;
         set
         {
-            _cursorPosition = Math.Clamp(value, 0, _text.Length);
+            _cursorPosition = Math.Clamp(value, 0, Text.Length);
             ResetCursorBlink();
             Invalidate();
         }
     }
 
+    /// <summary>
+    /// Gets or sets the selection length.
+    /// </summary>
     public int SelectionLength
     {
         get => _selectionLength;
@@ -80,7 +524,27 @@ public class SkiaEntry : SkiaView
         }
     }
 
+    #endregion
+
+    private int _cursorPosition;
+    private int _selectionStart;
+    private int _selectionLength;
+    private float _scrollOffset;
+    private DateTime _cursorBlinkTime = DateTime.UtcNow;
+    private bool _cursorVisible = true;
+    private bool _isSelecting; // For mouse-based text selection
+    private DateTime _lastClickTime = DateTime.MinValue;
+    private float _lastClickX;
+    private const double DoubleClickThresholdMs = 400;
+
+    /// <summary>
+    /// Event raised when text changes.
+    /// </summary>
     public event EventHandler<TextChangedEventArgs>? TextChanged;
+
+    /// <summary>
+    /// Event raised when Enter is pressed.
+    /// </summary>
     public event EventHandler? Completed;
 
     public SkiaEntry()
@@ -88,12 +552,21 @@ public class SkiaEntry : SkiaView
         IsFocusable = true;
     }
 
+    private void OnTextPropertyChanged(string oldText, string newText)
+    {
+        _cursorPosition = Math.Min(_cursorPosition, (newText ?? "").Length);
+        _scrollOffset = 0; // Reset scroll when text changes externally
+        _selectionLength = 0;
+        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, newText ?? ""));
+        Invalidate();
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = BackgroundColor,
+            Color = EntryBackgroundColor,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -124,7 +597,7 @@ public class SkiaEntry : SkiaView
         // Reserve space for clear button if shown
         var clearButtonSize = 20f;
         var clearButtonMargin = 8f;
-        if (ShowClearButton && !string.IsNullOrEmpty(_text) && IsFocused)
+        if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
         {
             contentBounds.Right -= clearButtonSize + clearButtonMargin;
         }
@@ -139,12 +612,6 @@ public class SkiaEntry : SkiaView
 
         using var font = new SKFont(typeface, FontSize);
         using var paint = new SKPaint(font) { IsAntialias = true };
-        
-        // Apply character spacing if set
-        if (CharacterSpacing > 0)
-        {
-            // Character spacing applied via SKPaint
-        }
 
         var displayText = GetDisplayText();
         var hasText = !string.IsNullOrEmpty(displayText);
@@ -167,8 +634,8 @@ public class SkiaEntry : SkiaView
                 _scrollOffset = cursorX;
             }
 
-            // Draw selection
-            if (IsFocused && _selectionLength > 0)
+            // Draw selection (check != 0 to handle both forward and backward selection)
+            if (IsFocused && _selectionLength != 0)
             {
                 DrawSelection(canvas, paint, displayText, contentBounds);
             }
@@ -215,7 +682,7 @@ public class SkiaEntry : SkiaView
         canvas.Restore();
 
         // Draw clear button if applicable
-        if (ShowClearButton && !string.IsNullOrEmpty(_text) && IsFocused)
+        if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
         {
             DrawClearButton(canvas, bounds, clearButtonSize, clearButtonMargin);
         }
@@ -263,11 +730,11 @@ public class SkiaEntry : SkiaView
 
     private string GetDisplayText()
     {
-        if (IsPassword && !string.IsNullOrEmpty(_text))
+        if (IsPassword && !string.IsNullOrEmpty(Text))
         {
-            return new string(PasswordChar, _text.Length);
+            return new string(PasswordChar, Text.Length);
         }
-        return _text;
+        return Text;
     }
 
     private void DrawSelection(SKCanvas canvas, SKPaint paint, string displayText, SKRect bounds)
@@ -311,6 +778,9 @@ public class SkiaEntry : SkiaView
         _cursorVisible = true;
     }
 
+    /// <summary>
+    /// Updates cursor blink animation.
+    /// </summary>
     public void UpdateCursorBlink()
     {
         if (!IsFocused) return;
@@ -329,29 +799,33 @@ public class SkiaEntry : SkiaView
     {
         if (!IsEnabled || IsReadOnly) return;
 
+        // Ignore control characters (Ctrl+key combinations send ASCII control codes)
+        if (!string.IsNullOrEmpty(e.Text) && e.Text.Length == 1 && e.Text[0] < 32)
+            return;
+
         // Delete selection if any
-        if (_selectionLength > 0)
+        if (_selectionLength != 0)
         {
             DeleteSelection();
         }
 
         // Check max length
-        if (MaxLength > 0 && _text.Length >= MaxLength)
+        if (MaxLength > 0 && Text.Length >= MaxLength)
             return;
 
         // Insert text at cursor
         var insertText = e.Text;
         if (MaxLength > 0)
         {
-            var remaining = MaxLength - _text.Length;
+            var remaining = MaxLength - Text.Length;
             insertText = insertText.Substring(0, Math.Min(insertText.Length, remaining));
         }
 
-        var oldText = _text;
-        _text = _text.Insert(_cursorPosition, insertText);
-        _cursorPosition += insertText.Length;
+        var newText = Text.Insert(_cursorPosition, insertText);
+        var oldPos = _cursorPosition;
+        Text = newText;
+        _cursorPosition = oldPos + insertText.Length;
 
-        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
         ResetCursorBlink();
         Invalidate();
     }
@@ -371,10 +845,10 @@ public class SkiaEntry : SkiaView
                     }
                     else if (_cursorPosition > 0)
                     {
-                        var oldText = _text;
-                        _text = _text.Remove(_cursorPosition - 1, 1);
-                        _cursorPosition--;
-                        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
+                        var newText = Text.Remove(_cursorPosition - 1, 1);
+                        var newPos = _cursorPosition - 1;
+                        Text = newText;
+                        _cursorPosition = newPos;
                     }
                     ResetCursorBlink();
                     Invalidate();
@@ -389,11 +863,9 @@ public class SkiaEntry : SkiaView
                     {
                         DeleteSelection();
                     }
-                    else if (_cursorPosition < _text.Length)
+                    else if (_cursorPosition < Text.Length)
                     {
-                        var oldText = _text;
-                        _text = _text.Remove(_cursorPosition, 1);
-                        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
+                        Text = Text.Remove(_cursorPosition, 1);
                     }
                     ResetCursorBlink();
                     Invalidate();
@@ -420,7 +892,7 @@ public class SkiaEntry : SkiaView
                 break;
 
             case Key.Right:
-                if (_cursorPosition < _text.Length)
+                if (_cursorPosition < Text.Length)
                 {
                     if (e.Modifiers.HasFlag(KeyModifiers.Shift))
                     {
@@ -455,12 +927,12 @@ public class SkiaEntry : SkiaView
             case Key.End:
                 if (e.Modifiers.HasFlag(KeyModifiers.Shift))
                 {
-                    ExtendSelectionTo(_text.Length);
+                    ExtendSelectionTo(Text.Length);
                 }
                 else
                 {
                     ClearSelection();
-                    _cursorPosition = _text.Length;
+                    _cursorPosition = Text.Length;
                 }
                 ResetCursorBlink();
                 Invalidate();
@@ -508,44 +980,115 @@ public class SkiaEntry : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
+        Console.WriteLine($"[SkiaEntry] OnPointerPressed - Text='{Text}', Placeholder='{Placeholder}', IsEnabled={IsEnabled}, IsFocused={IsFocused}");
+        Console.WriteLine($"[SkiaEntry] Bounds={Bounds}, ScreenBounds={ScreenBounds}, e.X={e.X}, e.Y={e.Y}");
+
         if (!IsEnabled) return;
 
         // Check if clicked on clear button
-        if (ShowClearButton && !string.IsNullOrEmpty(_text) && IsFocused)
+        if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
         {
             var clearButtonSize = 20f;
             var clearButtonMargin = 8f;
             var clearCenterX = Bounds.Right - clearButtonMargin - clearButtonSize / 2;
             var clearCenterY = Bounds.MidY;
-            
+
             var dx = e.X - clearCenterX;
             var dy = e.Y - clearCenterY;
             if (dx * dx + dy * dy < (clearButtonSize / 2) * (clearButtonSize / 2))
             {
                 // Clear button clicked
-                var oldText = _text;
-                _text = "";
+                Text = "";
                 _cursorPosition = 0;
                 _selectionLength = 0;
-                TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
                 Invalidate();
                 return;
             }
         }
 
-        // Calculate cursor position from click
-        var clickX = e.X - Bounds.Left - Padding.Left + _scrollOffset;
+        // Calculate cursor position from click using screen coordinates
+        var screenBounds = ScreenBounds;
+        var clickX = e.X - screenBounds.Left - Padding.Left + _scrollOffset;
         _cursorPosition = GetCharacterIndexAtX(clickX);
-        _selectionStart = _cursorPosition;
-        _selectionLength = 0;
+
+        // Check for double-click (select word)
+        var now = DateTime.UtcNow;
+        var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
+        var distanceFromLastClick = Math.Abs(e.X - _lastClickX);
+
+        if (timeSinceLastClick < DoubleClickThresholdMs && distanceFromLastClick < 10)
+        {
+            // Double-click: select the word at cursor
+            SelectWordAtCursor();
+            _lastClickTime = DateTime.MinValue; // Reset to prevent triple-click issues
+            _isSelecting = false;
+        }
+        else
+        {
+            // Single click: start selection
+            _selectionStart = _cursorPosition;
+            _selectionLength = 0;
+            _isSelecting = true;
+            _lastClickTime = now;
+            _lastClickX = e.X;
+        }
 
         ResetCursorBlink();
         Invalidate();
     }
 
+    private void SelectWordAtCursor()
+    {
+        if (string.IsNullOrEmpty(Text)) return;
+
+        // Find word boundaries
+        int start = _cursorPosition;
+        int end = _cursorPosition;
+
+        // Move start backwards to beginning of word
+        while (start > 0 && IsWordChar(Text[start - 1]))
+            start--;
+
+        // Move end forwards to end of word
+        while (end < Text.Length && IsWordChar(Text[end]))
+            end++;
+
+        _selectionStart = start;
+        _cursorPosition = end;
+        _selectionLength = end - start;
+    }
+
+    private static bool IsWordChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        if (!IsEnabled || !_isSelecting) return;
+
+        // Extend selection to current mouse position
+        var screenBounds = ScreenBounds;
+        var clickX = e.X - screenBounds.Left - Padding.Left + _scrollOffset;
+        var newPosition = GetCharacterIndexAtX(clickX);
+
+        if (newPosition != _cursorPosition)
+        {
+            _cursorPosition = newPosition;
+            _selectionLength = _cursorPosition - _selectionStart;
+            ResetCursorBlink();
+            Invalidate();
+        }
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        _isSelecting = false;
+    }
+
     private int GetCharacterIndexAtX(float x)
     {
-        if (string.IsNullOrEmpty(_text)) return 0;
+        if (string.IsNullOrEmpty(Text)) return 0;
 
         var fontStyle = GetFontStyle();
         var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
@@ -582,12 +1125,9 @@ public class SkiaEntry : SkiaView
         var start = Math.Min(_selectionStart, _selectionStart + _selectionLength);
         var length = Math.Abs(_selectionLength);
 
-        var oldText = _text;
-        _text = _text.Remove(start, length);
+        Text = Text.Remove(start, length);
         _cursorPosition = start;
         _selectionLength = 0;
-
-        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
     }
 
     private void ClearSelection()
@@ -617,29 +1157,36 @@ public class SkiaEntry : SkiaView
         _selectionLength = _cursorPosition - _selectionStart;
     }
 
+    /// <summary>
+    /// Selects all text.
+    /// </summary>
     public void SelectAll()
     {
         _selectionStart = 0;
-        _cursorPosition = _text.Length;
-        _selectionLength = _text.Length;
+        _cursorPosition = Text.Length;
+        _selectionLength = Text.Length;
         Invalidate();
     }
 
     private void CopyToClipboard()
     {
+        // Password fields should not allow copying
+        if (IsPassword) return;
         if (_selectionLength == 0) return;
 
         var start = Math.Min(_selectionStart, _selectionStart + _selectionLength);
         var length = Math.Abs(_selectionLength);
-        var selectedText = _text.Substring(start, length);
+        var selectedText = Text.Substring(start, length);
 
-        // TODO: Implement actual clipboard using X11
-        // For now, store in a static field
-        ClipboardText = selectedText;
+        // Use system clipboard via xclip/xsel
+        SystemClipboard.SetText(selectedText);
     }
 
     private void CutToClipboard()
     {
+        // Password fields should not allow cutting
+        if (IsPassword) return;
+
         CopyToClipboard();
         DeleteSelection();
         Invalidate();
@@ -647,11 +1194,11 @@ public class SkiaEntry : SkiaView
 
     private void PasteFromClipboard()
     {
-        // TODO: Get from actual X11 clipboard
-        var text = ClipboardText;
+        // Get from system clipboard
+        var text = SystemClipboard.GetText();
         if (string.IsNullOrEmpty(text)) return;
 
-        if (_selectionLength > 0)
+        if (_selectionLength != 0)
         {
             DeleteSelection();
         }
@@ -659,20 +1206,28 @@ public class SkiaEntry : SkiaView
         // Check max length
         if (MaxLength > 0)
         {
-            var remaining = MaxLength - _text.Length;
+            var remaining = MaxLength - Text.Length;
             text = text.Substring(0, Math.Min(text.Length, remaining));
         }
 
-        var oldText = _text;
-        _text = _text.Insert(_cursorPosition, text);
-        _cursorPosition += text.Length;
-
-        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, _text));
+        var newText = Text.Insert(_cursorPosition, text);
+        var newPos = _cursorPosition + text.Length;
+        Text = newText;
+        _cursorPosition = newPos;
         Invalidate();
     }
 
-    // Temporary clipboard storage - will be replaced with X11 clipboard
-    private static string ClipboardText { get; set; } = "";
+    public override void OnFocusGained()
+    {
+        base.OnFocusGained();
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Focused);
+    }
+
+    public override void OnFocusLost()
+    {
+        base.OnFocusLost();
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Normal);
+    }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
@@ -681,17 +1236,15 @@ public class SkiaEntry : SkiaView
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, FontSize);
-        using var paint = new SKPaint(font);
 
-        var textBounds = new SKRect();
-        var measureText = !string.IsNullOrEmpty(_text) ? _text : Placeholder;
-        if (string.IsNullOrEmpty(measureText)) measureText = "Tg"; // Standard height measurement
-
-        paint.MeasureText(measureText, ref textBounds);
+        // Use font metrics for consistent height regardless of text content
+        // This prevents size changes when placeholder disappears or text changes
+        var metrics = font.Metrics;
+        var textHeight = metrics.Descent - metrics.Ascent + metrics.Leading;
 
         return new SKSize(
             200, // Default width, will be overridden by layout
-            textBounds.Height + Padding.Top + Padding.Bottom + BorderWidth * 2);
+            textHeight + Padding.Top + Padding.Bottom + BorderWidth * 2);
     }
 }
 

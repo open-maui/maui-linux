@@ -153,4 +153,154 @@ public static class KeyMapping
 
         return modifiers;
     }
+
+    // Linux evdev keycode to Key mapping (used by Wayland)
+    private static readonly Dictionary<uint, Key> LinuxKeycodeToKey = new()
+    {
+        // Top row
+        [1] = Key.Escape,
+        [2] = Key.D1, [3] = Key.D2, [4] = Key.D3, [5] = Key.D4, [6] = Key.D5,
+        [7] = Key.D6, [8] = Key.D7, [9] = Key.D8, [10] = Key.D9, [11] = Key.D0,
+        [12] = Key.Minus, [13] = Key.Equals, [14] = Key.Backspace, [15] = Key.Tab,
+
+        // QWERTY row
+        [16] = Key.Q, [17] = Key.W, [18] = Key.E, [19] = Key.R, [20] = Key.T,
+        [21] = Key.Y, [22] = Key.U, [23] = Key.I, [24] = Key.O, [25] = Key.P,
+        [26] = Key.LeftBracket, [27] = Key.RightBracket, [28] = Key.Enter,
+
+        // Control and ASDF row
+        [29] = Key.Control,
+        [30] = Key.A, [31] = Key.S, [32] = Key.D, [33] = Key.F, [34] = Key.G,
+        [35] = Key.H, [36] = Key.J, [37] = Key.K, [38] = Key.L,
+        [39] = Key.Semicolon, [40] = Key.Quote, [41] = Key.Grave,
+
+        // Shift and ZXCV row
+        [42] = Key.Shift, [43] = Key.Backslash,
+        [44] = Key.Z, [45] = Key.X, [46] = Key.C, [47] = Key.V, [48] = Key.B,
+        [49] = Key.N, [50] = Key.M,
+        [51] = Key.Comma, [52] = Key.Period, [53] = Key.Slash, [54] = Key.Shift,
+
+        // Bottom row
+        [55] = Key.NumPadMultiply, [56] = Key.Alt, [57] = Key.Space,
+        [58] = Key.CapsLock,
+
+        // Function keys
+        [59] = Key.F1, [60] = Key.F2, [61] = Key.F3, [62] = Key.F4,
+        [63] = Key.F5, [64] = Key.F6, [65] = Key.F7, [66] = Key.F8,
+        [67] = Key.F9, [68] = Key.F10,
+
+        // NumLock and numpad
+        [69] = Key.NumLock, [70] = Key.ScrollLock,
+        [71] = Key.NumPad7, [72] = Key.NumPad8, [73] = Key.NumPad9, [74] = Key.NumPadSubtract,
+        [75] = Key.NumPad4, [76] = Key.NumPad5, [77] = Key.NumPad6, [78] = Key.NumPadAdd,
+        [79] = Key.NumPad1, [80] = Key.NumPad2, [81] = Key.NumPad3,
+        [82] = Key.NumPad0, [83] = Key.NumPadDecimal,
+
+        // More function keys
+        [87] = Key.F11, [88] = Key.F12,
+
+        // Extended keys
+        [96] = Key.Enter,      // NumPad Enter
+        [97] = Key.Control,    // Right Control
+        [98] = Key.NumPadDivide,
+        [99] = Key.PrintScreen,
+        [100] = Key.Alt,       // Right Alt
+        [102] = Key.Home,
+        [103] = Key.Up,
+        [104] = Key.PageUp,
+        [105] = Key.Left,
+        [106] = Key.Right,
+        [107] = Key.End,
+        [108] = Key.Down,
+        [109] = Key.PageDown,
+        [110] = Key.Insert,
+        [111] = Key.Delete,
+        [119] = Key.Pause,
+        [125] = Key.Super,     // Left Super (Windows key)
+        [126] = Key.Super,     // Right Super
+        [127] = Key.Menu,
+    };
+
+    /// <summary>
+    /// Converts a Linux evdev keycode to a MAUI Key.
+    /// Used for Wayland input where keycodes are offset by 8 from X11 keycodes.
+    /// </summary>
+    public static Key FromLinuxKeycode(uint keycode)
+    {
+        // Wayland uses evdev keycodes, X11 uses keycodes + 8
+        // If caller added 8, subtract it
+        var evdevCode = keycode >= 8 ? keycode - 8 : keycode;
+
+        if (LinuxKeycodeToKey.TryGetValue(evdevCode, out var key))
+            return key;
+
+        return Key.Unknown;
+    }
+
+    /// <summary>
+    /// Converts a Key to its character representation, if applicable.
+    /// </summary>
+    public static char? ToChar(Key key, KeyModifiers modifiers)
+    {
+        bool shift = modifiers.HasFlag(KeyModifiers.Shift);
+        bool capsLock = modifiers.HasFlag(KeyModifiers.CapsLock);
+        bool upper = shift ^ capsLock;
+
+        // Letters
+        if (key >= Key.A && key <= Key.Z)
+        {
+            char ch = (char)('a' + (key - Key.A));
+            return upper ? char.ToUpper(ch) : ch;
+        }
+
+        // Numbers (with shift gives symbols)
+        if (key >= Key.D0 && key <= Key.D9)
+        {
+            if (shift)
+            {
+                return (key - Key.D0) switch
+                {
+                    0 => ')',
+                    1 => '!',
+                    2 => '@',
+                    3 => '#',
+                    4 => '$',
+                    5 => '%',
+                    6 => '^',
+                    7 => '&',
+                    8 => '*',
+                    9 => '(',
+                    _ => null
+                };
+            }
+            return (char)('0' + (key - Key.D0));
+        }
+
+        // NumPad numbers
+        if (key >= Key.NumPad0 && key <= Key.NumPad9)
+            return (char)('0' + (key - Key.NumPad0));
+
+        // Punctuation
+        return key switch
+        {
+            Key.Space => ' ',
+            Key.Comma => shift ? '<' : ',',
+            Key.Period => shift ? '>' : '.',
+            Key.Slash => shift ? '?' : '/',
+            Key.Semicolon => shift ? ':' : ';',
+            Key.Quote => shift ? '"' : '\'',
+            Key.LeftBracket => shift ? '{' : '[',
+            Key.RightBracket => shift ? '}' : ']',
+            Key.Backslash => shift ? '|' : '\\',
+            Key.Minus => shift ? '_' : '-',
+            Key.Equals => shift ? '+' : '=',
+            Key.Grave => shift ? '~' : '`',
+            Key.NumPadAdd => '+',
+            Key.NumPadSubtract => '-',
+            Key.NumPadMultiply => '*',
+            Key.NumPadDivide => '/',
+            Key.NumPadDecimal => '.',
+            _ => null
+        };
+    }
 }

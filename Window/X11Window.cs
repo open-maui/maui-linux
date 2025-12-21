@@ -288,8 +288,12 @@ public class X11Window : IDisposable
 
         KeyDown?.Invoke(this, new KeyEventArgs(key, modifiers));
 
-        // Generate text input for printable characters
-        if (keysym >= 32 && keysym <= 126)
+        // Generate text input for printable characters, but NOT when Control or Alt is held
+        // (those are keyboard shortcuts, not text input)
+        bool isControlHeld = (keyEvent.State & 0x04) != 0; // ControlMask
+        bool isAltHeld = (keyEvent.State & 0x08) != 0;     // Mod1Mask (Alt)
+
+        if (keysym >= 32 && keysym <= 126 && !isControlHeld && !isAltHeld)
         {
             TextInput?.Invoke(this, new TextInputEventArgs(((char)keysym).ToString()));
         }

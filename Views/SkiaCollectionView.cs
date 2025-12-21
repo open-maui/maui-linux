@@ -47,6 +47,21 @@ public class SkiaCollectionView : SkiaItemsView
     private float _headerHeight = 0;
     private float _footerHeight = 0;
 
+    // Track if heights changed during draw (requires redraw for correct positioning)
+    private bool _heightsChangedDuringDraw;
+
+    // Uses parent's _itemViewCache for virtualization
+
+    protected override void RefreshItems()
+    {
+        // Clear selection when items change to avoid stale references
+        _selectedItems.Clear();
+        _selectedItem = null;
+        _selectedIndex = -1;
+
+        base.RefreshItems();
+    }
+
     public SkiaSelectionMode SelectionMode
     {
         get => _selectionMode;
@@ -175,7 +190,7 @@ public class SkiaCollectionView : SkiaItemsView
         }
     }
 
-    public SKColor SelectionColor { get; set; } = new SKColor(0x21, 0x96, 0xF3, 0x40);
+    public SKColor SelectionColor { get; set; } = new SKColor(0x21, 0x96, 0xF3, 0x59); // 35% opacity
     public SKColor HeaderBackgroundColor { get; set; } = new SKColor(0xF5, 0xF5, 0xF5);
     public SKColor FooterBackgroundColor { get; set; } = new SKColor(0xF5, 0xF5, 0xF5);
 
@@ -261,14 +276,7 @@ public class SkiaCollectionView : SkiaItemsView
 
     protected override void DrawItem(SKCanvas canvas, object item, int index, SKRect bounds, SKPaint paint)
     {
-        // Draw selection highlight
         bool isSelected = _selectedItems.Contains(item);
-        if (isSelected)
-        {
-            paint.Color = SelectionColor;
-            paint.Style = SKPaintStyle.Fill;
-            canvas.DrawRect(bounds, paint);
-        }
 
         // Draw separator (only for vertical list layout)
         if (_orientation == ItemsLayoutOrientation.Vertical && _spanCount == 1)
@@ -279,6 +287,70 @@ public class SkiaCollectionView : SkiaItemsView
             canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
         }
 
+        // Try to use ItemViewCreator for templated rendering (from DataTemplate)
+        if (ItemViewCreator != null)
+        {
+            // Get or create cached view for this index
+            if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
+            {
+                itemView = ItemViewCreator(item);
+                if (itemView != null)
+                {
+                    itemView.Parent = this;
+                    _itemViewCache[index] = itemView;
+                }
+            }
+
+            if (itemView != null)
+            {
+                try
+                {
+                    // Measure with large height to get natural size
+                    var availableSize = new SKSize(bounds.Width, float.MaxValue);
+                    var measuredSize = itemView.Measure(availableSize);
+
+                    // Cap measured height - if item returns infinity/MaxValue, use ItemHeight as default
+                    // This happens with Star-sized Grids that have no natural height preference
+                    var rawHeight = measuredSize.Height;
+                    if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000)
+                    {
+                        rawHeight = ItemHeight;
+                    }
+                    // Ensure minimum height
+                    var measuredHeight = Math.Max(rawHeight, ItemHeight);
+                    if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1)
+                    {
+                        _itemHeights[index] = measuredHeight;
+                        _heightsChangedDuringDraw = true; // Flag for redraw with correct positions
+                    }
+
+                    // Arrange with the actual measured height
+                    var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
+                    itemView.Arrange(actualBounds);
+                    itemView.Draw(canvas);
+
+                    // Draw selection highlight ON TOP of the item content (semi-transparent overlay)
+                    if (isSelected)
+                    {
+                        paint.Color = SelectionColor;
+                        paint.Style = SKPaintStyle.Fill;
+                        canvas.DrawRoundRect(actualBounds, 12, 12, paint);
+                    }
+
+                    // Draw checkmark for selected items in multiple selection mode
+                    if (isSelected && _selectionMode == SkiaSelectionMode.Multiple)
+                    {
+                        DrawCheckmark(canvas, new SKRect(actualBounds.Right - 32, actualBounds.MidY - 8, actualBounds.Right - 16, actualBounds.MidY + 8));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SkiaCollectionView.DrawItem] EXCEPTION: {ex.Message}\n{ex.StackTrace}");
+                }
+                return;
+            }
+        }
+
         // Use custom renderer if provided
         if (ItemRenderer != null)
         {
@@ -286,7 +358,7 @@ public class SkiaCollectionView : SkiaItemsView
                 return;
         }
 
-        // Default rendering
+        // Default rendering - fall back to ToString
         paint.Color = SKColors.Black;
         paint.Style = SKPaintStyle.Fill;
 
@@ -333,7 +405,10 @@ public class SkiaCollectionView : SkiaItemsView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Draw background
+        // Reset the heights-changed flag at the start of each draw
+        _heightsChangedDuringDraw = false;
+
+        // Draw background if set
         if (BackgroundColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
@@ -381,40 +456,67 @@ public class SkiaCollectionView : SkiaItemsView
         {
             DrawListItems(canvas, contentBounds);
         }
+
+        // If heights changed during this draw, schedule a redraw with correct positions
+        // This will queue another frame to be drawn with the correct cached heights
+        if (_heightsChangedDuringDraw)
+        {
+            _heightsChangedDuringDraw = false;
+            Invalidate();
+        }
     }
 
     private void DrawListItems(SKCanvas canvas, SKRect bounds)
     {
-        // Standard list drawing (delegate to base implementation via manual drawing)
+        // Standard list drawing with variable item heights
         canvas.Save();
         canvas.ClipRect(bounds);
 
         using var paint = new SKPaint { IsAntialias = true };
 
         var scrollOffset = GetScrollOffset();
-        var firstVisible = Math.Max(0, (int)(scrollOffset / (ItemHeight + ItemSpacing)));
-        var lastVisible = Math.Min(ItemCount - 1,
-            (int)((scrollOffset + bounds.Height) / (ItemHeight + ItemSpacing)) + 1);
 
-        for (int i = firstVisible; i <= lastVisible; i++)
+        // Find first visible item by walking through items
+        int firstVisible = 0;
+        float cumulativeOffset = 0;
+        for (int i = 0; i < ItemCount; i++)
         {
-            var itemY = bounds.Top + (i * (ItemHeight + ItemSpacing)) - scrollOffset;
-            var itemRect = new SKRect(bounds.Left, itemY, bounds.Right - 8, itemY + ItemHeight);
-
-            if (itemRect.Bottom < bounds.Top || itemRect.Top > bounds.Bottom)
-                continue;
-
-            var item = GetItemAt(i);
-            if (item != null)
+            var itemH = GetItemHeight(i);
+            if (cumulativeOffset + itemH > scrollOffset)
             {
-                DrawItem(canvas, item, i, itemRect, paint);
+                firstVisible = i;
+                break;
             }
+            cumulativeOffset += itemH + ItemSpacing;
+        }
+
+        // Draw visible items using variable heights
+        float currentY = bounds.Top + GetItemOffset(firstVisible) - scrollOffset;
+        for (int i = firstVisible; i < ItemCount; i++)
+        {
+            var itemH = GetItemHeight(i);
+            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - 8, currentY + itemH);
+
+            // Stop if we've passed the visible area
+            if (itemRect.Top > bounds.Bottom)
+                break;
+
+            if (itemRect.Bottom >= bounds.Top)
+            {
+                var item = GetItemAt(i);
+                if (item != null)
+                {
+                    DrawItem(canvas, item, i, itemRect, paint);
+                }
+            }
+
+            currentY += itemH + ItemSpacing;
         }
 
         canvas.Restore();
 
         // Draw scrollbar
-        var totalHeight = ItemCount * (ItemHeight + ItemSpacing) - ItemSpacing;
+        var totalHeight = TotalContentHeight;
         if (totalHeight > bounds.Height)
         {
             DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
@@ -480,35 +582,41 @@ public class SkiaCollectionView : SkiaItemsView
 
     private void DrawScrollBarInternal(SKCanvas canvas, SKRect bounds, float scrollOffset, float totalHeight)
     {
-        var scrollBarWidth = 8f;
+        var scrollBarWidth = 6f;
+        var scrollBarMargin = 2f;
+
+        // Draw scrollbar track (subtle)
         var trackRect = new SKRect(
-            bounds.Right - scrollBarWidth,
-            bounds.Top,
-            bounds.Right,
-            bounds.Bottom);
+            bounds.Right - scrollBarWidth - scrollBarMargin,
+            bounds.Top + scrollBarMargin,
+            bounds.Right - scrollBarMargin,
+            bounds.Bottom - scrollBarMargin);
 
         using var trackPaint = new SKPaint
         {
-            Color = new SKColor(200, 200, 200, 64),
+            Color = new SKColor(0, 0, 0, 20),
             Style = SKPaintStyle.Fill
         };
-        canvas.DrawRect(trackRect, trackPaint);
+        canvas.DrawRoundRect(new SKRoundRect(trackRect, 3), trackPaint);
 
+        // Calculate thumb position and size
         var maxOffset = Math.Max(0, totalHeight - bounds.Height);
         var viewportRatio = bounds.Height / totalHeight;
-        var thumbHeight = Math.Max(20, bounds.Height * viewportRatio);
+        var availableTrackHeight = trackRect.Height;
+        var thumbHeight = Math.Max(30, availableTrackHeight * viewportRatio);
         var scrollRatio = maxOffset > 0 ? scrollOffset / maxOffset : 0;
-        var thumbY = bounds.Top + (bounds.Height - thumbHeight) * scrollRatio;
+        var thumbY = trackRect.Top + (availableTrackHeight - thumbHeight) * scrollRatio;
 
         var thumbRect = new SKRect(
-            bounds.Right - scrollBarWidth + 1,
+            trackRect.Left,
             thumbY,
-            bounds.Right - 1,
+            trackRect.Right,
             thumbY + thumbHeight);
 
+        // Draw thumb with more visible color
         using var thumbPaint = new SKPaint
         {
-            Color = new SKColor(128, 128, 128, 128),
+            Color = new SKColor(100, 100, 100, 180),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

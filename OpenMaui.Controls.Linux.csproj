@@ -35,14 +35,14 @@
     <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.40" />
     <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="9.0.40" />
 
-    <!-- SkiaSharp for rendering -->
-    <PackageReference Include="SkiaSharp" Version="3.119.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
-    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.1" />
+    <!-- SkiaSharp for rendering (2.88.x for FreeType compatibility) -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.88.9" />
 
     <!-- HarfBuzz for advanced text shaping -->
-    <PackageReference Include="HarfBuzzSharp" Version="8.3.1.2" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.2" />
+    <PackageReference Include="HarfBuzzSharp" Version="7.3.0.3" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.3" />
   </ItemGroup>
 
   <!-- Include README in package -->
@@ -50,12 +50,19 @@
     <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
-  <!-- Exclude old handler files and samples -->
+  <!-- Exclude old handler files, samples, templates, and VSIX -->
   <ItemGroup>
     <Compile Remove="Handlers/*.Linux.cs" />
     <Compile Remove="samples/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
     <Compile Remove="templates/**/*.cs" />
+    <Compile Remove="vsix/**/*.cs" />
+    <None Remove="vsix/**/*.xaml" />
+    <None Remove="templates/**/*.xaml" />
+    <None Remove="samples/**/*.xaml" />
+    <MauiXaml Remove="vsix/**/*.xaml" />
+    <MauiXaml Remove="templates/**/*.xaml" />
+    <MauiXaml Remove="samples/**/*.xaml" />
   </ItemGroup>
 
 </Project>

@@ -85,7 +85,10 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         if (handler.PlatformView is null) return;
 
         if (handler.PlatformView.Text != entry.Text)
+        {
             handler.PlatformView.Text = entry.Text ?? string.Empty;
+            handler.PlatformView.Invalidate();
+        }
     }
 
     public static void MapTextColor(EntryHandler handler, IEntry entry)

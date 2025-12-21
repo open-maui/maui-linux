@@ -19,6 +19,8 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
         [nameof(ICheckBox.IsChecked)] = MapIsChecked,
         [nameof(ICheckBox.Foreground)] = MapForeground,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
+        [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     /// <summary>
@@ -89,5 +91,23 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
     {
         handler.PlatformView.IsEnabled = checkBox.IsEnabled;
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackground(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (checkBox.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapBackgroundColor(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (checkBox is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }

@@ -23,8 +23,12 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         [nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
         [nameof(ILabel.TextDecorations)] = MapTextDecorations,
         [nameof(ILabel.LineHeight)] = MapLineHeight,
+        ["LineBreakMode"] = MapLineBreakMode,
+        ["MaxLines"] = MapMaxLines,
         [nameof(IPadding.Padding)] = MapPadding,
         [nameof(IView.Background)] = MapBackground,
+        [nameof(IView.VerticalLayoutAlignment)] = MapVerticalLayoutAlignment,
+        [nameof(IView.HorizontalLayoutAlignment)] = MapHorizontalLayoutAlignment,
     };
 
     public static CommandMapper<ILabel, LabelHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -121,6 +125,37 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         handler.PlatformView.LineHeight = (float)label.LineHeight;
     }
 
+    public static void MapLineBreakMode(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+
+        // LineBreakMode is on Label control, not ILabel interface
+        if (label is Microsoft.Maui.Controls.Label mauiLabel)
+        {
+            handler.PlatformView.LineBreakMode = mauiLabel.LineBreakMode switch
+            {
+                Microsoft.Maui.LineBreakMode.NoWrap => Platform.LineBreakMode.NoWrap,
+                Microsoft.Maui.LineBreakMode.WordWrap => Platform.LineBreakMode.WordWrap,
+                Microsoft.Maui.LineBreakMode.CharacterWrap => Platform.LineBreakMode.CharacterWrap,
+                Microsoft.Maui.LineBreakMode.HeadTruncation => Platform.LineBreakMode.HeadTruncation,
+                Microsoft.Maui.LineBreakMode.TailTruncation => Platform.LineBreakMode.TailTruncation,
+                Microsoft.Maui.LineBreakMode.MiddleTruncation => Platform.LineBreakMode.MiddleTruncation,
+                _ => Platform.LineBreakMode.TailTruncation
+            };
+        }
+    }
+
+    public static void MapMaxLines(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+
+        // MaxLines is on Label control, not ILabel interface
+        if (label is Microsoft.Maui.Controls.Label mauiLabel)
+        {
+            handler.PlatformView.MaxLines = mauiLabel.MaxLines;
+        }
+    }
+
     public static void MapPadding(LabelHandler handler, ILabel label)
     {
         if (handler.PlatformView is null) return;
@@ -141,5 +176,33 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapVerticalLayoutAlignment(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.VerticalOptions = label.VerticalLayoutAlignment switch
+        {
+            Primitives.LayoutAlignment.Start => LayoutOptions.Start,
+            Primitives.LayoutAlignment.Center => LayoutOptions.Center,
+            Primitives.LayoutAlignment.End => LayoutOptions.End,
+            Primitives.LayoutAlignment.Fill => LayoutOptions.Fill,
+            _ => LayoutOptions.Start
+        };
+    }
+
+    public static void MapHorizontalLayoutAlignment(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.HorizontalOptions = label.HorizontalLayoutAlignment switch
+        {
+            Primitives.LayoutAlignment.Start => LayoutOptions.Start,
+            Primitives.LayoutAlignment.Center => LayoutOptions.Center,
+            Primitives.LayoutAlignment.End => LayoutOptions.End,
+            Primitives.LayoutAlignment.Fill => LayoutOptions.Fill,
+            _ => LayoutOptions.Start
+        };
     }
 }

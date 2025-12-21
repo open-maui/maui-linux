@@ -3,6 +3,7 @@
 
 using SkiaSharp;
 using Microsoft.Maui.Platform.Linux.Window;
+using Microsoft.Maui.Platform;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.Maui.Platform.Linux.Rendering;
@@ -86,7 +87,13 @@ public class SkiaRenderingEngine : IDisposable
         
         // Draw popup overlays (dropdowns, calendars, etc.) on top
         SkiaView.DrawPopupOverlays(_canvas);
-        
+
+        // Draw modal dialogs on top of everything
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
+        }
+
         _canvas.Flush();
 
         // Present to X11 window

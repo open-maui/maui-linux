@@ -350,6 +350,7 @@ public class SkiaNavigationPage : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
+        Console.WriteLine($"[SkiaNavigationPage] OnPointerPressed at ({e.X}, {e.Y}), _isAnimating={_isAnimating}");
         if (_isAnimating) return;
 
         // Check for back button click
@@ -357,11 +358,13 @@ public class SkiaNavigationPage : SkiaView
         {
             if (e.X < 56 && e.Y < _navigationBarHeight)
             {
+                Console.WriteLine($"[SkiaNavigationPage] Back button clicked");
                 Pop();
                 return;
             }
         }
 
+        Console.WriteLine($"[SkiaNavigationPage] Forwarding to _currentPage: {_currentPage?.GetType().Name}");
         _currentPage?.OnPointerPressed(e);
     }
 
@@ -402,6 +405,35 @@ public class SkiaNavigationPage : SkiaView
     {
         if (_isAnimating) return;
         _currentPage?.OnScroll(e);
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (!IsVisible)
+            return null;
+
+        // Back button area - return self so OnPointerPressed handles it
+        if (_showBackButton && _navigationStack.Count > 0 && x < 56 && y < _navigationBarHeight)
+        {
+            return this;
+        }
+
+        // Check current page
+        if (_currentPage != null)
+        {
+            try
+            {
+                var hit = _currentPage.HitTest(x, y);
+                if (hit != null)
+                    return hit;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SkiaNavigationPage] HitTest error: {ex.Message}");
+            }
+        }
+
+        return this;
     }
 }
 

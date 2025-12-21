@@ -16,6 +16,8 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         [nameof(ISwitch.TrackColor)] = MapTrackColor,
         [nameof(ISwitch.ThumbColor)] = MapThumbColor,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
+        [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     public static CommandMapper<ISwitch, SwitchHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
@@ -70,5 +72,23 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
     {
         handler.PlatformView.IsEnabled = @switch.IsEnabled;
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackground(SwitchHandler handler, ISwitch @switch)
+    {
+        if (@switch.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapBackgroundColor(SwitchHandler handler, ISwitch @switch)
+    {
+        if (@switch is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }

@@ -153,7 +153,19 @@ public class SkiaPage : SkiaView
         // Draw content
         if (_content != null)
         {
-            _content.Bounds = contentBounds;
+            // Apply content's margin to the content bounds
+            var margin = _content.Margin;
+            var adjustedBounds = new SKRect(
+                contentBounds.Left + (float)margin.Left,
+                contentBounds.Top + (float)margin.Top,
+                contentBounds.Right - (float)margin.Right,
+                contentBounds.Bottom - (float)margin.Bottom);
+
+            // Measure and arrange the content before drawing
+            var availableSize = new SKSize(adjustedBounds.Width, adjustedBounds.Height);
+            _content.Measure(availableSize);
+            _content.Arrange(adjustedBounds);
+            Console.WriteLine($"[SkiaPage] Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
             _content.Draw(canvas);
         }
 
@@ -233,6 +245,7 @@ public class SkiaPage : SkiaView
 
     public void OnAppearing()
     {
+        Console.WriteLine($"[SkiaPage] OnAppearing called for: {Title}, HasListeners={Appearing != null}");
         Appearing?.Invoke(this, EventArgs.Empty);
     }
 
@@ -292,13 +305,160 @@ public class SkiaPage : SkiaView
     {
         _content?.OnScroll(e);
     }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (!IsVisible)
+            return null;
+
+        // Don't check Bounds.Contains for page - it may not be set
+        // Just forward to content
+
+        // Check content
+        if (_content != null)
+        {
+            var hit = _content.HitTest(x, y);
+            if (hit != null)
+                return hit;
+        }
+
+        return this;
+    }
 }
 
 /// <summary>
-/// Simple content page view.
+/// Simple content page view with toolbar items support.
 /// </summary>
 public class SkiaContentPage : SkiaPage
 {
-    // SkiaContentPage is essentially the same as SkiaPage
-    // but represents a ContentPage specifically
+    private readonly List<SkiaToolbarItem> _toolbarItems = new();
+
+    /// <summary>
+    /// Gets the toolbar items for this page.
+    /// </summary>
+    public IList<SkiaToolbarItem> ToolbarItems => _toolbarItems;
+
+    protected override void DrawNavigationBar(SKCanvas canvas, SKRect bounds)
+    {
+        // Draw navigation bar background
+        using var barPaint = new SKPaint
+        {
+            Color = TitleBarColor,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(bounds, barPaint);
+
+        // Draw title
+        if (!string.IsNullOrEmpty(Title))
+        {
+            using var font = new SKFont(SKTypeface.Default, 20);
+            using var textPaint = new SKPaint(font)
+            {
+                Color = TitleTextColor,
+                IsAntialias = true
+            };
+
+            var textBounds = new SKRect();
+            textPaint.MeasureText(Title, ref textBounds);
+
+            var x = bounds.Left + 56; // Leave space for back button
+            var y = bounds.MidY - textBounds.MidY;
+            canvas.DrawText(Title, x, y, textPaint);
+        }
+
+        // Draw toolbar items on the right
+        DrawToolbarItems(canvas, bounds);
+
+        // Draw shadow
+        using var shadowPaint = new SKPaint
+        {
+            Color = new SKColor(0, 0, 0, 30),
+            Style = SKPaintStyle.Fill,
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
+        };
+        canvas.DrawRect(new SKRect(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom + 4), shadowPaint);
+    }
+
+    private void DrawToolbarItems(SKCanvas canvas, SKRect navBarBounds)
+    {
+        var primaryItems = _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary).ToList();
+        Console.WriteLine($"[SkiaContentPage] DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
+        if (primaryItems.Count == 0) return;
+
+        using var font = new SKFont(SKTypeface.Default, 14);
+        using var textPaint = new SKPaint(font)
+        {
+            Color = TitleTextColor,
+            IsAntialias = true
+        };
+
+        float rightEdge = navBarBounds.Right - 16;
+
+        foreach (var item in primaryItems.AsEnumerable().Reverse())
+        {
+            var textBounds = new SKRect();
+            textPaint.MeasureText(item.Text, ref textBounds);
+
+            var itemWidth = textBounds.Width + 24; // Padding
+            var itemLeft = rightEdge - itemWidth;
+
+            // Store hit area for click handling
+            item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
+            Console.WriteLine($"[SkiaContentPage] Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
+
+            // Draw text
+            var x = itemLeft + 12;
+            var y = navBarBounds.MidY - textBounds.MidY;
+            canvas.DrawText(item.Text, x, y, textPaint);
+
+            rightEdge = itemLeft - 8; // Gap between items
+        }
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        Console.WriteLine($"[SkiaContentPage] OnPointerPressed at ({e.X}, {e.Y}), ShowNavigationBar={ShowNavigationBar}, NavigationBarHeight={NavigationBarHeight}");
+        Console.WriteLine($"[SkiaContentPage] ToolbarItems count: {_toolbarItems.Count}");
+
+        // Check toolbar item clicks
+        if (ShowNavigationBar && e.Y < NavigationBarHeight)
+        {
+            Console.WriteLine($"[SkiaContentPage] In navigation bar area, checking toolbar items");
+            foreach (var item in _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary))
+            {
+                var bounds = item.HitBounds;
+                var contains = bounds.Contains(e.X, e.Y);
+                Console.WriteLine($"[SkiaContentPage] Checking item '{item.Text}', HitBounds=({bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}), Click=({e.X},{e.Y}), Contains={contains}, Command={item.Command != null}");
+                if (contains)
+                {
+                    Console.WriteLine($"[SkiaContentPage] Toolbar item clicked: {item.Text}");
+                    item.Command?.Execute(null);
+                    return;
+                }
+            }
+            Console.WriteLine($"[SkiaContentPage] No toolbar item hit");
+        }
+
+        base.OnPointerPressed(e);
+    }
+}
+
+/// <summary>
+/// Represents a toolbar item in the navigation bar.
+/// </summary>
+public class SkiaToolbarItem
+{
+    public string Text { get; set; } = "";
+    public SkiaToolbarItemOrder Order { get; set; } = SkiaToolbarItemOrder.Primary;
+    public System.Windows.Input.ICommand? Command { get; set; }
+    public SKRect HitBounds { get; set; }
+}
+
+/// <summary>
+/// Order of toolbar items.
+/// </summary>
+public enum SkiaToolbarItemOrder
+{
+    Primary,
+    Secondary
 }

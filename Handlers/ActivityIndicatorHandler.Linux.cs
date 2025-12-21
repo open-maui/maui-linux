@@ -15,6 +15,8 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
         [nameof(IActivityIndicator.IsRunning)] = MapIsRunning,
         [nameof(IActivityIndicator.Color)] = MapColor,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
+        [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     public static CommandMapper<IActivityIndicator, ActivityIndicatorHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
@@ -39,5 +41,23 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
     {
         handler.PlatformView.IsEnabled = activityIndicator.IsEnabled;
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackground(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    {
+        if (activityIndicator.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapBackgroundColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    {
+        if (activityIndicator is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }

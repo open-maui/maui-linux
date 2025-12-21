@@ -19,6 +19,9 @@ public class SkiaShell : SkiaLayoutView
     private int _selectedSectionIndex = 0;
     private int _selectedItemIndex = 0;
 
+    // Navigation stack for push/pop navigation
+    private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new();
+
     /// <summary>
     /// Gets or sets whether the flyout is presented.
     /// </summary>
@@ -94,6 +97,12 @@ public class SkiaShell : SkiaLayoutView
     public bool TabBarIsVisible { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets the padding applied to page content.
+    /// Default is 16 pixels on all sides.
+    /// </summary>
+    public float ContentPadding { get; set; } = 16f;
+
+    /// <summary>
     /// Current title displayed in the navigation bar.
     /// </summary>
     public string Title { get; set; } = string.Empty;
@@ -102,6 +111,11 @@ public class SkiaShell : SkiaLayoutView
     /// The sections in this shell.
     /// </summary>
     public IReadOnlyList<ShellSection> Sections => _sections;
+
+    /// <summary>
+    /// Gets the currently selected section index.
+    /// </summary>
+    public int CurrentSectionIndex => _selectedSectionIndex;
 
     /// <summary>
     /// Event raised when FlyoutIsPresented changes.
@@ -146,6 +160,9 @@ public class SkiaShell : SkiaLayoutView
 
         var section = _sections[sectionIndex];
         if (itemIndex < 0 || itemIndex >= section.Items.Count) return;
+
+        // Clear navigation stack when navigating to a new section
+        _navigationStack.Clear();
 
         _selectedSectionIndex = sectionIndex;
         _selectedItemIndex = itemIndex;
@@ -193,6 +210,66 @@ public class SkiaShell : SkiaLayoutView
         }
     }
 
+    /// <summary>
+    /// Gets whether there are pages on the navigation stack.
+    /// </summary>
+    public bool CanGoBack => _navigationStack.Count > 0;
+
+    /// <summary>
+    /// Gets the current navigation stack depth.
+    /// </summary>
+    public int NavigationStackDepth => _navigationStack.Count;
+
+    /// <summary>
+    /// Pushes a new page onto the navigation stack.
+    /// </summary>
+    public void PushAsync(SkiaView page, string title)
+    {
+        // Save current content to stack
+        if (_currentContent != null)
+        {
+            _navigationStack.Push((_currentContent, Title));
+        }
+
+        // Set new content
+        SetCurrentContent(page);
+        Title = title;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Pops the current page from the navigation stack.
+    /// </summary>
+    public bool PopAsync()
+    {
+        if (_navigationStack.Count == 0) return false;
+
+        var (previousContent, previousTitle) = _navigationStack.Pop();
+        SetCurrentContent(previousContent);
+        Title = previousTitle;
+        Invalidate();
+        return true;
+    }
+
+    /// <summary>
+    /// Pops all pages from the navigation stack, returning to the root.
+    /// </summary>
+    public void PopToRootAsync()
+    {
+        if (_navigationStack.Count == 0) return;
+
+        // Get the root content
+        (SkiaView Content, string Title) root = default;
+        while (_navigationStack.Count > 0)
+        {
+            root = _navigationStack.Pop();
+        }
+
+        SetCurrentContent(root.Content);
+        Title = root.Title;
+        Invalidate();
+    }
+
     private void SetCurrentContent(SkiaView? content)
     {
         if (_currentContent != null)
@@ -226,16 +303,19 @@ public class SkiaShell : SkiaLayoutView
 
     protected override SKRect ArrangeOverride(SKRect bounds)
     {
-        // Arrange current content
+        Console.WriteLine($"[SkiaShell] ArrangeOverride - bounds={bounds}");
+
+        // Arrange current content with padding
         if (_currentContent != null)
         {
-            float contentTop = bounds.Top + (NavBarIsVisible ? NavBarHeight : 0);
-            float contentBottom = bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0);
+            float contentTop = bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
+            float contentBottom = bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
             var contentBounds = new SKRect(
-                bounds.Left,
+                bounds.Left + ContentPadding,
                 contentTop,
-                bounds.Right,
+                bounds.Right - ContentPadding,
                 contentBottom);
+            Console.WriteLine($"[SkiaShell] Arranging content with bounds={contentBounds}, padding={ContentPadding}");
             _currentContent.Arrange(contentBounds);
         }
 
@@ -288,20 +368,41 @@ public class SkiaShell : SkiaLayoutView
         };
         canvas.DrawRect(navBarBounds, bgPaint);
 
-        // Draw hamburger menu icon
-        if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
+        // Draw nav icon (back arrow if can go back, else hamburger menu if flyout enabled)
+        using var iconPaint = new SKPaint
         {
-            using var iconPaint = new SKPaint
+            Color = NavBarTextColor,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 2,
+            StrokeCap = SKStrokeCap.Round,
+            IsAntialias = true
+        };
+
+        float iconLeft = navBarBounds.Left + 16;
+        float iconCenter = navBarBounds.MidY;
+
+        if (CanGoBack)
+        {
+            // Draw iOS-style back chevron "<"
+            using var chevronPaint = new SKPaint
             {
                 Color = NavBarTextColor,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = 2,
+                StrokeWidth = 2.5f,
+                StrokeCap = SKStrokeCap.Round,
+                StrokeJoin = SKStrokeJoin.Round,
                 IsAntialias = true
             };
 
-            float iconLeft = navBarBounds.Left + 16;
-            float iconCenter = navBarBounds.MidY;
-
+            // Clean chevron pointing left
+            float chevronX = iconLeft + 6;
+            float chevronSize = 10;
+            canvas.DrawLine(chevronX + chevronSize, iconCenter - chevronSize, chevronX, iconCenter, chevronPaint);
+            canvas.DrawLine(chevronX, iconCenter, chevronX + chevronSize, iconCenter + chevronSize, chevronPaint);
+        }
+        else if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
+        {
+            // Draw hamburger menu icon
             canvas.DrawLine(iconLeft, iconCenter - 8, iconLeft + 18, iconCenter - 8, iconPaint);
             canvas.DrawLine(iconLeft, iconCenter, iconLeft + 18, iconCenter, iconPaint);
             canvas.DrawLine(iconLeft, iconCenter + 8, iconLeft + 18, iconCenter + 8, iconPaint);
@@ -316,7 +417,7 @@ public class SkiaShell : SkiaLayoutView
             FakeBoldText = true
         };
 
-        float titleX = FlyoutBehavior == ShellFlyoutBehavior.Flyout ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
+        float titleX = (CanGoBack || FlyoutBehavior == ShellFlyoutBehavior.Flyout) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
         float titleY = navBarBounds.MidY + 6;
         canvas.DrawText(Title, titleX, titleY, titlePaint);
     }
@@ -427,7 +528,8 @@ public class SkiaShell : SkiaLayoutView
                     Color = new SKColor(33, 150, 243, 30),
                     Style = SKPaintStyle.Fill
                 };
-                canvas.DrawRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight, selectionPaint);
+                var selectionRect = new SKRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight);
+                canvas.DrawRect(selectionRect, selectionPaint);
             }
 
             itemTextPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(33, 33, 33);
@@ -518,12 +620,23 @@ public class SkiaShell : SkiaLayoutView
             }
         }
 
-        // Check nav bar hamburger tap
-        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X < 56 && FlyoutBehavior == ShellFlyoutBehavior.Flyout)
+        // Check nav bar icon tap (back button or hamburger menu)
+        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X < 56)
         {
-            FlyoutIsPresented = !FlyoutIsPresented;
-            e.Handled = true;
-            return;
+            if (CanGoBack)
+            {
+                // Back button pressed
+                PopAsync();
+                e.Handled = true;
+                return;
+            }
+            else if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
+            {
+                // Hamburger menu pressed
+                FlyoutIsPresented = !FlyoutIsPresented;
+                e.Handled = true;
+                return;
+            }
         }
 
         // Check tab bar tap

@@ -6,7 +6,8 @@ using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
-using OpenMaui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux;
+using Microsoft.Maui.Platform.Linux.Handlers;
 
 namespace OpenMaui.Platform.Linux.Hosting;
 
@@ -59,17 +60,10 @@ public static class MauiAppBuilderExtensions
             handlers.AddHandler<ProgressBar, ProgressBarHandler>();
 
             // Layout Controls
-            handlers.AddHandler<ScrollView, ScrollViewHandler>();
             handlers.AddHandler<Border, BorderHandler>();
-            handlers.AddHandler<ContentView, ContentViewHandler>();
-            handlers.AddHandler<Frame, FrameHandler>();
 
             // Collection Controls
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
-            handlers.AddHandler<CarouselView, CarouselViewHandler>();
-            handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
-            handlers.AddHandler<RefreshView, RefreshViewHandler>();
-            handlers.AddHandler<SwipeView, SwipeViewHandler>();
 
             // Navigation Controls
             handlers.AddHandler<NavigationPage, NavigationPageHandler>();
@@ -86,6 +80,9 @@ public static class MauiAppBuilderExtensions
 
             // Search
             handlers.AddHandler<SearchBar, SearchBarHandler>();
+
+            // Web
+            handlers.AddHandler<WebView, WebViewHandler>();
 
             // Window
             handlers.AddHandler<Window, WindowHandler>();

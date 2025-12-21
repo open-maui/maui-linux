@@ -26,6 +26,8 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         [nameof(ILabel.Padding)] = MapPadding,
         [nameof(ILabel.TextDecorations)] = MapTextDecorations,
         [nameof(ILabel.LineHeight)] = MapLineHeight,
+        [nameof(ILabel.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     /// <summary>
@@ -150,5 +152,23 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
     {
         handler.PlatformView.LineHeight = (float)label.LineHeight;
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackground(LabelHandler handler, ILabel label)
+    {
+        if (label.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapBackgroundColor(LabelHandler handler, ILabel label)
+    {
+        if (label is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }

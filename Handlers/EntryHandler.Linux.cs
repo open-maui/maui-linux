@@ -30,6 +30,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         [nameof(IEntry.ReturnType)] = MapReturnType,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
         [nameof(IEntry.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     /// <summary>
@@ -185,5 +186,14 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
             handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
         }
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapBackgroundColor(EntryHandler handler, IEntry entry)
+    {
+        if (entry is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
     }
 }
