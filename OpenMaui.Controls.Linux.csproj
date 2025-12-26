@@ -32,12 +32,12 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.40" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.20" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.20" />
 
     <!-- SkiaSharp for rendering (2.88.x for FreeType compatibility) -->
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
     <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.88.9" />
 
