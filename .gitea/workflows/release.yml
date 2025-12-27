@@ -11,6 +11,7 @@ on:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_ROOT: C:\dotnet
 
 jobs:
   release:
@@ -30,16 +31,16 @@ jobs:
           echo "Building version: $version"
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: C:\dotnet\dotnet.exe restore
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: C:\dotnet\dotnet.exe build --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
+        run: C:\dotnet\dotnet.exe test --configuration Release --no-build --verbosity normal
 
       - name: Pack NuGet package
-        run: dotnet pack --configuration Release --no-build -o ./nupkg /p:PackageVersion=${{ steps.version.outputs.VERSION }}
+        run: C:\dotnet\dotnet.exe pack --configuration Release --no-build -o ./nupkg /p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Publish to NuGet.org
-        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: C:\dotnet\dotnet.exe nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

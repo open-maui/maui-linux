@@ -10,6 +10,7 @@ on:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_ROOT: C:\dotnet
 
 jobs:
   build:
@@ -19,18 +20,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup .NET Path
+        shell: pwsh
+        run: |
+          echo "C:\dotnet" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "DOTNET_ROOT=C:\dotnet" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Restore dependencies
-        run: dotnet restore
+        run: C:\dotnet\dotnet.exe restore
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: C:\dotnet\dotnet.exe build --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
+        run: C:\dotnet\dotnet.exe test --configuration Release --no-build --verbosity normal
         continue-on-error: true
 
       - name: Pack NuGet (preview)
-        run: dotnet pack --configuration Release --no-build -o ./nupkg
+        run: C:\dotnet\dotnet.exe pack --configuration Release --no-build -o ./nupkg
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v4
