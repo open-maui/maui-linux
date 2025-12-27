@@ -233,3 +233,4 @@ Copyright (c) 2025 MarketAlly LLC. Licensed under the MIT License - see the [LIC
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community
+ 
