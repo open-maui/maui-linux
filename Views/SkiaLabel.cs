@@ -429,9 +429,10 @@ public class SkiaLabel : SkiaView
             bounds.Bottom - Padding.Bottom);
 
         // Handle single line vs multiline
-        // Use DrawSingleLine for normal labels (MaxLines <= 1 or unlimited) without newlines
-        // Use DrawMultiLineWithWrapping only when MaxLines > 1 (word wrap needed) or text has newlines
-        bool needsMultiLine = MaxLines > 1 || Text.Contains('\n');
+        // Use DrawMultiLineWithWrapping when: MaxLines > 1, text has newlines, OR WordWrap is enabled
+        bool needsMultiLine = MaxLines > 1 || Text.Contains('\n') ||
+                              LineBreakMode == LineBreakMode.WordWrap ||
+                              LineBreakMode == LineBreakMode.CharacterWrap;
         if (needsMultiLine)
         {
             DrawMultiLineWithWrapping(canvas, paint, font, contentBounds);
@@ -771,8 +772,10 @@ public class SkiaLabel : SkiaView
         using var font = new SKFont(typeface, FontSize);
         using var paint = new SKPaint(font);
 
-        // Use same logic as OnDraw: multiline only when MaxLines > 1 or text has newlines
-        bool needsMultiLine = MaxLines > 1 || Text.Contains('\n');
+        // Use multiline when: MaxLines > 1, text has newlines, OR WordWrap is enabled
+        bool needsMultiLine = MaxLines > 1 || Text.Contains('\n') ||
+                              LineBreakMode == LineBreakMode.WordWrap ||
+                              LineBreakMode == LineBreakMode.CharacterWrap;
         if (!needsMultiLine)
         {
             var textBounds = new SKRect();

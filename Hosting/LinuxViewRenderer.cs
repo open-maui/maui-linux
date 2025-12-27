@@ -442,6 +442,7 @@ public class LinuxViewRenderer
             }
 
             // Create handler for the view
+            // The handler's ConnectHandler and property mappers handle child views automatically
             var handler = view.ToHandler(_mauiContext);
 
             if (handler?.PlatformView is not SkiaView skiaView)
@@ -450,98 +451,8 @@ public class LinuxViewRenderer
                 return CreateFallbackView(view);
             }
 
-            // Recursively render children for layout views
-            if (view is ILayout layout && skiaView is SkiaLayoutView layoutView)
-            {
-
-                // For StackLayout, copy orientation and spacing
-                if (layoutView is SkiaStackLayout skiaStack)
-                {
-                    if (view is Controls.VerticalStackLayout)
-                    {
-                        skiaStack.Orientation = StackOrientation.Vertical;
-                    }
-                    else if (view is Controls.HorizontalStackLayout)
-                    {
-                        skiaStack.Orientation = StackOrientation.Horizontal;
-                    }
-                    else if (view is Controls.StackLayout sl)
-                    {
-                        skiaStack.Orientation = sl.Orientation == Microsoft.Maui.Controls.StackOrientation.Vertical
-                            ? StackOrientation.Vertical : StackOrientation.Horizontal;
-                    }
-
-                    if (view is IStackLayout stackLayout)
-                    {
-                        skiaStack.Spacing = (float)stackLayout.Spacing;
-                    }
-                }
-
-                // For Grid, set up row/column definitions
-                if (view is Controls.Grid mauiGrid && layoutView is SkiaGrid skiaGrid)
-                {
-                    // Copy row definitions
-                    foreach (var rowDef in mauiGrid.RowDefinitions)
-                    {
-                        skiaGrid.RowDefinitions.Add(new GridLength((float)rowDef.Height.Value,
-                            rowDef.Height.IsAbsolute ? GridUnitType.Absolute :
-                            rowDef.Height.IsStar ? GridUnitType.Star : GridUnitType.Auto));
-                    }
-                    // Copy column definitions
-                    foreach (var colDef in mauiGrid.ColumnDefinitions)
-                    {
-                        skiaGrid.ColumnDefinitions.Add(new GridLength((float)colDef.Width.Value,
-                            colDef.Width.IsAbsolute ? GridUnitType.Absolute :
-                            colDef.Width.IsStar ? GridUnitType.Star : GridUnitType.Auto));
-                    }
-                    skiaGrid.RowSpacing = (float)mauiGrid.RowSpacing;
-                    skiaGrid.ColumnSpacing = (float)mauiGrid.ColumnSpacing;
-                }
-
-                foreach (var child in layout)
-                {
-                    if (child is IView childViewElement)
-                    {
-                        var childView = RenderView(childViewElement);
-                        if (childView != null)
-                        {
-                            // For Grid, get attached properties for position
-                            if (layoutView is SkiaGrid grid && child is BindableObject bindable)
-                            {
-                                var row = Controls.Grid.GetRow(bindable);
-                                var col = Controls.Grid.GetColumn(bindable);
-                                var rowSpan = Controls.Grid.GetRowSpan(bindable);
-                                var colSpan = Controls.Grid.GetColumnSpan(bindable);
-                                grid.AddChild(childView, row, col, rowSpan, colSpan);
-                            }
-                            else
-                            {
-                                layoutView.AddChild(childView);
-                            }
-                        }
-                    }
-                }
-            }
-            else if (view is IContentView contentView && contentView.Content is IView contentElement)
-            {
-                var content = RenderView(contentElement);
-                if (content != null)
-                {
-                    if (skiaView is SkiaBorder border)
-                    {
-                        border.AddChild(content);
-                    }
-                    else if (skiaView is SkiaFrame frame)
-                    {
-                        frame.AddChild(content);
-                    }
-                    else if (skiaView is SkiaScrollView scrollView)
-                    {
-                        scrollView.Content = content;
-                    }
-                }
-            }
-
+            // Handlers manage their own children via ConnectHandler and property mappers
+            // No manual child rendering needed here - that caused "View already has a parent" errors
             return skiaView;
         }
         catch (Exception)

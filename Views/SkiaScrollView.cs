@@ -268,8 +268,16 @@ public class SkiaScrollView : SkiaView
         if (_content != null)
         {
             // Ensure content is measured and arranged
-            var availableSize = new SKSize(bounds.Width, float.PositiveInfinity);
-            _content.Measure(availableSize);
+            // Account for vertical scrollbar width to prevent horizontal scrollbar from appearing
+            var effectiveWidth = bounds.Width;
+            if (Orientation != ScrollOrientation.Horizontal && VerticalScrollBarVisibility != ScrollBarVisibility.Never)
+            {
+                // Reserve space for vertical scrollbar if content might be taller than viewport
+                effectiveWidth -= ScrollBarWidth;
+            }
+            var availableSize = new SKSize(effectiveWidth, float.PositiveInfinity);
+            // Update ContentSize with the properly constrained measurement
+            ContentSize = _content.Measure(availableSize);
 
             // Apply content's margin
             var margin = _content.Margin;
@@ -669,12 +677,18 @@ public class SkiaScrollView : SkiaView
                 case ScrollOrientation.Both:
                     // For Both: first measure with viewport width to get responsive layout
                     // Content can still exceed viewport if it has minimum width constraints
+                    // Reserve space for vertical scrollbar to prevent horizontal scrollbar
                     contentWidth = float.IsInfinity(availableSize.Width) ? 800f : availableSize.Width;
+                    if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
+                        contentWidth -= ScrollBarWidth;
                     contentHeight = float.PositiveInfinity;
                     break;
                 case ScrollOrientation.Vertical:
                 default:
+                    // Reserve space for vertical scrollbar to prevent horizontal scrollbar
                     contentWidth = float.IsInfinity(availableSize.Width) ? 800f : availableSize.Width;
+                    if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
+                        contentWidth -= ScrollBarWidth;
                     contentHeight = float.PositiveInfinity;
                     break;
             }

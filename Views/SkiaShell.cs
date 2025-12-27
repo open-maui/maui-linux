@@ -287,14 +287,14 @@ public class SkiaShell : SkiaLayoutView
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        // Measure current content
+        // Measure current content with padding accounted for (consistent with ArrangeOverride)
         if (_currentContent != null)
         {
             float contentTop = NavBarIsVisible ? NavBarHeight : 0;
             float contentBottom = TabBarIsVisible ? TabBarHeight : 0;
             var contentSize = new SKSize(
-                availableSize.Width,
-                availableSize.Height - contentTop - contentBottom);
+                availableSize.Width - (float)Padding.Left - (float)Padding.Right,
+                availableSize.Height - contentTop - contentBottom - (float)Padding.Top - (float)Padding.Bottom);
             _currentContent.Measure(contentSize);
         }
 

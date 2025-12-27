@@ -12,7 +12,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>1.0.0-preview.1</Version>
+    <Version>1.0.0-preview.4</Version>
     <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
     <Company>MarketAlly LLC</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -23,7 +23,7 @@
     <RepositoryUrl>https://git.marketally.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>Initial preview release with 35+ controls and full platform services.</PackageReleaseNotes>
+    <PackageReleaseNotes>Preview 4: Fixed handler rendering for layouts, text wrapping, and scrollbar measurement issues.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
