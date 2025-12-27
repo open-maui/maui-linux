@@ -19,8 +19,8 @@
     <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers with 35+ controls, platform services, and accessibility support.</Description>
     <Copyright>Copyright 2025 MarketAlly LLC</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <PackageProjectUrl>https://git.marketally.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://git.marketally.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
     <PackageReleaseNotes>Initial preview release with 35+ controls and full platform services.</PackageReleaseNotes>

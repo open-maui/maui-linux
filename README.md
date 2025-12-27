@@ -2,7 +2,6 @@
 
 A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rendering.
 
-[![Build Status](https://github.com/open-maui/maui-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/open-maui/maui-linux/actions)
 [![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -136,12 +135,12 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 
 ## Sample Applications
 
-Full sample applications are available in the [maui-linux-samples](https://github.com/open-maui/maui-linux-samples) repository:
+Full sample applications are available in the [maui-linux-samples](https://git.marketally.com/open-maui/maui-linux-samples) repository:
 
 | Sample | Description |
 |--------|-------------|
-| **[TodoApp](https://github.com/open-maui/maui-linux-samples/tree/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
-| **[ShellDemo](https://github.com/open-maui/maui-linux-samples/tree/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
+| **[TodoApp](https://git.marketally.com/open-maui/maui-linux-samples/src/branch/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
+| **[ShellDemo](https://git.marketally.com/open-maui/maui-linux-samples/src/branch/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
 
 ## Quick Example
 
@@ -180,7 +179,7 @@ app.Run();
 ## Building from Source
 
 ```bash
-git clone https://github.com/open-maui/maui-linux.git
+git clone https://git.marketally.com/open-maui/maui-linux.git
 cd maui-linux
 dotnet build
 dotnet test
