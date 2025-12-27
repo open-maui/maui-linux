@@ -33,8 +33,5 @@ jobs:
       - name: Pack NuGet (preview)
         run: C:\dotnet\dotnet.exe pack --configuration Release --no-build -o ./nupkg
 
-      - name: Upload NuGet artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nuget-package
-          path: ./nupkg/*.nupkg
+      - name: List NuGet packages
+        run: dir .\nupkg\
