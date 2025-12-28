@@ -2,21 +2,197 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
+using System.Text;
+using System.Collections.Concurrent;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Linux notification service using notify-send (libnotify).
+/// Linux notification service using notify-send (libnotify) or D-Bus directly.
+/// Supports interactive notifications with action callbacks.
 /// </summary>
 public class NotificationService
 {
     private readonly string _appName;
     private readonly string? _defaultIconPath;
+    private readonly ConcurrentDictionary<uint, NotificationContext> _activeNotifications = new();
+    private static uint _notificationIdCounter = 1;
+    private Process? _dBusMonitor;
+    private bool _monitoringActions;
+
+    /// <summary>
+    /// Event raised when a notification action is invoked.
+    /// </summary>
+    public event EventHandler<NotificationActionEventArgs>? ActionInvoked;
+
+    /// <summary>
+    /// Event raised when a notification is closed.
+    /// </summary>
+    public event EventHandler<NotificationClosedEventArgs>? NotificationClosed;
 
     public NotificationService(string appName = "MAUI Application", string? defaultIconPath = null)
     {
         _appName = appName;
         _defaultIconPath = defaultIconPath;
+    }
+
+    /// <summary>
+    /// Starts monitoring for notification action callbacks via D-Bus.
+    /// Call this once at application startup if you want to receive action callbacks.
+    /// </summary>
+    public void StartActionMonitoring()
+    {
+        if (_monitoringActions) return;
+        _monitoringActions = true;
+
+        // Start D-Bus monitor for notification signals
+        Task.Run(MonitorNotificationSignals);
+    }
+
+    /// <summary>
+    /// Stops monitoring for notification action callbacks.
+    /// </summary>
+    public void StopActionMonitoring()
+    {
+        _monitoringActions = false;
+        try
+        {
+            _dBusMonitor?.Kill();
+            _dBusMonitor?.Dispose();
+            _dBusMonitor = null;
+        }
+        catch { }
+    }
+
+    private async Task MonitorNotificationSignals()
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dbus-monitor",
+                Arguments = "--session \"interface='org.freedesktop.Notifications'\"",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            _dBusMonitor = Process.Start(startInfo);
+            if (_dBusMonitor == null) return;
+
+            var reader = _dBusMonitor.StandardOutput;
+            var buffer = new StringBuilder();
+
+            while (_monitoringActions && !_dBusMonitor.HasExited)
+            {
+                var line = await reader.ReadLineAsync();
+                if (line == null) break;
+
+                buffer.AppendLine(line);
+
+                // Look for ActionInvoked or NotificationClosed signals
+                if (line.Contains("ActionInvoked"))
+                {
+                    await ProcessActionInvoked(reader);
+                }
+                else if (line.Contains("NotificationClosed"))
+                {
+                    await ProcessNotificationClosed(reader);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NotificationService] D-Bus monitor error: {ex.Message}");
+        }
+    }
+
+    private async Task ProcessActionInvoked(StreamReader reader)
+    {
+        try
+        {
+            // Read the signal data (notification id and action key)
+            uint notificationId = 0;
+            string? actionKey = null;
+
+            for (int i = 0; i < 10; i++) // Read a few lines to get the data
+            {
+                var line = await reader.ReadLineAsync();
+                if (line == null) break;
+
+                if (line.Contains("uint32"))
+                {
+                    var idMatch = System.Text.RegularExpressions.Regex.Match(line, @"uint32\s+(\d+)");
+                    if (idMatch.Success)
+                    {
+                        notificationId = uint.Parse(idMatch.Groups[1].Value);
+                    }
+                }
+                else if (line.Contains("string"))
+                {
+                    var strMatch = System.Text.RegularExpressions.Regex.Match(line, @"string\s+""([^""]*)""");
+                    if (strMatch.Success && actionKey == null)
+                    {
+                        actionKey = strMatch.Groups[1].Value;
+                    }
+                }
+
+                if (notificationId > 0 && actionKey != null) break;
+            }
+
+            if (notificationId > 0 && actionKey != null)
+            {
+                if (_activeNotifications.TryGetValue(notificationId, out var context))
+                {
+                    // Invoke callback if registered
+                    if (context.ActionCallbacks?.TryGetValue(actionKey, out var callback) == true)
+                    {
+                        callback?.Invoke();
+                    }
+
+                    ActionInvoked?.Invoke(this, new NotificationActionEventArgs(notificationId, actionKey, context.Tag));
+                }
+            }
+        }
+        catch { }
+    }
+
+    private async Task ProcessNotificationClosed(StreamReader reader)
+    {
+        try
+        {
+            uint notificationId = 0;
+            uint reason = 0;
+
+            for (int i = 0; i < 5; i++)
+            {
+                var line = await reader.ReadLineAsync();
+                if (line == null) break;
+
+                if (line.Contains("uint32"))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(line, @"uint32\s+(\d+)");
+                    if (match.Success)
+                    {
+                        if (notificationId == 0)
+                            notificationId = uint.Parse(match.Groups[1].Value);
+                        else
+                            reason = uint.Parse(match.Groups[1].Value);
+                    }
+                }
+            }
+
+            if (notificationId > 0)
+            {
+                _activeNotifications.TryRemove(notificationId, out var context);
+                NotificationClosed?.Invoke(this, new NotificationClosedEventArgs(
+                    notificationId,
+                    (NotificationCloseReason)reason,
+                    context?.Tag));
+            }
+        }
+        catch { }
     }
 
     /// <summary>
@@ -29,6 +205,72 @@ public class NotificationService
             Title = title,
             Message = message
         });
+    }
+
+    /// <summary>
+    /// Shows a notification with action buttons and callbacks.
+    /// </summary>
+    /// <param name="title">Notification title.</param>
+    /// <param name="message">Notification message.</param>
+    /// <param name="actions">List of action buttons with callbacks.</param>
+    /// <param name="tag">Optional tag to identify the notification in events.</param>
+    /// <returns>The notification ID.</returns>
+    public async Task<uint> ShowWithActionsAsync(
+        string title,
+        string message,
+        IEnumerable<NotificationAction> actions,
+        string? tag = null)
+    {
+        var notificationId = _notificationIdCounter++;
+
+        // Store context for callbacks
+        var context = new NotificationContext
+        {
+            Tag = tag,
+            ActionCallbacks = actions.ToDictionary(a => a.Key, a => a.Callback)
+        };
+        _activeNotifications[notificationId] = context;
+
+        // Build actions dictionary for options
+        var actionDict = actions.ToDictionary(a => a.Key, a => a.Label);
+
+        await ShowAsync(new NotificationOptions
+        {
+            Title = title,
+            Message = message,
+            Actions = actionDict
+        });
+
+        return notificationId;
+    }
+
+    /// <summary>
+    /// Cancels/closes an active notification.
+    /// </summary>
+    public async Task CancelAsync(uint notificationId)
+    {
+        try
+        {
+            // Use gdbus to close the notification
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "gdbus",
+                Arguments = $"call --session --dest org.freedesktop.Notifications " +
+                           $"--object-path /org/freedesktop/Notifications " +
+                           $"--method org.freedesktop.Notifications.CloseNotification {notificationId}",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process != null)
+            {
+                await process.WaitForExitAsync();
+            }
+
+            _activeNotifications.TryRemove(notificationId, out _);
+        }
+        catch { }
     }
 
     /// <summary>
@@ -208,4 +450,88 @@ public enum NotificationUrgency
     Low,
     Normal,
     Critical
+}
+
+/// <summary>
+/// Reason a notification was closed.
+/// </summary>
+public enum NotificationCloseReason
+{
+    Expired = 1,
+    Dismissed = 2,
+    Closed = 3,
+    Undefined = 4
+}
+
+/// <summary>
+/// Internal context for tracking active notifications.
+/// </summary>
+internal class NotificationContext
+{
+    public string? Tag { get; set; }
+    public Dictionary<string, Action?>? ActionCallbacks { get; set; }
+}
+
+/// <summary>
+/// Event args for notification action events.
+/// </summary>
+public class NotificationActionEventArgs : EventArgs
+{
+    public uint NotificationId { get; }
+    public string ActionKey { get; }
+    public string? Tag { get; }
+
+    public NotificationActionEventArgs(uint notificationId, string actionKey, string? tag)
+    {
+        NotificationId = notificationId;
+        ActionKey = actionKey;
+        Tag = tag;
+    }
+}
+
+/// <summary>
+/// Event args for notification closed events.
+/// </summary>
+public class NotificationClosedEventArgs : EventArgs
+{
+    public uint NotificationId { get; }
+    public NotificationCloseReason Reason { get; }
+    public string? Tag { get; }
+
+    public NotificationClosedEventArgs(uint notificationId, NotificationCloseReason reason, string? tag)
+    {
+        NotificationId = notificationId;
+        Reason = reason;
+        Tag = tag;
+    }
+}
+
+/// <summary>
+/// Defines an action button for a notification.
+/// </summary>
+public class NotificationAction
+{
+    /// <summary>
+    /// Internal action key (not displayed).
+    /// </summary>
+    public string Key { get; set; } = "";
+
+    /// <summary>
+    /// Display label for the action button.
+    /// </summary>
+    public string Label { get; set; } = "";
+
+    /// <summary>
+    /// Callback to invoke when the action is clicked.
+    /// </summary>
+    public Action? Callback { get; set; }
+
+    public NotificationAction() { }
+
+    public NotificationAction(string key, string label, Action? callback = null)
+    {
+        Key = key;
+        Label = label;
+        Callback = callback;
+    }
 }

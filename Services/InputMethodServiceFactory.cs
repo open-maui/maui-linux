@@ -45,6 +45,7 @@ public static class InputMethodServiceFactory
             return imePreference.ToLowerInvariant() switch
             {
                 "ibus" => CreateIBusService(),
+                "fcitx" or "fcitx5" => CreateFcitx5Service(),
                 "xim" => CreateXIMService(),
                 "none" => new NullInputMethodService(),
                 _ => CreateAutoService()
@@ -56,11 +57,28 @@ public static class InputMethodServiceFactory
 
     private static IInputMethodService CreateAutoService()
     {
-        // Try IBus first (most common on modern Linux)
+        // Check GTK_IM_MODULE for hint
+        var imModule = Environment.GetEnvironmentVariable("GTK_IM_MODULE")?.ToLowerInvariant();
+
+        // Try Fcitx5 first if it's the configured IM
+        if (imModule?.Contains("fcitx") == true && Fcitx5InputMethodService.IsAvailable())
+        {
+            Console.WriteLine("InputMethodServiceFactory: Using Fcitx5");
+            return CreateFcitx5Service();
+        }
+
+        // Try IBus (most common on modern Linux)
         if (IsIBusAvailable())
         {
             Console.WriteLine("InputMethodServiceFactory: Using IBus");
             return CreateIBusService();
+        }
+
+        // Try Fcitx5 as fallback
+        if (Fcitx5InputMethodService.IsAvailable())
+        {
+            Console.WriteLine("InputMethodServiceFactory: Using Fcitx5");
+            return CreateFcitx5Service();
         }
 
         // Fall back to XIM
@@ -84,6 +102,19 @@ public static class InputMethodServiceFactory
         catch (Exception ex)
         {
             Console.WriteLine($"InputMethodServiceFactory: Failed to create IBus service - {ex.Message}");
+            return new NullInputMethodService();
+        }
+    }
+
+    private static IInputMethodService CreateFcitx5Service()
+    {
+        try
+        {
+            return new Fcitx5InputMethodService();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"InputMethodServiceFactory: Failed to create Fcitx5 service - {ex.Message}");
             return new NullInputMethodService();
         }
     }
