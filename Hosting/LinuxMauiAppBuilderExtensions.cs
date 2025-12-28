@@ -98,6 +98,9 @@ public static class LinuxMauiAppBuilderExtensions
             handlers.AddHandler<ImageButton, ImageButtonHandler>();
             handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
 
+            // Web
+            handlers.AddHandler<WebView, WebViewHandler>();
+
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
             handlers.AddHandler<ListView, CollectionViewHandler>();

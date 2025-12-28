@@ -83,7 +83,7 @@ OpenMaui Linux implements a custom SkiaSharp-based rendering stack for .NET MAUI
 |------|--------|-------|
 | Native Wayland compositor | Deferred | XWayland sufficient for 1.0 |
 | GTK4 interop layer | Deferred | Portal approach preferred |
-| WebView via WebKitGTK | Deferred | Document as limitation |
+| WebView via WebKitGTK | [x] Complete | `Interop/WebKitGtk.cs` + `Views/LinuxWebView.cs` + `Handlers/WebViewHandler.Linux.cs` |
 
 ---
 
@@ -458,11 +458,15 @@ All identified improvements have been implemented:
 - `Services/PortalFilePickerService.cs` - xdg-desktop-portal file picker with zenity fallback
 - `Services/VirtualizationManager.cs` - View recycling pool for list virtualization
 - `Services/Fcitx5InputMethodService.cs` - Fcitx5 input method support
+- `Interop/WebKitGtk.cs` - P/Invoke bindings for WebKitGTK library
+- `Views/LinuxWebView.cs` - WebKitGTK-based WebView platform control
+- `Handlers/WebViewHandler.Linux.cs` - MAUI handler for WebView on Linux
 
 ### Files Modified
 - `Rendering/SkiaRenderingEngine.cs` - Added dirty region tracking with intelligent merging
 - `Services/NotificationService.cs` - Added action callbacks via D-Bus monitoring
 - `Services/InputMethodServiceFactory.cs` - Added Fcitx5 support to auto-detection
+- `Hosting/LinuxMauiAppBuilderExtensions.cs` - Registered WebViewHandler for WebView control
 
 ### Architecture Improvements
 1. **Rendering Performance**: Dirty region invalidation reduces redraw area by up to 95%
@@ -470,5 +474,6 @@ All identified improvements have been implemented:
 3. **Text Rendering**: Full international text support with font fallback
 4. **Platform Integration**: Native file dialogs, theme detection, rich notifications
 5. **Input Methods**: IBus + Fcitx5 support covers most Linux desktop configurations
+6. **WebView**: Full WebKitGTK integration for HTML/JavaScript rendering with navigation support
 
-*Implementation complete. Ready for 1.0 release pending integration tests.*
+*Implementation complete. WebView requires libwebkit2gtk-4.1-0 package on target system.*
