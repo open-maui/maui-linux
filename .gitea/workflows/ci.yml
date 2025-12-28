@@ -35,3 +35,12 @@ jobs:
 
       - name: List NuGet packages
         run: dir .\nupkg\
+
+      - name: Push to NuGet.org
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          foreach ($pkg in (Get-ChildItem .\nupkg\*.nupkg)) {
+            C:\dotnet\dotnet.exe nuget push $pkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
