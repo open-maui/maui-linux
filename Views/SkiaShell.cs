@@ -11,10 +11,146 @@ namespace Microsoft.Maui.Platform;
 /// </summary>
 public class SkiaShell : SkiaLayoutView
 {
+    #region BindableProperties
+
+    /// <summary>
+    /// Bindable property for FlyoutIsPresented.
+    /// </summary>
+    public static readonly BindableProperty FlyoutIsPresentedProperty =
+        BindableProperty.Create(
+            nameof(FlyoutIsPresented),
+            typeof(bool),
+            typeof(SkiaShell),
+            false,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutIsPresentedChanged((bool)n));
+
+    /// <summary>
+    /// Bindable property for FlyoutBehavior.
+    /// </summary>
+    public static readonly BindableProperty FlyoutBehaviorProperty =
+        BindableProperty.Create(
+            nameof(FlyoutBehavior),
+            typeof(ShellFlyoutBehavior),
+            typeof(SkiaShell),
+            ShellFlyoutBehavior.Flyout,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FlyoutWidth.
+    /// </summary>
+    public static readonly BindableProperty FlyoutWidthProperty =
+        BindableProperty.Create(
+            nameof(FlyoutWidth),
+            typeof(float),
+            typeof(SkiaShell),
+            280f,
+            coerceValue: (b, v) => Math.Max(100f, (float)v),
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FlyoutBackgroundColor.
+    /// </summary>
+    public static readonly BindableProperty FlyoutBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(FlyoutBackgroundColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for NavBarBackgroundColor.
+    /// </summary>
+    public static readonly BindableProperty NavBarBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(NavBarBackgroundColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            new SKColor(33, 150, 243),
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for NavBarTextColor.
+    /// </summary>
+    public static readonly BindableProperty NavBarTextColorProperty =
+        BindableProperty.Create(
+            nameof(NavBarTextColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for NavBarHeight.
+    /// </summary>
+    public static readonly BindableProperty NavBarHeightProperty =
+        BindableProperty.Create(
+            nameof(NavBarHeight),
+            typeof(float),
+            typeof(SkiaShell),
+            56f,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for TabBarHeight.
+    /// </summary>
+    public static readonly BindableProperty TabBarHeightProperty =
+        BindableProperty.Create(
+            nameof(TabBarHeight),
+            typeof(float),
+            typeof(SkiaShell),
+            56f,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for NavBarIsVisible.
+    /// </summary>
+    public static readonly BindableProperty NavBarIsVisibleProperty =
+        BindableProperty.Create(
+            nameof(NavBarIsVisible),
+            typeof(bool),
+            typeof(SkiaShell),
+            true,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for TabBarIsVisible.
+    /// </summary>
+    public static readonly BindableProperty TabBarIsVisibleProperty =
+        BindableProperty.Create(
+            nameof(TabBarIsVisible),
+            typeof(bool),
+            typeof(SkiaShell),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ContentPadding.
+    /// </summary>
+    public static readonly BindableProperty ContentPaddingProperty =
+        BindableProperty.Create(
+            nameof(ContentPadding),
+            typeof(float),
+            typeof(SkiaShell),
+            16f,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for Title.
+    /// </summary>
+    public static readonly BindableProperty TitleProperty =
+        BindableProperty.Create(
+            nameof(Title),
+            typeof(string),
+            typeof(SkiaShell),
+            string.Empty,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    #endregion
+
     private readonly List<ShellSection> _sections = new();
     private SkiaView? _currentContent;
-    private bool _flyoutIsPresented = false;
-    private float _flyoutWidth = 280f;
     private float _flyoutAnimationProgress = 0f;
     private int _selectedSectionIndex = 0;
     private int _selectedItemIndex = 0;
@@ -22,90 +158,121 @@ public class SkiaShell : SkiaLayoutView
     // Navigation stack for push/pop navigation
     private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new();
 
+    private void OnFlyoutIsPresentedChanged(bool newValue)
+    {
+        _flyoutAnimationProgress = newValue ? 1f : 0f;
+        FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
+        Invalidate();
+    }
+
     /// <summary>
     /// Gets or sets whether the flyout is presented.
     /// </summary>
     public bool FlyoutIsPresented
     {
-        get => _flyoutIsPresented;
-        set
-        {
-            if (_flyoutIsPresented != value)
-            {
-                _flyoutIsPresented = value;
-                _flyoutAnimationProgress = value ? 1f : 0f;
-                FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
-                Invalidate();
-            }
-        }
+        get => (bool)GetValue(FlyoutIsPresentedProperty);
+        set => SetValue(FlyoutIsPresentedProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the flyout behavior.
     /// </summary>
-    public ShellFlyoutBehavior FlyoutBehavior { get; set; } = ShellFlyoutBehavior.Flyout;
+    public ShellFlyoutBehavior FlyoutBehavior
+    {
+        get => (ShellFlyoutBehavior)GetValue(FlyoutBehaviorProperty);
+        set => SetValue(FlyoutBehaviorProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the flyout width.
     /// </summary>
     public float FlyoutWidth
     {
-        get => _flyoutWidth;
-        set
-        {
-            if (_flyoutWidth != value)
-            {
-                _flyoutWidth = Math.Max(100, value);
-                Invalidate();
-            }
-        }
+        get => (float)GetValue(FlyoutWidthProperty);
+        set => SetValue(FlyoutWidthProperty, value);
     }
 
     /// <summary>
     /// Background color of the flyout.
     /// </summary>
-    public SKColor FlyoutBackgroundColor { get; set; } = SKColors.White;
+    public SKColor FlyoutBackgroundColor
+    {
+        get => (SKColor)GetValue(FlyoutBackgroundColorProperty);
+        set => SetValue(FlyoutBackgroundColorProperty, value);
+    }
 
     /// <summary>
     /// Background color of the navigation bar.
     /// </summary>
-    public SKColor NavBarBackgroundColor { get; set; } = new SKColor(33, 150, 243);
+    public SKColor NavBarBackgroundColor
+    {
+        get => (SKColor)GetValue(NavBarBackgroundColorProperty);
+        set => SetValue(NavBarBackgroundColorProperty, value);
+    }
 
     /// <summary>
     /// Text color of the navigation bar title.
     /// </summary>
-    public SKColor NavBarTextColor { get; set; } = SKColors.White;
+    public SKColor NavBarTextColor
+    {
+        get => (SKColor)GetValue(NavBarTextColorProperty);
+        set => SetValue(NavBarTextColorProperty, value);
+    }
 
     /// <summary>
     /// Height of the navigation bar.
     /// </summary>
-    public float NavBarHeight { get; set; } = 56f;
+    public float NavBarHeight
+    {
+        get => (float)GetValue(NavBarHeightProperty);
+        set => SetValue(NavBarHeightProperty, value);
+    }
 
     /// <summary>
     /// Height of the tab bar (when using bottom tabs).
     /// </summary>
-    public float TabBarHeight { get; set; } = 56f;
+    public float TabBarHeight
+    {
+        get => (float)GetValue(TabBarHeightProperty);
+        set => SetValue(TabBarHeightProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets whether the navigation bar is visible.
     /// </summary>
-    public bool NavBarIsVisible { get; set; } = true;
+    public bool NavBarIsVisible
+    {
+        get => (bool)GetValue(NavBarIsVisibleProperty);
+        set => SetValue(NavBarIsVisibleProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets whether the tab bar is visible.
     /// </summary>
-    public bool TabBarIsVisible { get; set; } = false;
+    public bool TabBarIsVisible
+    {
+        get => (bool)GetValue(TabBarIsVisibleProperty);
+        set => SetValue(TabBarIsVisibleProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets the padding applied to page content.
     /// Default is 16 pixels on all sides.
     /// </summary>
-    public float ContentPadding { get; set; } = 16f;
+    public float ContentPadding
+    {
+        get => (float)GetValue(ContentPaddingProperty);
+        set => SetValue(ContentPaddingProperty, value);
+    }
 
     /// <summary>
     /// Current title displayed in the navigation bar.
     /// </summary>
-    public string Title { get; set; } = string.Empty;
+    public string Title
+    {
+        get => (string)GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
+    }
 
     /// <summary>
     /// The sections in this shell.
@@ -555,7 +722,7 @@ public class SkiaShell : SkiaLayoutView
             }
 
             // Tap on scrim closes flyout
-            if (_flyoutIsPresented)
+            if (FlyoutIsPresented)
             {
                 return this;
             }
@@ -611,7 +778,7 @@ public class SkiaShell : SkiaLayoutView
                     itemY += itemHeight;
                 }
             }
-            else if (_flyoutIsPresented)
+            else if (FlyoutIsPresented)
             {
                 // Tap on scrim
                 FlyoutIsPresented = false;

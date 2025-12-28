@@ -315,6 +315,7 @@ public class SkiaImageButton : SkiaView
     {
         if (!IsEnabled) return;
         IsHovered = true;
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
         Invalidate();
     }
 
@@ -325,6 +326,9 @@ public class SkiaImageButton : SkiaView
         {
             IsPressed = false;
         }
+        SkiaVisualStateManager.GoToState(this, IsEnabled
+            ? SkiaVisualStateManager.CommonStates.Normal
+            : SkiaVisualStateManager.CommonStates.Disabled);
         Invalidate();
     }
 
@@ -333,6 +337,7 @@ public class SkiaImageButton : SkiaView
         if (!IsEnabled) return;
 
         IsPressed = true;
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
         Invalidate();
         Pressed?.Invoke(this, EventArgs.Empty);
     }
@@ -343,6 +348,9 @@ public class SkiaImageButton : SkiaView
 
         var wasPressed = IsPressed;
         IsPressed = false;
+        SkiaVisualStateManager.GoToState(this, IsHovered
+            ? SkiaVisualStateManager.CommonStates.PointerOver
+            : SkiaVisualStateManager.CommonStates.Normal);
         Invalidate();
 
         Released?.Invoke(this, EventArgs.Empty);

@@ -210,6 +210,52 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 └─────────────────────────────────────────────────┘
 ```
 
+## Styling and Data Binding
+
+OpenMaui supports the full MAUI styling and data binding infrastructure:
+
+### XAML Styles
+```xml
+<ContentPage.Resources>
+    <ResourceDictionary>
+        <Color x:Key="PrimaryColor">#5C6BC0</Color>
+        <Style TargetType="Button">
+            <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
+            <Setter Property="TextColor" Value="White" />
+        </Style>
+    </ResourceDictionary>
+</ContentPage.Resources>
+```
+
+### Data Binding
+```xml
+<Label Text="{Binding Title}" />
+<Entry Text="{Binding Username, Mode=TwoWay}" />
+<Button Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" />
+```
+
+### Visual State Manager
+All interactive controls support VSM states: Normal, PointerOver, Pressed, Focused, Disabled.
+
+```xml
+<Button Text="Hover Me">
+    <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup x:Name="CommonStates">
+            <VisualState x:Name="Normal">
+                <VisualState.Setters>
+                    <Setter Property="BackgroundColor" Value="#2196F3"/>
+                </VisualState.Setters>
+            </VisualState>
+            <VisualState x:Name="PointerOver">
+                <VisualState.Setters>
+                    <Setter Property="BackgroundColor" Value="#42A5F5"/>
+                </VisualState.Setters>
+            </VisualState>
+        </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+</Button>
+```
+
 ## Roadmap
 
 - [x] Core control library (35+ controls)
@@ -219,6 +265,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - [x] High DPI support
 - [x] Drag and drop
 - [x] Global hotkeys
+- [x] BindableProperty for all controls
+- [x] Visual State Manager integration
+- [x] XAML styles and StaticResource
+- [x] Data binding (OneWay, TwoWay, IValueConverter)
 - [ ] Complete Wayland support
 - [ ] Hardware video acceleration
 - [ ] GTK4 interop layer

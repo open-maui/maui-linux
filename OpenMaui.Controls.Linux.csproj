@@ -9,10 +9,12 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS0108;CS1591;CS0618</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>1.0.0-preview.4</Version>
+    <Version>1.0.0-rc.1</Version>
     <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
     <Company>MarketAlly LLC</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -23,7 +25,7 @@
     <RepositoryUrl>https://git.marketally.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>Preview 4: Fixed handler rendering for layouts, text wrapping, and scrollbar measurement issues.</PackageReleaseNotes>
+    <PackageReleaseNotes>RC1: Full XAML support with BindableProperty for all controls, Visual State Manager integration, data binding, and XAML styles.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>

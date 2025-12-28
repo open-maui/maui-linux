@@ -11,6 +11,43 @@ namespace Microsoft.Maui.Platform;
 /// </summary>
 public abstract class SkiaLayoutView : SkiaView
 {
+    #region BindableProperties
+
+    /// <summary>
+    /// Bindable property for Spacing.
+    /// </summary>
+    public static readonly BindableProperty SpacingProperty =
+        BindableProperty.Create(
+            nameof(Spacing),
+            typeof(float),
+            typeof(SkiaLayoutView),
+            0f,
+            propertyChanged: (b, o, n) => ((SkiaLayoutView)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for Padding.
+    /// </summary>
+    public static readonly BindableProperty PaddingProperty =
+        BindableProperty.Create(
+            nameof(Padding),
+            typeof(SKRect),
+            typeof(SkiaLayoutView),
+            SKRect.Empty,
+            propertyChanged: (b, o, n) => ((SkiaLayoutView)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ClipToBounds.
+    /// </summary>
+    public static readonly BindableProperty ClipToBoundsProperty =
+        BindableProperty.Create(
+            nameof(ClipToBounds),
+            typeof(bool),
+            typeof(SkiaLayoutView),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaLayoutView)b).Invalidate());
+
+    #endregion
+
     private readonly List<SkiaView> _children = new();
 
     /// <summary>
@@ -21,17 +58,29 @@ public abstract class SkiaLayoutView : SkiaView
     /// <summary>
     /// Spacing between children.
     /// </summary>
-    public float Spacing { get; set; } = 0;
+    public float Spacing
+    {
+        get => (float)GetValue(SpacingProperty);
+        set => SetValue(SpacingProperty, value);
+    }
 
     /// <summary>
     /// Padding around the content.
     /// </summary>
-    public SKRect Padding { get; set; } = new SKRect(0, 0, 0, 0);
+    public SKRect Padding
+    {
+        get => (SKRect)GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
 
     /// <summary>
     /// Gets or sets whether child views are clipped to the bounds.
     /// </summary>
-    public bool ClipToBounds { get; set; } = false;
+    public bool ClipToBounds
+    {
+        get => (bool)GetValue(ClipToBoundsProperty);
+        set => SetValue(ClipToBoundsProperty, value);
+    }
 
     /// <summary>
     /// Called when binding context changes. Propagates to layout children.
@@ -284,9 +333,24 @@ public abstract class SkiaLayoutView : SkiaView
 public class SkiaStackLayout : SkiaLayoutView
 {
     /// <summary>
+    /// Bindable property for Orientation.
+    /// </summary>
+    public static readonly BindableProperty OrientationProperty =
+        BindableProperty.Create(
+            nameof(Orientation),
+            typeof(StackOrientation),
+            typeof(SkiaStackLayout),
+            StackOrientation.Vertical,
+            propertyChanged: (b, o, n) => ((SkiaStackLayout)b).InvalidateMeasure());
+
+    /// <summary>
     /// Gets or sets the orientation of the stack.
     /// </summary>
-    public StackOrientation Orientation { get; set; } = StackOrientation.Vertical;
+    public StackOrientation Orientation
+    {
+        get => (StackOrientation)GetValue(OrientationProperty);
+        set => SetValue(OrientationProperty, value);
+    }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
@@ -461,6 +525,32 @@ public enum StackOrientation
 /// </summary>
 public class SkiaGrid : SkiaLayoutView
 {
+    #region BindableProperties
+
+    /// <summary>
+    /// Bindable property for RowSpacing.
+    /// </summary>
+    public static readonly BindableProperty RowSpacingProperty =
+        BindableProperty.Create(
+            nameof(RowSpacing),
+            typeof(float),
+            typeof(SkiaGrid),
+            0f,
+            propertyChanged: (b, o, n) => ((SkiaGrid)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ColumnSpacing.
+    /// </summary>
+    public static readonly BindableProperty ColumnSpacingProperty =
+        BindableProperty.Create(
+            nameof(ColumnSpacing),
+            typeof(float),
+            typeof(SkiaGrid),
+            0f,
+            propertyChanged: (b, o, n) => ((SkiaGrid)b).InvalidateMeasure());
+
+    #endregion
+
     private readonly List<GridLength> _rowDefinitions = new();
     private readonly List<GridLength> _columnDefinitions = new();
     private readonly Dictionary<SkiaView, GridPosition> _childPositions = new();
@@ -481,12 +571,20 @@ public class SkiaGrid : SkiaLayoutView
     /// <summary>
     /// Spacing between rows.
     /// </summary>
-    public float RowSpacing { get; set; } = 0;
+    public float RowSpacing
+    {
+        get => (float)GetValue(RowSpacingProperty);
+        set => SetValue(RowSpacingProperty, value);
+    }
 
     /// <summary>
     /// Spacing between columns.
     /// </summary>
-    public float ColumnSpacing { get; set; } = 0;
+    public float ColumnSpacing
+    {
+        get => (float)GetValue(ColumnSpacingProperty);
+        set => SetValue(ColumnSpacingProperty, value);
+    }
 
     /// <summary>
     /// Adds a child at the specified grid position.
