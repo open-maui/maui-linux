@@ -84,7 +84,7 @@ public class SkiaImage : SkiaView
                 !_pendingSvgReload)
             {
                 _pendingSvgReload = true;
-                ReloadSvgDebounced();
+                _ = ReloadSvgDebounced();
             }
         }
     }
@@ -427,7 +427,7 @@ public class SkiaImage : SkiaView
                 {
                     _lastArrangedBounds = bounds;
                     Console.WriteLine($"[SkiaImage] Arrange detected larger bounds: {width}x{height} vs loaded {_svgLoadedWidth}x{_svgLoadedHeight}");
-                    LoadSvgAtSizeAsync(_currentFilePath, width, height);
+                    _ = LoadSvgAtSizeAsync(_currentFilePath, width, height);
                 }
             }
         }

@@ -46,7 +46,7 @@ public static class LinuxProgramHost
         ParseCommandLineOptions(args, options);
 
         // Initialize GTK for WebView support
-        GtkHostService.Instance.Initialize(options.Title, options.Width, options.Height);
+        GtkHostService.Instance.Initialize(options.Title ?? "MAUI Application", options.Width, options.Height);
         Console.WriteLine("[LinuxProgramHost] GTK initialized for WebView support");
 
         // Create Linux application

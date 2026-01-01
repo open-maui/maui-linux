@@ -759,6 +759,11 @@ public class SkiaWebView : SkiaView
     public void LoadHtml(string html, string? baseUrl = null)
     {
         Console.WriteLine($"[WebView] LoadHtml called, html length: {html?.Length ?? 0}");
+        if (string.IsNullOrEmpty(html))
+        {
+            Console.WriteLine("[WebView] Cannot load HTML - html is null or empty");
+            return;
+        }
         if (!_isInitialized) Initialize();
         if (_webView == IntPtr.Zero || _webkitLoadHtml == null)
         {
@@ -869,6 +874,7 @@ public class SkiaWebView : SkiaView
 
     public void ShowNativeWindow()
     {
+        if (_isEmbedded) return; // Already embedded
         if (!_isInitialized) Initialize();
         if (_gtkWindow == IntPtr.Zero) return;
 
@@ -918,7 +924,15 @@ public class SkiaWebView : SkiaView
         if (gdkWindow != IntPtr.Zero)
         {
             _gtkX11Window = gdk3_x11_window_get_xid(gdkWindow);
-            Console.WriteLine($"[WebView] GTK X11 window: {_gtkX11Window}");
+            if (_gtkX11Window != IntPtr.Zero)
+            {
+                _isProperlyReparented = true;
+                Console.WriteLine($"[WebView] GTK X11 window: {_gtkX11Window} (reparented successfully)");
+            }
+            else
+            {
+                Console.WriteLine($"[WebView] GTK X11 window: failed to get XID");
+            }
         }
 
         PositionUsingGtk();
@@ -1073,13 +1087,20 @@ public class SkiaWebView : SkiaView
         }
         catch { }
 
-        int offsetX = 0, offsetY = 0;
-        int screenX = destX + (int)Bounds.Left - offsetX;
-        int screenY = destY + (int)Bounds.Top - offsetY;
+        // Track main window position changes
+        bool mainWindowMoved = destX != _lastMainX || destY != _lastMainY;
+        if (mainWindowMoved)
+        {
+            _lastMainX = destX;
+            _lastMainY = destY;
+        }
+
+        int screenX = destX + (int)Bounds.Left;
+        int screenY = destY + (int)Bounds.Top;
         int width = Math.Max(100, (int)Bounds.Width);
         int height = Math.Max(100, (int)Bounds.Height);
 
-        if (Math.Abs(screenX - _lastPosX) > 2 || Math.Abs(screenY - _lastPosY) > 2 ||
+        if (mainWindowMoved || Math.Abs(screenX - _lastPosX) > 2 || Math.Abs(screenY - _lastPosY) > 2 ||
             Math.Abs(width - _lastWidth) > 2 || Math.Abs(height - _lastHeight) > 2)
         {
             Console.WriteLine($"[WebView] Move to ({screenX}, {screenY}), size ({width}x{height}), mainWin=({destX},{destY}), bounds=({Bounds.Left},{Bounds.Top})");

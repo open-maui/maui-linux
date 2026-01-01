@@ -188,7 +188,7 @@ public static class GestureManager
             if (command != null && command.CanExecute(tapRecognizer.CommandParameter))
             {
                 Console.WriteLine("[GestureManager] Executing Command");
-                tapRecognizer.Command.Execute(tapRecognizer.CommandParameter);
+                command.Execute(tapRecognizer.CommandParameter);
             }
             result = true;
         }

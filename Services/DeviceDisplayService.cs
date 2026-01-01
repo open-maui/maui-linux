@@ -73,13 +73,13 @@ public class DeviceDisplayService : IDeviceDisplay
 
     private double GetScaleFactor()
     {
-        string gdkScale = Environment.GetEnvironmentVariable("GDK_SCALE");
+        var gdkScale = Environment.GetEnvironmentVariable("GDK_SCALE");
         if (!string.IsNullOrEmpty(gdkScale) && double.TryParse(gdkScale, out var result))
         {
             return result;
         }
 
-        string qtScale = Environment.GetEnvironmentVariable("QT_SCALE_FACTOR");
+        var qtScale = Environment.GetEnvironmentVariable("QT_SCALE_FACTOR");
         if (!string.IsNullOrEmpty(qtScale) && double.TryParse(qtScale, out result))
         {
             return result;

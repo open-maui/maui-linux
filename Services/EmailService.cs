@@ -69,6 +69,7 @@ public class EmailService : IEmail
     private static string BuildMailtoUri(EmailMessage? message)
     {
         var sb = new StringBuilder("mailto:");
+        if (message == null) return sb.ToString();
 
         // Add recipients
         if (message.To?.Count > 0)

@@ -22,8 +22,7 @@ public class Easing
     public static readonly Easing CubicInOut = new(v =>
         v < 0.5 ? 4.0 * v * v * v : 1.0 - Math.Pow(-2.0 * v + 2.0, 3.0) / 2.0);
 
-    public static readonly Easing BounceIn = new(v => 1.0 - BounceOut.Ease(1.0 - v));
-
+    // BounceOut must be declared before BounceIn since BounceIn references it
     public static readonly Easing BounceOut = new(v =>
     {
         const double n1 = 7.5625;
@@ -37,6 +36,8 @@ public class Easing
             return n1 * (v -= 2.25 / d1) * v + 0.9375;
         return n1 * (v -= 2.625 / d1) * v + 0.984375;
     });
+
+    public static readonly Easing BounceIn = new(v => 1.0 - BounceOut.Ease(1.0 - v));
 
     public static readonly Easing SpringIn = new(v => v * v * (2.70158 * v - 1.70158));
 

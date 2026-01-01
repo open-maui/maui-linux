@@ -982,6 +982,7 @@ public class SkiaEditor : SkiaView
     {
         base.OnFocusLost();
         SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Normal);
+        Completed?.Invoke(this, EventArgs.Empty);
     }
 
     #region Selection and Clipboard

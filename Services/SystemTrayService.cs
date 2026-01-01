@@ -101,7 +101,7 @@ public class SystemTrayService : IDisposable
         _ = ShowAsync();
     }
 
-    private async Task<bool> TryYadTray()
+    private Task<bool> TryYadTray()
     {
         try
         {
@@ -118,7 +118,7 @@ public class SystemTrayService : IDisposable
             };
 
             _trayProcess = Process.Start(startInfo);
-            if (_trayProcess == null) return false;
+            if (_trayProcess == null) return Task.FromResult(false);
 
             // Start reading output for menu clicks
             _ = Task.Run(async () =>
@@ -137,11 +137,11 @@ public class SystemTrayService : IDisposable
                 catch { }
             });
 
-            return true;
+            return Task.FromResult(true);
         }
         catch
         {
-            return false;
+            return Task.FromResult(false);
         }
     }
 

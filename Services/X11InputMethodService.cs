@@ -27,7 +27,6 @@ public class X11InputMethodService : IInputMethodService, IDisposable
     private XIMProc? _preeditDoneCallback;
     private XIMProc? _preeditDrawCallback;
     private XIMProc? _preeditCaretCallback;
-    private XIMProc? _commitCallback;
 
     public bool IsActive => _isActive;
     public string PreEditText => _preEditText;

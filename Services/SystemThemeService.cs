@@ -56,7 +56,19 @@ public class SystemThemeService
     /// <summary>
     /// System colors based on the current theme.
     /// </summary>
-    public SystemColors Colors { get; private set; }
+    public SystemColors Colors { get; private set; } = new SystemColors
+    {
+        Background = SKColors.White,
+        Surface = new SKColor(0xF5, 0xF5, 0xF5),
+        Primary = new SKColor(0x21, 0x96, 0xF3),
+        OnPrimary = SKColors.White,
+        Text = new SKColor(0x21, 0x21, 0x21),
+        TextSecondary = new SKColor(0x75, 0x75, 0x75),
+        Border = new SKColor(0xE0, 0xE0, 0xE0),
+        Divider = new SKColor(0xE0, 0xE0, 0xE0),
+        Error = new SKColor(0xF4, 0x43, 0x36),
+        Success = new SKColor(0x4C, 0xAF, 0x50)
+    };
 
     private FileSystemWatcher? _settingsWatcher;
 

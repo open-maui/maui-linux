@@ -41,7 +41,7 @@ public class AppInfoService : IAppInfo
         {
             try
             {
-                string environmentVariable = Environment.GetEnvironmentVariable("GTK_THEME");
+                var environmentVariable = Environment.GetEnvironmentVariable("GTK_THEME");
                 if (!string.IsNullOrEmpty(environmentVariable) && environmentVariable.Contains("dark", StringComparison.OrdinalIgnoreCase))
                 {
                     return AppTheme.Dark;

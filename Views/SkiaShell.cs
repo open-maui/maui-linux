@@ -693,7 +693,7 @@ public class SkiaShell : SkiaLayoutView
         }
 
         SetCurrentContent(root.Content);
-        Title = root.Title;
+        Title = root.Title ?? string.Empty;
         Invalidate();
     }
 

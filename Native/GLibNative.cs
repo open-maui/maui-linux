@@ -28,7 +28,7 @@ public static class GLibNative
 
     public static uint IdleAdd(Func<bool> callback)
     {
-        GSourceFunc wrapper = null;
+        GSourceFunc wrapper = null!;
         wrapper = delegate
         {
             bool flag = false;
@@ -58,7 +58,7 @@ public static class GLibNative
 
     public static uint TimeoutAdd(uint intervalMs, Func<bool> callback)
     {
-        GSourceFunc wrapper = null;
+        GSourceFunc wrapper = null!;
         wrapper = delegate
         {
             bool flag = false;
