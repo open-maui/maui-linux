@@ -1,233 +1,275 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using Microsoft.Maui.Handlers;
+using System;
+using System.IO;
+using System.Threading;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
-using SkiaSharp;
+using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-/// <summary>
-/// Handler for ImageButton on Linux using Skia rendering.
-/// Maps IImageButton interface to SkiaImageButton platform view.
-/// IImageButton extends: IImage, IView, IButtonStroke, IPadding
-/// </summary>
-public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageButton>
+public class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageButton>
 {
-    public static IPropertyMapper<IImageButton, ImageButtonHandler> Mapper = new PropertyMapper<IImageButton, ImageButtonHandler>(ViewHandler.ViewMapper)
-    {
-        [nameof(IImage.Aspect)] = MapAspect,
-        [nameof(IImage.IsOpaque)] = MapIsOpaque,
-        [nameof(IImageSourcePart.Source)] = MapSource,
-        [nameof(IButtonStroke.StrokeColor)] = MapStrokeColor,
-        [nameof(IButtonStroke.StrokeThickness)] = MapStrokeThickness,
-        [nameof(IButtonStroke.CornerRadius)] = MapCornerRadius,
-        [nameof(IPadding.Padding)] = MapPadding,
-        [nameof(IView.Background)] = MapBackground,
-    };
+	internal class ImageSourceServiceResultManager
+	{
+		private readonly ImageButtonHandler _handler;
 
-    public static CommandMapper<IImageButton, ImageButtonHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
-    {
-    };
+		private CancellationTokenSource? _cts;
 
-    public ImageButtonHandler() : base(Mapper, CommandMapper)
-    {
-    }
+		public ImageSourceServiceResultManager(ImageButtonHandler handler)
+		{
+			_handler = handler;
+		}
 
-    public ImageButtonHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
-    {
-    }
+		public async void UpdateImageSourceAsync()
+		{
+			_cts?.Cancel();
+			_cts = new CancellationTokenSource();
+			CancellationToken token = _cts.Token;
+			try
+			{
+				IImageButton virtualView = ((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).VirtualView;
+				IImageSource val = ((virtualView != null) ? ((IImageSourcePart)virtualView).Source : null);
+				if (val == null)
+				{
+					((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).PlatformView?.LoadFromData(Array.Empty<byte>());
+					return;
+				}
+				IImageSourcePart virtualView2 = (IImageSourcePart)(object)((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).VirtualView;
+				if (virtualView2 != null)
+				{
+					virtualView2.UpdateIsLoading(true);
+				}
+				IFileImageSource val2 = (IFileImageSource)(object)((val is IFileImageSource) ? val : null);
+				if (val2 != null)
+				{
+					string file = val2.File;
+					if (!string.IsNullOrEmpty(file))
+					{
+						await ((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).PlatformView.LoadFromFileAsync(file);
+					}
+					return;
+				}
+				IUriImageSource val3 = (IUriImageSource)(object)((val is IUriImageSource) ? val : null);
+				if (val3 != null)
+				{
+					Uri uri = val3.Uri;
+					if (uri != null)
+					{
+						await ((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).PlatformView.LoadFromUriAsync(uri);
+					}
+					return;
+				}
+				IStreamImageSource val4 = (IStreamImageSource)(object)((val is IStreamImageSource) ? val : null);
+				if (val4 != null)
+				{
+					Stream stream = await val4.GetStreamAsync(token);
+					if (stream != null)
+					{
+						await ((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).PlatformView.LoadFromStreamAsync(stream);
+					}
+				}
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			catch (Exception)
+			{
+				IImageSourcePart virtualView3 = (IImageSourcePart)(object)((ViewHandler<IImageButton, SkiaImageButton>)(object)_handler).VirtualView;
+				if (virtualView3 != null)
+				{
+					virtualView3.UpdateIsLoading(false);
+				}
+			}
+		}
+	}
 
-    protected override SkiaImageButton CreatePlatformView()
-    {
-        return new SkiaImageButton();
-    }
+	public static IPropertyMapper<IImageButton, ImageButtonHandler> Mapper = (IPropertyMapper<IImageButton, ImageButtonHandler>)(object)new PropertyMapper<IImageButton, ImageButtonHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
+	{
+		["Aspect"] = MapAspect,
+		["IsOpaque"] = MapIsOpaque,
+		["Source"] = MapSource,
+		["StrokeColor"] = MapStrokeColor,
+		["StrokeThickness"] = MapStrokeThickness,
+		["CornerRadius"] = MapCornerRadius,
+		["Padding"] = MapPadding,
+		["Background"] = MapBackground,
+		["BackgroundColor"] = MapBackgroundColor
+	};
 
-    protected override void ConnectHandler(SkiaImageButton platformView)
-    {
-        base.ConnectHandler(platformView);
-        platformView.Clicked += OnClicked;
-        platformView.Pressed += OnPressed;
-        platformView.Released += OnReleased;
-        platformView.ImageLoaded += OnImageLoaded;
-        platformView.ImageLoadingError += OnImageLoadingError;
-    }
+	public static CommandMapper<IImageButton, ImageButtonHandler> CommandMapper = new CommandMapper<IImageButton, ImageButtonHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
 
-    protected override void DisconnectHandler(SkiaImageButton platformView)
-    {
-        platformView.Clicked -= OnClicked;
-        platformView.Pressed -= OnPressed;
-        platformView.Released -= OnReleased;
-        platformView.ImageLoaded -= OnImageLoaded;
-        platformView.ImageLoadingError -= OnImageLoadingError;
-        base.DisconnectHandler(platformView);
-    }
+	private ImageSourceServiceResultManager _sourceLoader;
 
-    private void OnClicked(object? sender, EventArgs e)
-    {
-        VirtualView?.Clicked();
-    }
+	private ImageSourceServiceResultManager SourceLoader => _sourceLoader ?? (_sourceLoader = new ImageSourceServiceResultManager(this));
 
-    private void OnPressed(object? sender, EventArgs e)
-    {
-        VirtualView?.Pressed();
-    }
+	public ImageButtonHandler()
+		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
+	{
+	}
 
-    private void OnReleased(object? sender, EventArgs e)
-    {
-        VirtualView?.Released();
-    }
+	public ImageButtonHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
+	{
+	}
 
-    private void OnImageLoaded(object? sender, EventArgs e)
-    {
-        if (VirtualView is IImageSourcePart imageSourcePart)
-        {
-            imageSourcePart.UpdateIsLoading(false);
-        }
-    }
+	protected override SkiaImageButton CreatePlatformView()
+	{
+		return new SkiaImageButton();
+	}
 
-    private void OnImageLoadingError(object? sender, ImageLoadingErrorEventArgs e)
-    {
-        if (VirtualView is IImageSourcePart imageSourcePart)
-        {
-            imageSourcePart.UpdateIsLoading(false);
-        }
-    }
+	protected override void ConnectHandler(SkiaImageButton platformView)
+	{
+		base.ConnectHandler(platformView);
+		platformView.Clicked += OnClicked;
+		platformView.Pressed += OnPressed;
+		platformView.Released += OnReleased;
+		platformView.ImageLoaded += OnImageLoaded;
+		platformView.ImageLoadingError += OnImageLoadingError;
+	}
 
-    public static void MapAspect(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Aspect = imageButton.Aspect;
-    }
+	protected override void DisconnectHandler(SkiaImageButton platformView)
+	{
+		platformView.Clicked -= OnClicked;
+		platformView.Pressed -= OnPressed;
+		platformView.Released -= OnReleased;
+		platformView.ImageLoaded -= OnImageLoaded;
+		platformView.ImageLoadingError -= OnImageLoadingError;
+		base.DisconnectHandler(platformView);
+	}
 
-    public static void MapIsOpaque(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsOpaque = imageButton.IsOpaque;
-    }
+	private void OnClicked(object? sender, EventArgs e)
+	{
+		IImageButton virtualView = base.VirtualView;
+		if (virtualView != null)
+		{
+			((IButton)virtualView).Clicked();
+		}
+	}
 
-    public static void MapSource(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-        handler.SourceLoader.UpdateImageSourceAsync();
-    }
+	private void OnPressed(object? sender, EventArgs e)
+	{
+		IImageButton virtualView = base.VirtualView;
+		if (virtualView != null)
+		{
+			((IButton)virtualView).Pressed();
+		}
+	}
 
-    public static void MapStrokeColor(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
+	private void OnReleased(object? sender, EventArgs e)
+	{
+		IImageButton virtualView = base.VirtualView;
+		if (virtualView != null)
+		{
+			((IButton)virtualView).Released();
+		}
+	}
 
-        if (imageButton.StrokeColor is not null)
-            handler.PlatformView.StrokeColor = imageButton.StrokeColor.ToSKColor();
-    }
+	private void OnImageLoaded(object? sender, EventArgs e)
+	{
+		IImageSourcePart virtualView = (IImageSourcePart)(object)base.VirtualView;
+		if (virtualView != null)
+		{
+			virtualView.UpdateIsLoading(false);
+		}
+	}
 
-    public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.StrokeThickness = (float)imageButton.StrokeThickness;
-    }
+	private void OnImageLoadingError(object? sender, ImageLoadingErrorEventArgs e)
+	{
+		IImageSourcePart virtualView = (IImageSourcePart)(object)base.VirtualView;
+		if (virtualView != null)
+		{
+			virtualView.UpdateIsLoading(false);
+		}
+	}
 
-    public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.CornerRadius = imageButton.CornerRadius;
-    }
+	public static void MapAspect(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.Aspect = ((IImage)imageButton).Aspect;
+		}
+	}
 
-    public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapIsOpaque(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.IsOpaque = ((IImage)imageButton).IsOpaque;
+		}
+	}
 
-        var padding = imageButton.Padding;
-        handler.PlatformView.PaddingLeft = (float)padding.Left;
-        handler.PlatformView.PaddingTop = (float)padding.Top;
-        handler.PlatformView.PaddingRight = (float)padding.Right;
-        handler.PlatformView.PaddingBottom = (float)padding.Bottom;
-    }
+	public static void MapSource(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			handler.SourceLoader.UpdateImageSourceAsync();
+		}
+	}
 
-    public static void MapBackground(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapStrokeColor(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null && ((IButtonStroke)imageButton).StrokeColor != null)
+		{
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.StrokeColor = ((IButtonStroke)imageButton).StrokeColor.ToSKColor();
+		}
+	}
 
-        if (imageButton.Background is SolidPaint solidPaint && solidPaint.Color is not null)
-        {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
-        }
-    }
+	public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.StrokeThickness = (float)((IButtonStroke)imageButton).StrokeThickness;
+		}
+	}
 
-    // Image source loading helper
-    private ImageSourceServiceResultManager _sourceLoader = null!;
+	public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.CornerRadius = ((IButtonStroke)imageButton).CornerRadius;
+		}
+	}
 
-    private ImageSourceServiceResultManager SourceLoader =>
-        _sourceLoader ??= new ImageSourceServiceResultManager(this);
+	public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			Thickness padding = ((IPadding)imageButton).Padding;
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.PaddingLeft = (float)((Thickness)(ref padding)).Left;
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.PaddingTop = (float)((Thickness)(ref padding)).Top;
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.PaddingRight = (float)((Thickness)(ref padding)).Right;
+			((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.PaddingBottom = (float)((Thickness)(ref padding)).Bottom;
+		}
+	}
 
-    internal class ImageSourceServiceResultManager
-    {
-        private readonly ImageButtonHandler _handler;
-        private CancellationTokenSource? _cts;
+	public static void MapBackground(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			Paint background = ((IView)imageButton).Background;
+			SolidPaint val = (SolidPaint)(object)((background is SolidPaint) ? background : null);
+			if (val != null && val.Color != null)
+			{
+				((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
+			}
+		}
+	}
 
-        public ImageSourceServiceResultManager(ImageButtonHandler handler)
-        {
-            _handler = handler;
-        }
-
-        public async void UpdateImageSourceAsync()
-        {
-            _cts?.Cancel();
-            _cts = new CancellationTokenSource();
-            var token = _cts.Token;
-
-            try
-            {
-                var source = _handler.VirtualView?.Source;
-                if (source == null)
-                {
-                    _handler.PlatformView?.LoadFromData(Array.Empty<byte>());
-                    return;
-                }
-
-                if (_handler.VirtualView is IImageSourcePart imageSourcePart)
-                {
-                    imageSourcePart.UpdateIsLoading(true);
-                }
-
-                // Handle different image source types
-                if (source is IFileImageSource fileSource)
-                {
-                    var file = fileSource.File;
-                    if (!string.IsNullOrEmpty(file))
-                    {
-                        await _handler.PlatformView!.LoadFromFileAsync(file);
-                    }
-                }
-                else if (source is IUriImageSource uriSource)
-                {
-                    var uri = uriSource.Uri;
-                    if (uri != null)
-                    {
-                        await _handler.PlatformView!.LoadFromUriAsync(uri);
-                    }
-                }
-                else if (source is IStreamImageSource streamSource)
-                {
-                    var stream = await streamSource.GetStreamAsync(token);
-                    if (stream != null)
-                    {
-                        await _handler.PlatformView!.LoadFromStreamAsync(stream);
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Loading was cancelled
-            }
-            catch (Exception)
-            {
-                // Handle error
-                if (_handler.VirtualView is IImageSourcePart imageSourcePart)
-                {
-                    imageSourcePart.UpdateIsLoading(false);
-                }
-            }
-        }
-    }
+	public static void MapBackgroundColor(ImageButtonHandler handler, IImageButton imageButton)
+	{
+		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView != null)
+		{
+			ImageButton val = (ImageButton)(object)((imageButton is ImageButton) ? imageButton : null);
+			if (val != null && ((VisualElement)val).BackgroundColor != null)
+			{
+				((ViewHandler<IImageButton, SkiaImageButton>)(object)handler).PlatformView.BackgroundColor = ((VisualElement)val).BackgroundColor.ToSKColor();
+			}
+		}
+	}
 }

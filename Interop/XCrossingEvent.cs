@@ -1,0 +1,40 @@
+using System;
+
+namespace Microsoft.Maui.Platform.Linux.Interop;
+
+public struct XCrossingEvent
+{
+	public int Type;
+
+	public ulong Serial;
+
+	public int SendEvent;
+
+	public IntPtr Display;
+
+	public IntPtr Window;
+
+	public IntPtr Root;
+
+	public IntPtr Subwindow;
+
+	public ulong Time;
+
+	public int X;
+
+	public int Y;
+
+	public int XRoot;
+
+	public int YRoot;
+
+	public int Mode;
+
+	public int Detail;
+
+	public int SameScreen;
+
+	public int Focus;
+
+	public uint State;
+}

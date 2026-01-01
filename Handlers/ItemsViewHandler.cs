@@ -1,164 +1,175 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using Microsoft.Maui.Handlers;
-using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.Platform;
+using Microsoft.Maui.Handlers;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-/// <summary>
-/// Base handler for ItemsView on Linux using Skia rendering.
-/// Maps ItemsView to SkiaItemsView platform view.
-/// </summary>
-public partial class ItemsViewHandler<TItemsView> : ViewHandler<TItemsView, SkiaItemsView>
-    where TItemsView : ItemsView
+public class ItemsViewHandler<TItemsView> : ViewHandler<TItemsView, SkiaItemsView> where TItemsView : ItemsView
 {
-    public static IPropertyMapper<TItemsView, ItemsViewHandler<TItemsView>> ItemsViewMapper =
-        new PropertyMapper<TItemsView, ItemsViewHandler<TItemsView>>(ViewHandler.ViewMapper)
-        {
-            [nameof(ItemsView.ItemsSource)] = MapItemsSource,
-            [nameof(ItemsView.ItemTemplate)] = MapItemTemplate,
-            [nameof(ItemsView.EmptyView)] = MapEmptyView,
-            [nameof(ItemsView.EmptyViewTemplate)] = MapEmptyViewTemplate,
-            [nameof(ItemsView.HorizontalScrollBarVisibility)] = MapHorizontalScrollBarVisibility,
-            [nameof(ItemsView.VerticalScrollBarVisibility)] = MapVerticalScrollBarVisibility,
-            [nameof(IView.Background)] = MapBackground,
-        };
+	public static IPropertyMapper<TItemsView, ItemsViewHandler<TItemsView>> ItemsViewMapper = (IPropertyMapper<TItemsView, ItemsViewHandler<TItemsView>>)(object)new PropertyMapper<TItemsView, ItemsViewHandler<TItemsView>>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
+	{
+		["ItemsSource"] = MapItemsSource,
+		["ItemTemplate"] = MapItemTemplate,
+		["EmptyView"] = MapEmptyView,
+		["EmptyViewTemplate"] = MapEmptyViewTemplate,
+		["HorizontalScrollBarVisibility"] = MapHorizontalScrollBarVisibility,
+		["VerticalScrollBarVisibility"] = MapVerticalScrollBarVisibility,
+		["Background"] = MapBackground
+	};
 
-    public static CommandMapper<TItemsView, ItemsViewHandler<TItemsView>> ItemsViewCommandMapper =
-        new(ViewHandler.ViewCommandMapper)
-        {
-            ["ScrollTo"] = MapScrollTo,
-        };
+	public static CommandMapper<TItemsView, ItemsViewHandler<TItemsView>> ItemsViewCommandMapper = new CommandMapper<TItemsView, ItemsViewHandler<TItemsView>>((CommandMapper)(object)ViewHandler.ViewCommandMapper) { ["ScrollTo"] = MapScrollTo };
 
-    public ItemsViewHandler() : base(ItemsViewMapper, ItemsViewCommandMapper)
-    {
-    }
+	public ItemsViewHandler()
+		: base((IPropertyMapper)(object)ItemsViewMapper, (CommandMapper)(object)ItemsViewCommandMapper)
+	{
+	}
 
-    public ItemsViewHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-        : base(mapper ?? ItemsViewMapper, commandMapper ?? ItemsViewCommandMapper)
-    {
-    }
+	public ItemsViewHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+		: base((IPropertyMapper)(((object)mapper) ?? ((object)ItemsViewMapper)), (CommandMapper)(((object)commandMapper) ?? ((object)ItemsViewCommandMapper)))
+	{
+	}
 
-    protected override SkiaItemsView CreatePlatformView()
-    {
-        return new SkiaItemsView();
-    }
+	protected override SkiaItemsView CreatePlatformView()
+	{
+		return new SkiaItemsView();
+	}
 
-    protected override void ConnectHandler(SkiaItemsView platformView)
-    {
-        base.ConnectHandler(platformView);
-        platformView.Scrolled += OnScrolled;
-        platformView.ItemTapped += OnItemTapped;
+	protected override void ConnectHandler(SkiaItemsView platformView)
+	{
+		base.ConnectHandler(platformView);
+		platformView.Scrolled += OnScrolled;
+		platformView.ItemTapped += OnItemTapped;
+		platformView.ItemRenderer = RenderItem;
+	}
 
-        // Set up item renderer
-        platformView.ItemRenderer = RenderItem;
-    }
+	protected override void DisconnectHandler(SkiaItemsView platformView)
+	{
+		platformView.Scrolled -= OnScrolled;
+		platformView.ItemTapped -= OnItemTapped;
+		platformView.ItemRenderer = null;
+		base.DisconnectHandler(platformView);
+	}
 
-    protected override void DisconnectHandler(SkiaItemsView platformView)
-    {
-        platformView.Scrolled -= OnScrolled;
-        platformView.ItemTapped -= OnItemTapped;
-        platformView.ItemRenderer = null;
-        base.DisconnectHandler(platformView);
-    }
+	private void OnScrolled(object? sender, ItemsScrolledEventArgs e)
+	{
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0054: Expected O, but got Unknown
+		object obj = base.VirtualView;
+		if (obj != null)
+		{
+			((ItemsView)obj).SendScrolled(new ItemsViewScrolledEventArgs
+			{
+				VerticalOffset = e.ScrollOffset,
+				VerticalDelta = 0.0,
+				HorizontalOffset = 0.0,
+				HorizontalDelta = 0.0
+			});
+		}
+	}
 
-    private void OnScrolled(object? sender, ItemsScrolledEventArgs e)
-    {
-        // Fire scrolled event on virtual view
-        VirtualView?.SendScrolled(new ItemsViewScrolledEventArgs
-        {
-            VerticalOffset = e.ScrollOffset,
-            VerticalDelta = 0,
-            HorizontalOffset = 0,
-            HorizontalDelta = 0
-        });
-    }
+	private void OnItemTapped(object? sender, ItemsViewItemTappedEventArgs e)
+	{
+	}
 
-    private void OnItemTapped(object? sender, ItemsViewItemTappedEventArgs e)
-    {
-        // Item tap handling - can be extended for selection
-    }
+	protected virtual bool RenderItem(object item, int index, SKRect bounds, SKCanvas canvas, SKPaint paint)
+	{
+		object obj = base.VirtualView;
+		if (obj != null)
+		{
+			_ = ((ItemsView)obj).ItemTemplate;
+		}
+		else
+			_ = null;
+		return false;
+	}
 
-    protected virtual bool RenderItem(object item, int index, SKRect bounds, SKCanvas canvas, SKPaint paint)
-    {
-        // Check if we have an ItemTemplate
-        var template = VirtualView?.ItemTemplate;
-        if (template == null)
-            return false; // Use default rendering
+	public static void MapItemsSource(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		if (((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.ItemsSource = ((ItemsView)itemsView).ItemsSource;
+		}
+	}
 
-        // For now, render based on item ToString
-        // Full DataTemplate support would require creating actual views
-        return false;
-    }
+	public static void MapItemTemplate(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView?.Invalidate();
+	}
 
-    public static void MapItemsSource(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.ItemsSource = itemsView.ItemsSource;
-    }
+	public static void MapEmptyView(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		if (((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.EmptyView = ((ItemsView)itemsView).EmptyView;
+			if (((ItemsView)itemsView).EmptyView is string emptyViewText)
+			{
+				((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.EmptyViewText = emptyViewText;
+			}
+		}
+	}
 
-    public static void MapItemTemplate(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        // ItemTemplate affects how items are rendered
-        // The renderer will check this when drawing items
-        handler.PlatformView?.Invalidate();
-    }
+	public static void MapEmptyViewTemplate(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView?.Invalidate();
+	}
 
-    public static void MapEmptyView(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapHorizontalScrollBarVisibility(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001f: Expected I4, but got Unknown
+		if (((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.HorizontalScrollBarVisibility = (ScrollBarVisibility)((ItemsView)itemsView).HorizontalScrollBarVisibility;
+		}
+	}
 
-        handler.PlatformView.EmptyView = itemsView.EmptyView;
-        if (itemsView.EmptyView is string text)
-        {
-            handler.PlatformView.EmptyViewText = text;
-        }
-    }
+	public static void MapVerticalScrollBarVisibility(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001f: Expected I4, but got Unknown
+		if (((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.VerticalScrollBarVisibility = (ScrollBarVisibility)((ItemsView)itemsView).VerticalScrollBarVisibility;
+		}
+	}
 
-    public static void MapEmptyViewTemplate(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        // EmptyViewTemplate would be used to render custom empty view
-        handler.PlatformView?.Invalidate();
-    }
+	public static void MapBackground(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
+	{
+		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView != null)
+		{
+			Brush background = ((VisualElement)(object)itemsView).Background;
+			SolidColorBrush val = (SolidColorBrush)(object)((background is SolidColorBrush) ? background : null);
+			if (val != null)
+			{
+				((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
+			}
+		}
+	}
 
-    public static void MapHorizontalScrollBarVisibility(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.HorizontalScrollBarVisibility = (ScrollBarVisibility)itemsView.HorizontalScrollBarVisibility;
-    }
-
-    public static void MapVerticalScrollBarVisibility(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.VerticalScrollBarVisibility = (ScrollBarVisibility)itemsView.VerticalScrollBarVisibility;
-    }
-
-    public static void MapBackground(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (itemsView.Background is SolidColorBrush solidBrush)
-        {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
-        }
-    }
-
-    public static void MapScrollTo(ItemsViewHandler<TItemsView> handler, TItemsView itemsView, object? args)
-    {
-        if (handler.PlatformView is null || args is not ScrollToRequestEventArgs scrollArgs)
-            return;
-
-        if (scrollArgs.Mode == ScrollToMode.Position)
-        {
-            handler.PlatformView.ScrollToIndex(scrollArgs.Index, scrollArgs.IsAnimated);
-        }
-        else if (scrollArgs.Item != null)
-        {
-            handler.PlatformView.ScrollToItem(scrollArgs.Item, scrollArgs.IsAnimated);
-        }
-    }
+	public static void MapScrollTo(ItemsViewHandler<TItemsView> handler, TItemsView itemsView, object? args)
+	{
+		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001a: Invalid comparison between Unknown and I4
+		if (((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView == null)
+		{
+			return;
+		}
+		ScrollToRequestEventArgs e = (ScrollToRequestEventArgs)((args is ScrollToRequestEventArgs) ? args : null);
+		if (e != null)
+		{
+			if ((int)e.Mode == 1)
+			{
+				((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.ScrollToIndex(e.Index, e.IsAnimated);
+			}
+			else if (e.Item != null)
+			{
+				((ViewHandler<TItemsView, SkiaItemsView>)(object)handler).PlatformView.ScrollToItem(e.Item, e.IsAnimated);
+			}
+		}
+	}
 }

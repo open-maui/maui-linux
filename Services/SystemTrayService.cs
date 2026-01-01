@@ -1,282 +1,263 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-/// <summary>
-/// Linux system tray service using various backends.
-/// Supports yad, zenity, or native D-Bus StatusNotifierItem.
-/// </summary>
 public class SystemTrayService : IDisposable
 {
-    private Process? _trayProcess;
-    private readonly string _appName;
-    private string? _iconPath;
-    private string? _tooltip;
-    private readonly List<TrayMenuItem> _menuItems = new();
-    private bool _isVisible;
-    private bool _disposed;
+	private Process? _trayProcess;
 
-    public event EventHandler? Clicked;
-    public event EventHandler<string>? MenuItemClicked;
+	private readonly string _appName;
 
-    public SystemTrayService(string appName)
-    {
-        _appName = appName;
-    }
+	private string? _iconPath;
 
-    /// <summary>
-    /// Gets or sets the tray icon path.
-    /// </summary>
-    public string? IconPath
-    {
-        get => _iconPath;
-        set
-        {
-            _iconPath = value;
-            if (_isVisible) UpdateTray();
-        }
-    }
+	private string? _tooltip;
 
-    /// <summary>
-    /// Gets or sets the tooltip text.
-    /// </summary>
-    public string? Tooltip
-    {
-        get => _tooltip;
-        set
-        {
-            _tooltip = value;
-            if (_isVisible) UpdateTray();
-        }
-    }
+	private readonly List<TrayMenuItem> _menuItems = new List<TrayMenuItem>();
 
-    /// <summary>
-    /// Gets the menu items.
-    /// </summary>
-    public IList<TrayMenuItem> MenuItems => _menuItems;
+	private bool _isVisible;
 
-    /// <summary>
-    /// Shows the system tray icon.
-    /// </summary>
-    public async Task ShowAsync()
-    {
-        if (_isVisible) return;
+	private bool _disposed;
 
-        // Try yad first (most feature-complete)
-        if (await TryYadTray())
-        {
-            _isVisible = true;
-            return;
-        }
+	public string? IconPath
+	{
+		get
+		{
+			return _iconPath;
+		}
+		set
+		{
+			_iconPath = value;
+			if (_isVisible)
+			{
+				UpdateTray();
+			}
+		}
+	}
 
-        // Fall back to a simple approach
-        _isVisible = true;
-    }
+	public string? Tooltip
+	{
+		get
+		{
+			return _tooltip;
+		}
+		set
+		{
+			_tooltip = value;
+			if (_isVisible)
+			{
+				UpdateTray();
+			}
+		}
+	}
 
-    /// <summary>
-    /// Hides the system tray icon.
-    /// </summary>
-    public void Hide()
-    {
-        if (!_isVisible) return;
+	public IList<TrayMenuItem> MenuItems => _menuItems;
 
-        _trayProcess?.Kill();
-        _trayProcess?.Dispose();
-        _trayProcess = null;
-        _isVisible = false;
-    }
+	public event EventHandler? Clicked;
 
-    /// <summary>
-    /// Updates the tray icon and menu.
-    /// </summary>
-    public void UpdateTray()
-    {
-        if (!_isVisible) return;
+	public event EventHandler<string>? MenuItemClicked;
 
-        // Restart tray with new settings
-        Hide();
-        _ = ShowAsync();
-    }
+	public SystemTrayService(string appName)
+	{
+		_appName = appName;
+	}
 
-    private async Task<bool> TryYadTray()
-    {
-        try
-        {
-            var args = BuildYadArgs();
+	public async Task ShowAsync()
+	{
+		if (!_isVisible)
+		{
+			await TryYadTray();
+			_isVisible = true;
+		}
+	}
 
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "yad",
-                Arguments = args,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
+	public void Hide()
+	{
+		if (_isVisible)
+		{
+			_trayProcess?.Kill();
+			_trayProcess?.Dispose();
+			_trayProcess = null;
+			_isVisible = false;
+		}
+	}
 
-            _trayProcess = Process.Start(startInfo);
-            if (_trayProcess == null) return false;
+	public void UpdateTray()
+	{
+		if (_isVisible)
+		{
+			Hide();
+			ShowAsync();
+		}
+	}
 
-            // Start reading output for menu clicks
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    while (!_trayProcess.HasExited)
-                    {
-                        var line = await _trayProcess.StandardOutput.ReadLineAsync();
-                        if (!string.IsNullOrEmpty(line))
-                        {
-                            HandleTrayOutput(line);
-                        }
-                    }
-                }
-                catch { }
-            });
+	private async Task<bool> TryYadTray()
+	{
+		try
+		{
+			string arguments = BuildYadArgs();
+			ProcessStartInfo startInfo = new ProcessStartInfo
+			{
+				FileName = "yad",
+				Arguments = arguments,
+				UseShellExecute = false,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				CreateNoWindow = true
+			};
+			_trayProcess = Process.Start(startInfo);
+			if (_trayProcess == null)
+			{
+				return false;
+			}
+			Task.Run(async delegate
+			{
+				try
+				{
+					while (!_trayProcess.HasExited)
+					{
+						string text = await _trayProcess.StandardOutput.ReadLineAsync();
+						if (!string.IsNullOrEmpty(text))
+						{
+							HandleTrayOutput(text);
+						}
+					}
+				}
+				catch
+				{
+				}
+			});
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+	private string BuildYadArgs()
+	{
+		List<string> list = new List<string> { "--notification", "--listen" };
+		if (!string.IsNullOrEmpty(_iconPath) && File.Exists(_iconPath))
+		{
+			list.Add("--image=\"" + _iconPath + "\"");
+		}
+		else
+		{
+			list.Add("--image=application-x-executable");
+		}
+		if (!string.IsNullOrEmpty(_tooltip))
+		{
+			list.Add("--text=\"" + EscapeArg(_tooltip) + "\"");
+		}
+		if (_menuItems.Count > 0)
+		{
+			string text = string.Join("!", _menuItems.Select(delegate(TrayMenuItem m)
+			{
+				object obj;
+				if (!m.IsSeparator)
+				{
+					obj = EscapeArg(m.Text);
+					if (obj == null)
+					{
+						return "";
+					}
+				}
+				else
+				{
+					obj = "---";
+				}
+				return (string)obj;
+			}));
+			list.Add("--menu=\"" + text + "\"");
+		}
+		list.Add("--command=\"echo clicked\"");
+		return string.Join(" ", list);
+	}
 
-    private string BuildYadArgs()
-    {
-        var args = new List<string>
-        {
-            "--notification",
-            "--listen"
-        };
+	private void HandleTrayOutput(string output)
+	{
+		if (output == "clicked")
+		{
+			this.Clicked?.Invoke(this, EventArgs.Empty);
+			return;
+		}
+		TrayMenuItem trayMenuItem = _menuItems.FirstOrDefault((TrayMenuItem m) => m.Text == output);
+		if (trayMenuItem != null)
+		{
+			trayMenuItem.Action?.Invoke();
+			this.MenuItemClicked?.Invoke(this, output);
+		}
+	}
 
-        if (!string.IsNullOrEmpty(_iconPath) && File.Exists(_iconPath))
-        {
-            args.Add($"--image=\"{_iconPath}\"");
-        }
-        else
-        {
-            args.Add("--image=application-x-executable");
-        }
+	public void AddMenuItem(string text, Action? action = null)
+	{
+		_menuItems.Add(new TrayMenuItem
+		{
+			Text = text,
+			Action = action
+		});
+	}
 
-        if (!string.IsNullOrEmpty(_tooltip))
-        {
-            args.Add($"--text=\"{EscapeArg(_tooltip)}\"");
-        }
+	public void AddSeparator()
+	{
+		_menuItems.Add(new TrayMenuItem
+		{
+			IsSeparator = true
+		});
+	}
 
-        // Build menu
-        if (_menuItems.Count > 0)
-        {
-            var menuStr = string.Join("!", _menuItems.Select(m =>
-                m.IsSeparator ? "---" : $"{EscapeArg(m.Text)}"));
-            args.Add($"--menu=\"{menuStr}\"");
-        }
+	public void ClearMenuItems()
+	{
+		_menuItems.Clear();
+	}
 
-        args.Add("--command=\"echo clicked\"");
+	public static bool IsAvailable()
+	{
+		try
+		{
+			using Process process = Process.Start(new ProcessStartInfo
+			{
+				FileName = "which",
+				Arguments = "yad",
+				UseShellExecute = false,
+				RedirectStandardOutput = true,
+				CreateNoWindow = true
+			});
+			if (process == null)
+			{
+				return false;
+			}
+			process.WaitForExit();
+			return process.ExitCode == 0;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-        return string.Join(" ", args);
-    }
+	private static string EscapeArg(string arg)
+	{
+		return arg?.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("!", "\\!") ?? "";
+	}
 
-    private void HandleTrayOutput(string output)
-    {
-        if (output == "clicked")
-        {
-            Clicked?.Invoke(this, EventArgs.Empty);
-        }
-        else
-        {
-            // Menu item clicked
-            var menuItem = _menuItems.FirstOrDefault(m => m.Text == output);
-            if (menuItem != null)
-            {
-                menuItem.Action?.Invoke();
-                MenuItemClicked?.Invoke(this, output);
-            }
-        }
-    }
+	public void Dispose()
+	{
+		if (!_disposed)
+		{
+			_disposed = true;
+			Hide();
+			GC.SuppressFinalize(this);
+		}
+	}
 
-    /// <summary>
-    /// Adds a menu item to the tray context menu.
-    /// </summary>
-    public void AddMenuItem(string text, Action? action = null)
-    {
-        _menuItems.Add(new TrayMenuItem { Text = text, Action = action });
-    }
-
-    /// <summary>
-    /// Adds a separator to the tray context menu.
-    /// </summary>
-    public void AddSeparator()
-    {
-        _menuItems.Add(new TrayMenuItem { IsSeparator = true });
-    }
-
-    /// <summary>
-    /// Clears all menu items.
-    /// </summary>
-    public void ClearMenuItems()
-    {
-        _menuItems.Clear();
-    }
-
-    /// <summary>
-    /// Checks if system tray is available on this system.
-    /// </summary>
-    public static bool IsAvailable()
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "which",
-                Arguments = "yad",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return false;
-
-            process.WaitForExit();
-            return process.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static string EscapeArg(string arg)
-    {
-        return arg?.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("!", "\\!") ?? "";
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        Hide();
-        GC.SuppressFinalize(this);
-    }
-
-    ~SystemTrayService()
-    {
-        Dispose();
-    }
-}
-
-/// <summary>
-/// Represents a tray menu item.
-/// </summary>
-public class TrayMenuItem
-{
-    public string Text { get; set; } = "";
-    public Action? Action { get; set; }
-    public bool IsSeparator { get; set; }
-    public bool IsEnabled { get; set; } = true;
-    public string? IconPath { get; set; }
+	~SystemTrayService()
+	{
+		Dispose();
+	}
 }

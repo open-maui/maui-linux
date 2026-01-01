@@ -1,438 +1,612 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
 using SkiaSharp;
-using Microsoft.Maui.Graphics;
+using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// Skia-rendered image button control.
-/// Combines button behavior with image display.
-/// </summary>
 public class SkiaImageButton : SkiaView
 {
-    private SKBitmap? _bitmap;
-    private SKImage? _image;
-    private bool _isLoading;
+	private SKBitmap? _bitmap;
 
-    public SKBitmap? Bitmap
-    {
-        get => _bitmap;
-        set
-        {
-            _bitmap?.Dispose();
-            _bitmap = value;
-            _image?.Dispose();
-            _image = value != null ? SKImage.FromBitmap(value) : null;
-            Invalidate();
-        }
-    }
+	private SKImage? _image;
 
-    // Image properties
-    public Aspect Aspect { get; set; } = Aspect.AspectFit;
-    public bool IsOpaque { get; set; }
-    public bool IsLoading => _isLoading;
+	private bool _isLoading;
 
-    // Button stroke properties
-    public SKColor StrokeColor { get; set; } = SKColors.Transparent;
-    public float StrokeThickness { get; set; } = 0;
-    public float CornerRadius { get; set; } = 0;
+	public SKBitmap? Bitmap
+	{
+		get
+		{
+			return _bitmap;
+		}
+		set
+		{
+			SKBitmap? bitmap = _bitmap;
+			if (bitmap != null)
+			{
+				((SKNativeObject)bitmap).Dispose();
+			}
+			_bitmap = value;
+			SKImage? image = _image;
+			if (image != null)
+			{
+				((SKNativeObject)image).Dispose();
+			}
+			_image = ((value != null) ? SKImage.FromBitmap(value) : null);
+			Invalidate();
+		}
+	}
 
-    // Button state
-    public bool IsPressed { get; private set; }
-    public bool IsHovered { get; private set; }
+	public Aspect Aspect { get; set; }
 
-    // Visual state colors
-    public SKColor PressedBackgroundColor { get; set; } = new SKColor(0, 0, 0, 30);
-    public SKColor HoveredBackgroundColor { get; set; } = new SKColor(0, 0, 0, 15);
+	public bool IsOpaque { get; set; }
 
-    // Padding for the image content
-    public float PaddingLeft { get; set; }
-    public float PaddingTop { get; set; }
-    public float PaddingRight { get; set; }
-    public float PaddingBottom { get; set; }
+	public bool IsLoading => _isLoading;
 
-    public event EventHandler? Clicked;
-    public event EventHandler? Pressed;
-    public event EventHandler? Released;
-    public event EventHandler? ImageLoaded;
-    public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
+	public SKColor StrokeColor { get; set; } = SKColors.Transparent;
 
-    public SkiaImageButton()
-    {
-        IsFocusable = true;
-    }
+	public float StrokeThickness { get; set; }
 
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        // Apply padding
-        var contentBounds = new SKRect(
-            bounds.Left + PaddingLeft,
-            bounds.Top + PaddingTop,
-            bounds.Right - PaddingRight,
-            bounds.Bottom - PaddingBottom);
+	public float CornerRadius { get; set; }
 
-        // Draw background based on state
-        if (IsPressed || IsHovered || !IsOpaque && BackgroundColor != SKColors.Transparent)
-        {
-            var bgColor = IsPressed ? PressedBackgroundColor
-                        : IsHovered ? HoveredBackgroundColor
-                        : BackgroundColor;
+	public bool IsPressed { get; private set; }
 
-            using var bgPaint = new SKPaint
-            {
-                Color = bgColor,
-                Style = SKPaintStyle.Fill,
-                IsAntialias = true
-            };
+	public bool IsHovered { get; private set; }
 
-            if (CornerRadius > 0)
-            {
-                var roundRect = new SKRoundRect(bounds, CornerRadius);
-                canvas.DrawRoundRect(roundRect, bgPaint);
-            }
-            else
-            {
-                canvas.DrawRect(bounds, bgPaint);
-            }
-        }
+	public SKColor PressedBackgroundColor { get; set; } = new SKColor((byte)0, (byte)0, (byte)0, (byte)30);
 
-        // Draw image
-        if (_image != null)
-        {
-            var imageWidth = _image.Width;
-            var imageHeight = _image.Height;
+	public SKColor HoveredBackgroundColor { get; set; } = new SKColor((byte)0, (byte)0, (byte)0, (byte)15);
 
-            if (imageWidth > 0 && imageHeight > 0)
-            {
-                var destRect = CalculateDestRect(contentBounds, imageWidth, imageHeight);
+	public float PaddingLeft { get; set; }
 
-                using var paint = new SKPaint
-                {
-                    IsAntialias = true,
-                    FilterQuality = SKFilterQuality.High
-                };
+	public float PaddingTop { get; set; }
 
-                // Apply opacity when disabled
-                if (!IsEnabled)
-                {
-                    paint.Color = paint.Color.WithAlpha(128);
-                }
+	public float PaddingRight { get; set; }
 
-                canvas.DrawImage(_image, destRect, paint);
-            }
-        }
+	public float PaddingBottom { get; set; }
 
-        // Draw stroke/border
-        if (StrokeThickness > 0 && StrokeColor != SKColors.Transparent)
-        {
-            using var strokePaint = new SKPaint
-            {
-                Color = StrokeColor,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = StrokeThickness,
-                IsAntialias = true
-            };
+	public event EventHandler? Clicked;
 
-            if (CornerRadius > 0)
-            {
-                var roundRect = new SKRoundRect(bounds, CornerRadius);
-                canvas.DrawRoundRect(roundRect, strokePaint);
-            }
-            else
-            {
-                canvas.DrawRect(bounds, strokePaint);
-            }
-        }
+	public event EventHandler? Pressed;
 
-        // Draw focus ring
-        if (IsFocused)
-        {
-            using var focusPaint = new SKPaint
-            {
-                Color = new SKColor(0x00, 0x00, 0x00, 0x40),
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 2,
-                IsAntialias = true
-            };
+	public event EventHandler? Released;
 
-            var focusBounds = new SKRect(bounds.Left - 2, bounds.Top - 2, bounds.Right + 2, bounds.Bottom + 2);
-            if (CornerRadius > 0)
-            {
-                var focusRect = new SKRoundRect(focusBounds, CornerRadius + 2);
-                canvas.DrawRoundRect(focusRect, focusPaint);
-            }
-            else
-            {
-                canvas.DrawRect(focusBounds, focusPaint);
-            }
-        }
-    }
+	public event EventHandler? ImageLoaded;
 
-    private SKRect CalculateDestRect(SKRect bounds, float imageWidth, float imageHeight)
-    {
-        float destX, destY, destWidth, destHeight;
+	public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
 
-        switch (Aspect)
-        {
-            case Aspect.Fill:
-                return bounds;
+	public SkiaImageButton()
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+		base.IsFocusable = true;
+	}
 
-            case Aspect.AspectFit:
-                var fitScale = Math.Min(bounds.Width / imageWidth, bounds.Height / imageHeight);
-                destWidth = imageWidth * fitScale;
-                destHeight = imageHeight * fitScale;
-                destX = bounds.Left + (bounds.Width - destWidth) / 2;
-                destY = bounds.Top + (bounds.Height - destHeight) / 2;
-                return new SKRect(destX, destY, destX + destWidth, destY + destHeight);
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_008d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0092: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0098: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0099: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ae: Expected O, but got Unknown
+		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d3: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00bb: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c8: Expected O, but got Unknown
+		//IL_0189: Unknown result type (might be due to invalid IL or missing references)
+		//IL_018e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0210: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0215: Unknown result type (might be due to invalid IL or missing references)
+		//IL_021b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0225: Unknown result type (might be due to invalid IL or missing references)
+		//IL_022c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0237: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0240: Expected O, but got Unknown
+		//IL_019a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_019f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01a1: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01ab: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01b2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01be: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01c7: Expected O, but got Unknown
+		//IL_0116: Unknown result type (might be due to invalid IL or missing references)
+		//IL_011d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0122: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0124: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0129: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0130: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0139: Expected O, but got Unknown
+		//IL_0274: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0279: Unknown result type (might be due to invalid IL or missing references)
+		//IL_02aa: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0288: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0296: Unknown result type (might be due to invalid IL or missing references)
+		//IL_029d: Expected O, but got Unknown
+		//IL_01ef: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01d4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01db: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01e2: Expected O, but got Unknown
+		//IL_0164: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0145: Unknown result type (might be due to invalid IL or missing references)
+		//IL_014a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0153: Unknown result type (might be due to invalid IL or missing references)
+		SKRect bounds2 = default(SKRect);
+		((SKRect)(ref bounds2))._002Ector(((SKRect)(ref bounds)).Left + PaddingLeft, ((SKRect)(ref bounds)).Top + PaddingTop, ((SKRect)(ref bounds)).Right - PaddingRight, ((SKRect)(ref bounds)).Bottom - PaddingBottom);
+		if (IsPressed || IsHovered || (!IsOpaque && base.BackgroundColor != SKColors.Transparent))
+		{
+			SKColor color = (IsPressed ? PressedBackgroundColor : (IsHovered ? HoveredBackgroundColor : base.BackgroundColor));
+			SKPaint val = new SKPaint
+			{
+				Color = color,
+				Style = (SKPaintStyle)0,
+				IsAntialias = true
+			};
+			try
+			{
+				if (CornerRadius > 0f)
+				{
+					SKRoundRect val2 = new SKRoundRect(bounds, CornerRadius);
+					canvas.DrawRoundRect(val2, val);
+				}
+				else
+				{
+					canvas.DrawRect(bounds, val);
+				}
+			}
+			finally
+			{
+				((IDisposable)val)?.Dispose();
+			}
+		}
+		if (_image != null)
+		{
+			int width = _image.Width;
+			int height = _image.Height;
+			if (width > 0 && height > 0)
+			{
+				SKRect val3 = CalculateDestRect(bounds2, width, height);
+				SKPaint val4 = new SKPaint
+				{
+					IsAntialias = true,
+					FilterQuality = (SKFilterQuality)3
+				};
+				try
+				{
+					if (!base.IsEnabled)
+					{
+						SKColor color2 = val4.Color;
+						val4.Color = ((SKColor)(ref color2)).WithAlpha((byte)128);
+					}
+					canvas.DrawImage(_image, val3, val4);
+				}
+				finally
+				{
+					((IDisposable)val4)?.Dispose();
+				}
+			}
+		}
+		if (StrokeThickness > 0f && StrokeColor != SKColors.Transparent)
+		{
+			SKPaint val5 = new SKPaint
+			{
+				Color = StrokeColor,
+				Style = (SKPaintStyle)1,
+				StrokeWidth = StrokeThickness,
+				IsAntialias = true
+			};
+			try
+			{
+				if (CornerRadius > 0f)
+				{
+					SKRoundRect val6 = new SKRoundRect(bounds, CornerRadius);
+					canvas.DrawRoundRect(val6, val5);
+				}
+				else
+				{
+					canvas.DrawRect(bounds, val5);
+				}
+			}
+			finally
+			{
+				((IDisposable)val5)?.Dispose();
+			}
+		}
+		if (!base.IsFocused)
+		{
+			return;
+		}
+		SKPaint val7 = new SKPaint
+		{
+			Color = new SKColor((byte)0, (byte)0, (byte)0, (byte)64),
+			Style = (SKPaintStyle)1,
+			StrokeWidth = 2f,
+			IsAntialias = true
+		};
+		try
+		{
+			SKRect val8 = new SKRect(((SKRect)(ref bounds)).Left - 2f, ((SKRect)(ref bounds)).Top - 2f, ((SKRect)(ref bounds)).Right + 2f, ((SKRect)(ref bounds)).Bottom + 2f);
+			if (CornerRadius > 0f)
+			{
+				SKRoundRect val9 = new SKRoundRect(val8, CornerRadius + 2f);
+				canvas.DrawRoundRect(val9, val7);
+			}
+			else
+			{
+				canvas.DrawRect(val8, val7);
+			}
+		}
+		finally
+		{
+			((IDisposable)val7)?.Dispose();
+		}
+	}
 
-            case Aspect.AspectFill:
-                var fillScale = Math.Max(bounds.Width / imageWidth, bounds.Height / imageHeight);
-                destWidth = imageWidth * fillScale;
-                destHeight = imageHeight * fillScale;
-                destX = bounds.Left + (bounds.Width - destWidth) / 2;
-                destY = bounds.Top + (bounds.Height - destHeight) / 2;
-                return new SKRect(destX, destY, destX + destWidth, destY + destHeight);
+	private SKRect CalculateDestRect(SKRect bounds, float imageWidth, float imageHeight)
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001f: Expected I4, but got Unknown
+		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0120: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0126: Unknown result type (might be due to invalid IL or missing references)
+		Aspect aspect = Aspect;
+		switch ((int)aspect)
+		{
+		case 2:
+			return bounds;
+		case 0:
+		{
+			float num6 = Math.Min(((SKRect)(ref bounds)).Width / imageWidth, ((SKRect)(ref bounds)).Height / imageHeight);
+			float num4 = imageWidth * num6;
+			float num5 = imageHeight * num6;
+			float num = ((SKRect)(ref bounds)).Left + (((SKRect)(ref bounds)).Width - num4) / 2f;
+			float num2 = ((SKRect)(ref bounds)).Top + (((SKRect)(ref bounds)).Height - num5) / 2f;
+			return new SKRect(num, num2, num + num4, num2 + num5);
+		}
+		case 1:
+		{
+			float num3 = Math.Max(((SKRect)(ref bounds)).Width / imageWidth, ((SKRect)(ref bounds)).Height / imageHeight);
+			float num4 = imageWidth * num3;
+			float num5 = imageHeight * num3;
+			float num = ((SKRect)(ref bounds)).Left + (((SKRect)(ref bounds)).Width - num4) / 2f;
+			float num2 = ((SKRect)(ref bounds)).Top + (((SKRect)(ref bounds)).Height - num5) / 2f;
+			return new SKRect(num, num2, num + num4, num2 + num5);
+		}
+		case 3:
+		{
+			float num = ((SKRect)(ref bounds)).Left + (((SKRect)(ref bounds)).Width - imageWidth) / 2f;
+			float num2 = ((SKRect)(ref bounds)).Top + (((SKRect)(ref bounds)).Height - imageHeight) / 2f;
+			return new SKRect(num, num2, num + imageWidth, num2 + imageHeight);
+		}
+		default:
+			return bounds;
+		}
+	}
 
-            case Aspect.Center:
-                destX = bounds.Left + (bounds.Width - imageWidth) / 2;
-                destY = bounds.Top + (bounds.Height - imageHeight) / 2;
-                return new SKRect(destX, destY, destX + imageWidth, destY + imageHeight);
+	public async Task LoadFromFileAsync(string filePath)
+	{
+		_isLoading = true;
+		Invalidate();
+		Console.WriteLine("[SkiaImageButton] LoadFromFileAsync: " + filePath);
+		try
+		{
+			List<string> list = new List<string>
+			{
+				filePath,
+				Path.Combine(AppContext.BaseDirectory, filePath),
+				Path.Combine(AppContext.BaseDirectory, "Resources", "Images", filePath),
+				Path.Combine(AppContext.BaseDirectory, "Resources", filePath)
+			};
+			if (filePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+			{
+				string text = Path.ChangeExtension(filePath, ".svg");
+				list.Add(text);
+				list.Add(Path.Combine(AppContext.BaseDirectory, text));
+				list.Add(Path.Combine(AppContext.BaseDirectory, "Resources", "Images", text));
+				list.Add(Path.Combine(AppContext.BaseDirectory, "Resources", text));
+			}
+			string foundPath = null;
+			foreach (string item in list)
+			{
+				if (File.Exists(item))
+				{
+					foundPath = item;
+					Console.WriteLine("[SkiaImageButton] Found file at: " + item);
+					break;
+				}
+			}
+			if (foundPath == null)
+			{
+				Console.WriteLine("[SkiaImageButton] File not found: " + filePath);
+				Console.WriteLine("[SkiaImageButton] Searched paths: " + string.Join(", ", list));
+				_isLoading = false;
+				this.ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
+				return;
+			}
+			await Task.Run(delegate
+			{
+				//IL_0016: Unknown result type (might be due to invalid IL or missing references)
+				//IL_001c: Expected O, but got Unknown
+				//IL_003a: Unknown result type (might be due to invalid IL or missing references)
+				//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+				//IL_0114: Unknown result type (might be due to invalid IL or missing references)
+				//IL_011b: Expected O, but got Unknown
+				//IL_011d: Unknown result type (might be due to invalid IL or missing references)
+				//IL_0124: Expected O, but got Unknown
+				//IL_0126: Unknown result type (might be due to invalid IL or missing references)
+				if (foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+				{
+					SKSvg val = new SKSvg();
+					try
+					{
+						val.Load(foundPath);
+						if (val.Picture != null)
+						{
+							SKRect cullRect = val.Picture.CullRect;
+							bool num = base.WidthRequest > 0.0;
+							bool flag = base.HeightRequest > 0.0;
+							float num2 = (num ? ((float)(base.WidthRequest - (double)PaddingLeft - (double)PaddingRight)) : ((SKRect)(ref cullRect)).Width);
+							float num3 = Math.Min(val2: (flag ? ((float)(base.HeightRequest - (double)PaddingTop - (double)PaddingBottom)) : ((SKRect)(ref cullRect)).Height) / ((SKRect)(ref cullRect)).Height, val1: num2 / ((SKRect)(ref cullRect)).Width);
+							int num4 = Math.Max(1, (int)(((SKRect)(ref cullRect)).Width * num3));
+							int num5 = Math.Max(1, (int)(((SKRect)(ref cullRect)).Height * num3));
+							SKBitmap val2 = new SKBitmap(num4, num5, false);
+							SKCanvas val3 = new SKCanvas(val2);
+							try
+							{
+								val3.Clear(SKColors.Transparent);
+								val3.Scale(num3);
+								val3.DrawPicture(val.Picture, (SKPaint)null);
+								Bitmap = val2;
+								Console.WriteLine($"[SkiaImageButton] Loaded SVG: {foundPath} ({num4}x{num5})");
+								return;
+							}
+							finally
+							{
+								((IDisposable)val3)?.Dispose();
+							}
+						}
+						return;
+					}
+					finally
+					{
+						((IDisposable)val)?.Dispose();
+					}
+				}
+				using FileStream fileStream = File.OpenRead(foundPath);
+				SKBitmap val4 = SKBitmap.Decode((Stream)fileStream);
+				if (val4 != null)
+				{
+					Bitmap = val4;
+					Console.WriteLine("[SkiaImageButton] Loaded image: " + foundPath);
+				}
+			});
+			_isLoading = false;
+			this.ImageLoaded?.Invoke(this, EventArgs.Empty);
+		}
+		catch (Exception exception)
+		{
+			_isLoading = false;
+			this.ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(exception));
+		}
+		Invalidate();
+	}
 
-            default:
-                return bounds;
-        }
-    }
+	public async Task LoadFromStreamAsync(Stream stream)
+	{
+		_isLoading = true;
+		Invalidate();
+		try
+		{
+			await Task.Run(delegate
+			{
+				SKBitmap val = SKBitmap.Decode(stream);
+				if (val != null)
+				{
+					Bitmap = val;
+				}
+			});
+			_isLoading = false;
+			this.ImageLoaded?.Invoke(this, EventArgs.Empty);
+		}
+		catch (Exception exception)
+		{
+			_isLoading = false;
+			this.ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(exception));
+		}
+		Invalidate();
+	}
 
-    // Image loading methods
-    public async Task LoadFromFileAsync(string filePath)
-    {
-        _isLoading = true;
-        Invalidate();
+	public async Task LoadFromUriAsync(Uri uri)
+	{
+		_isLoading = true;
+		Invalidate();
+		try
+		{
+			using HttpClient httpClient = new HttpClient();
+			using MemoryStream memoryStream = new MemoryStream(await httpClient.GetByteArrayAsync(uri));
+			SKBitmap val = SKBitmap.Decode((Stream)memoryStream);
+			if (val != null)
+			{
+				Bitmap = val;
+			}
+			_isLoading = false;
+			this.ImageLoaded?.Invoke(this, EventArgs.Empty);
+		}
+		catch (Exception exception)
+		{
+			_isLoading = false;
+			this.ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(exception));
+		}
+		Invalidate();
+	}
 
-        try
-        {
-            await Task.Run(() =>
-            {
-                using var stream = File.OpenRead(filePath);
-                var bitmap = SKBitmap.Decode(stream);
-                if (bitmap != null)
-                {
-                    Bitmap = bitmap;
-                }
-            });
+	public void LoadFromData(byte[] data)
+	{
+		try
+		{
+			using MemoryStream memoryStream = new MemoryStream(data);
+			SKBitmap val = SKBitmap.Decode((Stream)memoryStream);
+			if (val != null)
+			{
+				Bitmap = val;
+			}
+			this.ImageLoaded?.Invoke(this, EventArgs.Empty);
+		}
+		catch (Exception exception)
+		{
+			this.ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(exception));
+		}
+	}
 
-            _isLoading = false;
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            _isLoading = false;
-            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
-        }
+	public override void OnPointerEntered(PointerEventArgs e)
+	{
+		if (base.IsEnabled)
+		{
+			IsHovered = true;
+			SkiaVisualStateManager.GoToState(this, "PointerOver");
+			Invalidate();
+		}
+	}
 
-        Invalidate();
-    }
+	public override void OnPointerExited(PointerEventArgs e)
+	{
+		IsHovered = false;
+		if (IsPressed)
+		{
+			IsPressed = false;
+		}
+		SkiaVisualStateManager.GoToState(this, base.IsEnabled ? "Normal" : "Disabled");
+		Invalidate();
+	}
 
-    public async Task LoadFromStreamAsync(Stream stream)
-    {
-        _isLoading = true;
-        Invalidate();
+	public override void OnPointerPressed(PointerEventArgs e)
+	{
+		if (base.IsEnabled)
+		{
+			IsPressed = true;
+			SkiaVisualStateManager.GoToState(this, "Pressed");
+			Invalidate();
+			this.Pressed?.Invoke(this, EventArgs.Empty);
+		}
+	}
 
-        try
-        {
-            await Task.Run(() =>
-            {
-                var bitmap = SKBitmap.Decode(stream);
-                if (bitmap != null)
-                {
-                    Bitmap = bitmap;
-                }
-            });
+	public override void OnPointerReleased(PointerEventArgs e)
+	{
+		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
+		if (!base.IsEnabled)
+		{
+			return;
+		}
+		bool isPressed = IsPressed;
+		IsPressed = false;
+		SkiaVisualStateManager.GoToState(this, IsHovered ? "PointerOver" : "Normal");
+		Invalidate();
+		this.Released?.Invoke(this, EventArgs.Empty);
+		if (isPressed)
+		{
+			SKRect bounds = base.Bounds;
+			if (((SKRect)(ref bounds)).Contains(new SKPoint(e.X, e.Y)))
+			{
+				this.Clicked?.Invoke(this, EventArgs.Empty);
+			}
+		}
+	}
 
-            _isLoading = false;
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            _isLoading = false;
-            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
-        }
+	public override void OnKeyDown(KeyEventArgs e)
+	{
+		if (base.IsEnabled && (e.Key == Key.Enter || e.Key == Key.Space))
+		{
+			IsPressed = true;
+			Invalidate();
+			this.Pressed?.Invoke(this, EventArgs.Empty);
+			e.Handled = true;
+		}
+	}
 
-        Invalidate();
-    }
+	public override void OnKeyUp(KeyEventArgs e)
+	{
+		if (base.IsEnabled && (e.Key == Key.Enter || e.Key == Key.Space))
+		{
+			if (IsPressed)
+			{
+				IsPressed = false;
+				Invalidate();
+				this.Released?.Invoke(this, EventArgs.Empty);
+				this.Clicked?.Invoke(this, EventArgs.Empty);
+			}
+			e.Handled = true;
+		}
+	}
 
-    public async Task LoadFromUriAsync(Uri uri)
-    {
-        _isLoading = true;
-        Invalidate();
+	protected override SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0113: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d7: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0169: Unknown result type (might be due to invalid IL or missing references)
+		//IL_014f: Unknown result type (might be due to invalid IL or missing references)
+		SKSize val = default(SKSize);
+		((SKSize)(ref val))._002Ector(PaddingLeft + PaddingRight, PaddingTop + PaddingBottom);
+		if (_image == null)
+		{
+			return new SKSize(44f + ((SKSize)(ref val)).Width, 44f + ((SKSize)(ref val)).Height);
+		}
+		int width = _image.Width;
+		int height = _image.Height;
+		if (((SKSize)(ref availableSize)).Width < float.MaxValue && ((SKSize)(ref availableSize)).Height < float.MaxValue)
+		{
+			SKSize val2 = default(SKSize);
+			((SKSize)(ref val2))._002Ector(((SKSize)(ref availableSize)).Width - ((SKSize)(ref val)).Width, ((SKSize)(ref availableSize)).Height - ((SKSize)(ref val)).Height);
+			float num = Math.Min(((SKSize)(ref val2)).Width / (float)width, ((SKSize)(ref val2)).Height / (float)height);
+			return new SKSize((float)width * num + ((SKSize)(ref val)).Width, (float)height * num + ((SKSize)(ref val)).Height);
+		}
+		if (((SKSize)(ref availableSize)).Width < float.MaxValue)
+		{
+			float num2 = (((SKSize)(ref availableSize)).Width - ((SKSize)(ref val)).Width) / (float)width;
+			return new SKSize(((SKSize)(ref availableSize)).Width, (float)height * num2 + ((SKSize)(ref val)).Height);
+		}
+		if (((SKSize)(ref availableSize)).Height < float.MaxValue)
+		{
+			float num3 = (((SKSize)(ref availableSize)).Height - ((SKSize)(ref val)).Height) / (float)height;
+			return new SKSize((float)width * num3 + ((SKSize)(ref val)).Width, ((SKSize)(ref availableSize)).Height);
+		}
+		return new SKSize((float)width + ((SKSize)(ref val)).Width, (float)height + ((SKSize)(ref val)).Height);
+	}
 
-        try
-        {
-            using var httpClient = new HttpClient();
-            var data = await httpClient.GetByteArrayAsync(uri);
-
-            using var stream = new MemoryStream(data);
-            var bitmap = SKBitmap.Decode(stream);
-            if (bitmap != null)
-            {
-                Bitmap = bitmap;
-            }
-
-            _isLoading = false;
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            _isLoading = false;
-            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
-        }
-
-        Invalidate();
-    }
-
-    public void LoadFromData(byte[] data)
-    {
-        try
-        {
-            using var stream = new MemoryStream(data);
-            var bitmap = SKBitmap.Decode(stream);
-            if (bitmap != null)
-            {
-                Bitmap = bitmap;
-            }
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
-        }
-    }
-
-    // Pointer event handlers
-    public override void OnPointerEntered(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-        IsHovered = true;
-        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
-        Invalidate();
-    }
-
-    public override void OnPointerExited(PointerEventArgs e)
-    {
-        IsHovered = false;
-        if (IsPressed)
-        {
-            IsPressed = false;
-        }
-        SkiaVisualStateManager.GoToState(this, IsEnabled
-            ? SkiaVisualStateManager.CommonStates.Normal
-            : SkiaVisualStateManager.CommonStates.Disabled);
-        Invalidate();
-    }
-
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        IsPressed = true;
-        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
-        Invalidate();
-        Pressed?.Invoke(this, EventArgs.Empty);
-    }
-
-    public override void OnPointerReleased(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        var wasPressed = IsPressed;
-        IsPressed = false;
-        SkiaVisualStateManager.GoToState(this, IsHovered
-            ? SkiaVisualStateManager.CommonStates.PointerOver
-            : SkiaVisualStateManager.CommonStates.Normal);
-        Invalidate();
-
-        Released?.Invoke(this, EventArgs.Empty);
-
-        if (wasPressed && Bounds.Contains(new SKPoint(e.X, e.Y)))
-        {
-            Clicked?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    // Keyboard event handlers
-    public override void OnKeyDown(KeyEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        if (e.Key == Key.Enter || e.Key == Key.Space)
-        {
-            IsPressed = true;
-            Invalidate();
-            Pressed?.Invoke(this, EventArgs.Empty);
-            e.Handled = true;
-        }
-    }
-
-    public override void OnKeyUp(KeyEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        if (e.Key == Key.Enter || e.Key == Key.Space)
-        {
-            if (IsPressed)
-            {
-                IsPressed = false;
-                Invalidate();
-                Released?.Invoke(this, EventArgs.Empty);
-                Clicked?.Invoke(this, EventArgs.Empty);
-            }
-            e.Handled = true;
-        }
-    }
-
-    protected override SKSize MeasureOverride(SKSize availableSize)
-    {
-        var padding = new SKSize(PaddingLeft + PaddingRight, PaddingTop + PaddingBottom);
-
-        if (_image == null)
-            return new SKSize(44 + padding.Width, 44 + padding.Height); // Default touch target size
-
-        var imageWidth = _image.Width;
-        var imageHeight = _image.Height;
-
-        if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
-        {
-            var availableContent = new SKSize(
-                availableSize.Width - padding.Width,
-                availableSize.Height - padding.Height);
-            var scale = Math.Min(availableContent.Width / imageWidth, availableContent.Height / imageHeight);
-            return new SKSize(imageWidth * scale + padding.Width, imageHeight * scale + padding.Height);
-        }
-        else if (availableSize.Width < float.MaxValue)
-        {
-            var availableWidth = availableSize.Width - padding.Width;
-            var scale = availableWidth / imageWidth;
-            return new SKSize(availableSize.Width, imageHeight * scale + padding.Height);
-        }
-        else if (availableSize.Height < float.MaxValue)
-        {
-            var availableHeight = availableSize.Height - padding.Height;
-            var scale = availableHeight / imageHeight;
-            return new SKSize(imageWidth * scale + padding.Width, availableSize.Height);
-        }
-
-        return new SKSize(imageWidth + padding.Width, imageHeight + padding.Height);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _bitmap?.Dispose();
-            _image?.Dispose();
-        }
-        base.Dispose(disposing);
-    }
+	protected override void Dispose(bool disposing)
+	{
+		if (disposing)
+		{
+			SKBitmap? bitmap = _bitmap;
+			if (bitmap != null)
+			{
+				((SKNativeObject)bitmap).Dispose();
+			}
+			SKImage? image = _image;
+			if (image != null)
+			{
+				((SKNativeObject)image).Dispose();
+			}
+		}
+		base.Dispose(disposing);
+	}
 }

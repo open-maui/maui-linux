@@ -1,524 +1,387 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-/// <summary>
-/// Provides HiDPI and display scaling detection for Linux.
-/// </summary>
 public class HiDpiService
 {
-    private const float DefaultDpi = 96f;
-    private float _scaleFactor = 1.0f;
-    private float _dpi = DefaultDpi;
-    private bool _initialized;
+	private const float DefaultDpi = 96f;
 
-    /// <summary>
-    /// Gets the current scale factor.
-    /// </summary>
-    public float ScaleFactor => _scaleFactor;
+	private float _scaleFactor = 1f;
 
-    /// <summary>
-    /// Gets the current DPI.
-    /// </summary>
-    public float Dpi => _dpi;
+	private float _dpi = 96f;
 
-    /// <summary>
-    /// Event raised when scale factor changes.
-    /// </summary>
-    public event EventHandler<ScaleChangedEventArgs>? ScaleChanged;
+	private bool _initialized;
 
-    /// <summary>
-    /// Initializes the HiDPI detection service.
-    /// </summary>
-    public void Initialize()
-    {
-        if (_initialized) return;
-        _initialized = true;
+	public float ScaleFactor => _scaleFactor;
 
-        DetectScaleFactor();
-    }
+	public float Dpi => _dpi;
 
-    /// <summary>
-    /// Detects the current scale factor using multiple methods.
-    /// </summary>
-    public void DetectScaleFactor()
-    {
-        float scale = 1.0f;
-        float dpi = DefaultDpi;
+	public event EventHandler<ScaleChangedEventArgs>? ScaleChanged;
 
-        // Try multiple detection methods in order of preference
-        if (TryGetEnvironmentScale(out float envScale))
-        {
-            scale = envScale;
-        }
-        else if (TryGetGnomeScale(out float gnomeScale, out float gnomeDpi))
-        {
-            scale = gnomeScale;
-            dpi = gnomeDpi;
-        }
-        else if (TryGetKdeScale(out float kdeScale))
-        {
-            scale = kdeScale;
-        }
-        else if (TryGetX11Scale(out float x11Scale, out float x11Dpi))
-        {
-            scale = x11Scale;
-            dpi = x11Dpi;
-        }
-        else if (TryGetXrandrScale(out float xrandrScale))
-        {
-            scale = xrandrScale;
-        }
+	public void Initialize()
+	{
+		if (!_initialized)
+		{
+			_initialized = true;
+			DetectScaleFactor();
+		}
+	}
 
-        UpdateScale(scale, dpi);
-    }
+	public void DetectScaleFactor()
+	{
+		float scale = 1f;
+		float dpi = 96f;
+		float scale3;
+		float dpi2;
+		float scale4;
+		float scale5;
+		float dpi3;
+		float scale6;
+		if (TryGetEnvironmentScale(out var scale2))
+		{
+			scale = scale2;
+		}
+		else if (TryGetGnomeScale(out scale3, out dpi2))
+		{
+			scale = scale3;
+			dpi = dpi2;
+		}
+		else if (TryGetKdeScale(out scale4))
+		{
+			scale = scale4;
+		}
+		else if (TryGetX11Scale(out scale5, out dpi3))
+		{
+			scale = scale5;
+			dpi = dpi3;
+		}
+		else if (TryGetXrandrScale(out scale6))
+		{
+			scale = scale6;
+		}
+		UpdateScale(scale, dpi);
+	}
 
-    private void UpdateScale(float scale, float dpi)
-    {
-        if (Math.Abs(_scaleFactor - scale) > 0.01f || Math.Abs(_dpi - dpi) > 0.01f)
-        {
-            var oldScale = _scaleFactor;
-            _scaleFactor = scale;
-            _dpi = dpi;
-            ScaleChanged?.Invoke(this, new ScaleChangedEventArgs(oldScale, scale, dpi));
-        }
-    }
+	private void UpdateScale(float scale, float dpi)
+	{
+		if (Math.Abs(_scaleFactor - scale) > 0.01f || Math.Abs(_dpi - dpi) > 0.01f)
+		{
+			float scaleFactor = _scaleFactor;
+			_scaleFactor = scale;
+			_dpi = dpi;
+			this.ScaleChanged?.Invoke(this, new ScaleChangedEventArgs(scaleFactor, scale, dpi));
+		}
+	}
 
-    /// <summary>
-    /// Gets scale from environment variables.
-    /// </summary>
-    private static bool TryGetEnvironmentScale(out float scale)
-    {
-        scale = 1.0f;
+	private static bool TryGetEnvironmentScale(out float scale)
+	{
+		scale = 1f;
+		string environmentVariable = Environment.GetEnvironmentVariable("GDK_SCALE");
+		if (!string.IsNullOrEmpty(environmentVariable) && float.TryParse(environmentVariable, out var result))
+		{
+			scale = result;
+			return true;
+		}
+		string environmentVariable2 = Environment.GetEnvironmentVariable("GDK_DPI_SCALE");
+		if (!string.IsNullOrEmpty(environmentVariable2) && float.TryParse(environmentVariable2, out var result2))
+		{
+			scale = result2;
+			return true;
+		}
+		string environmentVariable3 = Environment.GetEnvironmentVariable("QT_SCALE_FACTOR");
+		if (!string.IsNullOrEmpty(environmentVariable3) && float.TryParse(environmentVariable3, out var result3))
+		{
+			scale = result3;
+			return true;
+		}
+		string environmentVariable4 = Environment.GetEnvironmentVariable("QT_SCREEN_SCALE_FACTORS");
+		if (!string.IsNullOrEmpty(environmentVariable4))
+		{
+			string text = environmentVariable4.Split(';')[0];
+			if (text.Contains('='))
+			{
+				text = text.Split('=')[1];
+			}
+			if (float.TryParse(text, out var result4))
+			{
+				scale = result4;
+				return true;
+			}
+		}
+		return false;
+	}
 
-        // GDK_SCALE (GTK3/4)
-        var gdkScale = Environment.GetEnvironmentVariable("GDK_SCALE");
-        if (!string.IsNullOrEmpty(gdkScale) && float.TryParse(gdkScale, out float gdk))
-        {
-            scale = gdk;
-            return true;
-        }
+	private static bool TryGetGnomeScale(out float scale, out float dpi)
+	{
+		scale = 1f;
+		dpi = 96f;
+		try
+		{
+			string text = RunCommand("gsettings", "get org.gnome.desktop.interface scaling-factor");
+			if (!string.IsNullOrEmpty(text))
+			{
+				Match match = Regex.Match(text, "uint32\\s+(\\d+)");
+				if (match.Success && int.TryParse(match.Groups[1].Value, out var result) && result > 0)
+				{
+					scale = result;
+				}
+			}
+			text = RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor");
+			if (!string.IsNullOrEmpty(text) && float.TryParse(text.Trim(), out var result2) && result2 > 0.5f)
+			{
+				scale = Math.Max(scale, result2);
+			}
+			text = RunCommand("gsettings", "get org.gnome.mutter experimental-features");
+			if (text != null && text.Contains("scale-monitor-framebuffer"))
+			{
+				text = RunCommand("gdbus", "call --session --dest org.gnome.Mutter.DisplayConfig --object-path /org/gnome/Mutter/DisplayConfig --method org.gnome.Mutter.DisplayConfig.GetCurrentState");
+				if (text != null)
+				{
+					Match match2 = Regex.Match(text, "'scale':\\s*<(\\d+\\.?\\d*)>");
+					if (match2.Success && float.TryParse(match2.Groups[1].Value, out var result3))
+					{
+						scale = result3;
+					}
+				}
+			}
+			return scale > 1f || Math.Abs(scale - 1f) < 0.01f;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-        // GDK_DPI_SCALE (GTK3/4)
-        var gdkDpiScale = Environment.GetEnvironmentVariable("GDK_DPI_SCALE");
-        if (!string.IsNullOrEmpty(gdkDpiScale) && float.TryParse(gdkDpiScale, out float gdkDpi))
-        {
-            scale = gdkDpi;
-            return true;
-        }
+	private static bool TryGetKdeScale(out float scale)
+	{
+		scale = 1f;
+		try
+		{
+			string text = RunCommand("kreadconfig5", "--file kdeglobals --group KScreen --key ScaleFactor");
+			if (!string.IsNullOrEmpty(text) && float.TryParse(text.Trim(), out var result) && result > 0f)
+			{
+				scale = result;
+				return true;
+			}
+			text = RunCommand("kreadconfig6", "--file kdeglobals --group KScreen --key ScaleFactor");
+			if (!string.IsNullOrEmpty(text) && float.TryParse(text.Trim(), out var result2) && result2 > 0f)
+			{
+				scale = result2;
+				return true;
+			}
+			string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "kdeglobals");
+			if (File.Exists(path))
+			{
+				string[] array = File.ReadAllLines(path);
+				bool flag = false;
+				string[] array2 = array;
+				foreach (string text2 in array2)
+				{
+					if (text2.Trim() == "[KScreen]")
+					{
+						flag = true;
+						continue;
+					}
+					if (flag && text2.StartsWith("["))
+					{
+						break;
+					}
+					if (flag && text2.StartsWith("ScaleFactor=") && float.TryParse(text2.Substring("ScaleFactor=".Length), out var result3))
+					{
+						scale = result3;
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-        // QT_SCALE_FACTOR
-        var qtScale = Environment.GetEnvironmentVariable("QT_SCALE_FACTOR");
-        if (!string.IsNullOrEmpty(qtScale) && float.TryParse(qtScale, out float qt))
-        {
-            scale = qt;
-            return true;
-        }
+	private bool TryGetX11Scale(out float scale, out float dpi)
+	{
+		scale = 1f;
+		dpi = 96f;
+		try
+		{
+			string text = RunCommand("xrdb", "-query");
+			if (!string.IsNullOrEmpty(text))
+			{
+				Match match = Regex.Match(text, "Xft\\.dpi:\\s*(\\d+)");
+				if (match.Success && float.TryParse(match.Groups[1].Value, out var result))
+				{
+					dpi = result;
+					scale = result / 96f;
+					return true;
+				}
+			}
+			string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".Xresources");
+			if (File.Exists(path))
+			{
+				Match match2 = Regex.Match(File.ReadAllText(path), "Xft\\.dpi:\\s*(\\d+)");
+				if (match2.Success && float.TryParse(match2.Groups[1].Value, out var result2))
+				{
+					dpi = result2;
+					scale = result2 / 96f;
+					return true;
+				}
+			}
+			return TryGetX11DpiDirect(out scale, out dpi);
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-        // QT_SCREEN_SCALE_FACTORS (can be per-screen)
-        var qtScreenScales = Environment.GetEnvironmentVariable("QT_SCREEN_SCALE_FACTORS");
-        if (!string.IsNullOrEmpty(qtScreenScales))
-        {
-            // Format: "screen1=1.5;screen2=2.0" or just "1.5"
-            var first = qtScreenScales.Split(';')[0];
-            if (first.Contains('='))
-            {
-                first = first.Split('=')[1];
-            }
-            if (float.TryParse(first, out float qtScreen))
-            {
-                scale = qtScreen;
-                return true;
-            }
-        }
+	private bool TryGetX11DpiDirect(out float scale, out float dpi)
+	{
+		scale = 1f;
+		dpi = 96f;
+		try
+		{
+			IntPtr intPtr = XOpenDisplay(IntPtr.Zero);
+			if (intPtr == IntPtr.Zero)
+			{
+				return false;
+			}
+			try
+			{
+				int screen = XDefaultScreen(intPtr);
+				int num = XDisplayWidthMM(intPtr, screen);
+				int num2 = XDisplayHeightMM(intPtr, screen);
+				int num3 = XDisplayWidth(intPtr, screen);
+				int num4 = XDisplayHeight(intPtr, screen);
+				if (num > 0 && num2 > 0)
+				{
+					float num5 = (float)num3 * 25.4f / (float)num;
+					float num6 = (float)num4 * 25.4f / (float)num2;
+					dpi = (num5 + num6) / 2f;
+					scale = dpi / 96f;
+					return true;
+				}
+				return false;
+			}
+			finally
+			{
+				XCloseDisplay(intPtr);
+			}
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-        return false;
-    }
+	private static bool TryGetXrandrScale(out float scale)
+	{
+		scale = 1f;
+		try
+		{
+			string text = RunCommand("xrandr", "--query");
+			if (string.IsNullOrEmpty(text))
+			{
+				return false;
+			}
+			string[] array = text.Split('\n');
+			foreach (string text2 in array)
+			{
+				if (text2.Contains("connected") && !text2.Contains("disconnected"))
+				{
+					Match match = Regex.Match(text2, "(\\d+)x(\\d+)\\+\\d+\\+\\d+");
+					Match match2 = Regex.Match(text2, "(\\d+)mm x (\\d+)mm");
+					if (match.Success && match2.Success && int.TryParse(match.Groups[1].Value, out var result) && int.TryParse(match2.Groups[1].Value, out var result2) && result2 > 0)
+					{
+						float num = (float)result * 25.4f / (float)result2;
+						scale = num / 96f;
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 
-    /// <summary>
-    /// Gets scale from GNOME settings.
-    /// </summary>
-    private static bool TryGetGnomeScale(out float scale, out float dpi)
-    {
-        scale = 1.0f;
-        dpi = DefaultDpi;
+	private static string? RunCommand(string command, string arguments)
+	{
+		try
+		{
+			using Process process = new Process();
+			process.StartInfo = new ProcessStartInfo
+			{
+				FileName = command,
+				Arguments = arguments,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				UseShellExecute = false,
+				CreateNoWindow = true
+			};
+			process.Start();
+			string result = process.StandardOutput.ReadToEnd();
+			process.WaitForExit(1000);
+			return result;
+		}
+		catch
+		{
+			return null;
+		}
+	}
 
-        try
-        {
-            // Try gsettings for GNOME
-            var result = RunCommand("gsettings", "get org.gnome.desktop.interface scaling-factor");
-            if (!string.IsNullOrEmpty(result))
-            {
-                var match = Regex.Match(result, @"uint32\s+(\d+)");
-                if (match.Success && int.TryParse(match.Groups[1].Value, out int gnomeScale))
-                {
-                    if (gnomeScale > 0)
-                    {
-                        scale = gnomeScale;
-                    }
-                }
-            }
+	public float ToPhysicalPixels(float logicalPixels)
+	{
+		return logicalPixels * _scaleFactor;
+	}
 
-            // Also check text-scaling-factor for fractional scaling
-            result = RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float textScale))
-            {
-                if (textScale > 0.5f)
-                {
-                    scale = Math.Max(scale, textScale);
-                }
-            }
+	public float ToLogicalPixels(float physicalPixels)
+	{
+		return physicalPixels / _scaleFactor;
+	}
 
-            // Check for GNOME 40+ experimental fractional scaling
-            result = RunCommand("gsettings", "get org.gnome.mutter experimental-features");
-            if (result != null && result.Contains("scale-monitor-framebuffer"))
-            {
-                // Fractional scaling is enabled, try to get actual scale
-                result = RunCommand("gdbus", "call --session --dest org.gnome.Mutter.DisplayConfig --object-path /org/gnome/Mutter/DisplayConfig --method org.gnome.Mutter.DisplayConfig.GetCurrentState");
-                if (result != null)
-                {
-                    // Parse for scale value
-                    var scaleMatch = Regex.Match(result, @"'scale':\s*<(\d+\.?\d*)>");
-                    if (scaleMatch.Success && float.TryParse(scaleMatch.Groups[1].Value, out float mutterScale))
-                    {
-                        scale = mutterScale;
-                    }
-                }
-            }
+	public float GetFontScaleFactor()
+	{
+		try
+		{
+			string text = RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor");
+			if (!string.IsNullOrEmpty(text) && float.TryParse(text.Trim(), out var result))
+			{
+				return result;
+			}
+		}
+		catch
+		{
+		}
+		return _scaleFactor;
+	}
 
-            return scale > 1.0f || Math.Abs(scale - 1.0f) < 0.01f;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XOpenDisplay(IntPtr display);
 
-    /// <summary>
-    /// Gets scale from KDE settings.
-    /// </summary>
-    private static bool TryGetKdeScale(out float scale)
-    {
-        scale = 1.0f;
+	[DllImport("libX11.so.6")]
+	private static extern void XCloseDisplay(IntPtr display);
 
-        try
-        {
-            // Try kreadconfig5 for KDE Plasma 5
-            var result = RunCommand("kreadconfig5", "--file kdeglobals --group KScreen --key ScaleFactor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float kdeScale))
-            {
-                if (kdeScale > 0)
-                {
-                    scale = kdeScale;
-                    return true;
-                }
-            }
+	[DllImport("libX11.so.6")]
+	private static extern int XDefaultScreen(IntPtr display);
 
-            // Try KDE Plasma 6
-            result = RunCommand("kreadconfig6", "--file kdeglobals --group KScreen --key ScaleFactor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float kde6Scale))
-            {
-                if (kde6Scale > 0)
-                {
-                    scale = kde6Scale;
-                    return true;
-                }
-            }
+	[DllImport("libX11.so.6")]
+	private static extern int XDisplayWidth(IntPtr display, int screen);
 
-            // Check kdeglobals config file directly
-            var configPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".config", "kdeglobals");
+	[DllImport("libX11.so.6")]
+	private static extern int XDisplayHeight(IntPtr display, int screen);
 
-            if (File.Exists(configPath))
-            {
-                var lines = File.ReadAllLines(configPath);
-                bool inKScreenSection = false;
-                foreach (var line in lines)
-                {
-                    if (line.Trim() == "[KScreen]")
-                    {
-                        inKScreenSection = true;
-                        continue;
-                    }
-                    if (inKScreenSection && line.StartsWith("["))
-                    {
-                        break;
-                    }
-                    if (inKScreenSection && line.StartsWith("ScaleFactor="))
-                    {
-                        var value = line.Substring("ScaleFactor=".Length);
-                        if (float.TryParse(value, out float fileScale))
-                        {
-                            scale = fileScale;
-                            return true;
-                        }
-                    }
-                }
-            }
+	[DllImport("libX11.so.6")]
+	private static extern int XDisplayWidthMM(IntPtr display, int screen);
 
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Gets scale from X11 Xresources.
-    /// </summary>
-    private bool TryGetX11Scale(out float scale, out float dpi)
-    {
-        scale = 1.0f;
-        dpi = DefaultDpi;
-
-        try
-        {
-            // Try xrdb query
-            var result = RunCommand("xrdb", "-query");
-            if (!string.IsNullOrEmpty(result))
-            {
-                // Look for Xft.dpi
-                var match = Regex.Match(result, @"Xft\.dpi:\s*(\d+)");
-                if (match.Success && float.TryParse(match.Groups[1].Value, out float xftDpi))
-                {
-                    dpi = xftDpi;
-                    scale = xftDpi / DefaultDpi;
-                    return true;
-                }
-            }
-
-            // Try reading .Xresources directly
-            var xresourcesPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".Xresources");
-
-            if (File.Exists(xresourcesPath))
-            {
-                var content = File.ReadAllText(xresourcesPath);
-                var match = Regex.Match(content, @"Xft\.dpi:\s*(\d+)");
-                if (match.Success && float.TryParse(match.Groups[1].Value, out float fileDpi))
-                {
-                    dpi = fileDpi;
-                    scale = fileDpi / DefaultDpi;
-                    return true;
-                }
-            }
-
-            // Try X11 directly
-            return TryGetX11DpiDirect(out scale, out dpi);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Gets DPI directly from X11 server.
-    /// </summary>
-    private bool TryGetX11DpiDirect(out float scale, out float dpi)
-    {
-        scale = 1.0f;
-        dpi = DefaultDpi;
-
-        try
-        {
-            var display = XOpenDisplay(IntPtr.Zero);
-            if (display == IntPtr.Zero) return false;
-
-            try
-            {
-                int screen = XDefaultScreen(display);
-
-                // Get physical dimensions
-                int widthMm = XDisplayWidthMM(display, screen);
-                int heightMm = XDisplayHeightMM(display, screen);
-                int widthPx = XDisplayWidth(display, screen);
-                int heightPx = XDisplayHeight(display, screen);
-
-                if (widthMm > 0 && heightMm > 0)
-                {
-                    float dpiX = widthPx * 25.4f / widthMm;
-                    float dpiY = heightPx * 25.4f / heightMm;
-                    dpi = (dpiX + dpiY) / 2;
-                    scale = dpi / DefaultDpi;
-                    return true;
-                }
-
-                return false;
-            }
-            finally
-            {
-                XCloseDisplay(display);
-            }
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Gets scale from xrandr output.
-    /// </summary>
-    private static bool TryGetXrandrScale(out float scale)
-    {
-        scale = 1.0f;
-
-        try
-        {
-            var result = RunCommand("xrandr", "--query");
-            if (string.IsNullOrEmpty(result)) return false;
-
-            // Look for connected displays with scaling
-            // Format: "eDP-1 connected primary 2560x1440+0+0 (normal left inverted right x axis y axis) 309mm x 174mm"
-            var lines = result.Split('\n');
-            foreach (var line in lines)
-            {
-                if (!line.Contains("connected") || line.Contains("disconnected")) continue;
-
-                // Try to find resolution and physical size
-                var resMatch = Regex.Match(line, @"(\d+)x(\d+)\+\d+\+\d+");
-                var mmMatch = Regex.Match(line, @"(\d+)mm x (\d+)mm");
-
-                if (resMatch.Success && mmMatch.Success)
-                {
-                    if (int.TryParse(resMatch.Groups[1].Value, out int widthPx) &&
-                        int.TryParse(mmMatch.Groups[1].Value, out int widthMm) &&
-                        widthMm > 0)
-                    {
-                        float dpi = widthPx * 25.4f / widthMm;
-                        scale = dpi / DefaultDpi;
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static string? RunCommand(string command, string arguments)
-    {
-        try
-        {
-            using var process = new System.Diagnostics.Process();
-            process.StartInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = command,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(1000);
-            return output;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Converts logical pixels to physical pixels.
-    /// </summary>
-    public float ToPhysicalPixels(float logicalPixels)
-    {
-        return logicalPixels * _scaleFactor;
-    }
-
-    /// <summary>
-    /// Converts physical pixels to logical pixels.
-    /// </summary>
-    public float ToLogicalPixels(float physicalPixels)
-    {
-        return physicalPixels / _scaleFactor;
-    }
-
-    /// <summary>
-    /// Gets the recommended font scale factor.
-    /// </summary>
-    public float GetFontScaleFactor()
-    {
-        // Some desktop environments use a separate text scaling factor
-        try
-        {
-            var result = RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float textScale))
-            {
-                return textScale;
-            }
-        }
-        catch { }
-
-        return _scaleFactor;
-    }
-
-    #region X11 Interop
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenDisplay(nint display);
-
-    [DllImport("libX11.so.6")]
-    private static extern void XCloseDisplay(nint display);
-
-    [DllImport("libX11.so.6")]
-    private static extern int XDefaultScreen(nint display);
-
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayWidth(nint display, int screen);
-
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayHeight(nint display, int screen);
-
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayWidthMM(nint display, int screen);
-
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayHeightMM(nint display, int screen);
-
-    #endregion
-}
-
-/// <summary>
-/// Event args for scale change events.
-/// </summary>
-public class ScaleChangedEventArgs : EventArgs
-{
-    /// <summary>
-    /// Gets the old scale factor.
-    /// </summary>
-    public float OldScale { get; }
-
-    /// <summary>
-    /// Gets the new scale factor.
-    /// </summary>
-    public float NewScale { get; }
-
-    /// <summary>
-    /// Gets the new DPI.
-    /// </summary>
-    public float NewDpi { get; }
-
-    public ScaleChangedEventArgs(float oldScale, float newScale, float newDpi)
-    {
-        OldScale = oldScale;
-        NewScale = newScale;
-        NewDpi = newDpi;
-    }
+	[DllImport("libX11.so.6")]
+	private static extern int XDisplayHeightMM(IntPtr display, int screen);
 }

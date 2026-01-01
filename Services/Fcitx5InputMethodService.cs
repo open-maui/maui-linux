@@ -1,326 +1,329 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-/// <summary>
-/// Fcitx5 Input Method service using D-Bus interface.
-/// Provides IME support for systems using Fcitx5 (common on some distros).
-/// </summary>
 public class Fcitx5InputMethodService : IInputMethodService, IDisposable
 {
-    private IInputContext? _currentContext;
-    private string _preEditText = string.Empty;
-    private int _preEditCursorPosition;
-    private bool _isActive;
-    private bool _disposed;
-    private Process? _dBusMonitor;
-    private string? _inputContextPath;
+	private IInputContext? _currentContext;
 
-    public bool IsActive => _isActive;
-    public string PreEditText => _preEditText;
-    public int PreEditCursorPosition => _preEditCursorPosition;
+	private string _preEditText = string.Empty;
 
-    public event EventHandler<TextCommittedEventArgs>? TextCommitted;
-    public event EventHandler<PreEditChangedEventArgs>? PreEditChanged;
-    public event EventHandler? PreEditEnded;
+	private int _preEditCursorPosition;
 
-    public void Initialize(nint windowHandle)
-    {
-        try
-        {
-            // Create input context via D-Bus
-            var output = RunDBusCommand(
-                "call --session " +
-                "--dest org.fcitx.Fcitx5 " +
-                "--object-path /org/freedesktop/portal/inputmethod " +
-                "--method org.fcitx.Fcitx.InputMethod1.CreateInputContext " +
-                "\"maui-linux\" \"\"");
+	private bool _isActive;
 
-            if (!string.IsNullOrEmpty(output) && output.Contains("/"))
-            {
-                // Parse the object path from output like: (objectpath '/org/fcitx/...',)
-                var start = output.IndexOf("'/");
-                var end = output.IndexOf("'", start + 1);
-                if (start >= 0 && end > start)
-                {
-                    _inputContextPath = output.Substring(start + 1, end - start - 1);
-                    Console.WriteLine($"Fcitx5InputMethodService: Created context at {_inputContextPath}");
-                    StartMonitoring();
-                }
-            }
-            else
-            {
-                Console.WriteLine("Fcitx5InputMethodService: Failed to create input context");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Fcitx5InputMethodService: Initialization failed - {ex.Message}");
-        }
-    }
+	private bool _disposed;
 
-    private void StartMonitoring()
-    {
-        if (string.IsNullOrEmpty(_inputContextPath)) return;
+	private Process? _dBusMonitor;
 
-        Task.Run(async () =>
-        {
-            try
-            {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "dbus-monitor",
-                    Arguments = $"--session \"path='{_inputContextPath}'\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                };
+	private string? _inputContextPath;
 
-                _dBusMonitor = Process.Start(startInfo);
-                if (_dBusMonitor == null) return;
+	public bool IsActive => _isActive;
 
-                var reader = _dBusMonitor.StandardOutput;
-                while (!_disposed && !_dBusMonitor.HasExited)
-                {
-                    var line = await reader.ReadLineAsync();
-                    if (line == null) break;
+	public string PreEditText => _preEditText;
 
-                    // Parse signals for commit and preedit
-                    if (line.Contains("CommitString"))
-                    {
-                        await ProcessCommitSignal(reader);
-                    }
-                    else if (line.Contains("UpdatePreedit"))
-                    {
-                        await ProcessPreeditSignal(reader);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Fcitx5InputMethodService: Monitor error - {ex.Message}");
-            }
-        });
-    }
+	public int PreEditCursorPosition => _preEditCursorPosition;
 
-    private async Task ProcessCommitSignal(StreamReader reader)
-    {
-        try
-        {
-            for (int i = 0; i < 5; i++)
-            {
-                var line = await reader.ReadLineAsync();
-                if (line == null) break;
+	public event EventHandler<TextCommittedEventArgs>? TextCommitted;
 
-                if (line.Contains("string"))
-                {
-                    var match = System.Text.RegularExpressions.Regex.Match(line, @"string\s+""([^""]*)""");
-                    if (match.Success)
-                    {
-                        var text = match.Groups[1].Value;
-                        _preEditText = string.Empty;
-                        _preEditCursorPosition = 0;
-                        _isActive = false;
+	public event EventHandler<PreEditChangedEventArgs>? PreEditChanged;
 
-                        TextCommitted?.Invoke(this, new TextCommittedEventArgs(text));
-                        _currentContext?.OnTextCommitted(text);
-                        break;
-                    }
-                }
-            }
-        }
-        catch { }
-    }
+	public event EventHandler? PreEditEnded;
 
-    private async Task ProcessPreeditSignal(StreamReader reader)
-    {
-        try
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                var line = await reader.ReadLineAsync();
-                if (line == null) break;
+	public void Initialize(IntPtr windowHandle)
+	{
+		try
+		{
+			string text = RunDBusCommand("call --session --dest org.fcitx.Fcitx5 --object-path /org/freedesktop/portal/inputmethod --method org.fcitx.Fcitx.InputMethod1.CreateInputContext \"maui-linux\" \"\"");
+			if (!string.IsNullOrEmpty(text) && text.Contains("/"))
+			{
+				int num = text.IndexOf("'/");
+				int num2 = text.IndexOf("'", num + 1);
+				if (num >= 0 && num2 > num)
+				{
+					_inputContextPath = text.Substring(num + 1, num2 - num - 1);
+					Console.WriteLine("Fcitx5InputMethodService: Created context at " + _inputContextPath);
+					StartMonitoring();
+				}
+			}
+			else
+			{
+				Console.WriteLine("Fcitx5InputMethodService: Failed to create input context");
+			}
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine("Fcitx5InputMethodService: Initialization failed - " + ex.Message);
+		}
+	}
 
-                if (line.Contains("string"))
-                {
-                    var match = System.Text.RegularExpressions.Regex.Match(line, @"string\s+""([^""]*)""");
-                    if (match.Success)
-                    {
-                        _preEditText = match.Groups[1].Value;
-                        _isActive = !string.IsNullOrEmpty(_preEditText);
+	private void StartMonitoring()
+	{
+		if (string.IsNullOrEmpty(_inputContextPath))
+		{
+			return;
+		}
+		Task.Run(async delegate
+		{
+			_ = 2;
+			try
+			{
+				ProcessStartInfo startInfo = new ProcessStartInfo
+				{
+					FileName = "dbus-monitor",
+					Arguments = "--session \"path='" + _inputContextPath + "'\"",
+					UseShellExecute = false,
+					RedirectStandardOutput = true,
+					CreateNoWindow = true
+				};
+				_dBusMonitor = Process.Start(startInfo);
+				if (_dBusMonitor != null)
+				{
+					StreamReader reader = _dBusMonitor.StandardOutput;
+					while (!_disposed && !_dBusMonitor.HasExited)
+					{
+						string text = await reader.ReadLineAsync();
+						if (text == null)
+						{
+							break;
+						}
+						if (text.Contains("CommitString"))
+						{
+							await ProcessCommitSignal(reader);
+						}
+						else if (text.Contains("UpdatePreedit"))
+						{
+							await ProcessPreeditSignal(reader);
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("Fcitx5InputMethodService: Monitor error - " + ex.Message);
+			}
+		});
+	}
 
-                        PreEditChanged?.Invoke(this, new PreEditChangedEventArgs(_preEditText, _preEditCursorPosition, new List<PreEditAttribute>()));
-                        _currentContext?.OnPreEditChanged(_preEditText, _preEditCursorPosition);
-                        break;
-                    }
-                }
-            }
-        }
-        catch { }
-    }
+	private async Task ProcessCommitSignal(StreamReader reader)
+	{
+		try
+		{
+			for (int i = 0; i < 5; i++)
+			{
+				string text = await reader.ReadLineAsync();
+				if (text == null)
+				{
+					break;
+				}
+				if (text.Contains("string"))
+				{
+					Match match = Regex.Match(text, "string\\s+\"([^\"]*)\"");
+					if (match.Success)
+					{
+						string value = match.Groups[1].Value;
+						_preEditText = string.Empty;
+						_preEditCursorPosition = 0;
+						_isActive = false;
+						this.TextCommitted?.Invoke(this, new TextCommittedEventArgs(value));
+						_currentContext?.OnTextCommitted(value);
+						break;
+					}
+				}
+			}
+		}
+		catch
+		{
+		}
+	}
 
-    public void SetFocus(IInputContext? context)
-    {
-        _currentContext = context;
+	private async Task ProcessPreeditSignal(StreamReader reader)
+	{
+		try
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				string text = await reader.ReadLineAsync();
+				if (text == null)
+				{
+					break;
+				}
+				if (text.Contains("string"))
+				{
+					Match match = Regex.Match(text, "string\\s+\"([^\"]*)\"");
+					if (match.Success)
+					{
+						_preEditText = match.Groups[1].Value;
+						_isActive = !string.IsNullOrEmpty(_preEditText);
+						this.PreEditChanged?.Invoke(this, new PreEditChangedEventArgs(_preEditText, _preEditCursorPosition, new List<PreEditAttribute>()));
+						_currentContext?.OnPreEditChanged(_preEditText, _preEditCursorPosition);
+						break;
+					}
+				}
+			}
+		}
+		catch
+		{
+		}
+	}
 
-        if (!string.IsNullOrEmpty(_inputContextPath))
-        {
-            if (context != null)
-            {
-                RunDBusCommand(
-                    $"call --session --dest org.fcitx.Fcitx5 " +
-                    $"--object-path {_inputContextPath} " +
-                    $"--method org.fcitx.Fcitx.InputContext1.FocusIn");
-            }
-            else
-            {
-                RunDBusCommand(
-                    $"call --session --dest org.fcitx.Fcitx5 " +
-                    $"--object-path {_inputContextPath} " +
-                    $"--method org.fcitx.Fcitx.InputContext1.FocusOut");
-            }
-        }
-    }
+	public void SetFocus(IInputContext? context)
+	{
+		_currentContext = context;
+		if (!string.IsNullOrEmpty(_inputContextPath))
+		{
+			if (context != null)
+			{
+				RunDBusCommand($"call --session --dest org.fcitx.Fcitx5 --object-path {_inputContextPath} --method org.fcitx.Fcitx.InputContext1.FocusIn");
+			}
+			else
+			{
+				RunDBusCommand($"call --session --dest org.fcitx.Fcitx5 --object-path {_inputContextPath} --method org.fcitx.Fcitx.InputContext1.FocusOut");
+			}
+		}
+	}
 
-    public void SetCursorLocation(int x, int y, int width, int height)
-    {
-        if (string.IsNullOrEmpty(_inputContextPath)) return;
+	public void SetCursorLocation(int x, int y, int width, int height)
+	{
+		if (!string.IsNullOrEmpty(_inputContextPath))
+		{
+			RunDBusCommand($"call --session --dest org.fcitx.Fcitx5 --object-path {_inputContextPath} --method org.fcitx.Fcitx.InputContext1.SetCursorRect {x} {y} {width} {height}");
+		}
+	}
 
-        RunDBusCommand(
-            $"call --session --dest org.fcitx.Fcitx5 " +
-            $"--object-path {_inputContextPath} " +
-            $"--method org.fcitx.Fcitx.InputContext1.SetCursorRect " +
-            $"{x} {y} {width} {height}");
-    }
+	public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown)
+	{
+		if (string.IsNullOrEmpty(_inputContextPath))
+		{
+			return false;
+		}
+		uint num = ConvertModifiers(modifiers);
+		if (!isKeyDown)
+		{
+			num |= 0x40000000;
+		}
+		return RunDBusCommand($"call --session --dest org.fcitx.Fcitx5 --object-path {_inputContextPath} --method org.fcitx.Fcitx.InputContext1.ProcessKeyEvent {keyCode} {keyCode} {num} {(isKeyDown ? "true" : "false")} 0")?.Contains("true") ?? false;
+	}
 
-    public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown)
-    {
-        if (string.IsNullOrEmpty(_inputContextPath)) return false;
+	private uint ConvertModifiers(KeyModifiers modifiers)
+	{
+		uint num = 0u;
+		if (modifiers.HasFlag(KeyModifiers.Shift))
+		{
+			num |= 1;
+		}
+		if (modifiers.HasFlag(KeyModifiers.CapsLock))
+		{
+			num |= 2;
+		}
+		if (modifiers.HasFlag(KeyModifiers.Control))
+		{
+			num |= 4;
+		}
+		if (modifiers.HasFlag(KeyModifiers.Alt))
+		{
+			num |= 8;
+		}
+		if (modifiers.HasFlag(KeyModifiers.Super))
+		{
+			num |= 0x40;
+		}
+		return num;
+	}
 
-        uint state = ConvertModifiers(modifiers);
-        if (!isKeyDown) state |= 0x40000000; // Release flag
+	public void Reset()
+	{
+		if (!string.IsNullOrEmpty(_inputContextPath))
+		{
+			RunDBusCommand($"call --session --dest org.fcitx.Fcitx5 --object-path {_inputContextPath} --method org.fcitx.Fcitx.InputContext1.Reset");
+		}
+		_preEditText = string.Empty;
+		_preEditCursorPosition = 0;
+		_isActive = false;
+		this.PreEditEnded?.Invoke(this, EventArgs.Empty);
+		_currentContext?.OnPreEditEnded();
+	}
 
-        var result = RunDBusCommand(
-            $"call --session --dest org.fcitx.Fcitx5 " +
-            $"--object-path {_inputContextPath} " +
-            $"--method org.fcitx.Fcitx.InputContext1.ProcessKeyEvent " +
-            $"{keyCode} {keyCode} {state} {(isKeyDown ? "true" : "false")} 0");
+	public void Shutdown()
+	{
+		Dispose();
+	}
 
-        return result?.Contains("true") == true;
-    }
+	private string? RunDBusCommand(string args)
+	{
+		try
+		{
+			using Process process = Process.Start(new ProcessStartInfo
+			{
+				FileName = "gdbus",
+				Arguments = args,
+				UseShellExecute = false,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				CreateNoWindow = true
+			});
+			if (process == null)
+			{
+				return null;
+			}
+			string result = process.StandardOutput.ReadToEnd();
+			process.WaitForExit(1000);
+			return result;
+		}
+		catch
+		{
+			return null;
+		}
+	}
 
-    private uint ConvertModifiers(KeyModifiers modifiers)
-    {
-        uint state = 0;
-        if (modifiers.HasFlag(KeyModifiers.Shift)) state |= 1;
-        if (modifiers.HasFlag(KeyModifiers.CapsLock)) state |= 2;
-        if (modifiers.HasFlag(KeyModifiers.Control)) state |= 4;
-        if (modifiers.HasFlag(KeyModifiers.Alt)) state |= 8;
-        if (modifiers.HasFlag(KeyModifiers.Super)) state |= 64;
-        return state;
-    }
+	public void Dispose()
+	{
+		if (!_disposed)
+		{
+			_disposed = true;
+			try
+			{
+				_dBusMonitor?.Kill();
+				_dBusMonitor?.Dispose();
+			}
+			catch
+			{
+			}
+			if (!string.IsNullOrEmpty(_inputContextPath))
+			{
+				RunDBusCommand($"call --session --dest org.fcitx.Fcitx5 --object-path {_inputContextPath} --method org.fcitx.Fcitx.InputContext1.Destroy");
+			}
+		}
+	}
 
-    public void Reset()
-    {
-        if (!string.IsNullOrEmpty(_inputContextPath))
-        {
-            RunDBusCommand(
-                $"call --session --dest org.fcitx.Fcitx5 " +
-                $"--object-path {_inputContextPath} " +
-                $"--method org.fcitx.Fcitx.InputContext1.Reset");
-        }
-
-        _preEditText = string.Empty;
-        _preEditCursorPosition = 0;
-        _isActive = false;
-
-        PreEditEnded?.Invoke(this, EventArgs.Empty);
-        _currentContext?.OnPreEditEnded();
-    }
-
-    public void Shutdown()
-    {
-        Dispose();
-    }
-
-    private string? RunDBusCommand(string args)
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "gdbus",
-                Arguments = args,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return null;
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(1000);
-            return output;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-
-        try
-        {
-            _dBusMonitor?.Kill();
-            _dBusMonitor?.Dispose();
-        }
-        catch { }
-
-        if (!string.IsNullOrEmpty(_inputContextPath))
-        {
-            RunDBusCommand(
-                $"call --session --dest org.fcitx.Fcitx5 " +
-                $"--object-path {_inputContextPath} " +
-                $"--method org.fcitx.Fcitx.InputContext1.Destroy");
-        }
-    }
-
-    /// <summary>
-    /// Checks if Fcitx5 is available on the system.
-    /// </summary>
-    public static bool IsAvailable()
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "gdbus",
-                Arguments = "introspect --session --dest org.fcitx.Fcitx5 --object-path /org/freedesktop/portal/inputmethod",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return false;
-
-            process.WaitForExit(1000);
-            return process.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+	public static bool IsAvailable()
+	{
+		try
+		{
+			using Process process = Process.Start(new ProcessStartInfo
+			{
+				FileName = "gdbus",
+				Arguments = "introspect --session --dest org.fcitx.Fcitx5 --object-path /org/freedesktop/portal/inputmethod",
+				UseShellExecute = false,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				CreateNoWindow = true
+			});
+			if (process == null)
+			{
+				return false;
+			}
+			process.WaitForExit(1000);
+			return process.ExitCode == 0;
+		}
+		catch
+		{
+			return false;
+		}
+	}
 }

@@ -1,855 +1,933 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform.Linux;
+using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Window;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// Base class for all Skia-rendered views on Linux.
-/// Inherits from BindableObject to enable XAML styling, data binding, and Visual State Manager.
-/// </summary>
 public abstract class SkiaView : BindableObject, IDisposable
 {
-    // Popup overlay system for dropdowns, calendars, etc.
-    private static readonly List<(SkiaView Owner, Action<SKCanvas> Draw)> _popupOverlays = new();
-
-    public static void RegisterPopupOverlay(SkiaView owner, Action<SKCanvas> drawAction)
-    {
-        _popupOverlays.RemoveAll(p => p.Owner == owner);
-        _popupOverlays.Add((owner, drawAction));
-    }
-
-    public static void UnregisterPopupOverlay(SkiaView owner)
-    {
-        _popupOverlays.RemoveAll(p => p.Owner == owner);
-    }
-
-    public static void DrawPopupOverlays(SKCanvas canvas)
-    {
-        // Restore canvas to clean state for overlay drawing
-        // Save count tells us how many unmatched Saves there are
-        while (canvas.SaveCount > 1)
-        {
-            canvas.Restore();
-        }
-
-        foreach (var (_, draw) in _popupOverlays)
-        {
-            canvas.Save();
-            draw(canvas);
-            canvas.Restore();
-        }
-    }
-
-    /// <summary>
-    /// Gets the popup owner that should receive pointer events at the given coordinates.
-    /// This allows popups to receive events even outside their normal bounds.
-    /// </summary>
-    public static SkiaView? GetPopupOwnerAt(float x, float y)
-    {
-        // Check in reverse order (topmost popup first)
-        for (int i = _popupOverlays.Count - 1; i >= 0; i--)
-        {
-            var owner = _popupOverlays[i].Owner;
-            if (owner.HitTestPopupArea(x, y))
-            {
-                return owner;
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Checks if there are any active popup overlays.
-    /// </summary>
-    public static bool HasActivePopup => _popupOverlays.Count > 0;
-
-    /// <summary>
-    /// Override this to define the popup area for hit testing.
-    /// </summary>
-    protected virtual bool HitTestPopupArea(float x, float y)
-    {
-        // Default: no popup area beyond normal bounds
-        return Bounds.Contains(x, y);
-    }
-
-    #region BindableProperties
-
-    /// <summary>
-    /// Bindable property for IsVisible.
-    /// </summary>
-    public static readonly BindableProperty IsVisibleProperty =
-        BindableProperty.Create(
-            nameof(IsVisible),
-            typeof(bool),
-            typeof(SkiaView),
-            true,
-            propertyChanged: (b, o, n) => ((SkiaView)b).OnVisibilityChanged());
-
-    /// <summary>
-    /// Bindable property for IsEnabled.
-    /// </summary>
-    public static readonly BindableProperty IsEnabledProperty =
-        BindableProperty.Create(
-            nameof(IsEnabled),
-            typeof(bool),
-            typeof(SkiaView),
-            true,
-            propertyChanged: (b, o, n) => ((SkiaView)b).OnEnabledChanged());
-
-    /// <summary>
-    /// Bindable property for Opacity.
-    /// </summary>
-    public static readonly BindableProperty OpacityProperty =
-        BindableProperty.Create(
-            nameof(Opacity),
-            typeof(float),
-            typeof(SkiaView),
-            1.0f,
-            coerceValue: (b, v) => Math.Clamp((float)v, 0f, 1f),
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for BackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty BackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(BackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaView),
-            SKColors.Transparent,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for WidthRequest.
-    /// </summary>
-    public static readonly BindableProperty WidthRequestProperty =
-        BindableProperty.Create(
-            nameof(WidthRequest),
-            typeof(double),
-            typeof(SkiaView),
-            -1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for HeightRequest.
-    /// </summary>
-    public static readonly BindableProperty HeightRequestProperty =
-        BindableProperty.Create(
-            nameof(HeightRequest),
-            typeof(double),
-            typeof(SkiaView),
-            -1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for MinimumWidthRequest.
-    /// </summary>
-    public static readonly BindableProperty MinimumWidthRequestProperty =
-        BindableProperty.Create(
-            nameof(MinimumWidthRequest),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for MinimumHeightRequest.
-    /// </summary>
-    public static readonly BindableProperty MinimumHeightRequestProperty =
-        BindableProperty.Create(
-            nameof(MinimumHeightRequest),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for IsFocusable.
-    /// </summary>
-    public static readonly BindableProperty IsFocusableProperty =
-        BindableProperty.Create(
-            nameof(IsFocusable),
-            typeof(bool),
-            typeof(SkiaView),
-            false);
-
-    /// <summary>
-    /// Bindable property for Margin.
-    /// </summary>
-    public static readonly BindableProperty MarginProperty =
-        BindableProperty.Create(
-            nameof(Margin),
-            typeof(Thickness),
-            typeof(SkiaView),
-            default(Thickness),
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for HorizontalOptions.
-    /// </summary>
-    public static readonly BindableProperty HorizontalOptionsProperty =
-        BindableProperty.Create(
-            nameof(HorizontalOptions),
-            typeof(LayoutOptions),
-            typeof(SkiaView),
-            LayoutOptions.Fill,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for VerticalOptions.
-    /// </summary>
-    public static readonly BindableProperty VerticalOptionsProperty =
-        BindableProperty.Create(
-            nameof(VerticalOptions),
-            typeof(LayoutOptions),
-            typeof(SkiaView),
-            LayoutOptions.Fill,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for Name (used for template child lookup).
-    /// </summary>
-    public static readonly BindableProperty NameProperty =
-        BindableProperty.Create(
-            nameof(Name),
-            typeof(string),
-            typeof(SkiaView),
-            string.Empty);
-
-    #endregion
-
-    private bool _disposed;
-    private SKRect _bounds;
-    private SkiaView? _parent;
-    private readonly List<SkiaView> _children = new();
-
-    /// <summary>
-    /// Gets the absolute bounds of this view in screen coordinates.
-    /// </summary>
-    public SKRect GetAbsoluteBounds()
-    {
-        var bounds = Bounds;
-        var current = Parent;
-        while (current != null)
-        {
-            // Adjust for scroll offset if parent is a ScrollView
-            if (current is SkiaScrollView scrollView)
-            {
-                bounds = new SKRect(
-                    bounds.Left - scrollView.ScrollX,
-                    bounds.Top - scrollView.ScrollY,
-                    bounds.Right - scrollView.ScrollX,
-                    bounds.Bottom - scrollView.ScrollY);
-            }
-            current = current.Parent;
-        }
-        return bounds;
-    }
-
-    /// <summary>
-    /// Gets or sets the bounds of this view in parent coordinates.
-    /// </summary>
-    public SKRect Bounds
-    {
-        get => _bounds;
-        set
-        {
-            if (_bounds != value)
-            {
-                _bounds = value;
-                OnBoundsChanged();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets whether this view is visible.
-    /// </summary>
-    public bool IsVisible
-    {
-        get => (bool)GetValue(IsVisibleProperty);
-        set => SetValue(IsVisibleProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether this view is enabled for interaction.
-    /// </summary>
-    public bool IsEnabled
-    {
-        get => (bool)GetValue(IsEnabledProperty);
-        set => SetValue(IsEnabledProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the opacity of this view (0.0 to 1.0).
-    /// </summary>
-    public float Opacity
-    {
-        get => (float)GetValue(OpacityProperty);
-        set => SetValue(OpacityProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the background color.
-    /// </summary>
-    private SKColor _backgroundColor = SKColors.Transparent;
-    public SKColor BackgroundColor
-    {
-        get => _backgroundColor;
-        set
-        {
-            if (_backgroundColor != value)
-            {
-                _backgroundColor = value;
-                SetValue(BackgroundColorProperty, value); // Keep BindableProperty in sync for bindings
-                Invalidate();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets the requested width.
-    /// </summary>
-    public double WidthRequest
-    {
-        get => (double)GetValue(WidthRequestProperty);
-        set => SetValue(WidthRequestProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the requested height.
-    /// </summary>
-    public double HeightRequest
-    {
-        get => (double)GetValue(HeightRequestProperty);
-        set => SetValue(HeightRequestProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the minimum width request.
-    /// </summary>
-    public double MinimumWidthRequest
-    {
-        get => (double)GetValue(MinimumWidthRequestProperty);
-        set => SetValue(MinimumWidthRequestProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the minimum height request.
-    /// </summary>
-    public double MinimumHeightRequest
-    {
-        get => (double)GetValue(MinimumHeightRequestProperty);
-        set => SetValue(MinimumHeightRequestProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the requested width (backwards compatibility alias).
-    /// </summary>
-    public double RequestedWidth
-    {
-        get => WidthRequest;
-        set => WidthRequest = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the requested height (backwards compatibility alias).
-    /// </summary>
-    public double RequestedHeight
-    {
-        get => HeightRequest;
-        set => HeightRequest = value;
-    }
-
-    /// <summary>
-    /// Gets or sets whether this view can receive keyboard focus.
-    /// </summary>
-    public bool IsFocusable
-    {
-        get => (bool)GetValue(IsFocusableProperty);
-        set => SetValue(IsFocusableProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the margin around this view.
-    /// </summary>
-    public Thickness Margin
-    {
-        get => (Thickness)GetValue(MarginProperty);
-        set => SetValue(MarginProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the horizontal layout options.
-    /// </summary>
-    public LayoutOptions HorizontalOptions
-    {
-        get => (LayoutOptions)GetValue(HorizontalOptionsProperty);
-        set => SetValue(HorizontalOptionsProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the vertical layout options.
-    /// </summary>
-    public LayoutOptions VerticalOptions
-    {
-        get => (LayoutOptions)GetValue(VerticalOptionsProperty);
-        set => SetValue(VerticalOptionsProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the name of this view (used for template child lookup).
-    /// </summary>
-    public string Name
-    {
-        get => (string)GetValue(NameProperty);
-        set => SetValue(NameProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether this view currently has keyboard focus.
-    /// </summary>
-    public bool IsFocused { get; internal set; }
-
-    /// <summary>
-    /// Gets or sets the parent view.
-    /// </summary>
-    public SkiaView? Parent
-    {
-        get => _parent;
-        internal set => _parent = value;
-    }
-
-    /// <summary>
-    /// Gets the bounds of this view in screen coordinates (accounting for scroll offsets).
-    /// </summary>
-    public SKRect ScreenBounds
-    {
-        get
-        {
-            var bounds = Bounds;
-            var parent = _parent;
-
-            // Walk up the tree and adjust for scroll offsets
-            while (parent != null)
-            {
-                if (parent is SkiaScrollView scrollView)
-                {
-                    bounds = new SKRect(
-                        bounds.Left - scrollView.ScrollX,
-                        bounds.Top - scrollView.ScrollY,
-                        bounds.Right - scrollView.ScrollX,
-                        bounds.Bottom - scrollView.ScrollY);
-                }
-                parent = parent.Parent;
-            }
-
-            return bounds;
-        }
-    }
-
-    /// <summary>
-    /// Gets the desired size calculated during measure.
-    /// </summary>
-    public SKSize DesiredSize { get; protected set; }
-
-    /// <summary>
-    /// Gets the child views.
-    /// </summary>
-    public IReadOnlyList<SkiaView> Children => _children;
-
-    /// <summary>
-    /// Event raised when this view needs to be redrawn.
-    /// </summary>
-    public event EventHandler? Invalidated;
-
-    /// <summary>
-    /// Called when visibility changes.
-    /// </summary>
-    protected virtual void OnVisibilityChanged()
-    {
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Called when enabled state changes.
-    /// </summary>
-    protected virtual void OnEnabledChanged()
-    {
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Called when binding context changes. Propagates to children.
-    /// </summary>
-    protected override void OnBindingContextChanged()
-    {
-        base.OnBindingContextChanged();
-
-        // Propagate binding context to children
-        foreach (var child in _children)
-        {
-            SetInheritedBindingContext(child, BindingContext);
-        }
-    }
-
-    /// <summary>
-    /// Adds a child view.
-    /// </summary>
-    public void AddChild(SkiaView child)
-    {
-        if (child._parent != null)
-            throw new InvalidOperationException("View already has a parent");
-
-        child._parent = this;
-        _children.Add(child);
-
-        // Propagate binding context to new child
-        if (BindingContext != null)
-        {
-            SetInheritedBindingContext(child, BindingContext);
-        }
-
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Removes a child view.
-    /// </summary>
-    public void RemoveChild(SkiaView child)
-    {
-        if (child._parent != this)
-            return;
-
-        child._parent = null;
-        _children.Remove(child);
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Inserts a child view at the specified index.
-    /// </summary>
-    public void InsertChild(int index, SkiaView child)
-    {
-        if (child._parent != null)
-            throw new InvalidOperationException("View already has a parent");
-
-        child._parent = this;
-        _children.Insert(index, child);
-
-        // Propagate binding context to new child
-        if (BindingContext != null)
-        {
-            SetInheritedBindingContext(child, BindingContext);
-        }
-
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Removes all child views.
-    /// </summary>
-    public void ClearChildren()
-    {
-        foreach (var child in _children)
-        {
-            child._parent = null;
-        }
-        _children.Clear();
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Requests that this view be redrawn.
-    /// </summary>
-    public void Invalidate()
-    {
-        Invalidated?.Invoke(this, EventArgs.Empty);
-        _parent?.Invalidate();
-    }
-
-    /// <summary>
-    /// Invalidates the cached measurement.
-    /// </summary>
-    public void InvalidateMeasure()
-    {
-        DesiredSize = SKSize.Empty;
-        _parent?.InvalidateMeasure();
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Draws this view and its children to the canvas.
-    /// </summary>
-    public void Draw(SKCanvas canvas)
-    {
-        if (!IsVisible || Opacity <= 0)
-        {
-            return;
-        }
-
-        canvas.Save();
-
-        // Apply opacity
-        if (Opacity < 1.0f)
-        {
-            canvas.SaveLayer(new SKPaint { Color = SKColors.White.WithAlpha((byte)(Opacity * 255)) });
-        }
-
-        // Draw background at absolute bounds
-        if (BackgroundColor != SKColors.Transparent)
-        {
-            using var paint = new SKPaint { Color = BackgroundColor };
-            canvas.DrawRect(Bounds, paint);
-        }
-
-        // Draw content at absolute bounds
-        OnDraw(canvas, Bounds);
-
-        // Draw children - they draw at their own absolute bounds
-        foreach (var child in _children)
-        {
-            child.Draw(canvas);
-        }
-
-        if (Opacity < 1.0f)
-        {
-            canvas.Restore();
-        }
-
-        canvas.Restore();
-    }
-
-    /// <summary>
-    /// Override to draw custom content.
-    /// </summary>
-    protected virtual void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-    }
-
-    /// <summary>
-    /// Called when the bounds change.
-    /// </summary>
-    protected virtual void OnBoundsChanged()
-    {
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Measures the desired size of this view.
-    /// </summary>
-    public SKSize Measure(SKSize availableSize)
-    {
-        DesiredSize = MeasureOverride(availableSize);
-        return DesiredSize;
-    }
-
-    /// <summary>
-    /// Override to provide custom measurement.
-    /// </summary>
-    protected virtual SKSize MeasureOverride(SKSize availableSize)
-    {
-        var width = WidthRequest >= 0 ? (float)WidthRequest : 0;
-        var height = HeightRequest >= 0 ? (float)HeightRequest : 0;
-        return new SKSize(width, height);
-    }
-
-    /// <summary>
-    /// Arranges this view within the given bounds.
-    /// </summary>
-    public void Arrange(SKRect bounds)
-    {
-        Bounds = ArrangeOverride(bounds);
-    }
-
-    /// <summary>
-    /// Override to customize arrangement within the given bounds.
-    /// </summary>
-    protected virtual SKRect ArrangeOverride(SKRect bounds)
-    {
-        return bounds;
-    }
-
-    /// <summary>
-    /// Performs hit testing to find the view at the given point.
-    /// </summary>
-    public virtual SkiaView? HitTest(SKPoint point)
-    {
-        return HitTest(point.X, point.Y);
-    }
-
-    /// <summary>
-    /// Performs hit testing to find the view at the given coordinates.
-    /// Coordinates are in absolute window space, matching how Bounds are stored.
-    /// </summary>
-    public virtual SkiaView? HitTest(float x, float y)
-    {
-        if (!IsVisible || !IsEnabled)
-            return null;
-
-        if (!Bounds.Contains(x, y))
-            return null;
-
-        // Check children in reverse order (top-most first)
-        // Coordinates stay in absolute space since children have absolute Bounds
-        for (int i = _children.Count - 1; i >= 0; i--)
-        {
-            var hit = _children[i].HitTest(x, y);
-            if (hit != null)
-                return hit;
-        }
-
-        return this;
-    }
-
-    #region Input Events
-
-    public virtual void OnPointerEntered(PointerEventArgs e) { }
-    public virtual void OnPointerExited(PointerEventArgs e) { }
-    public virtual void OnPointerMoved(PointerEventArgs e) { }
-    public virtual void OnPointerPressed(PointerEventArgs e) { }
-    public virtual void OnPointerReleased(PointerEventArgs e) { }
-    public virtual void OnScroll(ScrollEventArgs e) { }
-    public virtual void OnKeyDown(KeyEventArgs e) { }
-    public virtual void OnKeyUp(KeyEventArgs e) { }
-    public virtual void OnTextInput(TextInputEventArgs e) { }
-
-    public virtual void OnFocusGained()
-    {
-        IsFocused = true;
-        Invalidate();
-    }
-
-    public virtual void OnFocusLost()
-    {
-        IsFocused = false;
-        Invalidate();
-    }
-
-    #endregion
-
-    #region IDisposable
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                foreach (var child in _children)
-                {
-                    child.Dispose();
-                }
-                _children.Clear();
-            }
-            _disposed = true;
-        }
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    #endregion
-}
-
-/// <summary>
-/// Event args for pointer events.
-/// </summary>
-public class PointerEventArgs : EventArgs
-{
-    public float X { get; }
-    public float Y { get; }
-    public PointerButton Button { get; }
-    public bool Handled { get; set; }
-
-    public PointerEventArgs(float x, float y, PointerButton button = PointerButton.None)
-    {
-        X = x;
-        Y = y;
-        Button = button;
-    }
-}
-
-/// <summary>
-/// Mouse button flags.
-/// </summary>
-[Flags]
-public enum PointerButton
-{
-    None = 0,
-    Left = 1,
-    Middle = 2,
-    Right = 4,
-    XButton1 = 8,
-    XButton2 = 16
-}
-
-/// <summary>
-/// Event args for scroll events.
-/// </summary>
-public class ScrollEventArgs : EventArgs
-{
-    public float X { get; }
-    public float Y { get; }
-    public float DeltaX { get; }
-    public float DeltaY { get; }
-    public bool Handled { get; set; }
-
-    public ScrollEventArgs(float x, float y, float deltaX, float deltaY)
-    {
-        X = x;
-        Y = y;
-        DeltaX = deltaX;
-        DeltaY = deltaY;
-    }
-}
-
-/// <summary>
-/// Event args for keyboard events.
-/// </summary>
-public class KeyEventArgs : EventArgs
-{
-    public Key Key { get; }
-    public KeyModifiers Modifiers { get; }
-    public bool Handled { get; set; }
-
-    public KeyEventArgs(Key key, KeyModifiers modifiers = KeyModifiers.None)
-    {
-        Key = key;
-        Modifiers = modifiers;
-    }
-}
-
-/// <summary>
-/// Event args for text input events.
-/// </summary>
-public class TextInputEventArgs : EventArgs
-{
-    public string Text { get; }
-    public bool Handled { get; set; }
-
-    public TextInputEventArgs(string text)
-    {
-        Text = text;
-    }
-}
-
-/// <summary>
-/// Keyboard modifier flags.
-/// </summary>
-[Flags]
-public enum KeyModifiers
-{
-    None = 0,
-    Shift = 1,
-    Control = 2,
-    Alt = 4,
-    Super = 8,
-    CapsLock = 16,
-    NumLock = 32
+	private static readonly List<(SkiaView Owner, Action<SKCanvas> Draw)> _popupOverlays = new List<(SkiaView, Action<SKCanvas>)>();
+
+	public static readonly BindableProperty IsVisibleProperty = BindableProperty.Create("IsVisible", typeof(bool), typeof(SkiaView), (object)true, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).OnVisibilityChanged();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty IsEnabledProperty = BindableProperty.Create("IsEnabled", typeof(bool), typeof(SkiaView), (object)true, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).OnEnabledChanged();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty OpacityProperty = BindableProperty.Create("Opacity", typeof(float), typeof(SkiaView), (object)1f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)((BindableObject b, object v) => Math.Clamp((float)v, 0f, 1f)), (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty BackgroundColorProperty = BindableProperty.Create("BackgroundColor", typeof(SKColor), typeof(SkiaView), (object)SKColors.Transparent, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty WidthRequestProperty = BindableProperty.Create("WidthRequest", typeof(double), typeof(SkiaView), (object)(-1.0), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty HeightRequestProperty = BindableProperty.Create("HeightRequest", typeof(double), typeof(SkiaView), (object)(-1.0), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty MinimumWidthRequestProperty = BindableProperty.Create("MinimumWidthRequest", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty MinimumHeightRequestProperty = BindableProperty.Create("MinimumHeightRequest", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty IsFocusableProperty = BindableProperty.Create("IsFocusable", typeof(bool), typeof(SkiaView), (object)false, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)null, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty MarginProperty = BindableProperty.Create("Margin", typeof(Thickness), typeof(SkiaView), (object)default(Thickness), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty HorizontalOptionsProperty = BindableProperty.Create("HorizontalOptions", typeof(LayoutOptions), typeof(SkiaView), (object)LayoutOptions.Fill, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty VerticalOptionsProperty = BindableProperty.Create("VerticalOptions", typeof(LayoutOptions), typeof(SkiaView), (object)LayoutOptions.Fill, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty NameProperty = BindableProperty.Create("Name", typeof(string), typeof(SkiaView), (object)string.Empty, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)null, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty ScaleProperty = BindableProperty.Create("Scale", typeof(double), typeof(SkiaView), (object)1.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty ScaleXProperty = BindableProperty.Create("ScaleX", typeof(double), typeof(SkiaView), (object)1.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty ScaleYProperty = BindableProperty.Create("ScaleY", typeof(double), typeof(SkiaView), (object)1.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty RotationProperty = BindableProperty.Create("Rotation", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty RotationXProperty = BindableProperty.Create("RotationX", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty RotationYProperty = BindableProperty.Create("RotationY", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty TranslationXProperty = BindableProperty.Create("TranslationX", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty TranslationYProperty = BindableProperty.Create("TranslationY", typeof(double), typeof(SkiaView), (object)0.0, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty AnchorXProperty = BindableProperty.Create("AnchorX", typeof(double), typeof(SkiaView), (object)0.5, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty AnchorYProperty = BindableProperty.Create("AnchorY", typeof(double), typeof(SkiaView), (object)0.5, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	private bool _disposed;
+
+	private SKRect _bounds;
+
+	private SkiaView? _parent;
+
+	private readonly List<SkiaView> _children = new List<SkiaView>();
+
+	private SKColor _backgroundColor = SKColors.Transparent;
+
+	public static bool HasActivePopup => _popupOverlays.Count > 0;
+
+	public SKRect Bounds
+	{
+		get
+		{
+			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+			return _bounds;
+		}
+		set
+		{
+			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+			//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+			if (_bounds != value)
+			{
+				_bounds = value;
+				OnBoundsChanged();
+			}
+		}
+	}
+
+	public bool IsVisible
+	{
+		get
+		{
+			return (bool)((BindableObject)this).GetValue(IsVisibleProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(IsVisibleProperty, (object)value);
+		}
+	}
+
+	public bool IsEnabled
+	{
+		get
+		{
+			return (bool)((BindableObject)this).GetValue(IsEnabledProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(IsEnabledProperty, (object)value);
+		}
+	}
+
+	public float Opacity
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(OpacityProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(OpacityProperty, (object)value);
+		}
+	}
+
+	public SKColor BackgroundColor
+	{
+		get
+		{
+			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+			return _backgroundColor;
+		}
+		set
+		{
+			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+			//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+			//IL_001b: Unknown result type (might be due to invalid IL or missing references)
+			if (_backgroundColor != value)
+			{
+				_backgroundColor = value;
+				((BindableObject)this).SetValue(BackgroundColorProperty, (object)value);
+				Invalidate();
+			}
+		}
+	}
+
+	public double WidthRequest
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(WidthRequestProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(WidthRequestProperty, (object)value);
+		}
+	}
+
+	public double HeightRequest
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(HeightRequestProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(HeightRequestProperty, (object)value);
+		}
+	}
+
+	public double MinimumWidthRequest
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(MinimumWidthRequestProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(MinimumWidthRequestProperty, (object)value);
+		}
+	}
+
+	public double MinimumHeightRequest
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(MinimumHeightRequestProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(MinimumHeightRequestProperty, (object)value);
+		}
+	}
+
+	public double RequestedWidth
+	{
+		get
+		{
+			return WidthRequest;
+		}
+		set
+		{
+			WidthRequest = value;
+		}
+	}
+
+	public double RequestedHeight
+	{
+		get
+		{
+			return HeightRequest;
+		}
+		set
+		{
+			HeightRequest = value;
+		}
+	}
+
+	public bool IsFocusable
+	{
+		get
+		{
+			return (bool)((BindableObject)this).GetValue(IsFocusableProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(IsFocusableProperty, (object)value);
+		}
+	}
+
+	public CursorType CursorType { get; set; }
+
+	public Thickness Margin
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (Thickness)((BindableObject)this).GetValue(MarginProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(MarginProperty, (object)value);
+		}
+	}
+
+	public LayoutOptions HorizontalOptions
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (LayoutOptions)((BindableObject)this).GetValue(HorizontalOptionsProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(HorizontalOptionsProperty, (object)value);
+		}
+	}
+
+	public LayoutOptions VerticalOptions
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (LayoutOptions)((BindableObject)this).GetValue(VerticalOptionsProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(VerticalOptionsProperty, (object)value);
+		}
+	}
+
+	public string Name
+	{
+		get
+		{
+			return (string)((BindableObject)this).GetValue(NameProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(NameProperty, (object)value);
+		}
+	}
+
+	public double Scale
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(ScaleProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(ScaleProperty, (object)value);
+		}
+	}
+
+	public double ScaleX
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(ScaleXProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(ScaleXProperty, (object)value);
+		}
+	}
+
+	public double ScaleY
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(ScaleYProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(ScaleYProperty, (object)value);
+		}
+	}
+
+	public double Rotation
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(RotationProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(RotationProperty, (object)value);
+		}
+	}
+
+	public double RotationX
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(RotationXProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(RotationXProperty, (object)value);
+		}
+	}
+
+	public double RotationY
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(RotationYProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(RotationYProperty, (object)value);
+		}
+	}
+
+	public double TranslationX
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(TranslationXProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(TranslationXProperty, (object)value);
+		}
+	}
+
+	public double TranslationY
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(TranslationYProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(TranslationYProperty, (object)value);
+		}
+	}
+
+	public double AnchorX
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(AnchorXProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(AnchorXProperty, (object)value);
+		}
+	}
+
+	public double AnchorY
+	{
+		get
+		{
+			return (double)((BindableObject)this).GetValue(AnchorYProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(AnchorYProperty, (object)value);
+		}
+	}
+
+	public bool IsFocused { get; internal set; }
+
+	public SkiaView? Parent
+	{
+		get
+		{
+			return _parent;
+		}
+		internal set
+		{
+			_parent = value;
+		}
+	}
+
+	public View? MauiView { get; set; }
+
+	public SKRect ScreenBounds
+	{
+		get
+		{
+			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			//IL_0063: Unknown result type (might be due to invalid IL or missing references)
+			SKRect bounds = Bounds;
+			for (SkiaView parent = _parent; parent != null; parent = parent.Parent)
+			{
+				if (parent is SkiaScrollView skiaScrollView)
+				{
+					((SKRect)(ref bounds))._002Ector(((SKRect)(ref bounds)).Left - skiaScrollView.ScrollX, ((SKRect)(ref bounds)).Top - skiaScrollView.ScrollY, ((SKRect)(ref bounds)).Right - skiaScrollView.ScrollX, ((SKRect)(ref bounds)).Bottom - skiaScrollView.ScrollY);
+				}
+			}
+			return bounds;
+		}
+	}
+
+	public SKSize DesiredSize { get; protected set; }
+
+	public IReadOnlyList<SkiaView> Children => _children;
+
+	public event EventHandler? Invalidated;
+
+	public static void RegisterPopupOverlay(SkiaView owner, Action<SKCanvas> drawAction)
+	{
+		_popupOverlays.RemoveAll(((SkiaView Owner, Action<SKCanvas> Draw) p) => p.Owner == owner);
+		_popupOverlays.Add((owner, drawAction));
+	}
+
+	public static void UnregisterPopupOverlay(SkiaView owner)
+	{
+		_popupOverlays.RemoveAll(((SkiaView Owner, Action<SKCanvas> Draw) p) => p.Owner == owner);
+	}
+
+	public static void DrawPopupOverlays(SKCanvas canvas)
+	{
+		while (canvas.SaveCount > 1)
+		{
+			canvas.Restore();
+		}
+		foreach (var popupOverlay in _popupOverlays)
+		{
+			Action<SKCanvas> item = popupOverlay.Draw;
+			canvas.Save();
+			item(canvas);
+			canvas.Restore();
+		}
+	}
+
+	public static SkiaView? GetPopupOwnerAt(float x, float y)
+	{
+		for (int num = _popupOverlays.Count - 1; num >= 0; num--)
+		{
+			SkiaView item = _popupOverlays[num].Owner;
+			if (item.HitTestPopupArea(x, y))
+			{
+				return item;
+			}
+		}
+		return null;
+	}
+
+	protected virtual bool HitTestPopupArea(float x, float y)
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+		SKRect bounds = Bounds;
+		return ((SKRect)(ref bounds)).Contains(x, y);
+	}
+
+	public SKRect GetAbsoluteBounds()
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
+		SKRect bounds = Bounds;
+		for (SkiaView parent = Parent; parent != null; parent = parent.Parent)
+		{
+			if (parent is SkiaScrollView skiaScrollView)
+			{
+				((SKRect)(ref bounds))._002Ector(((SKRect)(ref bounds)).Left - skiaScrollView.ScrollX, ((SKRect)(ref bounds)).Top - skiaScrollView.ScrollY, ((SKRect)(ref bounds)).Right - skiaScrollView.ScrollX, ((SKRect)(ref bounds)).Bottom - skiaScrollView.ScrollY);
+			}
+		}
+		return bounds;
+	}
+
+	protected virtual void OnVisibilityChanged()
+	{
+		Invalidate();
+	}
+
+	protected virtual void OnEnabledChanged()
+	{
+		Invalidate();
+	}
+
+	protected override void OnBindingContextChanged()
+	{
+		((BindableObject)this).OnBindingContextChanged();
+		foreach (SkiaView child in _children)
+		{
+			BindableObject.SetInheritedBindingContext((BindableObject)(object)child, ((BindableObject)this).BindingContext);
+		}
+	}
+
+	public void AddChild(SkiaView child)
+	{
+		if (child._parent != null)
+		{
+			throw new InvalidOperationException("View already has a parent");
+		}
+		child._parent = this;
+		_children.Add(child);
+		if (((BindableObject)this).BindingContext != null)
+		{
+			BindableObject.SetInheritedBindingContext((BindableObject)(object)child, ((BindableObject)this).BindingContext);
+		}
+		Invalidate();
+	}
+
+	public void RemoveChild(SkiaView child)
+	{
+		if (child._parent == this)
+		{
+			child._parent = null;
+			_children.Remove(child);
+			Invalidate();
+		}
+	}
+
+	public void InsertChild(int index, SkiaView child)
+	{
+		if (child._parent != null)
+		{
+			throw new InvalidOperationException("View already has a parent");
+		}
+		child._parent = this;
+		_children.Insert(index, child);
+		if (((BindableObject)this).BindingContext != null)
+		{
+			BindableObject.SetInheritedBindingContext((BindableObject)(object)child, ((BindableObject)this).BindingContext);
+		}
+		Invalidate();
+	}
+
+	public void ClearChildren()
+	{
+		foreach (SkiaView child in _children)
+		{
+			child._parent = null;
+		}
+		_children.Clear();
+		Invalidate();
+	}
+
+	public void Invalidate()
+	{
+		//IL_0028: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+		LinuxApplication.LogInvalidate(((object)this).GetType().Name);
+		this.Invalidated?.Invoke(this, EventArgs.Empty);
+		SKRect bounds = Bounds;
+		if (((SKRect)(ref bounds)).Width > 0f)
+		{
+			bounds = Bounds;
+			if (((SKRect)(ref bounds)).Height > 0f)
+			{
+				SkiaRenderingEngine.Current?.InvalidateRegion(Bounds);
+			}
+		}
+		if (_parent != null)
+		{
+			_parent.Invalidate();
+		}
+		else
+		{
+			LinuxApplication.RequestRedraw();
+		}
+	}
+
+	public void InvalidateMeasure()
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		DesiredSize = SKSize.Empty;
+		_parent?.InvalidateMeasure();
+		Invalidate();
+	}
+
+	public virtual void Draw(SKCanvas canvas)
+	{
+		//IL_00b1: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c5: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00da: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00df: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01d5: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01da: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01ac: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01b1: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01c4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01d3: Expected O, but got Unknown
+		//IL_0218: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01e6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01eb: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01ed: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01f9: Expected O, but got Unknown
+		//IL_01fb: Unknown result type (might be due to invalid IL or missing references)
+		if (!IsVisible || Opacity <= 0f)
+		{
+			return;
+		}
+		canvas.Save();
+		if (Scale != 1.0 || ScaleX != 1.0 || ScaleY != 1.0 || Rotation != 0.0 || RotationX != 0.0 || RotationY != 0.0 || TranslationX != 0.0 || TranslationY != 0.0)
+		{
+			SKRect bounds = Bounds;
+			float left = ((SKRect)(ref bounds)).Left;
+			bounds = Bounds;
+			float num = left + (float)((double)((SKRect)(ref bounds)).Width * AnchorX);
+			bounds = Bounds;
+			float top = ((SKRect)(ref bounds)).Top;
+			bounds = Bounds;
+			float num2 = top + (float)((double)((SKRect)(ref bounds)).Height * AnchorY);
+			canvas.Translate(num, num2);
+			if (TranslationX != 0.0 || TranslationY != 0.0)
+			{
+				canvas.Translate((float)TranslationX, (float)TranslationY);
+			}
+			if (Rotation != 0.0)
+			{
+				canvas.RotateDegrees((float)Rotation);
+			}
+			float num3 = (float)(Scale * ScaleX);
+			float num4 = (float)(Scale * ScaleY);
+			if (num3 != 1f || num4 != 1f)
+			{
+				canvas.Scale(num3, num4);
+			}
+			canvas.Translate(0f - num, 0f - num2);
+		}
+		if (Opacity < 1f)
+		{
+			canvas.SaveLayer(new SKPaint
+			{
+				Color = ((SKColor)(ref SKColors.White)).WithAlpha((byte)(Opacity * 255f))
+			});
+		}
+		if (BackgroundColor != SKColors.Transparent)
+		{
+			SKPaint val = new SKPaint
+			{
+				Color = BackgroundColor
+			};
+			try
+			{
+				canvas.DrawRect(Bounds, val);
+			}
+			finally
+			{
+				((IDisposable)val)?.Dispose();
+			}
+		}
+		OnDraw(canvas, Bounds);
+		foreach (SkiaView child in _children)
+		{
+			child.Draw(canvas);
+		}
+		if (Opacity < 1f)
+		{
+			canvas.Restore();
+		}
+		canvas.Restore();
+	}
+
+	protected virtual void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+	}
+
+	protected virtual void OnBoundsChanged()
+	{
+		Invalidate();
+	}
+
+	public SKSize Measure(SKSize availableSize)
+	{
+		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0003: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+		DesiredSize = MeasureOverride(availableSize);
+		return DesiredSize;
+	}
+
+	protected virtual SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+		float num = ((WidthRequest >= 0.0) ? ((float)WidthRequest) : 0f);
+		float num2 = ((HeightRequest >= 0.0) ? ((float)HeightRequest) : 0f);
+		return new SKSize(num, num2);
+	}
+
+	public virtual void Arrange(SKRect bounds)
+	{
+		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0003: Unknown result type (might be due to invalid IL or missing references)
+		Bounds = ArrangeOverride(bounds);
+	}
+
+	protected virtual SKRect ArrangeOverride(SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		return bounds;
+	}
+
+	public virtual SkiaView? HitTest(SKPoint point)
+	{
+		return HitTest(((SKPoint)(ref point)).X, ((SKPoint)(ref point)).Y);
+	}
+
+	public virtual SkiaView? HitTest(float x, float y)
+	{
+		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+		if (!IsVisible || !IsEnabled)
+		{
+			return null;
+		}
+		SKRect bounds = Bounds;
+		if (!((SKRect)(ref bounds)).Contains(x, y))
+		{
+			return null;
+		}
+		for (int num = _children.Count - 1; num >= 0; num--)
+		{
+			SkiaView skiaView = _children[num].HitTest(x, y);
+			if (skiaView != null)
+			{
+				return skiaView;
+			}
+		}
+		return this;
+	}
+
+	public virtual void OnPointerEntered(PointerEventArgs e)
+	{
+		if (MauiView != null)
+		{
+			GestureManager.ProcessPointerEntered(MauiView, e.X, e.Y);
+		}
+	}
+
+	public virtual void OnPointerExited(PointerEventArgs e)
+	{
+		if (MauiView != null)
+		{
+			GestureManager.ProcessPointerExited(MauiView, e.X, e.Y);
+		}
+	}
+
+	public virtual void OnPointerMoved(PointerEventArgs e)
+	{
+		if (MauiView != null)
+		{
+			GestureManager.ProcessPointerMove(MauiView, e.X, e.Y);
+		}
+	}
+
+	public virtual void OnPointerPressed(PointerEventArgs e)
+	{
+		if (MauiView != null)
+		{
+			GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
+		}
+	}
+
+	public virtual void OnPointerReleased(PointerEventArgs e)
+	{
+		Console.WriteLine("[SkiaView] OnPointerReleased on " + ((object)this).GetType().Name + ", MauiView=" + (((object)MauiView)?.GetType().Name ?? "null"));
+		if (MauiView != null)
+		{
+			GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
+		}
+	}
+
+	public virtual void OnScroll(ScrollEventArgs e)
+	{
+	}
+
+	public virtual void OnKeyDown(KeyEventArgs e)
+	{
+	}
+
+	public virtual void OnKeyUp(KeyEventArgs e)
+	{
+	}
+
+	public virtual void OnTextInput(TextInputEventArgs e)
+	{
+	}
+
+	public virtual void OnFocusGained()
+	{
+		IsFocused = true;
+		Invalidate();
+	}
+
+	public virtual void OnFocusLost()
+	{
+		IsFocused = false;
+		Invalidate();
+	}
+
+	protected virtual void Dispose(bool disposing)
+	{
+		if (_disposed)
+		{
+			return;
+		}
+		if (disposing)
+		{
+			foreach (SkiaView child in _children)
+			{
+				child.Dispose();
+			}
+			_children.Clear();
+		}
+		_disposed = true;
+	}
+
+	public void Dispose()
+	{
+		Dispose(disposing: true);
+		GC.SuppressFinalize(this);
+	}
 }

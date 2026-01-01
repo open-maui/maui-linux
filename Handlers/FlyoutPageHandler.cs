@@ -1,91 +1,94 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
 using Microsoft.Maui.Handlers;
-using Microsoft.Maui.Graphics;
-using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-/// <summary>
-/// Handler for FlyoutPage on Linux using Skia rendering.
-/// Maps IFlyoutView interface to SkiaFlyoutPage platform view.
-/// </summary>
-public partial class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage>
+public class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage>
 {
-    public static IPropertyMapper<IFlyoutView, FlyoutPageHandler> Mapper = new PropertyMapper<IFlyoutView, FlyoutPageHandler>(ViewHandler.ViewMapper)
-    {
-        [nameof(IFlyoutView.IsPresented)] = MapIsPresented,
-        [nameof(IFlyoutView.FlyoutWidth)] = MapFlyoutWidth,
-        [nameof(IFlyoutView.IsGestureEnabled)] = MapIsGestureEnabled,
-        [nameof(IFlyoutView.FlyoutBehavior)] = MapFlyoutBehavior,
-    };
+	public static IPropertyMapper<IFlyoutView, FlyoutPageHandler> Mapper = (IPropertyMapper<IFlyoutView, FlyoutPageHandler>)(object)new PropertyMapper<IFlyoutView, FlyoutPageHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
+	{
+		["IsPresented"] = MapIsPresented,
+		["FlyoutWidth"] = MapFlyoutWidth,
+		["IsGestureEnabled"] = MapIsGestureEnabled,
+		["FlyoutBehavior"] = MapFlyoutBehavior
+	};
 
-    public static CommandMapper<IFlyoutView, FlyoutPageHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
-    {
-    };
+	public static CommandMapper<IFlyoutView, FlyoutPageHandler> CommandMapper = new CommandMapper<IFlyoutView, FlyoutPageHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
 
-    public FlyoutPageHandler() : base(Mapper, CommandMapper)
-    {
-    }
+	public FlyoutPageHandler()
+		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
+	{
+	}
 
-    public FlyoutPageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
-    {
-    }
+	public FlyoutPageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
+	{
+	}
 
-    protected override SkiaFlyoutPage CreatePlatformView()
-    {
-        return new SkiaFlyoutPage();
-    }
+	protected override SkiaFlyoutPage CreatePlatformView()
+	{
+		return new SkiaFlyoutPage();
+	}
 
-    protected override void ConnectHandler(SkiaFlyoutPage platformView)
-    {
-        base.ConnectHandler(platformView);
-        platformView.IsPresentedChanged += OnIsPresentedChanged;
-    }
+	protected override void ConnectHandler(SkiaFlyoutPage platformView)
+	{
+		base.ConnectHandler(platformView);
+		platformView.IsPresentedChanged += OnIsPresentedChanged;
+	}
 
-    protected override void DisconnectHandler(SkiaFlyoutPage platformView)
-    {
-        platformView.IsPresentedChanged -= OnIsPresentedChanged;
-        platformView.Flyout = null;
-        platformView.Detail = null;
-        base.DisconnectHandler(platformView);
-    }
+	protected override void DisconnectHandler(SkiaFlyoutPage platformView)
+	{
+		platformView.IsPresentedChanged -= OnIsPresentedChanged;
+		platformView.Flyout = null;
+		platformView.Detail = null;
+		base.DisconnectHandler(platformView);
+	}
 
-    private void OnIsPresentedChanged(object? sender, EventArgs e)
-    {
-        // Sync back to the virtual view
-    }
+	private void OnIsPresentedChanged(object? sender, EventArgs e)
+	{
+	}
 
-    public static void MapIsPresented(FlyoutPageHandler handler, IFlyoutView flyoutView)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsPresented = flyoutView.IsPresented;
-    }
+	public static void MapIsPresented(FlyoutPageHandler handler, IFlyoutView flyoutView)
+	{
+		if (((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView.IsPresented = flyoutView.IsPresented;
+		}
+	}
 
-    public static void MapFlyoutWidth(FlyoutPageHandler handler, IFlyoutView flyoutView)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.FlyoutWidth = (float)flyoutView.FlyoutWidth;
-    }
+	public static void MapFlyoutWidth(FlyoutPageHandler handler, IFlyoutView flyoutView)
+	{
+		if (((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView.FlyoutWidth = (float)flyoutView.FlyoutWidth;
+		}
+	}
 
-    public static void MapIsGestureEnabled(FlyoutPageHandler handler, IFlyoutView flyoutView)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.GestureEnabled = flyoutView.IsGestureEnabled;
-    }
+	public static void MapIsGestureEnabled(FlyoutPageHandler handler, IFlyoutView flyoutView)
+	{
+		if (((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView.GestureEnabled = flyoutView.IsGestureEnabled;
+		}
+	}
 
-    public static void MapFlyoutBehavior(FlyoutPageHandler handler, IFlyoutView flyoutView)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.FlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
-        {
-            Microsoft.Maui.FlyoutBehavior.Disabled => FlyoutLayoutBehavior.Default,
-            Microsoft.Maui.FlyoutBehavior.Flyout => FlyoutLayoutBehavior.Popover,
-            Microsoft.Maui.FlyoutBehavior.Locked => FlyoutLayoutBehavior.Split,
-            _ => FlyoutLayoutBehavior.Default
-        };
-    }
+	public static void MapFlyoutBehavior(FlyoutPageHandler handler, IFlyoutView flyoutView)
+	{
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0029: Expected I4, but got Unknown
+		if (((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView != null)
+		{
+			SkiaFlyoutPage platformView = ((ViewHandler<IFlyoutView, SkiaFlyoutPage>)(object)handler).PlatformView;
+			FlyoutBehavior flyoutBehavior = flyoutView.FlyoutBehavior;
+			platformView.FlyoutLayoutBehavior = (int)flyoutBehavior switch
+			{
+				0 => FlyoutLayoutBehavior.Default, 
+				1 => FlyoutLayoutBehavior.Popover, 
+				2 => FlyoutLayoutBehavior.Split, 
+				_ => FlyoutLayoutBehavior.Default, 
+			};
+		}
+	}
 }

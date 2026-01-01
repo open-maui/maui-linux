@@ -1,89 +1,133 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using Microsoft.Maui.Handlers;
+using System;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform;
+using Microsoft.Maui.Handlers;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-/// <summary>
-/// Handler for Stepper on Linux using Skia rendering.
-/// </summary>
-public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
+public class StepperHandler : ViewHandler<IStepper, SkiaStepper>
 {
-    public static IPropertyMapper<IStepper, StepperHandler> Mapper =
-        new PropertyMapper<IStepper, StepperHandler>(ViewHandler.ViewMapper)
-        {
-            [nameof(IStepper.Value)] = MapValue,
-            [nameof(IStepper.Minimum)] = MapMinimum,
-            [nameof(IStepper.Maximum)] = MapMaximum,
-            [nameof(IView.Background)] = MapBackground,
-        };
+	public static IPropertyMapper<IStepper, StepperHandler> Mapper = (IPropertyMapper<IStepper, StepperHandler>)(object)new PropertyMapper<IStepper, StepperHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
+	{
+		["Value"] = MapValue,
+		["Minimum"] = MapMinimum,
+		["Maximum"] = MapMaximum,
+		["Increment"] = MapIncrement,
+		["Background"] = MapBackground,
+		["IsEnabled"] = MapIsEnabled
+	};
 
-    public static CommandMapper<IStepper, StepperHandler> CommandMapper =
-        new(ViewHandler.ViewCommandMapper)
-        {
-        };
+	public static CommandMapper<IStepper, StepperHandler> CommandMapper = new CommandMapper<IStepper, StepperHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
 
-    public StepperHandler() : base(Mapper, CommandMapper)
-    {
-    }
+	public StepperHandler()
+		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
+	{
+	}
 
-    public StepperHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
-    {
-    }
+	public StepperHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
+	{
+	}
 
-    protected override SkiaStepper CreatePlatformView()
-    {
-        return new SkiaStepper();
-    }
+	protected override SkiaStepper CreatePlatformView()
+	{
+		return new SkiaStepper();
+	}
 
-    protected override void ConnectHandler(SkiaStepper platformView)
-    {
-        base.ConnectHandler(platformView);
-        platformView.ValueChanged += OnValueChanged;
-    }
+	protected override void ConnectHandler(SkiaStepper platformView)
+	{
+		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002b: Invalid comparison between Unknown and I4
+		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0072: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0094: Unknown result type (might be due to invalid IL or missing references)
+		base.ConnectHandler(platformView);
+		platformView.ValueChanged += OnValueChanged;
+		Application current = Application.Current;
+		if (current != null && (int)current.UserAppTheme == 2)
+		{
+			platformView.ButtonBackgroundColor = new SKColor((byte)66, (byte)66, (byte)66);
+			platformView.ButtonPressedColor = new SKColor((byte)97, (byte)97, (byte)97);
+			platformView.ButtonDisabledColor = new SKColor((byte)48, (byte)48, (byte)48);
+			platformView.SymbolColor = new SKColor((byte)224, (byte)224, (byte)224);
+			platformView.SymbolDisabledColor = new SKColor((byte)97, (byte)97, (byte)97);
+			platformView.BorderColor = new SKColor((byte)97, (byte)97, (byte)97);
+		}
+	}
 
-    protected override void DisconnectHandler(SkiaStepper platformView)
-    {
-        platformView.ValueChanged -= OnValueChanged;
-        base.DisconnectHandler(platformView);
-    }
+	protected override void DisconnectHandler(SkiaStepper platformView)
+	{
+		platformView.ValueChanged -= OnValueChanged;
+		base.DisconnectHandler(platformView);
+	}
 
-    private void OnValueChanged(object? sender, EventArgs e)
-    {
-        if (VirtualView is null || PlatformView is null) return;
-        VirtualView.Value = PlatformView.Value;
-    }
+	private void OnValueChanged(object? sender, EventArgs e)
+	{
+		if (base.VirtualView != null && base.PlatformView != null)
+		{
+			((IRange)base.VirtualView).Value = base.PlatformView.Value;
+		}
+	}
 
-    public static void MapValue(StepperHandler handler, IStepper stepper)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Value = stepper.Value;
-    }
+	public static void MapValue(StepperHandler handler, IStepper stepper)
+	{
+		if (((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView.Value = ((IRange)stepper).Value;
+		}
+	}
 
-    public static void MapMinimum(StepperHandler handler, IStepper stepper)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Minimum = stepper.Minimum;
-    }
+	public static void MapMinimum(StepperHandler handler, IStepper stepper)
+	{
+		if (((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView.Minimum = ((IRange)stepper).Minimum;
+		}
+	}
 
-    public static void MapMaximum(StepperHandler handler, IStepper stepper)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Maximum = stepper.Maximum;
-    }
+	public static void MapMaximum(StepperHandler handler, IStepper stepper)
+	{
+		if (((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView.Maximum = ((IRange)stepper).Maximum;
+		}
+	}
 
-    public static void MapBackground(StepperHandler handler, IStepper stepper)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapBackground(StepperHandler handler, IStepper stepper)
+	{
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView != null)
+		{
+			Paint background = ((IView)stepper).Background;
+			SolidPaint val = (SolidPaint)(object)((background is SolidPaint) ? background : null);
+			if (val != null && val.Color != null)
+			{
+				((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
+			}
+		}
+	}
 
-        if (stepper.Background is SolidPaint solidPaint && solidPaint.Color is not null)
-        {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
-        }
-    }
+	public static void MapIncrement(StepperHandler handler, IStepper stepper)
+	{
+		if (((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView != null)
+		{
+			Stepper val = (Stepper)(object)((stepper is Stepper) ? stepper : null);
+			if (val != null)
+			{
+				((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView.Increment = val.Increment;
+			}
+		}
+	}
+
+	public static void MapIsEnabled(StepperHandler handler, IStepper stepper)
+	{
+		if (((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IStepper, SkiaStepper>)(object)handler).PlatformView.IsEnabled = ((IView)stepper).IsEnabled;
+		}
+	}
 }

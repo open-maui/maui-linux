@@ -1,158 +1,186 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using Microsoft.Maui.Handlers;
-using Microsoft.Maui.Graphics;
+using System;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.Platform;
-using SkiaSharp;
+using Microsoft.Maui.Controls.Shapes;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Hosting;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-/// <summary>
-/// Handler for Border on Linux using Skia rendering.
-/// </summary>
-public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
+public class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
 {
-    public static IPropertyMapper<IBorderView, BorderHandler> Mapper =
-        new PropertyMapper<IBorderView, BorderHandler>(ViewHandler.ViewMapper)
-        {
-            [nameof(IBorderView.Content)] = MapContent,
-            [nameof(IBorderStroke.Stroke)] = MapStroke,
-            [nameof(IBorderStroke.StrokeThickness)] = MapStrokeThickness,
-            ["StrokeShape"] = MapStrokeShape,  // StrokeShape is on Border, not IBorderStroke
-            [nameof(IView.Background)] = MapBackground,
-            ["BackgroundColor"] = MapBackgroundColor,
-            [nameof(IPadding.Padding)] = MapPadding,
-        };
+	public static IPropertyMapper<IBorderView, BorderHandler> Mapper = (IPropertyMapper<IBorderView, BorderHandler>)(object)new PropertyMapper<IBorderView, BorderHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
+	{
+		["Content"] = MapContent,
+		["Stroke"] = MapStroke,
+		["StrokeThickness"] = MapStrokeThickness,
+		["StrokeShape"] = MapStrokeShape,
+		["Background"] = MapBackground,
+		["BackgroundColor"] = MapBackgroundColor,
+		["Padding"] = MapPadding
+	};
 
-    public static CommandMapper<IBorderView, BorderHandler> CommandMapper =
-        new(ViewHandler.ViewCommandMapper)
-        {
-        };
+	public static CommandMapper<IBorderView, BorderHandler> CommandMapper = new CommandMapper<IBorderView, BorderHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
 
-    public BorderHandler() : base(Mapper, CommandMapper)
-    {
-    }
+	public BorderHandler()
+		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
+	{
+	}
 
-    public BorderHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
-    {
-    }
+	public BorderHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
+	{
+	}
 
-    protected override SkiaBorder CreatePlatformView()
-    {
-        return new SkiaBorder();
-    }
+	protected override SkiaBorder CreatePlatformView()
+	{
+		return new SkiaBorder();
+	}
 
-    protected override void ConnectHandler(SkiaBorder platformView)
-    {
-        base.ConnectHandler(platformView);
-    }
+	protected override void ConnectHandler(SkiaBorder platformView)
+	{
+		base.ConnectHandler(platformView);
+		IBorderView virtualView = base.VirtualView;
+		View val = (View)(object)((virtualView is View) ? virtualView : null);
+		if (val != null)
+		{
+			platformView.MauiView = val;
+		}
+		platformView.Tapped += OnPlatformViewTapped;
+	}
 
-    protected override void DisconnectHandler(SkiaBorder platformView)
-    {
-        base.DisconnectHandler(platformView);
-    }
+	protected override void DisconnectHandler(SkiaBorder platformView)
+	{
+		platformView.Tapped -= OnPlatformViewTapped;
+		platformView.MauiView = null;
+		base.DisconnectHandler(platformView);
+	}
 
-    public static void MapContent(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null || handler.MauiContext is null) return;
+	private void OnPlatformViewTapped(object? sender, EventArgs e)
+	{
+		IBorderView virtualView = base.VirtualView;
+		View val = (View)(object)((virtualView is View) ? virtualView : null);
+		if (val != null)
+		{
+			GestureManager.ProcessTap(val, 0.0, 0.0);
+		}
+	}
 
-        handler.PlatformView.ClearChildren();
+	public static void MapContent(BorderHandler handler, IBorderView border)
+	{
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView == null || ((ElementHandler)handler).MauiContext == null)
+		{
+			return;
+		}
+		((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.ClearChildren();
+		IView presentedContent = ((IContentView)border).PresentedContent;
+		if (presentedContent != null)
+		{
+			if (presentedContent.Handler == null)
+			{
+				Console.WriteLine("[BorderHandler] Creating handler for content: " + ((object)presentedContent).GetType().Name);
+				presentedContent.Handler = presentedContent.ToViewHandler(((ElementHandler)handler).MauiContext);
+			}
+			IViewHandler handler2 = presentedContent.Handler;
+			if (((handler2 != null) ? ((IElementHandler)handler2).PlatformView : null) is SkiaView skiaView)
+			{
+				Console.WriteLine("[BorderHandler] Adding content: " + ((object)skiaView).GetType().Name);
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.AddChild(skiaView);
+			}
+		}
+	}
 
-        var content = border.PresentedContent;
-        if (content != null)
-        {
-            // Create handler for content if it doesn't exist
-            if (content.Handler == null)
-            {
-                Console.WriteLine($"[BorderHandler] Creating handler for content: {content.GetType().Name}");
-                content.Handler = content.ToHandler(handler.MauiContext);
-            }
+	public static void MapStroke(BorderHandler handler, IBorderView border)
+	{
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView != null)
+		{
+			Paint stroke = ((IStroke)border).Stroke;
+			SolidPaint val = (SolidPaint)(object)((stroke is SolidPaint) ? stroke : null);
+			if (val != null && val.Color != null)
+			{
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.Stroke = val.Color.ToSKColor();
+			}
+		}
+	}
 
-            if (content.Handler?.PlatformView is SkiaView skiaContent)
-            {
-                Console.WriteLine($"[BorderHandler] Adding content: {skiaContent.GetType().Name}");
-                handler.PlatformView.AddChild(skiaContent);
-            }
-        }
-    }
+	public static void MapStrokeThickness(BorderHandler handler, IBorderView border)
+	{
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.StrokeThickness = (float)((IStroke)border).StrokeThickness;
+		}
+	}
 
-    public static void MapStroke(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapBackground(BorderHandler handler, IBorderView border)
+	{
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView != null)
+		{
+			Paint background = ((IView)border).Background;
+			SolidPaint val = (SolidPaint)(object)((background is SolidPaint) ? background : null);
+			if (val != null && val.Color != null)
+			{
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
+			}
+		}
+	}
 
-        if (border.Stroke is SolidPaint solidPaint && solidPaint.Color is not null)
-        {
-            handler.PlatformView.Stroke = solidPaint.Color.ToSKColor();
-        }
-    }
+	public static void MapBackgroundColor(BorderHandler handler, IBorderView border)
+	{
+		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView != null)
+		{
+			VisualElement val = (VisualElement)(object)((border is VisualElement) ? border : null);
+			if (val != null && val.BackgroundColor != null)
+			{
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.BackgroundColor = val.BackgroundColor.ToSKColor();
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.Invalidate();
+			}
+		}
+	}
 
-    public static void MapStrokeThickness(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.StrokeThickness = (float)border.StrokeThickness;
-    }
+	public static void MapPadding(BorderHandler handler, IBorderView border)
+	{
+		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView != null)
+		{
+			Thickness padding = ((IPadding)border).Padding;
+			((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.PaddingLeft = (float)((Thickness)(ref padding)).Left;
+			((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.PaddingTop = (float)((Thickness)(ref padding)).Top;
+			((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.PaddingRight = (float)((Thickness)(ref padding)).Right;
+			((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.PaddingBottom = (float)((Thickness)(ref padding)).Bottom;
+		}
+	}
 
-    public static void MapBackground(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (border.Background is SolidPaint solidPaint && solidPaint.Color is not null)
-        {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
-        }
-    }
-
-    public static void MapBackgroundColor(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (border is VisualElement ve && ve.BackgroundColor != null)
-        {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
-            handler.PlatformView.Invalidate();
-        }
-    }
-
-    public static void MapPadding(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null) return;
-
-        var padding = border.Padding;
-        handler.PlatformView.PaddingLeft = (float)padding.Left;
-        handler.PlatformView.PaddingTop = (float)padding.Top;
-        handler.PlatformView.PaddingRight = (float)padding.Right;
-        handler.PlatformView.PaddingBottom = (float)padding.Bottom;
-    }
-
-    public static void MapStrokeShape(BorderHandler handler, IBorderView border)
-    {
-        if (handler.PlatformView is null) return;
-
-        // StrokeShape is on the Border control class, not IBorderView interface
-        if (border is not Border borderControl) return;
-
-        var shape = borderControl.StrokeShape;
-        if (shape is Microsoft.Maui.Controls.Shapes.RoundRectangle roundRect)
-        {
-            // RoundRectangle can have different corner radii, but we use a uniform one
-            // Take the top-left corner as the uniform radius
-            var cornerRadius = roundRect.CornerRadius;
-            handler.PlatformView.CornerRadius = (float)cornerRadius.TopLeft;
-        }
-        else if (shape is Microsoft.Maui.Controls.Shapes.Rectangle)
-        {
-            handler.PlatformView.CornerRadius = 0;
-        }
-        else if (shape is Microsoft.Maui.Controls.Shapes.Ellipse)
-        {
-            // For ellipse, use half the min dimension as corner radius
-            // This will be applied during rendering when bounds are known
-            handler.PlatformView.CornerRadius = float.MaxValue; // Marker for "fully rounded"
-        }
-
-        handler.PlatformView.Invalidate();
-    }
+	public static void MapStrokeShape(BorderHandler handler, IBorderView border)
+	{
+		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView == null)
+		{
+			return;
+		}
+		Border val = (Border)(object)((border is Border) ? border : null);
+		if (val != null)
+		{
+			IShape strokeShape = val.StrokeShape;
+			RoundRectangle val2 = (RoundRectangle)(object)((strokeShape is RoundRectangle) ? strokeShape : null);
+			if (val2 != null)
+			{
+				CornerRadius cornerRadius = val2.CornerRadius;
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.CornerRadius = (float)((CornerRadius)(ref cornerRadius)).TopLeft;
+			}
+			else if (strokeShape is Rectangle)
+			{
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.CornerRadius = 0f;
+			}
+			else if (strokeShape is Ellipse)
+			{
+				((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.CornerRadius = float.MaxValue;
+			}
+			((ViewHandler<IBorderView, SkiaBorder>)(object)handler).PlatformView.Invalidate();
+		}
+	}
 }

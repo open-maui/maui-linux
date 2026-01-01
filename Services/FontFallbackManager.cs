@@ -1,310 +1,186 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-/// <summary>
-/// Manages font fallback for text rendering when the primary font
-/// doesn't contain glyphs for certain characters (emoji, CJK, etc.).
-/// </summary>
 public class FontFallbackManager
 {
-    private static FontFallbackManager? _instance;
-    private static readonly object _lock = new();
+	private static FontFallbackManager? _instance;
 
-    /// <summary>
-    /// Gets the singleton instance of the font fallback manager.
-    /// </summary>
-    public static FontFallbackManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                lock (_lock)
-                {
-                    _instance ??= new FontFallbackManager();
-                }
-            }
-            return _instance;
-        }
-    }
+	private static readonly object _lock = new object();
 
-    // Fallback font chain ordered by priority
-    private readonly string[] _fallbackFonts = new[]
-    {
-        // Primary sans-serif fonts
-        "Noto Sans",
-        "DejaVu Sans",
-        "Liberation Sans",
-        "FreeSans",
+	private readonly string[] _fallbackFonts = new string[27]
+	{
+		"Noto Sans", "DejaVu Sans", "Liberation Sans", "FreeSans", "Noto Color Emoji", "Noto Emoji", "Symbola", "Segoe UI Emoji", "Noto Sans CJK SC", "Noto Sans CJK TC",
+		"Noto Sans CJK JP", "Noto Sans CJK KR", "WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Droid Sans Fallback", "Noto Sans Arabic", "Noto Naskh Arabic", "DejaVu Sans", "Noto Sans Devanagari", "Noto Sans Tamil",
+		"Noto Sans Bengali", "Noto Sans Telugu", "Noto Sans Thai", "Loma", "Noto Sans Hebrew", "Sans", "sans-serif"
+	};
 
-        // Emoji fonts
-        "Noto Color Emoji",
-        "Noto Emoji",
-        "Symbola",
-        "Segoe UI Emoji",
+	private readonly Dictionary<string, SKTypeface?> _typefaceCache = new Dictionary<string, SKTypeface>();
 
-        // CJK fonts (Chinese, Japanese, Korean)
-        "Noto Sans CJK SC",
-        "Noto Sans CJK TC",
-        "Noto Sans CJK JP",
-        "Noto Sans CJK KR",
-        "WenQuanYi Micro Hei",
-        "WenQuanYi Zen Hei",
-        "Droid Sans Fallback",
+	private readonly Dictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new Dictionary<(int, string), SKTypeface>();
 
-        // Arabic and RTL scripts
-        "Noto Sans Arabic",
-        "Noto Naskh Arabic",
-        "DejaVu Sans",
+	public static FontFallbackManager Instance
+	{
+		get
+		{
+			if (_instance == null)
+			{
+				lock (_lock)
+				{
+					if (_instance == null)
+					{
+						_instance = new FontFallbackManager();
+					}
+				}
+			}
+			return _instance;
+		}
+	}
 
-        // Indic scripts
-        "Noto Sans Devanagari",
-        "Noto Sans Tamil",
-        "Noto Sans Bengali",
-        "Noto Sans Telugu",
+	private FontFallbackManager()
+	{
+		foreach (string item in _fallbackFonts.Take(10))
+		{
+			GetCachedTypeface(item);
+		}
+	}
 
-        // Thai
-        "Noto Sans Thai",
-        "Loma",
+	public SKTypeface GetTypefaceForCodepoint(int codepoint, SKTypeface preferred)
+	{
+		(int, string) key = (codepoint, preferred.FamilyName);
+		if (_glyphCache.TryGetValue(key, out SKTypeface value))
+		{
+			return value ?? preferred;
+		}
+		if (TypefaceContainsGlyph(preferred, codepoint))
+		{
+			_glyphCache[key] = preferred;
+			return preferred;
+		}
+		string[] fallbackFonts = _fallbackFonts;
+		foreach (string fontFamily in fallbackFonts)
+		{
+			SKTypeface cachedTypeface = GetCachedTypeface(fontFamily);
+			if (cachedTypeface != null && TypefaceContainsGlyph(cachedTypeface, codepoint))
+			{
+				_glyphCache[key] = cachedTypeface;
+				return cachedTypeface;
+			}
+		}
+		_glyphCache[key] = null;
+		return preferred;
+	}
 
-        // Hebrew
-        "Noto Sans Hebrew",
+	public SKTypeface GetTypefaceForText(string text, SKTypeface preferred)
+	{
+		if (string.IsNullOrEmpty(text))
+		{
+			return preferred;
+		}
+		foreach (Rune item in text.EnumerateRunes())
+		{
+			if (item.Value > 127)
+			{
+				return GetTypefaceForCodepoint(item.Value, preferred);
+			}
+		}
+		return preferred;
+	}
 
-        // System fallbacks
-        "Sans",
-        "sans-serif"
-    };
+	public List<TextRun> ShapeTextWithFallback(string text, SKTypeface preferred)
+	{
+		List<TextRun> list = new List<TextRun>();
+		if (string.IsNullOrEmpty(text))
+		{
+			return list;
+		}
+		_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder _003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2 = new _003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder();
+		SKTypeface val = null;
+		int startIndex = 0;
+		int num = 0;
+		foreach (Rune item in text.EnumerateRunes())
+		{
+			SKTypeface typefaceForCodepoint = GetTypefaceForCodepoint(item.Value, preferred);
+			if (val == null)
+			{
+				val = typefaceForCodepoint;
+			}
+			else if (typefaceForCodepoint.FamilyName != val.FamilyName)
+			{
+				if (_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2.Length > 0)
+				{
+					list.Add(new TextRun(_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2.ToString(), val, startIndex));
+				}
+				_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2.Clear();
+				val = typefaceForCodepoint;
+				startIndex = num;
+			}
+			_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2.Append(item.ToString());
+			num += item.Utf16SequenceLength;
+		}
+		if (_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2.Length > 0 && val != null)
+		{
+			list.Add(new TextRun(_003CFontFallbackManager_003EFAC9D2911A2850E174CCA7662C668F37C2FBBA325CAF5C11AFE3FA59C16CC64ED__StringBuilder2.ToString(), val, startIndex));
+		}
+		return list;
+	}
 
-    // Cache for typeface lookups
-    private readonly Dictionary<string, SKTypeface?> _typefaceCache = new();
-    private readonly Dictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new();
+	public bool IsFontAvailable(string fontFamily)
+	{
+		SKTypeface cachedTypeface = GetCachedTypeface(fontFamily);
+		if (cachedTypeface != null)
+		{
+			return cachedTypeface.FamilyName.Equals(fontFamily, StringComparison.OrdinalIgnoreCase);
+		}
+		return false;
+	}
 
-    private FontFallbackManager()
-    {
-        // Pre-cache common fallback fonts
-        foreach (var fontName in _fallbackFonts.Take(10))
-        {
-            GetCachedTypeface(fontName);
-        }
-    }
+	public IEnumerable<string> GetAvailableFallbackFonts()
+	{
+		string[] fallbackFonts = _fallbackFonts;
+		foreach (string text in fallbackFonts)
+		{
+			if (IsFontAvailable(text))
+			{
+				yield return text;
+			}
+		}
+	}
 
-    /// <summary>
-    /// Gets a typeface that can render the specified codepoint.
-    /// Falls back through the font chain if the preferred font doesn't support it.
-    /// </summary>
-    /// <param name="codepoint">The Unicode codepoint to render.</param>
-    /// <param name="preferred">The preferred typeface to use.</param>
-    /// <returns>A typeface that can render the codepoint, or the preferred typeface as fallback.</returns>
-    public SKTypeface GetTypefaceForCodepoint(int codepoint, SKTypeface preferred)
-    {
-        // Check cache first
-        var cacheKey = (codepoint, preferred.FamilyName);
-        if (_glyphCache.TryGetValue(cacheKey, out var cached))
-        {
-            return cached ?? preferred;
-        }
+	private SKTypeface? GetCachedTypeface(string fontFamily)
+	{
+		if (_typefaceCache.TryGetValue(fontFamily, out SKTypeface value))
+		{
+			return value;
+		}
+		SKTypeface val = SKTypeface.FromFamilyName(fontFamily);
+		if (val != null && !val.FamilyName.Equals(fontFamily, StringComparison.OrdinalIgnoreCase))
+		{
+			val = null;
+		}
+		_typefaceCache[fontFamily] = val;
+		return val;
+	}
 
-        // Check if preferred font has the glyph
-        if (TypefaceContainsGlyph(preferred, codepoint))
-        {
-            _glyphCache[cacheKey] = preferred;
-            return preferred;
-        }
-
-        // Search fallback fonts
-        foreach (var fontName in _fallbackFonts)
-        {
-            var fallback = GetCachedTypeface(fontName);
-            if (fallback != null && TypefaceContainsGlyph(fallback, codepoint))
-            {
-                _glyphCache[cacheKey] = fallback;
-                return fallback;
-            }
-        }
-
-        // No fallback found, return preferred (will show tofu)
-        _glyphCache[cacheKey] = null;
-        return preferred;
-    }
-
-    /// <summary>
-    /// Gets a typeface that can render all codepoints in the text.
-    /// For mixed scripts, use ShapeTextWithFallback instead.
-    /// </summary>
-    public SKTypeface GetTypefaceForText(string text, SKTypeface preferred)
-    {
-        if (string.IsNullOrEmpty(text))
-            return preferred;
-
-        // Check first non-ASCII character
-        foreach (var rune in text.EnumerateRunes())
-        {
-            if (rune.Value > 127)
-            {
-                return GetTypefaceForCodepoint(rune.Value, preferred);
-            }
-        }
-
-        return preferred;
-    }
-
-    /// <summary>
-    /// Shapes text with automatic font fallback for mixed scripts.
-    /// Returns a list of text runs, each with its own typeface.
-    /// </summary>
-    public List<TextRun> ShapeTextWithFallback(string text, SKTypeface preferred)
-    {
-        var runs = new List<TextRun>();
-        if (string.IsNullOrEmpty(text))
-            return runs;
-
-        var currentRun = new StringBuilder();
-        SKTypeface? currentTypeface = null;
-        int runStart = 0;
-
-        int charIndex = 0;
-        foreach (var rune in text.EnumerateRunes())
-        {
-            var typeface = GetTypefaceForCodepoint(rune.Value, preferred);
-
-            if (currentTypeface == null)
-            {
-                currentTypeface = typeface;
-            }
-            else if (typeface.FamilyName != currentTypeface.FamilyName)
-            {
-                // Typeface changed - save current run
-                if (currentRun.Length > 0)
-                {
-                    runs.Add(new TextRun(currentRun.ToString(), currentTypeface, runStart));
-                }
-                currentRun.Clear();
-                currentTypeface = typeface;
-                runStart = charIndex;
-            }
-
-            currentRun.Append(rune.ToString());
-            charIndex += rune.Utf16SequenceLength;
-        }
-
-        // Add final run
-        if (currentRun.Length > 0 && currentTypeface != null)
-        {
-            runs.Add(new TextRun(currentRun.ToString(), currentTypeface, runStart));
-        }
-
-        return runs;
-    }
-
-    /// <summary>
-    /// Checks if a typeface is available on the system.
-    /// </summary>
-    public bool IsFontAvailable(string fontFamily)
-    {
-        var typeface = GetCachedTypeface(fontFamily);
-        return typeface != null && typeface.FamilyName.Equals(fontFamily, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Gets a list of available fallback fonts on this system.
-    /// </summary>
-    public IEnumerable<string> GetAvailableFallbackFonts()
-    {
-        foreach (var fontName in _fallbackFonts)
-        {
-            if (IsFontAvailable(fontName))
-            {
-                yield return fontName;
-            }
-        }
-    }
-
-    private SKTypeface? GetCachedTypeface(string fontFamily)
-    {
-        if (_typefaceCache.TryGetValue(fontFamily, out var cached))
-        {
-            return cached;
-        }
-
-        var typeface = SKTypeface.FromFamilyName(fontFamily);
-
-        // Check if we actually got the requested font or a substitution
-        if (typeface != null && !typeface.FamilyName.Equals(fontFamily, StringComparison.OrdinalIgnoreCase))
-        {
-            // Got a substitution, don't cache it as the requested font
-            typeface = null;
-        }
-
-        _typefaceCache[fontFamily] = typeface;
-        return typeface;
-    }
-
-    private bool TypefaceContainsGlyph(SKTypeface typeface, int codepoint)
-    {
-        // Use SKFont to check glyph coverage
-        using var font = new SKFont(typeface, 12);
-        var glyphs = new ushort[1];
-        var chars = char.ConvertFromUtf32(codepoint);
-        font.GetGlyphs(chars, glyphs);
-
-        // Glyph ID 0 is the "missing glyph" (tofu)
-        return glyphs[0] != 0;
-    }
-}
-
-/// <summary>
-/// Represents a run of text with a specific typeface.
-/// </summary>
-public class TextRun
-{
-    /// <summary>
-    /// The text content of this run.
-    /// </summary>
-    public string Text { get; }
-
-    /// <summary>
-    /// The typeface to use for this run.
-    /// </summary>
-    public SKTypeface Typeface { get; }
-
-    /// <summary>
-    /// The starting character index in the original string.
-    /// </summary>
-    public int StartIndex { get; }
-
-    public TextRun(string text, SKTypeface typeface, int startIndex)
-    {
-        Text = text;
-        Typeface = typeface;
-        StartIndex = startIndex;
-    }
-}
-
-/// <summary>
-/// StringBuilder for internal use.
-/// </summary>
-file class StringBuilder
-{
-    private readonly List<char> _chars = new();
-
-    public int Length => _chars.Count;
-
-    public void Append(string s)
-    {
-        _chars.AddRange(s);
-    }
-
-    public void Clear()
-    {
-        _chars.Clear();
-    }
-
-    public override string ToString()
-    {
-        return new string(_chars.ToArray());
-    }
+	private bool TypefaceContainsGlyph(SKTypeface typeface, int codepoint)
+	{
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0016: Expected O, but got Unknown
+		SKFont val = new SKFont(typeface, 12f, 1f, 0f);
+		try
+		{
+			ushort[] array = new ushort[1];
+			string text = char.ConvertFromUtf32(codepoint);
+			val.GetGlyphs(text, (Span<ushort>)array);
+			return array[0] != 0;
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
 }

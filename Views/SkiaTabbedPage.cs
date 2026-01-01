@@ -1,422 +1,443 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// A page that displays tabs for navigation between child pages.
-/// </summary>
 public class SkiaTabbedPage : SkiaLayoutView
 {
-    private readonly List<TabItem> _tabs = new();
-    private int _selectedIndex = 0;
-    private float _tabBarHeight = 48f;
-    private bool _tabBarOnBottom = false;
+	private readonly List<TabItem> _tabs = new List<TabItem>();
 
-    /// <summary>
-    /// Gets or sets the height of the tab bar.
-    /// </summary>
-    public float TabBarHeight
-    {
-        get => _tabBarHeight;
-        set
-        {
-            if (_tabBarHeight != value)
-            {
-                _tabBarHeight = value;
-                InvalidateMeasure();
-                Invalidate();
-            }
-        }
-    }
+	private int _selectedIndex;
 
-    /// <summary>
-    /// Gets or sets whether the tab bar is positioned at the bottom.
-    /// </summary>
-    public bool TabBarOnBottom
-    {
-        get => _tabBarOnBottom;
-        set
-        {
-            if (_tabBarOnBottom != value)
-            {
-                _tabBarOnBottom = value;
-                Invalidate();
-            }
-        }
-    }
+	private float _tabBarHeight = 48f;
 
-    /// <summary>
-    /// Gets or sets the selected tab index.
-    /// </summary>
-    public int SelectedIndex
-    {
-        get => _selectedIndex;
-        set
-        {
-            if (value >= 0 && value < _tabs.Count && _selectedIndex != value)
-            {
-                _selectedIndex = value;
-                SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
-                Invalidate();
-            }
-        }
-    }
+	private bool _tabBarOnBottom;
 
-    /// <summary>
-    /// Gets the currently selected tab.
-    /// </summary>
-    public TabItem? SelectedTab => _selectedIndex >= 0 && _selectedIndex < _tabs.Count
-        ? _tabs[_selectedIndex]
-        : null;
+	public float TabBarHeight
+	{
+		get
+		{
+			return _tabBarHeight;
+		}
+		set
+		{
+			if (_tabBarHeight != value)
+			{
+				_tabBarHeight = value;
+				InvalidateMeasure();
+				Invalidate();
+			}
+		}
+	}
 
-    /// <summary>
-    /// Gets the tabs in this page.
-    /// </summary>
-    public IReadOnlyList<TabItem> Tabs => _tabs;
+	public bool TabBarOnBottom
+	{
+		get
+		{
+			return _tabBarOnBottom;
+		}
+		set
+		{
+			if (_tabBarOnBottom != value)
+			{
+				_tabBarOnBottom = value;
+				Invalidate();
+			}
+		}
+	}
 
-    /// <summary>
-    /// Background color for the tab bar.
-    /// </summary>
-    public SKColor TabBarBackgroundColor { get; set; } = new SKColor(33, 150, 243); // Material Blue
+	public int SelectedIndex
+	{
+		get
+		{
+			return _selectedIndex;
+		}
+		set
+		{
+			if (value >= 0 && value < _tabs.Count && _selectedIndex != value)
+			{
+				_selectedIndex = value;
+				this.SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
+				Invalidate();
+			}
+		}
+	}
 
-    /// <summary>
-    /// Color for selected tab text/icon.
-    /// </summary>
-    public SKColor SelectedTabColor { get; set; } = SKColors.White;
+	public TabItem? SelectedTab
+	{
+		get
+		{
+			if (_selectedIndex < 0 || _selectedIndex >= _tabs.Count)
+			{
+				return null;
+			}
+			return _tabs[_selectedIndex];
+		}
+	}
 
-    /// <summary>
-    /// Color for unselected tab text/icon.
-    /// </summary>
-    public SKColor UnselectedTabColor { get; set; } = new SKColor(255, 255, 255, 180);
+	public IReadOnlyList<TabItem> Tabs => _tabs;
 
-    /// <summary>
-    /// Color of the selection indicator.
-    /// </summary>
-    public SKColor IndicatorColor { get; set; } = SKColors.White;
+	public SKColor TabBarBackgroundColor { get; set; } = new SKColor((byte)33, (byte)150, (byte)243);
 
-    /// <summary>
-    /// Height of the selection indicator.
-    /// </summary>
-    public float IndicatorHeight { get; set; } = 3f;
+	public SKColor SelectedTabColor { get; set; } = SKColors.White;
 
-    /// <summary>
-    /// Event raised when the selected index changes.
-    /// </summary>
-    public event EventHandler? SelectedIndexChanged;
+	public SKColor UnselectedTabColor { get; set; } = new SKColor(byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)180);
 
-    /// <summary>
-    /// Adds a tab with the specified title and content.
-    /// </summary>
-    public void AddTab(string title, SkiaView content, string? iconPath = null)
-    {
-        var tab = new TabItem
-        {
-            Title = title,
-            Content = content,
-            IconPath = iconPath
-        };
+	public SKColor IndicatorColor { get; set; } = SKColors.White;
 
-        _tabs.Add(tab);
-        AddChild(content);
+	public float IndicatorHeight { get; set; } = 3f;
 
-        if (_tabs.Count == 1)
-        {
-            _selectedIndex = 0;
-        }
+	public event EventHandler? SelectedIndexChanged;
 
-        InvalidateMeasure();
-        Invalidate();
-    }
+	public void AddTab(string title, SkiaView content, string? iconPath = null)
+	{
+		TabItem item = new TabItem
+		{
+			Title = title,
+			Content = content,
+			IconPath = iconPath
+		};
+		_tabs.Add(item);
+		AddChild(content);
+		if (_tabs.Count == 1)
+		{
+			_selectedIndex = 0;
+		}
+		InvalidateMeasure();
+		Invalidate();
+	}
 
-    /// <summary>
-    /// Removes a tab at the specified index.
-    /// </summary>
-    public void RemoveTab(int index)
-    {
-        if (index >= 0 && index < _tabs.Count)
-        {
-            var tab = _tabs[index];
-            _tabs.RemoveAt(index);
-            RemoveChild(tab.Content);
+	public void RemoveTab(int index)
+	{
+		if (index >= 0 && index < _tabs.Count)
+		{
+			TabItem tabItem = _tabs[index];
+			_tabs.RemoveAt(index);
+			RemoveChild(tabItem.Content);
+			if (_selectedIndex >= _tabs.Count)
+			{
+				_selectedIndex = Math.Max(0, _tabs.Count - 1);
+			}
+			InvalidateMeasure();
+			Invalidate();
+		}
+	}
 
-            if (_selectedIndex >= _tabs.Count)
-            {
-                _selectedIndex = Math.Max(0, _tabs.Count - 1);
-            }
+	public void ClearTabs()
+	{
+		foreach (TabItem tab in _tabs)
+		{
+			RemoveChild(tab.Content);
+		}
+		_tabs.Clear();
+		_selectedIndex = 0;
+		InvalidateMeasure();
+		Invalidate();
+	}
 
-            InvalidateMeasure();
-            Invalidate();
-        }
-    }
+	protected override SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_0038: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0039: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+		float num = ((SKSize)(ref availableSize)).Height - TabBarHeight;
+		SKSize availableSize2 = default(SKSize);
+		((SKSize)(ref availableSize2))._002Ector(((SKSize)(ref availableSize)).Width, num);
+		foreach (TabItem tab in _tabs)
+		{
+			tab.Content.Measure(availableSize2);
+		}
+		return availableSize;
+	}
 
-    /// <summary>
-    /// Clears all tabs.
-    /// </summary>
-    public void ClearTabs()
-    {
-        foreach (var tab in _tabs)
-        {
-            RemoveChild(tab.Content);
-        }
-        _tabs.Clear();
-        _selectedIndex = 0;
-        InvalidateMeasure();
-        Invalidate();
-    }
+	protected override SKRect ArrangeOverride(SKRect bounds)
+	{
+		//IL_0078: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+		SKRect bounds2 = default(SKRect);
+		if (TabBarOnBottom)
+		{
+			((SKRect)(ref bounds2))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom - TabBarHeight);
+		}
+		else
+		{
+			((SKRect)(ref bounds2))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top + TabBarHeight, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom);
+		}
+		foreach (TabItem tab in _tabs)
+		{
+			tab.Content.Arrange(bounds2);
+		}
+		return bounds;
+	}
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
-    {
-        // Measure the content area (excluding tab bar)
-        var contentHeight = availableSize.Height - TabBarHeight;
-        var contentSize = new SKSize(availableSize.Width, contentHeight);
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		canvas.Save();
+		canvas.ClipRect(bounds, (SKClipOperation)1, false);
+		DrawTabBar(canvas);
+		if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
+		{
+			_tabs[_selectedIndex].Content.Draw(canvas);
+		}
+		canvas.Restore();
+	}
 
-        foreach (var tab in _tabs)
-        {
-            tab.Content.Measure(contentSize);
-        }
+	private void DrawTabBar(SKCanvas canvas)
+	{
+		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0066: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0075: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0084: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0089: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0030: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a3: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a5: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00af: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00be: Expected O, but got Unknown
+		//IL_00bf: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ed: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0104: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0110: Expected O, but got Unknown
+		//IL_0172: Unknown result type (might be due to invalid IL or missing references)
+		//IL_016a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0186: Unknown result type (might be due to invalid IL or missing references)
+		//IL_020a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_020f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0211: Unknown result type (might be due to invalid IL or missing references)
+		//IL_021b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0222: Unknown result type (might be due to invalid IL or missing references)
+		//IL_022b: Expected O, but got Unknown
+		//IL_0270: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0275: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0278: Unknown result type (might be due to invalid IL or missing references)
+		SKRect bounds;
+		SKRect val = default(SKRect);
+		if (TabBarOnBottom)
+		{
+			bounds = base.Bounds;
+			float left = ((SKRect)(ref bounds)).Left;
+			bounds = base.Bounds;
+			float num = ((SKRect)(ref bounds)).Bottom - TabBarHeight;
+			bounds = base.Bounds;
+			float right = ((SKRect)(ref bounds)).Right;
+			bounds = base.Bounds;
+			((SKRect)(ref val))._002Ector(left, num, right, ((SKRect)(ref bounds)).Bottom);
+		}
+		else
+		{
+			bounds = base.Bounds;
+			float left2 = ((SKRect)(ref bounds)).Left;
+			bounds = base.Bounds;
+			float top = ((SKRect)(ref bounds)).Top;
+			bounds = base.Bounds;
+			float right2 = ((SKRect)(ref bounds)).Right;
+			bounds = base.Bounds;
+			((SKRect)(ref val))._002Ector(left2, top, right2, ((SKRect)(ref bounds)).Top + TabBarHeight);
+		}
+		SKPaint val2 = new SKPaint
+		{
+			Color = TabBarBackgroundColor,
+			Style = (SKPaintStyle)0,
+			IsAntialias = true
+		};
+		try
+		{
+			canvas.DrawRect(val, val2);
+			if (_tabs.Count == 0)
+			{
+				return;
+			}
+			float num2 = ((SKRect)(ref val)).Width / (float)_tabs.Count;
+			SKPaint val3 = new SKPaint
+			{
+				IsAntialias = true,
+				TextSize = 14f,
+				Typeface = SKTypeface.Default
+			};
+			try
+			{
+				SKRect val4 = default(SKRect);
+				for (int i = 0; i < _tabs.Count; i++)
+				{
+					TabItem tabItem = _tabs[i];
+					((SKRect)(ref val4))._002Ector(((SKRect)(ref val)).Left + (float)i * num2, ((SKRect)(ref val)).Top, ((SKRect)(ref val)).Left + (float)(i + 1) * num2, ((SKRect)(ref val)).Bottom);
+					bool flag = i == _selectedIndex;
+					val3.Color = (flag ? SelectedTabColor : UnselectedTabColor);
+					val3.FakeBoldText = flag;
+					SKRect val5 = default(SKRect);
+					val3.MeasureText(tabItem.Title, ref val5);
+					float num3 = ((SKRect)(ref val4)).MidX - ((SKRect)(ref val5)).MidX;
+					float num4 = ((SKRect)(ref val4)).MidY - ((SKRect)(ref val5)).MidY;
+					canvas.DrawText(tabItem.Title, num3, num4, val3);
+				}
+				if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
+				{
+					SKPaint val6 = new SKPaint
+					{
+						Color = IndicatorColor,
+						Style = (SKPaintStyle)0,
+						IsAntialias = true
+					};
+					try
+					{
+						float num5 = ((SKRect)(ref val)).Left + (float)_selectedIndex * num2;
+						float num6 = (TabBarOnBottom ? ((SKRect)(ref val)).Top : (((SKRect)(ref val)).Bottom - IndicatorHeight));
+						SKRect val7 = new SKRect(num5, num6, num5 + num2, num6 + IndicatorHeight);
+						canvas.DrawRect(val7, val6);
+						return;
+					}
+					finally
+					{
+						((IDisposable)val6)?.Dispose();
+					}
+				}
+			}
+			finally
+			{
+				((IDisposable)val3)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val2)?.Dispose();
+		}
+	}
 
-        return availableSize;
-    }
+	public override SkiaView? HitTest(float x, float y)
+	{
+		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0074: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0090: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0099: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0058: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+		if (base.IsVisible)
+		{
+			SKRect bounds = base.Bounds;
+			if (((SKRect)(ref bounds)).Contains(x, y))
+			{
+				SKRect val = default(SKRect);
+				if (TabBarOnBottom)
+				{
+					bounds = base.Bounds;
+					float left = ((SKRect)(ref bounds)).Left;
+					bounds = base.Bounds;
+					float num = ((SKRect)(ref bounds)).Bottom - TabBarHeight;
+					bounds = base.Bounds;
+					float right = ((SKRect)(ref bounds)).Right;
+					bounds = base.Bounds;
+					((SKRect)(ref val))._002Ector(left, num, right, ((SKRect)(ref bounds)).Bottom);
+				}
+				else
+				{
+					bounds = base.Bounds;
+					float left2 = ((SKRect)(ref bounds)).Left;
+					bounds = base.Bounds;
+					float top = ((SKRect)(ref bounds)).Top;
+					bounds = base.Bounds;
+					float right2 = ((SKRect)(ref bounds)).Right;
+					bounds = base.Bounds;
+					((SKRect)(ref val))._002Ector(left2, top, right2, ((SKRect)(ref bounds)).Top + TabBarHeight);
+				}
+				if (((SKRect)(ref val)).Contains(x, y))
+				{
+					return this;
+				}
+				if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
+				{
+					SkiaView skiaView = _tabs[_selectedIndex].Content.HitTest(x, y);
+					if (skiaView != null)
+					{
+						return skiaView;
+					}
+				}
+				return this;
+			}
+		}
+		return null;
+	}
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
-    {
-        // Calculate content bounds based on tab bar position
-        SKRect contentBounds;
-        if (TabBarOnBottom)
-        {
-            contentBounds = new SKRect(
-                bounds.Left,
-                bounds.Top,
-                bounds.Right,
-                bounds.Bottom - TabBarHeight);
-        }
-        else
-        {
-            contentBounds = new SKRect(
-                bounds.Left,
-                bounds.Top + TabBarHeight,
-                bounds.Right,
-                bounds.Bottom);
-        }
-
-        // Arrange each tab's content to fill the content area
-        foreach (var tab in _tabs)
-        {
-            tab.Content.Arrange(contentBounds);
-        }
-
-        return bounds;
-    }
-
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        canvas.Save();
-        canvas.ClipRect(bounds);
-
-        // Draw tab bar background
-        DrawTabBar(canvas);
-
-        // Draw selected content
-        if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
-        {
-            _tabs[_selectedIndex].Content.Draw(canvas);
-        }
-
-        canvas.Restore();
-    }
-
-    private void DrawTabBar(SKCanvas canvas)
-    {
-        // Calculate tab bar bounds
-        SKRect tabBarBounds;
-        if (TabBarOnBottom)
-        {
-            tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
-        }
-        else
-        {
-            tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
-        }
-
-        // Draw background
-        using var bgPaint = new SKPaint
-        {
-            Color = TabBarBackgroundColor,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRect(tabBarBounds, bgPaint);
-
-        if (_tabs.Count == 0) return;
-
-        // Calculate tab width
-        float tabWidth = tabBarBounds.Width / _tabs.Count;
-
-        // Draw tabs
-        using var textPaint = new SKPaint
-        {
-            IsAntialias = true,
-            TextSize = 14f,
-            Typeface = SKTypeface.Default
-        };
-
-        for (int i = 0; i < _tabs.Count; i++)
-        {
-            var tab = _tabs[i];
-            var tabBounds = new SKRect(
-                tabBarBounds.Left + i * tabWidth,
-                tabBarBounds.Top,
-                tabBarBounds.Left + (i + 1) * tabWidth,
-                tabBarBounds.Bottom);
-
-            bool isSelected = i == _selectedIndex;
-            textPaint.Color = isSelected ? SelectedTabColor : UnselectedTabColor;
-            textPaint.FakeBoldText = isSelected;
-
-            // Draw tab title centered
-            var textBounds = new SKRect();
-            textPaint.MeasureText(tab.Title, ref textBounds);
-
-            float textX = tabBounds.MidX - textBounds.MidX;
-            float textY = tabBounds.MidY - textBounds.MidY;
-
-            canvas.DrawText(tab.Title, textX, textY, textPaint);
-        }
-
-        // Draw selection indicator
-        if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
-        {
-            using var indicatorPaint = new SKPaint
-            {
-                Color = IndicatorColor,
-                Style = SKPaintStyle.Fill,
-                IsAntialias = true
-            };
-
-            float indicatorLeft = tabBarBounds.Left + _selectedIndex * tabWidth;
-            float indicatorTop = TabBarOnBottom
-                ? tabBarBounds.Top
-                : tabBarBounds.Bottom - IndicatorHeight;
-
-            var indicatorRect = new SKRect(
-                indicatorLeft,
-                indicatorTop,
-                indicatorLeft + tabWidth,
-                indicatorTop + IndicatorHeight);
-
-            canvas.DrawRect(indicatorRect, indicatorPaint);
-        }
-    }
-
-    public override SkiaView? HitTest(float x, float y)
-    {
-        if (!IsVisible || !Bounds.Contains(x, y)) return null;
-
-        // Check if hit is in tab bar
-        SKRect tabBarBounds;
-        if (TabBarOnBottom)
-        {
-            tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
-        }
-        else
-        {
-            tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
-        }
-
-        if (tabBarBounds.Contains(x, y))
-        {
-            return this; // Tab bar handles its own hits
-        }
-
-        // Check selected content
-        if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
-        {
-            var hit = _tabs[_selectedIndex].Content.HitTest(x, y);
-            if (hit != null) return hit;
-        }
-
-        return this;
-    }
-
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        // Check if click is in tab bar
-        SKRect tabBarBounds;
-        if (TabBarOnBottom)
-        {
-            tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
-        }
-        else
-        {
-            tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
-        }
-
-        if (tabBarBounds.Contains(e.X, e.Y) && _tabs.Count > 0)
-        {
-            // Calculate which tab was clicked
-            float tabWidth = tabBarBounds.Width / _tabs.Count;
-            int clickedIndex = (int)((e.X - tabBarBounds.Left) / tabWidth);
-            clickedIndex = Math.Clamp(clickedIndex, 0, _tabs.Count - 1);
-
-            SelectedIndex = clickedIndex;
-            e.Handled = true;
-        }
-
-        base.OnPointerPressed(e);
-    }
-}
-
-/// <summary>
-/// Represents a tab item with title, icon, and content.
-/// </summary>
-public class TabItem
-{
-    /// <summary>
-    /// The title displayed in the tab.
-    /// </summary>
-    public string Title { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Optional icon path for the tab.
-    /// </summary>
-    public string? IconPath { get; set; }
-
-    /// <summary>
-    /// The content view displayed when this tab is selected.
-    /// </summary>
-    public SkiaView Content { get; set; } = null!;
-
-    /// <summary>
-    /// Optional badge text to display on the tab.
-    /// </summary>
-    public string? Badge { get; set; }
+	public override void OnPointerPressed(PointerEventArgs e)
+	{
+		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0078: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0019: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0045: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+		if (base.IsEnabled)
+		{
+			SKRect bounds;
+			SKRect val = default(SKRect);
+			if (TabBarOnBottom)
+			{
+				bounds = base.Bounds;
+				float left = ((SKRect)(ref bounds)).Left;
+				bounds = base.Bounds;
+				float num = ((SKRect)(ref bounds)).Bottom - TabBarHeight;
+				bounds = base.Bounds;
+				float right = ((SKRect)(ref bounds)).Right;
+				bounds = base.Bounds;
+				((SKRect)(ref val))._002Ector(left, num, right, ((SKRect)(ref bounds)).Bottom);
+			}
+			else
+			{
+				bounds = base.Bounds;
+				float left2 = ((SKRect)(ref bounds)).Left;
+				bounds = base.Bounds;
+				float top = ((SKRect)(ref bounds)).Top;
+				bounds = base.Bounds;
+				float right2 = ((SKRect)(ref bounds)).Right;
+				bounds = base.Bounds;
+				((SKRect)(ref val))._002Ector(left2, top, right2, ((SKRect)(ref bounds)).Top + TabBarHeight);
+			}
+			if (((SKRect)(ref val)).Contains(e.X, e.Y) && _tabs.Count > 0)
+			{
+				float num2 = ((SKRect)(ref val)).Width / (float)_tabs.Count;
+				int value = (int)((e.X - ((SKRect)(ref val)).Left) / num2);
+				value = Math.Clamp(value, 0, _tabs.Count - 1);
+				SelectedIndex = value;
+				e.Handled = true;
+			}
+			base.OnPointerPressed(e);
+		}
+	}
 }

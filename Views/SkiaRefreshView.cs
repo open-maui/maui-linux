@@ -1,278 +1,315 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Windows.Input;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// A pull-to-refresh container view.
-/// </summary>
 public class SkiaRefreshView : SkiaLayoutView
 {
-    private SkiaView? _content;
-    private bool _isRefreshing = false;
-    private float _pullDistance = 0f;
-    private float _refreshThreshold = 80f;
-    private bool _isPulling = false;
-    private float _pullStartY;
-    private float _spinnerRotation = 0f;
-    private DateTime _lastSpinnerUpdate;
+	private SkiaView? _content;
 
-    /// <summary>
-    /// Gets or sets the content view.
-    /// </summary>
-    public SkiaView? Content
-    {
-        get => _content;
-        set
-        {
-            if (_content != value)
-            {
-                if (_content != null)
-                {
-                    RemoveChild(_content);
-                }
+	private bool _isRefreshing;
 
-                _content = value;
+	private float _pullDistance;
 
-                if (_content != null)
-                {
-                    AddChild(_content);
-                }
+	private float _refreshThreshold = 80f;
 
-                InvalidateMeasure();
-                Invalidate();
-            }
-        }
-    }
+	private bool _isPulling;
 
-    /// <summary>
-    /// Gets or sets whether the view is currently refreshing.
-    /// </summary>
-    public bool IsRefreshing
-    {
-        get => _isRefreshing;
-        set
-        {
-            if (_isRefreshing != value)
-            {
-                _isRefreshing = value;
-                if (!value)
-                {
-                    _pullDistance = 0;
-                }
-                Invalidate();
-            }
-        }
-    }
+	private float _pullStartY;
 
-    /// <summary>
-    /// Gets or sets the pull distance required to trigger refresh.
-    /// </summary>
-    public float RefreshThreshold
-    {
-        get => _refreshThreshold;
-        set => _refreshThreshold = Math.Max(40, value);
-    }
+	private float _spinnerRotation;
 
-    /// <summary>
-    /// Gets or sets the refresh indicator color.
-    /// </summary>
-    public SKColor RefreshColor { get; set; } = new SKColor(33, 150, 243);
+	private DateTime _lastSpinnerUpdate;
 
-    /// <summary>
-    /// Gets or sets the background color of the refresh indicator.
-    /// </summary>
-    public SKColor RefreshBackgroundColor { get; set; } = SKColors.White;
+	public SkiaView? Content
+	{
+		get
+		{
+			return _content;
+		}
+		set
+		{
+			if (_content != value)
+			{
+				if (_content != null)
+				{
+					RemoveChild(_content);
+				}
+				_content = value;
+				if (_content != null)
+				{
+					AddChild(_content);
+				}
+				InvalidateMeasure();
+				Invalidate();
+			}
+		}
+	}
 
-    /// <summary>
-    /// Event raised when refresh is triggered.
-    /// </summary>
-    public event EventHandler? Refreshing;
+	public bool IsRefreshing
+	{
+		get
+		{
+			return _isRefreshing;
+		}
+		set
+		{
+			if (_isRefreshing != value)
+			{
+				_isRefreshing = value;
+				if (!value)
+				{
+					_pullDistance = 0f;
+				}
+				Invalidate();
+			}
+		}
+	}
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
-    {
-        if (_content != null)
-        {
-            _content.Measure(availableSize);
-        }
-        return availableSize;
-    }
+	public float RefreshThreshold
+	{
+		get
+		{
+			return _refreshThreshold;
+		}
+		set
+		{
+			_refreshThreshold = Math.Max(40f, value);
+		}
+	}
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
-    {
-        if (_content != null)
-        {
-            float offset = _isRefreshing ? _refreshThreshold : _pullDistance;
-            var contentBounds = new SKRect(
-                bounds.Left,
-                bounds.Top + offset,
-                bounds.Right,
-                bounds.Bottom + offset);
-            _content.Arrange(contentBounds);
-        }
-        return bounds;
-    }
+	public SKColor RefreshColor { get; set; } = new SKColor((byte)33, (byte)150, (byte)243);
 
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        canvas.Save();
-        canvas.ClipRect(bounds);
+	public SKColor RefreshBackgroundColor { get; set; } = SKColors.White;
 
-        // Draw refresh indicator
-        float indicatorY = bounds.Top + (_isRefreshing ? _refreshThreshold : _pullDistance) / 2;
+	public ICommand? Command { get; set; }
 
-        if (_pullDistance > 0 || _isRefreshing)
-        {
-            DrawRefreshIndicator(canvas, bounds.MidX, indicatorY);
-        }
+	public object? CommandParameter { get; set; }
 
-        // Draw content
-        _content?.Draw(canvas);
+	public event EventHandler? Refreshing;
 
-        canvas.Restore();
-    }
+	protected override SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+		if (_content != null)
+		{
+			_content.Measure(availableSize);
+		}
+		return availableSize;
+	}
 
-    private void DrawRefreshIndicator(SKCanvas canvas, float x, float y)
-    {
-        float size = 36f;
-        float progress = Math.Clamp(_pullDistance / _refreshThreshold, 0f, 1f);
+	protected override SKRect ArrangeOverride(SKRect bounds)
+	{
+		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004c: Unknown result type (might be due to invalid IL or missing references)
+		if (_content != null)
+		{
+			float num = (_isRefreshing ? _refreshThreshold : _pullDistance);
+			SKRect bounds2 = default(SKRect);
+			((SKRect)(ref bounds2))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top + num, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom + num);
+			_content.Arrange(bounds2);
+		}
+		return bounds;
+	}
 
-        // Draw background circle
-        using var bgPaint = new SKPaint
-        {
-            Color = RefreshBackgroundColor,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		canvas.Save();
+		canvas.ClipRect(bounds, (SKClipOperation)1, false);
+		float y = ((SKRect)(ref bounds)).Top + (_isRefreshing ? _refreshThreshold : _pullDistance) / 2f;
+		if (_pullDistance > 0f || _isRefreshing)
+		{
+			DrawRefreshIndicator(canvas, ((SKRect)(ref bounds)).MidX, y);
+		}
+		_content?.Draw(canvas);
+		canvas.Restore();
+	}
 
-        // Add shadow
-        bgPaint.ImageFilter = SKImageFilter.CreateDropShadow(0, 2, 4, 4, new SKColor(0, 0, 0, 40));
-        canvas.DrawCircle(x, y, size / 2, bgPaint);
+	private void DrawRefreshIndicator(SKCanvas canvas, float x, float y)
+	{
+		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0028: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0043: Expected O, but got Unknown
+		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0083: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0094: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ae: Expected O, but got Unknown
+		//IL_0185: Unknown result type (might be due to invalid IL or missing references)
+		//IL_018c: Expected O, but got Unknown
+		//IL_0111: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0118: Expected O, but got Unknown
+		//IL_01aa: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01af: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01bc: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0136: Unknown result type (might be due to invalid IL or missing references)
+		//IL_013b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_013f: Unknown result type (might be due to invalid IL or missing references)
+		float num = 36f;
+		float num2 = Math.Clamp(_pullDistance / _refreshThreshold, 0f, 1f);
+		SKPaint val = new SKPaint
+		{
+			Color = RefreshBackgroundColor,
+			Style = (SKPaintStyle)0,
+			IsAntialias = true
+		};
+		try
+		{
+			val.ImageFilter = SKImageFilter.CreateDropShadow(0f, 2f, 4f, 4f, new SKColor((byte)0, (byte)0, (byte)0, (byte)40));
+			canvas.DrawCircle(x, y, num / 2f, val);
+			SKPaint val2 = new SKPaint
+			{
+				Color = RefreshColor,
+				Style = (SKPaintStyle)1,
+				StrokeWidth = 3f,
+				IsAntialias = true,
+				StrokeCap = (SKStrokeCap)1
+			};
+			try
+			{
+				if (_isRefreshing)
+				{
+					DateTime utcNow = DateTime.UtcNow;
+					float num3 = (float)(utcNow - _lastSpinnerUpdate).TotalMilliseconds;
+					_spinnerRotation += num3 * 0.36f;
+					_lastSpinnerUpdate = utcNow;
+					canvas.Save();
+					canvas.Translate(x, y);
+					canvas.RotateDegrees(_spinnerRotation);
+					SKPath val3 = new SKPath();
+					try
+					{
+						SKRect val4 = new SKRect((0f - num) / 3f, (0f - num) / 3f, num / 3f, num / 3f);
+						val3.AddArc(val4, 0f, 270f);
+						canvas.DrawPath(val3, val2);
+						canvas.Restore();
+						Invalidate();
+						return;
+					}
+					finally
+					{
+						((IDisposable)val3)?.Dispose();
+					}
+				}
+				canvas.Save();
+				canvas.Translate(x, y);
+				SKPath val5 = new SKPath();
+				try
+				{
+					SKRect val6 = new SKRect((0f - num) / 3f, (0f - num) / 3f, num / 3f, num / 3f);
+					float num4 = 270f * num2;
+					val5.AddArc(val6, -90f, num4);
+					canvas.DrawPath(val5, val2);
+					canvas.Restore();
+				}
+				finally
+				{
+					((IDisposable)val5)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
 
-        // Draw spinner
-        using var spinnerPaint = new SKPaint
-        {
-            Color = RefreshColor,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 3,
-            IsAntialias = true,
-            StrokeCap = SKStrokeCap.Round
-        };
+	public override SkiaView? HitTest(float x, float y)
+	{
+		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
+		if (base.IsVisible)
+		{
+			SKRect bounds = base.Bounds;
+			if (((SKRect)(ref bounds)).Contains(x, y))
+			{
+				if (_content != null)
+				{
+					SkiaView skiaView = _content.HitTest(x, y);
+					if (skiaView != null)
+					{
+						return skiaView;
+					}
+				}
+				return this;
+			}
+		}
+		return null;
+	}
 
-        if (_isRefreshing)
-        {
-            // Animate spinner
-            var now = DateTime.UtcNow;
-            float elapsed = (float)(now - _lastSpinnerUpdate).TotalMilliseconds;
-            _spinnerRotation += elapsed * 0.36f; // 360 degrees per second
-            _lastSpinnerUpdate = now;
+	public override void OnPointerPressed(PointerEventArgs e)
+	{
+		if (base.IsEnabled && !_isRefreshing)
+		{
+			bool flag = true;
+			if (_content is SkiaScrollView skiaScrollView)
+			{
+				flag = skiaScrollView.ScrollY <= 0f;
+			}
+			if (flag)
+			{
+				_isPulling = true;
+				_pullStartY = e.Y;
+				_pullDistance = 0f;
+			}
+			base.OnPointerPressed(e);
+		}
+	}
 
-            canvas.Save();
-            canvas.Translate(x, y);
-            canvas.RotateDegrees(_spinnerRotation);
+	public override void OnPointerMoved(PointerEventArgs e)
+	{
+		if (_isPulling)
+		{
+			float num = e.Y - _pullStartY;
+			if (num > 0f)
+			{
+				_pullDistance = num * 0.5f;
+				_pullDistance = Math.Min(_pullDistance, _refreshThreshold * 1.5f);
+				Invalidate();
+				e.Handled = true;
+			}
+			else
+			{
+				_pullDistance = 0f;
+			}
+			base.OnPointerMoved(e);
+		}
+	}
 
-            // Draw spinning arc
-            using var path = new SKPath();
-            var rect = new SKRect(-size / 3, -size / 3, size / 3, size / 3);
-            path.AddArc(rect, 0, 270);
-            canvas.DrawPath(path, spinnerPaint);
-
-            canvas.Restore();
-
-            Invalidate(); // Continue animation
-        }
-        else
-        {
-            // Draw progress arc
-            canvas.Save();
-            canvas.Translate(x, y);
-
-            using var path = new SKPath();
-            var rect = new SKRect(-size / 3, -size / 3, size / 3, size / 3);
-            float sweepAngle = 270 * progress;
-            path.AddArc(rect, -90, sweepAngle);
-            canvas.DrawPath(path, spinnerPaint);
-
-            canvas.Restore();
-        }
-    }
-
-    public override SkiaView? HitTest(float x, float y)
-    {
-        if (!IsVisible || !Bounds.Contains(x, y)) return null;
-
-        if (_content != null)
-        {
-            var hit = _content.HitTest(x, y);
-            if (hit != null) return hit;
-        }
-
-        return this;
-    }
-
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        if (!IsEnabled || _isRefreshing) return;
-
-        // Check if content is at top (can pull to refresh)
-        bool canPull = true;
-        if (_content is SkiaScrollView scrollView)
-        {
-            canPull = scrollView.ScrollY <= 0;
-        }
-
-        if (canPull)
-        {
-            _isPulling = true;
-            _pullStartY = e.Y;
-            _pullDistance = 0;
-        }
-
-        base.OnPointerPressed(e);
-    }
-
-    public override void OnPointerMoved(PointerEventArgs e)
-    {
-        if (!_isPulling) return;
-
-        float delta = e.Y - _pullStartY;
-        if (delta > 0)
-        {
-            // Apply resistance
-            _pullDistance = delta * 0.5f;
-            _pullDistance = Math.Min(_pullDistance, _refreshThreshold * 1.5f);
-            Invalidate();
-            e.Handled = true;
-        }
-        else
-        {
-            _pullDistance = 0;
-        }
-
-        base.OnPointerMoved(e);
-    }
-
-    public override void OnPointerReleased(PointerEventArgs e)
-    {
-        if (!_isPulling) return;
-
-        _isPulling = false;
-
-        if (_pullDistance >= _refreshThreshold)
-        {
-            _isRefreshing = true;
-            _pullDistance = _refreshThreshold;
-            _lastSpinnerUpdate = DateTime.UtcNow;
-            Refreshing?.Invoke(this, EventArgs.Empty);
-        }
-        else
-        {
-            _pullDistance = 0;
-        }
-
-        Invalidate();
-        base.OnPointerReleased(e);
-    }
+	public override void OnPointerReleased(PointerEventArgs e)
+	{
+		if (_isPulling)
+		{
+			_isPulling = false;
+			if (_pullDistance >= _refreshThreshold)
+			{
+				_isRefreshing = true;
+				_pullDistance = _refreshThreshold;
+				_lastSpinnerUpdate = DateTime.UtcNow;
+				this.Refreshing?.Invoke(this, EventArgs.Empty);
+				Command?.Execute(CommandParameter);
+			}
+			else
+			{
+				_pullDistance = 0f;
+			}
+			Invalidate();
+			base.OnPointerReleased(e);
+		}
+	}
 }

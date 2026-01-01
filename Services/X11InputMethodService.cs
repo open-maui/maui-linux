@@ -1,394 +1,399 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-/// <summary>
-/// X11 Input Method service using XIM protocol.
-/// Provides IME support for CJK and other complex input methods.
-/// </summary>
 public class X11InputMethodService : IInputMethodService, IDisposable
 {
-    private nint _display;
-    private nint _window;
-    private nint _xim;
-    private nint _xic;
-    private IInputContext? _currentContext;
-    private string _preEditText = string.Empty;
-    private int _preEditCursorPosition;
-    private bool _isActive;
-    private bool _disposed;
-
-    // XIM callback delegates (prevent GC)
-    private XIMProc? _preeditStartCallback;
-    private XIMProc? _preeditDoneCallback;
-    private XIMProc? _preeditDrawCallback;
-    private XIMProc? _preeditCaretCallback;
-    private XIMProc? _commitCallback;
-
-    public bool IsActive => _isActive;
-    public string PreEditText => _preEditText;
-    public int PreEditCursorPosition => _preEditCursorPosition;
-
-    public event EventHandler<TextCommittedEventArgs>? TextCommitted;
-    public event EventHandler<PreEditChangedEventArgs>? PreEditChanged;
-    public event EventHandler? PreEditEnded;
-
-    public void Initialize(nint windowHandle)
-    {
-        _window = windowHandle;
-
-        // Get display from X11 interop
-        _display = XOpenDisplay(IntPtr.Zero);
-        if (_display == IntPtr.Zero)
-        {
-            Console.WriteLine("X11InputMethodService: Failed to open display");
-            return;
-        }
-
-        // Set locale for proper IME operation
-        if (XSetLocaleModifiers("") == IntPtr.Zero)
-        {
-            XSetLocaleModifiers("@im=none");
-        }
-
-        // Open input method
-        _xim = XOpenIM(_display, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-        if (_xim == IntPtr.Zero)
-        {
-            Console.WriteLine("X11InputMethodService: No input method available, trying IBus...");
-            TryIBusFallback();
-            return;
-        }
-
-        CreateInputContext();
-    }
-
-    private void CreateInputContext()
-    {
-        if (_xim == IntPtr.Zero || _window == IntPtr.Zero) return;
-
-        // Create input context with preedit callbacks
-        var preeditAttr = CreatePreeditAttributes();
-
-        _xic = XCreateIC(_xim,
-            XNClientWindow, _window,
-            XNFocusWindow, _window,
-            XNInputStyle, XIMPreeditCallbacks | XIMStatusNothing,
-            XNPreeditAttributes, preeditAttr,
-            IntPtr.Zero);
-
-        if (preeditAttr != IntPtr.Zero)
-        {
-            XFree(preeditAttr);
-        }
-
-        if (_xic == IntPtr.Zero)
-        {
-            // Fallback to simpler input style
-            _xic = XCreateICSimple(_xim,
-                XNClientWindow, _window,
-                XNFocusWindow, _window,
-                XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
-                IntPtr.Zero);
-        }
-
-        if (_xic != IntPtr.Zero)
-        {
-            Console.WriteLine("X11InputMethodService: Input context created successfully");
-        }
-    }
-
-    private nint CreatePreeditAttributes()
-    {
-        // Set up preedit callbacks for on-the-spot composition
-        _preeditStartCallback = PreeditStartCallback;
-        _preeditDoneCallback = PreeditDoneCallback;
-        _preeditDrawCallback = PreeditDrawCallback;
-        _preeditCaretCallback = PreeditCaretCallback;
-
-        // Create callback structures
-        // Note: Actual implementation would marshal XIMCallback structures
-        return IntPtr.Zero;
-    }
-
-    private int PreeditStartCallback(nint xic, nint clientData, nint callData)
-    {
-        _isActive = true;
-        _preEditText = string.Empty;
-        _preEditCursorPosition = 0;
-        return -1; // No length limit
-    }
-
-    private int PreeditDoneCallback(nint xic, nint clientData, nint callData)
-    {
-        _isActive = false;
-        _preEditText = string.Empty;
-        _preEditCursorPosition = 0;
-        PreEditEnded?.Invoke(this, EventArgs.Empty);
-        _currentContext?.OnPreEditEnded();
-        return 0;
-    }
-
-    private int PreeditDrawCallback(nint xic, nint clientData, nint callData)
-    {
-        // Parse XIMPreeditDrawCallbackStruct
-        // Update preedit text and cursor position
-        // This would involve marshaling the callback data structure
-
-        PreEditChanged?.Invoke(this, new PreEditChangedEventArgs(_preEditText, _preEditCursorPosition));
-        _currentContext?.OnPreEditChanged(_preEditText, _preEditCursorPosition);
-        return 0;
-    }
-
-    private int PreeditCaretCallback(nint xic, nint clientData, nint callData)
-    {
-        // Handle caret movement in preedit text
-        return 0;
-    }
-
-    private void TryIBusFallback()
-    {
-        // Try to connect to IBus via D-Bus
-        // This provides a more modern IME interface
-        Console.WriteLine("X11InputMethodService: IBus fallback not yet implemented");
-    }
-
-    public void SetFocus(IInputContext? context)
-    {
-        _currentContext = context;
-
-        if (_xic != IntPtr.Zero)
-        {
-            if (context != null)
-            {
-                XSetICFocus(_xic);
-            }
-            else
-            {
-                XUnsetICFocus(_xic);
-            }
-        }
-    }
-
-    public void SetCursorLocation(int x, int y, int width, int height)
-    {
-        if (_xic == IntPtr.Zero) return;
-
-        // Set the spot location for candidate window positioning
-        var spotLocation = new XPoint { x = (short)x, y = (short)y };
-
-        var attr = XVaCreateNestedList(0,
-            XNSpotLocation, ref spotLocation,
-            IntPtr.Zero);
-
-        if (attr != IntPtr.Zero)
-        {
-            XSetICValues(_xic, XNPreeditAttributes, attr, IntPtr.Zero);
-            XFree(attr);
-        }
-    }
-
-    public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown)
-    {
-        if (_xic == IntPtr.Zero) return false;
-
-        // Convert to X11 key event
-        var xEvent = new XKeyEvent
-        {
-            type = isKeyDown ? KeyPress : KeyRelease,
-            display = _display,
-            window = _window,
-            state = ConvertModifiers(modifiers),
-            keycode = keyCode
-        };
-
-        // Filter through XIM
-        if (XFilterEvent(ref xEvent, _window))
-        {
-            return true; // Event consumed by IME
-        }
-
-        // If not filtered and key down, try to get committed text
-        if (isKeyDown)
-        {
-            var buffer = new byte[64];
-            var keySym = IntPtr.Zero;
-            var status = IntPtr.Zero;
-
-            int len = Xutf8LookupString(_xic, ref xEvent, buffer, buffer.Length, ref keySym, ref status);
-
-            if (len > 0)
-            {
-                string text = Encoding.UTF8.GetString(buffer, 0, len);
-                OnTextCommit(text);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void OnTextCommit(string text)
-    {
-        _preEditText = string.Empty;
-        _preEditCursorPosition = 0;
-
-        TextCommitted?.Invoke(this, new TextCommittedEventArgs(text));
-        _currentContext?.OnTextCommitted(text);
-    }
-
-    private uint ConvertModifiers(KeyModifiers modifiers)
-    {
-        uint state = 0;
-        if (modifiers.HasFlag(KeyModifiers.Shift)) state |= ShiftMask;
-        if (modifiers.HasFlag(KeyModifiers.Control)) state |= ControlMask;
-        if (modifiers.HasFlag(KeyModifiers.Alt)) state |= Mod1Mask;
-        if (modifiers.HasFlag(KeyModifiers.Super)) state |= Mod4Mask;
-        if (modifiers.HasFlag(KeyModifiers.CapsLock)) state |= LockMask;
-        if (modifiers.HasFlag(KeyModifiers.NumLock)) state |= Mod2Mask;
-        return state;
-    }
-
-    public void Reset()
-    {
-        if (_xic != IntPtr.Zero)
-        {
-            XmbResetIC(_xic);
-        }
-
-        _preEditText = string.Empty;
-        _preEditCursorPosition = 0;
-        _isActive = false;
-
-        PreEditEnded?.Invoke(this, EventArgs.Empty);
-        _currentContext?.OnPreEditEnded();
-    }
-
-    public void Shutdown()
-    {
-        Dispose();
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-
-        if (_xic != IntPtr.Zero)
-        {
-            XDestroyIC(_xic);
-            _xic = IntPtr.Zero;
-        }
-
-        if (_xim != IntPtr.Zero)
-        {
-            XCloseIM(_xim);
-            _xim = IntPtr.Zero;
-        }
-
-        // Note: Don't close display here if shared with window
-    }
-
-    #region X11 Interop
-
-    private const int KeyPress = 2;
-    private const int KeyRelease = 3;
-
-    private const uint ShiftMask = 1 << 0;
-    private const uint LockMask = 1 << 1;
-    private const uint ControlMask = 1 << 2;
-    private const uint Mod1Mask = 1 << 3;  // Alt
-    private const uint Mod2Mask = 1 << 4;  // NumLock
-    private const uint Mod4Mask = 1 << 6;  // Super
-
-    private const long XIMPreeditNothing = 0x0008L;
-    private const long XIMPreeditCallbacks = 0x0002L;
-    private const long XIMStatusNothing = 0x0400L;
-
-    private static readonly nint XNClientWindow = Marshal.StringToHGlobalAnsi("clientWindow");
-    private static readonly nint XNFocusWindow = Marshal.StringToHGlobalAnsi("focusWindow");
-    private static readonly nint XNInputStyle = Marshal.StringToHGlobalAnsi("inputStyle");
-    private static readonly nint XNPreeditAttributes = Marshal.StringToHGlobalAnsi("preeditAttributes");
-    private static readonly nint XNSpotLocation = Marshal.StringToHGlobalAnsi("spotLocation");
-
-    private delegate int XIMProc(nint xic, nint clientData, nint callData);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct XPoint
-    {
-        public short x;
-        public short y;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct XKeyEvent
-    {
-        public int type;
-        public ulong serial;
-        public bool send_event;
-        public nint display;
-        public nint window;
-        public nint root;
-        public nint subwindow;
-        public ulong time;
-        public int x, y;
-        public int x_root, y_root;
-        public uint state;
-        public uint keycode;
-        public bool same_screen;
-    }
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenDisplay(nint display);
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XSetLocaleModifiers(string modifiers);
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenIM(nint display, nint db, nint res_name, nint res_class);
-
-    [DllImport("libX11.so.6")]
-    private static extern void XCloseIM(nint xim);
-
-    [DllImport("libX11.so.6", EntryPoint = "XCreateIC")]
-    private static extern nint XCreateIC(nint xim, nint name1, nint value1, nint name2, nint value2,
-        nint name3, long value3, nint name4, nint value4, nint terminator);
-
-    [DllImport("libX11.so.6", EntryPoint = "XCreateIC")]
-    private static extern nint XCreateICSimple(nint xim, nint name1, nint value1, nint name2, nint value2,
-        nint name3, long value3, nint terminator);
-
-    [DllImport("libX11.so.6")]
-    private static extern void XDestroyIC(nint xic);
-
-    [DllImport("libX11.so.6")]
-    private static extern void XSetICFocus(nint xic);
-
-    [DllImport("libX11.so.6")]
-    private static extern void XUnsetICFocus(nint xic);
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XSetICValues(nint xic, nint name, nint value, nint terminator);
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XVaCreateNestedList(int unused, nint name, ref XPoint value, nint terminator);
-
-    [DllImport("libX11.so.6")]
-    private static extern bool XFilterEvent(ref XKeyEvent xevent, nint window);
-
-    [DllImport("libX11.so.6")]
-    private static extern int Xutf8LookupString(nint xic, ref XKeyEvent xevent,
-        byte[] buffer, int bytes, ref nint keySym, ref nint status);
-
-    [DllImport("libX11.so.6")]
-    private static extern nint XmbResetIC(nint xic);
-
-    [DllImport("libX11.so.6")]
-    private static extern void XFree(nint ptr);
-
-    #endregion
+	private delegate int XIMProc(IntPtr xic, IntPtr clientData, IntPtr callData);
+
+	private struct XPoint
+	{
+		public short x;
+
+		public short y;
+	}
+
+	private struct XKeyEvent
+	{
+		public int type;
+
+		public ulong serial;
+
+		public bool send_event;
+
+		public IntPtr display;
+
+		public IntPtr window;
+
+		public IntPtr root;
+
+		public IntPtr subwindow;
+
+		public ulong time;
+
+		public int x;
+
+		public int y;
+
+		public int x_root;
+
+		public int y_root;
+
+		public uint state;
+
+		public uint keycode;
+
+		public bool same_screen;
+	}
+
+	private IntPtr _display;
+
+	private IntPtr _window;
+
+	private IntPtr _xim;
+
+	private IntPtr _xic;
+
+	private IInputContext? _currentContext;
+
+	private string _preEditText = string.Empty;
+
+	private int _preEditCursorPosition;
+
+	private bool _isActive;
+
+	private bool _disposed;
+
+	private XIMProc? _preeditStartCallback;
+
+	private XIMProc? _preeditDoneCallback;
+
+	private XIMProc? _preeditDrawCallback;
+
+	private XIMProc? _preeditCaretCallback;
+
+	private XIMProc? _commitCallback;
+
+	private const int KeyPress = 2;
+
+	private const int KeyRelease = 3;
+
+	private const uint ShiftMask = 1u;
+
+	private const uint LockMask = 2u;
+
+	private const uint ControlMask = 4u;
+
+	private const uint Mod1Mask = 8u;
+
+	private const uint Mod2Mask = 16u;
+
+	private const uint Mod4Mask = 64u;
+
+	private const long XIMPreeditNothing = 8L;
+
+	private const long XIMPreeditCallbacks = 2L;
+
+	private const long XIMStatusNothing = 1024L;
+
+	private static readonly IntPtr XNClientWindow = Marshal.StringToHGlobalAnsi("clientWindow");
+
+	private static readonly IntPtr XNFocusWindow = Marshal.StringToHGlobalAnsi("focusWindow");
+
+	private static readonly IntPtr XNInputStyle = Marshal.StringToHGlobalAnsi("inputStyle");
+
+	private static readonly IntPtr XNPreeditAttributes = Marshal.StringToHGlobalAnsi("preeditAttributes");
+
+	private static readonly IntPtr XNSpotLocation = Marshal.StringToHGlobalAnsi("spotLocation");
+
+	public bool IsActive => _isActive;
+
+	public string PreEditText => _preEditText;
+
+	public int PreEditCursorPosition => _preEditCursorPosition;
+
+	public event EventHandler<TextCommittedEventArgs>? TextCommitted;
+
+	public event EventHandler<PreEditChangedEventArgs>? PreEditChanged;
+
+	public event EventHandler? PreEditEnded;
+
+	public void Initialize(IntPtr windowHandle)
+	{
+		_window = windowHandle;
+		_display = XOpenDisplay(IntPtr.Zero);
+		if (_display == IntPtr.Zero)
+		{
+			Console.WriteLine("X11InputMethodService: Failed to open display");
+			return;
+		}
+		if (XSetLocaleModifiers("") == IntPtr.Zero)
+		{
+			XSetLocaleModifiers("@im=none");
+		}
+		_xim = XOpenIM(_display, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+		if (_xim == IntPtr.Zero)
+		{
+			Console.WriteLine("X11InputMethodService: No input method available, trying IBus...");
+			TryIBusFallback();
+		}
+		else
+		{
+			CreateInputContext();
+		}
+	}
+
+	private void CreateInputContext()
+	{
+		if (_xim != IntPtr.Zero && _window != IntPtr.Zero)
+		{
+			IntPtr intPtr = CreatePreeditAttributes();
+			_xic = XCreateIC(_xim, XNClientWindow, _window, XNFocusWindow, _window, XNInputStyle, 1026L, XNPreeditAttributes, intPtr, IntPtr.Zero);
+			if (intPtr != IntPtr.Zero)
+			{
+				XFree(intPtr);
+			}
+			if (_xic == IntPtr.Zero)
+			{
+				_xic = XCreateICSimple(_xim, XNClientWindow, _window, XNFocusWindow, _window, XNInputStyle, 1032L, IntPtr.Zero);
+			}
+			if (_xic != IntPtr.Zero)
+			{
+				Console.WriteLine("X11InputMethodService: Input context created successfully");
+			}
+		}
+	}
+
+	private IntPtr CreatePreeditAttributes()
+	{
+		_preeditStartCallback = PreeditStartCallback;
+		_preeditDoneCallback = PreeditDoneCallback;
+		_preeditDrawCallback = PreeditDrawCallback;
+		_preeditCaretCallback = PreeditCaretCallback;
+		return IntPtr.Zero;
+	}
+
+	private int PreeditStartCallback(IntPtr xic, IntPtr clientData, IntPtr callData)
+	{
+		_isActive = true;
+		_preEditText = string.Empty;
+		_preEditCursorPosition = 0;
+		return -1;
+	}
+
+	private int PreeditDoneCallback(IntPtr xic, IntPtr clientData, IntPtr callData)
+	{
+		_isActive = false;
+		_preEditText = string.Empty;
+		_preEditCursorPosition = 0;
+		this.PreEditEnded?.Invoke(this, EventArgs.Empty);
+		_currentContext?.OnPreEditEnded();
+		return 0;
+	}
+
+	private int PreeditDrawCallback(IntPtr xic, IntPtr clientData, IntPtr callData)
+	{
+		this.PreEditChanged?.Invoke(this, new PreEditChangedEventArgs(_preEditText, _preEditCursorPosition));
+		_currentContext?.OnPreEditChanged(_preEditText, _preEditCursorPosition);
+		return 0;
+	}
+
+	private int PreeditCaretCallback(IntPtr xic, IntPtr clientData, IntPtr callData)
+	{
+		return 0;
+	}
+
+	private void TryIBusFallback()
+	{
+		Console.WriteLine("X11InputMethodService: IBus fallback not yet implemented");
+	}
+
+	public void SetFocus(IInputContext? context)
+	{
+		_currentContext = context;
+		if (_xic != IntPtr.Zero)
+		{
+			if (context != null)
+			{
+				XSetICFocus(_xic);
+			}
+			else
+			{
+				XUnsetICFocus(_xic);
+			}
+		}
+	}
+
+	public void SetCursorLocation(int x, int y, int width, int height)
+	{
+		if (_xic != IntPtr.Zero)
+		{
+			XPoint value = new XPoint
+			{
+				x = (short)x,
+				y = (short)y
+			};
+			IntPtr intPtr = XVaCreateNestedList(0, XNSpotLocation, ref value, IntPtr.Zero);
+			if (intPtr != IntPtr.Zero)
+			{
+				XSetICValues(_xic, XNPreeditAttributes, intPtr, IntPtr.Zero);
+				XFree(intPtr);
+			}
+		}
+	}
+
+	public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown)
+	{
+		if (_xic == IntPtr.Zero)
+		{
+			return false;
+		}
+		XKeyEvent xevent = new XKeyEvent
+		{
+			type = (isKeyDown ? 2 : 3),
+			display = _display,
+			window = _window,
+			state = ConvertModifiers(modifiers),
+			keycode = keyCode
+		};
+		if (XFilterEvent(ref xevent, _window))
+		{
+			return true;
+		}
+		if (isKeyDown)
+		{
+			byte[] array = new byte[64];
+			IntPtr keySym = IntPtr.Zero;
+			IntPtr status = IntPtr.Zero;
+			int num = Xutf8LookupString(_xic, ref xevent, array, array.Length, ref keySym, ref status);
+			if (num > 0)
+			{
+				string text = Encoding.UTF8.GetString(array, 0, num);
+				OnTextCommit(text);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void OnTextCommit(string text)
+	{
+		_preEditText = string.Empty;
+		_preEditCursorPosition = 0;
+		this.TextCommitted?.Invoke(this, new TextCommittedEventArgs(text));
+		_currentContext?.OnTextCommitted(text);
+	}
+
+	private uint ConvertModifiers(KeyModifiers modifiers)
+	{
+		uint num = 0u;
+		if (modifiers.HasFlag(KeyModifiers.Shift))
+		{
+			num |= 1;
+		}
+		if (modifiers.HasFlag(KeyModifiers.Control))
+		{
+			num |= 4;
+		}
+		if (modifiers.HasFlag(KeyModifiers.Alt))
+		{
+			num |= 8;
+		}
+		if (modifiers.HasFlag(KeyModifiers.Super))
+		{
+			num |= 0x40;
+		}
+		if (modifiers.HasFlag(KeyModifiers.CapsLock))
+		{
+			num |= 2;
+		}
+		if (modifiers.HasFlag(KeyModifiers.NumLock))
+		{
+			num |= 0x10;
+		}
+		return num;
+	}
+
+	public void Reset()
+	{
+		if (_xic != IntPtr.Zero)
+		{
+			XmbResetIC(_xic);
+		}
+		_preEditText = string.Empty;
+		_preEditCursorPosition = 0;
+		_isActive = false;
+		this.PreEditEnded?.Invoke(this, EventArgs.Empty);
+		_currentContext?.OnPreEditEnded();
+	}
+
+	public void Shutdown()
+	{
+		Dispose();
+	}
+
+	public void Dispose()
+	{
+		if (!_disposed)
+		{
+			_disposed = true;
+			if (_xic != IntPtr.Zero)
+			{
+				XDestroyIC(_xic);
+				_xic = IntPtr.Zero;
+			}
+			if (_xim != IntPtr.Zero)
+			{
+				XCloseIM(_xim);
+				_xim = IntPtr.Zero;
+			}
+		}
+	}
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XOpenDisplay(IntPtr display);
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XSetLocaleModifiers(string modifiers);
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XOpenIM(IntPtr display, IntPtr db, IntPtr res_name, IntPtr res_class);
+
+	[DllImport("libX11.so.6")]
+	private static extern void XCloseIM(IntPtr xim);
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XCreateIC(IntPtr xim, IntPtr name1, IntPtr value1, IntPtr name2, IntPtr value2, IntPtr name3, long value3, IntPtr name4, IntPtr value4, IntPtr terminator);
+
+	[DllImport("libX11.so.6", EntryPoint = "XCreateIC")]
+	private static extern IntPtr XCreateICSimple(IntPtr xim, IntPtr name1, IntPtr value1, IntPtr name2, IntPtr value2, IntPtr name3, long value3, IntPtr terminator);
+
+	[DllImport("libX11.so.6")]
+	private static extern void XDestroyIC(IntPtr xic);
+
+	[DllImport("libX11.so.6")]
+	private static extern void XSetICFocus(IntPtr xic);
+
+	[DllImport("libX11.so.6")]
+	private static extern void XUnsetICFocus(IntPtr xic);
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XSetICValues(IntPtr xic, IntPtr name, IntPtr value, IntPtr terminator);
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XVaCreateNestedList(int unused, IntPtr name, ref XPoint value, IntPtr terminator);
+
+	[DllImport("libX11.so.6")]
+	private static extern bool XFilterEvent(ref XKeyEvent xevent, IntPtr window);
+
+	[DllImport("libX11.so.6")]
+	private static extern int Xutf8LookupString(IntPtr xic, ref XKeyEvent xevent, byte[] buffer, int bytes, ref IntPtr keySym, ref IntPtr status);
+
+	[DllImport("libX11.so.6")]
+	private static extern IntPtr XmbResetIC(IntPtr xic);
+
+	[DllImport("libX11.so.6")]
+	private static extern void XFree(IntPtr ptr);
 }

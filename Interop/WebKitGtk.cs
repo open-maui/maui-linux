@@ -1,345 +1,260 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.Maui.Platform.Linux.Interop;
 
-/// <summary>
-/// P/Invoke bindings for WebKitGTK library.
-/// WebKitGTK provides a full-featured web browser engine for Linux.
-/// </summary>
 public static class WebKitGtk
 {
-    private const string WebKit2Lib = "libwebkit2gtk-4.1.so.0";
-    private const string GtkLib = "libgtk-3.so.0";
-    private const string GObjectLib = "libgobject-2.0.so.0";
-    private const string GLibLib = "libglib-2.0.so.0";
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+	public delegate void GCallback();
 
-    #region GTK Initialization
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+	public delegate void LoadChangedCallback(IntPtr webView, int loadEvent, IntPtr userData);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool gtk_init_check(ref int argc, ref IntPtr argv);
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+	public delegate bool DecidePolicyCallback(IntPtr webView, IntPtr decision, int decisionType, IntPtr userData);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_main();
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+	public delegate void LoadFailedCallback(IntPtr webView, int loadEvent, IntPtr failingUri, IntPtr error, IntPtr userData);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_main_quit();
+	[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+	public delegate void NotifyCallback(IntPtr webView, IntPtr paramSpec, IntPtr userData);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool gtk_events_pending();
+	private const string WebKit2Lib = "libwebkit2gtk-4.1.so.0";
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_main_iteration();
+	private const string GtkLib = "libgtk-3.so.0";
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool gtk_main_iteration_do(bool blocking);
+	private const string GObjectLib = "libgobject-2.0.so.0";
 
-    #endregion
+	private const string GLibLib = "libglib-2.0.so.0";
 
-    #region GTK Window
+	public const int WEBKIT_COOKIE_POLICY_ACCEPT_ALWAYS = 0;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr gtk_window_new(int type);
+	public const int WEBKIT_COOKIE_POLICY_ACCEPT_NEVER = 1;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_window_set_default_size(IntPtr window, int width, int height);
+	public const int WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY = 2;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_window_set_decorated(IntPtr window, bool decorated);
+	public const int WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT = 0;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_window_move(IntPtr window, int x, int y);
+	public const int WEBKIT_COOKIE_PERSISTENT_STORAGE_SQLITE = 1;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_window_resize(IntPtr window, int width, int height);
+	public const int WEBKIT_LOAD_STARTED = 0;
 
-    #endregion
+	public const int WEBKIT_LOAD_REDIRECTED = 1;
 
-    #region GTK Widget
+	public const int WEBKIT_LOAD_COMMITTED = 2;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_show_all(IntPtr widget);
+	public const int WEBKIT_LOAD_FINISHED = 3;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_show(IntPtr widget);
+	public const int WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION = 0;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_hide(IntPtr widget);
+	public const int WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION = 1;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_destroy(IntPtr widget);
+	public const int WEBKIT_POLICY_DECISION_TYPE_RESPONSE = 2;
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_set_size_request(IntPtr widget, int width, int height);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern bool gtk_init_check(ref int argc, ref IntPtr argv);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_realize(IntPtr widget);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_main();
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr gtk_widget_get_window(IntPtr widget);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_main_quit();
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_widget_set_can_focus(IntPtr widget, bool canFocus);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern bool gtk_events_pending();
 
-    #endregion
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_main_iteration();
 
-    #region GTK Container
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern bool gtk_main_iteration_do(bool blocking);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_container_add(IntPtr container, IntPtr widget);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr gtk_window_new(int type);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void gtk_container_remove(IntPtr container, IntPtr widget);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_window_set_default_size(IntPtr window, int width, int height);
 
-    #endregion
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_window_set_decorated(IntPtr window, bool decorated);
 
-    #region GTK Plug (for embedding in X11 windows)
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_window_move(IntPtr window, int x, int y);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr gtk_plug_new(ulong socketId);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_window_resize(IntPtr window, int width, int height);
 
-    [DllImport(GtkLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern ulong gtk_plug_get_id(IntPtr plug);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_show_all(IntPtr widget);
 
-    #endregion
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_show(IntPtr widget);
 
-    #region WebKitWebView
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_hide(IntPtr widget);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_view_new();
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_destroy(IntPtr widget);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_view_new_with_context(IntPtr context);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_set_size_request(IntPtr widget, int width, int height);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_load_uri(IntPtr webView, [MarshalAs(UnmanagedType.LPUTF8Str)] string uri);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_realize(IntPtr widget);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_load_html(IntPtr webView,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string content,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string? baseUri);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr gtk_widget_get_window(IntPtr widget);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_reload(IntPtr webView);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_widget_set_can_focus(IntPtr widget, bool canFocus);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_stop_loading(IntPtr webView);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_container_add(IntPtr container, IntPtr widget);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_go_back(IntPtr webView);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void gtk_container_remove(IntPtr container, IntPtr widget);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_go_forward(IntPtr webView);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr gtk_plug_new(ulong socketId);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool webkit_web_view_can_go_back(IntPtr webView);
+	[DllImport("libgtk-3.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern ulong gtk_plug_get_id(IntPtr plug);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool webkit_web_view_can_go_forward(IntPtr webView);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_view_new();
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_view_get_uri(IntPtr webView);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_view_new_with_context(IntPtr context);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_view_get_title(IntPtr webView);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_load_uri(IntPtr webView, [MarshalAs(UnmanagedType.LPUTF8Str)] string uri);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern double webkit_web_view_get_estimated_load_progress(IntPtr webView);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_load_html(IntPtr webView, [MarshalAs(UnmanagedType.LPUTF8Str)] string content, [MarshalAs(UnmanagedType.LPUTF8Str)] string? baseUri);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool webkit_web_view_is_loading(IntPtr webView);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_reload(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_web_view_run_javascript(IntPtr webView,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string script,
-        IntPtr cancellable,
-        IntPtr callback,
-        IntPtr userData);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_stop_loading(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_view_run_javascript_finish(IntPtr webView,
-        IntPtr result,
-        out IntPtr error);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_go_back(IntPtr webView);
 
-    #endregion
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_go_forward(IntPtr webView);
 
-    #region WebKitSettings
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern bool webkit_web_view_can_go_back(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_view_get_settings(IntPtr webView);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern bool webkit_web_view_can_go_forward(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_enable_javascript(IntPtr settings, bool enabled);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_view_get_uri(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_user_agent(IntPtr settings,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string userAgent);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_view_get_title(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_settings_get_user_agent(IntPtr settings);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern double webkit_web_view_get_estimated_load_progress(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_enable_developer_extras(IntPtr settings, bool enabled);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern bool webkit_web_view_is_loading(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_javascript_can_access_clipboard(IntPtr settings, bool enabled);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_web_view_run_javascript(IntPtr webView, [MarshalAs(UnmanagedType.LPUTF8Str)] string script, IntPtr cancellable, IntPtr callback, IntPtr userData);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_enable_webgl(IntPtr settings, bool enabled);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_view_run_javascript_finish(IntPtr webView, IntPtr result, out IntPtr error);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_allow_file_access_from_file_urls(IntPtr settings, bool enabled);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_view_get_settings(IntPtr webView);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_settings_set_allow_universal_access_from_file_urls(IntPtr settings, bool enabled);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_enable_javascript(IntPtr settings, bool enabled);
 
-    #endregion
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_user_agent(IntPtr settings, [MarshalAs(UnmanagedType.LPUTF8Str)] string userAgent);
 
-    #region WebKitWebContext
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_settings_get_user_agent(IntPtr settings);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_context_get_default();
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_enable_developer_extras(IntPtr settings, bool enabled);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_context_new();
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_javascript_can_access_clipboard(IntPtr settings, bool enabled);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_web_context_get_cookie_manager(IntPtr context);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_enable_webgl(IntPtr settings, bool enabled);
 
-    #endregion
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_allow_file_access_from_file_urls(IntPtr settings, bool enabled);
 
-    #region WebKitCookieManager
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_settings_set_allow_universal_access_from_file_urls(IntPtr settings, bool enabled);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_cookie_manager_set_accept_policy(IntPtr cookieManager, int policy);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_context_get_default();
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_cookie_manager_set_persistent_storage(IntPtr cookieManager,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string filename,
-        int storage);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_context_new();
 
-    // Cookie accept policies
-    public const int WEBKIT_COOKIE_POLICY_ACCEPT_ALWAYS = 0;
-    public const int WEBKIT_COOKIE_POLICY_ACCEPT_NEVER = 1;
-    public const int WEBKIT_COOKIE_POLICY_ACCEPT_NO_THIRD_PARTY = 2;
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_web_context_get_cookie_manager(IntPtr context);
 
-    // Cookie persistent storage types
-    public const int WEBKIT_COOKIE_PERSISTENT_STORAGE_TEXT = 0;
-    public const int WEBKIT_COOKIE_PERSISTENT_STORAGE_SQLITE = 1;
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_cookie_manager_set_accept_policy(IntPtr cookieManager, int policy);
 
-    #endregion
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_cookie_manager_set_persistent_storage(IntPtr cookieManager, [MarshalAs(UnmanagedType.LPUTF8Str)] string filename, int storage);
 
-    #region WebKitNavigationAction
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_navigation_action_get_request(IntPtr action);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_navigation_action_get_request(IntPtr action);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern int webkit_navigation_action_get_navigation_type(IntPtr action);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int webkit_navigation_action_get_navigation_type(IntPtr action);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern IntPtr webkit_uri_request_get_uri(IntPtr request);
 
-    #endregion
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_policy_decision_use(IntPtr decision);
 
-    #region WebKitURIRequest
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_policy_decision_ignore(IntPtr decision);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr webkit_uri_request_get_uri(IntPtr request);
+	[DllImport("libwebkit2gtk-4.1.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void webkit_policy_decision_download(IntPtr decision);
 
-    #endregion
+	[DllImport("libgobject-2.0.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern ulong g_signal_connect_data(IntPtr instance, [MarshalAs(UnmanagedType.LPUTF8Str)] string detailedSignal, Delegate handler, IntPtr data, IntPtr destroyData, int connectFlags);
 
-    #region WebKitPolicyDecision
+	[DllImport("libgobject-2.0.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_policy_decision_use(IntPtr decision);
+	[DllImport("libgobject-2.0.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void g_object_unref(IntPtr obj);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_policy_decision_ignore(IntPtr decision);
+	[DllImport("libglib-2.0.so.0", CallingConvention = CallingConvention.Cdecl)]
+	public static extern void g_free(IntPtr mem);
 
-    [DllImport(WebKit2Lib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void webkit_policy_decision_download(IntPtr decision);
+	public static string? PtrToStringUtf8(IntPtr ptr)
+	{
+		if (ptr == IntPtr.Zero)
+		{
+			return null;
+		}
+		return Marshal.PtrToStringUTF8(ptr);
+	}
 
-    #endregion
-
-    #region GObject Signal Connection
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void GCallback();
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void LoadChangedCallback(IntPtr webView, int loadEvent, IntPtr userData);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate bool DecidePolicyCallback(IntPtr webView, IntPtr decision, int decisionType, IntPtr userData);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void LoadFailedCallback(IntPtr webView, int loadEvent, IntPtr failingUri, IntPtr error, IntPtr userData);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void NotifyCallback(IntPtr webView, IntPtr paramSpec, IntPtr userData);
-
-    [DllImport(GObjectLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern ulong g_signal_connect_data(IntPtr instance,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string detailedSignal,
-        Delegate handler,
-        IntPtr data,
-        IntPtr destroyData,
-        int connectFlags);
-
-    [DllImport(GObjectLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
-
-    [DllImport(GObjectLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void g_object_unref(IntPtr obj);
-
-    #endregion
-
-    #region GLib Memory
-
-    [DllImport(GLibLib, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void g_free(IntPtr mem);
-
-    #endregion
-
-    #region WebKit Load Events
-
-    public const int WEBKIT_LOAD_STARTED = 0;
-    public const int WEBKIT_LOAD_REDIRECTED = 1;
-    public const int WEBKIT_LOAD_COMMITTED = 2;
-    public const int WEBKIT_LOAD_FINISHED = 3;
-
-    #endregion
-
-    #region WebKit Policy Decision Types
-
-    public const int WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION = 0;
-    public const int WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION = 1;
-    public const int WEBKIT_POLICY_DECISION_TYPE_RESPONSE = 2;
-
-    #endregion
-
-    #region Helper Methods
-
-    /// <summary>
-    /// Converts a native UTF-8 string pointer to a managed string.
-    /// </summary>
-    public static string? PtrToStringUtf8(IntPtr ptr)
-    {
-        if (ptr == IntPtr.Zero)
-            return null;
-        return Marshal.PtrToStringUTF8(ptr);
-    }
-
-    /// <summary>
-    /// Processes pending GTK events without blocking.
-    /// </summary>
-    public static void ProcessGtkEvents()
-    {
-        while (gtk_events_pending())
-        {
-            gtk_main_iteration_do(false);
-        }
-    }
-
-    #endregion
+	public static void ProcessGtkEvents()
+	{
+		while (gtk_events_pending())
+		{
+			gtk_main_iteration_do(blocking: false);
+		}
+	}
 }

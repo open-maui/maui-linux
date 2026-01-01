@@ -1,242 +1,356 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
 using SkiaSharp;
-using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// Skia-rendered search bar control.
-/// </summary>
 public class SkiaSearchBar : SkiaView
 {
-    private readonly SkiaEntry _entry;
-    private bool _showClearButton;
+	private readonly SkiaEntry _entry;
 
-    public string Text
-    {
-        get => _entry.Text;
-        set => _entry.Text = value;
-    }
+	private bool _showClearButton;
 
-    public string Placeholder
-    {
-        get => _entry.Placeholder;
-        set => _entry.Placeholder = value;
-    }
+	public string Text
+	{
+		get
+		{
+			return _entry.Text;
+		}
+		set
+		{
+			_entry.Text = value;
+		}
+	}
 
-    public SKColor TextColor
-    {
-        get => _entry.TextColor;
-        set => _entry.TextColor = value;
-    }
+	public string Placeholder
+	{
+		get
+		{
+			return _entry.Placeholder;
+		}
+		set
+		{
+			_entry.Placeholder = value;
+		}
+	}
 
-    public SKColor PlaceholderColor
-    {
-        get => _entry.PlaceholderColor;
-        set => _entry.PlaceholderColor = value;
-    }
+	public SKColor TextColor
+	{
+		get
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			return _entry.TextColor;
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			_entry.TextColor = value;
+		}
+	}
 
-    public new SKColor BackgroundColor { get; set; } = new SKColor(0xF5, 0xF5, 0xF5);
-    public SKColor IconColor { get; set; } = new SKColor(0x75, 0x75, 0x75);
-    public SKColor ClearButtonColor { get; set; } = new SKColor(0x9E, 0x9E, 0x9E);
-    public SKColor FocusedBorderColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public string FontFamily { get; set; } = "Sans";
-    public float FontSize { get; set; } = 14;
-    public float CornerRadius { get; set; } = 8;
-    public float IconSize { get; set; } = 20;
+	public SKColor PlaceholderColor
+	{
+		get
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			return _entry.PlaceholderColor;
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			_entry.PlaceholderColor = value;
+		}
+	}
 
-    public event EventHandler<TextChangedEventArgs>? TextChanged;
-    public event EventHandler? SearchButtonPressed;
+	public new SKColor BackgroundColor { get; set; } = new SKColor((byte)245, (byte)245, (byte)245);
 
-    public SkiaSearchBar()
-    {
-        _entry = new SkiaEntry
-        {
-            Placeholder = "Search...",
-            EntryBackgroundColor = SKColors.Transparent,
-            BackgroundColor = SKColors.Transparent,
-            BorderColor = SKColors.Transparent,
-            FocusedBorderColor = SKColors.Transparent,
-            BorderWidth = 0
-        };
+	public SKColor IconColor { get; set; } = new SKColor((byte)117, (byte)117, (byte)117);
 
-        _entry.TextChanged += (s, e) =>
-        {
-            _showClearButton = !string.IsNullOrEmpty(e.NewTextValue);
-            TextChanged?.Invoke(this, e);
-            Invalidate();
-        };
+	public SKColor ClearButtonColor { get; set; } = new SKColor((byte)158, (byte)158, (byte)158);
 
-        _entry.Completed += (s, e) => SearchButtonPressed?.Invoke(this, EventArgs.Empty);
+	public SKColor FocusedBorderColor { get; set; } = new SKColor((byte)33, (byte)150, (byte)243);
 
-        IsFocusable = true;
-    }
+	public string FontFamily { get; set; } = "Sans";
 
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        var iconPadding = 12f;
-        var clearButtonSize = 20f;
+	public float FontSize { get; set; } = 14f;
 
-        // Draw background
-        using var bgPaint = new SKPaint
-        {
-            Color = BackgroundColor,
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill
-        };
+	public float CornerRadius { get; set; } = 8f;
 
-        var bgRect = new SKRoundRect(bounds, CornerRadius);
-        canvas.DrawRoundRect(bgRect, bgPaint);
+	public float IconSize { get; set; } = 20f;
 
-        // Draw focus border
-        if (IsFocused || _entry.IsFocused)
-        {
-            using var borderPaint = new SKPaint
-            {
-                Color = FocusedBorderColor,
-                IsAntialias = true,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 2
-            };
-            canvas.DrawRoundRect(bgRect, borderPaint);
-        }
+	public event EventHandler<TextChangedEventArgs>? TextChanged;
 
-        // Draw search icon
-        var iconX = bounds.Left + iconPadding;
-        var iconY = bounds.MidY;
-        DrawSearchIcon(canvas, iconX, iconY, IconSize);
+	public event EventHandler? SearchButtonPressed;
 
-        // Calculate entry bounds - leave space for clear button
-        var entryLeft = iconX + IconSize + iconPadding;
-        var entryRight = _showClearButton
-            ? bounds.Right - clearButtonSize - iconPadding * 2
-            : bounds.Right - iconPadding;
+	public SkiaSearchBar()
+	{
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ab: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c1: Unknown result type (might be due to invalid IL or missing references)
+		_entry = new SkiaEntry
+		{
+			Placeholder = "Search...",
+			EntryBackgroundColor = SKColors.Transparent,
+			BackgroundColor = SKColors.Transparent,
+			BorderColor = SKColors.Transparent,
+			FocusedBorderColor = SKColors.Transparent,
+			BorderWidth = 0f
+		};
+		_entry.TextChanged += delegate(object? s, TextChangedEventArgs e)
+		{
+			_showClearButton = !string.IsNullOrEmpty(e.NewTextValue);
+			this.TextChanged?.Invoke(this, e);
+			Invalidate();
+		};
+		_entry.Completed += delegate
+		{
+			this.SearchButtonPressed?.Invoke(this, EventArgs.Empty);
+		};
+		base.IsFocusable = true;
+	}
 
-        var entryBounds = new SKRect(entryLeft, bounds.Top, entryRight, bounds.Bottom);
-        _entry.Arrange(entryBounds);
-        _entry.Draw(canvas);
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002c: Expected O, but got Unknown
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0039: Expected O, but got Unknown
+		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0067: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0075: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0082: Expected O, but got Unknown
+		//IL_0103: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0108: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0110: Unknown result type (might be due to invalid IL or missing references)
+		float num = 12f;
+		float num2 = 20f;
+		SKPaint val = new SKPaint
+		{
+			Color = BackgroundColor,
+			IsAntialias = true,
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			SKRoundRect val2 = new SKRoundRect(bounds, CornerRadius);
+			canvas.DrawRoundRect(val2, val);
+			if (base.IsFocused || _entry.IsFocused)
+			{
+				SKPaint val3 = new SKPaint
+				{
+					Color = FocusedBorderColor,
+					IsAntialias = true,
+					Style = (SKPaintStyle)1,
+					StrokeWidth = 2f
+				};
+				try
+				{
+					canvas.DrawRoundRect(val2, val3);
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			float num3 = ((SKRect)(ref bounds)).Left + num;
+			float midY = ((SKRect)(ref bounds)).MidY;
+			DrawSearchIcon(canvas, num3, midY, IconSize);
+			float num4 = num3 + IconSize + num;
+			float num5 = (_showClearButton ? (((SKRect)(ref bounds)).Right - num2 - num * 2f) : (((SKRect)(ref bounds)).Right - num));
+			SKRect bounds2 = new SKRect(num4, ((SKRect)(ref bounds)).Top, num5, ((SKRect)(ref bounds)).Bottom);
+			_entry.Arrange(bounds2);
+			_entry.Draw(canvas);
+			if (_showClearButton)
+			{
+				float x = ((SKRect)(ref bounds)).Right - num - num2 / 2f;
+				float midY2 = ((SKRect)(ref bounds)).MidY;
+				DrawClearButton(canvas, x, midY2, num2 / 2f);
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
 
-        // Draw clear button
-        if (_showClearButton)
-        {
-            var clearX = bounds.Right - iconPadding - clearButtonSize / 2;
-            var clearY = bounds.MidY;
-            DrawClearButton(canvas, clearX, clearY, clearButtonSize / 2);
-        }
-    }
+	private void DrawSearchIcon(SKCanvas canvas, float x, float y, float size)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0032: Expected O, but got Unknown
+		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0074: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
+		SKPaint val = new SKPaint
+		{
+			Color = IconColor,
+			IsAntialias = true,
+			Style = (SKPaintStyle)1,
+			StrokeWidth = 2f,
+			StrokeCap = (SKStrokeCap)1
+		};
+		try
+		{
+			float num = size * 0.35f;
+			SKPoint val2 = new SKPoint(x + num, y - num * 0.3f);
+			canvas.DrawCircle(val2, num, val);
+			SKPoint val3 = new SKPoint(((SKPoint)(ref val2)).X + num * 0.7f, ((SKPoint)(ref val2)).Y + num * 0.7f);
+			SKPoint val4 = new SKPoint(x + size * 0.8f, y + size * 0.3f);
+			canvas.DrawLine(val3, val4, val);
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
 
-    private void DrawSearchIcon(SKCanvas canvas, float x, float y, float size)
-    {
-        using var paint = new SKPaint
-        {
-            Color = IconColor,
-            IsAntialias = true,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
-            StrokeCap = SKStrokeCap.Round
-        };
+	private void DrawClearButton(SKCanvas canvas, float x, float y, float radius)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002a: Expected O, but got Unknown
+		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0053: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0065: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006d: Expected O, but got Unknown
+		SKPaint val = new SKPaint();
+		SKColor clearButtonColor = ClearButtonColor;
+		val.Color = ((SKColor)(ref clearButtonColor)).WithAlpha((byte)80);
+		val.IsAntialias = true;
+		val.Style = (SKPaintStyle)0;
+		SKPaint val2 = val;
+		try
+		{
+			canvas.DrawCircle(x, y, radius + 2f, val2);
+			SKPaint val3 = new SKPaint
+			{
+				Color = ClearButtonColor,
+				IsAntialias = true,
+				Style = (SKPaintStyle)1,
+				StrokeWidth = 2f,
+				StrokeCap = (SKStrokeCap)1
+			};
+			try
+			{
+				float num = radius * 0.5f;
+				canvas.DrawLine(x - num, y - num, x + num, y + num, val3);
+				canvas.DrawLine(x + num, y - num, x - num, y + num, val3);
+			}
+			finally
+			{
+				((IDisposable)val3)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val2)?.Dispose();
+		}
+	}
 
-        var circleRadius = size * 0.35f;
-        var circleCenter = new SKPoint(x + circleRadius, y - circleRadius * 0.3f);
+	public override void OnPointerPressed(PointerEventArgs e)
+	{
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+		if (!base.IsEnabled)
+		{
+			return;
+		}
+		float x = e.X;
+		SKRect bounds = base.Bounds;
+		float num = x - ((SKRect)(ref bounds)).Left;
+		if (_showClearButton)
+		{
+			bounds = base.Bounds;
+			if (num >= ((SKRect)(ref bounds)).Width - 40f)
+			{
+				Text = "";
+				Invalidate();
+				return;
+			}
+		}
+		_entry.IsFocused = true;
+		base.IsFocused = true;
+		_entry.OnPointerPressed(e);
+		Invalidate();
+	}
 
-        // Draw magnifying glass circle
-        canvas.DrawCircle(circleCenter, circleRadius, paint);
+	public override void OnPointerMoved(PointerEventArgs e)
+	{
+		if (base.IsEnabled)
+		{
+			_entry.OnPointerMoved(e);
+		}
+	}
 
-        // Draw handle
-        var handleStart = new SKPoint(
-            circleCenter.X + circleRadius * 0.7f,
-            circleCenter.Y + circleRadius * 0.7f);
-        var handleEnd = new SKPoint(
-            x + size * 0.8f,
-            y + size * 0.3f);
-        canvas.DrawLine(handleStart, handleEnd, paint);
-    }
+	public override void OnPointerReleased(PointerEventArgs e)
+	{
+		_entry.OnPointerReleased(e);
+	}
 
-    private void DrawClearButton(SKCanvas canvas, float x, float y, float radius)
-    {
-        // Draw circle background
-        using var bgPaint = new SKPaint
-        {
-            Color = ClearButtonColor.WithAlpha(80),
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawCircle(x, y, radius + 2, bgPaint);
+	public override void OnTextInput(TextInputEventArgs e)
+	{
+		_entry.OnTextInput(e);
+	}
 
-        // Draw X
-        using var paint = new SKPaint
-        {
-            Color = ClearButtonColor,
-            IsAntialias = true,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
-            StrokeCap = SKStrokeCap.Round
-        };
+	public override void OnKeyDown(KeyEventArgs e)
+	{
+		if (e.Key == Key.Escape && _showClearButton)
+		{
+			Text = "";
+			e.Handled = true;
+		}
+		else
+		{
+			_entry.OnKeyDown(e);
+		}
+	}
 
-        var offset = radius * 0.5f;
-        canvas.DrawLine(x - offset, y - offset, x + offset, y + offset, paint);
-        canvas.DrawLine(x + offset, y - offset, x - offset, y + offset, paint);
-    }
+	public override void OnKeyUp(KeyEventArgs e)
+	{
+		_entry.OnKeyUp(e);
+	}
 
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        // Convert to local coordinates (relative to this view's bounds)
-        var localX = e.X - Bounds.Left;
-
-        // Check if clear button was clicked (in the rightmost 40 pixels)
-        if (_showClearButton && localX >= Bounds.Width - 40)
-        {
-            Text = "";
-            Invalidate();
-            return;
-        }
-
-        // Forward to entry for text input focus and selection
-        _entry.IsFocused = true;
-        IsFocused = true;
-        _entry.OnPointerPressed(e);
-        Invalidate();
-    }
-
-    public override void OnPointerMoved(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-        _entry.OnPointerMoved(e);
-    }
-
-    public override void OnPointerReleased(PointerEventArgs e)
-    {
-        _entry.OnPointerReleased(e);
-    }
-
-    public override void OnTextInput(TextInputEventArgs e)
-    {
-        _entry.OnTextInput(e);
-    }
-
-    public override void OnKeyDown(KeyEventArgs e)
-    {
-        if (e.Key == Key.Escape && _showClearButton)
-        {
-            Text = "";
-            e.Handled = true;
-            return;
-        }
-
-        _entry.OnKeyDown(e);
-    }
-
-    public override void OnKeyUp(KeyEventArgs e)
-    {
-        _entry.OnKeyUp(e);
-    }
-
-    protected override SKSize MeasureOverride(SKSize availableSize)
-    {
-        return new SKSize(250, 40);
-    }
+	protected override SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
+		return new SKSize(250f, 40f);
+	}
 }

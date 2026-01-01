@@ -1,339 +1,343 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// Skia-rendered toggle switch control with full XAML styling support.
-/// </summary>
 public class SkiaSwitch : SkiaView
 {
-    #region BindableProperties
+	public static readonly BindableProperty IsOnProperty = BindableProperty.Create("IsOn", typeof(bool), typeof(SkiaSwitch), (object)false, (BindingMode)1, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).OnIsOnChanged();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for IsOn.
-    /// </summary>
-    public static readonly BindableProperty IsOnProperty =
-        BindableProperty.Create(
-            nameof(IsOn),
-            typeof(bool),
-            typeof(SkiaSwitch),
-            false,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).OnIsOnChanged());
+	public static readonly BindableProperty OnTrackColorProperty = BindableProperty.Create("OnTrackColor", typeof(SKColor), typeof(SkiaSwitch), (object)new SKColor((byte)33, (byte)150, (byte)243), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for OnTrackColor.
-    /// </summary>
-    public static readonly BindableProperty OnTrackColorProperty =
-        BindableProperty.Create(
-            nameof(OnTrackColor),
-            typeof(SKColor),
-            typeof(SkiaSwitch),
-            new SKColor(0x21, 0x96, 0xF3),
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
+	public static readonly BindableProperty OffTrackColorProperty = BindableProperty.Create("OffTrackColor", typeof(SKColor), typeof(SkiaSwitch), (object)new SKColor((byte)158, (byte)158, (byte)158), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for OffTrackColor.
-    /// </summary>
-    public static readonly BindableProperty OffTrackColorProperty =
-        BindableProperty.Create(
-            nameof(OffTrackColor),
-            typeof(SKColor),
-            typeof(SkiaSwitch),
-            new SKColor(0x9E, 0x9E, 0x9E),
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
+	public static readonly BindableProperty ThumbColorProperty = BindableProperty.Create("ThumbColor", typeof(SKColor), typeof(SkiaSwitch), (object)SKColors.White, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for ThumbColor.
-    /// </summary>
-    public static readonly BindableProperty ThumbColorProperty =
-        BindableProperty.Create(
-            nameof(ThumbColor),
-            typeof(SKColor),
-            typeof(SkiaSwitch),
-            SKColors.White,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
+	public static readonly BindableProperty DisabledColorProperty = BindableProperty.Create("DisabledColor", typeof(SKColor), typeof(SkiaSwitch), (object)new SKColor((byte)189, (byte)189, (byte)189), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for DisabledColor.
-    /// </summary>
-    public static readonly BindableProperty DisabledColorProperty =
-        BindableProperty.Create(
-            nameof(DisabledColor),
-            typeof(SKColor),
-            typeof(SkiaSwitch),
-            new SKColor(0xBD, 0xBD, 0xBD),
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
+	public static readonly BindableProperty TrackWidthProperty = BindableProperty.Create("TrackWidth", typeof(float), typeof(SkiaSwitch), (object)52f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for TrackWidth.
-    /// </summary>
-    public static readonly BindableProperty TrackWidthProperty =
-        BindableProperty.Create(
-            nameof(TrackWidth),
-            typeof(float),
-            typeof(SkiaSwitch),
-            52f,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).InvalidateMeasure());
+	public static readonly BindableProperty TrackHeightProperty = BindableProperty.Create("TrackHeight", typeof(float), typeof(SkiaSwitch), (object)32f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for TrackHeight.
-    /// </summary>
-    public static readonly BindableProperty TrackHeightProperty =
-        BindableProperty.Create(
-            nameof(TrackHeight),
-            typeof(float),
-            typeof(SkiaSwitch),
-            32f,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).InvalidateMeasure());
+	public static readonly BindableProperty ThumbRadiusProperty = BindableProperty.Create("ThumbRadius", typeof(float), typeof(SkiaSwitch), (object)12f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for ThumbRadius.
-    /// </summary>
-    public static readonly BindableProperty ThumbRadiusProperty =
-        BindableProperty.Create(
-            nameof(ThumbRadius),
-            typeof(float),
-            typeof(SkiaSwitch),
-            12f,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
+	public static readonly BindableProperty ThumbPaddingProperty = BindableProperty.Create("ThumbPadding", typeof(float), typeof(SkiaSwitch), (object)4f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaSwitch)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
 
-    /// <summary>
-    /// Bindable property for ThumbPadding.
-    /// </summary>
-    public static readonly BindableProperty ThumbPaddingProperty =
-        BindableProperty.Create(
-            nameof(ThumbPadding),
-            typeof(float),
-            typeof(SkiaSwitch),
-            4f,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
+	private float _animationProgress;
 
-    #endregion
+	public bool IsOn
+	{
+		get
+		{
+			return (bool)((BindableObject)this).GetValue(IsOnProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(IsOnProperty, (object)value);
+		}
+	}
 
-    #region Properties
+	public SKColor OnTrackColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(OnTrackColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(OnTrackColorProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets whether the switch is on.
-    /// </summary>
-    public bool IsOn
-    {
-        get => (bool)GetValue(IsOnProperty);
-        set => SetValue(IsOnProperty, value);
-    }
+	public SKColor OffTrackColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(OffTrackColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(OffTrackColorProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the on track color.
-    /// </summary>
-    public SKColor OnTrackColor
-    {
-        get => (SKColor)GetValue(OnTrackColorProperty);
-        set => SetValue(OnTrackColorProperty, value);
-    }
+	public SKColor ThumbColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(ThumbColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(ThumbColorProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the off track color.
-    /// </summary>
-    public SKColor OffTrackColor
-    {
-        get => (SKColor)GetValue(OffTrackColorProperty);
-        set => SetValue(OffTrackColorProperty, value);
-    }
+	public SKColor DisabledColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(DisabledColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(DisabledColorProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the thumb color.
-    /// </summary>
-    public SKColor ThumbColor
-    {
-        get => (SKColor)GetValue(ThumbColorProperty);
-        set => SetValue(ThumbColorProperty, value);
-    }
+	public float TrackWidth
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(TrackWidthProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(TrackWidthProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the disabled color.
-    /// </summary>
-    public SKColor DisabledColor
-    {
-        get => (SKColor)GetValue(DisabledColorProperty);
-        set => SetValue(DisabledColorProperty, value);
-    }
+	public float TrackHeight
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(TrackHeightProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(TrackHeightProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the track width.
-    /// </summary>
-    public float TrackWidth
-    {
-        get => (float)GetValue(TrackWidthProperty);
-        set => SetValue(TrackWidthProperty, value);
-    }
+	public float ThumbRadius
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(ThumbRadiusProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(ThumbRadiusProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the track height.
-    /// </summary>
-    public float TrackHeight
-    {
-        get => (float)GetValue(TrackHeightProperty);
-        set => SetValue(TrackHeightProperty, value);
-    }
+	public float ThumbPadding
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(ThumbPaddingProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(ThumbPaddingProperty, (object)value);
+		}
+	}
 
-    /// <summary>
-    /// Gets or sets the thumb radius.
-    /// </summary>
-    public float ThumbRadius
-    {
-        get => (float)GetValue(ThumbRadiusProperty);
-        set => SetValue(ThumbRadiusProperty, value);
-    }
+	public event EventHandler<ToggledEventArgs>? Toggled;
 
-    /// <summary>
-    /// Gets or sets the thumb padding.
-    /// </summary>
-    public float ThumbPadding
-    {
-        get => (float)GetValue(ThumbPaddingProperty);
-        set => SetValue(ThumbPaddingProperty, value);
-    }
+	public SkiaSwitch()
+	{
+		base.IsFocusable = true;
+	}
 
-    #endregion
+	private void OnIsOnChanged()
+	{
+		_animationProgress = (IsOn ? 1f : 0f);
+		this.Toggled?.Invoke(this, new ToggledEventArgs(IsOn));
+		SkiaVisualStateManager.GoToState(this, IsOn ? "On" : "Off");
+		Invalidate();
+	}
 
-    private float _animationProgress; // 0 = off, 1 = on
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0067: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0078: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0084: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009c: Expected O, but got Unknown
+		//IL_00ba: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00cb: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d2: Expected O, but got Unknown
+		//IL_013e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0143: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ef: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0100: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0113: Expected O, but got Unknown
+		//IL_0163: Unknown result type (might be due to invalid IL or missing references)
+		//IL_015b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_016d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0174: Unknown result type (might be due to invalid IL or missing references)
+		//IL_017d: Expected O, but got Unknown
+		//IL_0196: Unknown result type (might be due to invalid IL or missing references)
+		//IL_019b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_019d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01a2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01a8: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01b2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01b9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01c0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01cd: Expected O, but got Unknown
+		//IL_01cf: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01e0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01e7: Expected O, but got Unknown
+		float midY = ((SKRect)(ref bounds)).MidY;
+		float num = ((SKRect)(ref bounds)).MidX - TrackWidth / 2f;
+		float num2 = num + TrackWidth;
+		float num3 = num + ThumbPadding + ThumbRadius;
+		float num4 = num2 - ThumbPadding - ThumbRadius;
+		float num5 = num3 + _animationProgress * (num4 - num3);
+		SKColor color = (base.IsEnabled ? InterpolateColor(OffTrackColor, OnTrackColor, _animationProgress) : DisabledColor);
+		SKPaint val = new SKPaint
+		{
+			Color = color,
+			IsAntialias = true,
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			SKRoundRect val2 = new SKRoundRect(new SKRect(num, midY - TrackHeight / 2f, num2, midY + TrackHeight / 2f), TrackHeight / 2f);
+			canvas.DrawRoundRect(val2, val);
+			if (base.IsEnabled)
+			{
+				SKPaint val3 = new SKPaint
+				{
+					Color = new SKColor((byte)0, (byte)0, (byte)0, (byte)40),
+					IsAntialias = true,
+					MaskFilter = SKMaskFilter.CreateBlur((SKBlurStyle)0, 2f)
+				};
+				try
+				{
+					canvas.DrawCircle(num5 + 1f, midY + 1f, ThumbRadius, val3);
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			SKPaint val4 = new SKPaint
+			{
+				Color = (SKColor)(base.IsEnabled ? ThumbColor : new SKColor((byte)245, (byte)245, (byte)245)),
+				IsAntialias = true,
+				Style = (SKPaintStyle)0
+			};
+			try
+			{
+				canvas.DrawCircle(num5, midY, ThumbRadius, val4);
+				if (base.IsFocused)
+				{
+					SKPaint val5 = new SKPaint();
+					SKColor onTrackColor = OnTrackColor;
+					val5.Color = ((SKColor)(ref onTrackColor)).WithAlpha((byte)60);
+					val5.IsAntialias = true;
+					val5.Style = (SKPaintStyle)1;
+					val5.StrokeWidth = 3f;
+					SKPaint val6 = val5;
+					try
+					{
+						SKRoundRect val7 = new SKRoundRect(val2.Rect, TrackHeight / 2f);
+						val7.Inflate(3f, 3f);
+						canvas.DrawRoundRect(val7, val6);
+						return;
+					}
+					finally
+					{
+						((IDisposable)val6)?.Dispose();
+					}
+				}
+			}
+			finally
+			{
+				((IDisposable)val4)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
 
-    /// <summary>
-    /// Event raised when the switch is toggled.
-    /// </summary>
-    public event EventHandler<ToggledEventArgs>? Toggled;
+	private static SKColor InterpolateColor(SKColor from, SKColor to, float t)
+	{
+		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
+		return new SKColor((byte)((float)(int)((SKColor)(ref from)).Red + (float)(((SKColor)(ref to)).Red - ((SKColor)(ref from)).Red) * t), (byte)((float)(int)((SKColor)(ref from)).Green + (float)(((SKColor)(ref to)).Green - ((SKColor)(ref from)).Green) * t), (byte)((float)(int)((SKColor)(ref from)).Blue + (float)(((SKColor)(ref to)).Blue - ((SKColor)(ref from)).Blue) * t), (byte)((float)(int)((SKColor)(ref from)).Alpha + (float)(((SKColor)(ref to)).Alpha - ((SKColor)(ref from)).Alpha) * t));
+	}
 
-    public SkiaSwitch()
-    {
-        IsFocusable = true;
-    }
+	public override void OnPointerPressed(PointerEventArgs e)
+	{
+		if (base.IsEnabled)
+		{
+			IsOn = !IsOn;
+			e.Handled = true;
+		}
+	}
 
-    private void OnIsOnChanged()
-    {
-        _animationProgress = IsOn ? 1f : 0f;
-        Toggled?.Invoke(this, new ToggledEventArgs(IsOn));
-        SkiaVisualStateManager.GoToState(this, IsOn ? SkiaVisualStateManager.CommonStates.On : SkiaVisualStateManager.CommonStates.Off);
-        Invalidate();
-    }
+	public override void OnPointerReleased(PointerEventArgs e)
+	{
+	}
 
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        var centerY = bounds.MidY;
-        var trackLeft = bounds.MidX - TrackWidth / 2;
-        var trackRight = trackLeft + TrackWidth;
+	public override void OnKeyDown(KeyEventArgs e)
+	{
+		if (base.IsEnabled && (e.Key == Key.Space || e.Key == Key.Enter))
+		{
+			IsOn = !IsOn;
+			e.Handled = true;
+		}
+	}
 
-        // Calculate thumb position
-        var thumbMinX = trackLeft + ThumbPadding + ThumbRadius;
-        var thumbMaxX = trackRight - ThumbPadding - ThumbRadius;
-        var thumbX = thumbMinX + _animationProgress * (thumbMaxX - thumbMinX);
+	protected override void OnEnabledChanged()
+	{
+		base.OnEnabledChanged();
+		SkiaVisualStateManager.GoToState(this, base.IsEnabled ? "Normal" : "Disabled");
+	}
 
-        // Interpolate track color
-        var trackColor = IsEnabled
-            ? InterpolateColor(OffTrackColor, OnTrackColor, _animationProgress)
-            : DisabledColor;
-
-        // Draw track
-        using var trackPaint = new SKPaint
-        {
-            Color = trackColor,
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill
-        };
-
-        var trackRect = new SKRoundRect(
-            new SKRect(trackLeft, centerY - TrackHeight / 2, trackRight, centerY + TrackHeight / 2),
-            TrackHeight / 2);
-        canvas.DrawRoundRect(trackRect, trackPaint);
-
-        // Draw thumb shadow
-        if (IsEnabled)
-        {
-            using var shadowPaint = new SKPaint
-            {
-                Color = new SKColor(0, 0, 0, 40),
-                IsAntialias = true,
-                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
-            };
-            canvas.DrawCircle(thumbX + 1, centerY + 1, ThumbRadius, shadowPaint);
-        }
-
-        // Draw thumb
-        using var thumbPaint = new SKPaint
-        {
-            Color = IsEnabled ? ThumbColor : new SKColor(0xF5, 0xF5, 0xF5),
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawCircle(thumbX, centerY, ThumbRadius, thumbPaint);
-
-        // Draw focus ring
-        if (IsFocused)
-        {
-            using var focusPaint = new SKPaint
-            {
-                Color = OnTrackColor.WithAlpha(60),
-                IsAntialias = true,
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 3
-            };
-            var focusRect = new SKRoundRect(trackRect.Rect, TrackHeight / 2);
-            focusRect.Inflate(3, 3);
-            canvas.DrawRoundRect(focusRect, focusPaint);
-        }
-    }
-
-    private static SKColor InterpolateColor(SKColor from, SKColor to, float t)
-    {
-        return new SKColor(
-            (byte)(from.Red + (to.Red - from.Red) * t),
-            (byte)(from.Green + (to.Green - from.Green) * t),
-            (byte)(from.Blue + (to.Blue - from.Blue) * t),
-            (byte)(from.Alpha + (to.Alpha - from.Alpha) * t));
-    }
-
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-        IsOn = !IsOn;
-        e.Handled = true;
-    }
-
-    public override void OnPointerReleased(PointerEventArgs e)
-    {
-        // Toggle handled in OnPointerPressed
-    }
-
-    public override void OnKeyDown(KeyEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        if (e.Key == Key.Space || e.Key == Key.Enter)
-        {
-            IsOn = !IsOn;
-            e.Handled = true;
-        }
-    }
-
-    protected override void OnEnabledChanged()
-    {
-        base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
-    }
-
-    protected override SKSize MeasureOverride(SKSize availableSize)
-    {
-        return new SKSize(TrackWidth + 8, TrackHeight + 8);
-    }
-}
-
-/// <summary>
-/// Event args for toggled events.
-/// </summary>
-public class ToggledEventArgs : EventArgs
-{
-    public bool Value { get; }
-    public ToggledEventArgs(bool value) => Value = value;
+	protected override SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
+		return new SKSize(TrackWidth + 8f, TrackHeight + 8f);
+	}
 }

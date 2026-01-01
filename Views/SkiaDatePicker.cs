@@ -1,510 +1,963 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using SkiaSharp;
+using System;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// Skia-rendered date picker control with calendar popup.
-/// </summary>
 public class SkiaDatePicker : SkiaView
 {
-    #region BindableProperties
-
-    public static readonly BindableProperty DateProperty =
-        BindableProperty.Create(nameof(Date), typeof(DateTime), typeof(SkiaDatePicker), DateTime.Today, BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).OnDatePropertyChanged());
-
-    public static readonly BindableProperty MinimumDateProperty =
-        BindableProperty.Create(nameof(MinimumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(1900, 1, 1),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty MaximumDateProperty =
-        BindableProperty.Create(nameof(MaximumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(2100, 12, 31),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty FormatProperty =
-        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaDatePicker), "d",
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaDatePicker), SKColors.Black,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0xBD, 0xBD, 0xBD),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty CalendarBackgroundColorProperty =
-        BindableProperty.Create(nameof(CalendarBackgroundColor), typeof(SKColor), typeof(SkiaDatePicker), SKColors.White,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty SelectedDayColorProperty =
-        BindableProperty.Create(nameof(SelectedDayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0x21, 0x96, 0xF3),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty TodayColorProperty =
-        BindableProperty.Create(nameof(TodayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0x21, 0x96, 0xF3, 0x40),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty HeaderColorProperty =
-        BindableProperty.Create(nameof(HeaderColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0x21, 0x96, 0xF3),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty DisabledDayColorProperty =
-        BindableProperty.Create(nameof(DisabledDayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0xBD, 0xBD, 0xBD),
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaDatePicker), 14f,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).InvalidateMeasure());
-
-    public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaDatePicker), 4f,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
-
-    #endregion
-
-    #region Properties
-
-    public DateTime Date
-    {
-        get => (DateTime)GetValue(DateProperty);
-        set => SetValue(DateProperty, ClampDate(value));
-    }
-
-    public DateTime MinimumDate
-    {
-        get => (DateTime)GetValue(MinimumDateProperty);
-        set => SetValue(MinimumDateProperty, value);
-    }
-
-    public DateTime MaximumDate
-    {
-        get => (DateTime)GetValue(MaximumDateProperty);
-        set => SetValue(MaximumDateProperty, value);
-    }
-
-    public string Format
-    {
-        get => (string)GetValue(FormatProperty);
-        set => SetValue(FormatProperty, value);
-    }
-
-    public SKColor TextColor
-    {
-        get => (SKColor)GetValue(TextColorProperty);
-        set => SetValue(TextColorProperty, value);
-    }
-
-    public SKColor BorderColor
-    {
-        get => (SKColor)GetValue(BorderColorProperty);
-        set => SetValue(BorderColorProperty, value);
-    }
-
-    public SKColor CalendarBackgroundColor
-    {
-        get => (SKColor)GetValue(CalendarBackgroundColorProperty);
-        set => SetValue(CalendarBackgroundColorProperty, value);
-    }
-
-    public SKColor SelectedDayColor
-    {
-        get => (SKColor)GetValue(SelectedDayColorProperty);
-        set => SetValue(SelectedDayColorProperty, value);
-    }
-
-    public SKColor TodayColor
-    {
-        get => (SKColor)GetValue(TodayColorProperty);
-        set => SetValue(TodayColorProperty, value);
-    }
-
-    public SKColor HeaderColor
-    {
-        get => (SKColor)GetValue(HeaderColorProperty);
-        set => SetValue(HeaderColorProperty, value);
-    }
-
-    public SKColor DisabledDayColor
-    {
-        get => (SKColor)GetValue(DisabledDayColorProperty);
-        set => SetValue(DisabledDayColorProperty, value);
-    }
-
-    public float FontSize
-    {
-        get => (float)GetValue(FontSizeProperty);
-        set => SetValue(FontSizeProperty, value);
-    }
-
-    public float CornerRadius
-    {
-        get => (float)GetValue(CornerRadiusProperty);
-        set => SetValue(CornerRadiusProperty, value);
-    }
-
-    public bool IsOpen
-    {
-        get => _isOpen;
-        set
-        {
-            if (_isOpen != value)
-            {
-                _isOpen = value;
-                if (_isOpen)
-                    RegisterPopupOverlay(this, DrawCalendarOverlay);
-                else
-                    UnregisterPopupOverlay(this);
-                Invalidate();
-            }
-        }
-    }
-
-    #endregion
-
-    private DateTime _displayMonth;
-    private bool _isOpen;
-
-    private const float CalendarWidth = 280;
-    private const float CalendarHeight = 320;
-    private const float HeaderHeight = 48;
-
-    public event EventHandler? DateSelected;
-
-    /// <summary>
-    /// Gets the calendar popup rectangle with edge detection applied.
-    /// </summary>
-    private SKRect GetCalendarRect(SKRect pickerBounds)
-    {
-        // Get window dimensions for edge detection
-        var windowWidth = LinuxApplication.Current?.MainWindow?.Width ?? 800;
-        var windowHeight = LinuxApplication.Current?.MainWindow?.Height ?? 600;
-
-        // Calculate default position (below the picker)
-        var calendarLeft = pickerBounds.Left;
-        var calendarTop = pickerBounds.Bottom + 4;
-
-        // Edge detection: adjust horizontal position if popup would go off-screen
-        if (calendarLeft + CalendarWidth > windowWidth)
-        {
-            calendarLeft = windowWidth - CalendarWidth - 4;
-        }
-        if (calendarLeft < 0) calendarLeft = 4;
-
-        // Edge detection: show above if popup would go off-screen vertically
-        if (calendarTop + CalendarHeight > windowHeight)
-        {
-            calendarTop = pickerBounds.Top - CalendarHeight - 4;
-        }
-        if (calendarTop < 0) calendarTop = 4;
-
-        return new SKRect(calendarLeft, calendarTop, calendarLeft + CalendarWidth, calendarTop + CalendarHeight);
-    }
-
-    public SkiaDatePicker()
-    {
-        IsFocusable = true;
-        _displayMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-    }
-
-    private void OnDatePropertyChanged()
-    {
-        _displayMonth = new DateTime(Date.Year, Date.Month, 1);
-        DateSelected?.Invoke(this, EventArgs.Empty);
-        Invalidate();
-    }
-
-    private DateTime ClampDate(DateTime date)
-    {
-        if (date < MinimumDate) return MinimumDate;
-        if (date > MaximumDate) return MaximumDate;
-        return date;
-    }
-
-    private void DrawCalendarOverlay(SKCanvas canvas)
-    {
-        if (!_isOpen) return;
-        // Use ScreenBounds for popup drawing (accounts for scroll offset)
-        DrawCalendar(canvas, ScreenBounds);
-    }
-
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        DrawPickerButton(canvas, bounds);
-    }
-
-    private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
-    {
-        using var bgPaint = new SKPaint
-        {
-            Color = IsEnabled ? BackgroundColor : new SKColor(0xF5, 0xF5, 0xF5),
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), bgPaint);
-
-        using var borderPaint = new SKPaint
-        {
-            Color = IsFocused ? SelectedDayColor : BorderColor,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = IsFocused ? 2 : 1,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), borderPaint);
-
-        using var font = new SKFont(SKTypeface.Default, FontSize);
-        using var textPaint = new SKPaint(font)
-        {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
-            IsAntialias = true
-        };
-
-        var dateText = Date.ToString(Format);
-        var textBounds = new SKRect();
-        textPaint.MeasureText(dateText, ref textBounds);
-        canvas.DrawText(dateText, bounds.Left + 12, bounds.MidY - textBounds.MidY, textPaint);
-
-        DrawCalendarIcon(canvas, new SKRect(bounds.Right - 36, bounds.MidY - 10, bounds.Right - 12, bounds.MidY + 10));
-    }
-
-    private void DrawCalendarIcon(SKCanvas canvas, SKRect bounds)
-    {
-        using var paint = new SKPaint
-        {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.5f,
-            IsAntialias = true
-        };
-
-        var calRect = new SKRect(bounds.Left, bounds.Top + 3, bounds.Right, bounds.Bottom);
-        canvas.DrawRoundRect(new SKRoundRect(calRect, 2), paint);
-        canvas.DrawLine(bounds.Left + 5, bounds.Top, bounds.Left + 5, bounds.Top + 5, paint);
-        canvas.DrawLine(bounds.Right - 5, bounds.Top, bounds.Right - 5, bounds.Top + 5, paint);
-        canvas.DrawLine(bounds.Left, bounds.Top + 8, bounds.Right, bounds.Top + 8, paint);
-
-        paint.Style = SKPaintStyle.Fill;
-        for (int row = 0; row < 2; row++)
-            for (int col = 0; col < 3; col++)
-                canvas.DrawCircle(bounds.Left + 4 + col * 6, bounds.Top + 12 + row * 4, 1, paint);
-    }
-
-    private void DrawCalendar(SKCanvas canvas, SKRect bounds)
-    {
-        var calendarRect = GetCalendarRect(bounds);
-
-        using var shadowPaint = new SKPaint
-        {
-            Color = new SKColor(0, 0, 0, 40),
-            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4),
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRoundRect(new SKRoundRect(new SKRect(calendarRect.Left + 2, calendarRect.Top + 2, calendarRect.Right + 2, calendarRect.Bottom + 2), CornerRadius), shadowPaint);
-
-        using var bgPaint = new SKPaint { Color = CalendarBackgroundColor, Style = SKPaintStyle.Fill, IsAntialias = true };
-        canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), bgPaint);
-
-        using var borderPaint = new SKPaint { Color = BorderColor, Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
-        canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), borderPaint);
-
-        DrawCalendarHeader(canvas, new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + HeaderHeight));
-        DrawWeekdayHeaders(canvas, new SKRect(calendarRect.Left, calendarRect.Top + HeaderHeight, calendarRect.Right, calendarRect.Top + HeaderHeight + 30));
-        DrawDays(canvas, new SKRect(calendarRect.Left, calendarRect.Top + HeaderHeight + 30, calendarRect.Right, calendarRect.Bottom));
-    }
-
-    private void DrawCalendarHeader(SKCanvas canvas, SKRect bounds)
-    {
-        using var headerPaint = new SKPaint { Color = HeaderColor, Style = SKPaintStyle.Fill };
-        canvas.Save();
-        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + CornerRadius * 2), CornerRadius));
-        canvas.DrawRect(bounds, headerPaint);
-        canvas.Restore();
-        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + CornerRadius, bounds.Right, bounds.Bottom), headerPaint);
-
-        using var font = new SKFont(SKTypeface.Default, 16);
-        using var textPaint = new SKPaint(font) { Color = SKColors.White, IsAntialias = true };
-        var monthYear = _displayMonth.ToString("MMMM yyyy");
-        var textBounds = new SKRect();
-        textPaint.MeasureText(monthYear, ref textBounds);
-        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, bounds.MidY - textBounds.MidY, textPaint);
-
-        using var arrowPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = true, StrokeCap = SKStrokeCap.Round };
-        using var leftPath = new SKPath();
-        leftPath.MoveTo(bounds.Left + 26, bounds.MidY - 6);
-        leftPath.LineTo(bounds.Left + 20, bounds.MidY);
-        leftPath.LineTo(bounds.Left + 26, bounds.MidY + 6);
-        canvas.DrawPath(leftPath, arrowPaint);
-
-        using var rightPath = new SKPath();
-        rightPath.MoveTo(bounds.Right - 26, bounds.MidY - 6);
-        rightPath.LineTo(bounds.Right - 20, bounds.MidY);
-        rightPath.LineTo(bounds.Right - 26, bounds.MidY + 6);
-        canvas.DrawPath(rightPath, arrowPaint);
-    }
-
-    private void DrawWeekdayHeaders(SKCanvas canvas, SKRect bounds)
-    {
-        var dayNames = new[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };
-        var cellWidth = bounds.Width / 7;
-        using var font = new SKFont(SKTypeface.Default, 12);
-        using var paint = new SKPaint(font) { Color = new SKColor(0x80, 0x80, 0x80), IsAntialias = true };
-        for (int i = 0; i < 7; i++)
-        {
-            var textBounds = new SKRect();
-            paint.MeasureText(dayNames[i], ref textBounds);
-            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2 - textBounds.MidX, bounds.MidY - textBounds.MidY, paint);
-        }
-    }
-
-    private void DrawDays(SKCanvas canvas, SKRect bounds)
-    {
-        var firstDay = new DateTime(_displayMonth.Year, _displayMonth.Month, 1);
-        var daysInMonth = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
-        var startDayOfWeek = (int)firstDay.DayOfWeek;
-        var cellWidth = bounds.Width / 7;
-        var cellHeight = (bounds.Height - 10) / 6;
-        using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font) { IsAntialias = true };
-        using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
-        var today = DateTime.Today;
-
-        for (int day = 1; day <= daysInMonth; day++)
-        {
-            var dayDate = new DateTime(_displayMonth.Year, _displayMonth.Month, day);
-            var cellIndex = startDayOfWeek + day - 1;
-            var row = cellIndex / 7;
-            var col = cellIndex % 7;
-            var cellRect = new SKRect(bounds.Left + col * cellWidth + 2, bounds.Top + row * cellHeight + 2, bounds.Left + (col + 1) * cellWidth - 2, bounds.Top + (row + 1) * cellHeight - 2);
-
-            var isSelected = dayDate.Date == Date.Date;
-            var isToday = dayDate.Date == today;
-            var isDisabled = dayDate < MinimumDate || dayDate > MaximumDate;
-
-            if (isSelected)
-            {
-                bgPaint.Color = SelectedDayColor;
-                canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2 - 2, bgPaint);
-            }
-            else if (isToday)
-            {
-                bgPaint.Color = TodayColor;
-                canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2 - 2, bgPaint);
-            }
-
-            textPaint.Color = isSelected ? SKColors.White : isDisabled ? DisabledDayColor : TextColor;
-            var dayText = day.ToString();
-            var textBounds = new SKRect();
-            textPaint.MeasureText(dayText, ref textBounds);
-            canvas.DrawText(dayText, cellRect.MidX - textBounds.MidX, cellRect.MidY - textBounds.MidY, textPaint);
-        }
-    }
-
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        if (!IsEnabled) return;
-
-        if (IsOpen)
-        {
-            // Use ScreenBounds for popup coordinate calculations (accounts for scroll offset)
-            var screenBounds = ScreenBounds;
-            var calendarRect = GetCalendarRect(screenBounds);
-
-            // Check if click is in header area (navigation arrows)
-            var headerRect = new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + HeaderHeight);
-            if (headerRect.Contains(e.X, e.Y))
-            {
-                if (e.X < calendarRect.Left + 40) { _displayMonth = _displayMonth.AddMonths(-1); Invalidate(); return; }
-                if (e.X > calendarRect.Right - 40) { _displayMonth = _displayMonth.AddMonths(1); Invalidate(); return; }
-                return;
-            }
-
-            // Check if click is in days area
-            var daysTop = calendarRect.Top + HeaderHeight + 30;
-            var daysRect = new SKRect(calendarRect.Left, daysTop, calendarRect.Right, calendarRect.Bottom);
-            if (daysRect.Contains(e.X, e.Y))
-            {
-                var cellWidth = CalendarWidth / 7;
-                var cellHeight = (CalendarHeight - HeaderHeight - 40) / 6;
-                var col = (int)((e.X - calendarRect.Left) / cellWidth);
-                var row = (int)((e.Y - daysTop) / cellHeight);
-                var firstDay = new DateTime(_displayMonth.Year, _displayMonth.Month, 1);
-                var dayIndex = row * 7 + col - (int)firstDay.DayOfWeek + 1;
-                var daysInMonth = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
-                if (dayIndex >= 1 && dayIndex <= daysInMonth)
-                {
-                    var selectedDate = new DateTime(_displayMonth.Year, _displayMonth.Month, dayIndex);
-                    if (selectedDate >= MinimumDate && selectedDate <= MaximumDate)
-                    {
-                        Date = selectedDate;
-                        IsOpen = false;
-                    }
-                }
-                return;
-            }
-
-            // Click is outside calendar - check if it's on the picker itself
-            if (screenBounds.Contains(e.X, e.Y))
-            {
-                IsOpen = false;
-            }
-        }
-        else IsOpen = true;
-        Invalidate();
-    }
-
-    public override void OnKeyDown(KeyEventArgs e)
-    {
-        if (!IsEnabled) return;
-        switch (e.Key)
-        {
-            case Key.Enter: case Key.Space: IsOpen = !IsOpen; e.Handled = true; break;
-            case Key.Escape: if (IsOpen) { IsOpen = false; e.Handled = true; } break;
-            case Key.Left: Date = Date.AddDays(-1); e.Handled = true; break;
-            case Key.Right: Date = Date.AddDays(1); e.Handled = true; break;
-            case Key.Up: Date = Date.AddDays(-7); e.Handled = true; break;
-            case Key.Down: Date = Date.AddDays(7); e.Handled = true; break;
-        }
-        Invalidate();
-    }
-
-    public override void OnFocusLost()
-    {
-        base.OnFocusLost();
-        // Close popup when focus is lost (clicking outside)
-        if (IsOpen)
-        {
-            IsOpen = false;
-        }
-    }
-
-    protected override SKSize MeasureOverride(SKSize availableSize)
-    {
-        return new SKSize(availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200) : 200, 40);
-    }
-
-    /// <summary>
-    /// Override to include calendar popup area in hit testing.
-    /// </summary>
-    protected override bool HitTestPopupArea(float x, float y)
-    {
-        // Use ScreenBounds for hit testing (accounts for scroll offset)
-        var screenBounds = ScreenBounds;
-
-        // Always include the picker button itself
-        if (screenBounds.Contains(x, y))
-            return true;
-
-        // When open, also include the calendar area (with edge detection)
-        if (_isOpen)
-        {
-            var calendarRect = GetCalendarRect(screenBounds);
-            return calendarRect.Contains(x, y);
-        }
-
-        return false;
-    }
+	public static readonly BindableProperty DateProperty = BindableProperty.Create("Date", typeof(DateTime), typeof(SkiaDatePicker), (object)DateTime.Today, (BindingMode)1, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).OnDatePropertyChanged();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty MinimumDateProperty = BindableProperty.Create("MinimumDate", typeof(DateTime), typeof(SkiaDatePicker), (object)new DateTime(1900, 1, 1), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty MaximumDateProperty = BindableProperty.Create("MaximumDate", typeof(DateTime), typeof(SkiaDatePicker), (object)new DateTime(2100, 12, 31), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty FormatProperty = BindableProperty.Create("Format", typeof(string), typeof(SkiaDatePicker), (object)"d", (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty TextColorProperty = BindableProperty.Create("TextColor", typeof(SKColor), typeof(SkiaDatePicker), (object)SKColors.Black, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty BorderColorProperty = BindableProperty.Create("BorderColor", typeof(SKColor), typeof(SkiaDatePicker), (object)new SKColor((byte)189, (byte)189, (byte)189), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty CalendarBackgroundColorProperty = BindableProperty.Create("CalendarBackgroundColor", typeof(SKColor), typeof(SkiaDatePicker), (object)SKColors.White, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty SelectedDayColorProperty = BindableProperty.Create("SelectedDayColor", typeof(SKColor), typeof(SkiaDatePicker), (object)new SKColor((byte)33, (byte)150, (byte)243), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty TodayColorProperty = BindableProperty.Create("TodayColor", typeof(SKColor), typeof(SkiaDatePicker), (object)new SKColor((byte)33, (byte)150, (byte)243, (byte)64), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty HeaderColorProperty = BindableProperty.Create("HeaderColor", typeof(SKColor), typeof(SkiaDatePicker), (object)new SKColor((byte)33, (byte)150, (byte)243), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty DisabledDayColorProperty = BindableProperty.Create("DisabledDayColor", typeof(SKColor), typeof(SkiaDatePicker), (object)new SKColor((byte)189, (byte)189, (byte)189), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty FontSizeProperty = BindableProperty.Create("FontSize", typeof(float), typeof(SkiaDatePicker), (object)14f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).InvalidateMeasure();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty CornerRadiusProperty = BindableProperty.Create("CornerRadius", typeof(float), typeof(SkiaDatePicker), (object)4f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaDatePicker)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	private DateTime _displayMonth;
+
+	private bool _isOpen;
+
+	private const float CalendarWidth = 280f;
+
+	private const float CalendarHeight = 320f;
+
+	private const float HeaderHeight = 48f;
+
+	public DateTime Date
+	{
+		get
+		{
+			return (DateTime)((BindableObject)this).GetValue(DateProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(DateProperty, (object)ClampDate(value));
+		}
+	}
+
+	public DateTime MinimumDate
+	{
+		get
+		{
+			return (DateTime)((BindableObject)this).GetValue(MinimumDateProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(MinimumDateProperty, (object)value);
+		}
+	}
+
+	public DateTime MaximumDate
+	{
+		get
+		{
+			return (DateTime)((BindableObject)this).GetValue(MaximumDateProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(MaximumDateProperty, (object)value);
+		}
+	}
+
+	public string Format
+	{
+		get
+		{
+			return (string)((BindableObject)this).GetValue(FormatProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(FormatProperty, (object)value);
+		}
+	}
+
+	public SKColor TextColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(TextColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(TextColorProperty, (object)value);
+		}
+	}
+
+	public SKColor BorderColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(BorderColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(BorderColorProperty, (object)value);
+		}
+	}
+
+	public SKColor CalendarBackgroundColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(CalendarBackgroundColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(CalendarBackgroundColorProperty, (object)value);
+		}
+	}
+
+	public SKColor SelectedDayColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(SelectedDayColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(SelectedDayColorProperty, (object)value);
+		}
+	}
+
+	public SKColor TodayColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(TodayColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(TodayColorProperty, (object)value);
+		}
+	}
+
+	public SKColor HeaderColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(HeaderColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(HeaderColorProperty, (object)value);
+		}
+	}
+
+	public SKColor DisabledDayColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(DisabledDayColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(DisabledDayColorProperty, (object)value);
+		}
+	}
+
+	public float FontSize
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(FontSizeProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(FontSizeProperty, (object)value);
+		}
+	}
+
+	public float CornerRadius
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(CornerRadiusProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(CornerRadiusProperty, (object)value);
+		}
+	}
+
+	public bool IsOpen
+	{
+		get
+		{
+			return _isOpen;
+		}
+		set
+		{
+			if (_isOpen != value)
+			{
+				_isOpen = value;
+				if (_isOpen)
+				{
+					SkiaView.RegisterPopupOverlay(this, DrawCalendarOverlay);
+				}
+				else
+				{
+					SkiaView.UnregisterPopupOverlay(this);
+				}
+				Invalidate();
+			}
+		}
+	}
+
+	public event EventHandler? DateSelected;
+
+	private SKRect GetCalendarRect(SKRect pickerBounds)
+	{
+		//IL_0101: Unknown result type (might be due to invalid IL or missing references)
+		int num = LinuxApplication.Current?.MainWindow?.Width ?? 800;
+		int num2 = LinuxApplication.Current?.MainWindow?.Height ?? 600;
+		float num3 = ((SKRect)(ref pickerBounds)).Left;
+		float num4 = ((SKRect)(ref pickerBounds)).Bottom + 4f;
+		if (num3 + 280f > (float)num)
+		{
+			num3 = (float)num - 280f - 4f;
+		}
+		if (num3 < 0f)
+		{
+			num3 = 4f;
+		}
+		if (num4 + 320f > (float)num2)
+		{
+			num4 = ((SKRect)(ref pickerBounds)).Top - 320f - 4f;
+		}
+		if (num4 < 0f)
+		{
+			num4 = 4f;
+		}
+		return new SKRect(num3, num4, num3 + 280f, num4 + 320f);
+	}
+
+	public SkiaDatePicker()
+	{
+		base.IsFocusable = true;
+		_displayMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+	}
+
+	private void OnDatePropertyChanged()
+	{
+		_displayMonth = new DateTime(Date.Year, Date.Month, 1);
+		this.DateSelected?.Invoke(this, EventArgs.Empty);
+		Invalidate();
+	}
+
+	private DateTime ClampDate(DateTime date)
+	{
+		if (date < MinimumDate)
+		{
+			return MinimumDate;
+		}
+		if (date > MaximumDate)
+		{
+			return MaximumDate;
+		}
+		return date;
+	}
+
+	private void DrawCalendarOverlay(SKCanvas canvas)
+	{
+		//IL_000c: Unknown result type (might be due to invalid IL or missing references)
+		if (_isOpen)
+		{
+			DrawCalendar(canvas, base.ScreenBounds);
+		}
+	}
+
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+		DrawPickerButton(canvas, bounds);
+	}
+
+	private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003e: Expected O, but got Unknown
+		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0051: Expected O, but got Unknown
+		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0072: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0094: Expected O, but got Unknown
+		//IL_0095: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a7: Expected O, but got Unknown
+		//IL_00bc: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c2: Expected O, but got Unknown
+		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c8: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e8: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d7: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00fa: Expected O, but got Unknown
+		//IL_0113: Unknown result type (might be due to invalid IL or missing references)
+		//IL_017f: Unknown result type (might be due to invalid IL or missing references)
+		SKPaint val = new SKPaint
+		{
+			Color = (SKColor)(base.IsEnabled ? base.BackgroundColor : new SKColor((byte)245, (byte)245, (byte)245)),
+			Style = (SKPaintStyle)0,
+			IsAntialias = true
+		};
+		try
+		{
+			canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), val);
+			SKPaint val2 = new SKPaint
+			{
+				Color = (base.IsFocused ? SelectedDayColor : BorderColor),
+				Style = (SKPaintStyle)1,
+				StrokeWidth = ((!base.IsFocused) ? 1 : 2),
+				IsAntialias = true
+			};
+			try
+			{
+				canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), val2);
+				SKFont val3 = new SKFont(SKTypeface.Default, FontSize, 1f, 0f);
+				try
+				{
+					SKPaint val4 = new SKPaint(val3);
+					SKColor color;
+					if (!base.IsEnabled)
+					{
+						SKColor textColor = TextColor;
+						color = ((SKColor)(ref textColor)).WithAlpha((byte)128);
+					}
+					else
+					{
+						color = TextColor;
+					}
+					val4.Color = color;
+					val4.IsAntialias = true;
+					SKPaint val5 = val4;
+					try
+					{
+						string text = Date.ToString(Format);
+						SKRect val6 = default(SKRect);
+						val5.MeasureText(text, ref val6);
+						canvas.DrawText(text, ((SKRect)(ref bounds)).Left + 12f, ((SKRect)(ref bounds)).MidY - ((SKRect)(ref val6)).MidY, val5);
+						DrawCalendarIcon(canvas, new SKRect(((SKRect)(ref bounds)).Right - 36f, ((SKRect)(ref bounds)).MidY - 10f, ((SKRect)(ref bounds)).Right - 12f, ((SKRect)(ref bounds)).MidY + 10f));
+					}
+					finally
+					{
+						((IDisposable)val5)?.Dispose();
+					}
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawCalendarIcon(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0048: Expected O, but got Unknown
+		//IL_006a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0077: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0082: Expected O, but got Unknown
+		SKPaint val = new SKPaint();
+		SKColor color;
+		if (!base.IsEnabled)
+		{
+			SKColor textColor = TextColor;
+			color = ((SKColor)(ref textColor)).WithAlpha((byte)128);
+		}
+		else
+		{
+			color = TextColor;
+		}
+		val.Color = color;
+		val.Style = (SKPaintStyle)1;
+		val.StrokeWidth = 1.5f;
+		val.IsAntialias = true;
+		SKPaint val2 = val;
+		try
+		{
+			SKRect val3 = new SKRect(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top + 3f, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom);
+			canvas.DrawRoundRect(new SKRoundRect(val3, 2f), val2);
+			canvas.DrawLine(((SKRect)(ref bounds)).Left + 5f, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Left + 5f, ((SKRect)(ref bounds)).Top + 5f, val2);
+			canvas.DrawLine(((SKRect)(ref bounds)).Right - 5f, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right - 5f, ((SKRect)(ref bounds)).Top + 5f, val2);
+			canvas.DrawLine(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top + 8f, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + 8f, val2);
+			val2.Style = (SKPaintStyle)0;
+			for (int i = 0; i < 2; i++)
+			{
+				for (int j = 0; j < 3; j++)
+				{
+					canvas.DrawCircle(((SKRect)(ref bounds)).Left + 4f + (float)(j * 6), ((SKRect)(ref bounds)).Top + 12f + (float)(i * 4), 1f, val2);
+				}
+			}
+		}
+		finally
+		{
+			((IDisposable)val2)?.Dispose();
+		}
+	}
+
+	private void DrawCalendar(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0002: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0013: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0036: Expected O, but got Unknown
+		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0076: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0081: Expected O, but got Unknown
+		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0088: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0092: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0099: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a1: Expected O, but got Unknown
+		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b4: Expected O, but got Unknown
+		//IL_00b4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00bb: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c5: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00cc: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d7: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00df: Expected O, but got Unknown
+		//IL_00e0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e7: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f2: Expected O, but got Unknown
+		//IL_0116: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0150: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0184: Unknown result type (might be due to invalid IL or missing references)
+		SKRect calendarRect = GetCalendarRect(bounds);
+		SKPaint val = new SKPaint
+		{
+			Color = new SKColor((byte)0, (byte)0, (byte)0, (byte)40),
+			MaskFilter = SKMaskFilter.CreateBlur((SKBlurStyle)0, 4f),
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			canvas.DrawRoundRect(new SKRoundRect(new SKRect(((SKRect)(ref calendarRect)).Left + 2f, ((SKRect)(ref calendarRect)).Top + 2f, ((SKRect)(ref calendarRect)).Right + 2f, ((SKRect)(ref calendarRect)).Bottom + 2f), CornerRadius), val);
+			SKPaint val2 = new SKPaint
+			{
+				Color = CalendarBackgroundColor,
+				Style = (SKPaintStyle)0,
+				IsAntialias = true
+			};
+			try
+			{
+				canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), val2);
+				SKPaint val3 = new SKPaint
+				{
+					Color = BorderColor,
+					Style = (SKPaintStyle)1,
+					StrokeWidth = 1f,
+					IsAntialias = true
+				};
+				try
+				{
+					canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), val3);
+					DrawCalendarHeader(canvas, new SKRect(((SKRect)(ref calendarRect)).Left, ((SKRect)(ref calendarRect)).Top, ((SKRect)(ref calendarRect)).Right, ((SKRect)(ref calendarRect)).Top + 48f));
+					DrawWeekdayHeaders(canvas, new SKRect(((SKRect)(ref calendarRect)).Left, ((SKRect)(ref calendarRect)).Top + 48f, ((SKRect)(ref calendarRect)).Right, ((SKRect)(ref calendarRect)).Top + 48f + 30f));
+					DrawDays(canvas, new SKRect(((SKRect)(ref calendarRect)).Left, ((SKRect)(ref calendarRect)).Top + 48f + 30f, ((SKRect)(ref calendarRect)).Right, ((SKRect)(ref calendarRect)).Bottom));
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawCalendarHeader(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0019: Expected O, but got Unknown
+		//IL_004a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0061: Expected O, but got Unknown
+		//IL_0062: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b8: Expected O, but got Unknown
+		//IL_00b9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00be: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00bf: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d1: Expected O, but got Unknown
+		//IL_00e4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_011a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_011f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0120: Unknown result type (might be due to invalid IL or missing references)
+		//IL_012a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0131: Unknown result type (might be due to invalid IL or missing references)
+		//IL_013c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0143: Unknown result type (might be due to invalid IL or missing references)
+		//IL_014c: Expected O, but got Unknown
+		//IL_014c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0153: Expected O, but got Unknown
+		//IL_01ba: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01c1: Expected O, but got Unknown
+		SKPaint val = new SKPaint
+		{
+			Color = HeaderColor,
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			canvas.Save();
+			canvas.ClipRoundRect(new SKRoundRect(new SKRect(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + CornerRadius * 2f), CornerRadius), (SKClipOperation)1, false);
+			canvas.DrawRect(bounds, val);
+			canvas.Restore();
+			canvas.DrawRect(new SKRect(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top + CornerRadius, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom), val);
+			SKFont val2 = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
+			try
+			{
+				SKPaint val3 = new SKPaint(val2)
+				{
+					Color = SKColors.White,
+					IsAntialias = true
+				};
+				try
+				{
+					string text = _displayMonth.ToString("MMMM yyyy");
+					SKRect val4 = default(SKRect);
+					val3.MeasureText(text, ref val4);
+					canvas.DrawText(text, ((SKRect)(ref bounds)).MidX - ((SKRect)(ref val4)).MidX, ((SKRect)(ref bounds)).MidY - ((SKRect)(ref val4)).MidY, val3);
+					SKPaint val5 = new SKPaint
+					{
+						Color = SKColors.White,
+						Style = (SKPaintStyle)1,
+						StrokeWidth = 2f,
+						IsAntialias = true,
+						StrokeCap = (SKStrokeCap)1
+					};
+					try
+					{
+						SKPath val6 = new SKPath();
+						try
+						{
+							val6.MoveTo(((SKRect)(ref bounds)).Left + 26f, ((SKRect)(ref bounds)).MidY - 6f);
+							val6.LineTo(((SKRect)(ref bounds)).Left + 20f, ((SKRect)(ref bounds)).MidY);
+							val6.LineTo(((SKRect)(ref bounds)).Left + 26f, ((SKRect)(ref bounds)).MidY + 6f);
+							canvas.DrawPath(val6, val5);
+							SKPath val7 = new SKPath();
+							try
+							{
+								val7.MoveTo(((SKRect)(ref bounds)).Right - 26f, ((SKRect)(ref bounds)).MidY - 6f);
+								val7.LineTo(((SKRect)(ref bounds)).Right - 20f, ((SKRect)(ref bounds)).MidY);
+								val7.LineTo(((SKRect)(ref bounds)).Right - 26f, ((SKRect)(ref bounds)).MidY + 6f);
+								canvas.DrawPath(val7, val5);
+							}
+							finally
+							{
+								((IDisposable)val7)?.Dispose();
+							}
+						}
+						finally
+						{
+							((IDisposable)val6)?.Dispose();
+						}
+					}
+					finally
+					{
+						((IDisposable)val5)?.Dispose();
+					}
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawWeekdayHeaders(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0067: Expected O, but got Unknown
+		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+		//IL_008f: Expected O, but got Unknown
+		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
+		string[] array = new string[7] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };
+		float num = ((SKRect)(ref bounds)).Width / 7f;
+		SKFont val = new SKFont(SKTypeface.Default, 12f, 1f, 0f);
+		try
+		{
+			SKPaint val2 = new SKPaint(val)
+			{
+				Color = new SKColor((byte)128, (byte)128, (byte)128),
+				IsAntialias = true
+			};
+			try
+			{
+				for (int i = 0; i < 7; i++)
+				{
+					SKRect val3 = default(SKRect);
+					val2.MeasureText(array[i], ref val3);
+					canvas.DrawText(array[i], ((SKRect)(ref bounds)).Left + (float)i * num + num / 2f - ((SKRect)(ref val3)).MidX, ((SKRect)(ref bounds)).MidY - ((SKRect)(ref val3)).MidY, val2);
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawDays(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0080: Expected O, but got Unknown
+		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0090: Expected O, but got Unknown
+		//IL_0090: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0095: Unknown result type (might be due to invalid IL or missing references)
+		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00a5: Expected O, but got Unknown
+		//IL_0190: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01d8: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0231: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0246: Unknown result type (might be due to invalid IL or missing references)
+		//IL_022a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0222: Unknown result type (might be due to invalid IL or missing references)
+		DateTime dateTime = new DateTime(_displayMonth.Year, _displayMonth.Month, 1);
+		int num = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
+		int dayOfWeek = (int)dateTime.DayOfWeek;
+		float num2 = ((SKRect)(ref bounds)).Width / 7f;
+		float num3 = (((SKRect)(ref bounds)).Height - 10f) / 6f;
+		SKFont val = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
+		try
+		{
+			SKPaint val2 = new SKPaint(val)
+			{
+				IsAntialias = true
+			};
+			try
+			{
+				SKPaint val3 = new SKPaint
+				{
+					Style = (SKPaintStyle)0,
+					IsAntialias = true
+				};
+				try
+				{
+					DateTime today = DateTime.Today;
+					SKRect val4 = default(SKRect);
+					for (int i = 1; i <= num; i++)
+					{
+						DateTime dateTime2 = new DateTime(_displayMonth.Year, _displayMonth.Month, i);
+						int num4 = dayOfWeek + i - 1;
+						int num5 = num4 / 7;
+						int num6 = num4 % 7;
+						((SKRect)(ref val4))._002Ector(((SKRect)(ref bounds)).Left + (float)num6 * num2 + 2f, ((SKRect)(ref bounds)).Top + (float)num5 * num3 + 2f, ((SKRect)(ref bounds)).Left + (float)(num6 + 1) * num2 - 2f, ((SKRect)(ref bounds)).Top + (float)(num5 + 1) * num3 - 2f);
+						bool flag = dateTime2.Date == Date.Date;
+						bool flag2 = dateTime2.Date == today;
+						bool flag3 = dateTime2 < MinimumDate || dateTime2 > MaximumDate;
+						if (flag)
+						{
+							val3.Color = SelectedDayColor;
+							canvas.DrawCircle(((SKRect)(ref val4)).MidX, ((SKRect)(ref val4)).MidY, Math.Min(((SKRect)(ref val4)).Width, ((SKRect)(ref val4)).Height) / 2f - 2f, val3);
+						}
+						else if (flag2)
+						{
+							val3.Color = TodayColor;
+							canvas.DrawCircle(((SKRect)(ref val4)).MidX, ((SKRect)(ref val4)).MidY, Math.Min(((SKRect)(ref val4)).Width, ((SKRect)(ref val4)).Height) / 2f - 2f, val3);
+						}
+						val2.Color = (flag ? SKColors.White : (flag3 ? DisabledDayColor : TextColor));
+						string text = i.ToString();
+						SKRect val5 = default(SKRect);
+						val2.MeasureText(text, ref val5);
+						canvas.DrawText(text, ((SKRect)(ref val4)).MidX - ((SKRect)(ref val5)).MidX, ((SKRect)(ref val4)).MidY - ((SKRect)(ref val5)).MidY, val2);
+					}
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	public override void OnPointerPressed(PointerEventArgs e)
+	{
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
+		if (!base.IsEnabled)
+		{
+			return;
+		}
+		if (IsOpen)
+		{
+			SKRect screenBounds = base.ScreenBounds;
+			SKRect calendarRect = GetCalendarRect(screenBounds);
+			SKRect val = default(SKRect);
+			((SKRect)(ref val))._002Ector(((SKRect)(ref calendarRect)).Left, ((SKRect)(ref calendarRect)).Top, ((SKRect)(ref calendarRect)).Right, ((SKRect)(ref calendarRect)).Top + 48f);
+			if (((SKRect)(ref val)).Contains(e.X, e.Y))
+			{
+				if (e.X < ((SKRect)(ref calendarRect)).Left + 40f)
+				{
+					_displayMonth = _displayMonth.AddMonths(-1);
+					Invalidate();
+				}
+				else if (e.X > ((SKRect)(ref calendarRect)).Right - 40f)
+				{
+					_displayMonth = _displayMonth.AddMonths(1);
+					Invalidate();
+				}
+				return;
+			}
+			float num = ((SKRect)(ref calendarRect)).Top + 48f + 30f;
+			SKRect val2 = default(SKRect);
+			((SKRect)(ref val2))._002Ector(((SKRect)(ref calendarRect)).Left, num, ((SKRect)(ref calendarRect)).Right, ((SKRect)(ref calendarRect)).Bottom);
+			if (((SKRect)(ref val2)).Contains(e.X, e.Y))
+			{
+				float num2 = 40f;
+				float num3 = 38.666668f;
+				int num4 = (int)((e.X - ((SKRect)(ref calendarRect)).Left) / num2);
+				int num5 = (int)((int)((e.Y - num) / num3) * 7 + num4 - new DateTime(_displayMonth.Year, _displayMonth.Month, 1).DayOfWeek + 1);
+				int num6 = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
+				if (num5 >= 1 && num5 <= num6)
+				{
+					DateTime dateTime = new DateTime(_displayMonth.Year, _displayMonth.Month, num5);
+					if (dateTime >= MinimumDate && dateTime <= MaximumDate)
+					{
+						Date = dateTime;
+						IsOpen = false;
+					}
+				}
+				return;
+			}
+			if (((SKRect)(ref screenBounds)).Contains(e.X, e.Y))
+			{
+				IsOpen = false;
+			}
+		}
+		else
+		{
+			IsOpen = true;
+		}
+		Invalidate();
+	}
+
+	public override void OnKeyDown(KeyEventArgs e)
+	{
+		if (!base.IsEnabled)
+		{
+			return;
+		}
+		switch (e.Key)
+		{
+		case Key.Enter:
+		case Key.Space:
+			IsOpen = !IsOpen;
+			e.Handled = true;
+			break;
+		case Key.Escape:
+			if (IsOpen)
+			{
+				IsOpen = false;
+				e.Handled = true;
+			}
+			break;
+		case Key.Left:
+			Date = Date.AddDays(-1.0);
+			e.Handled = true;
+			break;
+		case Key.Right:
+			Date = Date.AddDays(1.0);
+			e.Handled = true;
+			break;
+		case Key.Up:
+			Date = Date.AddDays(-7.0);
+			e.Handled = true;
+			break;
+		case Key.Down:
+			Date = Date.AddDays(7.0);
+			e.Handled = true;
+			break;
+		}
+		Invalidate();
+	}
+
+	public override void OnFocusLost()
+	{
+		base.OnFocusLost();
+		if (IsOpen)
+		{
+			IsOpen = false;
+		}
+	}
+
+	protected override SKSize MeasureOverride(SKSize availableSize)
+	{
+		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
+		return new SKSize((((SKSize)(ref availableSize)).Width < float.MaxValue) ? Math.Min(((SKSize)(ref availableSize)).Width, 200f) : 200f, 40f);
+	}
+
+	protected override bool HitTestPopupArea(float x, float y)
+	{
+		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
+		SKRect screenBounds = base.ScreenBounds;
+		if (((SKRect)(ref screenBounds)).Contains(x, y))
+		{
+			return true;
+		}
+		if (_isOpen)
+		{
+			SKRect calendarRect = GetCalendarRect(screenBounds);
+			return ((SKRect)(ref calendarRect)).Contains(x, y);
+		}
+		return false;
+	}
 }

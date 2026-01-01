@@ -1,849 +1,988 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
-using System.Collections;
-using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Platform;
 
-/// <summary>
-/// Selection mode for collection views.
-/// </summary>
-public enum SkiaSelectionMode
-{
-    None,
-    Single,
-    Multiple
-}
-
-/// <summary>
-/// Layout orientation for items.
-/// </summary>
-public enum ItemsLayoutOrientation
-{
-    Vertical,
-    Horizontal
-}
-
-/// <summary>
-/// Skia-rendered CollectionView with selection, headers, and flexible layouts.
-/// </summary>
 public class SkiaCollectionView : SkiaItemsView
 {
-    #region BindableProperties
-
-    /// <summary>
-    /// Bindable property for SelectionMode.
-    /// </summary>
-    public static readonly BindableProperty SelectionModeProperty =
-        BindableProperty.Create(
-            nameof(SelectionMode),
-            typeof(SkiaSelectionMode),
-            typeof(SkiaCollectionView),
-            SkiaSelectionMode.Single,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectionModeChanged());
-
-    /// <summary>
-    /// Bindable property for SelectedItem.
-    /// </summary>
-    public static readonly BindableProperty SelectedItemProperty =
-        BindableProperty.Create(
-            nameof(SelectedItem),
-            typeof(object),
-            typeof(SkiaCollectionView),
-            null,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectedItemChanged(n));
-
-    /// <summary>
-    /// Bindable property for Orientation.
-    /// </summary>
-    public static readonly BindableProperty OrientationProperty =
-        BindableProperty.Create(
-            nameof(Orientation),
-            typeof(ItemsLayoutOrientation),
-            typeof(SkiaCollectionView),
-            ItemsLayoutOrientation.Vertical,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for SpanCount.
-    /// </summary>
-    public static readonly BindableProperty SpanCountProperty =
-        BindableProperty.Create(
-            nameof(SpanCount),
-            typeof(int),
-            typeof(SkiaCollectionView),
-            1,
-            coerceValue: (b, v) => Math.Max(1, (int)v),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for GridItemWidth.
-    /// </summary>
-    public static readonly BindableProperty GridItemWidthProperty =
-        BindableProperty.Create(
-            nameof(GridItemWidth),
-            typeof(float),
-            typeof(SkiaCollectionView),
-            100f,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for Header.
-    /// </summary>
-    public static readonly BindableProperty HeaderProperty =
-        BindableProperty.Create(
-            nameof(Header),
-            typeof(object),
-            typeof(SkiaCollectionView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnHeaderChanged(n));
-
-    /// <summary>
-    /// Bindable property for Footer.
-    /// </summary>
-    public static readonly BindableProperty FooterProperty =
-        BindableProperty.Create(
-            nameof(Footer),
-            typeof(object),
-            typeof(SkiaCollectionView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnFooterChanged(n));
-
-    /// <summary>
-    /// Bindable property for HeaderHeight.
-    /// </summary>
-    public static readonly BindableProperty HeaderHeightProperty =
-        BindableProperty.Create(
-            nameof(HeaderHeight),
-            typeof(float),
-            typeof(SkiaCollectionView),
-            0f,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for FooterHeight.
-    /// </summary>
-    public static readonly BindableProperty FooterHeightProperty =
-        BindableProperty.Create(
-            nameof(FooterHeight),
-            typeof(float),
-            typeof(SkiaCollectionView),
-            0f,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for SelectionColor.
-    /// </summary>
-    public static readonly BindableProperty SelectionColorProperty =
-        BindableProperty.Create(
-            nameof(SelectionColor),
-            typeof(SKColor),
-            typeof(SkiaCollectionView),
-            new SKColor(0x21, 0x96, 0xF3, 0x59),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for HeaderBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty HeaderBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(HeaderBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaCollectionView),
-            new SKColor(0xF5, 0xF5, 0xF5),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for FooterBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty FooterBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(FooterBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaCollectionView),
-            new SKColor(0xF5, 0xF5, 0xF5),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
-
-    #endregion
-
-    private List<object> _selectedItems = new();
-    private int _selectedIndex = -1;
-
-    // Track if heights changed during draw (requires redraw for correct positioning)
-    private bool _heightsChangedDuringDraw;
-
-    // Uses parent's _itemViewCache for virtualization
-
-    protected override void RefreshItems()
-    {
-        // Clear selection when items change to avoid stale references
-        _selectedItems.Clear();
-        SetValue(SelectedItemProperty, null);
-        _selectedIndex = -1;
-
-        base.RefreshItems();
-    }
-
-    private void OnSelectionModeChanged()
-    {
-        var mode = SelectionMode;
-        if (mode == SkiaSelectionMode.None)
-        {
-            ClearSelection();
-        }
-        else if (mode == SkiaSelectionMode.Single && _selectedItems.Count > 1)
-        {
-            // Keep only first selected
-            var first = _selectedItems.FirstOrDefault();
-            ClearSelection();
-            if (first != null)
-            {
-                SelectItem(first);
-            }
-        }
-        Invalidate();
-    }
-
-    private void OnSelectedItemChanged(object? newValue)
-    {
-        if (SelectionMode == SkiaSelectionMode.None) return;
-
-        ClearSelection();
-        if (newValue != null)
-        {
-            SelectItem(newValue);
-        }
-    }
-
-    private void OnHeaderChanged(object? newValue)
-    {
-        HeaderHeight = newValue != null ? 44 : 0;
-        Invalidate();
-    }
-
-    private void OnFooterChanged(object? newValue)
-    {
-        FooterHeight = newValue != null ? 44 : 0;
-        Invalidate();
-    }
-
-    public SkiaSelectionMode SelectionMode
-    {
-        get => (SkiaSelectionMode)GetValue(SelectionModeProperty);
-        set => SetValue(SelectionModeProperty, value);
-    }
-
-    public object? SelectedItem
-    {
-        get => GetValue(SelectedItemProperty);
-        set => SetValue(SelectedItemProperty, value);
-    }
-
-    public IList<object> SelectedItems => _selectedItems.AsReadOnly();
-
-    public override int SelectedIndex
-    {
-        get => _selectedIndex;
-        set
-        {
-            if (SelectionMode == SkiaSelectionMode.None) return;
-
-            var item = GetItemAt(value);
-            if (item != null)
-            {
-                SelectedItem = item;
-            }
-        }
-    }
-
-    public ItemsLayoutOrientation Orientation
-    {
-        get => (ItemsLayoutOrientation)GetValue(OrientationProperty);
-        set => SetValue(OrientationProperty, value);
-    }
-
-    public int SpanCount
-    {
-        get => (int)GetValue(SpanCountProperty);
-        set => SetValue(SpanCountProperty, value);
-    }
-
-    public float GridItemWidth
-    {
-        get => (float)GetValue(GridItemWidthProperty);
-        set => SetValue(GridItemWidthProperty, value);
-    }
-
-    public object? Header
-    {
-        get => GetValue(HeaderProperty);
-        set => SetValue(HeaderProperty, value);
-    }
-
-    public object? Footer
-    {
-        get => GetValue(FooterProperty);
-        set => SetValue(FooterProperty, value);
-    }
-
-    public float HeaderHeight
-    {
-        get => (float)GetValue(HeaderHeightProperty);
-        set => SetValue(HeaderHeightProperty, value);
-    }
-
-    public float FooterHeight
-    {
-        get => (float)GetValue(FooterHeightProperty);
-        set => SetValue(FooterHeightProperty, value);
-    }
-
-    public SKColor SelectionColor
-    {
-        get => (SKColor)GetValue(SelectionColorProperty);
-        set => SetValue(SelectionColorProperty, value);
-    }
-
-    public SKColor HeaderBackgroundColor
-    {
-        get => (SKColor)GetValue(HeaderBackgroundColorProperty);
-        set => SetValue(HeaderBackgroundColorProperty, value);
-    }
-
-    public SKColor FooterBackgroundColor
-    {
-        get => (SKColor)GetValue(FooterBackgroundColorProperty);
-        set => SetValue(FooterBackgroundColorProperty, value);
-    }
-
-    public event EventHandler<CollectionSelectionChangedEventArgs>? SelectionChanged;
-
-    private void SelectItem(object item)
-    {
-        if (SelectionMode == SkiaSelectionMode.None) return;
-
-        var oldSelectedItems = _selectedItems.ToList();
-
-        if (SelectionMode == SkiaSelectionMode.Single)
-        {
-            _selectedItems.Clear();
-            _selectedItems.Add(item);
-            SetValue(SelectedItemProperty, item);
-
-            // Find index
-            for (int i = 0; i < ItemCount; i++)
-            {
-                if (GetItemAt(i) == item)
-                {
-                    _selectedIndex = i;
-                    break;
-                }
-            }
-        }
-        else // Multiple
-        {
-            if (_selectedItems.Contains(item))
-            {
-                _selectedItems.Remove(item);
-                if (SelectedItem == item)
-                {
-                    SetValue(SelectedItemProperty, _selectedItems.FirstOrDefault());
-                }
-            }
-            else
-            {
-                _selectedItems.Add(item);
-                SetValue(SelectedItemProperty, item);
-            }
-
-            _selectedIndex = SelectedItem != null ? GetIndexOf(SelectedItem) : -1;
-        }
-
-        SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(oldSelectedItems, _selectedItems.ToList()));
-        Invalidate();
-    }
-
-    private int GetIndexOf(object item)
-    {
-        for (int i = 0; i < ItemCount; i++)
-        {
-            if (GetItemAt(i) == item)
-                return i;
-        }
-        return -1;
-    }
-
-    private void ClearSelection()
-    {
-        var oldItems = _selectedItems.ToList();
-        _selectedItems.Clear();
-        SetValue(SelectedItemProperty, null);
-        _selectedIndex = -1;
-
-        if (oldItems.Count > 0)
-        {
-            SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(oldItems, new List<object>()));
-        }
-    }
-
-    protected override void OnItemTapped(int index, object item)
-    {
-        if (SelectionMode != SkiaSelectionMode.None)
-        {
-            SelectItem(item);
-        }
-
-        base.OnItemTapped(index, item);
-    }
-
-    protected override void DrawItem(SKCanvas canvas, object item, int index, SKRect bounds, SKPaint paint)
-    {
-        bool isSelected = _selectedItems.Contains(item);
-
-        // Draw separator (only for vertical list layout)
-        if (Orientation == ItemsLayoutOrientation.Vertical && SpanCount == 1)
-        {
-            paint.Color = new SKColor(0xE0, 0xE0, 0xE0);
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 1;
-            canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
-        }
-
-        // Try to use ItemViewCreator for templated rendering (from DataTemplate)
-        if (ItemViewCreator != null)
-        {
-            // Get or create cached view for this index
-            if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
-            {
-                itemView = ItemViewCreator(item);
-                if (itemView != null)
-                {
-                    itemView.Parent = this;
-                    _itemViewCache[index] = itemView;
-                }
-            }
-
-            if (itemView != null)
-            {
-                try
-                {
-                    // Measure with large height to get natural size
-                    var availableSize = new SKSize(bounds.Width, float.MaxValue);
-                    var measuredSize = itemView.Measure(availableSize);
-
-                    // Cap measured height - if item returns infinity/MaxValue, use ItemHeight as default
-                    // This happens with Star-sized Grids that have no natural height preference
-                    var rawHeight = measuredSize.Height;
-                    if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000)
-                    {
-                        rawHeight = ItemHeight;
-                    }
-                    // Ensure minimum height
-                    var measuredHeight = Math.Max(rawHeight, ItemHeight);
-                    if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1)
-                    {
-                        _itemHeights[index] = measuredHeight;
-                        _heightsChangedDuringDraw = true; // Flag for redraw with correct positions
-                    }
-
-                    // Arrange with the actual measured height
-                    var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
-                    itemView.Arrange(actualBounds);
-                    itemView.Draw(canvas);
-
-                    // Draw selection highlight ON TOP of the item content (semi-transparent overlay)
-                    if (isSelected)
-                    {
-                        paint.Color = SelectionColor;
-                        paint.Style = SKPaintStyle.Fill;
-                        canvas.DrawRoundRect(actualBounds, 12, 12, paint);
-                    }
-
-                    // Draw checkmark for selected items in multiple selection mode
-                    if (isSelected && SelectionMode == SkiaSelectionMode.Multiple)
-                    {
-                        DrawCheckmark(canvas, new SKRect(actualBounds.Right - 32, actualBounds.MidY - 8, actualBounds.Right - 16, actualBounds.MidY + 8));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[SkiaCollectionView.DrawItem] EXCEPTION: {ex.Message}\n{ex.StackTrace}");
-                }
-                return;
-            }
-        }
-
-        // Use custom renderer if provided
-        if (ItemRenderer != null)
-        {
-            if (ItemRenderer(item, index, bounds, canvas, paint))
-                return;
-        }
-
-        // Default rendering - fall back to ToString
-        paint.Color = SKColors.Black;
-        paint.Style = SKPaintStyle.Fill;
-
-        using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font)
-        {
-            Color = SKColors.Black,
-            IsAntialias = true
-        };
-
-        var text = item?.ToString() ?? "";
-        var textBounds = new SKRect();
-        textPaint.MeasureText(text, ref textBounds);
-
-        var x = bounds.Left + 16;
-        var y = bounds.MidY - textBounds.MidY;
-        canvas.DrawText(text, x, y, textPaint);
-
-        // Draw checkmark for selected items in multiple selection mode
-        if (isSelected && SelectionMode == SkiaSelectionMode.Multiple)
-        {
-            DrawCheckmark(canvas, new SKRect(bounds.Right - 32, bounds.MidY - 8, bounds.Right - 16, bounds.MidY + 8));
-        }
-    }
-
-    private void DrawCheckmark(SKCanvas canvas, SKRect bounds)
-    {
-        using var paint = new SKPaint
-        {
-            Color = new SKColor(0x21, 0x96, 0xF3),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
-            IsAntialias = true,
-            StrokeCap = SKStrokeCap.Round
-        };
-
-        using var path = new SKPath();
-        path.MoveTo(bounds.Left, bounds.MidY);
-        path.LineTo(bounds.MidX - 2, bounds.Bottom - 2);
-        path.LineTo(bounds.Right, bounds.Top + 2);
-
-        canvas.DrawPath(path, paint);
-    }
-
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        // Reset the heights-changed flag at the start of each draw
-        _heightsChangedDuringDraw = false;
-
-        // Draw background if set
-        if (BackgroundColor != SKColors.Transparent)
-        {
-            using var bgPaint = new SKPaint
-            {
-                Color = BackgroundColor,
-                Style = SKPaintStyle.Fill
-            };
-            canvas.DrawRect(bounds, bgPaint);
-        }
-
-        // Draw header if present
-        if (Header != null && HeaderHeight > 0)
-        {
-            var headerRect = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + HeaderHeight);
-            DrawHeader(canvas, headerRect);
-        }
-
-        // Draw footer if present
-        if (Footer != null && FooterHeight > 0)
-        {
-            var footerRect = new SKRect(bounds.Left, bounds.Bottom - FooterHeight, bounds.Right, bounds.Bottom);
-            DrawFooter(canvas, footerRect);
-        }
-
-        // Adjust content bounds for header/footer
-        var contentBounds = new SKRect(
-            bounds.Left,
-            bounds.Top + HeaderHeight,
-            bounds.Right,
-            bounds.Bottom - FooterHeight);
-
-        // Draw items
-        if (ItemCount == 0)
-        {
-            DrawEmptyView(canvas, contentBounds);
-            return;
-        }
-
-        // Use grid layout if spanCount > 1
-        if (SpanCount > 1)
-        {
-            DrawGridItems(canvas, contentBounds);
-        }
-        else
-        {
-            DrawListItems(canvas, contentBounds);
-        }
-
-        // If heights changed during this draw, schedule a redraw with correct positions
-        // This will queue another frame to be drawn with the correct cached heights
-        if (_heightsChangedDuringDraw)
-        {
-            _heightsChangedDuringDraw = false;
-            Invalidate();
-        }
-    }
-
-    private void DrawListItems(SKCanvas canvas, SKRect bounds)
-    {
-        // Standard list drawing with variable item heights
-        canvas.Save();
-        canvas.ClipRect(bounds);
-
-        using var paint = new SKPaint { IsAntialias = true };
-
-        var scrollOffset = GetScrollOffset();
-
-        // Find first visible item by walking through items
-        int firstVisible = 0;
-        float cumulativeOffset = 0;
-        for (int i = 0; i < ItemCount; i++)
-        {
-            var itemH = GetItemHeight(i);
-            if (cumulativeOffset + itemH > scrollOffset)
-            {
-                firstVisible = i;
-                break;
-            }
-            cumulativeOffset += itemH + ItemSpacing;
-        }
-
-        // Draw visible items using variable heights
-        float currentY = bounds.Top + GetItemOffset(firstVisible) - scrollOffset;
-        for (int i = firstVisible; i < ItemCount; i++)
-        {
-            var itemH = GetItemHeight(i);
-            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - 8, currentY + itemH);
-
-            // Stop if we've passed the visible area
-            if (itemRect.Top > bounds.Bottom)
-                break;
-
-            if (itemRect.Bottom >= bounds.Top)
-            {
-                var item = GetItemAt(i);
-                if (item != null)
-                {
-                    DrawItem(canvas, item, i, itemRect, paint);
-                }
-            }
-
-            currentY += itemH + ItemSpacing;
-        }
-
-        canvas.Restore();
-
-        // Draw scrollbar
-        var totalHeight = TotalContentHeight;
-        if (totalHeight > bounds.Height)
-        {
-            DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
-        }
-    }
-
-    private void DrawGridItems(SKCanvas canvas, SKRect bounds)
-    {
-        canvas.Save();
-        canvas.ClipRect(bounds);
-
-        using var paint = new SKPaint { IsAntialias = true };
-
-        var cellWidth = (bounds.Width - 8) / SpanCount; // -8 for scrollbar
-        var cellHeight = ItemHeight;
-        var rowCount = (int)Math.Ceiling((double)ItemCount / SpanCount);
-        var totalHeight = rowCount * (cellHeight + ItemSpacing) - ItemSpacing;
-
-        var scrollOffset = GetScrollOffset();
-        var firstVisibleRow = Math.Max(0, (int)(scrollOffset / (cellHeight + ItemSpacing)));
-        var lastVisibleRow = Math.Min(rowCount - 1,
-            (int)((scrollOffset + bounds.Height) / (cellHeight + ItemSpacing)) + 1);
-
-        for (int row = firstVisibleRow; row <= lastVisibleRow; row++)
-        {
-            var rowY = bounds.Top + (row * (cellHeight + ItemSpacing)) - scrollOffset;
-
-            for (int col = 0; col < SpanCount; col++)
-            {
-                var index = row * SpanCount + col;
-                if (index >= ItemCount) break;
-
-                var cellX = bounds.Left + col * cellWidth;
-                var cellRect = new SKRect(cellX + 2, rowY, cellX + cellWidth - 2, rowY + cellHeight);
-
-                if (cellRect.Bottom < bounds.Top || cellRect.Top > bounds.Bottom)
-                    continue;
-
-                var item = GetItemAt(index);
-                if (item != null)
-                {
-                    // Draw cell background
-                    using var cellBgPaint = new SKPaint
-                    {
-                        Color = _selectedItems.Contains(item) ? SelectionColor : new SKColor(0xFA, 0xFA, 0xFA),
-                        Style = SKPaintStyle.Fill
-                    };
-                    canvas.DrawRoundRect(new SKRoundRect(cellRect, 4), cellBgPaint);
-
-                    DrawItem(canvas, item, index, cellRect, paint);
-                }
-            }
-        }
-
-        canvas.Restore();
-
-        // Draw scrollbar
-        if (totalHeight > bounds.Height)
-        {
-            DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
-        }
-    }
-
-    private void DrawScrollBarInternal(SKCanvas canvas, SKRect bounds, float scrollOffset, float totalHeight)
-    {
-        var scrollBarWidth = 6f;
-        var scrollBarMargin = 2f;
-
-        // Draw scrollbar track (subtle)
-        var trackRect = new SKRect(
-            bounds.Right - scrollBarWidth - scrollBarMargin,
-            bounds.Top + scrollBarMargin,
-            bounds.Right - scrollBarMargin,
-            bounds.Bottom - scrollBarMargin);
-
-        using var trackPaint = new SKPaint
-        {
-            Color = new SKColor(0, 0, 0, 20),
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRoundRect(new SKRoundRect(trackRect, 3), trackPaint);
-
-        // Calculate thumb position and size
-        var maxOffset = Math.Max(0, totalHeight - bounds.Height);
-        var viewportRatio = bounds.Height / totalHeight;
-        var availableTrackHeight = trackRect.Height;
-        var thumbHeight = Math.Max(30, availableTrackHeight * viewportRatio);
-        var scrollRatio = maxOffset > 0 ? scrollOffset / maxOffset : 0;
-        var thumbY = trackRect.Top + (availableTrackHeight - thumbHeight) * scrollRatio;
-
-        var thumbRect = new SKRect(
-            trackRect.Left,
-            thumbY,
-            trackRect.Right,
-            thumbY + thumbHeight);
-
-        // Draw thumb with more visible color
-        using var thumbPaint = new SKPaint
-        {
-            Color = new SKColor(100, 100, 100, 180),
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-
-        canvas.DrawRoundRect(new SKRoundRect(thumbRect, 3), thumbPaint);
-    }
-
-    private float GetScrollOffset()
-    {
-        // Access base class scroll offset through reflection or expose it
-        // For now, use the field directly through internal access
-        return _scrollOffset;
-    }
-
-    private void DrawHeader(SKCanvas canvas, SKRect bounds)
-    {
-        using var bgPaint = new SKPaint
-        {
-            Color = HeaderBackgroundColor,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, bgPaint);
-
-        // Draw header text
-        var text = Header.ToString() ?? "";
-        if (!string.IsNullOrEmpty(text))
-        {
-            using var font = new SKFont(SKTypeface.Default, 16);
-            using var textPaint = new SKPaint(font)
-            {
-                Color = SKColors.Black,
-                IsAntialias = true
-            };
-
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
-
-            var x = bounds.Left + 16;
-            var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(text, x, y, textPaint);
-        }
-
-        // Draw separator
-        using var sepPaint = new SKPaint
-        {
-            Color = new SKColor(0xE0, 0xE0, 0xE0),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1
-        };
-        canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, sepPaint);
-    }
-
-    private void DrawFooter(SKCanvas canvas, SKRect bounds)
-    {
-        using var bgPaint = new SKPaint
-        {
-            Color = FooterBackgroundColor,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, bgPaint);
-
-        // Draw separator
-        using var sepPaint = new SKPaint
-        {
-            Color = new SKColor(0xE0, 0xE0, 0xE0),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1
-        };
-        canvas.DrawLine(bounds.Left, bounds.Top, bounds.Right, bounds.Top, sepPaint);
-
-        // Draw footer text
-        var text = Footer.ToString() ?? "";
-        if (!string.IsNullOrEmpty(text))
-        {
-            using var font = new SKFont(SKTypeface.Default, 14);
-            using var textPaint = new SKPaint(font)
-            {
-                Color = new SKColor(0x80, 0x80, 0x80),
-                IsAntialias = true
-            };
-
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
-
-            var x = bounds.MidX - textBounds.MidX;
-            var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(text, x, y, textPaint);
-        }
-    }
-}
-
-/// <summary>
-/// Event args for collection selection changed events.
-/// </summary>
-public class CollectionSelectionChangedEventArgs : EventArgs
-{
-    public IReadOnlyList<object> PreviousSelection { get; }
-    public IReadOnlyList<object> CurrentSelection { get; }
-
-    public CollectionSelectionChangedEventArgs(IList<object> previousSelection, IList<object> currentSelection)
-    {
-        PreviousSelection = previousSelection.ToList().AsReadOnly();
-        CurrentSelection = currentSelection.ToList().AsReadOnly();
-    }
+	public static readonly BindableProperty SelectionModeProperty = BindableProperty.Create("SelectionMode", typeof(SkiaSelectionMode), typeof(SkiaCollectionView), (object)SkiaSelectionMode.Single, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).OnSelectionModeChanged();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty SelectedItemProperty = BindableProperty.Create("SelectedItem", typeof(object), typeof(SkiaCollectionView), (object)null, (BindingMode)1, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).OnSelectedItemChanged(n);
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty OrientationProperty = BindableProperty.Create("Orientation", typeof(ItemsLayoutOrientation), typeof(SkiaCollectionView), (object)ItemsLayoutOrientation.Vertical, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty SpanCountProperty = BindableProperty.Create("SpanCount", typeof(int), typeof(SkiaCollectionView), (object)1, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)((BindableObject b, object v) => Math.Max(1, (int)v)), (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty GridItemWidthProperty = BindableProperty.Create("GridItemWidth", typeof(float), typeof(SkiaCollectionView), (object)100f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty HeaderProperty = BindableProperty.Create("Header", typeof(object), typeof(SkiaCollectionView), (object)null, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).OnHeaderChanged(n);
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty FooterProperty = BindableProperty.Create("Footer", typeof(object), typeof(SkiaCollectionView), (object)null, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).OnFooterChanged(n);
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty HeaderHeightProperty = BindableProperty.Create("HeaderHeight", typeof(float), typeof(SkiaCollectionView), (object)0f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty FooterHeightProperty = BindableProperty.Create("FooterHeight", typeof(float), typeof(SkiaCollectionView), (object)0f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty SelectionColorProperty = BindableProperty.Create("SelectionColor", typeof(SKColor), typeof(SkiaCollectionView), (object)new SKColor((byte)33, (byte)150, (byte)243, (byte)89), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty HeaderBackgroundColorProperty = BindableProperty.Create("HeaderBackgroundColor", typeof(SKColor), typeof(SkiaCollectionView), (object)new SKColor((byte)245, (byte)245, (byte)245), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	public static readonly BindableProperty FooterBackgroundColorProperty = BindableProperty.Create("FooterBackgroundColor", typeof(SKColor), typeof(SkiaCollectionView), (object)new SKColor((byte)245, (byte)245, (byte)245), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
+	{
+		((SkiaCollectionView)(object)b).Invalidate();
+	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+
+	private List<object> _selectedItems = new List<object>();
+
+	private int _selectedIndex = -1;
+
+	private bool _isSelectingItem;
+
+	private bool _heightsChangedDuringDraw;
+
+	public SkiaSelectionMode SelectionMode
+	{
+		get
+		{
+			return (SkiaSelectionMode)((BindableObject)this).GetValue(SelectionModeProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(SelectionModeProperty, (object)value);
+		}
+	}
+
+	public object? SelectedItem
+	{
+		get
+		{
+			return ((BindableObject)this).GetValue(SelectedItemProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(SelectedItemProperty, value);
+		}
+	}
+
+	public IList<object> SelectedItems => _selectedItems.AsReadOnly();
+
+	public override int SelectedIndex
+	{
+		get
+		{
+			return _selectedIndex;
+		}
+		set
+		{
+			if (SelectionMode != SkiaSelectionMode.None)
+			{
+				object itemAt = GetItemAt(value);
+				if (itemAt != null)
+				{
+					SelectedItem = itemAt;
+				}
+			}
+		}
+	}
+
+	public ItemsLayoutOrientation Orientation
+	{
+		get
+		{
+			return (ItemsLayoutOrientation)((BindableObject)this).GetValue(OrientationProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(OrientationProperty, (object)value);
+		}
+	}
+
+	public int SpanCount
+	{
+		get
+		{
+			return (int)((BindableObject)this).GetValue(SpanCountProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(SpanCountProperty, (object)value);
+		}
+	}
+
+	public float GridItemWidth
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(GridItemWidthProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(GridItemWidthProperty, (object)value);
+		}
+	}
+
+	public object? Header
+	{
+		get
+		{
+			return ((BindableObject)this).GetValue(HeaderProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(HeaderProperty, value);
+		}
+	}
+
+	public object? Footer
+	{
+		get
+		{
+			return ((BindableObject)this).GetValue(FooterProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(FooterProperty, value);
+		}
+	}
+
+	public float HeaderHeight
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(HeaderHeightProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(HeaderHeightProperty, (object)value);
+		}
+	}
+
+	public float FooterHeight
+	{
+		get
+		{
+			return (float)((BindableObject)this).GetValue(FooterHeightProperty);
+		}
+		set
+		{
+			((BindableObject)this).SetValue(FooterHeightProperty, (object)value);
+		}
+	}
+
+	public SKColor SelectionColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(SelectionColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(SelectionColorProperty, (object)value);
+		}
+	}
+
+	public SKColor HeaderBackgroundColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(HeaderBackgroundColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(HeaderBackgroundColorProperty, (object)value);
+		}
+	}
+
+	public SKColor FooterBackgroundColor
+	{
+		get
+		{
+			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
+			return (SKColor)((BindableObject)this).GetValue(FooterBackgroundColorProperty);
+		}
+		set
+		{
+			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
+			((BindableObject)this).SetValue(FooterBackgroundColorProperty, (object)value);
+		}
+	}
+
+	public event EventHandler<CollectionSelectionChangedEventArgs>? SelectionChanged;
+
+	protected override void RefreshItems()
+	{
+		_selectedItems.Clear();
+		((BindableObject)this).SetValue(SelectedItemProperty, (object)null);
+		_selectedIndex = -1;
+		base.RefreshItems();
+	}
+
+	private void OnSelectionModeChanged()
+	{
+		switch (SelectionMode)
+		{
+		case SkiaSelectionMode.None:
+			ClearSelection();
+			break;
+		case SkiaSelectionMode.Single:
+			if (_selectedItems.Count > 1)
+			{
+				object obj = _selectedItems.FirstOrDefault();
+				ClearSelection();
+				if (obj != null)
+				{
+					SelectItem(obj);
+				}
+			}
+			break;
+		}
+		Invalidate();
+	}
+
+	private void OnSelectedItemChanged(object? newValue)
+	{
+		if (SelectionMode != SkiaSelectionMode.None && !_isSelectingItem)
+		{
+			ClearSelection();
+			if (newValue != null)
+			{
+				SelectItem(newValue);
+			}
+		}
+	}
+
+	private void OnHeaderChanged(object? newValue)
+	{
+		HeaderHeight = ((newValue != null) ? 44 : 0);
+		Invalidate();
+	}
+
+	private void OnFooterChanged(object? newValue)
+	{
+		FooterHeight = ((newValue != null) ? 44 : 0);
+		Invalidate();
+	}
+
+	private void SelectItem(object item)
+	{
+		if (SelectionMode == SkiaSelectionMode.None)
+		{
+			return;
+		}
+		List<object> previousSelection = _selectedItems.ToList();
+		if (SelectionMode == SkiaSelectionMode.Single)
+		{
+			_selectedItems.Clear();
+			_selectedItems.Add(item);
+			((BindableObject)this).SetValue(SelectedItemProperty, item);
+			for (int i = 0; i < base.ItemCount; i++)
+			{
+				if (GetItemAt(i) == item)
+				{
+					_selectedIndex = i;
+					break;
+				}
+			}
+		}
+		else
+		{
+			if (_selectedItems.Contains(item))
+			{
+				_selectedItems.Remove(item);
+				if (SelectedItem == item)
+				{
+					((BindableObject)this).SetValue(SelectedItemProperty, _selectedItems.FirstOrDefault());
+				}
+			}
+			else
+			{
+				_selectedItems.Add(item);
+				((BindableObject)this).SetValue(SelectedItemProperty, item);
+			}
+			_selectedIndex = ((SelectedItem != null) ? GetIndexOf(SelectedItem) : (-1));
+		}
+		this.SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(previousSelection, _selectedItems.ToList()));
+		Invalidate();
+	}
+
+	private int GetIndexOf(object item)
+	{
+		for (int i = 0; i < base.ItemCount; i++)
+		{
+			if (GetItemAt(i) == item)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private void ClearSelection()
+	{
+		List<object> list = _selectedItems.ToList();
+		_selectedItems.Clear();
+		((BindableObject)this).SetValue(SelectedItemProperty, (object)null);
+		_selectedIndex = -1;
+		if (list.Count > 0)
+		{
+			this.SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(list, new List<object>()));
+		}
+	}
+
+	protected override void OnItemTapped(int index, object item)
+	{
+		if (_isSelectingItem)
+		{
+			return;
+		}
+		_isSelectingItem = true;
+		try
+		{
+			if (SelectionMode != SkiaSelectionMode.None)
+			{
+				SelectItem(item);
+			}
+			base.OnItemTapped(index, item);
+		}
+		finally
+		{
+			_isSelectingItem = false;
+		}
+	}
+
+	protected override void DrawItem(SKCanvas canvas, object item, int index, SKRect bounds, SKPaint paint)
+	{
+		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0245: Unknown result type (might be due to invalid IL or missing references)
+		//IL_026b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0271: Expected O, but got Unknown
+		//IL_0236: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0272: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0277: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0278: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0282: Unknown result type (might be due to invalid IL or missing references)
+		//IL_028a: Expected O, but got Unknown
+		//IL_00d4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00db: Unknown result type (might be due to invalid IL or missing references)
+		//IL_02a2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0176: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0320: Unknown result type (might be due to invalid IL or missing references)
+		//IL_018b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_019e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_01f3: Unknown result type (might be due to invalid IL or missing references)
+		bool flag = _selectedItems.Contains(item);
+		if (Orientation == ItemsLayoutOrientation.Vertical && SpanCount == 1)
+		{
+			paint.Color = new SKColor((byte)224, (byte)224, (byte)224);
+			paint.Style = (SKPaintStyle)1;
+			paint.StrokeWidth = 1f;
+			canvas.DrawLine(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Bottom, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom, paint);
+		}
+		if (base.ItemViewCreator != null)
+		{
+			if (!_itemViewCache.TryGetValue(index, out SkiaView value) || value == null)
+			{
+				value = base.ItemViewCreator(item);
+				if (value != null)
+				{
+					value.Parent = this;
+					_itemViewCache[index] = value;
+				}
+			}
+			if (value != null)
+			{
+				try
+				{
+					SKSize availableSize = default(SKSize);
+					((SKSize)(ref availableSize))._002Ector(((SKRect)(ref bounds)).Width, float.MaxValue);
+					SKSize val = value.Measure(availableSize);
+					float num = ((SKSize)(ref val)).Height;
+					if (float.IsNaN(num) || float.IsInfinity(num) || num > 10000f)
+					{
+						num = base.ItemHeight;
+					}
+					float num2 = Math.Max(num, base.ItemHeight);
+					if (!_itemHeights.TryGetValue(index, out var value2) || Math.Abs(value2 - num2) > 1f)
+					{
+						_itemHeights[index] = num2;
+						_heightsChangedDuringDraw = true;
+					}
+					SKRect val2 = default(SKRect);
+					((SKRect)(ref val2))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + num2);
+					value.Arrange(val2);
+					value.Draw(canvas);
+					if (flag)
+					{
+						paint.Color = SelectionColor;
+						paint.Style = (SKPaintStyle)0;
+						canvas.DrawRoundRect(val2, 12f, 12f, paint);
+					}
+					if (flag && SelectionMode == SkiaSelectionMode.Multiple)
+					{
+						DrawCheckmark(canvas, new SKRect(((SKRect)(ref val2)).Right - 32f, ((SKRect)(ref val2)).MidY - 8f, ((SKRect)(ref val2)).Right - 16f, ((SKRect)(ref val2)).MidY + 8f));
+					}
+					return;
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("[SkiaCollectionView.DrawItem] EXCEPTION: " + ex.Message + "\n" + ex.StackTrace);
+					return;
+				}
+			}
+		}
+		if (base.ItemRenderer != null && base.ItemRenderer(item, index, bounds, canvas, paint))
+		{
+			return;
+		}
+		paint.Color = SKColors.Black;
+		paint.Style = (SKPaintStyle)0;
+		SKFont val3 = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
+		try
+		{
+			SKPaint val4 = new SKPaint(val3)
+			{
+				Color = SKColors.Black,
+				IsAntialias = true
+			};
+			try
+			{
+				string text = item?.ToString() ?? "";
+				SKRect val5 = default(SKRect);
+				val4.MeasureText(text, ref val5);
+				float num3 = ((SKRect)(ref bounds)).Left + 16f;
+				float num4 = ((SKRect)(ref bounds)).MidY - ((SKRect)(ref val5)).MidY;
+				canvas.DrawText(text, num3, num4, val4);
+				if (flag && SelectionMode == SkiaSelectionMode.Multiple)
+				{
+					DrawCheckmark(canvas, new SKRect(((SKRect)(ref bounds)).Right - 32f, ((SKRect)(ref bounds)).MidY - 8f, ((SKRect)(ref bounds)).Right - 16f, ((SKRect)(ref bounds)).MidY + 8f));
+				}
+			}
+			finally
+			{
+				((IDisposable)val4)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val3)?.Dispose();
+		}
+	}
+
+	private void DrawCheckmark(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003d: Expected O, but got Unknown
+		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0043: Expected O, but got Unknown
+		SKPaint val = new SKPaint
+		{
+			Color = new SKColor((byte)33, (byte)150, (byte)243),
+			Style = (SKPaintStyle)1,
+			StrokeWidth = 2f,
+			IsAntialias = true,
+			StrokeCap = (SKStrokeCap)1
+		};
+		try
+		{
+			SKPath val2 = new SKPath();
+			try
+			{
+				val2.MoveTo(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).MidY);
+				val2.LineTo(((SKRect)(ref bounds)).MidX - 2f, ((SKRect)(ref bounds)).Bottom - 2f);
+				val2.LineTo(((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + 2f);
+				canvas.DrawPath(val2, val);
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		//IL_000d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0019: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
+		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0032: Expected O, but got Unknown
+		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
+		//IL_010f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ce: Unknown result type (might be due to invalid IL or missing references)
+		//IL_012b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0121: Unknown result type (might be due to invalid IL or missing references)
+		_heightsChangedDuringDraw = false;
+		if (base.BackgroundColor != SKColors.Transparent)
+		{
+			SKPaint val = new SKPaint
+			{
+				Color = base.BackgroundColor,
+				Style = (SKPaintStyle)0
+			};
+			try
+			{
+				canvas.DrawRect(bounds, val);
+			}
+			finally
+			{
+				((IDisposable)val)?.Dispose();
+			}
+		}
+		if (Header != null && HeaderHeight > 0f)
+		{
+			SKRect bounds2 = default(SKRect);
+			((SKRect)(ref bounds2))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + HeaderHeight);
+			DrawHeader(canvas, bounds2);
+		}
+		if (Footer != null && FooterHeight > 0f)
+		{
+			SKRect bounds3 = default(SKRect);
+			((SKRect)(ref bounds3))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Bottom - FooterHeight, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom);
+			DrawFooter(canvas, bounds3);
+		}
+		SKRect bounds4 = default(SKRect);
+		((SKRect)(ref bounds4))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top + HeaderHeight, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom - FooterHeight);
+		if (base.ItemCount == 0)
+		{
+			DrawEmptyView(canvas, bounds4);
+			return;
+		}
+		if (SpanCount > 1)
+		{
+			DrawGridItems(canvas, bounds4);
+		}
+		else
+		{
+			DrawListItems(canvas, bounds4);
+		}
+		if (_heightsChangedDuringDraw)
+		{
+			_heightsChangedDuringDraw = false;
+			Invalidate();
+		}
+	}
+
+	private void DrawListItems(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Expected O, but got Unknown
+		//IL_011f: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00db: Unknown result type (might be due to invalid IL or missing references)
+		canvas.Save();
+		canvas.ClipRect(bounds, (SKClipOperation)1, false);
+		SKPaint val = new SKPaint
+		{
+			IsAntialias = true
+		};
+		try
+		{
+			float scrollOffset = GetScrollOffset();
+			int num = 0;
+			float num2 = 0f;
+			for (int i = 0; i < base.ItemCount; i++)
+			{
+				float itemHeight = GetItemHeight(i);
+				if (num2 + itemHeight > scrollOffset)
+				{
+					num = i;
+					break;
+				}
+				num2 += itemHeight + base.ItemSpacing;
+			}
+			float num3 = ((SKRect)(ref bounds)).Top + GetItemOffset(num) - scrollOffset;
+			SKRect bounds2 = default(SKRect);
+			for (int j = num; j < base.ItemCount; j++)
+			{
+				float itemHeight2 = GetItemHeight(j);
+				((SKRect)(ref bounds2))._002Ector(((SKRect)(ref bounds)).Left, num3, ((SKRect)(ref bounds)).Right - 8f, num3 + itemHeight2);
+				if (((SKRect)(ref bounds2)).Top > ((SKRect)(ref bounds)).Bottom)
+				{
+					break;
+				}
+				if (((SKRect)(ref bounds2)).Bottom >= ((SKRect)(ref bounds)).Top)
+				{
+					object itemAt = GetItemAt(j);
+					if (itemAt != null)
+					{
+						DrawItem(canvas, itemAt, j, bounds2, val);
+					}
+				}
+				num3 += itemHeight2 + base.ItemSpacing;
+			}
+			canvas.Restore();
+			float totalContentHeight = base.TotalContentHeight;
+			if (totalContentHeight > ((SKRect)(ref bounds)).Height)
+			{
+				DrawScrollBarInternal(canvas, bounds, scrollOffset, totalContentHeight);
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawGridItems(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0010: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0015: Unknown result type (might be due to invalid IL or missing references)
+		//IL_001d: Expected O, but got Unknown
+		//IL_01e4: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0140: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0145: Unknown result type (might be due to invalid IL or missing references)
+		//IL_016c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0164: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0176: Unknown result type (might be due to invalid IL or missing references)
+		//IL_017f: Expected O, but got Unknown
+		//IL_0180: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0187: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0193: Expected O, but got Unknown
+		//IL_0199: Unknown result type (might be due to invalid IL or missing references)
+		canvas.Save();
+		canvas.ClipRect(bounds, (SKClipOperation)1, false);
+		SKPaint val = new SKPaint
+		{
+			IsAntialias = true
+		};
+		try
+		{
+			float num = (((SKRect)(ref bounds)).Width - 8f) / (float)SpanCount;
+			float itemHeight = base.ItemHeight;
+			int num2 = (int)Math.Ceiling((double)base.ItemCount / (double)SpanCount);
+			float num3 = (float)num2 * (itemHeight + base.ItemSpacing) - base.ItemSpacing;
+			float scrollOffset = GetScrollOffset();
+			int num4 = Math.Max(0, (int)(scrollOffset / (itemHeight + base.ItemSpacing)));
+			int num5 = Math.Min(num2 - 1, (int)((scrollOffset + ((SKRect)(ref bounds)).Height) / (itemHeight + base.ItemSpacing)) + 1);
+			SKRect val2 = default(SKRect);
+			for (int i = num4; i <= num5; i++)
+			{
+				float num6 = ((SKRect)(ref bounds)).Top + (float)i * (itemHeight + base.ItemSpacing) - scrollOffset;
+				for (int j = 0; j < SpanCount; j++)
+				{
+					int num7 = i * SpanCount + j;
+					if (num7 >= base.ItemCount)
+					{
+						break;
+					}
+					float num8 = ((SKRect)(ref bounds)).Left + (float)j * num;
+					((SKRect)(ref val2))._002Ector(num8 + 2f, num6, num8 + num - 2f, num6 + itemHeight);
+					if (((SKRect)(ref val2)).Bottom < ((SKRect)(ref bounds)).Top || ((SKRect)(ref val2)).Top > ((SKRect)(ref bounds)).Bottom)
+					{
+						continue;
+					}
+					object itemAt = GetItemAt(num7);
+					if (itemAt != null)
+					{
+						SKPaint val3 = new SKPaint
+						{
+							Color = (SKColor)(_selectedItems.Contains(itemAt) ? SelectionColor : new SKColor((byte)250, (byte)250, (byte)250)),
+							Style = (SKPaintStyle)0
+						};
+						try
+						{
+							canvas.DrawRoundRect(new SKRoundRect(val2, 4f), val3);
+							DrawItem(canvas, itemAt, num7, val2, val);
+						}
+						finally
+						{
+							((IDisposable)val3)?.Dispose();
+						}
+					}
+				}
+			}
+			canvas.Restore();
+			if (num3 > ((SKRect)(ref bounds)).Height)
+			{
+				DrawScrollBarInternal(canvas, bounds, scrollOffset, num3);
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawScrollBarInternal(SKCanvas canvas, SKRect bounds, float scrollOffset, float totalHeight)
+	{
+		//IL_0039: Unknown result type (might be due to invalid IL or missing references)
+		//IL_003e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
+		//IL_004e: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0056: Expected O, but got Unknown
+		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0068: Expected O, but got Unknown
+		//IL_00e1: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e8: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ed: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f9: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0103: Unknown result type (might be due to invalid IL or missing references)
+		//IL_010a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0113: Expected O, but got Unknown
+		//IL_0114: Unknown result type (might be due to invalid IL or missing references)
+		//IL_011b: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0127: Expected O, but got Unknown
+		float num = 6f;
+		float num2 = 2f;
+		SKRect val = default(SKRect);
+		((SKRect)(ref val))._002Ector(((SKRect)(ref bounds)).Right - num - num2, ((SKRect)(ref bounds)).Top + num2, ((SKRect)(ref bounds)).Right - num2, ((SKRect)(ref bounds)).Bottom - num2);
+		SKPaint val2 = new SKPaint
+		{
+			Color = new SKColor((byte)0, (byte)0, (byte)0, (byte)20),
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			canvas.DrawRoundRect(new SKRoundRect(val, 3f), val2);
+			float num3 = Math.Max(0f, totalHeight - ((SKRect)(ref bounds)).Height);
+			float num4 = ((SKRect)(ref bounds)).Height / totalHeight;
+			float height = ((SKRect)(ref val)).Height;
+			float num5 = Math.Max(30f, height * num4);
+			float num6 = ((num3 > 0f) ? (scrollOffset / num3) : 0f);
+			float num7 = ((SKRect)(ref val)).Top + (height - num5) * num6;
+			SKRect val3 = new SKRect(((SKRect)(ref val)).Left, num7, ((SKRect)(ref val)).Right, num7 + num5);
+			SKPaint val4 = new SKPaint
+			{
+				Color = new SKColor((byte)100, (byte)100, (byte)100, (byte)180),
+				Style = (SKPaintStyle)0,
+				IsAntialias = true
+			};
+			try
+			{
+				canvas.DrawRoundRect(new SKRoundRect(val3, 3f), val4);
+			}
+			finally
+			{
+				((IDisposable)val4)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val2)?.Dispose();
+		}
+	}
+
+	private float GetScrollOffset()
+	{
+		return _scrollOffset;
+	}
+
+	private void DrawHeader(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0019: Expected O, but got Unknown
+		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00cd: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00e2: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ec: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00f3: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00ff: Expected O, but got Unknown
+		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
+		//IL_005b: Expected O, but got Unknown
+		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0062: Unknown result type (might be due to invalid IL or missing references)
+		//IL_006c: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0075: Expected O, but got Unknown
+		//IL_0077: Unknown result type (might be due to invalid IL or missing references)
+		SKPaint val = new SKPaint
+		{
+			Color = HeaderBackgroundColor,
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			canvas.DrawRect(bounds, val);
+			string text = Header.ToString() ?? "";
+			if (!string.IsNullOrEmpty(text))
+			{
+				SKFont val2 = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
+				try
+				{
+					SKPaint val3 = new SKPaint(val2)
+					{
+						Color = SKColors.Black,
+						IsAntialias = true
+					};
+					try
+					{
+						SKRect val4 = default(SKRect);
+						val3.MeasureText(text, ref val4);
+						float num = ((SKRect)(ref bounds)).Left + 16f;
+						float num2 = ((SKRect)(ref bounds)).MidY - ((SKRect)(ref val4)).MidY;
+						canvas.DrawText(text, num, num2, val3);
+					}
+					finally
+					{
+						((IDisposable)val3)?.Dispose();
+					}
+				}
+				finally
+				{
+					((IDisposable)val2)?.Dispose();
+				}
+			}
+			SKPaint val5 = new SKPaint
+			{
+				Color = new SKColor((byte)224, (byte)224, (byte)224),
+				Style = (SKPaintStyle)1,
+				StrokeWidth = 1f
+			};
+			try
+			{
+				canvas.DrawLine(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Bottom, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom, val5);
+			}
+			finally
+			{
+				((IDisposable)val5)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
+
+	private void DrawFooter(SKCanvas canvas, SKRect bounds)
+	{
+		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0007: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0019: Expected O, but got Unknown
+		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0047: Unknown result type (might be due to invalid IL or missing references)
+		//IL_0053: Expected O, but got Unknown
+		//IL_00aa: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b0: Expected O, but got Unknown
+		//IL_00b1: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00b6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00c6: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d0: Unknown result type (might be due to invalid IL or missing references)
+		//IL_00d9: Expected O, but got Unknown
+		//IL_00db: Unknown result type (might be due to invalid IL or missing references)
+		SKPaint val = new SKPaint
+		{
+			Color = FooterBackgroundColor,
+			Style = (SKPaintStyle)0
+		};
+		try
+		{
+			canvas.DrawRect(bounds, val);
+			SKPaint val2 = new SKPaint
+			{
+				Color = new SKColor((byte)224, (byte)224, (byte)224),
+				Style = (SKPaintStyle)1,
+				StrokeWidth = 1f
+			};
+			try
+			{
+				canvas.DrawLine(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top, val2);
+				string text = Footer.ToString() ?? "";
+				if (string.IsNullOrEmpty(text))
+				{
+					return;
+				}
+				SKFont val3 = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
+				try
+				{
+					SKPaint val4 = new SKPaint(val3)
+					{
+						Color = new SKColor((byte)128, (byte)128, (byte)128),
+						IsAntialias = true
+					};
+					try
+					{
+						SKRect val5 = default(SKRect);
+						val4.MeasureText(text, ref val5);
+						float num = ((SKRect)(ref bounds)).MidX - ((SKRect)(ref val5)).MidX;
+						float num2 = ((SKRect)(ref bounds)).MidY - ((SKRect)(ref val5)).MidY;
+						canvas.DrawText(text, num, num2, val4);
+					}
+					finally
+					{
+						((IDisposable)val4)?.Dispose();
+					}
+				}
+				finally
+				{
+					((IDisposable)val3)?.Dispose();
+				}
+			}
+			finally
+			{
+				((IDisposable)val2)?.Dispose();
+			}
+		}
+		finally
+		{
+			((IDisposable)val)?.Dispose();
+		}
+	}
 }

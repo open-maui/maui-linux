@@ -1,153 +1,160 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using Microsoft.Maui.Handlers;
+using System;
 using Microsoft.Maui.Graphics;
-using SkiaSharp;
+using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-/// <summary>
-/// Handler for Slider on Linux using Skia rendering.
-/// Maps ISlider interface to SkiaSlider platform view.
-/// </summary>
-public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
+public class SliderHandler : ViewHandler<ISlider, SkiaSlider>
 {
-    public static IPropertyMapper<ISlider, SliderHandler> Mapper = new PropertyMapper<ISlider, SliderHandler>(ViewHandler.ViewMapper)
-    {
-        [nameof(IRange.Minimum)] = MapMinimum,
-        [nameof(IRange.Maximum)] = MapMaximum,
-        [nameof(IRange.Value)] = MapValue,
-        [nameof(ISlider.MinimumTrackColor)] = MapMinimumTrackColor,
-        [nameof(ISlider.MaximumTrackColor)] = MapMaximumTrackColor,
-        [nameof(ISlider.ThumbColor)] = MapThumbColor,
-        [nameof(IView.Background)] = MapBackground,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
-    };
+	public static IPropertyMapper<ISlider, SliderHandler> Mapper = (IPropertyMapper<ISlider, SliderHandler>)(object)new PropertyMapper<ISlider, SliderHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
+	{
+		["Minimum"] = MapMinimum,
+		["Maximum"] = MapMaximum,
+		["Value"] = MapValue,
+		["MinimumTrackColor"] = MapMinimumTrackColor,
+		["MaximumTrackColor"] = MapMaximumTrackColor,
+		["ThumbColor"] = MapThumbColor,
+		["Background"] = MapBackground,
+		["IsEnabled"] = MapIsEnabled
+	};
 
-    public static CommandMapper<ISlider, SliderHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
-    {
-    };
+	public static CommandMapper<ISlider, SliderHandler> CommandMapper = new CommandMapper<ISlider, SliderHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
 
-    public SliderHandler() : base(Mapper, CommandMapper)
-    {
-    }
+	public SliderHandler()
+		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
+	{
+	}
 
-    public SliderHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
-    {
-    }
+	public SliderHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
+	{
+	}
 
-    protected override SkiaSlider CreatePlatformView()
-    {
-        return new SkiaSlider();
-    }
+	protected override SkiaSlider CreatePlatformView()
+	{
+		return new SkiaSlider();
+	}
 
-    protected override void ConnectHandler(SkiaSlider platformView)
-    {
-        base.ConnectHandler(platformView);
-        platformView.ValueChanged += OnValueChanged;
-        platformView.DragStarted += OnDragStarted;
-        platformView.DragCompleted += OnDragCompleted;
+	protected override void ConnectHandler(SkiaSlider platformView)
+	{
+		base.ConnectHandler(platformView);
+		platformView.ValueChanged += OnValueChanged;
+		platformView.DragStarted += OnDragStarted;
+		platformView.DragCompleted += OnDragCompleted;
+		if (base.VirtualView != null)
+		{
+			MapMinimum(this, base.VirtualView);
+			MapMaximum(this, base.VirtualView);
+			MapValue(this, base.VirtualView);
+			MapIsEnabled(this, base.VirtualView);
+		}
+	}
 
-        // Sync properties that may have been set before handler connection
-        if (VirtualView != null)
-        {
-            MapMinimum(this, VirtualView);
-            MapMaximum(this, VirtualView);
-            MapValue(this, VirtualView);
-            MapIsEnabled(this, VirtualView);
-        }
-    }
+	protected override void DisconnectHandler(SkiaSlider platformView)
+	{
+		platformView.ValueChanged -= OnValueChanged;
+		platformView.DragStarted -= OnDragStarted;
+		platformView.DragCompleted -= OnDragCompleted;
+		base.DisconnectHandler(platformView);
+	}
 
-    protected override void DisconnectHandler(SkiaSlider platformView)
-    {
-        platformView.ValueChanged -= OnValueChanged;
-        platformView.DragStarted -= OnDragStarted;
-        platformView.DragCompleted -= OnDragCompleted;
-        base.DisconnectHandler(platformView);
-    }
+	private void OnValueChanged(object? sender, SliderValueChangedEventArgs e)
+	{
+		if (base.VirtualView != null && base.PlatformView != null && Math.Abs(((IRange)base.VirtualView).Value - e.NewValue) > 0.0001)
+		{
+			((IRange)base.VirtualView).Value = e.NewValue;
+		}
+	}
 
-    private void OnValueChanged(object? sender, SliderValueChangedEventArgs e)
-    {
-        if (VirtualView is null || PlatformView is null) return;
+	private void OnDragStarted(object? sender, EventArgs e)
+	{
+		ISlider virtualView = base.VirtualView;
+		if (virtualView != null)
+		{
+			virtualView.DragStarted();
+		}
+	}
 
-        if (Math.Abs(VirtualView.Value - e.NewValue) > 0.0001)
-        {
-            VirtualView.Value = e.NewValue;
-        }
-    }
+	private void OnDragCompleted(object? sender, EventArgs e)
+	{
+		ISlider virtualView = base.VirtualView;
+		if (virtualView != null)
+		{
+			virtualView.DragCompleted();
+		}
+	}
 
-    private void OnDragStarted(object? sender, EventArgs e)
-    {
-        VirtualView?.DragStarted();
-    }
+	public static void MapMinimum(SliderHandler handler, ISlider slider)
+	{
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.Minimum = ((IRange)slider).Minimum;
+		}
+	}
 
-    private void OnDragCompleted(object? sender, EventArgs e)
-    {
-        VirtualView?.DragCompleted();
-    }
+	public static void MapMaximum(SliderHandler handler, ISlider slider)
+	{
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.Maximum = ((IRange)slider).Maximum;
+		}
+	}
 
-    public static void MapMinimum(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Minimum = slider.Minimum;
-    }
+	public static void MapValue(SliderHandler handler, ISlider slider)
+	{
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null && Math.Abs(((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.Value - ((IRange)slider).Value) > 0.0001)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.Value = ((IRange)slider).Value;
+		}
+	}
 
-    public static void MapMaximum(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Maximum = slider.Maximum;
-    }
+	public static void MapMinimumTrackColor(SliderHandler handler, ISlider slider)
+	{
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null && slider.MinimumTrackColor != null)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.ActiveTrackColor = slider.MinimumTrackColor.ToSKColor();
+		}
+	}
 
-    public static void MapValue(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapMaximumTrackColor(SliderHandler handler, ISlider slider)
+	{
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null && slider.MaximumTrackColor != null)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.TrackColor = slider.MaximumTrackColor.ToSKColor();
+		}
+	}
 
-        if (Math.Abs(handler.PlatformView.Value - slider.Value) > 0.0001)
-            handler.PlatformView.Value = slider.Value;
-    }
+	public static void MapThumbColor(SliderHandler handler, ISlider slider)
+	{
+		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null && slider.ThumbColor != null)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.ThumbColor = slider.ThumbColor.ToSKColor();
+		}
+	}
 
-    public static void MapMinimumTrackColor(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
+	public static void MapBackground(SliderHandler handler, ISlider slider)
+	{
+		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null)
+		{
+			Paint background = ((IView)slider).Background;
+			SolidPaint val = (SolidPaint)(object)((background is SolidPaint) ? background : null);
+			if (val != null && val.Color != null)
+			{
+				((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
+			}
+		}
+	}
 
-        // MinimumTrackColor maps to ActiveTrackColor (the filled portion)
-        if (slider.MinimumTrackColor is not null)
-            handler.PlatformView.ActiveTrackColor = slider.MinimumTrackColor.ToSKColor();
-    }
-
-    public static void MapMaximumTrackColor(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
-
-        // MaximumTrackColor maps to TrackColor (the unfilled portion)
-        if (slider.MaximumTrackColor is not null)
-            handler.PlatformView.TrackColor = slider.MaximumTrackColor.ToSKColor();
-    }
-
-    public static void MapThumbColor(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (slider.ThumbColor is not null)
-            handler.PlatformView.ThumbColor = slider.ThumbColor.ToSKColor();
-    }
-
-    public static void MapBackground(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (slider.Background is SolidPaint solidPaint && solidPaint.Color is not null)
-        {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
-        }
-    }
-
-    public static void MapIsEnabled(SliderHandler handler, ISlider slider)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsEnabled = slider.IsEnabled;
-        handler.PlatformView.Invalidate();
-    }
+	public static void MapIsEnabled(SliderHandler handler, ISlider slider)
+	{
+		if (((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView != null)
+		{
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.IsEnabled = ((IView)slider).IsEnabled;
+			((ViewHandler<ISlider, SkiaSlider>)(object)handler).PlatformView.Invalidate();
+		}
+	}
 }
