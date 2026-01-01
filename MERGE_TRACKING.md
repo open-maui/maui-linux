@@ -385,13 +385,46 @@
 
 | Date | Files Completed | Notes |
 |------|-----------------|-------|
-| - | 0 | Awaiting approval to begin |
+| 2026-01-01 | 10 Types | Added FlexDirection, FlexWrap, FlexJustify, FlexAlignItems, FlexAlignContent, FlexAlignSelf, FlexBasis, ContextMenuItem, ISkiaQueryAttributable, SkiaTextSpan |
+| 2026-01-01 | 1 Handler | Added FlexLayoutHandler.cs |
+| 2026-01-01 | 1 View | Added SkiaFlexLayout.cs |
+
+---
+
+## ⚠️ INCORRECTLY SKIPPED - MUST COMPARE AND UPDATE
+
+These were WRONGLY skipped because I assumed main was correct. Main is OUTDATED - decompiled has the production fixes.
+
+### Files that need COMPARISON (not skipped):
+
+**Handlers to compare (embedded in other files):**
+- [ ] GridHandler - exists in LayoutHandler.cs, COMPARE with decompiled GridHandler.cs
+- [ ] StackLayoutHandler - exists in LayoutHandler.cs, COMPARE with decompiled StackLayoutHandler.cs
+- [ ] ContentPageHandler - exists in PageHandler.cs, COMPARE with decompiled ContentPageHandler.cs
+
+**Views to compare (embedded in other files):**
+- [ ] SkiaGrid - exists in SkiaLayoutView.cs, COMPARE with decompiled SkiaGrid.cs
+- [ ] SkiaStackLayout - exists in SkiaLayoutView.cs, COMPARE with decompiled SkiaStackLayout.cs
+- [ ] SkiaAbsoluteLayout - exists in SkiaLayoutView.cs, COMPARE with decompiled SkiaAbsoluteLayout.cs
+- [ ] SkiaContentPage - exists in SkiaPage.cs, COMPARE with decompiled SkiaContentPage.cs
+- [ ] SkiaFrame - exists in SkiaBorder.cs, COMPARE with decompiled SkiaFrame.cs
+- [ ] SkiaContextMenu - exists in SkiaMenuBar.cs(?), COMPARE with decompiled
+- [ ] SkiaMenuFlyout - exists in SkiaMenuBar.cs, COMPARE with decompiled
+
+**Types to compare (embedded in View files):**
+- [ ] All types in SkiaView.cs (KeyEventArgs, PointerEventArgs, ScrollEventArgs, TextInputEventArgs, Key, KeyModifiers, PointerButton)
+- [ ] Types in SkiaLayoutView.cs (GridLength, GridPosition, AbsoluteLayoutBounds, AbsoluteLayoutFlags, GridUnitType, StackOrientation)
+- [ ] Types in SkiaMenuBar.cs (MenuItem, MenuBarItem, MenuItemClickedEventArgs)
+- [ ] Types in SkiaShell.cs (ShellSection, ShellContent, ShellNavigationEventArgs, ShellFlyoutBehavior)
+- [ ] And many more...
 
 ---
 
 ## Process
 
-1. **For NEW files:** Read decompiled → Write clean version → Add to project → Commit
-2. **For EXISTING files:** Compare main vs decompiled → Apply only NEW changes cleanly → Commit
-3. **Update this document** after each file
-4. **Build frequently** to catch errors early
+1. **DECOMPILED = PRODUCTION (source of truth)**
+2. **MAIN = OUTDATED (needs updates)**
+3. **For EVERY file in decompiled**: Compare with main and apply differences
+4. **Even "existing" files**: Must be compared - they likely have production fixes missing
+5. **Update this document** after each file
+6. **Build frequently** to catch errors early
