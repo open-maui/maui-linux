@@ -229,29 +229,3 @@ public class SkiaContentPresenter : SkiaView
         Content?.OnPointerReleased(e);
     }
 }
-
-/// <summary>
-/// Layout alignment options.
-/// </summary>
-public enum LayoutAlignment
-{
-    /// <summary>
-    /// Fill the available space.
-    /// </summary>
-    Fill,
-
-    /// <summary>
-    /// Align to the start (left or top).
-    /// </summary>
-    Start,
-
-    /// <summary>
-    /// Align to the center.
-    /// </summary>
-    Center,
-
-    /// <summary>
-    /// Align to the end (right or bottom).
-    /// </summary>
-    End
-}

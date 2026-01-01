@@ -13,46 +13,46 @@ public class SkiaRadioButton : SkiaView
     #region BindableProperties
 
     public static readonly BindableProperty IsCheckedProperty =
-        BindableProperty.Create(nameof(IsChecked), typeof(bool), typeof(SkiaRadioButton), false, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(IsChecked), typeof(bool), typeof(SkiaRadioButton), false, BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).OnIsCheckedChanged());
 
     public static readonly BindableProperty ContentProperty =
-        BindableProperty.Create(nameof(Content), typeof(string), typeof(SkiaRadioButton), "",
+        BindableProperty.Create(nameof(Content), typeof(string), typeof(SkiaRadioButton), "", BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     public static readonly BindableProperty ValueProperty =
-        BindableProperty.Create(nameof(Value), typeof(object), typeof(SkiaRadioButton), null);
+        BindableProperty.Create(nameof(Value), typeof(object), typeof(SkiaRadioButton), null, BindingMode.TwoWay);
 
     public static readonly BindableProperty GroupNameProperty =
-        BindableProperty.Create(nameof(GroupName), typeof(string), typeof(SkiaRadioButton), null,
+        BindableProperty.Create(nameof(GroupName), typeof(string), typeof(SkiaRadioButton), null, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).OnGroupNameChanged((string?)o, (string?)n));
 
     public static readonly BindableProperty RadioColorProperty =
-        BindableProperty.Create(nameof(RadioColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0x21, 0x96, 0xF3),
+        BindableProperty.Create(nameof(RadioColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0x21, 0x96, 0xF3), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty UncheckedColorProperty =
-        BindableProperty.Create(nameof(UncheckedColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0x75, 0x75, 0x75),
+        BindableProperty.Create(nameof(UncheckedColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0x75, 0x75, 0x75), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaRadioButton), SKColors.Black,
+        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaRadioButton), SKColors.Black, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty DisabledColorProperty =
-        BindableProperty.Create(nameof(DisabledColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(DisabledColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0xBD, 0xBD, 0xBD), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaRadioButton), 14f,
+        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaRadioButton), 14f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     public static readonly BindableProperty RadioSizeProperty =
-        BindableProperty.Create(nameof(RadioSize), typeof(float), typeof(SkiaRadioButton), 20f,
+        BindableProperty.Create(nameof(RadioSize), typeof(float), typeof(SkiaRadioButton), 20f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     public static readonly BindableProperty SpacingProperty =
-        BindableProperty.Create(nameof(Spacing), typeof(float), typeof(SkiaRadioButton), 8f,
+        BindableProperty.Create(nameof(Spacing), typeof(float), typeof(SkiaRadioButton), 8f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     #endregion

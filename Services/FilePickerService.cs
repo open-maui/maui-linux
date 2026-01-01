@@ -200,13 +200,3 @@ public class FilePickerService : IFilePicker
         return arg.Replace("\"", "\\\"").Replace("'", "\\'");
     }
 }
-
-/// <summary>
-/// Linux-specific FileResult implementation.
-/// </summary>
-internal class LinuxFileResult : FileResult
-{
-    public LinuxFileResult(string fullPath) : base(fullPath)
-    {
-    }
-}

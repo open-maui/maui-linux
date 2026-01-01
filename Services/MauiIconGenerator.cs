@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using SkiaSharp;
+using Svg.Skia;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
 /// Generates application icons from MAUI icon metadata.
-/// Creates PNG icons suitable for use as window icons on Linux.
-/// Note: SVG overlay support requires Svg.Skia package (optional).
+/// Uses SVG overlay support via Svg.Skia package.
 /// </summary>
 public static class MauiIconGenerator
 {
@@ -28,50 +28,52 @@ public static class MauiIconGenerator
             string path = Path.GetDirectoryName(metaFilePath) ?? "";
             var metadata = ParseMetadata(File.ReadAllText(metaFilePath));
 
+            // bg and fg paths (bg not currently used, but available for future)
+            Path.Combine(path, "appicon_bg.svg");
+            string fgPath = Path.Combine(path, "appicon_fg.svg");
             string outputPath = Path.Combine(path, "appicon.png");
 
+            // Parse size from metadata or use default
             int size = metadata.TryGetValue("Size", out var sizeStr) && int.TryParse(sizeStr, out var sizeVal)
                 ? sizeVal
                 : DefaultIconSize;
 
+            // Parse color from metadata or use default purple
             SKColor color = metadata.TryGetValue("Color", out var colorStr)
                 ? ParseColor(colorStr)
                 : SKColors.Purple;
 
+            // Parse scale from metadata or use default 0.65
+            float scale = metadata.TryGetValue("Scale", out var scaleStr) && float.TryParse(scaleStr, out var scaleVal)
+                ? scaleVal
+                : 0.65f;
+
             Console.WriteLine($"[MauiIconGenerator] Generating {size}x{size} icon");
             Console.WriteLine($"[MauiIconGenerator]   Color: {color}");
+            Console.WriteLine($"[MauiIconGenerator]   Scale: {scale}");
 
             using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
 
-            // Draw background with rounded corners
-            canvas.Clear(SKColors.Transparent);
-            float cornerRadius = size * 0.2f;
-            using var paint = new SKPaint { Color = color, IsAntialias = true };
-            canvas.DrawRoundRect(new SKRoundRect(new SKRect(0, 0, size, size), cornerRadius), paint);
+            // Fill background with color
+            canvas.Clear(color);
 
-            // Try to load PNG foreground as fallback (appicon_fg.png)
-            string fgPngPath = Path.Combine(path, "appicon_fg.png");
-            if (File.Exists(fgPngPath))
+            // Load and draw SVG foreground if it exists
+            if (File.Exists(fgPath))
             {
-                try
+                using var svg = new SKSvg();
+                if (svg.Load(fgPath) != null && svg.Picture != null)
                 {
-                    using var fgBitmap = SKBitmap.Decode(fgPngPath);
-                    if (fgBitmap != null)
-                    {
-                        float scale = size * 0.65f / Math.Max(fgBitmap.Width, fgBitmap.Height);
-                        float fgWidth = fgBitmap.Width * scale;
-                        float fgHeight = fgBitmap.Height * scale;
-                        float offsetX = (size - fgWidth) / 2f;
-                        float offsetY = (size - fgHeight) / 2f;
+                    var cullRect = svg.Picture.CullRect;
+                    float svgScale = size * scale / Math.Max(cullRect.Width, cullRect.Height);
+                    float offsetX = (size - cullRect.Width * svgScale) / 2f;
+                    float offsetY = (size - cullRect.Height * svgScale) / 2f;
 
-                        var dstRect = new SKRect(offsetX, offsetY, offsetX + fgWidth, offsetY + fgHeight);
-                        canvas.DrawBitmap(fgBitmap, dstRect);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("[MauiIconGenerator] Failed to load foreground PNG: " + ex.Message);
+                    canvas.Save();
+                    canvas.Translate(offsetX, offsetY);
+                    canvas.Scale(svgScale);
+                    canvas.DrawPicture(svg.Picture);
+                    canvas.Restore();
                 }
             }
 

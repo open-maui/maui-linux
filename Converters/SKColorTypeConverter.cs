@@ -235,25 +235,3 @@ public class SKColorTypeConverter : TypeConverter
         }
     }
 }
-
-/// <summary>
-/// Extension methods for color conversion.
-/// </summary>
-public static class ColorExtensions
-{
-    /// <summary>
-    /// Converts a MAUI Color to an SKColor.
-    /// </summary>
-    public static SKColor ToSKColor(this Color color)
-    {
-        return SKColorTypeConverter.ToSKColor(color);
-    }
-
-    /// <summary>
-    /// Converts an SKColor to a MAUI Color.
-    /// </summary>
-    public static Color ToMauiColor(this SKColor color)
-    {
-        return SKColorTypeConverter.ToMauiColor(color);
-    }
-}

@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Windows.Input;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -85,6 +87,16 @@ public class SkiaRefreshView : SkiaLayoutView
     /// Gets or sets the background color of the refresh indicator.
     /// </summary>
     public SKColor RefreshBackgroundColor { get; set; } = SKColors.White;
+
+    /// <summary>
+    /// Gets or sets the command to execute when refresh is triggered.
+    /// </summary>
+    public ICommand? Command { get; set; }
+
+    /// <summary>
+    /// Gets or sets the command parameter.
+    /// </summary>
+    public object? CommandParameter { get; set; }
 
     /// <summary>
     /// Event raised when refresh is triggered.
@@ -266,6 +278,7 @@ public class SkiaRefreshView : SkiaLayoutView
             _pullDistance = _refreshThreshold;
             _lastSpinnerUpdate = DateTime.UtcNow;
             Refreshing?.Invoke(this, EventArgs.Empty);
+            Command?.Execute(CommandParameter);
         }
         else
         {

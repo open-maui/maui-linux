@@ -1,7 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Reflection;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 
@@ -198,8 +200,27 @@ public class LinuxViewRenderer
                 FlyoutBehavior.Locked => ShellFlyoutBehavior.Locked,
                 FlyoutBehavior.Disabled => ShellFlyoutBehavior.Disabled,
                 _ => ShellFlyoutBehavior.Flyout
-            }
+            },
+            MauiShell = shell
         };
+
+        // Apply shell colors based on theme
+        ApplyShellColors(skiaShell, shell);
+
+        // Render flyout header if present
+        if (shell.FlyoutHeader is View headerView)
+        {
+            var skiaHeader = RenderView(headerView);
+            if (skiaHeader != null)
+            {
+                skiaShell.FlyoutHeaderView = skiaHeader;
+                skiaShell.FlyoutHeaderHeight = (float)(headerView.HeightRequest > 0 ? headerView.HeightRequest : 140.0);
+            }
+        }
+
+        // Set flyout footer with version info
+        var version = Assembly.GetEntryAssembly()?.GetName().Version;
+        skiaShell.FlyoutFooterText = $"Version {version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
 
         // Process shell items into sections
         foreach (var item in shell.Items)
@@ -209,6 +230,10 @@ public class LinuxViewRenderer
 
         // Store reference to SkiaShell for navigation
         CurrentSkiaShell = skiaShell;
+
+        // Set up content renderer and color refresher delegates
+        skiaShell.ContentRenderer = CreateShellContentPage;
+        skiaShell.ColorRefresher = ApplyShellColors;
 
         // Subscribe to MAUI Shell navigation events to update SkiaShell
         shell.Navigated += OnShellNavigated;
@@ -221,6 +246,61 @@ public class LinuxViewRenderer
         }
 
         return skiaShell;
+    }
+
+    /// <summary>
+    /// Applies shell colors based on the current theme (dark/light mode).
+    /// </summary>
+    private static void ApplyShellColors(SkiaShell skiaShell, Shell shell)
+    {
+        bool isDark = Application.Current?.UserAppTheme == AppTheme.Dark;
+        Console.WriteLine($"[ApplyShellColors] Theme is: {(isDark ? "Dark" : "Light")}");
+
+        // Flyout background color
+        if (shell.FlyoutBackgroundColor != null && shell.FlyoutBackgroundColor != Colors.Transparent)
+        {
+            var color = shell.FlyoutBackgroundColor;
+            skiaShell.FlyoutBackgroundColor = new SKColor(
+                (byte)(color.Red * 255f),
+                (byte)(color.Green * 255f),
+                (byte)(color.Blue * 255f),
+                (byte)(color.Alpha * 255f));
+            Console.WriteLine($"[ApplyShellColors] FlyoutBackgroundColor from MAUI: {skiaShell.FlyoutBackgroundColor}");
+        }
+        else
+        {
+            skiaShell.FlyoutBackgroundColor = isDark
+                ? new SKColor(30, 30, 30)
+                : new SKColor(255, 255, 255);
+            Console.WriteLine($"[ApplyShellColors] Using default FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
+        }
+
+        // Flyout text color
+        skiaShell.FlyoutTextColor = isDark
+            ? new SKColor(224, 224, 224)
+            : new SKColor(33, 33, 33);
+        Console.WriteLine($"[ApplyShellColors] FlyoutTextColor: {skiaShell.FlyoutTextColor}");
+
+        // Content background color
+        skiaShell.ContentBackgroundColor = isDark
+            ? new SKColor(18, 18, 18)
+            : new SKColor(250, 250, 250);
+        Console.WriteLine($"[ApplyShellColors] ContentBackgroundColor: {skiaShell.ContentBackgroundColor}");
+
+        // NavBar background color
+        if (shell.BackgroundColor != null && shell.BackgroundColor != Colors.Transparent)
+        {
+            var color = shell.BackgroundColor;
+            skiaShell.NavBarBackgroundColor = new SKColor(
+                (byte)(color.Red * 255f),
+                (byte)(color.Green * 255f),
+                (byte)(color.Blue * 255f),
+                (byte)(color.Alpha * 255f));
+        }
+        else
+        {
+            skiaShell.NavBarBackgroundColor = new SKColor(33, 150, 243); // Material blue
+        }
     }
 
     /// <summary>
@@ -290,7 +370,8 @@ public class LinuxViewRenderer
                     var shellContent = new ShellContent
                     {
                         Title = content.Title ?? shellSection.Title ?? flyoutItem.Title ?? "",
-                        Route = content.Route ?? ""
+                        Route = content.Route ?? "",
+                        MauiShellContent = content
                     };
 
                     // Create the page content
@@ -328,7 +409,8 @@ public class LinuxViewRenderer
                     var shellContent = new ShellContent
                     {
                         Title = content.Title ?? tab.Title ?? "",
-                        Route = content.Route ?? ""
+                        Route = content.Route ?? "",
+                        MauiShellContent = content
                     };
 
                     var pageContent = CreateShellContentPage(content);
@@ -359,7 +441,8 @@ public class LinuxViewRenderer
                     var shellContent = new ShellContent
                     {
                         Title = content.Title ?? "",
-                        Route = content.Route ?? ""
+                        Route = content.Route ?? "",
+                        MauiShellContent = content
                     };
 
                     var pageContent = CreateShellContentPage(content);
@@ -402,17 +485,38 @@ public class LinuxViewRenderer
                 var contentView = RenderView(cp.Content);
                 if (contentView != null)
                 {
-                    if (contentView is SkiaScrollView)
+                    // Get page background color if set
+                    SKColor? bgColor = null;
+                    if (cp.BackgroundColor != null && cp.BackgroundColor != Colors.Transparent)
                     {
-                        return contentView;
+                        var color = cp.BackgroundColor;
+                        bgColor = new SKColor(
+                            (byte)(color.Red * 255f),
+                            (byte)(color.Green * 255f),
+                            (byte)(color.Blue * 255f),
+                            (byte)(color.Alpha * 255f));
+                        Console.WriteLine($"[CreateShellContentPage] Page BackgroundColor: {bgColor}");
+                    }
+
+                    if (contentView is SkiaScrollView scrollView)
+                    {
+                        if (bgColor.HasValue)
+                        {
+                            scrollView.BackgroundColor = bgColor.Value;
+                        }
+                        return scrollView;
                     }
                     else
                     {
-                        var scrollView = new SkiaScrollView
+                        var newScrollView = new SkiaScrollView
                         {
                             Content = contentView
                         };
-                        return scrollView;
+                        if (bgColor.HasValue)
+                        {
+                            newScrollView.BackgroundColor = bgColor.Value;
+                        }
+                        return newScrollView;
                     }
                 }
             }

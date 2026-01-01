@@ -7,36 +7,40 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.ApplicationModel.Communication;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
-using Microsoft.Maui.Hosting;
-using Microsoft.Maui.Platform.Linux.Services;
-using Microsoft.Maui.Platform.Linux.Converters;
-using Microsoft.Maui.Storage;
-using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Networking;
+using Microsoft.Maui.Platform.Linux.Converters;
+using Microsoft.Maui.Platform.Linux.Dispatching;
+using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Storage;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
-/// <summary>
-/// Extension methods for configuring MAUI applications for Linux.
-/// </summary>
 public static class LinuxMauiAppBuilderExtensions
 {
-    /// <summary>
-    /// Configures the MAUI application to run on Linux.
-    /// </summary>
     public static MauiAppBuilder UseLinux(this MauiAppBuilder builder)
     {
-        return builder.UseLinux(configure: null);
+        return builder.UseLinux(null);
     }
 
-    /// <summary>
-    /// Configures the MAUI application to run on Linux with options.
-    /// </summary>
     public static MauiAppBuilder UseLinux(this MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
     {
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
+
+        // Register dispatcher provider
+        builder.Services.TryAddSingleton<IDispatcherProvider>(LinuxDispatcherProvider.Instance);
+
+        // Register device services
+        builder.Services.TryAddSingleton<IDeviceInfo>(DeviceInfoService.Instance);
+        builder.Services.TryAddSingleton<IDeviceDisplay>(DeviceDisplayService.Instance);
+        builder.Services.TryAddSingleton<IAppInfo>(AppInfoService.Instance);
+        builder.Services.TryAddSingleton<IConnectivity>(ConnectivityService.Instance);
 
         // Register platform services
         builder.Services.TryAddSingleton<ILauncher, LauncherService>();
@@ -49,6 +53,9 @@ public static class LinuxMauiAppBuilderExtensions
         builder.Services.TryAddSingleton<IAppActions, AppActionsService>();
         builder.Services.TryAddSingleton<IBrowser, BrowserService>();
         builder.Services.TryAddSingleton<IEmail, EmailService>();
+
+        // Register GTK host service
+        builder.Services.TryAddSingleton(_ => GtkHostService.Instance);
 
         // Register type converters for XAML support
         RegisterTypeConverters();
@@ -98,8 +105,8 @@ public static class LinuxMauiAppBuilderExtensions
             handlers.AddHandler<ImageButton, ImageButtonHandler>();
             handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
 
-            // Web
-            handlers.AddHandler<WebView, WebViewHandler>();
+            // Web - use GtkWebViewHandler
+            handlers.AddHandler<WebView, GtkWebViewHandler>();
 
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
@@ -124,33 +131,11 @@ public static class LinuxMauiAppBuilderExtensions
         return builder;
     }
 
-    /// <summary>
-    /// Registers custom type converters for Linux platform.
-    /// </summary>
     private static void RegisterTypeConverters()
     {
-        // Register SkiaSharp type converters for XAML styling support
         TypeDescriptor.AddAttributes(typeof(SKColor), new TypeConverterAttribute(typeof(SKColorTypeConverter)));
         TypeDescriptor.AddAttributes(typeof(SKRect), new TypeConverterAttribute(typeof(SKRectTypeConverter)));
         TypeDescriptor.AddAttributes(typeof(SKSize), new TypeConverterAttribute(typeof(SKSizeTypeConverter)));
         TypeDescriptor.AddAttributes(typeof(SKPoint), new TypeConverterAttribute(typeof(SKPointTypeConverter)));
-    }
-}
-
-/// <summary>
-/// Handler registration extensions.
-/// </summary>
-public static class HandlerMappingExtensions
-{
-    /// <summary>
-    /// Adds a handler for the specified view type.
-    /// </summary>
-    public static IMauiHandlersCollection AddHandler<TView, THandler>(
-        this IMauiHandlersCollection handlers)
-        where TView : class
-        where THandler : class
-    {
-        handlers.AddHandler(typeof(TView), typeof(THandler));
-        return handlers;
     }
 }

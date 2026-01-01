@@ -348,34 +348,3 @@ public class SkiaFlyoutPage : SkiaLayoutView
         IsPresented = !IsPresented;
     }
 }
-
-/// <summary>
-/// Defines how the flyout behaves.
-/// </summary>
-public enum FlyoutLayoutBehavior
-{
-    /// <summary>
-    /// Default behavior based on device/window size.
-    /// </summary>
-    Default,
-
-    /// <summary>
-    /// Flyout slides over the detail content.
-    /// </summary>
-    Popover,
-
-    /// <summary>
-    /// Flyout and detail are shown side by side.
-    /// </summary>
-    Split,
-
-    /// <summary>
-    /// Flyout pushes the detail content.
-    /// </summary>
-    SplitOnLandscape,
-
-    /// <summary>
-    /// Flyout is always shown in portrait, side by side in landscape.
-    /// </summary>
-    SplitOnPortrait
-}

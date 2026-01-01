@@ -256,37 +256,6 @@ public class FontFallbackManager
     }
 }
 
-/// <summary>
-/// Represents a run of text with a specific typeface.
-/// </summary>
-public class TextRun
-{
-    /// <summary>
-    /// The text content of this run.
-    /// </summary>
-    public string Text { get; }
-
-    /// <summary>
-    /// The typeface to use for this run.
-    /// </summary>
-    public SKTypeface Typeface { get; }
-
-    /// <summary>
-    /// The starting character index in the original string.
-    /// </summary>
-    public int StartIndex { get; }
-
-    public TextRun(string text, SKTypeface typeface, int startIndex)
-    {
-        Text = text;
-        Typeface = typeface;
-        StartIndex = startIndex;
-    }
-}
-
-/// <summary>
-/// StringBuilder for internal use.
-/// </summary>
 file class StringBuilder
 {
     private readonly List<char> _chars = new();

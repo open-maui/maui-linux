@@ -303,14 +303,3 @@ public class SkiaIndicatorView : SkiaView
         base.OnPointerPressed(e);
     }
 }
-
-/// <summary>
-/// Shape of indicator dots.
-/// </summary>
-public enum IndicatorShape
-{
-    Circle,
-    Square,
-    RoundedSquare,
-    Diamond
-}

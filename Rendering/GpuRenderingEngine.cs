@@ -333,17 +333,3 @@ public class GpuRenderingEngine : IDisposable
         GC.SuppressFinalize(this);
     }
 }
-
-/// <summary>
-/// GPU performance statistics.
-/// </summary>
-public class GpuStats
-{
-    public bool IsGpuAccelerated { get; init; }
-    public int MaxTextureSize { get; init; }
-    public long ResourceCacheUsedBytes { get; init; }
-    public long ResourceCacheLimitBytes { get; init; }
-
-    public double ResourceCacheUsedMB => ResourceCacheUsedBytes / (1024.0 * 1024.0);
-    public double ResourceCacheLimitMB => ResourceCacheLimitBytes / (1024.0 * 1024.0);
-}

@@ -386,18 +386,3 @@ public class SkiaCarouselView : SkiaLayoutView
         base.OnPointerReleased(e);
     }
 }
-
-/// <summary>
-/// Event args for position changed events.
-/// </summary>
-public class PositionChangedEventArgs : EventArgs
-{
-    public int PreviousPosition { get; }
-    public int CurrentPosition { get; }
-
-    public PositionChangedEventArgs(int previousPosition, int currentPosition)
-    {
-        PreviousPosition = previousPosition;
-        CurrentPosition = currentPosition;
-    }
-}

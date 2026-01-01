@@ -13,50 +13,50 @@ public class SkiaStepper : SkiaView
     #region BindableProperties
 
     public static readonly BindableProperty ValueProperty =
-        BindableProperty.Create(nameof(Value), typeof(double), typeof(SkiaStepper), 0.0, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(Value), typeof(double), typeof(SkiaStepper), 0.0, BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).OnValuePropertyChanged((double)o, (double)n));
 
     public static readonly BindableProperty MinimumProperty =
-        BindableProperty.Create(nameof(Minimum), typeof(double), typeof(SkiaStepper), 0.0,
+        BindableProperty.Create(nameof(Minimum), typeof(double), typeof(SkiaStepper), 0.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).OnRangeChanged());
 
     public static readonly BindableProperty MaximumProperty =
-        BindableProperty.Create(nameof(Maximum), typeof(double), typeof(SkiaStepper), 100.0,
+        BindableProperty.Create(nameof(Maximum), typeof(double), typeof(SkiaStepper), 100.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).OnRangeChanged());
 
     public static readonly BindableProperty IncrementProperty =
-        BindableProperty.Create(nameof(Increment), typeof(double), typeof(SkiaStepper), 1.0);
+        BindableProperty.Create(nameof(Increment), typeof(double), typeof(SkiaStepper), 1.0, BindingMode.TwoWay);
 
     public static readonly BindableProperty ButtonBackgroundColorProperty =
-        BindableProperty.Create(nameof(ButtonBackgroundColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xE0, 0xE0, 0xE0),
+        BindableProperty.Create(nameof(ButtonBackgroundColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xE0, 0xE0, 0xE0), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty ButtonPressedColorProperty =
-        BindableProperty.Create(nameof(ButtonPressedColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(ButtonPressedColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty ButtonDisabledColorProperty =
-        BindableProperty.Create(nameof(ButtonDisabledColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xF5, 0xF5, 0xF5),
+        BindableProperty.Create(nameof(ButtonDisabledColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xF5, 0xF5, 0xF5), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty SymbolColorProperty =
-        BindableProperty.Create(nameof(SymbolColor), typeof(SKColor), typeof(SkiaStepper), SKColors.Black,
+        BindableProperty.Create(nameof(SymbolColor), typeof(SKColor), typeof(SkiaStepper), SKColors.Black, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty SymbolDisabledColorProperty =
-        BindableProperty.Create(nameof(SymbolDisabledColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(SymbolDisabledColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaStepper), 4f,
+        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaStepper), 4f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty ButtonWidthProperty =
-        BindableProperty.Create(nameof(ButtonWidth), typeof(float), typeof(SkiaStepper), 40f,
+        BindableProperty.Create(nameof(ButtonWidth), typeof(float), typeof(SkiaStepper), 40f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).InvalidateMeasure());
 
     #endregion

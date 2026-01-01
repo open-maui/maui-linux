@@ -268,15 +268,3 @@ public class SystemTrayService : IDisposable
         Dispose();
     }
 }
-
-/// <summary>
-/// Represents a tray menu item.
-/// </summary>
-public class TrayMenuItem
-{
-    public string Text { get; set; } = "";
-    public Action? Action { get; set; }
-    public bool IsSeparator { get; set; }
-    public bool IsEnabled { get; set; } = true;
-    public string? IconPath { get; set; }
-}

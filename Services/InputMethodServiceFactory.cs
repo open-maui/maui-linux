@@ -180,24 +180,3 @@ public static class InputMethodServiceFactory
         }
     }
 }
-
-/// <summary>
-/// Null implementation of IInputMethodService for when no IME is available.
-/// </summary>
-public class NullInputMethodService : IInputMethodService
-{
-    public bool IsActive => false;
-    public string PreEditText => string.Empty;
-    public int PreEditCursorPosition => 0;
-
-    public event EventHandler<TextCommittedEventArgs>? TextCommitted;
-    public event EventHandler<PreEditChangedEventArgs>? PreEditChanged;
-    public event EventHandler? PreEditEnded;
-
-    public void Initialize(nint windowHandle) { }
-    public void SetFocus(IInputContext? context) { }
-    public void SetCursorLocation(int x, int y, int width, int height) { }
-    public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown) => false;
-    public void Reset() { }
-    public void Shutdown() { }
-}

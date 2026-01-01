@@ -1,8 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
-using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Platform;
 
@@ -89,6 +93,12 @@ public class SkiaNavigationPage : SkiaView
     {
         if (_isAnimating) return;
 
+        // Disable animation in GTK mode
+        if (LinuxApplication.IsGtkMode)
+        {
+            animated = false;
+        }
+
         if (_currentPage != null)
         {
             _currentPage.OnDisappearing();
@@ -108,9 +118,12 @@ public class SkiaNavigationPage : SkiaView
         }
         else
         {
+            Console.WriteLine("[SkiaNavigationPage] Push (no animation): setting _currentPage to " + page.Title);
             _currentPage = page;
             _currentPage.OnAppearing();
+            Console.WriteLine("[SkiaNavigationPage] Push: calling Invalidate");
             Invalidate();
+            Console.WriteLine("[SkiaNavigationPage] Push: Invalidate called, _currentPage is now " + _currentPage?.Title);
         }
 
         Pushed?.Invoke(this, new NavigationEventArgs(page));
@@ -119,6 +132,12 @@ public class SkiaNavigationPage : SkiaView
     public SkiaPage? Pop(bool animated = true)
     {
         if (_isAnimating || _navigationStack.Count == 0) return null;
+
+        // Disable animation in GTK mode
+        if (LinuxApplication.IsGtkMode)
+        {
+            animated = false;
+        }
 
         var poppedPage = _currentPage;
         poppedPage?.OnDisappearing();
@@ -302,6 +321,7 @@ public class SkiaNavigationPage : SkiaView
         else if (_currentPage != null)
         {
             // Draw current page normally
+            Console.WriteLine("[SkiaNavigationPage] OnDraw: drawing _currentPage=" + _currentPage.Title);
             _currentPage.Bounds = bounds;
             _currentPage.Draw(canvas);
 
@@ -434,18 +454,5 @@ public class SkiaNavigationPage : SkiaView
         }
 
         return this;
-    }
-}
-
-/// <summary>
-/// Event args for navigation events.
-/// </summary>
-public class NavigationEventArgs : EventArgs
-{
-    public SkiaPage Page { get; }
-
-    public NavigationEventArgs(SkiaPage page)
-    {
-        Page = page;
     }
 }

@@ -394,29 +394,3 @@ public class SkiaTabbedPage : SkiaLayoutView
         base.OnPointerPressed(e);
     }
 }
-
-/// <summary>
-/// Represents a tab item with title, icon, and content.
-/// </summary>
-public class TabItem
-{
-    /// <summary>
-    /// The title displayed in the tab.
-    /// </summary>
-    public string Title { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Optional icon path for the tab.
-    /// </summary>
-    public string? IconPath { get; set; }
-
-    /// <summary>
-    /// The content view displayed when this tab is selected.
-    /// </summary>
-    public SkiaView Content { get; set; } = null!;
-
-    /// <summary>
-    /// Optional badge text to display on the tab.
-    /// </summary>
-    public string? Badge { get; set; }
-}

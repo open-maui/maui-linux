@@ -10,25 +10,6 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Selection mode for collection views.
-/// </summary>
-public enum SkiaSelectionMode
-{
-    None,
-    Single,
-    Multiple
-}
-
-/// <summary>
-/// Layout orientation for items.
-/// </summary>
-public enum ItemsLayoutOrientation
-{
-    Vertical,
-    Horizontal
-}
-
-/// <summary>
 /// Skia-rendered CollectionView with selection, headers, and flexible layouts.
 /// </summary>
 public class SkiaCollectionView : SkiaItemsView

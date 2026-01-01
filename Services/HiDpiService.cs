@@ -494,31 +494,3 @@ public class HiDpiService
 
     #endregion
 }
-
-/// <summary>
-/// Event args for scale change events.
-/// </summary>
-public class ScaleChangedEventArgs : EventArgs
-{
-    /// <summary>
-    /// Gets the old scale factor.
-    /// </summary>
-    public float OldScale { get; }
-
-    /// <summary>
-    /// Gets the new scale factor.
-    /// </summary>
-    public float NewScale { get; }
-
-    /// <summary>
-    /// Gets the new DPI.
-    /// </summary>
-    public float NewDpi { get; }
-
-    public ScaleChangedEventArgs(float oldScale, float newScale, float newDpi)
-    {
-        OldScale = oldScale;
-        NewScale = newScale;
-        NewDpi = newDpi;
-    }
-}

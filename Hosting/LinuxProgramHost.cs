@@ -2,9 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.Platform;
+using Microsoft.Maui.Controls.Hosting;
+using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
@@ -43,6 +44,10 @@ public static class LinuxProgramHost
         var options = mauiApp.Services.GetService<LinuxApplicationOptions>()
                      ?? new LinuxApplicationOptions();
         ParseCommandLineOptions(args, options);
+
+        // Initialize GTK for WebView support
+        GtkHostService.Instance.Initialize(options.Title, options.Width, options.Height);
+        Console.WriteLine("[LinuxProgramHost] GTK initialized for WebView support");
 
         // Create Linux application
         using var linuxApp = new LinuxApplication();

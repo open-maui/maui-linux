@@ -3,6 +3,8 @@
 
 using Microsoft.Maui.Platform.Linux.Interop;
 using Microsoft.Maui.Platform.Linux.Input;
+using SkiaSharp;
+using Svg.Skia;
 
 namespace Microsoft.Maui.Platform.Linux.Window;
 
@@ -27,6 +29,8 @@ public class X11Window : IDisposable
     private IntPtr _textCursor;
     private IntPtr _currentCursor;
     private CursorType _currentCursorType = CursorType.Arrow;
+
+    private static int _eventCounter;
 
     /// <summary>
     /// Gets the native display handle.
@@ -193,7 +197,7 @@ public class X11Window : IDisposable
     }
 
     /// <summary>
-    /// Sets the window icon from a file.
+    /// Sets the window icon from a file. Supports both raster images and SVG.
     /// </summary>
     public unsafe void SetIcon(string iconPath)
     {
@@ -205,7 +209,33 @@ public class X11Window : IDisposable
         Console.WriteLine("[X11Window] SetIcon called: " + iconPath);
         try
         {
-            SkiaSharp.SKBitmap? bitmap = SkiaSharp.SKBitmap.Decode(iconPath);
+            SKBitmap? bitmap = null;
+
+            // Handle SVG icons
+            if (iconPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("[X11Window] Loading SVG icon");
+                using var svg = new SKSvg();
+                svg.Load(iconPath);
+                if (svg.Picture != null)
+                {
+                    var cullRect = svg.Picture.CullRect;
+                    float scale = 48f / Math.Max(cullRect.Width, cullRect.Height);
+                    int scaledWidth = (int)(cullRect.Width * scale);
+                    int scaledHeight = (int)(cullRect.Height * scale);
+                    bitmap = new SKBitmap(scaledWidth, scaledHeight, false);
+                    using var canvas = new SKCanvas(bitmap);
+                    canvas.Clear(SKColors.Transparent);
+                    canvas.Scale(scale);
+                    canvas.DrawPicture(svg.Picture);
+                }
+            }
+            else
+            {
+                Console.WriteLine("[X11Window] Loading raster icon");
+                bitmap = SKBitmap.Decode(iconPath);
+            }
+
             if (bitmap == null)
             {
                 Console.WriteLine("[X11Window] Failed to load icon: " + iconPath);
@@ -217,8 +247,8 @@ public class X11Window : IDisposable
             int targetSize = 64;
             if (bitmap.Width != targetSize || bitmap.Height != targetSize)
             {
-                var scaled = new SkiaSharp.SKBitmap(targetSize, targetSize, false);
-                bitmap.ScalePixels(scaled, SkiaSharp.SKFilterQuality.High);
+                var scaled = new SKBitmap(targetSize, targetSize, false);
+                bitmap.ScalePixels(scaled, SKFilterQuality.High);
                 bitmap.Dispose();
                 bitmap = scaled;
             }
@@ -296,10 +326,19 @@ public class X11Window : IDisposable
     /// </summary>
     public void ProcessEvents()
     {
-        while (X11.XPending(_display) > 0)
+        int pending = X11.XPending(_display);
+        if (pending > 0)
         {
-            X11.XNextEvent(_display, out var xEvent);
-            HandleEvent(ref xEvent);
+            if (_eventCounter % 100 == 0)
+            {
+                Console.WriteLine($"[X11Window] ProcessEvents: {pending} pending events");
+            }
+            _eventCounter++;
+            while (X11.XPending(_display) > 0)
+            {
+                X11.XNextEvent(_display, out var xEvent);
+                HandleEvent(ref xEvent);
+            }
         }
     }
 

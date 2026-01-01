@@ -1,8 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
 using SkiaSharp;
-using Microsoft.Maui.Graphics;
+using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
@@ -210,16 +215,89 @@ public class SkiaImageButton : SkiaView
     {
         _isLoading = true;
         Invalidate();
+        Console.WriteLine("[SkiaImageButton] LoadFromFileAsync: " + filePath);
 
         try
         {
+            var searchPaths = new List<string>
+            {
+                filePath,
+                Path.Combine(AppContext.BaseDirectory, filePath),
+                Path.Combine(AppContext.BaseDirectory, "Resources", "Images", filePath),
+                Path.Combine(AppContext.BaseDirectory, "Resources", filePath)
+            };
+
+            // Also check for SVG version if PNG was requested
+            if (filePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                var svgPath = Path.ChangeExtension(filePath, ".svg");
+                searchPaths.Add(svgPath);
+                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, svgPath));
+                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", "Images", svgPath));
+                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", svgPath));
+            }
+
+            string? foundPath = null;
+            foreach (var path in searchPaths)
+            {
+                if (File.Exists(path))
+                {
+                    foundPath = path;
+                    Console.WriteLine("[SkiaImageButton] Found file at: " + path);
+                    break;
+                }
+            }
+
+            if (foundPath == null)
+            {
+                Console.WriteLine("[SkiaImageButton] File not found: " + filePath);
+                Console.WriteLine("[SkiaImageButton] Searched paths: " + string.Join(", ", searchPaths));
+                _isLoading = false;
+                ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
+                return;
+            }
+
             await Task.Run(() =>
             {
-                using var stream = File.OpenRead(filePath);
-                var bitmap = SKBitmap.Decode(stream);
-                if (bitmap != null)
+                if (foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
                 {
-                    Bitmap = bitmap;
+                    using var svg = new SKSvg();
+                    svg.Load(foundPath);
+                    if (svg.Picture != null)
+                    {
+                        var cullRect = svg.Picture.CullRect;
+                        bool hasWidth = WidthRequest > 0;
+                        bool hasHeight = HeightRequest > 0;
+
+                        float targetWidth = hasWidth
+                            ? (float)(WidthRequest - PaddingLeft - PaddingRight)
+                            : cullRect.Width;
+                        float targetHeight = hasHeight
+                            ? (float)(HeightRequest - PaddingTop - PaddingBottom)
+                            : cullRect.Height;
+
+                        float scale = Math.Min(targetWidth / cullRect.Width, targetHeight / cullRect.Height);
+                        int width = Math.Max(1, (int)(cullRect.Width * scale));
+                        int height = Math.Max(1, (int)(cullRect.Height * scale));
+
+                        var bitmap = new SKBitmap(width, height, false);
+                        using var canvas = new SKCanvas(bitmap);
+                        canvas.Clear(SKColors.Transparent);
+                        canvas.Scale(scale);
+                        canvas.DrawPicture(svg.Picture);
+                        Bitmap = bitmap;
+                        Console.WriteLine($"[SkiaImageButton] Loaded SVG: {foundPath} ({width}x{height})");
+                    }
+                }
+                else
+                {
+                    using var stream = File.OpenRead(foundPath);
+                    var bitmap = SKBitmap.Decode(stream);
+                    if (bitmap != null)
+                    {
+                        Bitmap = bitmap;
+                        Console.WriteLine("[SkiaImageButton] Loaded image: " + foundPath);
+                    }
                 }
             });
 

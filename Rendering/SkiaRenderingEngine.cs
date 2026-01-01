@@ -313,31 +313,3 @@ public class SkiaRenderingEngine : IDisposable
         GC.SuppressFinalize(this);
     }
 }
-
-public class ResourceCache : IDisposable
-{
-    private readonly Dictionary<string, SKTypeface> _typefaces = new();
-    private bool _disposed;
-
-    public SKTypeface GetTypeface(string fontFamily, SKFontStyle style)
-    {
-        var key = $"{fontFamily}_{style.Weight}_{style.Width}_{style.Slant}";
-        if (!_typefaces.TryGetValue(key, out var typeface))
-        {
-            typeface = SKTypeface.FromFamilyName(fontFamily, style) ?? SKTypeface.Default;
-            _typefaces[key] = typeface;
-        }
-        return typeface;
-    }
-
-    public void Clear()
-    {
-        foreach (var tf in _typefaces.Values) tf.Dispose();
-        _typefaces.Clear();
-    }
-
-    public void Dispose()
-    {
-        if (!_disposed) { Clear(); _disposed = true; }
-    }
-}

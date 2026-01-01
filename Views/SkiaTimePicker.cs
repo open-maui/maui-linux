@@ -14,43 +14,43 @@ public class SkiaTimePicker : SkiaView
     #region BindableProperties
 
     public static readonly BindableProperty TimeProperty =
-        BindableProperty.Create(nameof(Time), typeof(TimeSpan), typeof(SkiaTimePicker), DateTime.Now.TimeOfDay, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(Time), typeof(TimeSpan), typeof(SkiaTimePicker), DateTime.Now.TimeOfDay, BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).OnTimePropertyChanged());
 
     public static readonly BindableProperty FormatProperty =
-        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaTimePicker), "t",
+        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaTimePicker), "t", BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaTimePicker), SKColors.Black,
+        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaTimePicker), SKColors.Black, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0xBD, 0xBD, 0xBD), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty ClockBackgroundColorProperty =
-        BindableProperty.Create(nameof(ClockBackgroundColor), typeof(SKColor), typeof(SkiaTimePicker), SKColors.White,
+        BindableProperty.Create(nameof(ClockBackgroundColor), typeof(SKColor), typeof(SkiaTimePicker), SKColors.White, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty ClockFaceColorProperty =
-        BindableProperty.Create(nameof(ClockFaceColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0xF5, 0xF5, 0xF5),
+        BindableProperty.Create(nameof(ClockFaceColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0xF5, 0xF5, 0xF5), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty SelectedColorProperty =
-        BindableProperty.Create(nameof(SelectedColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0x21, 0x96, 0xF3),
+        BindableProperty.Create(nameof(SelectedColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0x21, 0x96, 0xF3), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty HeaderColorProperty =
-        BindableProperty.Create(nameof(HeaderColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0x21, 0x96, 0xF3),
+        BindableProperty.Create(nameof(HeaderColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0x21, 0x96, 0xF3), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaTimePicker), 14f,
+        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaTimePicker), 14f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).InvalidateMeasure());
 
     public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaTimePicker), 4f,
+        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaTimePicker), 4f, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     #endregion

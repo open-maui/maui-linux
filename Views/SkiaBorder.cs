@@ -385,20 +385,3 @@ public class SkiaBorder : SkiaLayoutView
         _isPressed = false;
     }
 }
-
-/// <summary>
-/// Frame control - a Border with shadow enabled by default.
-/// Mimics the MAUI Frame control appearance.
-/// </summary>
-public class SkiaFrame : SkiaBorder
-{
-    public SkiaFrame()
-    {
-        HasShadow = true;
-        CornerRadius = 4;
-        SetPadding(10);
-        BackgroundColor = SKColors.White;
-        Stroke = SKColors.Transparent;
-        StrokeThickness = 0;
-    }
-}
