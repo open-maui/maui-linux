@@ -926,7 +926,7 @@ public abstract class SkiaView : BindableObject, IDisposable
     /// <summary>
     /// Arranges this view within the given bounds.
     /// </summary>
-    public void Arrange(SKRect bounds)
+    public virtual void Arrange(SKRect bounds)
     {
         Bounds = ArrangeOverride(bounds);
     }

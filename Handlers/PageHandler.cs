@@ -22,6 +22,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
             [nameof(Page.BackgroundImageSource)] = MapBackgroundImageSource,
             [nameof(Page.Padding)] = MapPadding,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(VisualElement.BackgroundColor)] = MapBackgroundColor,
         };
 
     public static CommandMapper<Page, PageHandler> CommandMapper =
@@ -99,6 +100,18 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
         if (page.Background is SolidColorBrush solidBrush)
         {
             handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+        }
+    }
+
+    public static void MapBackgroundColor(PageHandler handler, Page page)
+    {
+        if (handler.PlatformView is null) return;
+
+        var backgroundColor = page.BackgroundColor;
+        if (backgroundColor != null && backgroundColor != Colors.Transparent)
+        {
+            handler.PlatformView.BackgroundColor = backgroundColor.ToSKColor();
+            Console.WriteLine($"[PageHandler] MapBackgroundColor: {backgroundColor}");
         }
     }
 }

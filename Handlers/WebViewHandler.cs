@@ -54,28 +54,62 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
         base.DisconnectHandler(platformView);
     }
 
-    private void OnNavigating(object? sender, WebNavigatingEventArgs e)
+    private void OnNavigating(object? sender, Microsoft.Maui.Platform.WebNavigatingEventArgs e)
     {
-        // Forward to virtual view if needed
+        IWebView virtualView = VirtualView;
+        IWebViewController? controller = virtualView as IWebViewController;
+        if (controller != null)
+        {
+            var args = new Microsoft.Maui.Controls.WebNavigatingEventArgs(
+                WebNavigationEvent.NewPage,
+                null,
+                e.Url);
+            controller.SendNavigating(args);
+        }
     }
 
-    private void OnNavigated(object? sender, WebNavigatedEventArgs e)
+    private void OnNavigated(object? sender, Microsoft.Maui.Platform.WebNavigatedEventArgs e)
     {
-        // Forward to virtual view if needed
+        IWebView virtualView = VirtualView;
+        IWebViewController? controller = virtualView as IWebViewController;
+        if (controller != null)
+        {
+            WebNavigationResult result = e.Success ? WebNavigationResult.Success : WebNavigationResult.Failure;
+            var args = new Microsoft.Maui.Controls.WebNavigatedEventArgs(
+                WebNavigationEvent.NewPage,
+                null,
+                e.Url,
+                result);
+            controller.SendNavigated(args);
+        }
     }
 
     public static void MapSource(WebViewHandler handler, IWebView webView)
     {
-        if (handler.PlatformView == null) return;
+        Console.WriteLine("[WebViewHandler] MapSource called");
+        if (handler.PlatformView == null)
+        {
+            Console.WriteLine("[WebViewHandler] PlatformView is null!");
+            return;
+        }
 
         var source = webView.Source;
+        Console.WriteLine($"[WebViewHandler] Source type: {source?.GetType().Name ?? "null"}");
+
         if (source is UrlWebViewSource urlSource)
         {
+            Console.WriteLine($"[WebViewHandler] Loading URL: {urlSource.Url}");
             handler.PlatformView.Source = urlSource.Url ?? "";
         }
         else if (source is HtmlWebViewSource htmlSource)
         {
+            Console.WriteLine($"[WebViewHandler] Loading HTML ({htmlSource.Html?.Length ?? 0} chars)");
+            Console.WriteLine($"[WebViewHandler] HTML preview: {htmlSource.Html?.Substring(0, Math.Min(100, htmlSource.Html?.Length ?? 0))}...");
             handler.PlatformView.Html = htmlSource.Html ?? "";
+        }
+        else
+        {
+            Console.WriteLine("[WebViewHandler] Unknown source type or null");
         }
     }
 
