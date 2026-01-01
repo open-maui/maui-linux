@@ -145,6 +145,7 @@ public class SkiaLabel : SkiaView
             typeof(TextAlignment),
             typeof(SkiaLabel),
             TextAlignment.Center,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -156,6 +157,7 @@ public class SkiaLabel : SkiaView
             typeof(LineBreakMode),
             typeof(SkiaLabel),
             LineBreakMode.TailTruncation,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -167,6 +169,7 @@ public class SkiaLabel : SkiaView
             typeof(int),
             typeof(SkiaLabel),
             0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
@@ -178,6 +181,7 @@ public class SkiaLabel : SkiaView
             typeof(float),
             typeof(SkiaLabel),
             1.2f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
@@ -189,6 +193,7 @@ public class SkiaLabel : SkiaView
             typeof(float),
             typeof(SkiaLabel),
             0f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -200,6 +205,7 @@ public class SkiaLabel : SkiaView
             typeof(SKRect),
             typeof(SkiaLabel),
             SKRect.Empty,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     #endregion

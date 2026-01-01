@@ -21,6 +21,7 @@ public class SkiaScrollView : SkiaView
             typeof(ScrollOrientation),
             typeof(SkiaScrollView),
             ScrollOrientation.Both,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).InvalidateMeasure());
 
     /// <summary>
@@ -32,6 +33,7 @@ public class SkiaScrollView : SkiaView
             typeof(ScrollBarVisibility),
             typeof(SkiaScrollView),
             ScrollBarVisibility.Auto,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
     /// <summary>
@@ -43,6 +45,7 @@ public class SkiaScrollView : SkiaView
             typeof(ScrollBarVisibility),
             typeof(SkiaScrollView),
             ScrollBarVisibility.Auto,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
     /// <summary>
@@ -54,6 +57,7 @@ public class SkiaScrollView : SkiaView
             typeof(SKColor),
             typeof(SkiaScrollView),
             new SKColor(0x80, 0x80, 0x80, 0x80),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
     /// <summary>
@@ -65,6 +69,7 @@ public class SkiaScrollView : SkiaView
             typeof(float),
             typeof(SkiaScrollView),
             8f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
     #endregion

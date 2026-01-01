@@ -78,7 +78,7 @@
 | SkiaImageButton.cs | [ ] | |
 | SkiaIndicatorView.cs | [ ] | |
 | SkiaItemsView.cs | [x] | Added GetItemView() method |
-| SkiaLabel.cs | [ ] | |
+| SkiaLabel.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay |
 | SkiaLayoutView.cs | [ ] | Contains SkiaGrid, SkiaStackLayout, SkiaAbsoluteLayout, GridLength, GridPosition |
 | SkiaMenuBar.cs | [ ] | Contains MenuItem, MenuBarItem |
 | SkiaNavigationPage.cs | [ ] | |
@@ -87,7 +87,7 @@
 | SkiaProgressBar.cs | [x] | Verified - Progress=OneWay, rest TwoWay, logic matches |
 | SkiaRadioButton.cs | [ ] | |
 | SkiaRefreshView.cs | [ ] | |
-| SkiaScrollView.cs | [ ] | |
+| SkiaScrollView.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay |
 | SkiaSearchBar.cs | [ ] | |
 | SkiaShell.cs | [x] | **FIXED 2026-01-01** - Added FlyoutTextColor, ContentBackgroundColor, route registration, query parameters, OnScroll |
 | SkiaSlider.cs | [x] | FIXED - Value=OneWay, rest TwoWay (agent had inverted all) |
