@@ -34,8 +34,8 @@ public static class GestureManager
     }
 
     private static MethodInfo? _sendTappedMethod;
-    private static readonly Dictionary<View, (DateTime lastTap, int tapCount)> _tapTracking = new();
-    private static readonly Dictionary<View, GestureTrackingState> _gestureState = new();
+    private static readonly Dictionary<View, (DateTime lastTap, int tapCount)> _tapTracking = new Dictionary<View, (DateTime, int)>();
+    private static readonly Dictionary<View, GestureTrackingState> _gestureState = new Dictionary<View, GestureTrackingState>();
 
     private const double SwipeMinDistance = 50.0;
     private const double SwipeMaxTime = 500.0;
@@ -47,17 +47,20 @@ public static class GestureManager
     /// </summary>
     public static bool ProcessTap(View? view, double x, double y)
     {
-        if (view == null) return false;
-
+        if (view == null)
+        {
+            return false;
+        }
         var current = view;
         while (current != null)
         {
             var recognizers = current.GestureRecognizers;
-            if (recognizers?.Count > 0 && ProcessTapOnView(current, x, y))
+            if (recognizers != null && recognizers.Count > 0 && ProcessTapOnView(current, x, y))
             {
                 return true;
             }
-            current = current.Parent as View;
+            var parent = current.Parent;
+            current = (parent is View parentView) ? parentView : null;
         }
         return false;
     }
@@ -66,51 +69,50 @@ public static class GestureManager
     {
         var recognizers = view.GestureRecognizers;
         if (recognizers == null || recognizers.Count == 0)
-            return false;
-
-        bool result = false;
-        foreach (var recognizer in recognizers)
         {
-            if (recognizer is not TapGestureRecognizer tapRecognizer)
-                continue;
-
-            Console.WriteLine($"[GestureManager] Processing TapGestureRecognizer on {view.GetType().Name}, CommandParameter={tapRecognizer.CommandParameter}, NumberOfTapsRequired={tapRecognizer.NumberOfTapsRequired}");
-
-            int requiredTaps = tapRecognizer.NumberOfTapsRequired;
-            if (requiredTaps > 1)
+            return false;
+        }
+        bool result = false;
+        foreach (var item in recognizers)
+        {
+            var tapRecognizer = (item is TapGestureRecognizer) ? (TapGestureRecognizer)item : null;
+            if (tapRecognizer == null)
             {
-                var now = DateTime.UtcNow;
+                continue;
+            }
+            Console.WriteLine($"[GestureManager] Processing TapGestureRecognizer on {view.GetType().Name}, CommandParameter={tapRecognizer.CommandParameter}, NumberOfTapsRequired={tapRecognizer.NumberOfTapsRequired}");
+            int numberOfTapsRequired = tapRecognizer.NumberOfTapsRequired;
+            if (numberOfTapsRequired > 1)
+            {
+                DateTime utcNow = DateTime.UtcNow;
                 if (!_tapTracking.TryGetValue(view, out var tracking))
                 {
-                    _tapTracking[view] = (now, 1);
-                    Console.WriteLine($"[GestureManager] First tap 1/{requiredTaps}");
+                    _tapTracking[view] = (utcNow, 1);
+                    Console.WriteLine($"[GestureManager] First tap 1/{numberOfTapsRequired}");
                     continue;
                 }
-
-                if ((now - tracking.lastTap).TotalMilliseconds >= 300.0)
+                if (!((utcNow - tracking.lastTap).TotalMilliseconds < 300.0))
                 {
-                    _tapTracking[view] = (now, 1);
-                    Console.WriteLine($"[GestureManager] Tap timeout, reset to 1/{requiredTaps}");
+                    _tapTracking[view] = (utcNow, 1);
+                    Console.WriteLine($"[GestureManager] Tap timeout, reset to 1/{numberOfTapsRequired}");
                     continue;
                 }
-
                 int tapCount = tracking.tapCount + 1;
-                if (tapCount < requiredTaps)
+                if (tapCount < numberOfTapsRequired)
                 {
-                    _tapTracking[view] = (now, tapCount);
-                    Console.WriteLine($"[GestureManager] Tap {tapCount}/{requiredTaps}, waiting for more taps");
+                    _tapTracking[view] = (utcNow, tapCount);
+                    Console.WriteLine($"[GestureManager] Tap {tapCount}/{numberOfTapsRequired}, waiting for more taps");
                     continue;
                 }
-
                 _tapTracking.Remove(view);
             }
-
             bool eventFired = false;
-
-            // Try SendTapped method
             try
             {
-                _sendTappedMethod ??= typeof(TapGestureRecognizer).GetMethod("SendTapped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (_sendTappedMethod == null)
+                {
+                    _sendTappedMethod = typeof(TapGestureRecognizer).GetMethod("SendTapped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                }
                 if (_sendTappedMethod != null)
                 {
                     Console.WriteLine($"[GestureManager] Found SendTapped method with {_sendTappedMethod.GetParameters().Length} params");
@@ -124,15 +126,13 @@ public static class GestureManager
             {
                 Console.WriteLine("[GestureManager] SendTapped failed: " + ex.Message);
             }
-
-            // Try direct event invocation
             if (!eventFired)
             {
                 try
                 {
                     var field = typeof(TapGestureRecognizer).GetField("Tapped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                               ?? typeof(TapGestureRecognizer).GetField("_tapped", BindingFlags.Instance | BindingFlags.NonPublic);
-                    if (field?.GetValue(tapRecognizer) is EventHandler<TappedEventArgs> handler)
+                    if (field != null && field.GetValue(tapRecognizer) is EventHandler<TappedEventArgs> handler)
                     {
                         Console.WriteLine("[GestureManager] Invoking Tapped event directly");
                         var args = new TappedEventArgs(tapRecognizer.CommandParameter);
@@ -145,14 +145,51 @@ public static class GestureManager
                     Console.WriteLine("[GestureManager] Direct event invoke failed: " + ex.Message);
                 }
             }
-
-            // Execute command if available
-            if (tapRecognizer.Command?.CanExecute(tapRecognizer.CommandParameter) == true)
+            if (!eventFired)
+            {
+                try
+                {
+                    string[] fieldNames = new string[] { "TappedEvent", "_TappedHandler", "<Tapped>k__BackingField" };
+                    foreach (string fieldName in fieldNames)
+                    {
+                        var field = typeof(TapGestureRecognizer).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+                        if (field != null)
+                        {
+                            Console.WriteLine("[GestureManager] Found field: " + fieldName);
+                            if (field.GetValue(tapRecognizer) is EventHandler<TappedEventArgs> handler)
+                            {
+                                var args = new TappedEventArgs(tapRecognizer.CommandParameter);
+                                handler(tapRecognizer, args);
+                                Console.WriteLine("[GestureManager] Event fired via " + fieldName);
+                                eventFired = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("[GestureManager] Backing field approach failed: " + ex.Message);
+                }
+            }
+            if (!eventFired)
+            {
+                Console.WriteLine("[GestureManager] Could not fire event, dumping type info...");
+                var methods = typeof(TapGestureRecognizer).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                foreach (var method in methods)
+                {
+                    if (method.Name.Contains("Tap", StringComparison.OrdinalIgnoreCase) || method.Name.Contains("Send", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"[GestureManager]   Method: {method.Name}({string.Join(", ", from p in method.GetParameters() select p.ParameterType.Name)})");
+                    }
+                }
+            }
+            ICommand? command = tapRecognizer.Command;
+            if (command != null && command.CanExecute(tapRecognizer.CommandParameter))
             {
                 Console.WriteLine("[GestureManager] Executing Command");
                 tapRecognizer.Command.Execute(tapRecognizer.CommandParameter);
             }
-
             result = true;
         }
         return result;
@@ -163,7 +200,11 @@ public static class GestureManager
     /// </summary>
     public static bool HasGestureRecognizers(View? view)
     {
-        return view?.GestureRecognizers?.Count > 0;
+        if (view == null)
+        {
+            return false;
+        }
+        return view.GestureRecognizers?.Count > 0;
     }
 
     /// <summary>
@@ -171,8 +212,18 @@ public static class GestureManager
     /// </summary>
     public static bool HasTapGestureRecognizer(View? view)
     {
-        if (view?.GestureRecognizers == null) return false;
-        return view.GestureRecognizers.Any(g => g is TapGestureRecognizer);
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is TapGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -180,19 +231,20 @@ public static class GestureManager
     /// </summary>
     public static void ProcessPointerDown(View? view, double x, double y)
     {
-        if (view == null) return;
-
-        _gestureState[view] = new GestureTrackingState
+        if (view != null)
         {
-            StartX = x,
-            StartY = y,
-            CurrentX = x,
-            CurrentY = y,
-            StartTime = DateTime.UtcNow,
-            IsPanning = false,
-            IsPressed = true
-        };
-        ProcessPointerEvent(view, x, y, PointerEventType.Pressed);
+            _gestureState[view] = new GestureTrackingState
+            {
+                StartX = x,
+                StartY = y,
+                CurrentX = x,
+                CurrentY = y,
+                StartTime = DateTime.UtcNow,
+                IsPanning = false,
+                IsPressed = true
+            };
+            ProcessPointerEvent(view, x, y, PointerEventType.Pressed);
+        }
     }
 
     /// <summary>
@@ -200,33 +252,29 @@ public static class GestureManager
     /// </summary>
     public static void ProcessPointerMove(View? view, double x, double y)
     {
-        if (view == null) return;
-
+        if (view == null)
+        {
+            return;
+        }
         if (!_gestureState.TryGetValue(view, out var state))
         {
             ProcessPointerEvent(view, x, y, PointerEventType.Moved);
             return;
         }
-
         state.CurrentX = x;
         state.CurrentY = y;
-
         if (!state.IsPressed)
         {
             ProcessPointerEvent(view, x, y, PointerEventType.Moved);
             return;
         }
-
         double deltaX = x - state.StartX;
         double deltaY = y - state.StartY;
-        double distance = Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
-
-        if (distance >= PanMinDistance)
+        if (Math.Sqrt(deltaX * deltaX + deltaY * deltaY) >= 10.0)
         {
-            ProcessPanGesture(view, deltaX, deltaY, state.IsPanning ? GestureStatus.Running : GestureStatus.Started);
+            ProcessPanGesture(view, deltaX, deltaY, (GestureStatus)(state.IsPanning ? 1 : 0));
             state.IsPanning = true;
         }
-
         ProcessPointerEvent(view, x, y, PointerEventType.Moved);
     }
 
@@ -235,39 +283,41 @@ public static class GestureManager
     /// </summary>
     public static void ProcessPointerUp(View? view, double x, double y)
     {
-        if (view == null) return;
-
+        if (view == null)
+        {
+            return;
+        }
         if (_gestureState.TryGetValue(view, out var state))
         {
             state.CurrentX = x;
             state.CurrentY = y;
-
             double deltaX = x - state.StartX;
             double deltaY = y - state.StartY;
             double distance = Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
             double elapsed = (DateTime.UtcNow - state.StartTime).TotalMilliseconds;
-
-            // Check for swipe
-            if (distance >= SwipeMinDistance && elapsed <= SwipeMaxTime)
+            if (distance >= 50.0 && elapsed <= 500.0)
             {
                 var direction = DetermineSwipeDirection(deltaX, deltaY);
-                ProcessSwipeGesture(view, direction);
+                if (direction != SwipeDirection.Right)
+                {
+                    ProcessSwipeGesture(view, direction);
+                }
+                else if (Math.Abs(deltaX) > Math.Abs(deltaY) * 0.5)
+                {
+                    ProcessSwipeGesture(view, (deltaX > 0.0) ? SwipeDirection.Right : SwipeDirection.Left);
+                }
             }
-
-            // Complete pan or detect tap
             if (state.IsPanning)
             {
-                ProcessPanGesture(view, deltaX, deltaY, GestureStatus.Completed);
+                ProcessPanGesture(view, deltaX, deltaY, (GestureStatus)2);
             }
             else if (distance < 15.0 && elapsed < 500.0)
             {
                 Console.WriteLine($"[GestureManager] Detected tap on {view.GetType().Name} (distance={distance:F1}, elapsed={elapsed:F0}ms)");
                 ProcessTap(view, x, y);
             }
-
             _gestureState.Remove(view);
         }
-
         ProcessPointerEvent(view, x, y, PointerEventType.Released);
     }
 
@@ -277,7 +327,9 @@ public static class GestureManager
     public static void ProcessPointerEntered(View? view, double x, double y)
     {
         if (view != null)
+        {
             ProcessPointerEvent(view, x, y, PointerEventType.Entered);
+        }
     }
 
     /// <summary>
@@ -286,67 +338,102 @@ public static class GestureManager
     public static void ProcessPointerExited(View? view, double x, double y)
     {
         if (view != null)
+        {
             ProcessPointerEvent(view, x, y, PointerEventType.Exited);
+        }
     }
 
     private static SwipeDirection DetermineSwipeDirection(double deltaX, double deltaY)
     {
         double absX = Math.Abs(deltaX);
         double absY = Math.Abs(deltaY);
-
-        if (absX > absY * SwipeDirectionThreshold)
-            return deltaX > 0 ? SwipeDirection.Right : SwipeDirection.Left;
-        if (absY > absX * SwipeDirectionThreshold)
-            return deltaY > 0 ? SwipeDirection.Down : SwipeDirection.Up;
-        return deltaX > 0 ? SwipeDirection.Right : SwipeDirection.Left;
+        if (absX > absY * 0.5)
+        {
+            if (deltaX > 0.0)
+            {
+                return SwipeDirection.Right;
+            }
+            return SwipeDirection.Left;
+        }
+        if (absY > absX * 0.5)
+        {
+            if (deltaY > 0.0)
+            {
+                return SwipeDirection.Down;
+            }
+            return SwipeDirection.Up;
+        }
+        if (deltaX > 0.0)
+        {
+            return SwipeDirection.Right;
+        }
+        return SwipeDirection.Left;
     }
 
     private static void ProcessSwipeGesture(View view, SwipeDirection direction)
     {
         var recognizers = view.GestureRecognizers;
-        if (recognizers == null) return;
-
-        foreach (var recognizer in recognizers)
+        if (recognizers == null)
         {
-            if (recognizer is not SwipeGestureRecognizer swipeRecognizer)
+            return;
+        }
+        foreach (var item in recognizers)
+        {
+            var swipeRecognizer = (item is SwipeGestureRecognizer) ? (SwipeGestureRecognizer)item : null;
+            if (swipeRecognizer == null || !swipeRecognizer.Direction.HasFlag(direction))
+            {
                 continue;
-
-            if (!swipeRecognizer.Direction.HasFlag(direction))
-                continue;
-
+            }
             Console.WriteLine($"[GestureManager] Swipe detected: {direction}");
-
             try
             {
                 var method = typeof(SwipeGestureRecognizer).GetMethod("SendSwiped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                method?.Invoke(swipeRecognizer, new object[] { view, direction });
+                if (method != null)
+                {
+                    method.Invoke(swipeRecognizer, new object[] { view, direction });
+                    Console.WriteLine("[GestureManager] SendSwiped invoked successfully");
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[GestureManager] SendSwiped failed: " + ex.Message);
             }
-
-            if (swipeRecognizer.Command?.CanExecute(swipeRecognizer.CommandParameter) == true)
+            ICommand? command = swipeRecognizer.Command;
+            if (command != null && command.CanExecute(swipeRecognizer.CommandParameter))
+            {
                 swipeRecognizer.Command.Execute(swipeRecognizer.CommandParameter);
+            }
         }
     }
 
     private static void ProcessPanGesture(View view, double totalX, double totalY, GestureStatus status)
     {
         var recognizers = view.GestureRecognizers;
-        if (recognizers == null) return;
-
-        foreach (var recognizer in recognizers)
+        if (recognizers == null)
         {
-            if (recognizer is not PanGestureRecognizer panRecognizer)
+            return;
+        }
+        foreach (var item in recognizers)
+        {
+            var panRecognizer = (item is PanGestureRecognizer) ? (PanGestureRecognizer)item : null;
+            if (panRecognizer == null)
+            {
                 continue;
-
+            }
             Console.WriteLine($"[GestureManager] Pan gesture: status={status}, totalX={totalX:F1}, totalY={totalY:F1}");
-
             try
             {
                 var method = typeof(PanGestureRecognizer).GetMethod("SendPan", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                method?.Invoke(panRecognizer, new object[] { view, totalX, totalY, (int)status });
+                if (method != null)
+                {
+                    method.Invoke(panRecognizer, new object[]
+                    {
+                        view,
+                        totalX,
+                        totalY,
+                        (int)status
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -358,13 +445,17 @@ public static class GestureManager
     private static void ProcessPointerEvent(View view, double x, double y, PointerEventType eventType)
     {
         var recognizers = view.GestureRecognizers;
-        if (recognizers == null) return;
-
-        foreach (var recognizer in recognizers)
+        if (recognizers == null)
         {
-            if (recognizer is not PointerGestureRecognizer pointerRecognizer)
+            return;
+        }
+        foreach (var item in recognizers)
+        {
+            var pointerRecognizer = (item is PointerGestureRecognizer) ? (PointerGestureRecognizer)item : null;
+            if (pointerRecognizer == null)
+            {
                 continue;
-
+            }
             try
             {
                 string? methodName = eventType switch
@@ -374,16 +465,15 @@ public static class GestureManager
                     PointerEventType.Pressed => "SendPointerPressed",
                     PointerEventType.Moved => "SendPointerMoved",
                     PointerEventType.Released => "SendPointerReleased",
-                    _ => null
+                    _ => null,
                 };
-
                 if (methodName != null)
                 {
                     var method = typeof(PointerGestureRecognizer).GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                     if (method != null)
                     {
                         var args = CreatePointerEventArgs(view, x, y);
-                        method.Invoke(pointerRecognizer, new object[] { view, args! });
+                        method.Invoke(pointerRecognizer, new object[] { view, args });
                     }
                 }
             }
@@ -394,7 +484,7 @@ public static class GestureManager
         }
     }
 
-    private static object? CreatePointerEventArgs(View view, double x, double y)
+    private static object CreatePointerEventArgs(View view, double x, double y)
     {
         try
         {
@@ -403,11 +493,15 @@ public static class GestureManager
             {
                 var ctor = type.GetConstructors().FirstOrDefault();
                 if (ctor != null)
-                    return ctor.Invoke(Array.Empty<object>());
+                {
+                    return ctor.Invoke(new object[0]);
+                }
             }
         }
-        catch { }
-        return null;
+        catch
+        {
+        }
+        return null!;
     }
 
     /// <summary>
@@ -415,8 +509,18 @@ public static class GestureManager
     /// </summary>
     public static bool HasSwipeGestureRecognizer(View? view)
     {
-        if (view?.GestureRecognizers == null) return false;
-        return view.GestureRecognizers.Any(g => g is SwipeGestureRecognizer);
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is SwipeGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -424,8 +528,18 @@ public static class GestureManager
     /// </summary>
     public static bool HasPanGestureRecognizer(View? view)
     {
-        if (view?.GestureRecognizers == null) return false;
-        return view.GestureRecognizers.Any(g => g is PanGestureRecognizer);
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is PanGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -433,7 +547,17 @@ public static class GestureManager
     /// </summary>
     public static bool HasPointerGestureRecognizer(View? view)
     {
-        if (view?.GestureRecognizers == null) return false;
-        return view.GestureRecognizers.Any(g => g is PointerGestureRecognizer);
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is PointerGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

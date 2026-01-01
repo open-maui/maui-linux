@@ -10,28 +10,28 @@
 
 | File | Status | Notes |
 |------|--------|-------|
-| ActivityIndicatorHandler.cs | [ ] | |
-| ApplicationHandler.cs | [ ] | |
+| ActivityIndicatorHandler.cs | [x] | Verified - matches decompiled |
+| ApplicationHandler.cs | [x] | Verified - matches decompiled |
 | BorderHandler.cs | [ ] | BLOCKED - needs SkiaBorder.MauiView and Tapped |
 | BoxViewHandler.cs | [x] | Verified |
 | ButtonHandler.cs | [x] | Contains TextButtonHandler - Verified |
 | CheckBoxHandler.cs | [x] | Verified |
-| CollectionViewHandler.cs | [ ] | |
+| CollectionViewHandler.cs | [x] | FIXED - Added OnItemTapped gesture handling, MauiView assignment |
 | DatePickerHandler.cs | [x] | Verified |
 | EditorHandler.cs | [x] | Verified |
 | EntryHandler.cs | [x] | Verified |
-| FlexLayoutHandler.cs | [ ] | |
+| FlexLayoutHandler.cs | [x] | Verified - matches decompiled |
 | FlyoutPageHandler.cs | [x] | Verified - matches decompiled |
-| FrameHandler.cs | [ ] | |
-| GestureManager.cs | [ ] | |
-| GraphicsViewHandler.cs | [ ] | |
+| FrameHandler.cs | [ ] | BLOCKED - needs SkiaFrame.MauiView and Tapped event |
+| GestureManager.cs | [x] | FIXED - Added third fallback (TappedEvent fields), type info dump, swipe Right handling |
+| GraphicsViewHandler.cs | [x] | Verified - matches decompiled |
 | GtkWebViewHandler.cs | [x] | Added new file from decompiled |
 | GtkWebViewManager.cs | [ ] | |
 | GtkWebViewPlatformView.cs | [ ] | |
 | GtkWebViewProxy.cs | [x] | Added new file from decompiled |
 | ImageButtonHandler.cs | [x] | FIXED - added MapBackgroundColor |
 | ImageHandler.cs | [x] | Verified |
-| ItemsViewHandler.cs | [ ] | |
+| ItemsViewHandler.cs | [x] | Verified - matches decompiled |
 | LabelHandler.cs | [x] | Verified |
 | LayoutHandler.cs | [x] | Contains GridHandler, StackLayoutHandler, LayoutHandlerUpdate - Verified |
 | NavigationPageHandler.cs | [x] | FIXED - Added LoadToolbarIcon, Icon loading, content handling, animated params |
@@ -48,7 +48,7 @@
 | TabbedPageHandler.cs | [x] | Verified - matches decompiled |
 | TimePickerHandler.cs | [x] | FIXED - Added dark theme colors |
 | WebViewHandler.cs | [x] | Fixed namespace-qualified event args |
-| WindowHandler.cs | [ ] | Contains SkiaWindow, SizeChangedEventArgs, LinuxApplicationContext |
+| WindowHandler.cs | [x] | Verified - Contains SkiaWindow, SizeChangedEventArgs |
 
 ---
 
@@ -75,7 +75,7 @@
 | SkiaImage.cs | [ ] | |
 | SkiaImageButton.cs | [ ] | |
 | SkiaIndicatorView.cs | [ ] | |
-| SkiaItemsView.cs | [ ] | |
+| SkiaItemsView.cs | [x] | Added GetItemView() method |
 | SkiaLabel.cs | [ ] | |
 | SkiaLayoutView.cs | [ ] | Contains SkiaGrid, SkiaStackLayout, SkiaAbsoluteLayout, GridLength, GridPosition |
 | SkiaMenuBar.cs | [ ] | Contains MenuItem, MenuBarItem |

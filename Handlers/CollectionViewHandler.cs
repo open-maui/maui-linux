@@ -124,7 +124,49 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
     private void OnItemTapped(object? sender, ItemsViewItemTappedEventArgs e)
     {
-        // Item tap is handled through selection
+        if (VirtualView is null || _isUpdatingSelection) return;
+
+        try
+        {
+            _isUpdatingSelection = true;
+
+            Console.WriteLine($"[CollectionViewHandler] OnItemTapped index={e.Index}, item={e.Item}, SelectionMode={VirtualView.SelectionMode}");
+
+            // Try to get the item view and process gestures
+            var skiaView = PlatformView?.GetItemView(e.Index);
+            Console.WriteLine($"[CollectionViewHandler] GetItemView({e.Index}) returned: {skiaView?.GetType().Name ?? "null"}, MauiView={skiaView?.MauiView?.GetType().Name ?? "null"}");
+
+            if (skiaView?.MauiView != null)
+            {
+                Console.WriteLine($"[CollectionViewHandler] Found MauiView: {skiaView.MauiView.GetType().Name}, GestureRecognizers={skiaView.MauiView.GestureRecognizers?.Count ?? 0}");
+                if (GestureManager.ProcessTap(skiaView.MauiView, 0, 0))
+                {
+                    Console.WriteLine("[CollectionViewHandler] Gesture processed successfully");
+                    return;
+                }
+            }
+
+            // Handle selection if gesture wasn't processed
+            if (VirtualView.SelectionMode == SelectionMode.Single)
+            {
+                VirtualView.SelectedItem = e.Item;
+            }
+            else if (VirtualView.SelectionMode == SelectionMode.Multiple)
+            {
+                if (VirtualView.SelectedItems.Contains(e.Item))
+                {
+                    VirtualView.SelectedItems.Remove(e.Item);
+                }
+                else
+                {
+                    VirtualView.SelectedItems.Add(e.Item);
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
     }
 
     public static void MapItemsSource(CollectionViewHandler handler, CollectionView collectionView)
@@ -164,6 +206,9 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
                         if (view.Handler?.PlatformView is SkiaView skiaView)
                         {
+                            // Set MauiView so gestures can be processed
+                            skiaView.MauiView = view;
+                            Console.WriteLine($"[CollectionViewHandler.ItemViewCreator] Set MauiView={view.GetType().Name} on {skiaView.GetType().Name}, GestureRecognizers={view.GestureRecognizers?.Count ?? 0}");
                             return skiaView;
                         }
                     }

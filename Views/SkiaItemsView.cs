@@ -722,6 +722,18 @@ public class SkiaItemsView : SkiaView
         }
         base.Dispose(disposing);
     }
+
+    /// <summary>
+    /// Gets the SkiaView for a given item index from the cache.
+    /// </summary>
+    public SkiaView? GetItemView(int index)
+    {
+        if (!_itemViewCache.TryGetValue(index, out var view))
+        {
+            return null;
+        }
+        return view;
+    }
 }
 
 /// <summary>
