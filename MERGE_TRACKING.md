@@ -8,47 +8,49 @@
 
 ## HANDLERS
 
+**CRITICAL**: All handlers must use namespace `Microsoft.Maui.Platform.Linux.Handlers` and follow decompiled EXACTLY.
+
 | File | Status | Notes |
 |------|--------|-------|
-| ActivityIndicatorHandler.cs | [x] | Verified - matches decompiled |
-| ApplicationHandler.cs | [x] | Verified - matches decompiled |
+| ActivityIndicatorHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed IsEnabled/BackgroundColor (not in production), fixed namespace |
+| ApplicationHandler.cs | [ ] | NEEDS VERIFICATION |
 | BorderHandler.cs | [ ] | BLOCKED - needs SkiaBorder.MauiView and Tapped |
-| BoxViewHandler.cs | [x] | Verified |
-| ButtonHandler.cs | [x] | Contains TextButtonHandler - Verified |
-| CheckBoxHandler.cs | [x] | Verified |
-| CollectionViewHandler.cs | [x] | FIXED - Added OnItemTapped gesture handling, MauiView assignment |
-| DatePickerHandler.cs | [x] | Verified |
-| EditorHandler.cs | [x] | Verified |
-| EntryHandler.cs | [x] | Verified |
-| FlexLayoutHandler.cs | [x] | Verified - matches decompiled |
-| FlyoutPageHandler.cs | [x] | Verified - matches decompiled |
+| BoxViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| ButtonHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed MapText/TextColor/Font (not in production), fixed namespace, added null checks |
+| CheckBoxHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added VerticalLayoutAlignment/HorizontalLayoutAlignment, fixed namespace |
+| CollectionViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| DatePickerHandler.cs | [ ] | NEEDS VERIFICATION |
+| EditorHandler.Linux.cs | [x] | **CREATED 2026-01-01** - Was missing, created from decompiled |
+| EntryHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/ClearButtonVisibility/VerticalTextAlignment, fixed namespace, null checks |
+| FlexLayoutHandler.cs | [ ] | NEEDS VERIFICATION |
+| FlyoutPageHandler.cs | [ ] | NEEDS VERIFICATION |
 | FrameHandler.cs | [ ] | BLOCKED - needs SkiaFrame.MauiView and Tapped event |
-| GestureManager.cs | [x] | FIXED - Added third fallback (TappedEvent fields), type info dump, swipe Right handling |
-| GraphicsViewHandler.cs | [x] | Verified - matches decompiled |
+| GestureManager.cs | [ ] | NEEDS VERIFICATION |
+| GraphicsViewHandler.cs | [ ] | NEEDS VERIFICATION |
 | GtkWebViewHandler.cs | [x] | Added new file from decompiled |
-| GtkWebViewManager.cs | [ ] | |
-| GtkWebViewPlatformView.cs | [ ] | |
+| GtkWebViewManager.cs | [ ] | NEEDS VERIFICATION |
+| GtkWebViewPlatformView.cs | [ ] | NEEDS VERIFICATION |
 | GtkWebViewProxy.cs | [x] | Added new file from decompiled |
-| ImageButtonHandler.cs | [x] | FIXED - added MapBackgroundColor |
-| ImageHandler.cs | [x] | Verified |
-| ItemsViewHandler.cs | [x] | Verified - matches decompiled |
-| LabelHandler.cs | [x] | Verified |
-| LayoutHandler.cs | [x] | Contains GridHandler, StackLayoutHandler, LayoutHandlerUpdate - Verified |
-| NavigationPageHandler.cs | [x] | FIXED - Added LoadToolbarIcon, Icon loading, content handling, animated params |
-| PageHandler.cs | [x] | Added MapBackgroundColor |
-| PickerHandler.cs | [x] | Verified |
-| ProgressBarHandler.cs | [x] | Verified |
-| RadioButtonHandler.cs | [x] | Verified - matches decompiled |
-| ScrollViewHandler.cs | [x] | Verified |
-| SearchBarHandler.cs | [x] | Verified - matches decompiled |
-| ShellHandler.cs | [x] | Verified - matches decompiled |
-| SliderHandler.cs | [x] | Verified |
-| StepperHandler.cs | [x] | FIXED - Added MapIncrement, MapIsEnabled, dark theme colors |
-| SwitchHandler.cs | [x] | Verified |
-| TabbedPageHandler.cs | [x] | Verified - matches decompiled |
-| TimePickerHandler.cs | [x] | FIXED - Added dark theme colors |
-| WebViewHandler.cs | [x] | Fixed namespace-qualified event args |
-| WindowHandler.cs | [x] | Verified - Contains SkiaWindow, SizeChangedEventArgs |
+| ImageButtonHandler.cs | [ ] | NEEDS VERIFICATION |
+| ImageHandler.cs | [ ] | NEEDS VERIFICATION |
+| ItemsViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| LabelHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/LayoutAlignment/FormattedText, ConnectHandler gesture logic, fixed namespace |
+| LayoutHandler.cs | [ ] | NEEDS VERIFICATION |
+| NavigationPageHandler.cs | [ ] | NEEDS VERIFICATION |
+| PageHandler.cs | [ ] | NEEDS VERIFICATION |
+| PickerHandler.Linux.cs | [x] | **CREATED 2026-01-01** - Was missing, created from decompiled with collection changed tracking |
+| ProgressBarHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added ConnectHandler/DisconnectHandler IsVisible tracking, fixed namespace |
+| RadioButtonHandler.cs | [ ] | NEEDS VERIFICATION |
+| ScrollViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| SearchBarHandler.cs | [ ] | NEEDS VERIFICATION |
+| ShellHandler.cs | [ ] | NEEDS VERIFICATION |
+| SliderHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed BackgroundColor (use base), fixed namespace, added ConnectHandler init calls |
+| StepperHandler.cs | [ ] | NEEDS VERIFICATION |
+| SwitchHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added OffTrackColor logic, fixed namespace, removed extra BackgroundColor |
+| TabbedPageHandler.cs | [ ] | NEEDS VERIFICATION |
+| TimePickerHandler.cs | [ ] | NEEDS VERIFICATION |
+| WebViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| WindowHandler.cs | [ ] | NEEDS VERIFICATION |
 
 ---
 
@@ -56,13 +58,13 @@
 
 | File | Status | Notes |
 |------|--------|-------|
-| SkiaActivityIndicator.cs | [ ] | |
+| SkiaActivityIndicator.cs | [x] | Verified - all TwoWay, logic matches |
 | SkiaAlertDialog.cs | [ ] | |
 | SkiaBorder.cs | [ ] | Contains SkiaFrame |
-| SkiaBoxView.cs | [ ] | |
-| SkiaButton.cs | [ ] | |
+| SkiaBoxView.cs | [x] | Verified - all TwoWay, logic matches |
+| SkiaButton.cs | [x] | Verified - all TwoWay, logic matches |
 | SkiaCarouselView.cs | [ ] | |
-| SkiaCheckBox.cs | [ ] | |
+| SkiaCheckBox.cs | [x] | Verified - IsChecked=OneWay, rest TwoWay, logic matches |
 | SkiaCollectionView.cs | [ ] | |
 | SkiaContentPresenter.cs | [ ] | |
 | SkiaContextMenu.cs | [ ] | |
@@ -81,17 +83,17 @@
 | SkiaMenuBar.cs | [ ] | Contains MenuItem, MenuBarItem |
 | SkiaNavigationPage.cs | [ ] | |
 | SkiaPage.cs | [x] | Added SkiaToolbarItem.Icon property |
-| SkiaPicker.cs | [ ] | |
-| SkiaProgressBar.cs | [ ] | |
+| SkiaPicker.cs | [x] | FIXED - SelectedIndex=OneWay, all others=TwoWay (was missing) |
+| SkiaProgressBar.cs | [x] | Verified - Progress=OneWay, rest TwoWay, logic matches |
 | SkiaRadioButton.cs | [ ] | |
 | SkiaRefreshView.cs | [ ] | |
 | SkiaScrollView.cs | [ ] | |
 | SkiaSearchBar.cs | [ ] | |
 | SkiaShell.cs | [ ] | Contains ShellSection, ShellContent |
-| SkiaSlider.cs | [ ] | |
+| SkiaSlider.cs | [x] | FIXED - Value=OneWay, rest TwoWay (agent had inverted all) |
 | SkiaStepper.cs | [ ] | |
 | SkiaSwipeView.cs | [ ] | |
-| SkiaSwitch.cs | [ ] | |
+| SkiaSwitch.cs | [x] | FIXED - IsOn=OneWay (agent had TwoWay) |
 | SkiaTabbedPage.cs | [ ] | |
 | SkiaTemplatedView.cs | [ ] | |
 | SkiaTimePicker.cs | [ ] | |
@@ -204,3 +206,11 @@
 |------|--------|-------|
 | LinuxApplication.cs | [ ] | |
 | LinuxApplicationOptions.cs | [ ] | |
+
+---
+
+## TYPES
+
+| File | Status | Notes |
+|------|--------|-------|
+| ToggledEventArgs.cs | [x] | ADDED - was missing, required by SkiaSwitch |

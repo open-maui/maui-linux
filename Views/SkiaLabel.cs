@@ -25,6 +25,7 @@ public class SkiaLabel : SkiaView
             typeof(string),
             typeof(SkiaLabel),
             "",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
@@ -36,6 +37,7 @@ public class SkiaLabel : SkiaView
             typeof(IList<SkiaTextSpan>),
             typeof(SkiaLabel),
             null,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
@@ -47,6 +49,7 @@ public class SkiaLabel : SkiaView
             typeof(SKColor),
             typeof(SkiaLabel),
             SKColors.Black,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -58,6 +61,7 @@ public class SkiaLabel : SkiaView
             typeof(string),
             typeof(SkiaLabel),
             "Sans",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
@@ -69,6 +73,7 @@ public class SkiaLabel : SkiaView
             typeof(float),
             typeof(SkiaLabel),
             14f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
@@ -80,6 +85,7 @@ public class SkiaLabel : SkiaView
             typeof(bool),
             typeof(SkiaLabel),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
@@ -91,6 +97,7 @@ public class SkiaLabel : SkiaView
             typeof(bool),
             typeof(SkiaLabel),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
@@ -102,6 +109,7 @@ public class SkiaLabel : SkiaView
             typeof(bool),
             typeof(SkiaLabel),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -113,6 +121,7 @@ public class SkiaLabel : SkiaView
             typeof(bool),
             typeof(SkiaLabel),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -124,6 +133,7 @@ public class SkiaLabel : SkiaView
             typeof(TextAlignment),
             typeof(SkiaLabel),
             TextAlignment.Start,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -419,7 +429,7 @@ public class SkiaLabel : SkiaView
         {
             if (System.IO.File.Exists(path))
             {
-                _cachedTypeface = SKTypeface.FromFile(path);
+                _cachedTypeface = SKTypeface.FromFile(path, 0);
                 if (_cachedTypeface != null) return _cachedTypeface;
             }
         }

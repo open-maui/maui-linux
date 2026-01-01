@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,6 +23,7 @@ public class SkiaSlider : SkiaView
             typeof(double),
             typeof(SkiaSlider),
             0.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).OnRangeChanged());
 
     /// <summary>
@@ -32,6 +35,7 @@ public class SkiaSlider : SkiaView
             typeof(double),
             typeof(SkiaSlider),
             100.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).OnRangeChanged());
 
     /// <summary>
@@ -43,7 +47,7 @@ public class SkiaSlider : SkiaView
             typeof(double),
             typeof(SkiaSlider),
             0.0,
-            BindingMode.TwoWay,
+            BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).OnValuePropertyChanged((double)o, (double)n));
 
     /// <summary>
@@ -55,6 +59,7 @@ public class SkiaSlider : SkiaView
             typeof(SKColor),
             typeof(SkiaSlider),
             new SKColor(0xE0, 0xE0, 0xE0),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
     /// <summary>
@@ -66,6 +71,7 @@ public class SkiaSlider : SkiaView
             typeof(SKColor),
             typeof(SkiaSlider),
             new SKColor(0x21, 0x96, 0xF3),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
     /// <summary>
@@ -77,6 +83,7 @@ public class SkiaSlider : SkiaView
             typeof(SKColor),
             typeof(SkiaSlider),
             new SKColor(0x21, 0x96, 0xF3),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
     /// <summary>
@@ -88,6 +95,7 @@ public class SkiaSlider : SkiaView
             typeof(SKColor),
             typeof(SkiaSlider),
             new SKColor(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
     /// <summary>
@@ -99,6 +107,7 @@ public class SkiaSlider : SkiaView
             typeof(float),
             typeof(SkiaSlider),
             4f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
     /// <summary>
@@ -110,6 +119,7 @@ public class SkiaSlider : SkiaView
             typeof(float),
             typeof(SkiaSlider),
             10f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).InvalidateMeasure());
 
     #endregion
@@ -318,7 +328,7 @@ public class SkiaSlider : SkiaView
         _isDragging = true;
         UpdateValueFromPosition(e.X);
         DragStarted?.Invoke(this, EventArgs.Empty);
-        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
+        SkiaVisualStateManager.GoToState(this, "Pressed");
     }
 
     public override void OnPointerMoved(PointerEventArgs e)
@@ -333,7 +343,7 @@ public class SkiaSlider : SkiaView
         {
             _isDragging = false;
             DragCompleted?.Invoke(this, EventArgs.Empty);
-            SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+            SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
         }
     }
 
@@ -379,7 +389,7 @@ public class SkiaSlider : SkiaView
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
     }
 
     protected override SKSize MeasureOverride(SKSize availableSize)

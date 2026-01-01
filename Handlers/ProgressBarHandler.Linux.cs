@@ -1,29 +1,71 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.ComponentModel;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 
-namespace Microsoft.Maui.Platform;
+namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Linux handler for ProgressBar control.
 /// </summary>
-public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
+public class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
 {
     public static IPropertyMapper<IProgress, ProgressBarHandler> Mapper = new PropertyMapper<IProgress, ProgressBarHandler>(ViewHandler.ViewMapper)
     {
-        [nameof(IProgress.Progress)] = MapProgress,
-        [nameof(IProgress.ProgressColor)] = MapProgressColor,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
-        [nameof(IView.Background)] = MapBackground,
-        ["BackgroundColor"] = MapBackgroundColor,
+        ["Progress"] = MapProgress,
+        ["ProgressColor"] = MapProgressColor,
+        ["IsEnabled"] = MapIsEnabled,
+        ["Background"] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor
     };
 
     public static CommandMapper<IProgress, ProgressBarHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
 
-    public ProgressBarHandler() : base(Mapper, CommandMapper) { }
+    public ProgressBarHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-    protected override SkiaProgressBar CreatePlatformView() => new SkiaProgressBar();
+    protected override SkiaProgressBar CreatePlatformView()
+    {
+        return new SkiaProgressBar();
+    }
+
+    protected override void ConnectHandler(SkiaProgressBar platformView)
+    {
+        base.ConnectHandler(platformView);
+
+        if (VirtualView is BindableObject bindable)
+        {
+            bindable.PropertyChanged += OnVirtualViewPropertyChanged;
+        }
+
+        if (VirtualView is VisualElement ve)
+        {
+            platformView.IsVisible = ve.IsVisible;
+        }
+    }
+
+    protected override void DisconnectHandler(SkiaProgressBar platformView)
+    {
+        if (VirtualView is BindableObject bindable)
+        {
+            bindable.PropertyChanged -= OnVirtualViewPropertyChanged;
+        }
+
+        base.DisconnectHandler(platformView);
+    }
+
+    private void OnVirtualViewPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (VirtualView is VisualElement ve && e.PropertyName == "IsVisible")
+        {
+            PlatformView.IsVisible = ve.IsVisible;
+            PlatformView.Invalidate();
+        }
+    }
 
     public static void MapProgress(ProgressBarHandler handler, IProgress progress)
     {
@@ -33,7 +75,9 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
     public static void MapProgressColor(ProgressBarHandler handler, IProgress progress)
     {
         if (progress.ProgressColor != null)
+        {
             handler.PlatformView.ProgressColor = progress.ProgressColor.ToSKColor();
+        }
         handler.PlatformView.Invalidate();
     }
 
@@ -45,16 +89,16 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
 
     public static void MapBackground(ProgressBarHandler handler, IProgress progress)
     {
-        if (progress.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        if (progress.Background is SolidPaint solidPaint && solidPaint.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
             handler.PlatformView.Invalidate();
         }
     }
 
     public static void MapBackgroundColor(ProgressBarHandler handler, IProgress progress)
     {
-        if (progress is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        if (progress is VisualElement ve && ve.BackgroundColor != null)
         {
             handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
             handler.PlatformView.Invalidate();

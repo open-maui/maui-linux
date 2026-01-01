@@ -1,55 +1,47 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using SkiaSharp;
 
-namespace Microsoft.Maui.Platform;
+namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Linux handler for Entry control.
 /// </summary>
-public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
+public class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 {
-    /// <summary>
-    /// Maps the property mapper for the handler.
-    /// </summary>
     public static IPropertyMapper<IEntry, EntryHandler> Mapper = new PropertyMapper<IEntry, EntryHandler>(ViewHandler.ViewMapper)
     {
-        [nameof(IEntry.Text)] = MapText,
-        [nameof(IEntry.TextColor)] = MapTextColor,
-        [nameof(IEntry.Placeholder)] = MapPlaceholder,
-        [nameof(IEntry.PlaceholderColor)] = MapPlaceholderColor,
-        [nameof(IEntry.Font)] = MapFont,
-        [nameof(IEntry.IsPassword)] = MapIsPassword,
-        [nameof(IEntry.MaxLength)] = MapMaxLength,
-        [nameof(IEntry.IsReadOnly)] = MapIsReadOnly,
-        [nameof(IEntry.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
-        [nameof(IEntry.CursorPosition)] = MapCursorPosition,
-        [nameof(IEntry.SelectionLength)] = MapSelectionLength,
-        [nameof(IEntry.ReturnType)] = MapReturnType,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
-        [nameof(IEntry.Background)] = MapBackground,
-        ["BackgroundColor"] = MapBackgroundColor,
+        ["Text"] = MapText,
+        ["TextColor"] = MapTextColor,
+        ["Font"] = MapFont,
+        ["CharacterSpacing"] = MapCharacterSpacing,
+        ["Placeholder"] = MapPlaceholder,
+        ["PlaceholderColor"] = MapPlaceholderColor,
+        ["IsReadOnly"] = MapIsReadOnly,
+        ["MaxLength"] = MapMaxLength,
+        ["CursorPosition"] = MapCursorPosition,
+        ["SelectionLength"] = MapSelectionLength,
+        ["IsPassword"] = MapIsPassword,
+        ["ReturnType"] = MapReturnType,
+        ["ClearButtonVisibility"] = MapClearButtonVisibility,
+        ["HorizontalTextAlignment"] = MapHorizontalTextAlignment,
+        ["VerticalTextAlignment"] = MapVerticalTextAlignment,
+        ["Background"] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor
     };
 
-    /// <summary>
-    /// Maps the command mapper for the handler.
-    /// </summary>
-    public static CommandMapper<IEntry, EntryHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
-    {
-    };
+    public static CommandMapper<IEntry, EntryHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
 
     public EntryHandler() : base(Mapper, CommandMapper)
     {
     }
 
-    public EntryHandler(IPropertyMapper? mapper)
-        : base(mapper ?? Mapper, CommandMapper)
-    {
-    }
-
-    public EntryHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
+    public EntryHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
         : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
     {
     }
@@ -75,9 +67,9 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (VirtualView != null && VirtualView.Text != e.NewText)
+        if (VirtualView != null && PlatformView != null && VirtualView.Text != e.NewTextValue)
         {
-            VirtualView.Text = e.NewText;
+            VirtualView.Text = e.NewTextValue ?? string.Empty;
         }
     }
 
@@ -88,112 +80,173 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
     public static void MapText(EntryHandler handler, IEntry entry)
     {
-        if (handler.PlatformView.Text != entry.Text)
+        if (handler.PlatformView != null && handler.PlatformView.Text != entry.Text)
         {
-            handler.PlatformView.Text = entry.Text ?? "";
+            handler.PlatformView.Text = entry.Text ?? string.Empty;
+            handler.PlatformView.Invalidate();
         }
     }
 
     public static void MapTextColor(EntryHandler handler, IEntry entry)
     {
-        if (entry.TextColor != null)
+        if (handler.PlatformView != null && entry.TextColor != null)
         {
             handler.PlatformView.TextColor = entry.TextColor.ToSKColor();
         }
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapPlaceholder(EntryHandler handler, IEntry entry)
-    {
-        handler.PlatformView.Placeholder = entry.Placeholder ?? "";
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapPlaceholderColor(EntryHandler handler, IEntry entry)
-    {
-        if (entry.PlaceholderColor != null)
-        {
-            handler.PlatformView.PlaceholderColor = entry.PlaceholderColor.ToSKColor();
-        }
-        handler.PlatformView.Invalidate();
     }
 
     public static void MapFont(EntryHandler handler, IEntry entry)
     {
-        var font = entry.Font;
-        if (font.Family != null)
+        if (handler.PlatformView != null)
         {
-            handler.PlatformView.FontFamily = font.Family;
+            var font = entry.Font;
+            if (font.Size > 0)
+            {
+                handler.PlatformView.FontSize = (float)font.Size;
+            }
+            if (!string.IsNullOrEmpty(font.Family))
+            {
+                handler.PlatformView.FontFamily = font.Family;
+            }
+            handler.PlatformView.IsBold = (int)font.Weight >= 700;
+            handler.PlatformView.IsItalic = font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique;
         }
-        handler.PlatformView.FontSize = (float)font.Size;
-        handler.PlatformView.Invalidate();
     }
 
-    public static void MapIsPassword(EntryHandler handler, IEntry entry)
+    public static void MapCharacterSpacing(EntryHandler handler, IEntry entry)
     {
-        handler.PlatformView.IsPassword = entry.IsPassword;
-        handler.PlatformView.Invalidate();
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.CharacterSpacing = (float)entry.CharacterSpacing;
+        }
     }
 
-    public static void MapMaxLength(EntryHandler handler, IEntry entry)
+    public static void MapPlaceholder(EntryHandler handler, IEntry entry)
     {
-        handler.PlatformView.MaxLength = entry.MaxLength;
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.Placeholder = entry.Placeholder ?? string.Empty;
+        }
+    }
+
+    public static void MapPlaceholderColor(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView != null && entry.PlaceholderColor != null)
+        {
+            handler.PlatformView.PlaceholderColor = entry.PlaceholderColor.ToSKColor();
+        }
     }
 
     public static void MapIsReadOnly(EntryHandler handler, IEntry entry)
     {
-        handler.PlatformView.IsReadOnly = entry.IsReadOnly;
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.IsReadOnly = entry.IsReadOnly;
+        }
     }
 
-    public static void MapHorizontalTextAlignment(EntryHandler handler, IEntry entry)
+    public static void MapMaxLength(EntryHandler handler, IEntry entry)
     {
-        handler.PlatformView.HorizontalTextAlignment = entry.HorizontalTextAlignment switch
+        if (handler.PlatformView != null)
         {
-            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
-            _ => TextAlignment.Start
-        };
-        handler.PlatformView.Invalidate();
+            handler.PlatformView.MaxLength = entry.MaxLength;
+        }
     }
 
     public static void MapCursorPosition(EntryHandler handler, IEntry entry)
     {
-        handler.PlatformView.CursorPosition = entry.CursorPosition;
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.CursorPosition = entry.CursorPosition;
+        }
     }
 
     public static void MapSelectionLength(EntryHandler handler, IEntry entry)
     {
-        // Selection length is handled internally by SkiaEntry
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.SelectionLength = entry.SelectionLength;
+        }
+    }
+
+    public static void MapIsPassword(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.IsPassword = entry.IsPassword;
+        }
     }
 
     public static void MapReturnType(EntryHandler handler, IEntry entry)
     {
-        // Return type affects keyboard on mobile; on desktop, Enter always completes
+        // ReturnType affects keyboard on mobile; access PlatformView to ensure it exists
+        _ = handler.PlatformView;
     }
 
-    public static void MapIsEnabled(EntryHandler handler, IEntry entry)
+    public static void MapClearButtonVisibility(EntryHandler handler, IEntry entry)
     {
-        handler.PlatformView.IsEnabled = entry.IsEnabled;
-        handler.PlatformView.Invalidate();
+        if (handler.PlatformView != null)
+        {
+            // ClearButtonVisibility.WhileEditing = 1
+            handler.PlatformView.ShowClearButton = (int)entry.ClearButtonVisibility == 1;
+        }
+    }
+
+    public static void MapHorizontalTextAlignment(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.HorizontalTextAlignment = (int)entry.HorizontalTextAlignment switch
+            {
+                0 => TextAlignment.Start,
+                1 => TextAlignment.Center,
+                2 => TextAlignment.End,
+                _ => TextAlignment.Start
+            };
+        }
+    }
+
+    public static void MapVerticalTextAlignment(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.VerticalTextAlignment = (int)entry.VerticalTextAlignment switch
+            {
+                0 => TextAlignment.Start,
+                1 => TextAlignment.Center,
+                2 => TextAlignment.End,
+                _ => TextAlignment.Center
+            };
+        }
     }
 
     public static void MapBackground(EntryHandler handler, IEntry entry)
     {
-        var background = entry.Background;
-        if (background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        if (handler.PlatformView != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            if (entry.Background is SolidPaint solidPaint && solidPaint.Color != null)
+            {
+                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            }
         }
-        handler.PlatformView.Invalidate();
     }
 
     public static void MapBackgroundColor(EntryHandler handler, IEntry entry)
     {
-        if (entry is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        if (handler.PlatformView == null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
-            handler.PlatformView.Invalidate();
+            return;
+        }
+
+        if (entry is Entry mauiEntry)
+        {
+            Console.WriteLine($"[EntryHandler] MapBackgroundColor: {mauiEntry.BackgroundColor}");
+            if (mauiEntry.BackgroundColor != null)
+            {
+                var color = mauiEntry.BackgroundColor.ToSKColor();
+                Console.WriteLine($"[EntryHandler] Setting EntryBackgroundColor to: {color}");
+                handler.PlatformView.EntryBackgroundColor = color;
+            }
         }
     }
 }

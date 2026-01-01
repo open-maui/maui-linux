@@ -1,9 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
-using System.Collections;
-using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Platform;
 
@@ -33,202 +35,109 @@ public class SkiaCollectionView : SkiaItemsView
 {
     #region BindableProperties
 
-    /// <summary>
-    /// Bindable property for SelectionMode.
-    /// </summary>
-    public static readonly BindableProperty SelectionModeProperty =
-        BindableProperty.Create(
-            nameof(SelectionMode),
-            typeof(SkiaSelectionMode),
-            typeof(SkiaCollectionView),
-            SkiaSelectionMode.Single,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectionModeChanged());
+    public static readonly BindableProperty SelectionModeProperty = BindableProperty.Create(
+        nameof(SelectionMode),
+        typeof(SkiaSelectionMode),
+        typeof(SkiaCollectionView),
+        SkiaSelectionMode.Single,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectionModeChanged());
 
-    /// <summary>
-    /// Bindable property for SelectedItem.
-    /// </summary>
-    public static readonly BindableProperty SelectedItemProperty =
-        BindableProperty.Create(
-            nameof(SelectedItem),
-            typeof(object),
-            typeof(SkiaCollectionView),
-            null,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectedItemChanged(n));
+    public static readonly BindableProperty SelectedItemProperty = BindableProperty.Create(
+        nameof(SelectedItem),
+        typeof(object),
+        typeof(SkiaCollectionView),
+        null,
+        BindingMode.OneWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectedItemChanged(n));
 
-    /// <summary>
-    /// Bindable property for Orientation.
-    /// </summary>
-    public static readonly BindableProperty OrientationProperty =
-        BindableProperty.Create(
-            nameof(Orientation),
-            typeof(ItemsLayoutOrientation),
-            typeof(SkiaCollectionView),
-            ItemsLayoutOrientation.Vertical,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty OrientationProperty = BindableProperty.Create(
+        nameof(Orientation),
+        typeof(ItemsLayoutOrientation),
+        typeof(SkiaCollectionView),
+        ItemsLayoutOrientation.Vertical,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for SpanCount.
-    /// </summary>
-    public static readonly BindableProperty SpanCountProperty =
-        BindableProperty.Create(
-            nameof(SpanCount),
-            typeof(int),
-            typeof(SkiaCollectionView),
-            1,
-            coerceValue: (b, v) => Math.Max(1, (int)v),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty SpanCountProperty = BindableProperty.Create(
+        nameof(SpanCount),
+        typeof(int),
+        typeof(SkiaCollectionView),
+        1,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate(),
+        coerceValue: (b, v) => Math.Max(1, (int)v));
 
-    /// <summary>
-    /// Bindable property for GridItemWidth.
-    /// </summary>
-    public static readonly BindableProperty GridItemWidthProperty =
-        BindableProperty.Create(
-            nameof(GridItemWidth),
-            typeof(float),
-            typeof(SkiaCollectionView),
-            100f,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty GridItemWidthProperty = BindableProperty.Create(
+        nameof(GridItemWidth),
+        typeof(float),
+        typeof(SkiaCollectionView),
+        100f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for Header.
-    /// </summary>
-    public static readonly BindableProperty HeaderProperty =
-        BindableProperty.Create(
-            nameof(Header),
-            typeof(object),
-            typeof(SkiaCollectionView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnHeaderChanged(n));
+    public static readonly BindableProperty HeaderProperty = BindableProperty.Create(
+        nameof(Header),
+        typeof(object),
+        typeof(SkiaCollectionView),
+        null,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnHeaderChanged(n));
 
-    /// <summary>
-    /// Bindable property for Footer.
-    /// </summary>
-    public static readonly BindableProperty FooterProperty =
-        BindableProperty.Create(
-            nameof(Footer),
-            typeof(object),
-            typeof(SkiaCollectionView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnFooterChanged(n));
+    public static readonly BindableProperty FooterProperty = BindableProperty.Create(
+        nameof(Footer),
+        typeof(object),
+        typeof(SkiaCollectionView),
+        null,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnFooterChanged(n));
 
-    /// <summary>
-    /// Bindable property for HeaderHeight.
-    /// </summary>
-    public static readonly BindableProperty HeaderHeightProperty =
-        BindableProperty.Create(
-            nameof(HeaderHeight),
-            typeof(float),
-            typeof(SkiaCollectionView),
-            0f,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty HeaderHeightProperty = BindableProperty.Create(
+        nameof(HeaderHeight),
+        typeof(float),
+        typeof(SkiaCollectionView),
+        0f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for FooterHeight.
-    /// </summary>
-    public static readonly BindableProperty FooterHeightProperty =
-        BindableProperty.Create(
-            nameof(FooterHeight),
-            typeof(float),
-            typeof(SkiaCollectionView),
-            0f,
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty FooterHeightProperty = BindableProperty.Create(
+        nameof(FooterHeight),
+        typeof(float),
+        typeof(SkiaCollectionView),
+        0f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for SelectionColor.
-    /// </summary>
-    public static readonly BindableProperty SelectionColorProperty =
-        BindableProperty.Create(
-            nameof(SelectionColor),
-            typeof(SKColor),
-            typeof(SkiaCollectionView),
-            new SKColor(0x21, 0x96, 0xF3, 0x59),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty SelectionColorProperty = BindableProperty.Create(
+        nameof(SelectionColor),
+        typeof(SKColor),
+        typeof(SkiaCollectionView),
+        new SKColor(33, 150, 243, 89),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for HeaderBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty HeaderBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(HeaderBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaCollectionView),
-            new SKColor(0xF5, 0xF5, 0xF5),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty HeaderBackgroundColorProperty = BindableProperty.Create(
+        nameof(HeaderBackgroundColor),
+        typeof(SKColor),
+        typeof(SkiaCollectionView),
+        new SKColor(245, 245, 245),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for FooterBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty FooterBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(FooterBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaCollectionView),
-            new SKColor(0xF5, 0xF5, 0xF5),
-            propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+    public static readonly BindableProperty FooterBackgroundColorProperty = BindableProperty.Create(
+        nameof(FooterBackgroundColor),
+        typeof(SKColor),
+        typeof(SkiaCollectionView),
+        new SKColor(245, 245, 245),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
 
     #endregion
 
-    private List<object> _selectedItems = new();
+    private List<object> _selectedItems = new List<object>();
     private int _selectedIndex = -1;
-
-    // Track if heights changed during draw (requires redraw for correct positioning)
+    private bool _isSelectingItem;
     private bool _heightsChangedDuringDraw;
-
-    // Uses parent's _itemViewCache for virtualization
-
-    protected override void RefreshItems()
-    {
-        // Clear selection when items change to avoid stale references
-        _selectedItems.Clear();
-        SetValue(SelectedItemProperty, null);
-        _selectedIndex = -1;
-
-        base.RefreshItems();
-    }
-
-    private void OnSelectionModeChanged()
-    {
-        var mode = SelectionMode;
-        if (mode == SkiaSelectionMode.None)
-        {
-            ClearSelection();
-        }
-        else if (mode == SkiaSelectionMode.Single && _selectedItems.Count > 1)
-        {
-            // Keep only first selected
-            var first = _selectedItems.FirstOrDefault();
-            ClearSelection();
-            if (first != null)
-            {
-                SelectItem(first);
-            }
-        }
-        Invalidate();
-    }
-
-    private void OnSelectedItemChanged(object? newValue)
-    {
-        if (SelectionMode == SkiaSelectionMode.None) return;
-
-        ClearSelection();
-        if (newValue != null)
-        {
-            SelectItem(newValue);
-        }
-    }
-
-    private void OnHeaderChanged(object? newValue)
-    {
-        HeaderHeight = newValue != null ? 44 : 0;
-        Invalidate();
-    }
-
-    private void OnFooterChanged(object? newValue)
-    {
-        FooterHeight = newValue != null ? 44 : 0;
-        Invalidate();
-    }
 
     public SkiaSelectionMode SelectionMode
     {
@@ -249,12 +158,13 @@ public class SkiaCollectionView : SkiaItemsView
         get => _selectedIndex;
         set
         {
-            if (SelectionMode == SkiaSelectionMode.None) return;
-
-            var item = GetItemAt(value);
-            if (item != null)
+            if (SelectionMode != SkiaSelectionMode.None)
             {
-                SelectedItem = item;
+                var item = GetItemAt(value);
+                if (item != null)
+                {
+                    SelectedItem = item;
+                }
             }
         }
     }
@@ -321,11 +231,68 @@ public class SkiaCollectionView : SkiaItemsView
 
     public event EventHandler<CollectionSelectionChangedEventArgs>? SelectionChanged;
 
+    protected override void RefreshItems()
+    {
+        _selectedItems.Clear();
+        SetValue(SelectedItemProperty, null);
+        _selectedIndex = -1;
+        base.RefreshItems();
+    }
+
+    private void OnSelectionModeChanged()
+    {
+        switch (SelectionMode)
+        {
+            case SkiaSelectionMode.None:
+                ClearSelection();
+                break;
+            case SkiaSelectionMode.Single:
+                if (_selectedItems.Count > 1)
+                {
+                    var first = _selectedItems.FirstOrDefault();
+                    ClearSelection();
+                    if (first != null)
+                    {
+                        SelectItem(first);
+                    }
+                }
+                break;
+        }
+        Invalidate();
+    }
+
+    private void OnSelectedItemChanged(object? newValue)
+    {
+        if (SelectionMode != SkiaSelectionMode.None && !_isSelectingItem)
+        {
+            ClearSelection();
+            if (newValue != null)
+            {
+                SelectItem(newValue);
+            }
+        }
+    }
+
+    private void OnHeaderChanged(object? newValue)
+    {
+        HeaderHeight = newValue != null ? 44 : 0;
+        Invalidate();
+    }
+
+    private void OnFooterChanged(object? newValue)
+    {
+        FooterHeight = newValue != null ? 44 : 0;
+        Invalidate();
+    }
+
     private void SelectItem(object item)
     {
-        if (SelectionMode == SkiaSelectionMode.None) return;
+        if (SelectionMode == SkiaSelectionMode.None)
+        {
+            return;
+        }
 
-        var oldSelectedItems = _selectedItems.ToList();
+        var previousSelection = _selectedItems.ToList();
 
         if (SelectionMode == SkiaSelectionMode.Single)
         {
@@ -333,7 +300,6 @@ public class SkiaCollectionView : SkiaItemsView
             _selectedItems.Add(item);
             SetValue(SelectedItemProperty, item);
 
-            // Find index
             for (int i = 0; i < ItemCount; i++)
             {
                 if (GetItemAt(i) == item)
@@ -343,7 +309,7 @@ public class SkiaCollectionView : SkiaItemsView
                 }
             }
         }
-        else // Multiple
+        else
         {
             if (_selectedItems.Contains(item))
             {
@@ -358,11 +324,10 @@ public class SkiaCollectionView : SkiaItemsView
                 _selectedItems.Add(item);
                 SetValue(SelectedItemProperty, item);
             }
-
             _selectedIndex = SelectedItem != null ? GetIndexOf(SelectedItem) : -1;
         }
 
-        SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(oldSelectedItems, _selectedItems.ToList()));
+        SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(previousSelection, _selectedItems.ToList()));
         Invalidate();
     }
 
@@ -371,51 +336,62 @@ public class SkiaCollectionView : SkiaItemsView
         for (int i = 0; i < ItemCount; i++)
         {
             if (GetItemAt(i) == item)
+            {
                 return i;
+            }
         }
         return -1;
     }
 
     private void ClearSelection()
     {
-        var oldItems = _selectedItems.ToList();
+        var previousItems = _selectedItems.ToList();
         _selectedItems.Clear();
         SetValue(SelectedItemProperty, null);
         _selectedIndex = -1;
 
-        if (oldItems.Count > 0)
+        if (previousItems.Count > 0)
         {
-            SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(oldItems, new List<object>()));
+            SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(previousItems, new List<object>()));
         }
     }
 
     protected override void OnItemTapped(int index, object item)
     {
-        if (SelectionMode != SkiaSelectionMode.None)
+        if (_isSelectingItem)
         {
-            SelectItem(item);
+            return;
         }
 
-        base.OnItemTapped(index, item);
+        _isSelectingItem = true;
+        try
+        {
+            if (SelectionMode != SkiaSelectionMode.None)
+            {
+                SelectItem(item);
+            }
+            base.OnItemTapped(index, item);
+        }
+        finally
+        {
+            _isSelectingItem = false;
+        }
     }
 
     protected override void DrawItem(SKCanvas canvas, object item, int index, SKRect bounds, SKPaint paint)
     {
         bool isSelected = _selectedItems.Contains(item);
 
-        // Draw separator (only for vertical list layout)
         if (Orientation == ItemsLayoutOrientation.Vertical && SpanCount == 1)
         {
-            paint.Color = new SKColor(0xE0, 0xE0, 0xE0);
+            paint.Color = new SKColor(224, 224, 224);
             paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 1;
+            paint.StrokeWidth = 1f;
             canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
         }
 
-        // Try to use ItemViewCreator for templated rendering (from DataTemplate)
         if (ItemViewCreator != null)
         {
-            // Get or create cached view for this index
             if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
             {
                 itemView = ItemViewCreator(item);
@@ -430,64 +406,56 @@ public class SkiaCollectionView : SkiaItemsView
             {
                 try
                 {
-                    // Measure with large height to get natural size
                     var availableSize = new SKSize(bounds.Width, float.MaxValue);
                     var measuredSize = itemView.Measure(availableSize);
 
-                    // Cap measured height - if item returns infinity/MaxValue, use ItemHeight as default
-                    // This happens with Star-sized Grids that have no natural height preference
                     var rawHeight = measuredSize.Height;
-                    if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000)
+                    if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000f)
                     {
                         rawHeight = ItemHeight;
                     }
-                    // Ensure minimum height
+
                     var measuredHeight = Math.Max(rawHeight, ItemHeight);
-                    if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1)
+                    if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1f)
                     {
                         _itemHeights[index] = measuredHeight;
-                        _heightsChangedDuringDraw = true; // Flag for redraw with correct positions
+                        _heightsChangedDuringDraw = true;
                     }
 
-                    // Arrange with the actual measured height
                     var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
                     itemView.Arrange(actualBounds);
                     itemView.Draw(canvas);
 
-                    // Draw selection highlight ON TOP of the item content (semi-transparent overlay)
                     if (isSelected)
                     {
                         paint.Color = SelectionColor;
                         paint.Style = SKPaintStyle.Fill;
-                        canvas.DrawRoundRect(actualBounds, 12, 12, paint);
+                        canvas.DrawRoundRect(actualBounds, 12f, 12f, paint);
                     }
 
-                    // Draw checkmark for selected items in multiple selection mode
                     if (isSelected && SelectionMode == SkiaSelectionMode.Multiple)
                     {
-                        DrawCheckmark(canvas, new SKRect(actualBounds.Right - 32, actualBounds.MidY - 8, actualBounds.Right - 16, actualBounds.MidY + 8));
+                        DrawCheckmark(canvas, new SKRect(actualBounds.Right - 32f, actualBounds.MidY - 8f, actualBounds.Right - 16f, actualBounds.MidY + 8f));
                     }
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[SkiaCollectionView.DrawItem] EXCEPTION: {ex.Message}\n{ex.StackTrace}");
+                    Console.WriteLine("[SkiaCollectionView.DrawItem] EXCEPTION: " + ex.Message + "\n" + ex.StackTrace);
+                    return;
                 }
-                return;
             }
         }
 
-        // Use custom renderer if provided
-        if (ItemRenderer != null)
+        if (ItemRenderer != null && ItemRenderer(item, index, bounds, canvas, paint))
         {
-            if (ItemRenderer(item, index, bounds, canvas, paint))
-                return;
+            return;
         }
 
-        // Default rendering - fall back to ToString
         paint.Color = SKColors.Black;
         paint.Style = SKPaintStyle.Fill;
 
-        using var font = new SKFont(SKTypeface.Default, 14);
+        using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
         using var textPaint = new SKPaint(font)
         {
             Color = SKColors.Black,
@@ -498,14 +466,13 @@ public class SkiaCollectionView : SkiaItemsView
         var textBounds = new SKRect();
         textPaint.MeasureText(text, ref textBounds);
 
-        var x = bounds.Left + 16;
+        var x = bounds.Left + 16f;
         var y = bounds.MidY - textBounds.MidY;
         canvas.DrawText(text, x, y, textPaint);
 
-        // Draw checkmark for selected items in multiple selection mode
         if (isSelected && SelectionMode == SkiaSelectionMode.Multiple)
         {
-            DrawCheckmark(canvas, new SKRect(bounds.Right - 32, bounds.MidY - 8, bounds.Right - 16, bounds.MidY + 8));
+            DrawCheckmark(canvas, new SKRect(bounds.Right - 32f, bounds.MidY - 8f, bounds.Right - 16f, bounds.MidY + 8f));
         }
     }
 
@@ -513,27 +480,25 @@ public class SkiaCollectionView : SkiaItemsView
     {
         using var paint = new SKPaint
         {
-            Color = new SKColor(0x21, 0x96, 0xF3),
+            Color = new SKColor(33, 150, 243),
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
+            StrokeWidth = 2f,
             IsAntialias = true,
             StrokeCap = SKStrokeCap.Round
         };
 
         using var path = new SKPath();
         path.MoveTo(bounds.Left, bounds.MidY);
-        path.LineTo(bounds.MidX - 2, bounds.Bottom - 2);
-        path.LineTo(bounds.Right, bounds.Top + 2);
+        path.LineTo(bounds.MidX - 2f, bounds.Bottom - 2f);
+        path.LineTo(bounds.Right, bounds.Top + 2f);
 
         canvas.DrawPath(path, paint);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Reset the heights-changed flag at the start of each draw
         _heightsChangedDuringDraw = false;
 
-        // Draw background if set
         if (BackgroundColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
@@ -544,35 +509,26 @@ public class SkiaCollectionView : SkiaItemsView
             canvas.DrawRect(bounds, bgPaint);
         }
 
-        // Draw header if present
-        if (Header != null && HeaderHeight > 0)
+        if (Header != null && HeaderHeight > 0f)
         {
             var headerRect = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + HeaderHeight);
             DrawHeader(canvas, headerRect);
         }
 
-        // Draw footer if present
-        if (Footer != null && FooterHeight > 0)
+        if (Footer != null && FooterHeight > 0f)
         {
             var footerRect = new SKRect(bounds.Left, bounds.Bottom - FooterHeight, bounds.Right, bounds.Bottom);
             DrawFooter(canvas, footerRect);
         }
 
-        // Adjust content bounds for header/footer
-        var contentBounds = new SKRect(
-            bounds.Left,
-            bounds.Top + HeaderHeight,
-            bounds.Right,
-            bounds.Bottom - FooterHeight);
+        var contentBounds = new SKRect(bounds.Left, bounds.Top + HeaderHeight, bounds.Right, bounds.Bottom - FooterHeight);
 
-        // Draw items
         if (ItemCount == 0)
         {
             DrawEmptyView(canvas, contentBounds);
             return;
         }
 
-        // Use grid layout if spanCount > 1
         if (SpanCount > 1)
         {
             DrawGridItems(canvas, contentBounds);
@@ -582,8 +538,6 @@ public class SkiaCollectionView : SkiaItemsView
             DrawListItems(canvas, contentBounds);
         }
 
-        // If heights changed during this draw, schedule a redraw with correct positions
-        // This will queue another frame to be drawn with the correct cached heights
         if (_heightsChangedDuringDraw)
         {
             _heightsChangedDuringDraw = false;
@@ -593,17 +547,18 @@ public class SkiaCollectionView : SkiaItemsView
 
     private void DrawListItems(SKCanvas canvas, SKRect bounds)
     {
-        // Standard list drawing with variable item heights
         canvas.Save();
-        canvas.ClipRect(bounds);
+        canvas.ClipRect(bounds, SKClipOperation.Intersect, false);
 
-        using var paint = new SKPaint { IsAntialias = true };
+        using var paint = new SKPaint
+        {
+            IsAntialias = true
+        };
 
         var scrollOffset = GetScrollOffset();
 
-        // Find first visible item by walking through items
         int firstVisible = 0;
-        float cumulativeOffset = 0;
+        float cumulativeOffset = 0f;
         for (int i = 0; i < ItemCount; i++)
         {
             var itemH = GetItemHeight(i);
@@ -615,16 +570,16 @@ public class SkiaCollectionView : SkiaItemsView
             cumulativeOffset += itemH + ItemSpacing;
         }
 
-        // Draw visible items using variable heights
         float currentY = bounds.Top + GetItemOffset(firstVisible) - scrollOffset;
         for (int i = firstVisible; i < ItemCount; i++)
         {
             var itemH = GetItemHeight(i);
-            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - 8, currentY + itemH);
+            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - 8f, currentY + itemH);
 
-            // Stop if we've passed the visible area
             if (itemRect.Top > bounds.Bottom)
+            {
                 break;
+            }
 
             if (itemRect.Bottom >= bounds.Top)
             {
@@ -640,7 +595,6 @@ public class SkiaCollectionView : SkiaItemsView
 
         canvas.Restore();
 
-        // Draw scrollbar
         var totalHeight = TotalContentHeight;
         if (totalHeight > bounds.Height)
         {
@@ -651,46 +605,51 @@ public class SkiaCollectionView : SkiaItemsView
     private void DrawGridItems(SKCanvas canvas, SKRect bounds)
     {
         canvas.Save();
-        canvas.ClipRect(bounds);
+        canvas.ClipRect(bounds, SKClipOperation.Intersect, false);
 
-        using var paint = new SKPaint { IsAntialias = true };
+        using var paint = new SKPaint
+        {
+            IsAntialias = true
+        };
 
-        var cellWidth = (bounds.Width - 8) / SpanCount; // -8 for scrollbar
+        var cellWidth = (bounds.Width - 8f) / SpanCount;
         var cellHeight = ItemHeight;
         var rowCount = (int)Math.Ceiling((double)ItemCount / SpanCount);
         var totalHeight = rowCount * (cellHeight + ItemSpacing) - ItemSpacing;
 
         var scrollOffset = GetScrollOffset();
         var firstVisibleRow = Math.Max(0, (int)(scrollOffset / (cellHeight + ItemSpacing)));
-        var lastVisibleRow = Math.Min(rowCount - 1,
-            (int)((scrollOffset + bounds.Height) / (cellHeight + ItemSpacing)) + 1);
+        var lastVisibleRow = Math.Min(rowCount - 1, (int)((scrollOffset + bounds.Height) / (cellHeight + ItemSpacing)) + 1);
 
         for (int row = firstVisibleRow; row <= lastVisibleRow; row++)
         {
-            var rowY = bounds.Top + (row * (cellHeight + ItemSpacing)) - scrollOffset;
+            var rowY = bounds.Top + row * (cellHeight + ItemSpacing) - scrollOffset;
 
             for (int col = 0; col < SpanCount; col++)
             {
                 var index = row * SpanCount + col;
-                if (index >= ItemCount) break;
+                if (index >= ItemCount)
+                {
+                    break;
+                }
 
                 var cellX = bounds.Left + col * cellWidth;
-                var cellRect = new SKRect(cellX + 2, rowY, cellX + cellWidth - 2, rowY + cellHeight);
+                var cellRect = new SKRect(cellX + 2f, rowY, cellX + cellWidth - 2f, rowY + cellHeight);
 
                 if (cellRect.Bottom < bounds.Top || cellRect.Top > bounds.Bottom)
+                {
                     continue;
+                }
 
                 var item = GetItemAt(index);
                 if (item != null)
                 {
-                    // Draw cell background
                     using var cellBgPaint = new SKPaint
                     {
-                        Color = _selectedItems.Contains(item) ? SelectionColor : new SKColor(0xFA, 0xFA, 0xFA),
+                        Color = _selectedItems.Contains(item) ? SelectionColor : new SKColor(250, 250, 250),
                         Style = SKPaintStyle.Fill
                     };
-                    canvas.DrawRoundRect(new SKRoundRect(cellRect, 4), cellBgPaint);
-
+                    canvas.DrawRoundRect(new SKRoundRect(cellRect, 4f), cellBgPaint);
                     DrawItem(canvas, item, index, cellRect, paint);
                 }
             }
@@ -698,7 +657,6 @@ public class SkiaCollectionView : SkiaItemsView
 
         canvas.Restore();
 
-        // Draw scrollbar
         if (totalHeight > bounds.Height)
         {
             DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
@@ -710,7 +668,6 @@ public class SkiaCollectionView : SkiaItemsView
         var scrollBarWidth = 6f;
         var scrollBarMargin = 2f;
 
-        // Draw scrollbar track (subtle)
         var trackRect = new SKRect(
             bounds.Right - scrollBarWidth - scrollBarMargin,
             bounds.Top + scrollBarMargin,
@@ -722,23 +679,17 @@ public class SkiaCollectionView : SkiaItemsView
             Color = new SKColor(0, 0, 0, 20),
             Style = SKPaintStyle.Fill
         };
-        canvas.DrawRoundRect(new SKRoundRect(trackRect, 3), trackPaint);
+        canvas.DrawRoundRect(new SKRoundRect(trackRect, 3f), trackPaint);
 
-        // Calculate thumb position and size
-        var maxOffset = Math.Max(0, totalHeight - bounds.Height);
+        var maxOffset = Math.Max(0f, totalHeight - bounds.Height);
         var viewportRatio = bounds.Height / totalHeight;
         var availableTrackHeight = trackRect.Height;
-        var thumbHeight = Math.Max(30, availableTrackHeight * viewportRatio);
-        var scrollRatio = maxOffset > 0 ? scrollOffset / maxOffset : 0;
+        var thumbHeight = Math.Max(30f, availableTrackHeight * viewportRatio);
+        var scrollRatio = maxOffset > 0f ? scrollOffset / maxOffset : 0f;
         var thumbY = trackRect.Top + (availableTrackHeight - thumbHeight) * scrollRatio;
 
-        var thumbRect = new SKRect(
-            trackRect.Left,
-            thumbY,
-            trackRect.Right,
-            thumbY + thumbHeight);
+        var thumbRect = new SKRect(trackRect.Left, thumbY, trackRect.Right, thumbY + thumbHeight);
 
-        // Draw thumb with more visible color
         using var thumbPaint = new SKPaint
         {
             Color = new SKColor(100, 100, 100, 180),
@@ -746,13 +697,11 @@ public class SkiaCollectionView : SkiaItemsView
             IsAntialias = true
         };
 
-        canvas.DrawRoundRect(new SKRoundRect(thumbRect, 3), thumbPaint);
+        canvas.DrawRoundRect(new SKRoundRect(thumbRect, 3f), thumbPaint);
     }
 
     private float GetScrollOffset()
     {
-        // Access base class scroll offset through reflection or expose it
-        // For now, use the field directly through internal access
         return _scrollOffset;
     }
 
@@ -765,11 +714,10 @@ public class SkiaCollectionView : SkiaItemsView
         };
         canvas.DrawRect(bounds, bgPaint);
 
-        // Draw header text
-        var text = Header.ToString() ?? "";
+        var text = Header?.ToString() ?? "";
         if (!string.IsNullOrEmpty(text))
         {
-            using var font = new SKFont(SKTypeface.Default, 16);
+            using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
             using var textPaint = new SKPaint(font)
             {
                 Color = SKColors.Black,
@@ -779,17 +727,16 @@ public class SkiaCollectionView : SkiaItemsView
             var textBounds = new SKRect();
             textPaint.MeasureText(text, ref textBounds);
 
-            var x = bounds.Left + 16;
+            var x = bounds.Left + 16f;
             var y = bounds.MidY - textBounds.MidY;
             canvas.DrawText(text, x, y, textPaint);
         }
 
-        // Draw separator
         using var sepPaint = new SKPaint
         {
-            Color = new SKColor(0xE0, 0xE0, 0xE0),
+            Color = new SKColor(224, 224, 224),
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1
+            StrokeWidth = 1f
         };
         canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, sepPaint);
     }
@@ -803,23 +750,21 @@ public class SkiaCollectionView : SkiaItemsView
         };
         canvas.DrawRect(bounds, bgPaint);
 
-        // Draw separator
         using var sepPaint = new SKPaint
         {
-            Color = new SKColor(0xE0, 0xE0, 0xE0),
+            Color = new SKColor(224, 224, 224),
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1
+            StrokeWidth = 1f
         };
         canvas.DrawLine(bounds.Left, bounds.Top, bounds.Right, bounds.Top, sepPaint);
 
-        // Draw footer text
-        var text = Footer.ToString() ?? "";
+        var text = Footer?.ToString() ?? "";
         if (!string.IsNullOrEmpty(text))
         {
-            using var font = new SKFont(SKTypeface.Default, 14);
+            using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
             using var textPaint = new SKPaint(font)
             {
-                Color = new SKColor(0x80, 0x80, 0x80),
+                Color = new SKColor(128, 128, 128),
                 IsAntialias = true
             };
 

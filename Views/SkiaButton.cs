@@ -1,8 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using SkiaSharp;
+using System;
+using System.Windows.Input;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
@@ -13,442 +16,321 @@ public class SkiaButton : SkiaView
 {
     #region BindableProperties
 
-    /// <summary>
-    /// Bindable property for Text.
-    /// </summary>
-    public static readonly BindableProperty TextProperty =
-        BindableProperty.Create(
-            nameof(Text),
-            typeof(string),
-            typeof(SkiaButton),
-            "",
-            propertyChanged: (b, o, n) => ((SkiaButton)b).OnTextChanged());
+    public static readonly BindableProperty TextProperty = BindableProperty.Create(
+        nameof(Text),
+        typeof(string),
+        typeof(SkiaButton),
+        "",
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).OnTextChanged());
 
-    /// <summary>
-    /// Bindable property for TextColor.
-    /// </summary>
-    public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(
-            nameof(TextColor),
-            typeof(SKColor),
-            typeof(SkiaButton),
-            SKColors.White,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty TextColorProperty = BindableProperty.Create(
+        nameof(TextColor),
+        typeof(SKColor),
+        typeof(SkiaButton),
+        SKColors.White,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for ButtonBackgroundColor (distinct from base BackgroundColor).
-    /// </summary>
-    public static readonly BindableProperty ButtonBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(ButtonBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaButton),
-            new SKColor(0x21, 0x96, 0xF3), // Material Blue
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty ButtonBackgroundColorProperty = BindableProperty.Create(
+        nameof(ButtonBackgroundColor),
+        typeof(SKColor),
+        typeof(SkiaButton),
+        new SKColor(33, 150, 243), // Material Blue
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for PressedBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty PressedBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(PressedBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaButton),
-            new SKColor(0x19, 0x76, 0xD2),
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty PressedBackgroundColorProperty = BindableProperty.Create(
+        nameof(PressedBackgroundColor),
+        typeof(SKColor),
+        typeof(SkiaButton),
+        new SKColor(25, 118, 210),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for DisabledBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty DisabledBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(DisabledBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaButton),
-            new SKColor(0xBD, 0xBD, 0xBD),
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty DisabledBackgroundColorProperty = BindableProperty.Create(
+        nameof(DisabledBackgroundColor),
+        typeof(SKColor),
+        typeof(SkiaButton),
+        new SKColor(189, 189, 189),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for HoveredBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty HoveredBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(HoveredBackgroundColor),
-            typeof(SKColor),
-            typeof(SkiaButton),
-            new SKColor(0x42, 0xA5, 0xF5),
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty HoveredBackgroundColorProperty = BindableProperty.Create(
+        nameof(HoveredBackgroundColor),
+        typeof(SKColor),
+        typeof(SkiaButton),
+        new SKColor(66, 165, 245),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for BorderColor.
-    /// </summary>
-    public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(
-            nameof(BorderColor),
-            typeof(SKColor),
-            typeof(SkiaButton),
-            SKColors.Transparent,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty BorderColorProperty = BindableProperty.Create(
+        nameof(BorderColor),
+        typeof(SKColor),
+        typeof(SkiaButton),
+        SKColors.Transparent,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for FontFamily.
-    /// </summary>
-    public static readonly BindableProperty FontFamilyProperty =
-        BindableProperty.Create(
-            nameof(FontFamily),
-            typeof(string),
-            typeof(SkiaButton),
-            "Sans",
-            propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
+    public static readonly BindableProperty FontFamilyProperty = BindableProperty.Create(
+        nameof(FontFamily),
+        typeof(string),
+        typeof(SkiaButton),
+        "Sans",
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
 
-    /// <summary>
-    /// Bindable property for FontSize.
-    /// </summary>
-    public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(
-            nameof(FontSize),
-            typeof(float),
-            typeof(SkiaButton),
-            14f,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
+    public static readonly BindableProperty FontSizeProperty = BindableProperty.Create(
+        nameof(FontSize),
+        typeof(float),
+        typeof(SkiaButton),
+        14f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
 
-    /// <summary>
-    /// Bindable property for IsBold.
-    /// </summary>
-    public static readonly BindableProperty IsBoldProperty =
-        BindableProperty.Create(
-            nameof(IsBold),
-            typeof(bool),
-            typeof(SkiaButton),
-            false,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
+    public static readonly BindableProperty IsBoldProperty = BindableProperty.Create(
+        nameof(IsBold),
+        typeof(bool),
+        typeof(SkiaButton),
+        false,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
 
-    /// <summary>
-    /// Bindable property for IsItalic.
-    /// </summary>
-    public static readonly BindableProperty IsItalicProperty =
-        BindableProperty.Create(
-            nameof(IsItalic),
-            typeof(bool),
-            typeof(SkiaButton),
-            false,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
+    public static readonly BindableProperty IsItalicProperty = BindableProperty.Create(
+        nameof(IsItalic),
+        typeof(bool),
+        typeof(SkiaButton),
+        false,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).OnFontChanged());
 
-    /// <summary>
-    /// Bindable property for CharacterSpacing.
-    /// </summary>
-    public static readonly BindableProperty CharacterSpacingProperty =
-        BindableProperty.Create(
-            nameof(CharacterSpacing),
-            typeof(float),
-            typeof(SkiaButton),
-            0f,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty CharacterSpacingProperty = BindableProperty.Create(
+        nameof(CharacterSpacing),
+        typeof(float),
+        typeof(SkiaButton),
+        0f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for CornerRadius.
-    /// </summary>
-    public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(
-            nameof(CornerRadius),
-            typeof(float),
-            typeof(SkiaButton),
-            4f,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty CornerRadiusProperty = BindableProperty.Create(
+        nameof(CornerRadius),
+        typeof(float),
+        typeof(SkiaButton),
+        4f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for BorderWidth.
-    /// </summary>
-    public static readonly BindableProperty BorderWidthProperty =
-        BindableProperty.Create(
-            nameof(BorderWidth),
-            typeof(float),
-            typeof(SkiaButton),
-            0f,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty BorderWidthProperty = BindableProperty.Create(
+        nameof(BorderWidth),
+        typeof(float),
+        typeof(SkiaButton),
+        0f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for Padding.
-    /// </summary>
-    public static readonly BindableProperty PaddingProperty =
-        BindableProperty.Create(
-            nameof(Padding),
-            typeof(SKRect),
-            typeof(SkiaButton),
-            new SKRect(16, 8, 16, 8),
-            propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
+    public static readonly BindableProperty PaddingProperty = BindableProperty.Create(
+        nameof(Padding),
+        typeof(SKRect),
+        typeof(SkiaButton),
+        new SKRect(16f, 8f, 16f, 8f),
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
 
-    /// <summary>
-    /// Bindable property for Command.
-    /// </summary>
-    public static readonly BindableProperty CommandProperty =
-        BindableProperty.Create(
-            nameof(Command),
-            typeof(System.Windows.Input.ICommand),
-            typeof(SkiaButton),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).OnCommandChanged((System.Windows.Input.ICommand?)o, (System.Windows.Input.ICommand?)n));
+    public static readonly BindableProperty CommandProperty = BindableProperty.Create(
+        nameof(Command),
+        typeof(ICommand),
+        typeof(SkiaButton),
+        null,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).OnCommandChanged((ICommand?)o, (ICommand?)n));
 
-    /// <summary>
-    /// Bindable property for CommandParameter.
-    /// </summary>
-    public static readonly BindableProperty CommandParameterProperty =
-        BindableProperty.Create(
-            nameof(CommandParameter),
-            typeof(object),
-            typeof(SkiaButton),
-            null);
+    public static readonly BindableProperty CommandParameterProperty = BindableProperty.Create(
+        nameof(CommandParameter),
+        typeof(object),
+        typeof(SkiaButton),
+        null,
+        BindingMode.TwoWay);
 
-    /// <summary>
-    /// Bindable property for ImageSource.
-    /// </summary>
-    public static readonly BindableProperty ImageSourceProperty =
-        BindableProperty.Create(
-            nameof(ImageSource),
-            typeof(SKBitmap),
-            typeof(SkiaButton),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+    public static readonly BindableProperty ImageSourceProperty = BindableProperty.Create(
+        nameof(ImageSource),
+        typeof(SKBitmap),
+        typeof(SkiaButton),
+        null,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for ImageSpacing.
-    /// </summary>
-    public static readonly BindableProperty ImageSpacingProperty =
-        BindableProperty.Create(
-            nameof(ImageSpacing),
-            typeof(float),
-            typeof(SkiaButton),
-            8f,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
+    public static readonly BindableProperty ImageSpacingProperty = BindableProperty.Create(
+        nameof(ImageSpacing),
+        typeof(float),
+        typeof(SkiaButton),
+        8f,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
 
-    /// <summary>
-    /// Bindable property for ContentLayoutPosition (0=Left, 1=Top, 2=Right, 3=Bottom).
-    /// </summary>
-    public static readonly BindableProperty ContentLayoutPositionProperty =
-        BindableProperty.Create(
-            nameof(ContentLayoutPosition),
-            typeof(int),
-            typeof(SkiaButton),
-            0,
-            propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
+    public static readonly BindableProperty ContentLayoutPositionProperty = BindableProperty.Create(
+        nameof(ContentLayoutPosition),
+        typeof(int),
+        typeof(SkiaButton),
+        0,
+        BindingMode.TwoWay,
+        propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
+
+    #endregion
+
+    #region Fields
+
+    private bool _focusFromKeyboard;
 
     #endregion
 
     #region Properties
 
-    /// <summary>
-    /// Gets or sets the button text.
-    /// </summary>
     public string Text
     {
         get => (string)GetValue(TextProperty);
         set => SetValue(TextProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the text color.
-    /// </summary>
     public SKColor TextColor
     {
         get => (SKColor)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the button background color.
-    /// </summary>
     public SKColor ButtonBackgroundColor
     {
         get => (SKColor)GetValue(ButtonBackgroundColorProperty);
         set => SetValue(ButtonBackgroundColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the pressed background color.
-    /// </summary>
     public SKColor PressedBackgroundColor
     {
         get => (SKColor)GetValue(PressedBackgroundColorProperty);
         set => SetValue(PressedBackgroundColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the disabled background color.
-    /// </summary>
     public SKColor DisabledBackgroundColor
     {
         get => (SKColor)GetValue(DisabledBackgroundColorProperty);
         set => SetValue(DisabledBackgroundColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the hovered background color.
-    /// </summary>
     public SKColor HoveredBackgroundColor
     {
         get => (SKColor)GetValue(HoveredBackgroundColorProperty);
         set => SetValue(HoveredBackgroundColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the border color.
-    /// </summary>
     public SKColor BorderColor
     {
         get => (SKColor)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the font family.
-    /// </summary>
     public string FontFamily
     {
         get => (string)GetValue(FontFamilyProperty);
         set => SetValue(FontFamilyProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the font size.
-    /// </summary>
     public float FontSize
     {
         get => (float)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets whether the text is bold.
-    /// </summary>
     public bool IsBold
     {
         get => (bool)GetValue(IsBoldProperty);
         set => SetValue(IsBoldProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets whether the text is italic.
-    /// </summary>
     public bool IsItalic
     {
         get => (bool)GetValue(IsItalicProperty);
         set => SetValue(IsItalicProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the character spacing.
-    /// </summary>
     public float CharacterSpacing
     {
         get => (float)GetValue(CharacterSpacingProperty);
         set => SetValue(CharacterSpacingProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the corner radius.
-    /// </summary>
     public float CornerRadius
     {
         get => (float)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the border width.
-    /// </summary>
     public float BorderWidth
     {
         get => (float)GetValue(BorderWidthProperty);
         set => SetValue(BorderWidthProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the padding.
-    /// </summary>
     public SKRect Padding
     {
         get => (SKRect)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the command to execute when clicked.
-    /// </summary>
-    public System.Windows.Input.ICommand? Command
+    public ICommand? Command
     {
-        get => (System.Windows.Input.ICommand?)GetValue(CommandProperty);
+        get => (ICommand?)GetValue(CommandProperty);
         set => SetValue(CommandProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the command parameter.
-    /// </summary>
     public object? CommandParameter
     {
         get => GetValue(CommandParameterProperty);
         set => SetValue(CommandParameterProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the image source for the button.
-    /// </summary>
     public SKBitmap? ImageSource
     {
         get => (SKBitmap?)GetValue(ImageSourceProperty);
         set => SetValue(ImageSourceProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the spacing between the image and text.
-    /// </summary>
     public float ImageSpacing
     {
         get => (float)GetValue(ImageSpacingProperty);
         set => SetValue(ImageSpacingProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the content layout position (0=Left, 1=Top, 2=Right, 3=Bottom).
-    /// </summary>
     public int ContentLayoutPosition
     {
         get => (int)GetValue(ContentLayoutPositionProperty);
         set => SetValue(ContentLayoutPositionProperty, value);
     }
 
-    /// <summary>
-    /// Gets whether the button is currently pressed.
-    /// </summary>
     public bool IsPressed { get; private set; }
 
-    /// <summary>
-    /// Gets whether the pointer is currently over the button.
-    /// </summary>
     public bool IsHovered { get; private set; }
 
     #endregion
 
-    private bool _focusFromKeyboard;
+    #region Events
 
-    /// <summary>
-    /// Event raised when the button is clicked.
-    /// </summary>
     public event EventHandler? Clicked;
 
-    /// <summary>
-    /// Event raised when the button is pressed.
-    /// </summary>
     public event EventHandler? Pressed;
 
-    /// <summary>
-    /// Event raised when the button is released.
-    /// </summary>
     public event EventHandler? Released;
+
+    #endregion
+
+    #region Constructor
 
     public SkiaButton()
     {
         IsFocusable = true;
     }
+
+    #endregion
+
+    #region Private Methods
 
     private void OnTextChanged()
     {
@@ -462,13 +344,12 @@ public class SkiaButton : SkiaView
         Invalidate();
     }
 
-    private void OnCommandChanged(System.Windows.Input.ICommand? oldCommand, System.Windows.Input.ICommand? newCommand)
+    private void OnCommandChanged(ICommand? oldCommand, ICommand? newCommand)
     {
         if (oldCommand != null)
         {
             oldCommand.CanExecuteChanged -= OnCanExecuteChanged;
         }
-
         if (newCommand != null)
         {
             newCommand.CanExecuteChanged += OnCanExecuteChanged;
@@ -489,55 +370,52 @@ public class SkiaButton : SkiaView
         }
     }
 
+    #endregion
+
+    #region Drawing
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Check if this is a "text only" button (transparent background)
-        var isTextOnly = ButtonBackgroundColor.Alpha == 0;
+        SKColor buttonBackgroundColor = ButtonBackgroundColor;
+        bool isTextOnly = buttonBackgroundColor.Alpha == 0;
 
-        // Determine background color based on state
-        SKColor bgColor;
+        SKColor color;
         if (!IsEnabled)
         {
-            bgColor = isTextOnly ? SKColors.Transparent : DisabledBackgroundColor;
+            color = isTextOnly ? SKColors.Transparent : DisabledBackgroundColor;
         }
         else if (IsPressed)
         {
-            // For text-only buttons, use a subtle press effect
-            bgColor = isTextOnly ? new SKColor(0, 0, 0, 20) : PressedBackgroundColor;
+            color = isTextOnly ? new SKColor(0, 0, 0, 20) : PressedBackgroundColor;
         }
         else if (IsHovered)
         {
-            // For text-only buttons, use a subtle hover effect instead of full background
-            bgColor = isTextOnly ? new SKColor(0, 0, 0, 10) : HoveredBackgroundColor;
+            color = isTextOnly ? new SKColor(0, 0, 0, 10) : HoveredBackgroundColor;
         }
         else
         {
-            bgColor = ButtonBackgroundColor;
+            color = ButtonBackgroundColor;
         }
 
-        // Draw shadow (for elevation effect) - skip for text-only buttons
         if (IsEnabled && !IsPressed && !isTextOnly)
         {
             DrawShadow(canvas, bounds);
         }
 
-        // Create rounded rect for background and border
-        var rect = new SKRoundRect(bounds, CornerRadius);
+        var roundRect = new SKRoundRect(bounds, CornerRadius);
 
-        // Draw background with rounded corners (skip if fully transparent)
-        if (bgColor.Alpha > 0)
+        if (color.Alpha > 0)
         {
             using var bgPaint = new SKPaint
             {
-                Color = bgColor,
+                Color = color,
                 IsAntialias = true,
                 Style = SKPaintStyle.Fill
             };
-            canvas.DrawRoundRect(rect, bgPaint);
+            canvas.DrawRoundRect(roundRect, bgPaint);
         }
 
-        // Draw border
-        if (BorderWidth > 0 && BorderColor != SKColors.Transparent)
+        if (BorderWidth > 0f && BorderColor != SKColors.Transparent)
         {
             using var borderPaint = new SKPaint
             {
@@ -546,40 +424,37 @@ public class SkiaButton : SkiaView
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderWidth
             };
-            canvas.DrawRoundRect(rect, borderPaint);
+            canvas.DrawRoundRect(roundRect, borderPaint);
         }
 
-        // Draw focus ring only for keyboard focus
         if (IsFocused && _focusFromKeyboard)
         {
             using var focusPaint = new SKPaint
             {
-                Color = new SKColor(0x21, 0x96, 0xF3, 0x80),
+                Color = new SKColor(33, 150, 243, 128),
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = 2
+                StrokeWidth = 2f
             };
-            var focusRect = new SKRoundRect(bounds, CornerRadius + 2);
-            focusRect.Inflate(2, 2);
+            var focusRect = new SKRoundRect(bounds, CornerRadius + 2f);
+            focusRect.Inflate(2f, 2f);
             canvas.DrawRoundRect(focusRect, focusPaint);
         }
 
-        // Draw content (text and/or image)
         DrawContent(canvas, bounds, isTextOnly);
     }
 
     private void DrawContent(SKCanvas canvas, SKRect bounds, bool isTextOnly)
     {
-        var fontStyle = new SKFontStyle(
+        var style = new SKFontStyle(
             IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
             SKFontStyleWidth.Normal,
             IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
-                      ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, FontSize);
+        using var font = new SKFont(
+            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, style) ?? SKTypeface.Default,
+            FontSize, 1f, 0f);
 
-        // Determine text color
         SKColor textColorToUse;
         if (!IsEnabled)
         {
@@ -604,7 +479,6 @@ public class SkiaButton : SkiaView
             IsAntialias = true
         };
 
-        // Measure text
         var textBounds = new SKRect();
         bool hasText = !string.IsNullOrEmpty(Text);
         if (hasText)
@@ -612,21 +486,21 @@ public class SkiaButton : SkiaView
             textPaint.MeasureText(Text, ref textBounds);
         }
 
-        // Calculate image size
         bool hasImage = ImageSource != null;
-        float imageWidth = 0;
-        float imageHeight = 0;
+        float imageWidth = 0f;
+        float imageHeight = 0f;
         if (hasImage)
         {
-            float maxImageSize = Math.Min(bounds.Height - 8, 24f);
-            float scale = Math.Min(maxImageSize / ImageSource!.Width, maxImageSize / ImageSource.Height);
+            float maxSize = Math.Min(bounds.Height - 8f, 24f);
+            float scale = Math.Min(maxSize / ImageSource!.Width, maxSize / ImageSource.Height);
             imageWidth = ImageSource.Width * scale;
             imageHeight = ImageSource.Height * scale;
         }
 
-        // Calculate total content size and position
         bool isHorizontal = ContentLayoutPosition == 0 || ContentLayoutPosition == 2;
-        float totalWidth, totalHeight;
+        float totalWidth;
+        float totalHeight;
+
         if (hasImage && hasText)
         {
             if (isHorizontal)
@@ -651,63 +525,66 @@ public class SkiaButton : SkiaView
             totalHeight = textBounds.Height;
         }
 
-        float startX = bounds.MidX - totalWidth / 2;
-        float startY = bounds.MidY - totalHeight / 2;
+        float startX = bounds.MidX - totalWidth / 2f;
+        float startY = bounds.MidY - totalHeight / 2f;
 
-        // Draw image and text based on layout position
         if (hasImage)
         {
-            float imageX, imageY;
-            float textX = 0, textY = 0;
+            float imageX;
+            float imageY;
+            float textX = 0f;
+            float textY = 0f;
 
             switch (ContentLayoutPosition)
             {
-                case 1: // Top - image above text
-                    imageX = bounds.MidX - imageWidth / 2;
+                case 1: // Top
+                    imageX = bounds.MidX - imageWidth / 2f;
                     imageY = startY;
-                    textX = bounds.MidX - textBounds.Width / 2;
+                    textX = bounds.MidX - textBounds.Width / 2f;
                     textY = startY + imageHeight + ImageSpacing - textBounds.Top;
                     break;
-                case 2: // Right - image to right of text
+                case 2: // Right
                     textX = startX;
                     textY = bounds.MidY - textBounds.MidY;
                     imageX = startX + textBounds.Width + ImageSpacing;
-                    imageY = bounds.MidY - imageHeight / 2;
+                    imageY = bounds.MidY - imageHeight / 2f;
                     break;
-                case 3: // Bottom - image below text
-                    textX = bounds.MidX - textBounds.Width / 2;
+                case 3: // Bottom
+                    textX = bounds.MidX - textBounds.Width / 2f;
                     textY = startY - textBounds.Top;
-                    imageX = bounds.MidX - imageWidth / 2;
+                    imageX = bounds.MidX - imageWidth / 2f;
                     imageY = startY + textBounds.Height + ImageSpacing;
                     break;
-                default: // 0 = Left - image to left of text
+                default: // 0 = Left
                     imageX = startX;
-                    imageY = bounds.MidY - imageHeight / 2;
+                    imageY = bounds.MidY - imageHeight / 2f;
                     textX = startX + imageWidth + ImageSpacing;
                     textY = bounds.MidY - textBounds.MidY;
                     break;
             }
 
-            // Draw image
             var imageRect = new SKRect(imageX, imageY, imageX + imageWidth, imageY + imageHeight);
             using var imagePaint = new SKPaint { IsAntialias = true };
+
             if (!IsEnabled)
             {
-                imagePaint.ColorFilter = SKColorFilter.CreateBlendMode(new SKColor(128, 128, 128, 128), SKBlendMode.Modulate);
+                imagePaint.ColorFilter = SKColorFilter.CreateBlendMode(
+                    new SKColor(128, 128, 128, 128), SKBlendMode.Modulate);
             }
+
             canvas.DrawBitmap(ImageSource!, imageRect, imagePaint);
 
-            // Draw text
             if (hasText)
             {
                 canvas.DrawText(Text!, textX, textY, textPaint);
             }
+            return;
         }
-        else if (hasText)
+
+        if (hasText)
         {
-            // Just text, centered
-            var x = bounds.MidX - textBounds.MidX;
-            var y = bounds.MidY - textBounds.MidY;
+            float x = bounds.MidX - textBounds.MidX;
+            float y = bounds.MidY - textBounds.MidY;
             canvas.DrawText(Text!, x, y, textPaint);
         }
     }
@@ -718,25 +595,27 @@ public class SkiaButton : SkiaView
         {
             Color = new SKColor(0, 0, 0, 50),
             IsAntialias = true,
-            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4)
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f)
         };
 
-        var shadowRect = new SKRect(
-            bounds.Left + 2,
-            bounds.Top + 4,
-            bounds.Right + 2,
-            bounds.Bottom + 4);
-
-        var roundRect = new SKRoundRect(shadowRect, CornerRadius);
-        canvas.DrawRoundRect(roundRect, shadowPaint);
+        var shadowRect = new SKRoundRect(
+            new SKRect(bounds.Left + 2f, bounds.Top + 4f, bounds.Right + 2f, bounds.Bottom + 4f),
+            CornerRadius);
+        canvas.DrawRoundRect(shadowRect, shadowPaint);
     }
+
+    #endregion
+
+    #region Pointer Events
 
     public override void OnPointerEntered(PointerEventArgs e)
     {
-        if (!IsEnabled) return;
-        IsHovered = true;
-        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
-        Invalidate();
+        if (IsEnabled)
+        {
+            IsHovered = true;
+            SkiaVisualStateManager.GoToState(this, "PointerOver");
+            Invalidate();
+        }
     }
 
     public override void OnPointerExited(PointerEventArgs e)
@@ -746,53 +625,51 @@ public class SkiaButton : SkiaView
         {
             IsPressed = false;
         }
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
         Invalidate();
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
         Console.WriteLine($"[SkiaButton] OnPointerPressed - Text='{Text}', IsEnabled={IsEnabled}");
-        if (!IsEnabled) return;
-
-        IsPressed = true;
-        _focusFromKeyboard = false;
-        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
-        Invalidate();
-        Pressed?.Invoke(this, EventArgs.Empty);
+        if (IsEnabled)
+        {
+            IsPressed = true;
+            _focusFromKeyboard = false;
+            SkiaVisualStateManager.GoToState(this, "Pressed");
+            Invalidate();
+            Pressed?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
-        if (!IsEnabled) return;
-
-        var wasPressed = IsPressed;
-        IsPressed = false;
-        SkiaVisualStateManager.GoToState(this, IsHovered ? SkiaVisualStateManager.CommonStates.PointerOver : SkiaVisualStateManager.CommonStates.Normal);
-        Invalidate();
-
-        Released?.Invoke(this, EventArgs.Empty);
-
-        // Fire click if button was pressed
-        // Note: Hit testing already verified the pointer is over this button,
-        // so we don't need to re-check bounds (which would fail due to coordinate system differences)
-        if (wasPressed)
+        if (IsEnabled)
         {
-            Clicked?.Invoke(this, EventArgs.Empty);
-            Command?.Execute(CommandParameter);
+            bool wasPressed = IsPressed;
+            IsPressed = false;
+            SkiaVisualStateManager.GoToState(this, IsHovered ? "PointerOver" : "Normal");
+            Invalidate();
+            Released?.Invoke(this, EventArgs.Empty);
+            if (wasPressed)
+            {
+                Clicked?.Invoke(this, EventArgs.Empty);
+                Command?.Execute(CommandParameter);
+            }
         }
     }
 
+    #endregion
+
+    #region Keyboard Events
+
     public override void OnKeyDown(KeyEventArgs e)
     {
-        if (!IsEnabled) return;
-
-        // Activate on Enter or Space
-        if (e.Key == Key.Enter || e.Key == Key.Space)
+        if (IsEnabled && (e.Key == Key.Enter || e.Key == Key.Space))
         {
             IsPressed = true;
             _focusFromKeyboard = true;
-            SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
+            SkiaVisualStateManager.GoToState(this, "Pressed");
             Invalidate();
             Pressed?.Invoke(this, EventArgs.Empty);
             e.Handled = true;
@@ -801,14 +678,12 @@ public class SkiaButton : SkiaView
 
     public override void OnKeyUp(KeyEventArgs e)
     {
-        if (!IsEnabled) return;
-
-        if (e.Key == Key.Enter || e.Key == Key.Space)
+        if (IsEnabled && (e.Key == Key.Enter || e.Key == Key.Space))
         {
             if (IsPressed)
             {
                 IsPressed = false;
-                SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Normal);
+                SkiaVisualStateManager.GoToState(this, "Normal");
                 Invalidate();
                 Released?.Invoke(this, EventArgs.Empty);
                 Clicked?.Invoke(this, EventArgs.Empty);
@@ -818,54 +693,70 @@ public class SkiaButton : SkiaView
         }
     }
 
+    #endregion
+
+    #region State Changes
+
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
     }
+
+    #endregion
+
+    #region Measurement
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        // Ensure we never return NaN - use safe defaults
-        var paddingLeft = float.IsNaN(Padding.Left) ? 16f : Padding.Left;
-        var paddingRight = float.IsNaN(Padding.Right) ? 16f : Padding.Right;
-        var paddingTop = float.IsNaN(Padding.Top) ? 8f : Padding.Top;
-        var paddingBottom = float.IsNaN(Padding.Bottom) ? 8f : Padding.Bottom;
-        var fontSize = float.IsNaN(FontSize) || FontSize <= 0 ? 14f : FontSize;
+        SKRect padding = Padding;
+        float paddingLeft = float.IsNaN(padding.Left) ? 16f : padding.Left;
+        float paddingRight = float.IsNaN(padding.Right) ? 16f : padding.Right;
+        float paddingTop = float.IsNaN(padding.Top) ? 8f : padding.Top;
+        float paddingBottom = float.IsNaN(padding.Bottom) ? 8f : padding.Bottom;
+        float fontSize = (float.IsNaN(FontSize) || FontSize <= 0f) ? 14f : FontSize;
 
         if (string.IsNullOrEmpty(Text))
         {
-            return new SKSize(
-                paddingLeft + paddingRight + 40, // Minimum width
-                paddingTop + paddingBottom + fontSize);
+            return new SKSize(paddingLeft + paddingRight + 40f, paddingTop + paddingBottom + fontSize);
         }
 
-        var fontStyle = new SKFontStyle(
-                IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                SKFontStyleWidth.Normal,
-                IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
-                      ?? SKTypeface.Default;
+        var style = new SKFontStyle(
+            IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
 
-        using var font = new SKFont(typeface, fontSize);
+        using var font = new SKFont(
+            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, style) ?? SKTypeface.Default,
+            fontSize, 1f, 0f);
+
         using var paint = new SKPaint(font);
-
         var textBounds = new SKRect();
         paint.MeasureText(Text, ref textBounds);
 
-        var width = textBounds.Width + paddingLeft + paddingRight;
-        var height = textBounds.Height + paddingTop + paddingBottom;
+        float width = textBounds.Width + paddingLeft + paddingRight;
+        float height = textBounds.Height + paddingTop + paddingBottom;
 
-        // Ensure valid, non-NaN return values
-        if (float.IsNaN(width) || width < 0) width = 72f;
-        if (float.IsNaN(height) || height < 0) height = 30f;
+        if (float.IsNaN(width) || width < 0f)
+        {
+            width = 72f;
+        }
+        if (float.IsNaN(height) || height < 0f)
+        {
+            height = 30f;
+        }
 
-        // Respect WidthRequest and HeightRequest when set
-        if (WidthRequest >= 0)
+        if (WidthRequest >= 0.0)
+        {
             width = (float)WidthRequest;
-        if (HeightRequest >= 0)
+        }
+        if (HeightRequest >= 0.0)
+        {
             height = (float)HeightRequest;
+        }
 
         return new SKSize(width, height);
     }
+
+    #endregion
 }

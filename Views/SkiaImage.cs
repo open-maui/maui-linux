@@ -1,19 +1,33 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using SkiaSharp;
-using Microsoft.Maui.Graphics;
+using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered image control.
+/// Skia-rendered image control with SVG support.
 /// </summary>
 public class SkiaImage : SkiaView
 {
     private SKBitmap? _bitmap;
     private SKImage? _image;
     private bool _isLoading;
+    private string? _currentFilePath;
+    private bool _isSvg;
+    private CancellationTokenSource? _loadCts;
+    private readonly object _loadLock = new object();
+    private double _svgLoadedWidth;
+    private double _svgLoadedHeight;
+    private bool _pendingSvgReload;
+    private SKRect _lastArrangedBounds;
 
     public SKBitmap? Bitmap
     {
@@ -28,13 +42,63 @@ public class SkiaImage : SkiaView
         }
     }
 
-    public Aspect Aspect { get; set; } = Aspect.AspectFit;
+    public Aspect Aspect { get; set; }
+
     public bool IsOpaque { get; set; }
+
     public bool IsLoading => _isLoading;
+
     public bool IsAnimationPlaying { get; set; }
+
+    public new double WidthRequest
+    {
+        get => base.WidthRequest;
+        set
+        {
+            base.WidthRequest = value;
+            ScheduleSvgReloadIfNeeded();
+        }
+    }
+
+    public new double HeightRequest
+    {
+        get => base.HeightRequest;
+        set
+        {
+            base.HeightRequest = value;
+            ScheduleSvgReloadIfNeeded();
+        }
+    }
 
     public event EventHandler? ImageLoaded;
     public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
+
+    private void ScheduleSvgReloadIfNeeded()
+    {
+        if (_isSvg && !string.IsNullOrEmpty(_currentFilePath))
+        {
+            double widthRequest = WidthRequest;
+            double heightRequest = HeightRequest;
+            if (widthRequest > 0.0 && heightRequest > 0.0 &&
+                (Math.Abs(_svgLoadedWidth - widthRequest) > 0.5 || Math.Abs(_svgLoadedHeight - heightRequest) > 0.5) &&
+                !_pendingSvgReload)
+            {
+                _pendingSvgReload = true;
+                ReloadSvgDebounced();
+            }
+        }
+    }
+
+    private async Task ReloadSvgDebounced()
+    {
+        await Task.Delay(10);
+        _pendingSvgReload = false;
+        if (!string.IsNullOrEmpty(_currentFilePath) && WidthRequest > 0.0 && HeightRequest > 0.0)
+        {
+            Console.WriteLine($"[SkiaImage] Reloading SVG at {WidthRequest}x{HeightRequest} (was {_svgLoadedWidth}x{_svgLoadedHeight})");
+            await LoadSvgAtSizeAsync(_currentFilePath, WidthRequest, HeightRequest);
+        }
+    }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
@@ -49,14 +113,16 @@ public class SkiaImage : SkiaView
             canvas.DrawRect(bounds, bgPaint);
         }
 
-        if (_image == null) return;
+        if (_image == null)
+            return;
 
-        var imageWidth = _image.Width;
-        var imageHeight = _image.Height;
+        int width = _image.Width;
+        int height = _image.Height;
 
-        if (imageWidth <= 0 || imageHeight <= 0) return;
+        if (width <= 0 || height <= 0)
+            return;
 
-        var destRect = CalculateDestRect(bounds, imageWidth, imageHeight);
+        SKRect destRect = CalculateDestRect(bounds, width, height);
 
         using var paint = new SKPaint
         {
@@ -69,37 +135,37 @@ public class SkiaImage : SkiaView
 
     private SKRect CalculateDestRect(SKRect bounds, float imageWidth, float imageHeight)
     {
-        float destX, destY, destWidth, destHeight;
-
         switch (Aspect)
         {
             case Aspect.Fill:
-                // Stretch to fill entire bounds
                 return bounds;
 
             case Aspect.AspectFit:
-                // Scale to fit while maintaining aspect ratio
-                var fitScale = Math.Min(bounds.Width / imageWidth, bounds.Height / imageHeight);
-                destWidth = imageWidth * fitScale;
-                destHeight = imageHeight * fitScale;
-                destX = bounds.Left + (bounds.Width - destWidth) / 2;
-                destY = bounds.Top + (bounds.Height - destHeight) / 2;
+            {
+                float scale = Math.Min(bounds.Width / imageWidth, bounds.Height / imageHeight);
+                float destWidth = imageWidth * scale;
+                float destHeight = imageHeight * scale;
+                float destX = bounds.Left + (bounds.Width - destWidth) / 2f;
+                float destY = bounds.Top + (bounds.Height - destHeight) / 2f;
                 return new SKRect(destX, destY, destX + destWidth, destY + destHeight);
+            }
 
             case Aspect.AspectFill:
-                // Scale to fill while maintaining aspect ratio (may crop)
-                var fillScale = Math.Max(bounds.Width / imageWidth, bounds.Height / imageHeight);
-                destWidth = imageWidth * fillScale;
-                destHeight = imageHeight * fillScale;
-                destX = bounds.Left + (bounds.Width - destWidth) / 2;
-                destY = bounds.Top + (bounds.Height - destHeight) / 2;
+            {
+                float scale = Math.Max(bounds.Width / imageWidth, bounds.Height / imageHeight);
+                float destWidth = imageWidth * scale;
+                float destHeight = imageHeight * scale;
+                float destX = bounds.Left + (bounds.Width - destWidth) / 2f;
+                float destY = bounds.Top + (bounds.Height - destHeight) / 2f;
                 return new SKRect(destX, destY, destX + destWidth, destY + destHeight);
+            }
 
             case Aspect.Center:
-                // Center without scaling
-                destX = bounds.Left + (bounds.Width - imageWidth) / 2;
-                destY = bounds.Top + (bounds.Height - imageHeight) / 2;
+            {
+                float destX = bounds.Left + (bounds.Width - imageWidth) / 2f;
+                float destY = bounds.Top + (bounds.Height - imageHeight) / 2f;
                 return new SKRect(destX, destY, destX + imageWidth, destY + imageHeight);
+            }
 
             default:
                 return bounds;
@@ -110,18 +176,69 @@ public class SkiaImage : SkiaView
     {
         _isLoading = true;
         Invalidate();
+        Console.WriteLine($"[SkiaImage] LoadFromFileAsync: {filePath}, WidthRequest={WidthRequest}, HeightRequest={HeightRequest}");
 
         try
         {
-            await Task.Run(() =>
+            List<string> searchPaths = new List<string>
             {
-                using var stream = File.OpenRead(filePath);
-                var bitmap = SKBitmap.Decode(stream);
-                if (bitmap != null)
+                filePath,
+                Path.Combine(AppContext.BaseDirectory, filePath),
+                Path.Combine(AppContext.BaseDirectory, "Resources", "Images", filePath),
+                Path.Combine(AppContext.BaseDirectory, "Resources", filePath)
+            };
+
+            // Also try SVG if looking for PNG
+            if (filePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                string svgPath = Path.ChangeExtension(filePath, ".svg");
+                searchPaths.Add(svgPath);
+                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, svgPath));
+                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", "Images", svgPath));
+                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", svgPath));
+            }
+
+            string? foundPath = null;
+            foreach (string path in searchPaths)
+            {
+                if (File.Exists(path))
                 {
-                    Bitmap = bitmap;
+                    foundPath = path;
+                    Console.WriteLine("[SkiaImage] Found file at: " + path);
+                    break;
                 }
-            });
+            }
+
+            if (foundPath == null)
+            {
+                Console.WriteLine("[SkiaImage] File not found: " + filePath);
+                _isLoading = false;
+                _isSvg = false;
+                _currentFilePath = null;
+                ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
+                return;
+            }
+
+            _isSvg = foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+            _currentFilePath = foundPath;
+
+            if (!_isSvg)
+            {
+                await Task.Run(() =>
+                {
+                    using FileStream stream = File.OpenRead(foundPath);
+                    SKBitmap? bitmap = SKBitmap.Decode(stream);
+                    if (bitmap != null)
+                    {
+                        Bitmap = bitmap;
+                        Console.WriteLine("[SkiaImage] Loaded image: " + foundPath);
+                    }
+                });
+            }
+            else
+            {
+                await LoadSvgAtSizeAsync(foundPath, WidthRequest, HeightRequest);
+            }
 
             _isLoading = false;
             ImageLoaded?.Invoke(this, EventArgs.Empty);
@@ -135,6 +252,69 @@ public class SkiaImage : SkiaView
         Invalidate();
     }
 
+    private async Task LoadSvgAtSizeAsync(string svgPath, double targetWidth, double targetHeight)
+    {
+        _loadCts?.Cancel();
+        CancellationTokenSource cts = new CancellationTokenSource();
+        _loadCts = cts;
+
+        try
+        {
+            SKBitmap? newBitmap = null;
+
+            await Task.Run(() =>
+            {
+                if (cts.Token.IsCancellationRequested)
+                    return;
+
+                using var svg = new SKSvg();
+                svg.Load(svgPath);
+
+                if (svg.Picture != null && !cts.Token.IsCancellationRequested)
+                {
+                    SKRect cullRect = svg.Picture.CullRect;
+
+                    float requestedWidth = (targetWidth > 0.0)
+                        ? (float)targetWidth
+                        : ((cullRect.Width <= 24f) ? 24f : cullRect.Width);
+
+                    float requestedHeight = (targetHeight > 0.0)
+                        ? (float)targetHeight
+                        : ((cullRect.Height <= 24f) ? 24f : cullRect.Height);
+
+                    float scale = Math.Min(requestedWidth / cullRect.Width, requestedHeight / cullRect.Height);
+
+                    int bitmapWidth = Math.Max(1, (int)(cullRect.Width * scale));
+                    int bitmapHeight = Math.Max(1, (int)(cullRect.Height * scale));
+
+                    newBitmap = new SKBitmap(bitmapWidth, bitmapHeight, false);
+
+                    using var canvas = new SKCanvas(newBitmap);
+                    canvas.Clear(SKColors.Transparent);
+                    canvas.Scale(scale);
+                    canvas.DrawPicture(svg.Picture, null);
+
+                    Console.WriteLine($"[SkiaImage] Loaded SVG: {svgPath} at {bitmapWidth}x{bitmapHeight} (requested {targetWidth}x{targetHeight})");
+                }
+            }, cts.Token);
+
+            if (!cts.Token.IsCancellationRequested && newBitmap != null)
+            {
+                _svgLoadedWidth = (targetWidth > 0.0) ? targetWidth : newBitmap.Width;
+                _svgLoadedHeight = (targetHeight > 0.0) ? targetHeight : newBitmap.Height;
+                Bitmap = newBitmap;
+            }
+            else
+            {
+                newBitmap?.Dispose();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation is expected when reloading SVG at different sizes
+        }
+    }
+
     public async Task LoadFromStreamAsync(Stream stream)
     {
         _isLoading = true;
@@ -144,7 +324,7 @@ public class SkiaImage : SkiaView
         {
             await Task.Run(() =>
             {
-                var bitmap = SKBitmap.Decode(stream);
+                SKBitmap? bitmap = SKBitmap.Decode(stream);
                 if (bitmap != null)
                 {
                     Bitmap = bitmap;
@@ -170,11 +350,9 @@ public class SkiaImage : SkiaView
 
         try
         {
-            using var httpClient = new HttpClient();
-            var data = await httpClient.GetByteArrayAsync(uri);
-
-            using var stream = new MemoryStream(data);
-            var bitmap = SKBitmap.Decode(stream);
+            using HttpClient httpClient = new HttpClient();
+            using MemoryStream stream = new MemoryStream(await httpClient.GetByteArrayAsync(uri));
+            SKBitmap? bitmap = SKBitmap.Decode(stream);
             if (bitmap != null)
             {
                 Bitmap = bitmap;
@@ -196,8 +374,8 @@ public class SkiaImage : SkiaView
     {
         try
         {
-            using var stream = new MemoryStream(data);
-            var bitmap = SKBitmap.Decode(stream);
+            using MemoryStream stream = new MemoryStream(data);
+            SKBitmap? bitmap = SKBitmap.Decode(stream);
             if (bitmap != null)
             {
                 Bitmap = bitmap;
@@ -217,6 +395,8 @@ public class SkiaImage : SkiaView
     {
         try
         {
+            _isSvg = false;
+            _currentFilePath = null;
             Bitmap = bitmap;
             _isLoading = false;
             ImageLoaded?.Invoke(this, EventArgs.Empty);
@@ -229,28 +409,84 @@ public class SkiaImage : SkiaView
         Invalidate();
     }
 
+    public override void Arrange(SKRect bounds)
+    {
+        base.Arrange(bounds);
+
+        // If no explicit size requested and this is an SVG, check if we need to reload at larger size
+        if (!(base.WidthRequest > 0.0) || !(base.HeightRequest > 0.0))
+        {
+            if (_isSvg && !string.IsNullOrEmpty(_currentFilePath) && !_isLoading)
+            {
+                float width = bounds.Width;
+                float height = bounds.Height;
+
+                if ((width > _svgLoadedWidth * 1.1 || height > _svgLoadedHeight * 1.1) &&
+                    width > 0f && height > 0f &&
+                    (width != _lastArrangedBounds.Width || height != _lastArrangedBounds.Height))
+                {
+                    _lastArrangedBounds = bounds;
+                    Console.WriteLine($"[SkiaImage] Arrange detected larger bounds: {width}x{height} vs loaded {_svgLoadedWidth}x{_svgLoadedHeight}");
+                    LoadSvgAtSizeAsync(_currentFilePath, width, height);
+                }
+            }
+        }
+    }
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
+        double widthRequest = base.WidthRequest;
+        double heightRequest = base.HeightRequest;
+
+        // If both dimensions explicitly requested, use them
+        if (widthRequest > 0.0 && heightRequest > 0.0)
+        {
+            return new SKSize((float)widthRequest, (float)heightRequest);
+        }
+
+        // If no image, return default or requested size
         if (_image == null)
-            return new SKSize(100, 100); // Default size
+        {
+            if (widthRequest > 0.0)
+                return new SKSize((float)widthRequest, (float)widthRequest);
+            if (heightRequest > 0.0)
+                return new SKSize((float)heightRequest, (float)heightRequest);
+            return new SKSize(100f, 100f);
+        }
 
-        var imageWidth = _image.Width;
-        var imageHeight = _image.Height;
+        float imageWidth = _image.Width;
+        float imageHeight = _image.Height;
 
-        // If we have constraints, respect them
+        // If only width requested, scale height proportionally
+        if (widthRequest > 0.0)
+        {
+            float scale = (float)widthRequest / imageWidth;
+            return new SKSize((float)widthRequest, imageHeight * scale);
+        }
+
+        // If only height requested, scale width proportionally
+        if (heightRequest > 0.0)
+        {
+            float scale = (float)heightRequest / imageHeight;
+            return new SKSize(imageWidth * scale, (float)heightRequest);
+        }
+
+        // Scale to fit available size
         if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
         {
-            var scale = Math.Min(availableSize.Width / imageWidth, availableSize.Height / imageHeight);
+            float scale = Math.Min(availableSize.Width / imageWidth, availableSize.Height / imageHeight);
             return new SKSize(imageWidth * scale, imageHeight * scale);
         }
-        else if (availableSize.Width < float.MaxValue)
+
+        if (availableSize.Width < float.MaxValue)
         {
-            var scale = availableSize.Width / imageWidth;
+            float scale = availableSize.Width / imageWidth;
             return new SKSize(availableSize.Width, imageHeight * scale);
         }
-        else if (availableSize.Height < float.MaxValue)
+
+        if (availableSize.Height < float.MaxValue)
         {
-            var scale = availableSize.Height / imageHeight;
+            float scale = availableSize.Height / imageHeight;
             return new SKSize(imageWidth * scale, availableSize.Height);
         }
 

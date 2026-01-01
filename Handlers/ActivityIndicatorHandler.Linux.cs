@@ -1,63 +1,63 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 
-namespace Microsoft.Maui.Platform;
+namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Linux handler for ActivityIndicator control.
 /// </summary>
-public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, SkiaActivityIndicator>
+public class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, SkiaActivityIndicator>
 {
     public static IPropertyMapper<IActivityIndicator, ActivityIndicatorHandler> Mapper = new PropertyMapper<IActivityIndicator, ActivityIndicatorHandler>(ViewHandler.ViewMapper)
     {
-        [nameof(IActivityIndicator.IsRunning)] = MapIsRunning,
-        [nameof(IActivityIndicator.Color)] = MapColor,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
-        [nameof(IView.Background)] = MapBackground,
-        ["BackgroundColor"] = MapBackgroundColor,
+        ["IsRunning"] = MapIsRunning,
+        ["Color"] = MapColor,
+        ["Background"] = MapBackground
     };
 
     public static CommandMapper<IActivityIndicator, ActivityIndicatorHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
 
-    public ActivityIndicatorHandler() : base(Mapper, CommandMapper) { }
+    public ActivityIndicatorHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-    protected override SkiaActivityIndicator CreatePlatformView() => new SkiaActivityIndicator();
+    public ActivityIndicatorHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
+
+    protected override SkiaActivityIndicator CreatePlatformView()
+    {
+        return new SkiaActivityIndicator();
+    }
 
     public static void MapIsRunning(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
-        handler.PlatformView.IsRunning = activityIndicator.IsRunning;
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.IsRunning = activityIndicator.IsRunning;
+        }
     }
 
     public static void MapColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
-        if (activityIndicator.Color != null)
+        if (handler.PlatformView != null && activityIndicator.Color != null)
+        {
             handler.PlatformView.Color = activityIndicator.Color.ToSKColor();
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapIsEnabled(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
-    {
-        handler.PlatformView.IsEnabled = activityIndicator.IsEnabled;
-        handler.PlatformView.Invalidate();
+        }
     }
 
     public static void MapBackground(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
-        if (activityIndicator.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        if (handler.PlatformView != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
-            handler.PlatformView.Invalidate();
-        }
-    }
-
-    public static void MapBackgroundColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
-    {
-        if (activityIndicator is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
-        {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
-            handler.PlatformView.Invalidate();
+            if (activityIndicator.Background is SolidPaint solidPaint && solidPaint.Color != null)
+            {
+                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            }
         }
     }
 }

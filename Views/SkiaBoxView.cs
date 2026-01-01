@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -12,11 +13,11 @@ public class SkiaBoxView : SkiaView
 {
     public static readonly BindableProperty ColorProperty =
         BindableProperty.Create(nameof(Color), typeof(SKColor), typeof(SkiaBoxView), SKColors.Transparent,
-            propertyChanged: (b, o, n) => ((SkiaBoxView)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBoxView)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaBoxView), 0f,
-            propertyChanged: (b, o, n) => ((SkiaBoxView)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBoxView)b).Invalidate());
 
     public SKColor Color
     {

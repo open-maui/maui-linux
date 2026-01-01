@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,6 +22,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(bool),
             typeof(SkiaActivityIndicator),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).OnIsRunningChanged());
 
     /// <summary>
@@ -32,6 +34,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(SKColor),
             typeof(SkiaActivityIndicator),
             new SKColor(0x21, 0x96, 0xF3),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
     /// <summary>
@@ -43,6 +46,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(SKColor),
             typeof(SkiaActivityIndicator),
             new SKColor(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
     /// <summary>
@@ -54,6 +58,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(float),
             typeof(SkiaActivityIndicator),
             32f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
 
     /// <summary>
@@ -65,6 +70,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(float),
             typeof(SkiaActivityIndicator),
             3f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
 
     /// <summary>
@@ -75,7 +81,8 @@ public class SkiaActivityIndicator : SkiaView
             nameof(RotationSpeed),
             typeof(float),
             typeof(SkiaActivityIndicator),
-            360f);
+            360f,
+            BindingMode.TwoWay);
 
     /// <summary>
     /// Bindable property for ArcCount.
@@ -86,6 +93,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(int),
             typeof(SkiaActivityIndicator),
             12,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
     #endregion

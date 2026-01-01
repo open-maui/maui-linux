@@ -1,45 +1,35 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
-using SkiaSharp;
+using Microsoft.Maui.Primitives;
 
-namespace Microsoft.Maui.Platform;
+namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Linux handler for CheckBox control.
 /// </summary>
-public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
+public class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
 {
-    /// <summary>
-    /// Maps the property mapper for the handler.
-    /// </summary>
     public static IPropertyMapper<ICheckBox, CheckBoxHandler> Mapper = new PropertyMapper<ICheckBox, CheckBoxHandler>(ViewHandler.ViewMapper)
     {
-        [nameof(ICheckBox.IsChecked)] = MapIsChecked,
-        [nameof(ICheckBox.Foreground)] = MapForeground,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
-        [nameof(IView.Background)] = MapBackground,
-        ["BackgroundColor"] = MapBackgroundColor,
+        ["IsChecked"] = MapIsChecked,
+        ["Foreground"] = MapForeground,
+        ["Background"] = MapBackground,
+        ["IsEnabled"] = MapIsEnabled,
+        ["VerticalLayoutAlignment"] = MapVerticalLayoutAlignment,
+        ["HorizontalLayoutAlignment"] = MapHorizontalLayoutAlignment
     };
 
-    /// <summary>
-    /// Maps the command mapper for the handler.
-    /// </summary>
-    public static CommandMapper<ICheckBox, CheckBoxHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
-    {
-    };
+    public static CommandMapper<ICheckBox, CheckBoxHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
 
     public CheckBoxHandler() : base(Mapper, CommandMapper)
     {
     }
 
-    public CheckBoxHandler(IPropertyMapper? mapper)
-        : base(mapper ?? Mapper, CommandMapper)
-    {
-    }
-
-    public CheckBoxHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
+    public CheckBoxHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
         : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
     {
     }
@@ -71,7 +61,7 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
 
     public static void MapIsChecked(CheckBoxHandler handler, ICheckBox checkBox)
     {
-        if (handler.PlatformView.IsChecked != checkBox.IsChecked)
+        if (handler.PlatformView != null)
         {
             handler.PlatformView.IsChecked = checkBox.IsChecked;
         }
@@ -79,35 +69,61 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
 
     public static void MapForeground(CheckBoxHandler handler, ICheckBox checkBox)
     {
-        var foreground = checkBox.Foreground;
-        if (foreground is SolidColorBrush solidBrush && solidBrush.Color != null)
+        if (handler.PlatformView != null)
         {
-            handler.PlatformView.BoxColor = solidBrush.Color.ToSKColor();
+            if (checkBox.Foreground is SolidPaint solidPaint && solidPaint.Color != null)
+            {
+                handler.PlatformView.CheckColor = solidPaint.Color.ToSKColor();
+            }
         }
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapIsEnabled(CheckBoxHandler handler, ICheckBox checkBox)
-    {
-        handler.PlatformView.IsEnabled = checkBox.IsEnabled;
-        handler.PlatformView.Invalidate();
     }
 
     public static void MapBackground(CheckBoxHandler handler, ICheckBox checkBox)
     {
-        if (checkBox.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
+        if (handler.PlatformView != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
-            handler.PlatformView.Invalidate();
+            if (checkBox.Background is SolidPaint solidPaint && solidPaint.Color != null)
+            {
+                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            }
         }
     }
 
-    public static void MapBackgroundColor(CheckBoxHandler handler, ICheckBox checkBox)
+    public static void MapIsEnabled(CheckBoxHandler handler, ICheckBox checkBox)
     {
-        if (checkBox is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        if (handler.PlatformView != null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
-            handler.PlatformView.Invalidate();
+            handler.PlatformView.IsEnabled = checkBox.IsEnabled;
+        }
+    }
+
+    public static void MapVerticalLayoutAlignment(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.VerticalOptions = (int)checkBox.VerticalLayoutAlignment switch
+            {
+                1 => LayoutOptions.Start,
+                2 => LayoutOptions.Center,
+                3 => LayoutOptions.End,
+                0 => LayoutOptions.Fill,
+                _ => LayoutOptions.Fill
+            };
+        }
+    }
+
+    public static void MapHorizontalLayoutAlignment(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.HorizontalOptions = (int)checkBox.HorizontalLayoutAlignment switch
+            {
+                1 => LayoutOptions.Start,
+                2 => LayoutOptions.Center,
+                3 => LayoutOptions.End,
+                0 => LayoutOptions.Fill,
+                _ => LayoutOptions.Start
+            };
         }
     }
 }

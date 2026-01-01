@@ -21,7 +21,7 @@ public class SkiaPicker : SkiaView
             typeof(int),
             typeof(SkiaPicker),
             -1,
-            BindingMode.TwoWay,
+            BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).OnSelectedIndexChanged());
 
     /// <summary>
@@ -33,6 +33,7 @@ public class SkiaPicker : SkiaView
             typeof(string),
             typeof(SkiaPicker),
             "",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -44,6 +45,7 @@ public class SkiaPicker : SkiaView
             typeof(SKColor),
             typeof(SkiaPicker),
             SKColors.Black,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -55,6 +57,7 @@ public class SkiaPicker : SkiaView
             typeof(SKColor),
             typeof(SkiaPicker),
             new SKColor(0x80, 0x80, 0x80),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -66,6 +69,7 @@ public class SkiaPicker : SkiaView
             typeof(SKColor),
             typeof(SkiaPicker),
             new SKColor(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -77,6 +81,7 @@ public class SkiaPicker : SkiaView
             typeof(SKColor),
             typeof(SkiaPicker),
             SKColors.White,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -88,6 +93,7 @@ public class SkiaPicker : SkiaView
             typeof(SKColor),
             typeof(SkiaPicker),
             new SKColor(0x21, 0x96, 0xF3, 0x30),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -99,6 +105,7 @@ public class SkiaPicker : SkiaView
             typeof(SKColor),
             typeof(SkiaPicker),
             new SKColor(0xE0, 0xE0, 0xE0),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -110,6 +117,7 @@ public class SkiaPicker : SkiaView
             typeof(string),
             typeof(SkiaPicker),
             "Sans",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).InvalidateMeasure());
 
     /// <summary>
@@ -121,6 +129,7 @@ public class SkiaPicker : SkiaView
             typeof(float),
             typeof(SkiaPicker),
             14f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).InvalidateMeasure());
 
     /// <summary>
@@ -132,6 +141,7 @@ public class SkiaPicker : SkiaView
             typeof(float),
             typeof(SkiaPicker),
             40f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     /// <summary>
@@ -143,6 +153,7 @@ public class SkiaPicker : SkiaView
             typeof(float),
             typeof(SkiaPicker),
             4f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
     #endregion

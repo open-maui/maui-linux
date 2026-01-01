@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,7 +23,7 @@ public class SkiaSwitch : SkiaView
             typeof(bool),
             typeof(SkiaSwitch),
             false,
-            BindingMode.TwoWay,
+            BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).OnIsOnChanged());
 
     /// <summary>
@@ -32,7 +34,8 @@ public class SkiaSwitch : SkiaView
             nameof(OnTrackColor),
             typeof(SKColor),
             typeof(SkiaSwitch),
-            new SKColor(0x21, 0x96, 0xF3),
+            new SKColor(33, 150, 243),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
     /// <summary>
@@ -43,7 +46,8 @@ public class SkiaSwitch : SkiaView
             nameof(OffTrackColor),
             typeof(SKColor),
             typeof(SkiaSwitch),
-            new SKColor(0x9E, 0x9E, 0x9E),
+            new SKColor(158, 158, 158),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
     /// <summary>
@@ -55,6 +59,7 @@ public class SkiaSwitch : SkiaView
             typeof(SKColor),
             typeof(SkiaSwitch),
             SKColors.White,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
     /// <summary>
@@ -65,7 +70,8 @@ public class SkiaSwitch : SkiaView
             nameof(DisabledColor),
             typeof(SKColor),
             typeof(SkiaSwitch),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            new SKColor(189, 189, 189),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
     /// <summary>
@@ -77,6 +83,7 @@ public class SkiaSwitch : SkiaView
             typeof(float),
             typeof(SkiaSwitch),
             52f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).InvalidateMeasure());
 
     /// <summary>
@@ -88,6 +95,7 @@ public class SkiaSwitch : SkiaView
             typeof(float),
             typeof(SkiaSwitch),
             32f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).InvalidateMeasure());
 
     /// <summary>
@@ -99,6 +107,7 @@ public class SkiaSwitch : SkiaView
             typeof(float),
             typeof(SkiaSwitch),
             12f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
     /// <summary>
@@ -110,6 +119,7 @@ public class SkiaSwitch : SkiaView
             typeof(float),
             typeof(SkiaSwitch),
             4f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
     #endregion
@@ -199,7 +209,7 @@ public class SkiaSwitch : SkiaView
 
     #endregion
 
-    private float _animationProgress; // 0 = off, 1 = on
+    private float _animationProgress;
 
     /// <summary>
     /// Event raised when the switch is toggled.
@@ -215,14 +225,14 @@ public class SkiaSwitch : SkiaView
     {
         _animationProgress = IsOn ? 1f : 0f;
         Toggled?.Invoke(this, new ToggledEventArgs(IsOn));
-        SkiaVisualStateManager.GoToState(this, IsOn ? SkiaVisualStateManager.CommonStates.On : SkiaVisualStateManager.CommonStates.Off);
+        SkiaVisualStateManager.GoToState(this, IsOn ? "On" : "Off");
         Invalidate();
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         var centerY = bounds.MidY;
-        var trackLeft = bounds.MidX - TrackWidth / 2;
+        var trackLeft = bounds.MidX - TrackWidth / 2f;
         var trackRight = trackLeft + TrackWidth;
 
         // Calculate thumb position
@@ -244,8 +254,8 @@ public class SkiaSwitch : SkiaView
         };
 
         var trackRect = new SKRoundRect(
-            new SKRect(trackLeft, centerY - TrackHeight / 2, trackRight, centerY + TrackHeight / 2),
-            TrackHeight / 2);
+            new SKRect(trackLeft, centerY - TrackHeight / 2f, trackRight, centerY + TrackHeight / 2f),
+            TrackHeight / 2f);
         canvas.DrawRoundRect(trackRect, trackPaint);
 
         // Draw thumb shadow
@@ -255,15 +265,15 @@ public class SkiaSwitch : SkiaView
             {
                 Color = new SKColor(0, 0, 0, 40),
                 IsAntialias = true,
-                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f)
             };
-            canvas.DrawCircle(thumbX + 1, centerY + 1, ThumbRadius, shadowPaint);
+            canvas.DrawCircle(thumbX + 1f, centerY + 1f, ThumbRadius, shadowPaint);
         }
 
         // Draw thumb
         using var thumbPaint = new SKPaint
         {
-            Color = IsEnabled ? ThumbColor : new SKColor(0xF5, 0xF5, 0xF5),
+            Color = IsEnabled ? ThumbColor : new SKColor(245, 245, 245),
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -277,10 +287,10 @@ public class SkiaSwitch : SkiaView
                 Color = OnTrackColor.WithAlpha(60),
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = 3
+                StrokeWidth = 3f
             };
-            var focusRect = new SKRoundRect(trackRect.Rect, TrackHeight / 2);
-            focusRect.Inflate(3, 3);
+            var focusRect = new SKRoundRect(trackRect.Rect, TrackHeight / 2f);
+            focusRect.Inflate(3f, 3f);
             canvas.DrawRoundRect(focusRect, focusPaint);
         }
     }
@@ -296,21 +306,20 @@ public class SkiaSwitch : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        if (!IsEnabled) return;
-        IsOn = !IsOn;
-        e.Handled = true;
+        if (IsEnabled)
+        {
+            IsOn = !IsOn;
+            e.Handled = true;
+        }
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
-        // Toggle handled in OnPointerPressed
     }
 
     public override void OnKeyDown(KeyEventArgs e)
     {
-        if (!IsEnabled) return;
-
-        if (e.Key == Key.Space || e.Key == Key.Enter)
+        if (IsEnabled && (e.Key == Key.Space || e.Key == Key.Enter))
         {
             IsOn = !IsOn;
             e.Handled = true;
@@ -320,20 +329,11 @@ public class SkiaSwitch : SkiaView
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
     }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        return new SKSize(TrackWidth + 8, TrackHeight + 8);
+        return new SKSize(TrackWidth + 8f, TrackHeight + 8f);
     }
-}
-
-/// <summary>
-/// Event args for toggled events.
-/// </summary>
-public class ToggledEventArgs : EventArgs
-{
-    public bool Value { get; }
-    public ToggledEventArgs(bool value) => Value = value;
 }

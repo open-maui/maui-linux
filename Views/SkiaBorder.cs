@@ -1,6 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform.Linux.Handlers;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -14,53 +17,55 @@ public class SkiaBorder : SkiaLayoutView
 
     public static readonly BindableProperty StrokeThicknessProperty =
         BindableProperty.Create(nameof(StrokeThickness), typeof(float), typeof(SkiaBorder), 1f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaBorder), 0f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty StrokeProperty =
         BindableProperty.Create(nameof(Stroke), typeof(SKColor), typeof(SkiaBorder), SKColors.Black,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty PaddingLeftProperty =
         BindableProperty.Create(nameof(PaddingLeft), typeof(float), typeof(SkiaBorder), 0f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
 
     public static readonly BindableProperty PaddingTopProperty =
         BindableProperty.Create(nameof(PaddingTop), typeof(float), typeof(SkiaBorder), 0f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
 
     public static readonly BindableProperty PaddingRightProperty =
         BindableProperty.Create(nameof(PaddingRight), typeof(float), typeof(SkiaBorder), 0f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
 
     public static readonly BindableProperty PaddingBottomProperty =
         BindableProperty.Create(nameof(PaddingBottom), typeof(float), typeof(SkiaBorder), 0f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
 
     public static readonly BindableProperty HasShadowProperty =
         BindableProperty.Create(nameof(HasShadow), typeof(bool), typeof(SkiaBorder), false,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowColorProperty =
         BindableProperty.Create(nameof(ShadowColor), typeof(SKColor), typeof(SkiaBorder), new SKColor(0, 0, 0, 40),
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowBlurRadiusProperty =
         BindableProperty.Create(nameof(ShadowBlurRadius), typeof(float), typeof(SkiaBorder), 4f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowOffsetXProperty =
         BindableProperty.Create(nameof(ShadowOffsetX), typeof(float), typeof(SkiaBorder), 2f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowOffsetYProperty =
         BindableProperty.Create(nameof(ShadowOffsetY), typeof(float), typeof(SkiaBorder), 2f,
-            propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     #endregion
+
+    private bool _isPressed;
 
     #region Properties
 
@@ -138,6 +143,14 @@ public class SkiaBorder : SkiaLayoutView
 
     #endregion
 
+    #region Events
+
+    public event EventHandler? Tapped;
+
+    #endregion
+
+    #region SetPadding Methods
+
     /// <summary>
     /// Sets uniform padding on all sides.
     /// </summary>
@@ -166,16 +179,18 @@ public class SkiaBorder : SkiaLayoutView
         PaddingBottom = bottom;
     }
 
+    #endregion
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         var strokeThickness = StrokeThickness;
         var cornerRadius = CornerRadius;
 
         var borderRect = new SKRect(
-            bounds.Left + strokeThickness / 2,
-            bounds.Top + strokeThickness / 2,
-            bounds.Right - strokeThickness / 2,
-            bounds.Bottom - strokeThickness / 2);
+            bounds.Left + strokeThickness / 2f,
+            bounds.Top + strokeThickness / 2f,
+            bounds.Right - strokeThickness / 2f,
+            bounds.Bottom - strokeThickness / 2f);
 
         // Draw shadow if enabled
         if (HasShadow)
@@ -204,7 +219,7 @@ public class SkiaBorder : SkiaLayoutView
         canvas.DrawRoundRect(new SKRoundRect(borderRect, cornerRadius), bgPaint);
 
         // Draw border
-        if (strokeThickness > 0)
+        if (strokeThickness > 0f)
         {
             using var borderPaint = new SKPaint
             {
@@ -244,16 +259,16 @@ public class SkiaBorder : SkiaLayoutView
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         var strokeThickness = StrokeThickness;
-        var paddingWidth = PaddingLeft + PaddingRight + strokeThickness * 2;
-        var paddingHeight = PaddingTop + PaddingBottom + strokeThickness * 2;
+        var paddingWidth = PaddingLeft + PaddingRight + strokeThickness * 2f;
+        var paddingHeight = PaddingTop + PaddingBottom + strokeThickness * 2f;
 
         // Respect explicit size requests
-        var requestedWidth = WidthRequest >= 0 ? (float)WidthRequest : availableSize.Width;
-        var requestedHeight = HeightRequest >= 0 ? (float)HeightRequest : availableSize.Height;
+        var requestedWidth = WidthRequest >= 0.0 ? (float)WidthRequest : availableSize.Width;
+        var requestedHeight = HeightRequest >= 0.0 ? (float)HeightRequest : availableSize.Height;
 
         var childAvailable = new SKSize(
-            Math.Max(0, requestedWidth - paddingWidth),
-            Math.Max(0, requestedHeight - paddingHeight));
+            Math.Max(0f, requestedWidth - paddingWidth),
+            Math.Max(0f, requestedHeight - paddingHeight));
 
         var maxChildSize = SKSize.Empty;
 
@@ -266,8 +281,8 @@ public class SkiaBorder : SkiaLayoutView
         }
 
         // Use requested size if set, otherwise use child size + padding
-        var width = WidthRequest >= 0 ? (float)WidthRequest : maxChildSize.Width + paddingWidth;
-        var height = HeightRequest >= 0 ? (float)HeightRequest : maxChildSize.Height + paddingHeight;
+        var width = WidthRequest >= 0.0 ? (float)WidthRequest : maxChildSize.Width + paddingWidth;
+        var height = HeightRequest >= 0.0 ? (float)HeightRequest : maxChildSize.Height + paddingHeight;
 
         return new SKSize(width, height);
     }
@@ -289,6 +304,85 @@ public class SkiaBorder : SkiaLayoutView
         }
 
         return bounds;
+    }
+
+    private bool HasTapGestureRecognizers()
+    {
+        if (MauiView?.GestureRecognizers == null)
+        {
+            return false;
+        }
+
+        foreach (var gestureRecognizer in MauiView.GestureRecognizers)
+        {
+            if (gestureRecognizer is TapGestureRecognizer)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (IsVisible && IsEnabled)
+        {
+            var bounds = Bounds;
+            if (bounds.Contains(new SKPoint(x, y)))
+            {
+                if (HasTapGestureRecognizers())
+                {
+                    Console.WriteLine("[SkiaBorder.HitTest] Intercepting for gesture - returning self");
+                    return this;
+                }
+                return base.HitTest(x, y);
+            }
+        }
+        return null;
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        if (HasTapGestureRecognizers())
+        {
+            _isPressed = true;
+            e.Handled = true;
+            Console.WriteLine("[SkiaBorder] OnPointerPressed INTERCEPTED for gesture, MauiView=" + MauiView?.GetType().Name);
+            if (MauiView != null)
+            {
+                GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
+            }
+        }
+        else
+        {
+            base.OnPointerPressed(e);
+        }
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        if (_isPressed)
+        {
+            _isPressed = false;
+            e.Handled = true;
+            Console.WriteLine("[SkiaBorder] OnPointerReleased - processing gesture recognizers, MauiView=" + MauiView?.GetType().Name);
+            if (MauiView != null)
+            {
+                GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
+            }
+            Tapped?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            base.OnPointerReleased(e);
+        }
+    }
+
+    public override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        _isPressed = false;
     }
 }
 

@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,8 +23,8 @@ public class SkiaProgressBar : SkiaView
             typeof(double),
             typeof(SkiaProgressBar),
             0.0,
-            BindingMode.TwoWay,
-            coerceValue: (b, v) => Math.Clamp((double)v, 0, 1),
+            BindingMode.OneWay,
+            coerceValue: (b, v) => Math.Clamp((double)v, 0.0, 1.0),
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).OnProgressChanged());
 
     /// <summary>
@@ -33,7 +35,8 @@ public class SkiaProgressBar : SkiaView
             nameof(TrackColor),
             typeof(SKColor),
             typeof(SkiaProgressBar),
-            new SKColor(0xE0, 0xE0, 0xE0),
+            new SKColor(224, 224, 224),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     /// <summary>
@@ -44,7 +47,8 @@ public class SkiaProgressBar : SkiaView
             nameof(ProgressColor),
             typeof(SKColor),
             typeof(SkiaProgressBar),
-            new SKColor(0x21, 0x96, 0xF3),
+            new SKColor(33, 150, 243),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     /// <summary>
@@ -55,7 +59,8 @@ public class SkiaProgressBar : SkiaView
             nameof(DisabledColor),
             typeof(SKColor),
             typeof(SkiaProgressBar),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            new SKColor(189, 189, 189),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     /// <summary>
@@ -67,6 +72,7 @@ public class SkiaProgressBar : SkiaView
             typeof(float),
             typeof(SkiaProgressBar),
             4f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).InvalidateMeasure());
 
     /// <summary>
@@ -78,6 +84,7 @@ public class SkiaProgressBar : SkiaView
             typeof(float),
             typeof(SkiaProgressBar),
             2f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     #endregion
@@ -153,9 +160,9 @@ public class SkiaProgressBar : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var trackY = bounds.MidY;
-        var trackTop = trackY - BarHeight / 2;
-        var trackBottom = trackY + BarHeight / 2;
+        float midY = bounds.MidY;
+        float trackTop = midY - BarHeight / 2f;
+        float trackBottom = midY + BarHeight / 2f;
 
         // Draw track
         using var trackPaint = new SKPaint
@@ -171,9 +178,9 @@ public class SkiaProgressBar : SkiaView
         canvas.DrawRoundRect(trackRect, trackPaint);
 
         // Draw progress
-        if (Progress > 0)
+        if (Progress > 0.0)
         {
-            var progressWidth = bounds.Width * (float)Progress;
+            float progressWidth = bounds.Width * (float)Progress;
 
             using var progressPaint = new SKPaint
             {
@@ -191,7 +198,7 @@ public class SkiaProgressBar : SkiaView
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        return new SKSize(200, BarHeight + 8);
+        return new SKSize(200f, BarHeight + 8f);
     }
 }
 
