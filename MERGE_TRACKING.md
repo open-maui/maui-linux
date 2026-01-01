@@ -79,7 +79,7 @@
 | SkiaIndicatorView.cs | [ ] | |
 | SkiaItemsView.cs | [x] | Added GetItemView() method |
 | SkiaLabel.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay |
-| SkiaLayoutView.cs | [ ] | Contains SkiaGrid, SkiaStackLayout, SkiaAbsoluteLayout, GridLength, GridPosition |
+| SkiaLayoutView.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay (Spacing, Padding, ClipToBounds, Orientation, RowSpacing, ColumnSpacing) |
 | SkiaMenuBar.cs | [ ] | Contains MenuItem, MenuBarItem |
 | SkiaNavigationPage.cs | [ ] | |
 | SkiaPage.cs | [x] | Added SkiaToolbarItem.Icon property |

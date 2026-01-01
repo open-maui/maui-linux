@@ -22,6 +22,7 @@ public abstract class SkiaLayoutView : SkiaView
             typeof(float),
             typeof(SkiaLayoutView),
             0f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLayoutView)b).InvalidateMeasure());
 
     /// <summary>
@@ -33,6 +34,7 @@ public abstract class SkiaLayoutView : SkiaView
             typeof(SKRect),
             typeof(SkiaLayoutView),
             SKRect.Empty,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLayoutView)b).InvalidateMeasure());
 
     /// <summary>
@@ -44,6 +46,7 @@ public abstract class SkiaLayoutView : SkiaView
             typeof(bool),
             typeof(SkiaLayoutView),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLayoutView)b).Invalidate());
 
     #endregion
@@ -341,6 +344,7 @@ public class SkiaStackLayout : SkiaLayoutView
             typeof(StackOrientation),
             typeof(SkiaStackLayout),
             StackOrientation.Vertical,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStackLayout)b).InvalidateMeasure());
 
     /// <summary>
@@ -536,6 +540,7 @@ public class SkiaGrid : SkiaLayoutView
             typeof(float),
             typeof(SkiaGrid),
             0f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaGrid)b).InvalidateMeasure());
 
     /// <summary>
@@ -547,6 +552,7 @@ public class SkiaGrid : SkiaLayoutView
             typeof(float),
             typeof(SkiaGrid),
             0f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaGrid)b).InvalidateMeasure());
 
     #endregion
