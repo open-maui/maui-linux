@@ -1,222 +1,238 @@
-using System;
-using Microsoft.Maui.Controls;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// Skia-rendered activity indicator (spinner) control with full XAML styling support.
+/// </summary>
 public class SkiaActivityIndicator : SkiaView
 {
-	public static readonly BindableProperty IsRunningProperty = BindableProperty.Create("IsRunning", typeof(bool), typeof(SkiaActivityIndicator), (object)false, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaActivityIndicator)(object)b).OnIsRunningChanged();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    #region BindableProperties
 
-	public static readonly BindableProperty ColorProperty = BindableProperty.Create("Color", typeof(SKColor), typeof(SkiaActivityIndicator), (object)new SKColor((byte)33, (byte)150, (byte)243), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaActivityIndicator)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for IsRunning.
+    /// </summary>
+    public static readonly BindableProperty IsRunningProperty =
+        BindableProperty.Create(
+            nameof(IsRunning),
+            typeof(bool),
+            typeof(SkiaActivityIndicator),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).OnIsRunningChanged());
 
-	public static readonly BindableProperty DisabledColorProperty = BindableProperty.Create("DisabledColor", typeof(SKColor), typeof(SkiaActivityIndicator), (object)new SKColor((byte)189, (byte)189, (byte)189), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaActivityIndicator)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for Color.
+    /// </summary>
+    public static readonly BindableProperty ColorProperty =
+        BindableProperty.Create(
+            nameof(Color),
+            typeof(SKColor),
+            typeof(SkiaActivityIndicator),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
-	public static readonly BindableProperty SizeProperty = BindableProperty.Create("Size", typeof(float), typeof(SkiaActivityIndicator), (object)32f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaActivityIndicator)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for DisabledColor.
+    /// </summary>
+    public static readonly BindableProperty DisabledColorProperty =
+        BindableProperty.Create(
+            nameof(DisabledColor),
+            typeof(SKColor),
+            typeof(SkiaActivityIndicator),
+            new SKColor(0xBD, 0xBD, 0xBD),
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
-	public static readonly BindableProperty StrokeWidthProperty = BindableProperty.Create("StrokeWidth", typeof(float), typeof(SkiaActivityIndicator), (object)3f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaActivityIndicator)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for Size.
+    /// </summary>
+    public static readonly BindableProperty SizeProperty =
+        BindableProperty.Create(
+            nameof(Size),
+            typeof(float),
+            typeof(SkiaActivityIndicator),
+            32f,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
 
-	public static readonly BindableProperty RotationSpeedProperty = BindableProperty.Create("RotationSpeed", typeof(float), typeof(SkiaActivityIndicator), (object)360f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)null, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for StrokeWidth.
+    /// </summary>
+    public static readonly BindableProperty StrokeWidthProperty =
+        BindableProperty.Create(
+            nameof(StrokeWidth),
+            typeof(float),
+            typeof(SkiaActivityIndicator),
+            3f,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
 
-	public static readonly BindableProperty ArcCountProperty = BindableProperty.Create("ArcCount", typeof(int), typeof(SkiaActivityIndicator), (object)12, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaActivityIndicator)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for RotationSpeed.
+    /// </summary>
+    public static readonly BindableProperty RotationSpeedProperty =
+        BindableProperty.Create(
+            nameof(RotationSpeed),
+            typeof(float),
+            typeof(SkiaActivityIndicator),
+            360f);
 
-	private float _rotationAngle;
+    /// <summary>
+    /// Bindable property for ArcCount.
+    /// </summary>
+    public static readonly BindableProperty ArcCountProperty =
+        BindableProperty.Create(
+            nameof(ArcCount),
+            typeof(int),
+            typeof(SkiaActivityIndicator),
+            12,
+            propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
-	private DateTime _lastUpdateTime = DateTime.UtcNow;
+    #endregion
 
-	public bool IsRunning
-	{
-		get
-		{
-			return (bool)((BindableObject)this).GetValue(IsRunningProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(IsRunningProperty, (object)value);
-		}
-	}
+    #region Properties
 
-	public SKColor Color
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(ColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(ColorProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets whether the indicator is running.
+    /// </summary>
+    public bool IsRunning
+    {
+        get => (bool)GetValue(IsRunningProperty);
+        set => SetValue(IsRunningProperty, value);
+    }
 
-	public SKColor DisabledColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(DisabledColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(DisabledColorProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the indicator color.
+    /// </summary>
+    public SKColor Color
+    {
+        get => (SKColor)GetValue(ColorProperty);
+        set => SetValue(ColorProperty, value);
+    }
 
-	public float Size
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(SizeProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(SizeProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the disabled color.
+    /// </summary>
+    public SKColor DisabledColor
+    {
+        get => (SKColor)GetValue(DisabledColorProperty);
+        set => SetValue(DisabledColorProperty, value);
+    }
 
-	public float StrokeWidth
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(StrokeWidthProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(StrokeWidthProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the indicator size.
+    /// </summary>
+    public float Size
+    {
+        get => (float)GetValue(SizeProperty);
+        set => SetValue(SizeProperty, value);
+    }
 
-	public float RotationSpeed
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(RotationSpeedProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(RotationSpeedProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the stroke width.
+    /// </summary>
+    public float StrokeWidth
+    {
+        get => (float)GetValue(StrokeWidthProperty);
+        set => SetValue(StrokeWidthProperty, value);
+    }
 
-	public int ArcCount
-	{
-		get
-		{
-			return (int)((BindableObject)this).GetValue(ArcCountProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(ArcCountProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the rotation speed in degrees per second.
+    /// </summary>
+    public float RotationSpeed
+    {
+        get => (float)GetValue(RotationSpeedProperty);
+        set => SetValue(RotationSpeedProperty, value);
+    }
 
-	private void OnIsRunningChanged()
-	{
-		if (IsRunning)
-		{
-			_lastUpdateTime = DateTime.UtcNow;
-		}
-		Invalidate();
-	}
+    /// <summary>
+    /// Gets or sets the number of arcs.
+    /// </summary>
+    public int ArcCount
+    {
+        get => (int)GetValue(ArcCountProperty);
+        set => SetValue(ArcCountProperty, value);
+    }
 
-	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_00cc: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d1: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00f8: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00fd: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ff: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0104: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0105: Unknown result type (might be due to invalid IL or missing references)
-		//IL_010c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0113: Unknown result type (might be due to invalid IL or missing references)
-		//IL_011a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0126: Unknown result type (might be due to invalid IL or missing references)
-		//IL_012f: Expected O, but got Unknown
-		//IL_0157: Unknown result type (might be due to invalid IL or missing references)
-		//IL_015e: Expected O, but got Unknown
-		//IL_0166: Unknown result type (might be due to invalid IL or missing references)
-		if (!IsRunning && !base.IsEnabled)
-		{
-			return;
-		}
-		float midX = ((SKRect)(ref bounds)).MidX;
-		float midY = ((SKRect)(ref bounds)).MidY;
-		float num = Math.Min(Size / 2f, Math.Min(((SKRect)(ref bounds)).Width, ((SKRect)(ref bounds)).Height) / 2f) - StrokeWidth;
-		if (IsRunning)
-		{
-			DateTime utcNow = DateTime.UtcNow;
-			double totalSeconds = (utcNow - _lastUpdateTime).TotalSeconds;
-			_lastUpdateTime = utcNow;
-			_rotationAngle = (_rotationAngle + (float)((double)RotationSpeed * totalSeconds)) % 360f;
-		}
-		canvas.Save();
-		canvas.Translate(midX, midY);
-		canvas.RotateDegrees(_rotationAngle);
-		SKColor val = (base.IsEnabled ? Color : DisabledColor);
-		for (int i = 0; i < ArcCount; i++)
-		{
-			byte b = (byte)(255f * (1f - (float)i / (float)ArcCount));
-			SKColor color = ((SKColor)(ref val)).WithAlpha(b);
-			SKPaint val2 = new SKPaint
-			{
-				Color = color,
-				IsAntialias = true,
-				Style = (SKPaintStyle)1,
-				StrokeWidth = StrokeWidth,
-				StrokeCap = (SKStrokeCap)1
-			};
-			try
-			{
-				float num2 = 360f / (float)ArcCount * (float)i;
-				float num3 = 360f / (float)ArcCount / 2f;
-				SKPath val3 = new SKPath();
-				try
-				{
-					val3.AddArc(new SKRect(0f - num, 0f - num, num, num), num2, num3);
-					canvas.DrawPath(val3, val2);
-				}
-				finally
-				{
-					((IDisposable)val3)?.Dispose();
-				}
-			}
-			finally
-			{
-				((IDisposable)val2)?.Dispose();
-			}
-		}
-		canvas.Restore();
-		if (IsRunning)
-		{
-			Invalidate();
-		}
-	}
+    #endregion
 
-	protected override SKSize MeasureOverride(SKSize availableSize)
-	{
-		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
-		return new SKSize(Size + StrokeWidth * 2f, Size + StrokeWidth * 2f);
-	}
+    private float _rotationAngle;
+    private DateTime _lastUpdateTime = DateTime.UtcNow;
+
+    private void OnIsRunningChanged()
+    {
+        if (IsRunning)
+        {
+            _lastUpdateTime = DateTime.UtcNow;
+        }
+        Invalidate();
+    }
+
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        if (!IsRunning && !IsEnabled)
+        {
+            return;
+        }
+
+        var centerX = bounds.MidX;
+        var centerY = bounds.MidY;
+        var radius = Math.Min(Size / 2, Math.Min(bounds.Width, bounds.Height) / 2) - StrokeWidth;
+
+        // Update rotation
+        if (IsRunning)
+        {
+            var now = DateTime.UtcNow;
+            var elapsed = (now - _lastUpdateTime).TotalSeconds;
+            _lastUpdateTime = now;
+            _rotationAngle = (_rotationAngle + (float)(RotationSpeed * elapsed)) % 360;
+        }
+
+        canvas.Save();
+        canvas.Translate(centerX, centerY);
+        canvas.RotateDegrees(_rotationAngle);
+
+        var color = IsEnabled ? Color : DisabledColor;
+
+        // Draw arcs with varying opacity
+        for (int i = 0; i < ArcCount; i++)
+        {
+            var alpha = (byte)(255 * (1 - (float)i / ArcCount));
+            var arcColor = color.WithAlpha(alpha);
+
+            using var paint = new SKPaint
+            {
+                Color = arcColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = StrokeWidth,
+                StrokeCap = SKStrokeCap.Round
+            };
+
+            var startAngle = (360f / ArcCount) * i;
+            var sweepAngle = 360f / ArcCount / 2;
+
+            using var path = new SKPath();
+            path.AddArc(
+                new SKRect(-radius, -radius, radius, radius),
+                startAngle,
+                sweepAngle);
+
+            canvas.DrawPath(path, paint);
+        }
+
+        canvas.Restore();
+
+        // Request redraw for animation
+        if (IsRunning)
+        {
+            Invalidate();
+        }
+    }
+
+    protected override SKSize MeasureOverride(SKSize availableSize)
+    {
+        return new SKSize(Size + StrokeWidth * 2, Size + StrokeWidth * 2);
+    }
 }

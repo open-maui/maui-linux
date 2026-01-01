@@ -1,182 +1,181 @@
-using System;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public class EditorHandler : ViewHandler<IEditor, SkiaEditor>
+/// <summary>
+/// Handler for Editor (multiline text) on Linux using Skia rendering.
+/// </summary>
+public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
 {
-	public static IPropertyMapper<IEditor, EditorHandler> Mapper = (IPropertyMapper<IEditor, EditorHandler>)(object)new PropertyMapper<IEditor, EditorHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
-	{
-		["Text"] = MapText,
-		["Placeholder"] = MapPlaceholder,
-		["PlaceholderColor"] = MapPlaceholderColor,
-		["TextColor"] = MapTextColor,
-		["CharacterSpacing"] = MapCharacterSpacing,
-		["IsReadOnly"] = MapIsReadOnly,
-		["IsTextPredictionEnabled"] = MapIsTextPredictionEnabled,
-		["MaxLength"] = MapMaxLength,
-		["CursorPosition"] = MapCursorPosition,
-		["SelectionLength"] = MapSelectionLength,
-		["Keyboard"] = MapKeyboard,
-		["HorizontalTextAlignment"] = MapHorizontalTextAlignment,
-		["VerticalTextAlignment"] = MapVerticalTextAlignment,
-		["Background"] = MapBackground,
-		["BackgroundColor"] = MapBackgroundColor
-	};
+    public static IPropertyMapper<IEditor, EditorHandler> Mapper =
+        new PropertyMapper<IEditor, EditorHandler>(ViewHandler.ViewMapper)
+        {
+            [nameof(IEditor.Text)] = MapText,
+            [nameof(IEditor.Placeholder)] = MapPlaceholder,
+            [nameof(IEditor.PlaceholderColor)] = MapPlaceholderColor,
+            [nameof(IEditor.TextColor)] = MapTextColor,
+            [nameof(IEditor.CharacterSpacing)] = MapCharacterSpacing,
+            [nameof(IEditor.IsReadOnly)] = MapIsReadOnly,
+            [nameof(IEditor.IsTextPredictionEnabled)] = MapIsTextPredictionEnabled,
+            [nameof(IEditor.MaxLength)] = MapMaxLength,
+            [nameof(IEditor.CursorPosition)] = MapCursorPosition,
+            [nameof(IEditor.SelectionLength)] = MapSelectionLength,
+            [nameof(IEditor.Keyboard)] = MapKeyboard,
+            [nameof(IEditor.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
+            [nameof(IEditor.VerticalTextAlignment)] = MapVerticalTextAlignment,
+            [nameof(IView.Background)] = MapBackground,
+            ["BackgroundColor"] = MapBackgroundColor,
+        };
 
-	public static CommandMapper<IEditor, EditorHandler> CommandMapper = new CommandMapper<IEditor, EditorHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
+    public static CommandMapper<IEditor, EditorHandler> CommandMapper =
+        new(ViewHandler.ViewCommandMapper)
+        {
+        };
 
-	public EditorHandler()
-		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
-	{
-	}
+    public EditorHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-	public EditorHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
-	{
-	}
+    public EditorHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
 
-	protected override SkiaEditor CreatePlatformView()
-	{
-		return new SkiaEditor();
-	}
+    protected override SkiaEditor CreatePlatformView()
+    {
+        return new SkiaEditor();
+    }
 
-	protected override void ConnectHandler(SkiaEditor platformView)
-	{
-		base.ConnectHandler(platformView);
-		platformView.TextChanged += OnTextChanged;
-		platformView.Completed += OnCompleted;
-	}
+    protected override void ConnectHandler(SkiaEditor platformView)
+    {
+        base.ConnectHandler(platformView);
+        platformView.TextChanged += OnTextChanged;
+        platformView.Completed += OnCompleted;
+    }
 
-	protected override void DisconnectHandler(SkiaEditor platformView)
-	{
-		platformView.TextChanged -= OnTextChanged;
-		platformView.Completed -= OnCompleted;
-		base.DisconnectHandler(platformView);
-	}
+    protected override void DisconnectHandler(SkiaEditor platformView)
+    {
+        platformView.TextChanged -= OnTextChanged;
+        platformView.Completed -= OnCompleted;
+        base.DisconnectHandler(platformView);
+    }
 
-	private void OnTextChanged(object? sender, EventArgs e)
-	{
-		if (base.VirtualView != null && base.PlatformView != null)
-		{
-			((ITextInput)base.VirtualView).Text = base.PlatformView.Text;
-		}
-	}
+    private void OnTextChanged(object? sender, EventArgs e)
+    {
+        if (VirtualView is null || PlatformView is null) return;
 
-	private void OnCompleted(object? sender, EventArgs e)
-	{
-	}
+        VirtualView.Text = PlatformView.Text;
+    }
 
-	public static void MapText(EditorHandler handler, IEditor editor)
-	{
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.Text = ((ITextInput)editor).Text ?? "";
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.Invalidate();
-		}
-	}
+    private void OnCompleted(object? sender, EventArgs e)
+    {
+        // Editor doesn't typically have a completed event, but we could trigger it
+    }
 
-	public static void MapPlaceholder(EditorHandler handler, IEditor editor)
-	{
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.Placeholder = ((IPlaceholder)editor).Placeholder ?? "";
-		}
-	}
+    public static void MapText(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Text = editor.Text ?? "";
+        handler.PlatformView.Invalidate();
+    }
 
-	public static void MapPlaceholderColor(EditorHandler handler, IEditor editor)
-	{
-		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null && ((IPlaceholder)editor).PlaceholderColor != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.PlaceholderColor = ((IPlaceholder)editor).PlaceholderColor.ToSKColor();
-		}
-	}
+    public static void MapPlaceholder(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Placeholder = editor.Placeholder ?? "";
+    }
 
-	public static void MapTextColor(EditorHandler handler, IEditor editor)
-	{
-		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null && ((ITextStyle)editor).TextColor != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.TextColor = ((ITextStyle)editor).TextColor.ToSKColor();
-		}
-	}
+    public static void MapPlaceholderColor(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        if (editor.PlaceholderColor is not null)
+        {
+            handler.PlatformView.PlaceholderColor = editor.PlaceholderColor.ToSKColor();
+        }
+    }
 
-	public static void MapCharacterSpacing(EditorHandler handler, IEditor editor)
-	{
-	}
+    public static void MapTextColor(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        if (editor.TextColor is not null)
+        {
+            handler.PlatformView.TextColor = editor.TextColor.ToSKColor();
+        }
+    }
 
-	public static void MapIsReadOnly(EditorHandler handler, IEditor editor)
-	{
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.IsReadOnly = ((ITextInput)editor).IsReadOnly;
-		}
-	}
+    public static void MapCharacterSpacing(EditorHandler handler, IEditor editor)
+    {
+        // Character spacing would require custom text rendering
+    }
 
-	public static void MapIsTextPredictionEnabled(EditorHandler handler, IEditor editor)
-	{
-	}
+    public static void MapIsReadOnly(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsReadOnly = editor.IsReadOnly;
+    }
 
-	public static void MapMaxLength(EditorHandler handler, IEditor editor)
-	{
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.MaxLength = ((ITextInput)editor).MaxLength;
-		}
-	}
+    public static void MapIsTextPredictionEnabled(EditorHandler handler, IEditor editor)
+    {
+        // Text prediction not applicable to desktop
+    }
 
-	public static void MapCursorPosition(EditorHandler handler, IEditor editor)
-	{
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.CursorPosition = ((ITextInput)editor).CursorPosition;
-		}
-	}
+    public static void MapMaxLength(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.MaxLength = editor.MaxLength;
+    }
 
-	public static void MapSelectionLength(EditorHandler handler, IEditor editor)
-	{
-	}
+    public static void MapCursorPosition(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CursorPosition = editor.CursorPosition;
+    }
 
-	public static void MapKeyboard(EditorHandler handler, IEditor editor)
-	{
-	}
+    public static void MapSelectionLength(EditorHandler handler, IEditor editor)
+    {
+        // Selection would need to be added to SkiaEditor
+    }
 
-	public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor)
-	{
-	}
+    public static void MapKeyboard(EditorHandler handler, IEditor editor)
+    {
+        // Virtual keyboard type not applicable to desktop
+    }
 
-	public static void MapVerticalTextAlignment(EditorHandler handler, IEditor editor)
-	{
-	}
+    public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor)
+    {
+        // Text alignment would require changes to SkiaEditor drawing
+    }
 
-	public static void MapBackground(EditorHandler handler, IEditor editor)
-	{
-		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			Paint background = ((IView)editor).Background;
-			SolidPaint val = (SolidPaint)(object)((background is SolidPaint) ? background : null);
-			if (val != null && val.Color != null)
-			{
-				((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
-			}
-		}
-	}
+    public static void MapVerticalTextAlignment(EditorHandler handler, IEditor editor)
+    {
+        // Text alignment would require changes to SkiaEditor drawing
+    }
 
-	public static void MapBackgroundColor(EditorHandler handler, IEditor editor)
-	{
-		//IL_0027: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView != null)
-		{
-			VisualElement val = (VisualElement)(object)((editor is VisualElement) ? editor : null);
-			if (val != null && val.BackgroundColor != null)
-			{
-				((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.BackgroundColor = val.BackgroundColor.ToSKColor();
-				((ViewHandler<IEditor, SkiaEditor>)(object)handler).PlatformView.Invalidate();
-			}
-		}
-	}
+    public static void MapBackground(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (editor.Background is SolidPaint solidPaint && solidPaint.Color is not null)
+        {
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+        }
+    }
+
+    public static void MapBackgroundColor(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (editor is VisualElement ve && ve.BackgroundColor != null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.Invalidate();
+        }
+    }
 }

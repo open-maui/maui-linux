@@ -1,43 +1,55 @@
-using System;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Graphics;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage>
+/// <summary>
+/// Handler for TabbedPage on Linux using Skia rendering.
+/// Maps ITabbedView interface to SkiaTabbedPage platform view.
+/// </summary>
+public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage>
 {
-	public static IPropertyMapper<ITabbedView, TabbedPageHandler> Mapper = (IPropertyMapper<ITabbedView, TabbedPageHandler>)(object)new PropertyMapper<ITabbedView, TabbedPageHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper });
+    public static IPropertyMapper<ITabbedView, TabbedPageHandler> Mapper = new PropertyMapper<ITabbedView, TabbedPageHandler>(ViewHandler.ViewMapper)
+    {
+    };
 
-	public static CommandMapper<ITabbedView, TabbedPageHandler> CommandMapper = new CommandMapper<ITabbedView, TabbedPageHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
+    public static CommandMapper<ITabbedView, TabbedPageHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
+    {
+    };
 
-	public TabbedPageHandler()
-		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
-	{
-	}
+    public TabbedPageHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-	public TabbedPageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
-	{
-	}
+    public TabbedPageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
 
-	protected override SkiaTabbedPage CreatePlatformView()
-	{
-		return new SkiaTabbedPage();
-	}
+    protected override SkiaTabbedPage CreatePlatformView()
+    {
+        return new SkiaTabbedPage();
+    }
 
-	protected override void ConnectHandler(SkiaTabbedPage platformView)
-	{
-		base.ConnectHandler(platformView);
-		platformView.SelectedIndexChanged += OnSelectedIndexChanged;
-	}
+    protected override void ConnectHandler(SkiaTabbedPage platformView)
+    {
+        base.ConnectHandler(platformView);
+        platformView.SelectedIndexChanged += OnSelectedIndexChanged;
+    }
 
-	protected override void DisconnectHandler(SkiaTabbedPage platformView)
-	{
-		platformView.SelectedIndexChanged -= OnSelectedIndexChanged;
-		platformView.ClearTabs();
-		base.DisconnectHandler(platformView);
-	}
+    protected override void DisconnectHandler(SkiaTabbedPage platformView)
+    {
+        platformView.SelectedIndexChanged -= OnSelectedIndexChanged;
+        platformView.ClearTabs();
+        base.DisconnectHandler(platformView);
+    }
 
-	private void OnSelectedIndexChanged(object? sender, EventArgs e)
-	{
-	}
+    private void OnSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        // Notify the virtual view of selection change
+    }
 }

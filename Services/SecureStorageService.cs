@@ -1,304 +1,359 @@
-using System;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Diagnostics;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Maui.Storage;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
+/// <summary>
+/// Linux secure storage implementation using secret-tool (libsecret) or encrypted file fallback.
+/// </summary>
 public class SecureStorageService : ISecureStorage
 {
-	private const string ServiceName = "maui-secure-storage";
+    private const string ServiceName = "maui-secure-storage";
+    private const string FallbackDirectory = ".maui-secure";
+    private readonly string _fallbackPath;
+    private readonly bool _useSecretService;
 
-	private const string FallbackDirectory = ".maui-secure";
+    public SecureStorageService()
+    {
+        _fallbackPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            FallbackDirectory);
+        _useSecretService = CheckSecretServiceAvailable();
+    }
 
-	private readonly string _fallbackPath;
+    private bool CheckSecretServiceAvailable()
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "which",
+                Arguments = "secret-tool",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
+            };
 
-	private readonly bool _useSecretService;
+            using var process = Process.Start(startInfo);
+            if (process == null) return false;
 
-	public SecureStorageService()
-	{
-		_fallbackPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".maui-secure");
-		_useSecretService = CheckSecretServiceAvailable();
-	}
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
-	private bool CheckSecretServiceAvailable()
-	{
-		try
-		{
-			using Process process = Process.Start(new ProcessStartInfo
-			{
-				FileName = "which",
-				Arguments = "secret-tool",
-				UseShellExecute = false,
-				RedirectStandardOutput = true,
-				CreateNoWindow = true
-			});
-			if (process == null)
-			{
-				return false;
-			}
-			process.WaitForExit();
-			return process.ExitCode == 0;
-		}
-		catch
-		{
-			return false;
-		}
-	}
+    public Task<string?> GetAsync(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentNullException(nameof(key));
 
-	public Task<string?> GetAsync(string key)
-	{
-		if (string.IsNullOrEmpty(key))
-		{
-			throw new ArgumentNullException("key");
-		}
-		if (_useSecretService)
-		{
-			return GetFromSecretServiceAsync(key);
-		}
-		return GetFromFallbackAsync(key);
-	}
+        if (_useSecretService)
+        {
+            return GetFromSecretServiceAsync(key);
+        }
+        else
+        {
+            return GetFromFallbackAsync(key);
+        }
+    }
 
-	public Task SetAsync(string key, string value)
-	{
-		if (string.IsNullOrEmpty(key))
-		{
-			throw new ArgumentNullException("key");
-		}
-		if (_useSecretService)
-		{
-			return SetInSecretServiceAsync(key, value);
-		}
-		return SetInFallbackAsync(key, value);
-	}
+    public Task SetAsync(string key, string value)
+    {
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentNullException(nameof(key));
 
-	public bool Remove(string key)
-	{
-		if (string.IsNullOrEmpty(key))
-		{
-			throw new ArgumentNullException("key");
-		}
-		if (_useSecretService)
-		{
-			return RemoveFromSecretService(key);
-		}
-		return RemoveFromFallback(key);
-	}
+        if (_useSecretService)
+        {
+            return SetInSecretServiceAsync(key, value);
+        }
+        else
+        {
+            return SetInFallbackAsync(key, value);
+        }
+    }
 
-	public void RemoveAll()
-	{
-		if (!_useSecretService && Directory.Exists(_fallbackPath))
-		{
-			Directory.Delete(_fallbackPath, recursive: true);
-		}
-	}
+    public bool Remove(string key)
+    {
+        if (string.IsNullOrEmpty(key))
+            throw new ArgumentNullException(nameof(key));
 
-	private async Task<string?> GetFromSecretServiceAsync(string key)
-	{
-		_ = 1;
-		try
-		{
-			ProcessStartInfo startInfo = new ProcessStartInfo
-			{
-				FileName = "secret-tool",
-				Arguments = "lookup service maui-secure-storage key " + EscapeArg(key),
-				UseShellExecute = false,
-				RedirectStandardOutput = true,
-				RedirectStandardError = true,
-				CreateNoWindow = true
-			};
-			using Process process = Process.Start(startInfo);
-			if (process == null)
-			{
-				return null;
-			}
-			string output = await process.StandardOutput.ReadToEndAsync();
-			await process.WaitForExitAsync();
-			if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
-			{
-				return output.TrimEnd('\n');
-			}
-			return null;
-		}
-		catch
-		{
-			return null;
-		}
-	}
+        if (_useSecretService)
+        {
+            return RemoveFromSecretService(key);
+        }
+        else
+        {
+            return RemoveFromFallback(key);
+        }
+    }
 
-	private async Task SetInSecretServiceAsync(string key, string value)
-	{
-		try
-		{
-			ProcessStartInfo startInfo = new ProcessStartInfo
-			{
-				FileName = "secret-tool",
-				Arguments = $"store --label=\"{EscapeArg(key)}\" service {"maui-secure-storage"} key {EscapeArg(key)}",
-				UseShellExecute = false,
-				RedirectStandardInput = true,
-				RedirectStandardError = true,
-				CreateNoWindow = true
-			};
-			using Process process = Process.Start(startInfo);
-			if (process == null)
-			{
-				throw new InvalidOperationException("Failed to start secret-tool");
-			}
-			await process.StandardInput.WriteAsync(value);
-			process.StandardInput.Close();
-			await process.WaitForExitAsync();
-			if (process.ExitCode != 0)
-			{
-				throw new InvalidOperationException("Failed to store secret: " + await process.StandardError.ReadToEndAsync());
-			}
-		}
-		catch (Exception ex) when (!(ex is InvalidOperationException))
-		{
-			await SetInFallbackAsync(key, value);
-		}
-	}
+    public void RemoveAll()
+    {
+        if (_useSecretService)
+        {
+            // Cannot easily remove all from secret service without knowing all keys
+            // This would require additional tracking
+        }
+        else
+        {
+            if (Directory.Exists(_fallbackPath))
+            {
+                Directory.Delete(_fallbackPath, true);
+            }
+        }
+    }
 
-	private bool RemoveFromSecretService(string key)
-	{
-		try
-		{
-			using Process process = Process.Start(new ProcessStartInfo
-			{
-				FileName = "secret-tool",
-				Arguments = "clear service maui-secure-storage key " + EscapeArg(key),
-				UseShellExecute = false,
-				CreateNoWindow = true
-			});
-			if (process == null)
-			{
-				return false;
-			}
-			process.WaitForExit();
-			return process.ExitCode == 0;
-		}
-		catch
-		{
-			return false;
-		}
-	}
+    #region Secret Service (libsecret)
 
-	private async Task<string?> GetFromFallbackAsync(string key)
-	{
-		string fallbackFilePath = GetFallbackFilePath(key);
-		if (!File.Exists(fallbackFilePath))
-		{
-			return null;
-		}
-		try
-		{
-			return DecryptData(await File.ReadAllBytesAsync(fallbackFilePath));
-		}
-		catch
-		{
-			return null;
-		}
-	}
+    private async Task<string?> GetFromSecretServiceAsync(string key)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "secret-tool",
+                Arguments = $"lookup service {ServiceName} key {EscapeArg(key)}",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
 
-	private async Task SetInFallbackAsync(string key, string value)
-	{
-		EnsureFallbackDirectory();
-		string filePath = GetFallbackFilePath(key);
-		byte[] bytes = EncryptData(value);
-		await File.WriteAllBytesAsync(filePath, bytes);
-		File.SetUnixFileMode(filePath, UnixFileMode.UserWrite | UnixFileMode.UserRead);
-	}
+            using var process = Process.Start(startInfo);
+            if (process == null) return null;
 
-	private bool RemoveFromFallback(string key)
-	{
-		string fallbackFilePath = GetFallbackFilePath(key);
-		if (File.Exists(fallbackFilePath))
-		{
-			File.Delete(fallbackFilePath);
-			return true;
-		}
-		return false;
-	}
+            var output = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
 
-	private string GetFallbackFilePath(string key)
-	{
-		using SHA256 sHA = SHA256.Create();
-		string path = Convert.ToHexString(sHA.ComputeHash(Encoding.UTF8.GetBytes(key))).ToLowerInvariant();
-		return Path.Combine(_fallbackPath, path);
-	}
+            if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
+            {
+                return output.TrimEnd('\n');
+            }
 
-	private void EnsureFallbackDirectory()
-	{
-		if (!Directory.Exists(_fallbackPath))
-		{
-			Directory.CreateDirectory(_fallbackPath);
-			File.SetUnixFileMode(_fallbackPath, UnixFileMode.UserExecute | UnixFileMode.UserWrite | UnixFileMode.UserRead);
-		}
-	}
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
-	private byte[] EncryptData(string data)
-	{
-		byte[] machineKey = GetMachineKey();
-		using Aes aes = Aes.Create();
-		aes.Key = machineKey;
-		aes.GenerateIV();
-		using ICryptoTransform cryptoTransform = aes.CreateEncryptor();
-		byte[] bytes = Encoding.UTF8.GetBytes(data);
-		byte[] array = cryptoTransform.TransformFinalBlock(bytes, 0, bytes.Length);
-		byte[] array2 = new byte[aes.IV.Length + array.Length];
-		Buffer.BlockCopy(aes.IV, 0, array2, 0, aes.IV.Length);
-		Buffer.BlockCopy(array, 0, array2, aes.IV.Length, array.Length);
-		return array2;
-	}
+    private async Task SetInSecretServiceAsync(string key, string value)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "secret-tool",
+                Arguments = $"store --label=\"{EscapeArg(key)}\" service {ServiceName} key {EscapeArg(key)}",
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
 
-	private string DecryptData(byte[] encryptedData)
-	{
-		byte[] machineKey = GetMachineKey();
-		using Aes aes = Aes.Create();
-		aes.Key = machineKey;
-		byte[] array = new byte[aes.BlockSize / 8];
-		Buffer.BlockCopy(encryptedData, 0, array, 0, array.Length);
-		aes.IV = array;
-		byte[] array2 = new byte[encryptedData.Length - array.Length];
-		Buffer.BlockCopy(encryptedData, array.Length, array2, 0, array2.Length);
-		using ICryptoTransform cryptoTransform = aes.CreateDecryptor();
-		byte[] bytes = cryptoTransform.TransformFinalBlock(array2, 0, array2.Length);
-		return Encoding.UTF8.GetString(bytes);
-	}
+            using var process = Process.Start(startInfo);
+            if (process == null)
+                throw new InvalidOperationException("Failed to start secret-tool");
 
-	private byte[] GetMachineKey()
-	{
-		string machineId = GetMachineId();
-		string userName = Environment.UserName;
-		string s = $"{machineId}:{userName}:{"maui-secure-storage"}";
-		using SHA256 sHA = SHA256.Create();
-		return sHA.ComputeHash(Encoding.UTF8.GetBytes(s));
-	}
+            await process.StandardInput.WriteAsync(value);
+            process.StandardInput.Close();
 
-	private string GetMachineId()
-	{
-		try
-		{
-			if (File.Exists("/etc/machine-id"))
-			{
-				return File.ReadAllText("/etc/machine-id").Trim();
-			}
-			if (File.Exists("/var/lib/dbus/machine-id"))
-			{
-				return File.ReadAllText("/var/lib/dbus/machine-id").Trim();
-			}
-			return Environment.MachineName;
-		}
-		catch
-		{
-			return Environment.MachineName;
-		}
-	}
+            await process.WaitForExitAsync();
 
-	private static string EscapeArg(string arg)
-	{
-		return arg.Replace("\"", "\\\"").Replace("'", "\\'");
-	}
+            if (process.ExitCode != 0)
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                throw new InvalidOperationException($"Failed to store secret: {error}");
+            }
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            // Fall back to file storage
+            await SetInFallbackAsync(key, value);
+        }
+    }
+
+    private bool RemoveFromSecretService(string key)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "secret-tool",
+                Arguments = $"clear service {ServiceName} key {EscapeArg(key)}",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process == null) return false;
+
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Fallback Encrypted Storage
+
+    private async Task<string?> GetFromFallbackAsync(string key)
+    {
+        var filePath = GetFallbackFilePath(key);
+        if (!File.Exists(filePath))
+            return null;
+
+        try
+        {
+            var encryptedData = await File.ReadAllBytesAsync(filePath);
+            return DecryptData(encryptedData);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task SetInFallbackAsync(string key, string value)
+    {
+        EnsureFallbackDirectory();
+
+        var filePath = GetFallbackFilePath(key);
+        var encryptedData = EncryptData(value);
+
+        await File.WriteAllBytesAsync(filePath, encryptedData);
+
+        // Set restrictive permissions
+        File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+    }
+
+    private bool RemoveFromFallback(string key)
+    {
+        var filePath = GetFallbackFilePath(key);
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+            return true;
+        }
+        return false;
+    }
+
+    private string GetFallbackFilePath(string key)
+    {
+        // Hash the key to create a safe filename
+        using var sha256 = SHA256.Create();
+        var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
+        var fileName = Convert.ToHexString(hash).ToLowerInvariant();
+        return Path.Combine(_fallbackPath, fileName);
+    }
+
+    private void EnsureFallbackDirectory()
+    {
+        if (!Directory.Exists(_fallbackPath))
+        {
+            Directory.CreateDirectory(_fallbackPath);
+            // Set restrictive permissions on the directory
+            File.SetUnixFileMode(_fallbackPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    private byte[] EncryptData(string data)
+    {
+        // Use a machine-specific key derived from machine ID
+        var key = GetMachineKey();
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.GenerateIV();
+
+        using var encryptor = aes.CreateEncryptor();
+        var plainBytes = Encoding.UTF8.GetBytes(data);
+        var encryptedBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+
+        // Prepend IV to encrypted data
+        var result = new byte[aes.IV.Length + encryptedBytes.Length];
+        Buffer.BlockCopy(aes.IV, 0, result, 0, aes.IV.Length);
+        Buffer.BlockCopy(encryptedBytes, 0, result, aes.IV.Length, encryptedBytes.Length);
+
+        return result;
+    }
+
+    private string DecryptData(byte[] encryptedData)
+    {
+        var key = GetMachineKey();
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+
+        // Extract IV from beginning of data
+        var iv = new byte[aes.BlockSize / 8];
+        Buffer.BlockCopy(encryptedData, 0, iv, 0, iv.Length);
+        aes.IV = iv;
+
+        var cipherText = new byte[encryptedData.Length - iv.Length];
+        Buffer.BlockCopy(encryptedData, iv.Length, cipherText, 0, cipherText.Length);
+
+        using var decryptor = aes.CreateDecryptor();
+        var plainBytes = decryptor.TransformFinalBlock(cipherText, 0, cipherText.Length);
+
+        return Encoding.UTF8.GetString(plainBytes);
+    }
+
+    private byte[] GetMachineKey()
+    {
+        // Derive a key from machine-id and user
+        var machineId = GetMachineId();
+        var user = Environment.UserName;
+        var combined = $"{machineId}:{user}:{ServiceName}";
+
+        using var sha256 = SHA256.Create();
+        return sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
+    }
+
+    private string GetMachineId()
+    {
+        try
+        {
+            // Try /etc/machine-id first (systemd)
+            if (File.Exists("/etc/machine-id"))
+            {
+                return File.ReadAllText("/etc/machine-id").Trim();
+            }
+
+            // Try /var/lib/dbus/machine-id (older systems)
+            if (File.Exists("/var/lib/dbus/machine-id"))
+            {
+                return File.ReadAllText("/var/lib/dbus/machine-id").Trim();
+            }
+
+            // Fallback to hostname
+            return Environment.MachineName;
+        }
+        catch
+        {
+            return Environment.MachineName;
+        }
+    }
+
+    #endregion
+
+    private static string EscapeArg(string arg)
+    {
+        return arg.Replace("\"", "\\\"").Replace("'", "\\'");
+    }
 }

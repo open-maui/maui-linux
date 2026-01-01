@@ -1,1325 +1,918 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using Microsoft.Maui.Controls;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// Shell provides a common navigation experience for MAUI applications.
+/// Supports flyout menu, tabs, and URI-based navigation.
+/// </summary>
 public class SkiaShell : SkiaLayoutView
 {
-	public static readonly BindableProperty FlyoutIsPresentedProperty = BindableProperty.Create("FlyoutIsPresented", typeof(bool), typeof(SkiaShell), (object)false, (BindingMode)1, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).OnFlyoutIsPresentedChanged((bool)n);
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty FlyoutBehaviorProperty = BindableProperty.Create("FlyoutBehavior", typeof(ShellFlyoutBehavior), typeof(SkiaShell), (object)ShellFlyoutBehavior.Flyout, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty FlyoutWidthProperty = BindableProperty.Create("FlyoutWidth", typeof(float), typeof(SkiaShell), (object)280f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)((BindableObject b, object v) => Math.Max(100f, (float)v)), (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty FlyoutBackgroundColorProperty = BindableProperty.Create("FlyoutBackgroundColor", typeof(SKColor), typeof(SkiaShell), (object)SKColors.White, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty FlyoutTextColorProperty = BindableProperty.Create("FlyoutTextColor", typeof(SKColor), typeof(SkiaShell), (object)new SKColor((byte)33, (byte)33, (byte)33), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty NavBarBackgroundColorProperty = BindableProperty.Create("NavBarBackgroundColor", typeof(SKColor), typeof(SkiaShell), (object)new SKColor((byte)33, (byte)150, (byte)243), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty NavBarTextColorProperty = BindableProperty.Create("NavBarTextColor", typeof(SKColor), typeof(SkiaShell), (object)SKColors.White, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty NavBarHeightProperty = BindableProperty.Create("NavBarHeight", typeof(float), typeof(SkiaShell), (object)56f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty TabBarHeightProperty = BindableProperty.Create("TabBarHeight", typeof(float), typeof(SkiaShell), (object)56f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty NavBarIsVisibleProperty = BindableProperty.Create("NavBarIsVisible", typeof(bool), typeof(SkiaShell), (object)true, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty TabBarIsVisibleProperty = BindableProperty.Create("TabBarIsVisible", typeof(bool), typeof(SkiaShell), (object)false, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty ContentPaddingProperty = BindableProperty.Create("ContentPadding", typeof(float), typeof(SkiaShell), (object)0f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty ContentBackgroundColorProperty = BindableProperty.Create("ContentBackgroundColor", typeof(SKColor), typeof(SkiaShell), (object)new SKColor((byte)250, (byte)250, (byte)250), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	public static readonly BindableProperty TitleProperty = BindableProperty.Create("Title", typeof(string), typeof(SkiaShell), (object)string.Empty, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaShell)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
-
-	private readonly List<ShellSection> _sections = new List<ShellSection>();
-
-	private SkiaView? _currentContent;
-
-	private float _flyoutAnimationProgress;
-
-	private int _selectedSectionIndex;
-
-	private int _selectedItemIndex;
-
-	private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new Stack<(SkiaView, string)>();
-
-	private float _flyoutScrollOffset;
-
-	private readonly Dictionary<string, Func<SkiaView?>> _registeredRoutes = new Dictionary<string, Func<SkiaView>>(StringComparer.OrdinalIgnoreCase);
-
-	private readonly Dictionary<string, string> _routeTitles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-	public bool FlyoutIsPresented
-	{
-		get
-		{
-			return (bool)((BindableObject)this).GetValue(FlyoutIsPresentedProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(FlyoutIsPresentedProperty, (object)value);
-		}
-	}
-
-	public ShellFlyoutBehavior FlyoutBehavior
-	{
-		get
-		{
-			return (ShellFlyoutBehavior)((BindableObject)this).GetValue(FlyoutBehaviorProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(FlyoutBehaviorProperty, (object)value);
-		}
-	}
-
-	public float FlyoutWidth
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(FlyoutWidthProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(FlyoutWidthProperty, (object)value);
-		}
-	}
-
-	public SKColor FlyoutBackgroundColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(FlyoutBackgroundColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(FlyoutBackgroundColorProperty, (object)value);
-		}
-	}
-
-	public SKColor FlyoutTextColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(FlyoutTextColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(FlyoutTextColorProperty, (object)value);
-		}
-	}
-
-	public SkiaView? FlyoutHeaderView { get; set; }
-
-	public float FlyoutHeaderHeight { get; set; } = 140f;
-
-	public string? FlyoutFooterText { get; set; }
-
-	public float FlyoutFooterHeight { get; set; } = 40f;
-
-	public SKColor NavBarBackgroundColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(NavBarBackgroundColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(NavBarBackgroundColorProperty, (object)value);
-		}
-	}
-
-	public SKColor NavBarTextColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(NavBarTextColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(NavBarTextColorProperty, (object)value);
-		}
-	}
-
-	public float NavBarHeight
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(NavBarHeightProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(NavBarHeightProperty, (object)value);
-		}
-	}
-
-	public float TabBarHeight
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(TabBarHeightProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(TabBarHeightProperty, (object)value);
-		}
-	}
-
-	public bool NavBarIsVisible
-	{
-		get
-		{
-			return (bool)((BindableObject)this).GetValue(NavBarIsVisibleProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(NavBarIsVisibleProperty, (object)value);
-		}
-	}
-
-	public bool TabBarIsVisible
-	{
-		get
-		{
-			return (bool)((BindableObject)this).GetValue(TabBarIsVisibleProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(TabBarIsVisibleProperty, (object)value);
-		}
-	}
-
-	public float ContentPadding
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(ContentPaddingProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(ContentPaddingProperty, (object)value);
-		}
-	}
-
-	public SKColor ContentBackgroundColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(ContentBackgroundColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(ContentBackgroundColorProperty, (object)value);
-		}
-	}
-
-	public string Title
-	{
-		get
-		{
-			return (string)((BindableObject)this).GetValue(TitleProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(TitleProperty, (object)value);
-		}
-	}
-
-	public IReadOnlyList<ShellSection> Sections => _sections;
-
-	public int CurrentSectionIndex => _selectedSectionIndex;
-
-	public Func<ShellContent, SkiaView?>? ContentRenderer { get; set; }
-
-	public Action<SkiaShell, Shell>? ColorRefresher { get; set; }
-
-	public Shell? MauiShell { get; set; }
-
-	public bool CanGoBack => _navigationStack.Count > 0;
-
-	public int NavigationStackDepth => _navigationStack.Count;
-
-	public event EventHandler? FlyoutIsPresentedChanged;
-
-	public event EventHandler<ShellNavigationEventArgs>? Navigated;
-
-	private void OnFlyoutIsPresentedChanged(bool newValue)
-	{
-		_flyoutAnimationProgress = (newValue ? 1f : 0f);
-		this.FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
-		Invalidate();
-	}
-
-	public void RefreshTheme()
-	{
-		Console.WriteLine("[SkiaShell] RefreshTheme called - refreshing all pages");
-		if (MauiShell != null && ColorRefresher != null)
-		{
-			Console.WriteLine("[SkiaShell] Refreshing shell colors");
-			ColorRefresher(this, MauiShell);
-		}
-		if (ContentRenderer != null)
-		{
-			foreach (ShellSection section in _sections)
-			{
-				foreach (ShellContent item in section.Items)
-				{
-					if (item.MauiShellContent != null)
-					{
-						Console.WriteLine("[SkiaShell] Re-rendering: " + item.Title);
-						SkiaView skiaView = ContentRenderer(item.MauiShellContent);
-						if (skiaView != null)
-						{
-							item.Content = skiaView;
-						}
-					}
-				}
-			}
-		}
-		if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
-		{
-			ShellSection shellSection = _sections[_selectedSectionIndex];
-			if (_selectedItemIndex >= 0 && _selectedItemIndex < shellSection.Items.Count)
-			{
-				ShellContent shellContent = shellSection.Items[_selectedItemIndex];
-				SetCurrentContent(shellContent.Content);
-			}
-		}
-		InvalidateMeasure();
-		Invalidate();
-	}
-
-	public void AddSection(ShellSection section)
-	{
-		_sections.Add(section);
-		if (_sections.Count == 1)
-		{
-			NavigateToSection(0);
-		}
-		Invalidate();
-	}
-
-	public void RemoveSection(ShellSection section)
-	{
-		_sections.Remove(section);
-		Invalidate();
-	}
-
-	public void NavigateToSection(int sectionIndex, int itemIndex = 0)
-	{
-		if (sectionIndex >= 0 && sectionIndex < _sections.Count)
-		{
-			ShellSection shellSection = _sections[sectionIndex];
-			if (itemIndex >= 0 && itemIndex < shellSection.Items.Count)
-			{
-				_navigationStack.Clear();
-				_selectedSectionIndex = sectionIndex;
-				_selectedItemIndex = itemIndex;
-				ShellContent shellContent = shellSection.Items[itemIndex];
-				SetCurrentContent(shellContent.Content);
-				Title = shellContent.Title;
-				this.Navigated?.Invoke(this, new ShellNavigationEventArgs(shellSection, shellContent));
-				Invalidate();
-			}
-		}
-	}
-
-	public void GoToAsync(string route)
-	{
-		GoToAsync(route, null);
-	}
-
-	public void GoToAsync(string route, IDictionary<string, object>? parameters)
-	{
-		if (string.IsNullOrEmpty(route))
-		{
-			return;
-		}
-		string text = route;
-		Dictionary<string, string> dictionary = new Dictionary<string, string>();
-		int num = route.IndexOf('?');
-		if (num >= 0)
-		{
-			text = route.Substring(0, num);
-			dictionary = ParseQueryString(route.Substring(num + 1));
-		}
-		Dictionary<string, object> dictionary2 = new Dictionary<string, object>();
-		foreach (KeyValuePair<string, string> item in dictionary)
-		{
-			dictionary2[item.Key] = item.Value;
-		}
-		if (parameters != null)
-		{
-			foreach (KeyValuePair<string, object> parameter in parameters)
-			{
-				dictionary2[parameter.Key] = parameter.Value;
-			}
-		}
-		string[] array = text.TrimStart('/').Split('/');
-		if (array.Length == 0)
-		{
-			return;
-		}
-		if (_registeredRoutes.TryGetValue(text.TrimStart('/'), out Func<SkiaView> value))
-		{
-			SkiaView skiaView = value();
-			if (skiaView != null)
-			{
-				ApplyQueryParameters(skiaView, dictionary2);
-				PushAsync(skiaView, GetRouteTitle(text.TrimStart('/')));
-				return;
-			}
-		}
-		for (int i = 0; i < _sections.Count; i++)
-		{
-			ShellSection shellSection = _sections[i];
-			if (!shellSection.Route.Equals(array[0], StringComparison.OrdinalIgnoreCase))
-			{
-				continue;
-			}
-			if (array.Length > 1)
-			{
-				for (int j = 0; j < shellSection.Items.Count; j++)
-				{
-					if (shellSection.Items[j].Route.Equals(array[1], StringComparison.OrdinalIgnoreCase))
-					{
-						NavigateToSection(i, j);
-						if (shellSection.Items[j].Content != null && dictionary2.Count > 0)
-						{
-							ApplyQueryParameters(shellSection.Items[j].Content, dictionary2);
-						}
-						return;
-					}
-				}
-			}
-			NavigateToSection(i);
-			if (shellSection.Items.Count > 0 && shellSection.Items[0].Content != null && dictionary2.Count > 0)
-			{
-				ApplyQueryParameters(shellSection.Items[0].Content, dictionary2);
-			}
-			break;
-		}
-	}
-
-	private static Dictionary<string, string> ParseQueryString(string queryString)
-	{
-		Dictionary<string, string> dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-		if (string.IsNullOrEmpty(queryString))
-		{
-			return dictionary;
-		}
-		string[] array = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
-		for (int i = 0; i < array.Length; i++)
-		{
-			string[] array2 = array[i].Split('=', 2);
-			if (array2.Length == 2)
-			{
-				string key = Uri.UnescapeDataString(array2[0]);
-				string value = Uri.UnescapeDataString(array2[1]);
-				dictionary[key] = value;
-			}
-			else if (array2.Length == 1)
-			{
-				dictionary[Uri.UnescapeDataString(array2[0])] = string.Empty;
-			}
-		}
-		return dictionary;
-	}
-
-	private static void ApplyQueryParameters(SkiaView content, IDictionary<string, object> parameters)
-	{
-		if (parameters.Count == 0)
-		{
-			return;
-		}
-		if (content is ISkiaQueryAttributable skiaQueryAttributable)
-		{
-			skiaQueryAttributable.ApplyQueryAttributes(parameters);
-		}
-		Type type = ((object)content).GetType();
-		foreach (KeyValuePair<string, object> parameter in parameters)
-		{
-			PropertyInfo property = type.GetProperty(parameter.Key, BindingFlags.IgnoreCase | BindingFlags.Instance | BindingFlags.Public);
-			if (property != null && property.CanWrite)
-			{
-				try
-				{
-					object value = Convert.ChangeType(parameter.Value, property.PropertyType);
-					property.SetValue(content, value);
-				}
-				catch
-				{
-				}
-			}
-		}
-	}
-
-	public void RegisterRoute(string route, Func<SkiaView?> contentFactory, string? title = null)
-	{
-		string key = route.TrimStart('/');
-		_registeredRoutes[key] = contentFactory;
-		if (!string.IsNullOrEmpty(title))
-		{
-			_routeTitles[key] = title;
-		}
-	}
-
-	public void UnregisterRoute(string route)
-	{
-		string key = route.TrimStart('/');
-		_registeredRoutes.Remove(key);
-		_routeTitles.Remove(key);
-	}
-
-	private string GetRouteTitle(string route)
-	{
-		if (_routeTitles.TryGetValue(route, out string value))
-		{
-			return value;
-		}
-		return route.Split('/').LastOrDefault() ?? route;
-	}
-
-	public void PushAsync(SkiaView page, string title)
-	{
-		if (_currentContent != null)
-		{
-			_navigationStack.Push((_currentContent, Title));
-		}
-		SetCurrentContent(page);
-		Title = title;
-		Invalidate();
-	}
-
-	public bool PopAsync()
-	{
-		if (_navigationStack.Count == 0)
-		{
-			return false;
-		}
-		var (currentContent, title) = _navigationStack.Pop();
-		SetCurrentContent(currentContent);
-		Title = title;
-		Invalidate();
-		return true;
-	}
-
-	public void PopToRootAsync()
-	{
-		if (_navigationStack.Count != 0)
-		{
-			(SkiaView, string) tuple = default((SkiaView, string));
-			while (_navigationStack.Count > 0)
-			{
-				tuple = _navigationStack.Pop();
-			}
-			SetCurrentContent(tuple.Item1);
-			Title = tuple.Item2;
-			Invalidate();
-		}
-	}
-
-	private void SetCurrentContent(SkiaView? content)
-	{
-		if (_currentContent != null)
-		{
-			RemoveChild(_currentContent);
-		}
-		_currentContent = content;
-		if (_currentContent != null)
-		{
-			AddChild(_currentContent);
-		}
-	}
-
-	protected override SKSize MeasureOverride(SKSize availableSize)
-	{
-		//IL_009d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0081: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0097: Unknown result type (might be due to invalid IL or missing references)
-		if (_currentContent != null)
-		{
-			float num = (NavBarIsVisible ? NavBarHeight : 0f);
-			float num2 = (TabBarIsVisible ? TabBarHeight : 0f);
-			float width = ((SKSize)(ref availableSize)).Width;
-			SKRect padding = base.Padding;
-			float num3 = width - ((SKRect)(ref padding)).Left;
-			padding = base.Padding;
-			float num4 = num3 - ((SKRect)(ref padding)).Right;
-			float num5 = ((SKSize)(ref availableSize)).Height - num - num2;
-			padding = base.Padding;
-			float num6 = num5 - ((SKRect)(ref padding)).Top;
-			padding = base.Padding;
-			SKSize availableSize2 = default(SKSize);
-			((SKSize)(ref availableSize2))._002Ector(num4, num6 - ((SKRect)(ref padding)).Bottom);
-			_currentContent.Measure(availableSize2);
-		}
-		return availableSize;
-	}
-
-	protected override SKRect ArrangeOverride(SKRect bounds)
-	{
-		//IL_0018: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00f3: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00bc: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ed: Unknown result type (might be due to invalid IL or missing references)
-		Console.WriteLine($"[SkiaShell] ArrangeOverride - bounds={bounds}");
-		if (_currentContent != null)
-		{
-			float num = ((SKRect)(ref bounds)).Top + (NavBarIsVisible ? NavBarHeight : 0f) + ContentPadding;
-			float num2 = ((SKRect)(ref bounds)).Bottom - (TabBarIsVisible ? TabBarHeight : 0f) - ContentPadding;
-			SKRect val = default(SKRect);
-			((SKRect)(ref val))._002Ector(((SKRect)(ref bounds)).Left + ContentPadding, num, ((SKRect)(ref bounds)).Right - ContentPadding, num2);
-			Console.WriteLine($"[SkiaShell] Arranging content with bounds={val}, padding={ContentPadding}");
-			_currentContent.Arrange(val);
-		}
-		return bounds;
-	}
-
-	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0074: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007c: Expected O, but got Unknown
-		//IL_007d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c5: Unknown result type (might be due to invalid IL or missing references)
-		canvas.Save();
-		canvas.ClipRect(bounds, (SKClipOperation)1, false);
-		float num = ((SKRect)(ref bounds)).Top + (NavBarIsVisible ? NavBarHeight : 0f);
-		float num2 = ((SKRect)(ref bounds)).Bottom - (TabBarIsVisible ? TabBarHeight : 0f);
-		SKRect val = default(SKRect);
-		((SKRect)(ref val))._002Ector(((SKRect)(ref bounds)).Left, num, ((SKRect)(ref bounds)).Right, num2);
-		SKPaint val2 = new SKPaint
-		{
-			Color = ContentBackgroundColor,
-			Style = (SKPaintStyle)0
-		};
-		try
-		{
-			canvas.DrawRect(val, val2);
-			_currentContent?.Draw(canvas);
-			if (NavBarIsVisible)
-			{
-				DrawNavBar(canvas, bounds);
-			}
-			if (TabBarIsVisible)
-			{
-				DrawTabBar(canvas, bounds);
-			}
-			if (_flyoutAnimationProgress > 0f)
-			{
-				DrawFlyout(canvas, bounds);
-			}
-			canvas.Restore();
-		}
-		finally
-		{
-			((IDisposable)val2)?.Dispose();
-		}
-	}
-
-	private void DrawNavBar(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0031: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004a: Expected O, but got Unknown
-		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0059: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0075: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0084: Expected O, but got Unknown
-		//IL_00a6: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ab: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00be: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c9: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e0: Expected O, but got Unknown
-		//IL_0184: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0189: Unknown result type (might be due to invalid IL or missing references)
-		//IL_018b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0195: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01b0: Expected O, but got Unknown
-		SKRect val = default(SKRect);
-		((SKRect)(ref val))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + NavBarHeight);
-		SKPaint val2 = new SKPaint
-		{
-			Color = NavBarBackgroundColor,
-			Style = (SKPaintStyle)0,
-			IsAntialias = true
-		};
-		try
-		{
-			canvas.DrawRect(val, val2);
-			SKPaint val3 = new SKPaint
-			{
-				Color = NavBarTextColor,
-				Style = (SKPaintStyle)1,
-				StrokeWidth = 2f,
-				StrokeCap = (SKStrokeCap)1,
-				IsAntialias = true
-			};
-			try
-			{
-				float num = ((SKRect)(ref val)).Left + 16f;
-				float midY = ((SKRect)(ref val)).MidY;
-				if (CanGoBack)
-				{
-					SKPaint val4 = new SKPaint
-					{
-						Color = NavBarTextColor,
-						Style = (SKPaintStyle)1,
-						StrokeWidth = 2.5f,
-						StrokeCap = (SKStrokeCap)1,
-						StrokeJoin = (SKStrokeJoin)1,
-						IsAntialias = true
-					};
-					try
-					{
-						float num2 = num + 6f;
-						float num3 = 10f;
-						canvas.DrawLine(num2 + num3, midY - num3, num2, midY, val4);
-						canvas.DrawLine(num2, midY, num2 + num3, midY + num3, val4);
-					}
-					finally
-					{
-						((IDisposable)val4)?.Dispose();
-					}
-				}
-				else if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
-				{
-					canvas.DrawLine(num, midY - 8f, num + 18f, midY - 8f, val3);
-					canvas.DrawLine(num, midY, num + 18f, midY, val3);
-					canvas.DrawLine(num, midY + 8f, num + 18f, midY + 8f, val3);
-				}
-				SKPaint val5 = new SKPaint
-				{
-					Color = NavBarTextColor,
-					TextSize = 20f,
-					IsAntialias = true,
-					FakeBoldText = true
-				};
-				try
-				{
-					float num4 = ((CanGoBack || FlyoutBehavior == ShellFlyoutBehavior.Flyout) ? (((SKRect)(ref val)).Left + 56f) : (((SKRect)(ref val)).Left + 16f));
-					float num5 = ((SKRect)(ref val)).MidY + 6f;
-					canvas.DrawText(Title, num4, num5, val5);
-				}
-				finally
-				{
-					((IDisposable)val5)?.Dispose();
-				}
-			}
-			finally
-			{
-				((IDisposable)val3)?.Dispose();
-			}
-		}
-		finally
-		{
-			((IDisposable)val2)?.Dispose();
-		}
-	}
-
-	private void DrawTabBar(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0078: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0087: Expected O, but got Unknown
-		//IL_0088: Unknown result type (might be due to invalid IL or missing references)
-		//IL_008f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0094: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ae: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c1: Expected O, but got Unknown
-		//IL_00fa: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ff: Unknown result type (might be due to invalid IL or missing references)
-		//IL_010a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0113: Expected O, but got Unknown
-		//IL_014a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0142: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0156: Unknown result type (might be due to invalid IL or missing references)
-		if (_selectedSectionIndex < 0 || _selectedSectionIndex >= _sections.Count)
-		{
-			return;
-		}
-		ShellSection shellSection = _sections[_selectedSectionIndex];
-		if (shellSection.Items.Count <= 1)
-		{
-			return;
-		}
-		SKRect val = default(SKRect);
-		((SKRect)(ref val))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Bottom - TabBarHeight, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Bottom);
-		SKPaint val2 = new SKPaint
-		{
-			Color = SKColors.White,
-			Style = (SKPaintStyle)0,
-			IsAntialias = true
-		};
-		try
-		{
-			canvas.DrawRect(val, val2);
-			SKPaint val3 = new SKPaint
-			{
-				Color = new SKColor((byte)224, (byte)224, (byte)224),
-				Style = (SKPaintStyle)1,
-				StrokeWidth = 1f
-			};
-			try
-			{
-				canvas.DrawLine(((SKRect)(ref val)).Left, ((SKRect)(ref val)).Top, ((SKRect)(ref val)).Right, ((SKRect)(ref val)).Top, val3);
-				float num = ((SKRect)(ref val)).Width / (float)shellSection.Items.Count;
-				SKPaint val4 = new SKPaint
-				{
-					TextSize = 12f,
-					IsAntialias = true
-				};
-				try
-				{
-					for (int i = 0; i < shellSection.Items.Count; i++)
-					{
-						ShellContent shellContent = shellSection.Items[i];
-						bool flag = i == _selectedItemIndex;
-						val4.Color = (SKColor)(flag ? NavBarBackgroundColor : new SKColor((byte)117, (byte)117, (byte)117));
-						SKRect val5 = default(SKRect);
-						val4.MeasureText(shellContent.Title, ref val5);
-						float num2 = ((SKRect)(ref val)).Left + (float)i * num + num / 2f - ((SKRect)(ref val5)).MidX;
-						float num3 = ((SKRect)(ref val)).MidY - ((SKRect)(ref val5)).MidY;
-						canvas.DrawText(shellContent.Title, num2, num3, val4);
-					}
-				}
-				finally
-				{
-					((IDisposable)val4)?.Dispose();
-				}
-			}
-			finally
-			{
-				((IDisposable)val3)?.Dispose();
-			}
-		}
-		finally
-		{
-			((IDisposable)val2)?.Dispose();
-		}
-	}
-
-	private void DrawFlyout(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0005: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0028: Expected O, but got Unknown
-		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0064: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
-		//IL_008a: Expected O, but got Unknown
-		//IL_008b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01ef: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01fb: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0200: Unknown result type (might be due to invalid IL or missing references)
-		//IL_020b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0214: Expected O, but got Unknown
-		//IL_014c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0193: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0198: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_033d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0342: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0344: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0349: Unknown result type (might be due to invalid IL or missing references)
-		//IL_034f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0359: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0360: Unknown result type (might be due to invalid IL or missing references)
-		//IL_036d: Expected O, but got Unknown
-		//IL_0432: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0437: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0439: Unknown result type (might be due to invalid IL or missing references)
-		//IL_043e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0444: Unknown result type (might be due to invalid IL or missing references)
-		//IL_044e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0455: Unknown result type (might be due to invalid IL or missing references)
-		//IL_045e: Expected O, but got Unknown
-		//IL_0393: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0398: Unknown result type (might be due to invalid IL or missing references)
-		//IL_03a3: Unknown result type (might be due to invalid IL or missing references)
-		//IL_03a5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_03aa: Unknown result type (might be due to invalid IL or missing references)
-		//IL_03b3: Unknown result type (might be due to invalid IL or missing references)
-		//IL_03bd: Unknown result type (might be due to invalid IL or missing references)
-		//IL_03c6: Expected O, but got Unknown
-		//IL_0264: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0269: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0278: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0282: Unknown result type (might be due to invalid IL or missing references)
-		//IL_028b: Expected O, but got Unknown
-		//IL_049d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_04a7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_04b3: Expected O, but got Unknown
-		//IL_03c8: Unknown result type (might be due to invalid IL or missing references)
-		//IL_02ce: Unknown result type (might be due to invalid IL or missing references)
-		//IL_02c6: Unknown result type (might be due to invalid IL or missing references)
-		//IL_02a0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_02a5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_02a8: Unknown result type (might be due to invalid IL or missing references)
-		SKPaint val = new SKPaint
-		{
-			Color = new SKColor((byte)0, (byte)0, (byte)0, (byte)(100f * _flyoutAnimationProgress)),
-			Style = (SKPaintStyle)0
-		};
-		try
-		{
-			canvas.DrawRect(bounds, val);
-			float num = ((SKRect)(ref bounds)).Left - FlyoutWidth + FlyoutWidth * _flyoutAnimationProgress;
-			SKRect val2 = new SKRect(num, ((SKRect)(ref bounds)).Top, num + FlyoutWidth, ((SKRect)(ref bounds)).Bottom);
-			SKPaint val3 = new SKPaint
-			{
-				Color = FlyoutBackgroundColor,
-				Style = (SKPaintStyle)0,
-				IsAntialias = true
-			};
-			try
-			{
-				canvas.DrawRect(val2, val3);
-				float num2 = ((FlyoutHeaderView != null) ? FlyoutHeaderHeight : 0f);
-				float num3 = ((!string.IsNullOrEmpty(FlyoutFooterText)) ? FlyoutFooterHeight : 0f);
-				float num4 = 48f;
-				float num5 = (float)_sections.Count * num4;
-				float num6 = ((SKRect)(ref val2)).Height - num2 - num3;
-				float num7 = Math.Max(0f, num5 - num6);
-				_flyoutScrollOffset = Math.Max(0f, Math.Min(_flyoutScrollOffset, num7));
-				if (FlyoutHeaderView != null)
-				{
-					canvas.Save();
-					canvas.ClipRect(new SKRect(((SKRect)(ref val2)).Left, ((SKRect)(ref val2)).Top, ((SKRect)(ref val2)).Right, ((SKRect)(ref val2)).Top + num2), (SKClipOperation)1, false);
-					canvas.Translate(((SKRect)(ref val2)).Left, ((SKRect)(ref val2)).Top);
-					SKRect bounds2 = default(SKRect);
-					((SKRect)(ref bounds2))._002Ector(0f, 0f, FlyoutWidth, num2);
-					FlyoutHeaderView.Measure(new SKSize(FlyoutWidth, num2));
-					FlyoutHeaderView.Arrange(bounds2);
-					FlyoutHeaderView.Draw(canvas);
-					canvas.Restore();
-				}
-				float num8 = ((SKRect)(ref val2)).Top + num2;
-				float num9 = ((SKRect)(ref val2)).Bottom - num3;
-				canvas.Save();
-				canvas.ClipRect(new SKRect(((SKRect)(ref val2)).Left, num8, ((SKRect)(ref val2)).Right, num9), (SKClipOperation)1, false);
-				SKPaint val4 = new SKPaint
-				{
-					TextSize = 14f,
-					IsAntialias = true
-				};
-				try
-				{
-					float num10 = num8 - _flyoutScrollOffset;
-					for (int i = 0; i < _sections.Count; i++)
-					{
-						if (num10 + num4 < num8)
-						{
-							num10 += num4;
-							continue;
-						}
-						if (num10 > num9)
-						{
-							break;
-						}
-						ShellSection shellSection = _sections[i];
-						bool flag = i == _selectedSectionIndex;
-						if (flag)
-						{
-							SKPaint val5 = new SKPaint
-							{
-								Color = new SKColor((byte)33, (byte)150, (byte)243, (byte)30),
-								Style = (SKPaintStyle)0
-							};
-							try
-							{
-								SKRect val6 = new SKRect(((SKRect)(ref val2)).Left, num10, ((SKRect)(ref val2)).Right, num10 + num4);
-								canvas.DrawRect(val6, val5);
-							}
-							finally
-							{
-								((IDisposable)val5)?.Dispose();
-							}
-						}
-						val4.Color = (flag ? NavBarBackgroundColor : FlyoutTextColor);
-						canvas.DrawText(shellSection.Title, ((SKRect)(ref val2)).Left + 16f, num10 + 30f, val4);
-						num10 += num4;
-					}
-					canvas.Restore();
-					SKColor flyoutTextColor;
-					if (!string.IsNullOrEmpty(FlyoutFooterText))
-					{
-						float num11 = ((SKRect)(ref val2)).Bottom - num3;
-						SKPaint val7 = new SKPaint();
-						flyoutTextColor = FlyoutTextColor;
-						val7.Color = ((SKColor)(ref flyoutTextColor)).WithAlpha((byte)50);
-						val7.Style = (SKPaintStyle)1;
-						val7.StrokeWidth = 1f;
-						SKPaint val8 = val7;
-						try
-						{
-							canvas.DrawLine(((SKRect)(ref val2)).Left + 16f, num11, ((SKRect)(ref val2)).Right - 16f, num11, val8);
-							SKPaint val9 = new SKPaint
-							{
-								TextSize = 12f
-							};
-							flyoutTextColor = FlyoutTextColor;
-							val9.Color = ((SKColor)(ref flyoutTextColor)).WithAlpha((byte)150);
-							val9.IsAntialias = true;
-							SKPaint val10 = val9;
-							try
-							{
-								SKRect val11 = default(SKRect);
-								val10.MeasureText(FlyoutFooterText, ref val11);
-								canvas.DrawText(FlyoutFooterText, ((SKRect)(ref val2)).Left + 16f, num11 + (num3 + ((SKRect)(ref val11)).Height) / 2f, val10);
-							}
-							finally
-							{
-								((IDisposable)val10)?.Dispose();
-							}
-						}
-						finally
-						{
-							((IDisposable)val8)?.Dispose();
-						}
-					}
-					if (num7 > 0f)
-					{
-						SKPaint val12 = new SKPaint();
-						flyoutTextColor = FlyoutTextColor;
-						val12.Color = ((SKColor)(ref flyoutTextColor)).WithAlpha((byte)80);
-						val12.Style = (SKPaintStyle)0;
-						val12.IsAntialias = true;
-						SKPaint val13 = val12;
-						try
-						{
-							float num12 = ((SKRect)(ref val2)).Right - 6f;
-							float num13 = num6 * (num6 / num5);
-							float num14 = num8 + _flyoutScrollOffset / num7 * (num6 - num13);
-							canvas.DrawRoundRect(new SKRoundRect(new SKRect(num12, num14, num12 + 4f, num14 + num13), 2f), val13);
-							return;
-						}
-						finally
-						{
-							((IDisposable)val13)?.Dispose();
-						}
-					}
-				}
-				finally
-				{
-					((IDisposable)val4)?.Dispose();
-				}
-			}
-			finally
-			{
-				((IDisposable)val3)?.Dispose();
-			}
-		}
-		finally
-		{
-			((IDisposable)val)?.Dispose();
-		}
-	}
-
-	public override SkiaView? HitTest(float x, float y)
-	{
-		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0067: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00bc: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c1: Unknown result type (might be due to invalid IL or missing references)
-		if (base.IsVisible)
-		{
-			SKRect bounds = base.Bounds;
-			if (((SKRect)(ref bounds)).Contains(x, y))
-			{
-				if (_flyoutAnimationProgress > 0f)
-				{
-					bounds = base.Bounds;
-					float num = ((SKRect)(ref bounds)).Left - FlyoutWidth + FlyoutWidth * _flyoutAnimationProgress;
-					bounds = base.Bounds;
-					float top = ((SKRect)(ref bounds)).Top;
-					float num2 = num + FlyoutWidth;
-					bounds = base.Bounds;
-					SKRect val = default(SKRect);
-					((SKRect)(ref val))._002Ector(num, top, num2, ((SKRect)(ref bounds)).Bottom);
-					if (((SKRect)(ref val)).Contains(x, y))
-					{
-						return this;
-					}
-					if (FlyoutIsPresented)
-					{
-						return this;
-					}
-				}
-				if (NavBarIsVisible)
-				{
-					bounds = base.Bounds;
-					if (y < ((SKRect)(ref bounds)).Top + NavBarHeight)
-					{
-						return this;
-					}
-				}
-				if (TabBarIsVisible)
-				{
-					bounds = base.Bounds;
-					if (y > ((SKRect)(ref bounds)).Bottom - TabBarHeight)
-					{
-						return this;
-					}
-				}
-				if (_currentContent != null)
-				{
-					SkiaView skiaView = _currentContent.HitTest(x, y);
-					if (skiaView != null)
-					{
-						return skiaView;
-					}
-				}
-				return this;
-			}
-		}
-		return null;
-	}
-
-	public override void OnPointerPressed(PointerEventArgs e)
-	{
-		//IL_001a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0041: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0046: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0057: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_016f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0174: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01db: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01e0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_022a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_022f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_024e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0253: Unknown result type (might be due to invalid IL or missing references)
-		if (!base.IsEnabled)
-		{
-			return;
-		}
-		SKRect bounds;
-		if (_flyoutAnimationProgress > 0f)
-		{
-			bounds = base.Bounds;
-			float num = ((SKRect)(ref bounds)).Left - FlyoutWidth + FlyoutWidth * _flyoutAnimationProgress;
-			bounds = base.Bounds;
-			float top = ((SKRect)(ref bounds)).Top;
-			float num2 = num + FlyoutWidth;
-			bounds = base.Bounds;
-			SKRect val = default(SKRect);
-			((SKRect)(ref val))._002Ector(num, top, num2, ((SKRect)(ref bounds)).Bottom);
-			if (((SKRect)(ref val)).Contains(e.X, e.Y))
-			{
-				float num3 = ((FlyoutHeaderView != null) ? FlyoutHeaderHeight : 0f);
-				if (e.Y < ((SKRect)(ref val)).Top + num3)
-				{
-					e.Handled = true;
-					return;
-				}
-				float num4 = ((!string.IsNullOrEmpty(FlyoutFooterText)) ? FlyoutFooterHeight : 0f);
-				float num5 = ((SKRect)(ref val)).Top + num3 - _flyoutScrollOffset;
-				float num6 = 48f;
-				for (int i = 0; i < _sections.Count; i++)
-				{
-					if (e.Y >= num5 && e.Y < num5 + num6 && e.Y < ((SKRect)(ref val)).Bottom - num4)
-					{
-						NavigateToSection(i);
-						FlyoutIsPresented = false;
-						e.Handled = true;
-						return;
-					}
-					num5 += num6;
-				}
-			}
-			else if (FlyoutIsPresented)
-			{
-				FlyoutIsPresented = false;
-				e.Handled = true;
-				return;
-			}
-		}
-		if (NavBarIsVisible)
-		{
-			float y = e.Y;
-			bounds = base.Bounds;
-			if (y < ((SKRect)(ref bounds)).Top + NavBarHeight && e.X < 56f)
-			{
-				if (CanGoBack)
-				{
-					PopAsync();
-					e.Handled = true;
-					return;
-				}
-				if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
-				{
-					FlyoutIsPresented = !FlyoutIsPresented;
-					e.Handled = true;
-					return;
-				}
-			}
-		}
-		if (TabBarIsVisible)
-		{
-			float y2 = e.Y;
-			bounds = base.Bounds;
-			if (y2 > ((SKRect)(ref bounds)).Bottom - TabBarHeight && _selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
-			{
-				ShellSection shellSection = _sections[_selectedSectionIndex];
-				bounds = base.Bounds;
-				float num7 = ((SKRect)(ref bounds)).Width / (float)shellSection.Items.Count;
-				float x = e.X;
-				bounds = base.Bounds;
-				int value = (int)((x - ((SKRect)(ref bounds)).Left) / num7);
-				value = Math.Clamp(value, 0, shellSection.Items.Count - 1);
-				if (value != _selectedItemIndex)
-				{
-					NavigateToSection(_selectedSectionIndex, value);
-				}
-				e.Handled = true;
-				return;
-			}
-		}
-		base.OnPointerPressed(e);
-	}
-
-	public override void OnScroll(ScrollEventArgs e)
-	{
-		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0043: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0059: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005e: Unknown result type (might be due to invalid IL or missing references)
-		if (FlyoutIsPresented && _flyoutAnimationProgress > 0f)
-		{
-			SKRect bounds = base.Bounds;
-			float num = ((SKRect)(ref bounds)).Left - FlyoutWidth + FlyoutWidth * _flyoutAnimationProgress;
-			bounds = base.Bounds;
-			float top = ((SKRect)(ref bounds)).Top;
-			float num2 = num + FlyoutWidth;
-			bounds = base.Bounds;
-			SKRect val = default(SKRect);
-			((SKRect)(ref val))._002Ector(num, top, num2, ((SKRect)(ref bounds)).Bottom);
-			if (((SKRect)(ref val)).Contains(e.X, e.Y))
-			{
-				float num3 = ((FlyoutHeaderView != null) ? FlyoutHeaderHeight : 0f);
-				float num4 = ((!string.IsNullOrEmpty(FlyoutFooterText)) ? FlyoutFooterHeight : 0f);
-				float num5 = 48f;
-				float num6 = (float)_sections.Count * num5;
-				float num7 = ((SKRect)(ref val)).Height - num3 - num4;
-				float val2 = Math.Max(0f, num6 - num7);
-				_flyoutScrollOffset -= e.DeltaY * 30f;
-				_flyoutScrollOffset = Math.Max(0f, Math.Min(_flyoutScrollOffset, val2));
-				Invalidate();
-				e.Handled = true;
-				return;
-			}
-		}
-		base.OnScroll(e);
-	}
+    #region BindableProperties
+
+    /// <summary>
+    /// Bindable property for FlyoutIsPresented.
+    /// </summary>
+    public static readonly BindableProperty FlyoutIsPresentedProperty =
+        BindableProperty.Create(
+            nameof(FlyoutIsPresented),
+            typeof(bool),
+            typeof(SkiaShell),
+            false,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutIsPresentedChanged((bool)n));
+
+    /// <summary>
+    /// Bindable property for FlyoutBehavior.
+    /// </summary>
+    public static readonly BindableProperty FlyoutBehaviorProperty =
+        BindableProperty.Create(
+            nameof(FlyoutBehavior),
+            typeof(ShellFlyoutBehavior),
+            typeof(SkiaShell),
+            ShellFlyoutBehavior.Flyout,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FlyoutWidth.
+    /// </summary>
+    public static readonly BindableProperty FlyoutWidthProperty =
+        BindableProperty.Create(
+            nameof(FlyoutWidth),
+            typeof(float),
+            typeof(SkiaShell),
+            280f,
+            coerceValue: (b, v) => Math.Max(100f, (float)v),
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FlyoutBackgroundColor.
+    /// </summary>
+    public static readonly BindableProperty FlyoutBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(FlyoutBackgroundColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for NavBarBackgroundColor.
+    /// </summary>
+    public static readonly BindableProperty NavBarBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(NavBarBackgroundColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            new SKColor(33, 150, 243),
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for NavBarTextColor.
+    /// </summary>
+    public static readonly BindableProperty NavBarTextColorProperty =
+        BindableProperty.Create(
+            nameof(NavBarTextColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for NavBarHeight.
+    /// </summary>
+    public static readonly BindableProperty NavBarHeightProperty =
+        BindableProperty.Create(
+            nameof(NavBarHeight),
+            typeof(float),
+            typeof(SkiaShell),
+            56f,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for TabBarHeight.
+    /// </summary>
+    public static readonly BindableProperty TabBarHeightProperty =
+        BindableProperty.Create(
+            nameof(TabBarHeight),
+            typeof(float),
+            typeof(SkiaShell),
+            56f,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for NavBarIsVisible.
+    /// </summary>
+    public static readonly BindableProperty NavBarIsVisibleProperty =
+        BindableProperty.Create(
+            nameof(NavBarIsVisible),
+            typeof(bool),
+            typeof(SkiaShell),
+            true,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for TabBarIsVisible.
+    /// </summary>
+    public static readonly BindableProperty TabBarIsVisibleProperty =
+        BindableProperty.Create(
+            nameof(TabBarIsVisible),
+            typeof(bool),
+            typeof(SkiaShell),
+            false,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ContentPadding.
+    /// </summary>
+    public static readonly BindableProperty ContentPaddingProperty =
+        BindableProperty.Create(
+            nameof(ContentPadding),
+            typeof(float),
+            typeof(SkiaShell),
+            16f,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for Title.
+    /// </summary>
+    public static readonly BindableProperty TitleProperty =
+        BindableProperty.Create(
+            nameof(Title),
+            typeof(string),
+            typeof(SkiaShell),
+            string.Empty,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    #endregion
+
+    private readonly List<ShellSection> _sections = new();
+    private SkiaView? _currentContent;
+    private float _flyoutAnimationProgress = 0f;
+    private int _selectedSectionIndex = 0;
+    private int _selectedItemIndex = 0;
+
+    // Navigation stack for push/pop navigation
+    private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new();
+
+    private void OnFlyoutIsPresentedChanged(bool newValue)
+    {
+        _flyoutAnimationProgress = newValue ? 1f : 0f;
+        FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Gets or sets whether the flyout is presented.
+    /// </summary>
+    public bool FlyoutIsPresented
+    {
+        get => (bool)GetValue(FlyoutIsPresentedProperty);
+        set => SetValue(FlyoutIsPresentedProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the flyout behavior.
+    /// </summary>
+    public ShellFlyoutBehavior FlyoutBehavior
+    {
+        get => (ShellFlyoutBehavior)GetValue(FlyoutBehaviorProperty);
+        set => SetValue(FlyoutBehaviorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the flyout width.
+    /// </summary>
+    public float FlyoutWidth
+    {
+        get => (float)GetValue(FlyoutWidthProperty);
+        set => SetValue(FlyoutWidthProperty, value);
+    }
+
+    /// <summary>
+    /// Background color of the flyout.
+    /// </summary>
+    public SKColor FlyoutBackgroundColor
+    {
+        get => (SKColor)GetValue(FlyoutBackgroundColorProperty);
+        set => SetValue(FlyoutBackgroundColorProperty, value);
+    }
+
+    /// <summary>
+    /// Background color of the navigation bar.
+    /// </summary>
+    public SKColor NavBarBackgroundColor
+    {
+        get => (SKColor)GetValue(NavBarBackgroundColorProperty);
+        set => SetValue(NavBarBackgroundColorProperty, value);
+    }
+
+    /// <summary>
+    /// Text color of the navigation bar title.
+    /// </summary>
+    public SKColor NavBarTextColor
+    {
+        get => (SKColor)GetValue(NavBarTextColorProperty);
+        set => SetValue(NavBarTextColorProperty, value);
+    }
+
+    /// <summary>
+    /// Height of the navigation bar.
+    /// </summary>
+    public float NavBarHeight
+    {
+        get => (float)GetValue(NavBarHeightProperty);
+        set => SetValue(NavBarHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Height of the tab bar (when using bottom tabs).
+    /// </summary>
+    public float TabBarHeight
+    {
+        get => (float)GetValue(TabBarHeightProperty);
+        set => SetValue(TabBarHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the navigation bar is visible.
+    /// </summary>
+    public bool NavBarIsVisible
+    {
+        get => (bool)GetValue(NavBarIsVisibleProperty);
+        set => SetValue(NavBarIsVisibleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the tab bar is visible.
+    /// </summary>
+    public bool TabBarIsVisible
+    {
+        get => (bool)GetValue(TabBarIsVisibleProperty);
+        set => SetValue(TabBarIsVisibleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the padding applied to page content.
+    /// Default is 16 pixels on all sides.
+    /// </summary>
+    public float ContentPadding
+    {
+        get => (float)GetValue(ContentPaddingProperty);
+        set => SetValue(ContentPaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Current title displayed in the navigation bar.
+    /// </summary>
+    public string Title
+    {
+        get => (string)GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
+    }
+
+    /// <summary>
+    /// The sections in this shell.
+    /// </summary>
+    public IReadOnlyList<ShellSection> Sections => _sections;
+
+    /// <summary>
+    /// Gets the currently selected section index.
+    /// </summary>
+    public int CurrentSectionIndex => _selectedSectionIndex;
+
+    /// <summary>
+    /// Event raised when FlyoutIsPresented changes.
+    /// </summary>
+    public event EventHandler? FlyoutIsPresentedChanged;
+
+    /// <summary>
+    /// Event raised when navigation occurs.
+    /// </summary>
+    public event EventHandler<ShellNavigationEventArgs>? Navigated;
+
+    /// <summary>
+    /// Adds a section to the shell.
+    /// </summary>
+    public void AddSection(ShellSection section)
+    {
+        _sections.Add(section);
+
+        if (_sections.Count == 1)
+        {
+            NavigateToSection(0, 0);
+        }
+
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Removes a section from the shell.
+    /// </summary>
+    public void RemoveSection(ShellSection section)
+    {
+        _sections.Remove(section);
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Navigates to a specific section and item.
+    /// </summary>
+    public void NavigateToSection(int sectionIndex, int itemIndex = 0)
+    {
+        if (sectionIndex < 0 || sectionIndex >= _sections.Count) return;
+
+        var section = _sections[sectionIndex];
+        if (itemIndex < 0 || itemIndex >= section.Items.Count) return;
+
+        // Clear navigation stack when navigating to a new section
+        _navigationStack.Clear();
+
+        _selectedSectionIndex = sectionIndex;
+        _selectedItemIndex = itemIndex;
+
+        var item = section.Items[itemIndex];
+        SetCurrentContent(item.Content);
+        Title = item.Title;
+
+        Navigated?.Invoke(this, new ShellNavigationEventArgs(section, item));
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Navigates using a URI route.
+    /// </summary>
+    public void GoToAsync(string route)
+    {
+        // Simple route parsing - format: "//section/item"
+        if (string.IsNullOrEmpty(route)) return;
+
+        var parts = route.TrimStart('/').Split('/');
+        if (parts.Length == 0) return;
+
+        // Find matching section
+        for (int i = 0; i < _sections.Count; i++)
+        {
+            var section = _sections[i];
+            if (section.Route.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+            {
+                if (parts.Length > 1)
+                {
+                    // Find matching item
+                    for (int j = 0; j < section.Items.Count; j++)
+                    {
+                        if (section.Items[j].Route.Equals(parts[1], StringComparison.OrdinalIgnoreCase))
+                        {
+                            NavigateToSection(i, j);
+                            return;
+                        }
+                    }
+                }
+                NavigateToSection(i, 0);
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets whether there are pages on the navigation stack.
+    /// </summary>
+    public bool CanGoBack => _navigationStack.Count > 0;
+
+    /// <summary>
+    /// Gets the current navigation stack depth.
+    /// </summary>
+    public int NavigationStackDepth => _navigationStack.Count;
+
+    /// <summary>
+    /// Pushes a new page onto the navigation stack.
+    /// </summary>
+    public void PushAsync(SkiaView page, string title)
+    {
+        // Save current content to stack
+        if (_currentContent != null)
+        {
+            _navigationStack.Push((_currentContent, Title));
+        }
+
+        // Set new content
+        SetCurrentContent(page);
+        Title = title;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Pops the current page from the navigation stack.
+    /// </summary>
+    public bool PopAsync()
+    {
+        if (_navigationStack.Count == 0) return false;
+
+        var (previousContent, previousTitle) = _navigationStack.Pop();
+        SetCurrentContent(previousContent);
+        Title = previousTitle;
+        Invalidate();
+        return true;
+    }
+
+    /// <summary>
+    /// Pops all pages from the navigation stack, returning to the root.
+    /// </summary>
+    public void PopToRootAsync()
+    {
+        if (_navigationStack.Count == 0) return;
+
+        // Get the root content
+        (SkiaView Content, string Title) root = default;
+        while (_navigationStack.Count > 0)
+        {
+            root = _navigationStack.Pop();
+        }
+
+        SetCurrentContent(root.Content);
+        Title = root.Title;
+        Invalidate();
+    }
+
+    private void SetCurrentContent(SkiaView? content)
+    {
+        if (_currentContent != null)
+        {
+            RemoveChild(_currentContent);
+        }
+
+        _currentContent = content;
+
+        if (_currentContent != null)
+        {
+            AddChild(_currentContent);
+        }
+    }
+
+    protected override SKSize MeasureOverride(SKSize availableSize)
+    {
+        // Measure current content with padding accounted for (consistent with ArrangeOverride)
+        if (_currentContent != null)
+        {
+            float contentTop = NavBarIsVisible ? NavBarHeight : 0;
+            float contentBottom = TabBarIsVisible ? TabBarHeight : 0;
+            var contentSize = new SKSize(
+                availableSize.Width - (float)Padding.Left - (float)Padding.Right,
+                availableSize.Height - contentTop - contentBottom - (float)Padding.Top - (float)Padding.Bottom);
+            _currentContent.Measure(contentSize);
+        }
+
+        return availableSize;
+    }
+
+    protected override SKRect ArrangeOverride(SKRect bounds)
+    {
+        Console.WriteLine($"[SkiaShell] ArrangeOverride - bounds={bounds}");
+
+        // Arrange current content with padding
+        if (_currentContent != null)
+        {
+            float contentTop = bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
+            float contentBottom = bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
+            var contentBounds = new SKRect(
+                bounds.Left + ContentPadding,
+                contentTop,
+                bounds.Right - ContentPadding,
+                contentBottom);
+            Console.WriteLine($"[SkiaShell] Arranging content with bounds={contentBounds}, padding={ContentPadding}");
+            _currentContent.Arrange(contentBounds);
+        }
+
+        return bounds;
+    }
+
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        canvas.Save();
+        canvas.ClipRect(bounds);
+
+        // Draw content
+        _currentContent?.Draw(canvas);
+
+        // Draw navigation bar
+        if (NavBarIsVisible)
+        {
+            DrawNavBar(canvas, bounds);
+        }
+
+        // Draw tab bar
+        if (TabBarIsVisible)
+        {
+            DrawTabBar(canvas, bounds);
+        }
+
+        // Draw flyout overlay and panel
+        if (_flyoutAnimationProgress > 0)
+        {
+            DrawFlyout(canvas, bounds);
+        }
+
+        canvas.Restore();
+    }
+
+    private void DrawNavBar(SKCanvas canvas, SKRect bounds)
+    {
+        var navBarBounds = new SKRect(
+            bounds.Left,
+            bounds.Top,
+            bounds.Right,
+            bounds.Top + NavBarHeight);
+
+        // Draw background
+        using var bgPaint = new SKPaint
+        {
+            Color = NavBarBackgroundColor,
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        canvas.DrawRect(navBarBounds, bgPaint);
+
+        // Draw nav icon (back arrow if can go back, else hamburger menu if flyout enabled)
+        using var iconPaint = new SKPaint
+        {
+            Color = NavBarTextColor,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 2,
+            StrokeCap = SKStrokeCap.Round,
+            IsAntialias = true
+        };
+
+        float iconLeft = navBarBounds.Left + 16;
+        float iconCenter = navBarBounds.MidY;
+
+        if (CanGoBack)
+        {
+            // Draw iOS-style back chevron "<"
+            using var chevronPaint = new SKPaint
+            {
+                Color = NavBarTextColor,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 2.5f,
+                StrokeCap = SKStrokeCap.Round,
+                StrokeJoin = SKStrokeJoin.Round,
+                IsAntialias = true
+            };
+
+            // Clean chevron pointing left
+            float chevronX = iconLeft + 6;
+            float chevronSize = 10;
+            canvas.DrawLine(chevronX + chevronSize, iconCenter - chevronSize, chevronX, iconCenter, chevronPaint);
+            canvas.DrawLine(chevronX, iconCenter, chevronX + chevronSize, iconCenter + chevronSize, chevronPaint);
+        }
+        else if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
+        {
+            // Draw hamburger menu icon
+            canvas.DrawLine(iconLeft, iconCenter - 8, iconLeft + 18, iconCenter - 8, iconPaint);
+            canvas.DrawLine(iconLeft, iconCenter, iconLeft + 18, iconCenter, iconPaint);
+            canvas.DrawLine(iconLeft, iconCenter + 8, iconLeft + 18, iconCenter + 8, iconPaint);
+        }
+
+        // Draw title
+        using var titlePaint = new SKPaint
+        {
+            Color = NavBarTextColor,
+            TextSize = 20f,
+            IsAntialias = true,
+            FakeBoldText = true
+        };
+
+        float titleX = (CanGoBack || FlyoutBehavior == ShellFlyoutBehavior.Flyout) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
+        float titleY = navBarBounds.MidY + 6;
+        canvas.DrawText(Title, titleX, titleY, titlePaint);
+    }
+
+    private void DrawTabBar(SKCanvas canvas, SKRect bounds)
+    {
+        if (_selectedSectionIndex < 0 || _selectedSectionIndex >= _sections.Count) return;
+
+        var section = _sections[_selectedSectionIndex];
+        if (section.Items.Count <= 1) return;
+
+        var tabBarBounds = new SKRect(
+            bounds.Left,
+            bounds.Bottom - TabBarHeight,
+            bounds.Right,
+            bounds.Bottom);
+
+        // Draw background
+        using var bgPaint = new SKPaint
+        {
+            Color = SKColors.White,
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        canvas.DrawRect(tabBarBounds, bgPaint);
+
+        // Draw top border
+        using var borderPaint = new SKPaint
+        {
+            Color = new SKColor(224, 224, 224),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1
+        };
+        canvas.DrawLine(tabBarBounds.Left, tabBarBounds.Top, tabBarBounds.Right, tabBarBounds.Top, borderPaint);
+
+        // Draw tabs
+        float tabWidth = tabBarBounds.Width / section.Items.Count;
+
+        using var textPaint = new SKPaint
+        {
+            TextSize = 12f,
+            IsAntialias = true
+        };
+
+        for (int i = 0; i < section.Items.Count; i++)
+        {
+            var item = section.Items[i];
+            bool isSelected = i == _selectedItemIndex;
+
+            textPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(117, 117, 117);
+
+            var textBounds = new SKRect();
+            textPaint.MeasureText(item.Title, ref textBounds);
+
+            float textX = tabBarBounds.Left + i * tabWidth + tabWidth / 2 - textBounds.MidX;
+            float textY = tabBarBounds.MidY - textBounds.MidY;
+
+            canvas.DrawText(item.Title, textX, textY, textPaint);
+        }
+    }
+
+    private void DrawFlyout(SKCanvas canvas, SKRect bounds)
+    {
+        // Draw scrim
+        using var scrimPaint = new SKPaint
+        {
+            Color = new SKColor(0, 0, 0, (byte)(100 * _flyoutAnimationProgress)),
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(bounds, scrimPaint);
+
+        // Draw flyout panel
+        float flyoutX = bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+        var flyoutBounds = new SKRect(
+            flyoutX,
+            bounds.Top,
+            flyoutX + FlyoutWidth,
+            bounds.Bottom);
+
+        using var flyoutPaint = new SKPaint
+        {
+            Color = FlyoutBackgroundColor,
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        canvas.DrawRect(flyoutBounds, flyoutPaint);
+
+        // Draw flyout items
+        float itemY = flyoutBounds.Top + 80;
+        float itemHeight = 48f;
+
+        using var itemTextPaint = new SKPaint
+        {
+            TextSize = 14f,
+            IsAntialias = true
+        };
+
+        for (int i = 0; i < _sections.Count; i++)
+        {
+            var section = _sections[i];
+            bool isSelected = i == _selectedSectionIndex;
+
+            // Draw selection background
+            if (isSelected)
+            {
+                using var selectionPaint = new SKPaint
+                {
+                    Color = new SKColor(33, 150, 243, 30),
+                    Style = SKPaintStyle.Fill
+                };
+                var selectionRect = new SKRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight);
+                canvas.DrawRect(selectionRect, selectionPaint);
+            }
+
+            itemTextPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(33, 33, 33);
+            canvas.DrawText(section.Title, flyoutBounds.Left + 16, itemY + 30, itemTextPaint);
+
+            itemY += itemHeight;
+        }
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (!IsVisible || !Bounds.Contains(x, y)) return null;
+
+        // Check flyout area
+        if (_flyoutAnimationProgress > 0)
+        {
+            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
+
+            if (flyoutBounds.Contains(x, y))
+            {
+                return this; // Flyout handles its own hits
+            }
+
+            // Tap on scrim closes flyout
+            if (FlyoutIsPresented)
+            {
+                return this;
+            }
+        }
+
+        // Check nav bar
+        if (NavBarIsVisible && y < Bounds.Top + NavBarHeight)
+        {
+            return this;
+        }
+
+        // Check tab bar
+        if (TabBarIsVisible && y > Bounds.Bottom - TabBarHeight)
+        {
+            return this;
+        }
+
+        // Check content
+        if (_currentContent != null)
+        {
+            var hit = _currentContent.HitTest(x, y);
+            if (hit != null) return hit;
+        }
+
+        return this;
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        if (!IsEnabled) return;
+
+        // Check flyout tap
+        if (_flyoutAnimationProgress > 0)
+        {
+            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
+
+            if (flyoutBounds.Contains(e.X, e.Y))
+            {
+                // Check which section was tapped
+                float itemY = flyoutBounds.Top + 80;
+                float itemHeight = 48f;
+
+                for (int i = 0; i < _sections.Count; i++)
+                {
+                    if (e.Y >= itemY && e.Y < itemY + itemHeight)
+                    {
+                        NavigateToSection(i, 0);
+                        FlyoutIsPresented = false;
+                        e.Handled = true;
+                        return;
+                    }
+                    itemY += itemHeight;
+                }
+            }
+            else if (FlyoutIsPresented)
+            {
+                // Tap on scrim
+                FlyoutIsPresented = false;
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Check nav bar icon tap (back button or hamburger menu)
+        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X < 56)
+        {
+            if (CanGoBack)
+            {
+                // Back button pressed
+                PopAsync();
+                e.Handled = true;
+                return;
+            }
+            else if (FlyoutBehavior == ShellFlyoutBehavior.Flyout)
+            {
+                // Hamburger menu pressed
+                FlyoutIsPresented = !FlyoutIsPresented;
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Check tab bar tap
+        if (TabBarIsVisible && e.Y > Bounds.Bottom - TabBarHeight)
+        {
+            if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
+            {
+                var section = _sections[_selectedSectionIndex];
+                float tabWidth = Bounds.Width / section.Items.Count;
+                int tappedIndex = (int)((e.X - Bounds.Left) / tabWidth);
+                tappedIndex = Math.Clamp(tappedIndex, 0, section.Items.Count - 1);
+
+                if (tappedIndex != _selectedItemIndex)
+                {
+                    NavigateToSection(_selectedSectionIndex, tappedIndex);
+                }
+                e.Handled = true;
+                return;
+            }
+        }
+
+        base.OnPointerPressed(e);
+    }
+}
+
+/// <summary>
+/// Shell flyout behavior options.
+/// </summary>
+public enum ShellFlyoutBehavior
+{
+    /// <summary>
+    /// No flyout menu.
+    /// </summary>
+    Disabled,
+
+    /// <summary>
+    /// Flyout slides over content.
+    /// </summary>
+    Flyout,
+
+    /// <summary>
+    /// Flyout is always visible (side-by-side layout).
+    /// </summary>
+    Locked
+}
+
+/// <summary>
+/// Represents a section in the shell (typically shown in flyout).
+/// </summary>
+public class ShellSection
+{
+    /// <summary>
+    /// The route identifier for this section.
+    /// </summary>
+    public string Route { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The display title.
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional icon path.
+    /// </summary>
+    public string? IconPath { get; set; }
+
+    /// <summary>
+    /// Items in this section.
+    /// </summary>
+    public List<ShellContent> Items { get; } = new();
+}
+
+/// <summary>
+/// Represents content within a shell section.
+/// </summary>
+public class ShellContent
+{
+    /// <summary>
+    /// The route identifier for this content.
+    /// </summary>
+    public string Route { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The display title.
+    /// </summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional icon path.
+    /// </summary>
+    public string? IconPath { get; set; }
+
+    /// <summary>
+    /// The content view.
+    /// </summary>
+    public SkiaView? Content { get; set; }
+}
+
+/// <summary>
+/// Event args for shell navigation events.
+/// </summary>
+public class ShellNavigationEventArgs : EventArgs
+{
+    public ShellSection Section { get; }
+    public ShellContent Content { get; }
+
+    public ShellNavigationEventArgs(ShellSection section, ShellContent content)
+    {
+        Section = section;
+        Content = content;
+    }
 }
