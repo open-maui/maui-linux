@@ -49,11 +49,26 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
     protected override void ConnectHandler(SkiaBorder platformView)
     {
         base.ConnectHandler(platformView);
+        if (VirtualView is View view)
+        {
+            platformView.MauiView = view;
+        }
+        platformView.Tapped += OnPlatformViewTapped;
     }
 
     protected override void DisconnectHandler(SkiaBorder platformView)
     {
+        platformView.Tapped -= OnPlatformViewTapped;
+        platformView.MauiView = null;
         base.DisconnectHandler(platformView);
+    }
+
+    private void OnPlatformViewTapped(object? sender, EventArgs e)
+    {
+        if (VirtualView is View view)
+        {
+            GestureManager.ProcessTap(view, 0.0, 0.0);
+        }
     }
 
     public static void MapContent(BorderHandler handler, IBorderView border)

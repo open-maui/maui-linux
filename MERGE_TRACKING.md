@@ -14,7 +14,7 @@
 |------|--------|-------|
 | ActivityIndicatorHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed IsEnabled/BackgroundColor (not in production), fixed namespace |
 | ApplicationHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
-| BorderHandler.cs | [ ] | BLOCKED - needs SkiaBorder.MauiView and Tapped |
+| BorderHandler.cs | [x] | **FIXED 2026-01-01** - Added ConnectHandler/DisconnectHandler with MauiView and Tapped event, OnPlatformViewTapped calls GestureManager.ProcessTap |
 | BoxViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, Color/CornerRadius/Background/BackgroundColor |
 | ButtonHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed MapText/TextColor/Font (not in production), fixed namespace, added null checks |
 | CheckBoxHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added VerticalLayoutAlignment/HorizontalLayoutAlignment, fixed namespace |
@@ -24,7 +24,7 @@
 | EntryHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/ClearButtonVisibility/VerticalTextAlignment, fixed namespace, null checks |
 | FlexLayoutHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | FlyoutPageHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
-| FrameHandler.cs | [ ] | BLOCKED - needs SkiaFrame.MauiView and Tapped event |
+| FrameHandler.cs | [x] | **FIXED 2026-01-01** - Added ConnectHandler/DisconnectHandler with MauiView and Tapped event, OnPlatformViewTapped calls GestureManager.ProcessTap |
 | GestureManager.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | GraphicsViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | GtkWebViewHandler.cs | [x] | Added new file from decompiled |
@@ -70,39 +70,57 @@
 | SkiaCollectionView.cs | [x] | **FIXED 2026-01-01** - Removed embedded SkiaSelectionMode, ItemsLayoutOrientation |
 | SkiaSelectionMode.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
 | ItemsLayoutOrientation.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
-| SkiaContentPresenter.cs | [ ] | |
-| SkiaContextMenu.cs | [ ] | |
+| SkiaContentPresenter.cs | [x] | **FIXED 2026-01-01** - Removed embedded LayoutAlignment (now separate file) |
+| LayoutAlignment.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaContextMenu.cs | [x] | **VERIFIED 2026-01-01** - Logic matches decompiled |
 | SkiaDatePicker.cs | [x] | **VERIFIED 2026-01-01** - Date=OneWay, all others=TwoWay |
 | SkiaEditor.cs | [x] | **FIXED 2026-01-01** - All BindingModes corrected (Text=OneWay, others=TwoWay) |
 | SkiaEntry.cs | [x] | **FIXED 2026-01-01** - TextProperty BindingMode.OneWay, others TwoWay |
-| SkiaFlexLayout.cs | [ ] | |
-| SkiaFlyoutPage.cs | [ ] | |
-| SkiaGraphicsView.cs | [ ] | |
+| SkiaFlexLayout.cs | [x] | **VERIFIED 2026-01-01** - Logic matches decompiled |
+| SkiaFlyoutPage.cs | [x] | **FIXED 2026-01-01** - Removed embedded FlyoutLayoutBehavior (now separate file) |
+| FlyoutLayoutBehavior.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaGraphicsView.cs | [x] | **VERIFIED 2026-01-01** - Logic matches decompiled |
 | SkiaImage.cs | [x] | **VERIFIED 2026-01-01** - No BindableProperties, logic matches |
-| SkiaImageButton.cs | [ ] | |
-| SkiaIndicatorView.cs | [ ] | |
+| SkiaImageButton.cs | [x] | **FIXED 2026-01-01** - Added SVG support, multi-path search matching decompiled |
+| SkiaIndicatorView.cs | [x] | **FIXED 2026-01-01** - Removed embedded IndicatorShape (now separate file) |
+| IndicatorShape.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
 | SkiaItemsView.cs | [x] | Added GetItemView() method |
 | SkiaLabel.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay |
 | SkiaLayoutView.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay (Spacing, Padding, ClipToBounds, Orientation, RowSpacing, ColumnSpacing) |
-| SkiaMenuBar.cs | [ ] | Contains MenuItem, MenuBarItem |
-| SkiaNavigationPage.cs | [ ] | |
+| SkiaMenuBar.cs | [x] | **FIXED 2026-01-01** - Removed embedded MenuBarItem, MenuItem, SkiaMenuFlyout, MenuItemClickedEventArgs |
+| MenuBarItem.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| MenuItem.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaMenuFlyout.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| MenuItemClickedEventArgs.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaNavigationPage.cs | [x] | **FIXED 2026-01-01** - Added LinuxApplication.IsGtkMode check, removed embedded NavigationEventArgs |
+| NavigationEventArgs.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
 | SkiaPage.cs | [x] | Added SkiaToolbarItem.Icon property |
 | SkiaPicker.cs | [x] | FIXED - SelectedIndex=OneWay, all others=TwoWay (was missing) |
 | SkiaProgressBar.cs | [x] | Verified - Progress=OneWay, rest TwoWay, logic matches |
 | SkiaRadioButton.cs | [x] | **FIXED 2026-01-01** - IsChecked=OneWay, all others=TwoWay |
-| SkiaRefreshView.cs | [ ] | |
+| SkiaRefreshView.cs | [x] | **FIXED 2026-01-01** - Added ICommand support (Command, CommandParameter) matching decompiled |
 | SkiaScrollView.cs | [x] | **FIXED 2026-01-01** - All BindingModes TwoWay |
 | SkiaSearchBar.cs | [x] | **VERIFIED 2026-01-01** - No BindableProperties, logic matches |
 | SkiaShell.cs | [x] | **FIXED 2026-01-01** - Added FlyoutTextColor, ContentBackgroundColor, route registration, query parameters, OnScroll |
 | SkiaSlider.cs | [x] | FIXED - Value=OneWay, rest TwoWay (agent had inverted all) |
 | SkiaStepper.cs | [x] | **FIXED 2026-01-01** - Value=OneWay, all others=TwoWay |
-| SkiaSwipeView.cs | [ ] | |
+| SkiaSwipeView.cs | [x] | **FIXED 2026-01-01** - Removed embedded SwipeItem, SwipeDirection, SwipeMode, SwipeStartedEventArgs, SwipeEndedEventArgs |
+| SwipeItem.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SwipeDirection.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SwipeMode.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SwipeStartedEventArgs.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SwipeEndedEventArgs.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
 | SkiaSwitch.cs | [x] | FIXED - IsOn=OneWay (agent had TwoWay) |
-| SkiaTabbedPage.cs | [ ] | |
-| SkiaTemplatedView.cs | [ ] | |
+| SkiaTabbedPage.cs | [x] | **FIXED 2026-01-01** - Removed embedded TabItem (now separate file) |
+| TabItem.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaTemplatedView.cs | [x] | **FIXED 2026-01-01** - Added missing using statements (Shapes, Graphics) |
 | SkiaTimePicker.cs | [x] | **FIXED 2026-01-01** - Time=OneWay, all others=TwoWay |
 | SkiaView.cs | [x] | Made Arrange() virtual |
-| SkiaVisualStateManager.cs | [ ] | |
+| SkiaVisualStateManager.cs | [x] | **FIXED 2026-01-01** - Removed embedded SkiaVisualStateGroupList, SkiaVisualStateGroup, SkiaVisualState, SkiaVisualStateSetter |
+| SkiaVisualStateGroupList.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaVisualStateGroup.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaVisualState.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
+| SkiaVisualStateSetter.cs | [x] | **ADDED 2026-01-01** - Created as separate file |
 | SkiaWebView.cs | [x] | **FIXED 2026-01-01** - Full X11 embedding, position tracking, hardware accel, load callbacks |
 
 ---

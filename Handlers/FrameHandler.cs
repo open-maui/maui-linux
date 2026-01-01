@@ -38,6 +38,31 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
         return new SkiaFrame();
     }
 
+    protected override void ConnectHandler(SkiaFrame platformView)
+    {
+        base.ConnectHandler(platformView);
+        if (VirtualView is View view)
+        {
+            platformView.MauiView = view;
+        }
+        platformView.Tapped += OnPlatformViewTapped;
+    }
+
+    protected override void DisconnectHandler(SkiaFrame platformView)
+    {
+        platformView.Tapped -= OnPlatformViewTapped;
+        platformView.MauiView = null;
+        base.DisconnectHandler(platformView);
+    }
+
+    private void OnPlatformViewTapped(object? sender, EventArgs e)
+    {
+        if (VirtualView is View view)
+        {
+            GestureManager.ProcessTap(view, 0.0, 0.0);
+        }
+    }
+
     public static void MapBorderColor(FrameHandler handler, Frame frame)
     {
         if (frame.BorderColor != null)
