@@ -1,342 +1,402 @@
-using System;
-using System.Diagnostics;
-using System.IO;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
+/// <summary>
+/// Provides high contrast mode detection and theme support for accessibility.
+/// </summary>
 public class HighContrastService
 {
-	private bool _isHighContrastEnabled;
+    private bool _isHighContrastEnabled;
+    private HighContrastTheme _currentTheme = HighContrastTheme.None;
+    private bool _initialized;
 
-	private HighContrastTheme _currentTheme;
+    /// <summary>
+    /// Gets whether high contrast mode is enabled.
+    /// </summary>
+    public bool IsHighContrastEnabled => _isHighContrastEnabled;
 
-	private bool _initialized;
+    /// <summary>
+    /// Gets the current high contrast theme.
+    /// </summary>
+    public HighContrastTheme CurrentTheme => _currentTheme;
 
-	public bool IsHighContrastEnabled => _isHighContrastEnabled;
+    /// <summary>
+    /// Event raised when high contrast mode changes.
+    /// </summary>
+    public event EventHandler<HighContrastChangedEventArgs>? HighContrastChanged;
 
-	public HighContrastTheme CurrentTheme => _currentTheme;
+    /// <summary>
+    /// Initializes the high contrast service.
+    /// </summary>
+    public void Initialize()
+    {
+        if (_initialized) return;
+        _initialized = true;
 
-	public event EventHandler<HighContrastChangedEventArgs>? HighContrastChanged;
+        DetectHighContrast();
+    }
 
-	public void Initialize()
-	{
-		if (!_initialized)
-		{
-			_initialized = true;
-			DetectHighContrast();
-		}
-	}
+    /// <summary>
+    /// Detects current high contrast mode settings.
+    /// </summary>
+    public void DetectHighContrast()
+    {
+        bool isEnabled = false;
+        var theme = HighContrastTheme.None;
 
-	public void DetectHighContrast()
-	{
-		bool isEnabled = false;
-		HighContrastTheme theme = HighContrastTheme.None;
-		bool isEnabled3;
-		string themeName2;
-		bool isEnabled4;
-		string themeName3;
-		bool isEnabled5;
-		if (TryGetGnomeHighContrast(out bool isEnabled2, out string themeName))
-		{
-			isEnabled = isEnabled2;
-			if (isEnabled2)
-			{
-				theme = ParseThemeName(themeName);
-			}
-		}
-		else if (TryGetKdeHighContrast(out isEnabled3, out themeName2))
-		{
-			isEnabled = isEnabled3;
-			if (isEnabled3)
-			{
-				theme = ParseThemeName(themeName2);
-			}
-		}
-		else if (TryGetGtkHighContrast(out isEnabled4, out themeName3))
-		{
-			isEnabled = isEnabled4;
-			if (isEnabled4)
-			{
-				theme = ParseThemeName(themeName3);
-			}
-		}
-		else if (TryGetEnvironmentHighContrast(out isEnabled5))
-		{
-			isEnabled = isEnabled5;
-			theme = HighContrastTheme.WhiteOnBlack;
-		}
-		UpdateHighContrast(isEnabled, theme);
-	}
+        // Try GNOME settings
+        if (TryGetGnomeHighContrast(out bool gnomeEnabled, out string? gnomeTheme))
+        {
+            isEnabled = gnomeEnabled;
+            if (gnomeEnabled)
+            {
+                theme = ParseThemeName(gnomeTheme);
+            }
+        }
+        // Try KDE settings
+        else if (TryGetKdeHighContrast(out bool kdeEnabled, out string? kdeTheme))
+        {
+            isEnabled = kdeEnabled;
+            if (kdeEnabled)
+            {
+                theme = ParseThemeName(kdeTheme);
+            }
+        }
+        // Try GTK settings
+        else if (TryGetGtkHighContrast(out bool gtkEnabled, out string? gtkTheme))
+        {
+            isEnabled = gtkEnabled;
+            if (gtkEnabled)
+            {
+                theme = ParseThemeName(gtkTheme);
+            }
+        }
+        // Check environment variables
+        else if (TryGetEnvironmentHighContrast(out bool envEnabled))
+        {
+            isEnabled = envEnabled;
+            theme = HighContrastTheme.WhiteOnBlack; // Default
+        }
 
-	private void UpdateHighContrast(bool isEnabled, HighContrastTheme theme)
-	{
-		if (_isHighContrastEnabled != isEnabled || _currentTheme != theme)
-		{
-			_isHighContrastEnabled = isEnabled;
-			_currentTheme = theme;
-			this.HighContrastChanged?.Invoke(this, new HighContrastChangedEventArgs(isEnabled, theme));
-		}
-	}
+        UpdateHighContrast(isEnabled, theme);
+    }
 
-	private static bool TryGetGnomeHighContrast(out bool isEnabled, out string? themeName)
-	{
-		isEnabled = false;
-		themeName = null;
-		try
-		{
-			string text = RunCommand("gsettings", "get org.gnome.desktop.a11y.interface high-contrast");
-			if (!string.IsNullOrEmpty(text))
-			{
-				isEnabled = text.Trim().ToLower() == "true";
-			}
-			text = RunCommand("gsettings", "get org.gnome.desktop.interface gtk-theme");
-			if (!string.IsNullOrEmpty(text))
-			{
-				themeName = text.Trim().Trim('\'');
-				if (!isEnabled && themeName != null)
-				{
-					string text2 = themeName.ToLower();
-					isEnabled = text2.Contains("highcontrast") || text2.Contains("high-contrast") || text2.Contains("hc");
-				}
-			}
-			return true;
-		}
-		catch
-		{
-			return false;
-		}
-	}
+    private void UpdateHighContrast(bool isEnabled, HighContrastTheme theme)
+    {
+        if (_isHighContrastEnabled != isEnabled || _currentTheme != theme)
+        {
+            _isHighContrastEnabled = isEnabled;
+            _currentTheme = theme;
+            HighContrastChanged?.Invoke(this, new HighContrastChangedEventArgs(isEnabled, theme));
+        }
+    }
 
-	private static bool TryGetKdeHighContrast(out bool isEnabled, out string? themeName)
-	{
-		isEnabled = false;
-		themeName = null;
-		try
-		{
-			string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "kdeglobals");
-			if (!File.Exists(path))
-			{
-				return false;
-			}
-			string[] array = File.ReadAllLines(path);
-			foreach (string text in array)
-			{
-				if (text.StartsWith("ColorScheme="))
-				{
-					themeName = text.Substring("ColorScheme=".Length);
-					string text2 = themeName.ToLower();
-					isEnabled = text2.Contains("highcontrast") || text2.Contains("high-contrast") || text2.Contains("breeze-high-contrast");
-					return true;
-				}
-			}
-			return false;
-		}
-		catch
-		{
-			return false;
-		}
-	}
+    private static bool TryGetGnomeHighContrast(out bool isEnabled, out string? themeName)
+    {
+        isEnabled = false;
+        themeName = null;
 
-	private static bool TryGetGtkHighContrast(out bool isEnabled, out string? themeName)
-	{
-		isEnabled = false;
-		themeName = null;
-		try
-		{
-			string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "gtk-3.0", "settings.ini");
-			if (!File.Exists(path))
-			{
-				path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "gtk-4.0", "settings.ini");
-			}
-			if (!File.Exists(path))
-			{
-				return false;
-			}
-			string[] array = File.ReadAllLines(path);
-			foreach (string text in array)
-			{
-				if (text.StartsWith("gtk-theme-name="))
-				{
-					themeName = text.Substring("gtk-theme-name=".Length);
-					string text2 = themeName.ToLower();
-					isEnabled = text2.Contains("highcontrast") || text2.Contains("high-contrast");
-					return true;
-				}
-			}
-			return false;
-		}
-		catch
-		{
-			return false;
-		}
-	}
+        try
+        {
+            // Check if high contrast is enabled via gsettings
+            var result = RunCommand("gsettings", "get org.gnome.desktop.a11y.interface high-contrast");
+            if (!string.IsNullOrEmpty(result))
+            {
+                isEnabled = result.Trim().ToLower() == "true";
+            }
 
-	private static bool TryGetEnvironmentHighContrast(out bool isEnabled)
-	{
-		isEnabled = false;
-		string environmentVariable = Environment.GetEnvironmentVariable("GTK_THEME");
-		if (!string.IsNullOrEmpty(environmentVariable))
-		{
-			string text = environmentVariable.ToLower();
-			isEnabled = text.Contains("highcontrast") || text.Contains("high-contrast");
-			if (isEnabled)
-			{
-				return true;
-			}
-		}
-		string environmentVariable2 = Environment.GetEnvironmentVariable("GTK_A11Y");
-		if (!(environmentVariable2?.ToLower() == "atspi"))
-		{
-			_ = environmentVariable2 == "1";
-		}
-		return isEnabled;
-	}
+            // Get the current GTK theme
+            result = RunCommand("gsettings", "get org.gnome.desktop.interface gtk-theme");
+            if (!string.IsNullOrEmpty(result))
+            {
+                themeName = result.Trim().Trim('\'');
 
-	private static HighContrastTheme ParseThemeName(string? themeName)
-	{
-		if (string.IsNullOrEmpty(themeName))
-		{
-			return HighContrastTheme.WhiteOnBlack;
-		}
-		string text = themeName.ToLower();
-		if (text.Contains("inverse") || text.Contains("dark") || text.Contains("white-on-black"))
-		{
-			return HighContrastTheme.WhiteOnBlack;
-		}
-		if (text.Contains("light") || text.Contains("black-on-white"))
-		{
-			return HighContrastTheme.BlackOnWhite;
-		}
-		return HighContrastTheme.WhiteOnBlack;
-	}
+                // Check if theme name indicates high contrast
+                if (!isEnabled && themeName != null)
+                {
+                    var lowerTheme = themeName.ToLower();
+                    isEnabled = lowerTheme.Contains("highcontrast") ||
+                                lowerTheme.Contains("high-contrast") ||
+                                lowerTheme.Contains("hc");
+                }
+            }
 
-	public HighContrastColors GetColors()
-	{
-		//IL_001d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0028: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0071: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0093: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ad: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00cb: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00f6: Unknown result type (might be due to invalid IL or missing references)
-		//IL_010c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0117: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0129: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0134: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0146: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0158: Unknown result type (might be due to invalid IL or missing references)
-		//IL_016b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_017d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_018d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01ab: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01bc: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01d6: Unknown result type (might be due to invalid IL or missing references)
-		return _currentTheme switch
-		{
-			HighContrastTheme.WhiteOnBlack => new HighContrastColors
-			{
-				Background = SKColors.Black,
-				Foreground = SKColors.White,
-				Accent = new SKColor((byte)0, byte.MaxValue, byte.MaxValue),
-				Border = SKColors.White,
-				Error = new SKColor(byte.MaxValue, (byte)100, (byte)100),
-				Success = new SKColor((byte)100, byte.MaxValue, (byte)100),
-				Warning = SKColors.Yellow,
-				Link = new SKColor((byte)100, (byte)200, byte.MaxValue),
-				LinkVisited = new SKColor((byte)200, (byte)150, byte.MaxValue),
-				Selection = new SKColor((byte)0, (byte)120, (byte)215),
-				SelectionText = SKColors.White,
-				DisabledText = new SKColor((byte)160, (byte)160, (byte)160),
-				DisabledBackground = new SKColor((byte)40, (byte)40, (byte)40)
-			}, 
-			HighContrastTheme.BlackOnWhite => new HighContrastColors
-			{
-				Background = SKColors.White,
-				Foreground = SKColors.Black,
-				Accent = new SKColor((byte)0, (byte)0, (byte)200),
-				Border = SKColors.Black,
-				Error = new SKColor((byte)180, (byte)0, (byte)0),
-				Success = new SKColor((byte)0, (byte)130, (byte)0),
-				Warning = new SKColor((byte)180, (byte)120, (byte)0),
-				Link = new SKColor((byte)0, (byte)0, (byte)180),
-				LinkVisited = new SKColor((byte)80, (byte)0, (byte)120),
-				Selection = new SKColor((byte)0, (byte)120, (byte)215),
-				SelectionText = SKColors.White,
-				DisabledText = new SKColor((byte)100, (byte)100, (byte)100),
-				DisabledBackground = new SKColor((byte)220, (byte)220, (byte)220)
-			}, 
-			_ => GetDefaultColors(), 
-		};
-	}
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
-	private static HighContrastColors GetDefaultColors()
-	{
-		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00cb: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d6: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00f0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_010a: Unknown result type (might be due to invalid IL or missing references)
-		return new HighContrastColors
-		{
-			Background = SKColors.White,
-			Foreground = new SKColor((byte)33, (byte)33, (byte)33),
-			Accent = new SKColor((byte)33, (byte)150, (byte)243),
-			Border = new SKColor((byte)200, (byte)200, (byte)200),
-			Error = new SKColor((byte)244, (byte)67, (byte)54),
-			Success = new SKColor((byte)76, (byte)175, (byte)80),
-			Warning = new SKColor(byte.MaxValue, (byte)152, (byte)0),
-			Link = new SKColor((byte)33, (byte)150, (byte)243),
-			LinkVisited = new SKColor((byte)156, (byte)39, (byte)176),
-			Selection = new SKColor((byte)33, (byte)150, (byte)243),
-			SelectionText = SKColors.White,
-			DisabledText = new SKColor((byte)158, (byte)158, (byte)158),
-			DisabledBackground = new SKColor((byte)238, (byte)238, (byte)238)
-		};
-	}
+    private static bool TryGetKdeHighContrast(out bool isEnabled, out string? themeName)
+    {
+        isEnabled = false;
+        themeName = null;
 
-	public void ForceHighContrast(bool enabled, HighContrastTheme theme = HighContrastTheme.WhiteOnBlack)
-	{
-		UpdateHighContrast(enabled, theme);
-	}
+        try
+        {
+            // Check kdeglobals for color scheme
+            var configPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".config", "kdeglobals");
 
-	private static string? RunCommand(string command, string arguments)
-	{
-		try
-		{
-			using Process process = new Process();
-			process.StartInfo = new ProcessStartInfo
-			{
-				FileName = command,
-				Arguments = arguments,
-				RedirectStandardOutput = true,
-				RedirectStandardError = true,
-				UseShellExecute = false,
-				CreateNoWindow = true
-			};
-			process.Start();
-			string result = process.StandardOutput.ReadToEnd();
-			process.WaitForExit(1000);
-			return result;
-		}
-		catch
-		{
-			return null;
-		}
-	}
+            if (!File.Exists(configPath)) return false;
+
+            var lines = File.ReadAllLines(configPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("ColorScheme="))
+                {
+                    themeName = line.Substring("ColorScheme=".Length);
+                    var lowerTheme = themeName.ToLower();
+                    isEnabled = lowerTheme.Contains("highcontrast") ||
+                                lowerTheme.Contains("high-contrast") ||
+                                lowerTheme.Contains("breeze-high-contrast");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetGtkHighContrast(out bool isEnabled, out string? themeName)
+    {
+        isEnabled = false;
+        themeName = null;
+
+        try
+        {
+            // Check GTK settings.ini
+            var gtkConfigPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".config", "gtk-3.0", "settings.ini");
+
+            if (!File.Exists(gtkConfigPath))
+            {
+                gtkConfigPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".config", "gtk-4.0", "settings.ini");
+            }
+
+            if (!File.Exists(gtkConfigPath)) return false;
+
+            var lines = File.ReadAllLines(gtkConfigPath);
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("gtk-theme-name="))
+                {
+                    themeName = line.Substring("gtk-theme-name=".Length);
+                    var lowerTheme = themeName.ToLower();
+                    isEnabled = lowerTheme.Contains("highcontrast") ||
+                                lowerTheme.Contains("high-contrast");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetEnvironmentHighContrast(out bool isEnabled)
+    {
+        isEnabled = false;
+
+        // Check GTK_THEME environment variable
+        var gtkTheme = Environment.GetEnvironmentVariable("GTK_THEME");
+        if (!string.IsNullOrEmpty(gtkTheme))
+        {
+            var lower = gtkTheme.ToLower();
+            isEnabled = lower.Contains("highcontrast") || lower.Contains("high-contrast");
+            if (isEnabled) return true;
+        }
+
+        // Check accessibility-related env vars
+        var forceA11y = Environment.GetEnvironmentVariable("GTK_A11Y");
+        if (forceA11y?.ToLower() == "atspi" || forceA11y == "1")
+        {
+            // A11y is forced, but doesn't necessarily mean high contrast
+        }
+
+        return isEnabled;
+    }
+
+    private static HighContrastTheme ParseThemeName(string? themeName)
+    {
+        if (string.IsNullOrEmpty(themeName))
+            return HighContrastTheme.WhiteOnBlack;
+
+        var lower = themeName.ToLower();
+
+        if (lower.Contains("inverse") || lower.Contains("dark") || lower.Contains("white-on-black"))
+            return HighContrastTheme.WhiteOnBlack;
+
+        if (lower.Contains("light") || lower.Contains("black-on-white"))
+            return HighContrastTheme.BlackOnWhite;
+
+        // Default to white on black (more common high contrast choice)
+        return HighContrastTheme.WhiteOnBlack;
+    }
+
+    /// <summary>
+    /// Gets the appropriate colors for the current high contrast theme.
+    /// </summary>
+    public HighContrastColors GetColors()
+    {
+        return _currentTheme switch
+        {
+            HighContrastTheme.WhiteOnBlack => new HighContrastColors
+            {
+                Background = SKColors.Black,
+                Foreground = SKColors.White,
+                Accent = new SKColor(0, 255, 255), // Cyan
+                Border = SKColors.White,
+                Error = new SKColor(255, 100, 100),
+                Success = new SKColor(100, 255, 100),
+                Warning = SKColors.Yellow,
+                Link = new SKColor(100, 200, 255),
+                LinkVisited = new SKColor(200, 150, 255),
+                Selection = new SKColor(0, 120, 215),
+                SelectionText = SKColors.White,
+                DisabledText = new SKColor(160, 160, 160),
+                DisabledBackground = new SKColor(40, 40, 40)
+            },
+            HighContrastTheme.BlackOnWhite => new HighContrastColors
+            {
+                Background = SKColors.White,
+                Foreground = SKColors.Black,
+                Accent = new SKColor(0, 0, 200), // Dark blue
+                Border = SKColors.Black,
+                Error = new SKColor(180, 0, 0),
+                Success = new SKColor(0, 130, 0),
+                Warning = new SKColor(180, 120, 0),
+                Link = new SKColor(0, 0, 180),
+                LinkVisited = new SKColor(80, 0, 120),
+                Selection = new SKColor(0, 120, 215),
+                SelectionText = SKColors.White,
+                DisabledText = new SKColor(100, 100, 100),
+                DisabledBackground = new SKColor(220, 220, 220)
+            },
+            _ => GetDefaultColors()
+        };
+    }
+
+    private static HighContrastColors GetDefaultColors()
+    {
+        return new HighContrastColors
+        {
+            Background = SKColors.White,
+            Foreground = new SKColor(33, 33, 33),
+            Accent = new SKColor(33, 150, 243),
+            Border = new SKColor(200, 200, 200),
+            Error = new SKColor(244, 67, 54),
+            Success = new SKColor(76, 175, 80),
+            Warning = new SKColor(255, 152, 0),
+            Link = new SKColor(33, 150, 243),
+            LinkVisited = new SKColor(156, 39, 176),
+            Selection = new SKColor(33, 150, 243),
+            SelectionText = SKColors.White,
+            DisabledText = new SKColor(158, 158, 158),
+            DisabledBackground = new SKColor(238, 238, 238)
+        };
+    }
+
+    /// <summary>
+    /// Forces a specific high contrast mode (for testing or user preference override).
+    /// </summary>
+    public void ForceHighContrast(bool enabled, HighContrastTheme theme = HighContrastTheme.WhiteOnBlack)
+    {
+        UpdateHighContrast(enabled, theme);
+    }
+
+    private static string? RunCommand(string command, string arguments)
+    {
+        try
+        {
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = command,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(1000);
+            return output;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
+
+/// <summary>
+/// High contrast theme types.
+/// </summary>
+public enum HighContrastTheme
+{
+    None,
+    WhiteOnBlack,
+    BlackOnWhite
+}
+
+/// <summary>
+/// Color palette for high contrast mode.
+/// </summary>
+public class HighContrastColors
+{
+    public SKColor Background { get; set; }
+    public SKColor Foreground { get; set; }
+    public SKColor Accent { get; set; }
+    public SKColor Border { get; set; }
+    public SKColor Error { get; set; }
+    public SKColor Success { get; set; }
+    public SKColor Warning { get; set; }
+    public SKColor Link { get; set; }
+    public SKColor LinkVisited { get; set; }
+    public SKColor Selection { get; set; }
+    public SKColor SelectionText { get; set; }
+    public SKColor DisabledText { get; set; }
+    public SKColor DisabledBackground { get; set; }
+}
+
+/// <summary>
+/// Event args for high contrast mode changes.
+/// </summary>
+public class HighContrastChangedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets whether high contrast mode is enabled.
+    /// </summary>
+    public bool IsEnabled { get; }
+
+    /// <summary>
+    /// Gets the current theme.
+    /// </summary>
+    public HighContrastTheme Theme { get; }
+
+    public HighContrastChangedEventArgs(bool isEnabled, HighContrastTheme theme)
+    {
+        IsEnabled = isEnabled;
+        Theme = theme;
+    }
 }

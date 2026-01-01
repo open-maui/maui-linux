@@ -1,113 +1,65 @@
-using System.ComponentModel;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Graphics;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
+/// <summary>
+/// Handler for ProgressBar on Linux using Skia rendering.
+/// Maps IProgress interface to SkiaProgressBar platform view.
+/// IProgress has: Progress (0-1), ProgressColor
+/// </summary>
+public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
 {
-	public static IPropertyMapper<IProgress, ProgressBarHandler> Mapper = (IPropertyMapper<IProgress, ProgressBarHandler>)(object)new PropertyMapper<IProgress, ProgressBarHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
-	{
-		["Progress"] = MapProgress,
-		["ProgressColor"] = MapProgressColor,
-		["IsEnabled"] = MapIsEnabled,
-		["Background"] = MapBackground,
-		["BackgroundColor"] = MapBackgroundColor
-	};
+    public static IPropertyMapper<IProgress, ProgressBarHandler> Mapper = new PropertyMapper<IProgress, ProgressBarHandler>(ViewHandler.ViewMapper)
+    {
+        [nameof(IProgress.Progress)] = MapProgress,
+        [nameof(IProgress.ProgressColor)] = MapProgressColor,
+        [nameof(IView.Background)] = MapBackground,
+    };
 
-	public static CommandMapper<IProgress, ProgressBarHandler> CommandMapper = new CommandMapper<IProgress, ProgressBarHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
+    public static CommandMapper<IProgress, ProgressBarHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
+    {
+    };
 
-	public ProgressBarHandler()
-		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
-	{
-	}
+    public ProgressBarHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-	protected override SkiaProgressBar CreatePlatformView()
-	{
-		return new SkiaProgressBar();
-	}
+    public ProgressBarHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
 
-	protected override void ConnectHandler(SkiaProgressBar platformView)
-	{
-		base.ConnectHandler(platformView);
-		IProgress virtualView = base.VirtualView;
-		BindableObject val = (BindableObject)(object)((virtualView is BindableObject) ? virtualView : null);
-		if (val != null)
-		{
-			val.PropertyChanged += OnVirtualViewPropertyChanged;
-		}
-		IProgress virtualView2 = base.VirtualView;
-		VisualElement val2 = (VisualElement)(object)((virtualView2 is VisualElement) ? virtualView2 : null);
-		if (val2 != null)
-		{
-			platformView.IsVisible = val2.IsVisible;
-		}
-	}
+    protected override SkiaProgressBar CreatePlatformView()
+    {
+        return new SkiaProgressBar();
+    }
 
-	protected override void DisconnectHandler(SkiaProgressBar platformView)
-	{
-		IProgress virtualView = base.VirtualView;
-		BindableObject val = (BindableObject)(object)((virtualView is BindableObject) ? virtualView : null);
-		if (val != null)
-		{
-			val.PropertyChanged -= OnVirtualViewPropertyChanged;
-		}
-		base.DisconnectHandler(platformView);
-	}
+    public static void MapProgress(ProgressBarHandler handler, IProgress progress)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Progress = Math.Clamp(progress.Progress, 0.0, 1.0);
+    }
 
-	private void OnVirtualViewPropertyChanged(object? sender, PropertyChangedEventArgs e)
-	{
-		IProgress virtualView = base.VirtualView;
-		VisualElement val = (VisualElement)(object)((virtualView is VisualElement) ? virtualView : null);
-		if (val != null && e.PropertyName == "IsVisible")
-		{
-			base.PlatformView.IsVisible = val.IsVisible;
-			base.PlatformView.Invalidate();
-		}
-	}
+    public static void MapProgressColor(ProgressBarHandler handler, IProgress progress)
+    {
+        if (handler.PlatformView is null) return;
 
-	public static void MapProgress(ProgressBarHandler handler, IProgress progress)
-	{
-		((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.Progress = progress.Progress;
-	}
+        if (progress.ProgressColor is not null)
+            handler.PlatformView.ProgressColor = progress.ProgressColor.ToSKColor();
+    }
 
-	public static void MapProgressColor(ProgressBarHandler handler, IProgress progress)
-	{
-		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
-		if (progress.ProgressColor != null)
-		{
-			((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.ProgressColor = progress.ProgressColor.ToSKColor();
-		}
-		((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.Invalidate();
-	}
+    public static void MapBackground(ProgressBarHandler handler, IProgress progress)
+    {
+        if (handler.PlatformView is null) return;
 
-	public static void MapIsEnabled(ProgressBarHandler handler, IProgress progress)
-	{
-		((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.IsEnabled = ((IView)progress).IsEnabled;
-		((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.Invalidate();
-	}
-
-	public static void MapBackground(ProgressBarHandler handler, IProgress progress)
-	{
-		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
-		Paint background = ((IView)progress).Background;
-		SolidPaint val = (SolidPaint)(object)((background is SolidPaint) ? background : null);
-		if (val != null && val.Color != null)
-		{
-			((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
-			((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.Invalidate();
-		}
-	}
-
-	public static void MapBackgroundColor(ProgressBarHandler handler, IProgress progress)
-	{
-		//IL_001e: Unknown result type (might be due to invalid IL or missing references)
-		VisualElement val = (VisualElement)(object)((progress is VisualElement) ? progress : null);
-		if (val != null && val.BackgroundColor != null)
-		{
-			((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.BackgroundColor = val.BackgroundColor.ToSKColor();
-			((ViewHandler<IProgress, SkiaProgressBar>)(object)handler).PlatformView.Invalidate();
-		}
-	}
+        if (progress.Background is SolidPaint solidPaint && solidPaint.Color is not null)
+        {
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+        }
+    }
 }

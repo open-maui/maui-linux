@@ -1,124 +1,166 @@
-using System;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public class PageHandler : ViewHandler<Page, SkiaPage>
+/// <summary>
+/// Base handler for Page on Linux using Skia rendering.
+/// </summary>
+public partial class PageHandler : ViewHandler<Page, SkiaPage>
 {
-	public static IPropertyMapper<Page, PageHandler> Mapper = (IPropertyMapper<Page, PageHandler>)(object)new PropertyMapper<Page, PageHandler>((IPropertyMapper[])(object)new IPropertyMapper[1] { (IPropertyMapper)ViewHandler.ViewMapper })
-	{
-		["Title"] = MapTitle,
-		["BackgroundImageSource"] = MapBackgroundImageSource,
-		["Padding"] = MapPadding,
-		["Background"] = MapBackground,
-		["BackgroundColor"] = MapBackgroundColor
-	};
+    public static IPropertyMapper<Page, PageHandler> Mapper =
+        new PropertyMapper<Page, PageHandler>(ViewHandler.ViewMapper)
+        {
+            [nameof(Page.Title)] = MapTitle,
+            [nameof(Page.BackgroundImageSource)] = MapBackgroundImageSource,
+            [nameof(Page.Padding)] = MapPadding,
+            [nameof(IView.Background)] = MapBackground,
+        };
 
-	public static CommandMapper<Page, PageHandler> CommandMapper = new CommandMapper<Page, PageHandler>((CommandMapper)(object)ViewHandler.ViewCommandMapper);
+    public static CommandMapper<Page, PageHandler> CommandMapper =
+        new(ViewHandler.ViewCommandMapper)
+        {
+        };
 
-	public PageHandler()
-		: base((IPropertyMapper)(object)Mapper, (CommandMapper)(object)CommandMapper)
-	{
-	}
+    public PageHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-	public PageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
-		: base((IPropertyMapper)(((object)mapper) ?? ((object)Mapper)), (CommandMapper)(((object)commandMapper) ?? ((object)CommandMapper)))
-	{
-	}
+    public PageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
 
-	protected override SkiaPage CreatePlatformView()
-	{
-		return new SkiaPage();
-	}
+    protected override SkiaPage CreatePlatformView()
+    {
+        return new SkiaPage();
+    }
 
-	protected override void ConnectHandler(SkiaPage platformView)
-	{
-		base.ConnectHandler(platformView);
-		platformView.Appearing += OnAppearing;
-		platformView.Disappearing += OnDisappearing;
-	}
+    protected override void ConnectHandler(SkiaPage platformView)
+    {
+        base.ConnectHandler(platformView);
+        platformView.Appearing += OnAppearing;
+        platformView.Disappearing += OnDisappearing;
+    }
 
-	protected override void DisconnectHandler(SkiaPage platformView)
-	{
-		platformView.Appearing -= OnAppearing;
-		platformView.Disappearing -= OnDisappearing;
-		base.DisconnectHandler(platformView);
-	}
+    protected override void DisconnectHandler(SkiaPage platformView)
+    {
+        platformView.Appearing -= OnAppearing;
+        platformView.Disappearing -= OnDisappearing;
+        base.DisconnectHandler(platformView);
+    }
 
-	private void OnAppearing(object? sender, EventArgs e)
-	{
-		Page virtualView = base.VirtualView;
-		Console.WriteLine("[PageHandler] OnAppearing received for: " + ((virtualView != null) ? virtualView.Title : null));
-		Page virtualView2 = base.VirtualView;
-		if (virtualView2 != null)
-		{
-			((IPageController)virtualView2).SendAppearing();
-		}
-	}
+    private void OnAppearing(object? sender, EventArgs e)
+    {
+        Console.WriteLine($"[PageHandler] OnAppearing received for: {VirtualView?.Title}");
+        (VirtualView as IPageController)?.SendAppearing();
+    }
 
-	private void OnDisappearing(object? sender, EventArgs e)
-	{
-		Page virtualView = base.VirtualView;
-		if (virtualView != null)
-		{
-			((IPageController)virtualView).SendDisappearing();
-		}
-	}
+    private void OnDisappearing(object? sender, EventArgs e)
+    {
+        (VirtualView as IPageController)?.SendDisappearing();
+    }
 
-	public static void MapTitle(PageHandler handler, Page page)
-	{
-		if (((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView != null)
-		{
-			((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.Title = page.Title ?? "";
-		}
-	}
+    public static void MapTitle(PageHandler handler, Page page)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Title = page.Title ?? "";
+    }
 
-	public static void MapBackgroundImageSource(PageHandler handler, Page page)
-	{
-		((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView?.Invalidate();
-	}
+    public static void MapBackgroundImageSource(PageHandler handler, Page page)
+    {
+        // Background image would be loaded and set here
+        // For now, we just invalidate
+        handler.PlatformView?.Invalidate();
+    }
 
-	public static void MapPadding(PageHandler handler, Page page)
-	{
-		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView != null)
-		{
-			Thickness padding = page.Padding;
-			((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.PaddingLeft = (float)((Thickness)(ref padding)).Left;
-			((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.PaddingTop = (float)((Thickness)(ref padding)).Top;
-			((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.PaddingRight = (float)((Thickness)(ref padding)).Right;
-			((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.PaddingBottom = (float)((Thickness)(ref padding)).Bottom;
-		}
-	}
+    public static void MapPadding(PageHandler handler, Page page)
+    {
+        if (handler.PlatformView is null) return;
 
-	public static void MapBackground(PageHandler handler, Page page)
-	{
-		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView != null)
-		{
-			Brush background = ((VisualElement)page).Background;
-			SolidColorBrush val = (SolidColorBrush)(object)((background is SolidColorBrush) ? background : null);
-			if (val != null)
-			{
-				((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.BackgroundColor = val.Color.ToSKColor();
-			}
-		}
-	}
+        var padding = page.Padding;
+        handler.PlatformView.PaddingLeft = (float)padding.Left;
+        handler.PlatformView.PaddingTop = (float)padding.Top;
+        handler.PlatformView.PaddingRight = (float)padding.Right;
+        handler.PlatformView.PaddingBottom = (float)padding.Bottom;
+    }
 
-	public static void MapBackgroundColor(PageHandler handler, Page page)
-	{
-		//IL_0022: Unknown result type (might be due to invalid IL or missing references)
-		if (((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView != null)
-		{
-			Color backgroundColor = ((VisualElement)page).BackgroundColor;
-			if (backgroundColor != null && backgroundColor != Colors.Transparent)
-			{
-				((ViewHandler<Page, SkiaPage>)(object)handler).PlatformView.BackgroundColor = backgroundColor.ToSKColor();
-				Console.WriteLine($"[PageHandler] MapBackgroundColor: {backgroundColor}");
-			}
-		}
-	}
+    public static void MapBackground(PageHandler handler, Page page)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (page.Background is SolidColorBrush solidBrush)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+        }
+    }
+}
+
+/// <summary>
+/// Handler for ContentPage on Linux using Skia rendering.
+/// </summary>
+public partial class ContentPageHandler : PageHandler
+{
+    public static new IPropertyMapper<ContentPage, ContentPageHandler> Mapper =
+        new PropertyMapper<ContentPage, ContentPageHandler>(PageHandler.Mapper)
+        {
+            [nameof(ContentPage.Content)] = MapContent,
+        };
+
+    public static new CommandMapper<ContentPage, ContentPageHandler> CommandMapper =
+        new(PageHandler.CommandMapper)
+        {
+        };
+
+    public ContentPageHandler() : base(Mapper, CommandMapper)
+    {
+    }
+
+    public ContentPageHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
+
+    protected override SkiaPage CreatePlatformView()
+    {
+        return new SkiaContentPage();
+    }
+
+    public static void MapContent(ContentPageHandler handler, ContentPage page)
+    {
+        if (handler.PlatformView is null || handler.MauiContext is null) return;
+
+        // Get the platform view for the content
+        var content = page.Content;
+        if (content != null)
+        {
+            // Create handler for content if it doesn't exist
+            if (content.Handler == null)
+            {
+                Console.WriteLine($"[ContentPageHandler] Creating handler for content: {content.GetType().Name}");
+                content.Handler = content.ToHandler(handler.MauiContext);
+            }
+
+            // The content's handler should provide the platform view
+            if (content.Handler?.PlatformView is SkiaView skiaContent)
+            {
+                Console.WriteLine($"[ContentPageHandler] Setting content: {skiaContent.GetType().Name}");
+                handler.PlatformView.Content = skiaContent;
+            }
+            else
+            {
+                Console.WriteLine($"[ContentPageHandler] Content handler PlatformView is not SkiaView: {content.Handler?.PlatformView?.GetType().Name ?? "null"}");
+            }
+        }
+        else
+        {
+            handler.PlatformView.Content = null;
+        }
+    }
 }

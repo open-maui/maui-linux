@@ -1,242 +1,257 @@
-using System;
-using Microsoft.Maui.Controls;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// Presents content within a ControlTemplate.
+/// This control acts as a placeholder that gets replaced with the actual content
+/// when the template is applied to a control.
+/// </summary>
 public class SkiaContentPresenter : SkiaView
 {
-	public static readonly BindableProperty ContentProperty = BindableProperty.Create("Content", typeof(SkiaView), typeof(SkiaContentPresenter), (object)null, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaContentPresenter)(object)b).OnContentChanged((SkiaView)o, (SkiaView)n);
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    #region BindableProperties
 
-	public static readonly BindableProperty HorizontalContentAlignmentProperty = BindableProperty.Create("HorizontalContentAlignment", typeof(LayoutAlignment), typeof(SkiaContentPresenter), (object)LayoutAlignment.Fill, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaContentPresenter)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    public static readonly BindableProperty ContentProperty =
+        BindableProperty.Create(nameof(Content), typeof(SkiaView), typeof(SkiaContentPresenter), null,
+            propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).OnContentChanged((SkiaView?)o, (SkiaView?)n));
 
-	public static readonly BindableProperty VerticalContentAlignmentProperty = BindableProperty.Create("VerticalContentAlignment", typeof(LayoutAlignment), typeof(SkiaContentPresenter), (object)LayoutAlignment.Fill, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaContentPresenter)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    public static readonly BindableProperty HorizontalContentAlignmentProperty =
+        BindableProperty.Create(nameof(HorizontalContentAlignment), typeof(LayoutAlignment), typeof(SkiaContentPresenter), LayoutAlignment.Fill,
+            propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
 
-	public static readonly BindableProperty PaddingProperty = BindableProperty.Create("Padding", typeof(SKRect), typeof(SkiaContentPresenter), (object)SKRect.Empty, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaContentPresenter)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    public static readonly BindableProperty VerticalContentAlignmentProperty =
+        BindableProperty.Create(nameof(VerticalContentAlignment), typeof(LayoutAlignment), typeof(SkiaContentPresenter), LayoutAlignment.Fill,
+            propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
 
-	public SkiaView? Content
-	{
-		get
-		{
-			return (SkiaView)((BindableObject)this).GetValue(ContentProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(ContentProperty, (object)value);
-		}
-	}
+    public static readonly BindableProperty PaddingProperty =
+        BindableProperty.Create(nameof(Padding), typeof(SKRect), typeof(SkiaContentPresenter), SKRect.Empty,
+            propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
 
-	public LayoutAlignment HorizontalContentAlignment
-	{
-		get
-		{
-			return (LayoutAlignment)((BindableObject)this).GetValue(HorizontalContentAlignmentProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(HorizontalContentAlignmentProperty, (object)value);
-		}
-	}
+    #endregion
 
-	public LayoutAlignment VerticalContentAlignment
-	{
-		get
-		{
-			return (LayoutAlignment)((BindableObject)this).GetValue(VerticalContentAlignmentProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(VerticalContentAlignmentProperty, (object)value);
-		}
-	}
+    #region Properties
 
-	public SKRect Padding
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKRect)((BindableObject)this).GetValue(PaddingProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(PaddingProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the content to present.
+    /// </summary>
+    public SkiaView? Content
+    {
+        get => (SkiaView?)GetValue(ContentProperty);
+        set => SetValue(ContentProperty, value);
+    }
 
-	private void OnContentChanged(SkiaView? oldContent, SkiaView? newContent)
-	{
-		if (oldContent != null)
-		{
-			oldContent.Parent = null;
-		}
-		if (newContent != null)
-		{
-			newContent.Parent = this;
-			if (((BindableObject)this).BindingContext != null)
-			{
-				BindableObject.SetInheritedBindingContext((BindableObject)(object)newContent, ((BindableObject)this).BindingContext);
-			}
-		}
-		InvalidateMeasure();
-	}
+    /// <summary>
+    /// Gets or sets the horizontal alignment of the content.
+    /// </summary>
+    public LayoutAlignment HorizontalContentAlignment
+    {
+        get => (LayoutAlignment)GetValue(HorizontalContentAlignmentProperty);
+        set => SetValue(HorizontalContentAlignmentProperty, value);
+    }
 
-	protected override void OnBindingContextChanged()
-	{
-		base.OnBindingContextChanged();
-		if (Content != null)
-		{
-			BindableObject.SetInheritedBindingContext((BindableObject)(object)Content, ((BindableObject)this).BindingContext);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the vertical alignment of the content.
+    /// </summary>
+    public LayoutAlignment VerticalContentAlignment
+    {
+        get => (LayoutAlignment)GetValue(VerticalContentAlignmentProperty);
+        set => SetValue(VerticalContentAlignmentProperty, value);
+    }
 
-	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0012: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0017: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0019: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0023: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002b: Expected O, but got Unknown
-		//IL_002c: Unknown result type (might be due to invalid IL or missing references)
-		if (base.BackgroundColor != SKColors.Transparent)
-		{
-			SKPaint val = new SKPaint
-			{
-				Color = base.BackgroundColor,
-				Style = (SKPaintStyle)0
-			};
-			try
-			{
-				canvas.DrawRect(bounds, val);
-			}
-			finally
-			{
-				((IDisposable)val)?.Dispose();
-			}
-		}
-		Content?.Draw(canvas);
-	}
+    /// <summary>
+    /// Gets or sets the padding around the content.
+    /// </summary>
+    public SKRect Padding
+    {
+        get => (SKRect)GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
 
-	protected override SKSize MeasureOverride(SKSize availableSize)
-	{
-		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d6: Unknown result type (might be due to invalid IL or missing references)
-		SKRect padding = Padding;
-		if (Content == null)
-		{
-			return new SKSize(((SKRect)(ref padding)).Left + ((SKRect)(ref padding)).Right, ((SKRect)(ref padding)).Top + ((SKRect)(ref padding)).Bottom);
-		}
-		float num = ((HorizontalContentAlignment == LayoutAlignment.Fill) ? Math.Max(0f, ((SKSize)(ref availableSize)).Width - ((SKRect)(ref padding)).Left - ((SKRect)(ref padding)).Right) : float.PositiveInfinity);
-		float num2 = ((VerticalContentAlignment == LayoutAlignment.Fill) ? Math.Max(0f, ((SKSize)(ref availableSize)).Height - ((SKRect)(ref padding)).Top - ((SKRect)(ref padding)).Bottom) : float.PositiveInfinity);
-		SKSize val = Content.Measure(new SKSize(num, num2));
-		return new SKSize(((SKSize)(ref val)).Width + ((SKRect)(ref padding)).Left + ((SKRect)(ref padding)).Right, ((SKSize)(ref val)).Height + ((SKRect)(ref padding)).Top + ((SKRect)(ref padding)).Bottom);
-	}
+    #endregion
 
-	protected override SKRect ArrangeOverride(SKRect bounds)
-	{
-		//IL_007b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0075: Unknown result type (might be due to invalid IL or missing references)
-		if (Content != null)
-		{
-			SKRect padding = Padding;
-			SKRect availableBounds = new SKRect(((SKRect)(ref bounds)).Left + ((SKRect)(ref padding)).Left, ((SKRect)(ref bounds)).Top + ((SKRect)(ref padding)).Top, ((SKRect)(ref bounds)).Right - ((SKRect)(ref padding)).Right, ((SKRect)(ref bounds)).Bottom - ((SKRect)(ref padding)).Bottom);
-			SKSize desiredSize = Content.DesiredSize;
-			SKRect bounds2 = ApplyAlignment(availableBounds, desiredSize, HorizontalContentAlignment, VerticalContentAlignment);
-			Content.Arrange(bounds2);
-		}
-		return bounds;
-	}
+    private void OnContentChanged(SkiaView? oldContent, SkiaView? newContent)
+    {
+        if (oldContent != null)
+        {
+            oldContent.Parent = null;
+        }
 
-	private static SKRect ApplyAlignment(SKRect availableBounds, SKSize contentSize, LayoutAlignment horizontal, LayoutAlignment vertical)
-	{
-		//IL_009c: Unknown result type (might be due to invalid IL or missing references)
-		float num = ((SKRect)(ref availableBounds)).Left;
-		float num2 = ((SKRect)(ref availableBounds)).Top;
-		float num3 = ((horizontal == LayoutAlignment.Fill) ? ((SKRect)(ref availableBounds)).Width : ((SKSize)(ref contentSize)).Width);
-		float num4 = ((vertical == LayoutAlignment.Fill) ? ((SKRect)(ref availableBounds)).Height : ((SKSize)(ref contentSize)).Height);
-		switch (horizontal)
-		{
-		case LayoutAlignment.Center:
-			num = ((SKRect)(ref availableBounds)).Left + (((SKRect)(ref availableBounds)).Width - num3) / 2f;
-			break;
-		case LayoutAlignment.End:
-			num = ((SKRect)(ref availableBounds)).Right - num3;
-			break;
-		}
-		switch (vertical)
-		{
-		case LayoutAlignment.Center:
-			num2 = ((SKRect)(ref availableBounds)).Top + (((SKRect)(ref availableBounds)).Height - num4) / 2f;
-			break;
-		case LayoutAlignment.End:
-			num2 = ((SKRect)(ref availableBounds)).Bottom - num4;
-			break;
-		}
-		return new SKRect(num, num2, num + num3, num2 + num4);
-	}
+        if (newContent != null)
+        {
+            newContent.Parent = this;
 
-	public override SkiaView? HitTest(float x, float y)
-	{
-		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		if (base.IsVisible)
-		{
-			SKRect bounds = base.Bounds;
-			if (((SKRect)(ref bounds)).Contains(x, y))
-			{
-				if (Content != null)
-				{
-					SkiaView skiaView = Content.HitTest(x, y);
-					if (skiaView != null)
-					{
-						return skiaView;
-					}
-				}
-				return this;
-			}
-		}
-		return null;
-	}
+            // Propagate binding context to new content
+            if (BindingContext != null)
+            {
+                SetInheritedBindingContext(newContent, BindingContext);
+            }
+        }
 
-	public override void OnPointerPressed(PointerEventArgs e)
-	{
-		Content?.OnPointerPressed(e);
-	}
+        InvalidateMeasure();
+    }
 
-	public override void OnPointerMoved(PointerEventArgs e)
-	{
-		Content?.OnPointerMoved(e);
-	}
+    /// <summary>
+    /// Called when binding context changes. Propagates to content.
+    /// </summary>
+    protected override void OnBindingContextChanged()
+    {
+        base.OnBindingContextChanged();
 
-	public override void OnPointerReleased(PointerEventArgs e)
-	{
-		Content?.OnPointerReleased(e);
-	}
+        // Propagate binding context to content
+        if (Content != null)
+        {
+            SetInheritedBindingContext(Content, BindingContext);
+        }
+    }
+
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        // Draw background if set
+        if (BackgroundColor != SKColors.Transparent)
+        {
+            using var bgPaint = new SKPaint
+            {
+                Color = BackgroundColor,
+                Style = SKPaintStyle.Fill
+            };
+            canvas.DrawRect(bounds, bgPaint);
+        }
+
+        // Draw content
+        Content?.Draw(canvas);
+    }
+
+    protected override SKSize MeasureOverride(SKSize availableSize)
+    {
+        var padding = Padding;
+
+        if (Content == null)
+            return new SKSize(padding.Left + padding.Right, padding.Top + padding.Bottom);
+
+        // When alignment is not Fill, give content unlimited size in that dimension
+        // so it can measure its natural size without truncation
+        var measureWidth = HorizontalContentAlignment == LayoutAlignment.Fill
+            ? Math.Max(0, availableSize.Width - padding.Left - padding.Right)
+            : float.PositiveInfinity;
+        var measureHeight = VerticalContentAlignment == LayoutAlignment.Fill
+            ? Math.Max(0, availableSize.Height - padding.Top - padding.Bottom)
+            : float.PositiveInfinity;
+
+        var contentSize = Content.Measure(new SKSize(measureWidth, measureHeight));
+        return new SKSize(
+            contentSize.Width + padding.Left + padding.Right,
+            contentSize.Height + padding.Top + padding.Bottom);
+    }
+
+    protected override SKRect ArrangeOverride(SKRect bounds)
+    {
+        if (Content != null)
+        {
+            var padding = Padding;
+            var contentBounds = new SKRect(
+                bounds.Left + padding.Left,
+                bounds.Top + padding.Top,
+                bounds.Right - padding.Right,
+                bounds.Bottom - padding.Bottom);
+
+            // Apply alignment
+            var contentSize = Content.DesiredSize;
+            var arrangedBounds = ApplyAlignment(contentBounds, contentSize, HorizontalContentAlignment, VerticalContentAlignment);
+            Content.Arrange(arrangedBounds);
+        }
+
+        return bounds;
+    }
+
+    private static SKRect ApplyAlignment(SKRect availableBounds, SKSize contentSize, LayoutAlignment horizontal, LayoutAlignment vertical)
+    {
+        float x = availableBounds.Left;
+        float y = availableBounds.Top;
+        float width = horizontal == LayoutAlignment.Fill ? availableBounds.Width : contentSize.Width;
+        float height = vertical == LayoutAlignment.Fill ? availableBounds.Height : contentSize.Height;
+
+        // Horizontal alignment
+        switch (horizontal)
+        {
+            case LayoutAlignment.Center:
+                x = availableBounds.Left + (availableBounds.Width - width) / 2;
+                break;
+            case LayoutAlignment.End:
+                x = availableBounds.Right - width;
+                break;
+        }
+
+        // Vertical alignment
+        switch (vertical)
+        {
+            case LayoutAlignment.Center:
+                y = availableBounds.Top + (availableBounds.Height - height) / 2;
+                break;
+            case LayoutAlignment.End:
+                y = availableBounds.Bottom - height;
+                break;
+        }
+
+        return new SKRect(x, y, x + width, y + height);
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (!IsVisible || !Bounds.Contains(x, y))
+            return null;
+
+        // Check content first
+        if (Content != null)
+        {
+            var hit = Content.HitTest(x, y);
+            if (hit != null)
+                return hit;
+        }
+
+        return this;
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        Content?.OnPointerPressed(e);
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        Content?.OnPointerMoved(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        Content?.OnPointerReleased(e);
+    }
+}
+
+/// <summary>
+/// Layout alignment options.
+/// </summary>
+public enum LayoutAlignment
+{
+    /// <summary>
+    /// Fill the available space.
+    /// </summary>
+    Fill,
+
+    /// <summary>
+    /// Align to the start (left or top).
+    /// </summary>
+    Start,
+
+    /// <summary>
+    /// Align to the center.
+    /// </summary>
+    Center,
+
+    /// <summary>
+    /// Align to the end (right or bottom).
+    /// </summary>
+    End
 }
