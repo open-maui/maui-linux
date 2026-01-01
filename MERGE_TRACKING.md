@@ -25,11 +25,11 @@
 | FlexLayoutHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | FlyoutPageHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | FrameHandler.cs | [ ] | BLOCKED - needs SkiaFrame.MauiView and Tapped event |
-| GestureManager.cs | [ ] | NEEDS VERIFICATION |
+| GestureManager.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | GraphicsViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | GtkWebViewHandler.cs | [x] | Added new file from decompiled |
-| GtkWebViewManager.cs | [ ] | NEEDS VERIFICATION |
-| GtkWebViewPlatformView.cs | [ ] | NEEDS VERIFICATION |
+| GtkWebViewManager.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
+| GtkWebViewPlatformView.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | GtkWebViewProxy.cs | [x] | Added new file from decompiled |
 | ImageButtonHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, has ImageSourceServiceResultManager |
 | ImageHandler.Linux.cs | [x] | **VERIFIED 2026-01-01** - Matches production, FontImageSource rendering |
