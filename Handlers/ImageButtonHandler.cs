@@ -24,6 +24,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         [nameof(IButtonStroke.CornerRadius)] = MapCornerRadius,
         [nameof(IPadding.Padding)] = MapPadding,
         [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     public static CommandMapper<IImageButton, ImageButtonHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -151,6 +152,16 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         if (imageButton.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+        }
+    }
+
+    public static void MapBackgroundColor(ImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.BackgroundColor is not null)
+        {
+            handler.PlatformView.BackgroundColor = imgBtn.BackgroundColor.ToSKColor();
         }
     }
 

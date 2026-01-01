@@ -12,14 +12,14 @@
 |------|--------|-------|
 | ActivityIndicatorHandler.cs | [ ] | |
 | ApplicationHandler.cs | [ ] | |
-| BorderHandler.cs | [ ] | |
-| BoxViewHandler.cs | [ ] | |
-| ButtonHandler.cs | [ ] | Contains TextButtonHandler |
-| CheckBoxHandler.cs | [ ] | |
+| BorderHandler.cs | [ ] | BLOCKED - needs SkiaBorder.MauiView and Tapped |
+| BoxViewHandler.cs | [x] | Verified |
+| ButtonHandler.cs | [x] | Contains TextButtonHandler - Verified |
+| CheckBoxHandler.cs | [x] | Verified |
 | CollectionViewHandler.cs | [ ] | |
 | DatePickerHandler.cs | [ ] | |
-| EditorHandler.cs | [ ] | |
-| EntryHandler.cs | [ ] | |
+| EditorHandler.cs | [x] | Verified |
+| EntryHandler.cs | [x] | Verified |
 | FlexLayoutHandler.cs | [ ] | |
 | FlyoutPageHandler.cs | [ ] | |
 | FrameHandler.cs | [ ] | |
@@ -29,22 +29,22 @@
 | GtkWebViewManager.cs | [ ] | |
 | GtkWebViewPlatformView.cs | [ ] | |
 | GtkWebViewProxy.cs | [x] | Added new file from decompiled |
-| ImageButtonHandler.cs | [ ] | |
-| ImageHandler.cs | [ ] | |
+| ImageButtonHandler.cs | [x] | FIXED - added MapBackgroundColor |
+| ImageHandler.cs | [x] | Verified |
 | ItemsViewHandler.cs | [ ] | |
-| LabelHandler.cs | [ ] | |
-| LayoutHandler.cs | [ ] | Contains GridHandler, StackLayoutHandler, LayoutHandlerUpdate |
+| LabelHandler.cs | [x] | Verified |
+| LayoutHandler.cs | [x] | Contains GridHandler, StackLayoutHandler, LayoutHandlerUpdate - Verified |
 | NavigationPageHandler.cs | [ ] | Contains RelayCommand |
 | PageHandler.cs | [x] | Added MapBackgroundColor |
 | PickerHandler.cs | [ ] | |
-| ProgressBarHandler.cs | [ ] | |
+| ProgressBarHandler.cs | [x] | Verified |
 | RadioButtonHandler.cs | [ ] | |
-| ScrollViewHandler.cs | [ ] | |
+| ScrollViewHandler.cs | [x] | Verified |
 | SearchBarHandler.cs | [ ] | |
 | ShellHandler.cs | [ ] | |
-| SliderHandler.cs | [ ] | |
+| SliderHandler.cs | [x] | Verified |
 | StepperHandler.cs | [ ] | |
-| SwitchHandler.cs | [ ] | |
+| SwitchHandler.cs | [x] | Verified |
 | TabbedPageHandler.cs | [ ] | |
 | TimePickerHandler.cs | [ ] | |
 | WebViewHandler.cs | [x] | Fixed namespace-qualified event args |
