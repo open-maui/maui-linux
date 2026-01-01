@@ -5,6 +5,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 using System.Collections.Specialized;
 
@@ -100,7 +101,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
             if (page.Handler == null)
             {
                 Console.WriteLine($"[NavigationPageHandler] Creating handler for: {page.Title}");
-                page.Handler = page.ToHandler(MauiContext);
+                page.Handler = page.ToViewHandler(MauiContext);
             }
 
             Console.WriteLine($"[NavigationPageHandler] Page handler type: {page.Handler?.GetType().Name}");
@@ -122,7 +123,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
                     Console.WriteLine($"[NavigationPageHandler] Content is null, manually creating handler for: {contentPage.Content.GetType().Name}");
                     if (contentPage.Content.Handler == null)
                     {
-                        contentPage.Content.Handler = contentPage.Content.ToHandler(MauiContext);
+                        contentPage.Content.Handler = contentPage.Content.ToViewHandler(MauiContext);
                     }
                     if (contentPage.Content.Handler?.PlatformView is SkiaView skiaContent)
                     {
@@ -221,7 +222,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
             if (e.Page.Handler == null)
             {
                 Console.WriteLine($"[NavigationPageHandler] Creating handler for page: {e.Page.GetType().Name}");
-                e.Page.Handler = e.Page.ToHandler(MauiContext);
+                e.Page.Handler = e.Page.ToViewHandler(MauiContext);
                 Console.WriteLine($"[NavigationPageHandler] Handler created: {e.Page.Handler?.GetType().Name}");
             }
 
@@ -334,7 +335,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
             // Ensure handler exists
             if (page.Handler == null)
             {
-                page.Handler = page.ToHandler(handler.MauiContext);
+                page.Handler = page.ToViewHandler(handler.MauiContext);
             }
 
             if (page.Handler?.PlatformView is SkiaPage skiaPage)

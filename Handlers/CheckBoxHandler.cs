@@ -18,6 +18,7 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
         [nameof(ICheckBox.IsChecked)] = MapIsChecked,
         [nameof(ICheckBox.Foreground)] = MapForeground,
         [nameof(IView.Background)] = MapBackground,
+        [nameof(IView.IsEnabled)] = MapIsEnabled,
         [nameof(IView.VerticalLayoutAlignment)] = MapVerticalLayoutAlignment,
         [nameof(IView.HorizontalLayoutAlignment)] = MapHorizontalLayoutAlignment,
     };
@@ -84,6 +85,12 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapIsEnabled(CheckBoxHandler handler, ICheckBox checkBox)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = checkBox.IsEnabled;
     }
 
     public static void MapVerticalLayoutAlignment(CheckBoxHandler handler, ICheckBox checkBox)

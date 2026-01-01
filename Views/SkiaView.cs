@@ -1,6 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform.Linux;
+using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Window;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -218,6 +223,116 @@ public abstract class SkiaView : BindableObject, IDisposable
             typeof(SkiaView),
             string.Empty);
 
+    /// <summary>
+    /// Bindable property for Scale.
+    /// </summary>
+    public static readonly BindableProperty ScaleProperty =
+        BindableProperty.Create(
+            nameof(Scale),
+            typeof(double),
+            typeof(SkiaView),
+            1.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ScaleX.
+    /// </summary>
+    public static readonly BindableProperty ScaleXProperty =
+        BindableProperty.Create(
+            nameof(ScaleX),
+            typeof(double),
+            typeof(SkiaView),
+            1.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ScaleY.
+    /// </summary>
+    public static readonly BindableProperty ScaleYProperty =
+        BindableProperty.Create(
+            nameof(ScaleY),
+            typeof(double),
+            typeof(SkiaView),
+            1.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Rotation.
+    /// </summary>
+    public static readonly BindableProperty RotationProperty =
+        BindableProperty.Create(
+            nameof(Rotation),
+            typeof(double),
+            typeof(SkiaView),
+            0.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for RotationX.
+    /// </summary>
+    public static readonly BindableProperty RotationXProperty =
+        BindableProperty.Create(
+            nameof(RotationX),
+            typeof(double),
+            typeof(SkiaView),
+            0.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for RotationY.
+    /// </summary>
+    public static readonly BindableProperty RotationYProperty =
+        BindableProperty.Create(
+            nameof(RotationY),
+            typeof(double),
+            typeof(SkiaView),
+            0.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for TranslationX.
+    /// </summary>
+    public static readonly BindableProperty TranslationXProperty =
+        BindableProperty.Create(
+            nameof(TranslationX),
+            typeof(double),
+            typeof(SkiaView),
+            0.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for TranslationY.
+    /// </summary>
+    public static readonly BindableProperty TranslationYProperty =
+        BindableProperty.Create(
+            nameof(TranslationY),
+            typeof(double),
+            typeof(SkiaView),
+            0.0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for AnchorX.
+    /// </summary>
+    public static readonly BindableProperty AnchorXProperty =
+        BindableProperty.Create(
+            nameof(AnchorX),
+            typeof(double),
+            typeof(SkiaView),
+            0.5,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for AnchorY.
+    /// </summary>
+    public static readonly BindableProperty AnchorYProperty =
+        BindableProperty.Create(
+            nameof(AnchorY),
+            typeof(double),
+            typeof(SkiaView),
+            0.5,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
     #endregion
 
     private bool _disposed;
@@ -409,6 +524,107 @@ public abstract class SkiaView : BindableObject, IDisposable
     }
 
     /// <summary>
+    /// Gets or sets the uniform scale factor.
+    /// </summary>
+    public double Scale
+    {
+        get => (double)GetValue(ScaleProperty);
+        set => SetValue(ScaleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the X-axis scale factor.
+    /// </summary>
+    public double ScaleX
+    {
+        get => (double)GetValue(ScaleXProperty);
+        set => SetValue(ScaleXProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the Y-axis scale factor.
+    /// </summary>
+    public double ScaleY
+    {
+        get => (double)GetValue(ScaleYProperty);
+        set => SetValue(ScaleYProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the rotation in degrees around the Z-axis.
+    /// </summary>
+    public double Rotation
+    {
+        get => (double)GetValue(RotationProperty);
+        set => SetValue(RotationProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the rotation in degrees around the X-axis.
+    /// </summary>
+    public double RotationX
+    {
+        get => (double)GetValue(RotationXProperty);
+        set => SetValue(RotationXProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the rotation in degrees around the Y-axis.
+    /// </summary>
+    public double RotationY
+    {
+        get => (double)GetValue(RotationYProperty);
+        set => SetValue(RotationYProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the X translation offset.
+    /// </summary>
+    public double TranslationX
+    {
+        get => (double)GetValue(TranslationXProperty);
+        set => SetValue(TranslationXProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the Y translation offset.
+    /// </summary>
+    public double TranslationY
+    {
+        get => (double)GetValue(TranslationYProperty);
+        set => SetValue(TranslationYProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the X anchor point for transforms (0.0 to 1.0).
+    /// </summary>
+    public double AnchorX
+    {
+        get => (double)GetValue(AnchorXProperty);
+        set => SetValue(AnchorXProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the Y anchor point for transforms (0.0 to 1.0).
+    /// </summary>
+    public double AnchorY
+    {
+        get => (double)GetValue(AnchorYProperty);
+        set => SetValue(AnchorYProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor type when hovering over this view.
+    /// </summary>
+    public CursorType CursorType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the MAUI View this platform view represents.
+    /// Used for gesture processing.
+    /// </summary>
+    public View? MauiView { get; set; }
+
+    /// <summary>
     /// Gets or sets whether this view currently has keyboard focus.
     /// </summary>
     public bool IsFocused { get; internal set; }
@@ -566,8 +782,23 @@ public abstract class SkiaView : BindableObject, IDisposable
     /// </summary>
     public void Invalidate()
     {
+        LinuxApplication.LogInvalidate(GetType().Name);
         Invalidated?.Invoke(this, EventArgs.Empty);
-        _parent?.Invalidate();
+
+        // Notify rendering engine of dirty region
+        if (Bounds.Width > 0 && Bounds.Height > 0)
+        {
+            SkiaRenderingEngine.Current?.InvalidateRegion(Bounds);
+        }
+
+        if (_parent != null)
+        {
+            _parent.Invalidate();
+        }
+        else
+        {
+            LinuxApplication.RequestRedraw();
+        }
     }
 
     /// <summary>
@@ -583,7 +814,7 @@ public abstract class SkiaView : BindableObject, IDisposable
     /// <summary>
     /// Draws this view and its children to the canvas.
     /// </summary>
-    public void Draw(SKCanvas canvas)
+    public virtual void Draw(SKCanvas canvas)
     {
         if (!IsVisible || Opacity <= 0)
         {
@@ -591,6 +822,42 @@ public abstract class SkiaView : BindableObject, IDisposable
         }
 
         canvas.Save();
+
+        // Apply transforms if any are set
+        if (Scale != 1.0 || ScaleX != 1.0 || ScaleY != 1.0 ||
+            Rotation != 0.0 || RotationX != 0.0 || RotationY != 0.0 ||
+            TranslationX != 0.0 || TranslationY != 0.0)
+        {
+            // Calculate anchor point in absolute coordinates
+            float anchorAbsX = Bounds.Left + (float)(Bounds.Width * AnchorX);
+            float anchorAbsY = Bounds.Top + (float)(Bounds.Height * AnchorY);
+
+            // Move origin to anchor point
+            canvas.Translate(anchorAbsX, anchorAbsY);
+
+            // Apply translation
+            if (TranslationX != 0.0 || TranslationY != 0.0)
+            {
+                canvas.Translate((float)TranslationX, (float)TranslationY);
+            }
+
+            // Apply rotation
+            if (Rotation != 0.0)
+            {
+                canvas.RotateDegrees((float)Rotation);
+            }
+
+            // Apply scale
+            float scaleX = (float)(Scale * ScaleX);
+            float scaleY = (float)(Scale * ScaleY);
+            if (scaleX != 1f || scaleY != 1f)
+            {
+                canvas.Scale(scaleX, scaleY);
+            }
+
+            // Move origin back
+            canvas.Translate(-anchorAbsX, -anchorAbsY);
+        }
 
         // Apply opacity
         if (Opacity < 1.0f)
@@ -706,11 +973,47 @@ public abstract class SkiaView : BindableObject, IDisposable
 
     #region Input Events
 
-    public virtual void OnPointerEntered(PointerEventArgs e) { }
-    public virtual void OnPointerExited(PointerEventArgs e) { }
-    public virtual void OnPointerMoved(PointerEventArgs e) { }
-    public virtual void OnPointerPressed(PointerEventArgs e) { }
-    public virtual void OnPointerReleased(PointerEventArgs e) { }
+    public virtual void OnPointerEntered(PointerEventArgs e)
+    {
+        if (MauiView != null)
+        {
+            GestureManager.ProcessPointerEntered(MauiView, e.X, e.Y);
+        }
+    }
+
+    public virtual void OnPointerExited(PointerEventArgs e)
+    {
+        if (MauiView != null)
+        {
+            GestureManager.ProcessPointerExited(MauiView, e.X, e.Y);
+        }
+    }
+
+    public virtual void OnPointerMoved(PointerEventArgs e)
+    {
+        if (MauiView != null)
+        {
+            GestureManager.ProcessPointerMove(MauiView, e.X, e.Y);
+        }
+    }
+
+    public virtual void OnPointerPressed(PointerEventArgs e)
+    {
+        if (MauiView != null)
+        {
+            GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
+        }
+    }
+
+    public virtual void OnPointerReleased(PointerEventArgs e)
+    {
+        Console.WriteLine($"[SkiaView] OnPointerReleased on {GetType().Name}, MauiView={MauiView?.GetType().Name ?? "null"}");
+        if (MauiView != null)
+        {
+            GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
+        }
+    }
+
     public virtual void OnScroll(ScrollEventArgs e) { }
     public virtual void OnKeyDown(KeyEventArgs e) { }
     public virtual void OnKeyUp(KeyEventArgs e) { }

@@ -199,6 +199,39 @@ public class SkiaButton : SkiaView
             typeof(SkiaButton),
             null);
 
+    /// <summary>
+    /// Bindable property for ImageSource.
+    /// </summary>
+    public static readonly BindableProperty ImageSourceProperty =
+        BindableProperty.Create(
+            nameof(ImageSource),
+            typeof(SKBitmap),
+            typeof(SkiaButton),
+            null,
+            propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for ImageSpacing.
+    /// </summary>
+    public static readonly BindableProperty ImageSpacingProperty =
+        BindableProperty.Create(
+            nameof(ImageSpacing),
+            typeof(float),
+            typeof(SkiaButton),
+            8f,
+            propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ContentLayoutPosition (0=Left, 1=Top, 2=Right, 3=Bottom).
+    /// </summary>
+    public static readonly BindableProperty ContentLayoutPositionProperty =
+        BindableProperty.Create(
+            nameof(ContentLayoutPosition),
+            typeof(int),
+            typeof(SkiaButton),
+            0,
+            propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
+
     #endregion
 
     #region Properties
@@ -357,6 +390,33 @@ public class SkiaButton : SkiaView
     }
 
     /// <summary>
+    /// Gets or sets the image source for the button.
+    /// </summary>
+    public SKBitmap? ImageSource
+    {
+        get => (SKBitmap?)GetValue(ImageSourceProperty);
+        set => SetValue(ImageSourceProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the spacing between the image and text.
+    /// </summary>
+    public float ImageSpacing
+    {
+        get => (float)GetValue(ImageSpacingProperty);
+        set => SetValue(ImageSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the content layout position (0=Left, 1=Top, 2=Right, 3=Bottom).
+    /// </summary>
+    public int ContentLayoutPosition
+    {
+        get => (int)GetValue(ContentLayoutPositionProperty);
+        set => SetValue(ContentLayoutPositionProperty, value);
+    }
+
+    /// <summary>
     /// Gets whether the button is currently pressed.
     /// </summary>
     public bool IsPressed { get; private set; }
@@ -504,53 +564,151 @@ public class SkiaButton : SkiaView
             canvas.DrawRoundRect(focusRect, focusPaint);
         }
 
-        // Draw text
-        if (!string.IsNullOrEmpty(Text))
+        // Draw content (text and/or image)
+        DrawContent(canvas, bounds, isTextOnly);
+    }
+
+    private void DrawContent(SKCanvas canvas, SKRect bounds, bool isTextOnly)
+    {
+        var fontStyle = new SKFontStyle(
+            IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
+                      ?? SKTypeface.Default;
+
+        using var font = new SKFont(typeface, FontSize);
+
+        // Determine text color
+        SKColor textColorToUse;
+        if (!IsEnabled)
         {
-            var fontStyle = new SKFontStyle(
-                IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                SKFontStyleWidth.Normal,
-                IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-            var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
-                          ?? SKTypeface.Default;
+            textColorToUse = TextColor.WithAlpha(128);
+        }
+        else if (isTextOnly && (IsHovered || IsPressed))
+        {
+            textColorToUse = new SKColor(
+                (byte)Math.Max(0, TextColor.Red - 40),
+                (byte)Math.Max(0, TextColor.Green - 40),
+                (byte)Math.Max(0, TextColor.Blue - 40),
+                TextColor.Alpha);
+        }
+        else
+        {
+            textColorToUse = TextColor;
+        }
 
-            using var font = new SKFont(typeface, FontSize);
+        using var textPaint = new SKPaint(font)
+        {
+            Color = textColorToUse,
+            IsAntialias = true
+        };
 
-            // For text-only buttons, darken text on hover/press for feedback
-            SKColor textColorToUse;
-            if (!IsEnabled)
+        // Measure text
+        var textBounds = new SKRect();
+        bool hasText = !string.IsNullOrEmpty(Text);
+        if (hasText)
+        {
+            textPaint.MeasureText(Text, ref textBounds);
+        }
+
+        // Calculate image size
+        bool hasImage = ImageSource != null;
+        float imageWidth = 0;
+        float imageHeight = 0;
+        if (hasImage)
+        {
+            float maxImageSize = Math.Min(bounds.Height - 8, 24f);
+            float scale = Math.Min(maxImageSize / ImageSource!.Width, maxImageSize / ImageSource.Height);
+            imageWidth = ImageSource.Width * scale;
+            imageHeight = ImageSource.Height * scale;
+        }
+
+        // Calculate total content size and position
+        bool isHorizontal = ContentLayoutPosition == 0 || ContentLayoutPosition == 2;
+        float totalWidth, totalHeight;
+        if (hasImage && hasText)
+        {
+            if (isHorizontal)
             {
-                textColorToUse = TextColor.WithAlpha(128);
-            }
-            else if (isTextOnly && (IsHovered || IsPressed))
-            {
-                // Darken the text color slightly for hover/press feedback
-                textColorToUse = new SKColor(
-                    (byte)Math.Max(0, TextColor.Red - 40),
-                    (byte)Math.Max(0, TextColor.Green - 40),
-                    (byte)Math.Max(0, TextColor.Blue - 40),
-                    TextColor.Alpha);
+                totalWidth = imageWidth + ImageSpacing + textBounds.Width;
+                totalHeight = Math.Max(imageHeight, textBounds.Height);
             }
             else
             {
-                textColorToUse = TextColor;
+                totalWidth = Math.Max(imageWidth, textBounds.Width);
+                totalHeight = imageHeight + ImageSpacing + textBounds.Height;
+            }
+        }
+        else if (hasImage)
+        {
+            totalWidth = imageWidth;
+            totalHeight = imageHeight;
+        }
+        else
+        {
+            totalWidth = textBounds.Width;
+            totalHeight = textBounds.Height;
+        }
+
+        float startX = bounds.MidX - totalWidth / 2;
+        float startY = bounds.MidY - totalHeight / 2;
+
+        // Draw image and text based on layout position
+        if (hasImage)
+        {
+            float imageX, imageY;
+            float textX = 0, textY = 0;
+
+            switch (ContentLayoutPosition)
+            {
+                case 1: // Top - image above text
+                    imageX = bounds.MidX - imageWidth / 2;
+                    imageY = startY;
+                    textX = bounds.MidX - textBounds.Width / 2;
+                    textY = startY + imageHeight + ImageSpacing - textBounds.Top;
+                    break;
+                case 2: // Right - image to right of text
+                    textX = startX;
+                    textY = bounds.MidY - textBounds.MidY;
+                    imageX = startX + textBounds.Width + ImageSpacing;
+                    imageY = bounds.MidY - imageHeight / 2;
+                    break;
+                case 3: // Bottom - image below text
+                    textX = bounds.MidX - textBounds.Width / 2;
+                    textY = startY - textBounds.Top;
+                    imageX = bounds.MidX - imageWidth / 2;
+                    imageY = startY + textBounds.Height + ImageSpacing;
+                    break;
+                default: // 0 = Left - image to left of text
+                    imageX = startX;
+                    imageY = bounds.MidY - imageHeight / 2;
+                    textX = startX + imageWidth + ImageSpacing;
+                    textY = bounds.MidY - textBounds.MidY;
+                    break;
             }
 
-            using var paint = new SKPaint(font)
+            // Draw image
+            var imageRect = new SKRect(imageX, imageY, imageX + imageWidth, imageY + imageHeight);
+            using var imagePaint = new SKPaint { IsAntialias = true };
+            if (!IsEnabled)
             {
-                Color = textColorToUse,
-                IsAntialias = true
-            };
+                imagePaint.ColorFilter = SKColorFilter.CreateBlendMode(new SKColor(128, 128, 128, 128), SKBlendMode.Modulate);
+            }
+            canvas.DrawBitmap(ImageSource!, imageRect, imagePaint);
 
-            // Measure text
-            var textBounds = new SKRect();
-            paint.MeasureText(Text, ref textBounds);
-
-            // Center text
+            // Draw text
+            if (hasText)
+            {
+                canvas.DrawText(Text!, textX, textY, textPaint);
+            }
+        }
+        else if (hasText)
+        {
+            // Just text, centered
             var x = bounds.MidX - textBounds.MidX;
             var y = bounds.MidY - textBounds.MidY;
-
-            canvas.DrawText(Text, x, y, paint);
+            canvas.DrawText(Text!, x, y, textPaint);
         }
     }
 

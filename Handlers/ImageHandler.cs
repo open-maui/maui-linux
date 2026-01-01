@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.IO;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
@@ -20,6 +22,8 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
         [nameof(IImage.IsOpaque)] = MapIsOpaque,
         [nameof(IImageSourcePart.Source)] = MapSource,
         [nameof(IView.Background)] = MapBackground,
+        ["Width"] = MapWidth,
+        ["Height"] = MapHeight,
     };
 
     public static CommandMapper<IImage, ImageHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -88,6 +92,19 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
     {
         if (handler.PlatformView is null) return;
 
+        // Extract width/height requests from Image control
+        if (image is Image img)
+        {
+            if (img.WidthRequest > 0)
+            {
+                handler.PlatformView.WidthRequest = img.WidthRequest;
+            }
+            if (img.HeightRequest > 0)
+            {
+                handler.PlatformView.HeightRequest = img.HeightRequest;
+            }
+        }
+
         handler.SourceLoader.UpdateImageSourceAsync();
     }
 
@@ -98,6 +115,36 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
         if (image.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+        }
+    }
+
+    public static void MapWidth(ImageHandler handler, IImage image)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (image is Image img && img.WidthRequest > 0)
+        {
+            handler.PlatformView.WidthRequest = img.WidthRequest;
+            Console.WriteLine($"[ImageHandler] MapWidth: {img.WidthRequest}");
+        }
+        else if (image.Width > 0)
+        {
+            handler.PlatformView.WidthRequest = image.Width;
+        }
+    }
+
+    public static void MapHeight(ImageHandler handler, IImage image)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (image is Image img && img.HeightRequest > 0)
+        {
+            handler.PlatformView.HeightRequest = img.HeightRequest;
+            Console.WriteLine($"[ImageHandler] MapHeight: {img.HeightRequest}");
+        }
+        else if (image.Height > 0)
+        {
+            handler.PlatformView.HeightRequest = image.Height;
         }
     }
 
@@ -162,6 +209,14 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
                         await _handler.PlatformView!.LoadFromStreamAsync(stream);
                     }
                 }
+                else if (source is FontImageSource fontSource)
+                {
+                    var bitmap = RenderFontImageSource(fontSource, _handler.PlatformView!.WidthRequest, _handler.PlatformView.HeightRequest);
+                    if (bitmap != null)
+                    {
+                        _handler.PlatformView.LoadFromBitmap(bitmap);
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
@@ -175,6 +230,74 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
                     imageSourcePart.UpdateIsLoading(false);
                 }
             }
+        }
+
+        private static SKBitmap? RenderFontImageSource(FontImageSource fontSource, double requestedWidth, double requestedHeight)
+        {
+            string glyph = fontSource.Glyph;
+            if (string.IsNullOrEmpty(glyph))
+            {
+                return null;
+            }
+
+            int size = (int)Math.Max(requestedWidth > 0 ? requestedWidth : 24.0, requestedHeight > 0 ? requestedHeight : 24.0);
+            size = Math.Max(size, 16);
+
+            SKColor color = fontSource.Color?.ToSKColor() ?? SKColors.Black;
+            SKBitmap bitmap = new SKBitmap(size, size, false);
+            using SKCanvas canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Transparent);
+
+            SKTypeface? typeface = null;
+            if (!string.IsNullOrEmpty(fontSource.FontFamily))
+            {
+                string[] fontPaths = new string[]
+                {
+                    "/usr/share/fonts/truetype/" + fontSource.FontFamily + ".ttf",
+                    "/usr/share/fonts/opentype/" + fontSource.FontFamily + ".otf",
+                    "/usr/local/share/fonts/" + fontSource.FontFamily + ".ttf",
+                    Path.Combine(AppContext.BaseDirectory, fontSource.FontFamily + ".ttf")
+                };
+
+                foreach (string path in fontPaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        typeface = SKTypeface.FromFile(path, 0);
+                        if (typeface != null)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (typeface == null)
+                {
+                    typeface = SKTypeface.FromFamilyName(fontSource.FontFamily);
+                }
+            }
+
+            if (typeface == null)
+            {
+                typeface = SKTypeface.Default;
+            }
+
+            float fontSize = size * 0.8f;
+            using SKFont font = new SKFont(typeface, fontSize, 1f, 0f);
+            using SKPaint paint = new SKPaint(font)
+            {
+                Color = color,
+                IsAntialias = true,
+                TextAlign = SKTextAlign.Center
+            };
+
+            SKRect bounds = default;
+            paint.MeasureText(glyph, ref bounds);
+            float x = size / 2f;
+            float y = (size - bounds.Top - bounds.Bottom) / 2f;
+            canvas.DrawText(glyph, x, y, paint);
+
+            return bitmap;
         }
     }
 }

@@ -476,22 +476,3 @@ public class LinuxViewRenderer
     }
 }
 
-/// <summary>
-/// Extension methods for MAUI handler creation.
-/// </summary>
-public static class MauiHandlerExtensions
-{
-    /// <summary>
-    /// Creates a handler for the view and returns it.
-    /// </summary>
-    public static IElementHandler ToHandler(this IElement element, IMauiContext mauiContext)
-    {
-        var handler = mauiContext.Handlers.GetHandler(element.GetType());
-        if (handler != null)
-        {
-            handler.SetMauiContext(mauiContext);
-            handler.SetVirtualView(element);
-        }
-        return handler!;
-    }
-}

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -78,7 +79,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
                 {
-                    child.Handler = child.ToHandler(MauiContext);
+                    child.Handler = child.ToViewHandler(MauiContext);
                 }
 
                 if (child.Handler?.PlatformView is SkiaView skiaChild)
@@ -299,7 +300,7 @@ public partial class GridHandler : LayoutHandler
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
                 {
-                    child.Handler = child.ToHandler(MauiContext);
+                    child.Handler = child.ToViewHandler(MauiContext);
                     Console.WriteLine($"[GridHandler.ConnectHandler] Created handler for child[{i}]: {child.Handler?.GetType().Name ?? "failed"}");
                 }
 

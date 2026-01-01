@@ -1,12 +1,24 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.IO;
+using System.Reflection;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Platform.Linux.Dispatching;
+using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Rendering;
-using Microsoft.Maui.Platform.Linux.Window;
 using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Platform.Linux.Window;
 using Microsoft.Maui.Platform;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux;
 
@@ -15,18 +27,113 @@ namespace Microsoft.Maui.Platform.Linux;
 /// </summary>
 public class LinuxApplication : IDisposable
 {
+    private static int _invalidateCount;
+    private static int _requestRedrawCount;
+    private static int _drawCount;
+    private static int _gtkThreadId;
+    private static DateTime _lastCounterReset = DateTime.Now;
+    private static bool _isRedrawing;
+    private static int _loopCounter = 0;
+
     private X11Window? _mainWindow;
+    private GtkHostWindow? _gtkWindow;
     private SkiaRenderingEngine? _renderingEngine;
     private SkiaView? _rootView;
     private SkiaView? _focusedView;
     private SkiaView? _hoveredView;
     private SkiaView? _capturedView; // View that has captured pointer events during drag
     private bool _disposed;
+    private bool _useGtk;
 
     /// <summary>
     /// Gets the current application instance.
     /// </summary>
     public static LinuxApplication? Current { get; private set; }
+
+    /// <summary>
+    /// Gets whether the application is running in GTK mode.
+    /// </summary>
+    public static bool IsGtkMode => Current?._useGtk ?? false;
+
+    /// <summary>
+    /// Logs an invalidate call for diagnostics.
+    /// </summary>
+    public static void LogInvalidate(string source)
+    {
+        int currentThread = Environment.CurrentManagedThreadId;
+        Interlocked.Increment(ref _invalidateCount);
+        if (currentThread != _gtkThreadId && _gtkThreadId != 0)
+        {
+            Console.WriteLine($"[DIAG] ⚠️ Invalidate from WRONG THREAD! GTK={_gtkThreadId}, Current={currentThread}, Source={source}");
+        }
+    }
+
+    /// <summary>
+    /// Logs a request redraw call for diagnostics.
+    /// </summary>
+    public static void LogRequestRedraw()
+    {
+        int currentThread = Environment.CurrentManagedThreadId;
+        Interlocked.Increment(ref _requestRedrawCount);
+        if (currentThread != _gtkThreadId && _gtkThreadId != 0)
+        {
+            Console.WriteLine($"[DIAG] ⚠️ RequestRedraw from WRONG THREAD! GTK={_gtkThreadId}, Current={currentThread}");
+        }
+    }
+
+    private static void StartHeartbeat()
+    {
+        _gtkThreadId = Environment.CurrentManagedThreadId;
+        Console.WriteLine($"[DIAG] GTK thread ID: {_gtkThreadId}");
+        GLibNative.TimeoutAdd(250, () =>
+        {
+            DateTime now = DateTime.Now;
+            if ((now - _lastCounterReset).TotalSeconds >= 1.0)
+            {
+                int invalidates = Interlocked.Exchange(ref _invalidateCount, 0);
+                int redraws = Interlocked.Exchange(ref _requestRedrawCount, 0);
+                int draws = Interlocked.Exchange(ref _drawCount, 0);
+                Console.WriteLine($"[DIAG] ❤️ Heartbeat | Invalidate={invalidates}/s, RequestRedraw={redraws}/s, Draw={draws}/s");
+                _lastCounterReset = now;
+            }
+            return true;
+        });
+    }
+
+    /// <summary>
+    /// Logs a draw call for diagnostics.
+    /// </summary>
+    public static void LogDraw()
+    {
+        Interlocked.Increment(ref _drawCount);
+    }
+
+    /// <summary>
+    /// Requests a redraw of the application.
+    /// </summary>
+    public static void RequestRedraw()
+    {
+        LogRequestRedraw();
+        if (_isRedrawing)
+            return;
+
+        _isRedrawing = true;
+        try
+        {
+            if (Current != null && Current._useGtk)
+            {
+                Current._gtkWindow?.RequestRedraw();
+            }
+            else
+            {
+                Current?._renderingEngine?.InvalidateAll();
+            }
+        }
+        finally
+        {
+            _isRedrawing = false;
+        }
+    }
 
     /// <summary>
     /// Gets the main window.
@@ -112,84 +219,99 @@ public class LinuxApplication : IDisposable
     /// <param name="configure">Optional configuration action.</param>
     public static void Run(MauiApp app, string[] args, Action<LinuxApplicationOptions>? configure)
     {
+        // Initialize dispatcher
+        LinuxDispatcher.Initialize();
+        DispatcherProvider.SetCurrent(LinuxDispatcherProvider.Instance);
+        Console.WriteLine("[LinuxApplication] Dispatcher initialized");
+
         var options = app.Services.GetService<LinuxApplicationOptions>()
                       ?? new LinuxApplicationOptions();
         configure?.Invoke(options);
         ParseCommandLineOptions(args, options);
 
-        using var linuxApp = new LinuxApplication();
-        linuxApp.Initialize(options);
-
-        // Create MAUI context
-        var mauiContext = new Hosting.LinuxMauiContext(app.Services, linuxApp);
-
-        // Get the application and render it
-        var application = app.Services.GetService<IApplication>();
-        SkiaView? rootView = null;
-
-        if (application is Microsoft.Maui.Controls.Application mauiApplication)
+        var linuxApp = new LinuxApplication();
+        try
         {
-            // Force Application.Current to be this instance
-            // The constructor sets Current = this, but we ensure it here
-            var currentProperty = typeof(Microsoft.Maui.Controls.Application).GetProperty("Current");
-            if (currentProperty != null && currentProperty.CanWrite)
+            linuxApp.Initialize(options);
+
+            // Create MAUI context
+            var mauiContext = new LinuxMauiContext(app.Services, linuxApp);
+
+            // Get the application and render it
+            var application = app.Services.GetService<IApplication>();
+            SkiaView? rootView = null;
+
+            if (application is Application mauiApplication)
             {
-                currentProperty.SetValue(null, mauiApplication);
+                // Force Application.Current to be this instance
+                var currentProperty = typeof(Application).GetProperty("Current");
+                if (currentProperty != null && currentProperty.CanWrite)
+                {
+                    currentProperty.SetValue(null, mauiApplication);
+                }
+
+                // Handle theme changes
+                ((BindableObject)mauiApplication).PropertyChanged += (s, e) =>
+                {
+                    if (e.PropertyName == "UserAppTheme")
+                    {
+                        Console.WriteLine($"[LinuxApplication] Theme changed to: {mauiApplication.UserAppTheme}");
+                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
+                        linuxApp._renderingEngine?.InvalidateAll();
+                    }
+                };
+
+                if (mauiApplication.MainPage != null)
+                {
+                    var mainPage = mauiApplication.MainPage;
+
+                    var windowsField = typeof(Application).GetField("_windows",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    var windowsList = windowsField?.GetValue(mauiApplication) as List<Microsoft.Maui.Controls.Window>;
+
+                    if (windowsList != null && windowsList.Count == 0)
+                    {
+                        var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
+                        windowsList.Add(mauiWindow);
+                        mauiWindow.Parent = mauiApplication;
+                    }
+                    else if (windowsList != null && windowsList.Count > 0 && windowsList[0].Page == null)
+                    {
+                        windowsList[0].Page = mainPage;
+                    }
+
+                    var renderer = new LinuxViewRenderer(mauiContext);
+                    rootView = renderer.RenderPage(mainPage);
+
+                    string windowTitle = "OpenMaui App";
+                    if (mainPage is NavigationPage navPage)
+                    {
+                        windowTitle = navPage.Title ?? windowTitle;
+                    }
+                    else if (mainPage is Shell shell)
+                    {
+                        windowTitle = shell.Title ?? windowTitle;
+                    }
+                    else
+                    {
+                        windowTitle = mainPage.Title ?? windowTitle;
+                    }
+                    linuxApp.SetWindowTitle(windowTitle);
+                }
             }
 
-            if (mauiApplication.MainPage != null)
+            if (rootView == null)
             {
-                // Create a MAUI Window and add it to the application
-                // This ensures Shell.Current works (it reads from Application.Current.Windows[0].Page)
-                var mainPage = mauiApplication.MainPage;
-
-                // Always ensure we have a window with the Shell/Page
-                var windowsField = typeof(Microsoft.Maui.Controls.Application).GetField("_windows",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                var windowsList = windowsField?.GetValue(mauiApplication) as System.Collections.Generic.List<Microsoft.Maui.Controls.Window>;
-
-                if (windowsList != null && windowsList.Count == 0)
-                {
-                    var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
-                    windowsList.Add(mauiWindow);
-                    mauiWindow.Parent = mauiApplication;
-                }
-                else if (windowsList != null && windowsList.Count > 0 && windowsList[0].Page == null)
-                {
-                    // Window exists but has no page - set it
-                    windowsList[0].Page = mainPage;
-                }
-
-                var renderer = new Hosting.LinuxViewRenderer(mauiContext);
-                rootView = renderer.RenderPage(mainPage);
-
-                // Update window title based on app name (NavigationPage.Title takes precedence)
-                string windowTitle = "OpenMaui App";
-                if (mainPage is Microsoft.Maui.Controls.NavigationPage navPage)
-                {
-                    // Prefer NavigationPage.Title (app name) over CurrentPage.Title (page name) for window title
-                    windowTitle = navPage.Title ?? windowTitle;
-                }
-                else if (mainPage is Microsoft.Maui.Controls.Shell shell)
-                {
-                    windowTitle = shell.Title ?? windowTitle;
-                }
-                else
-                {
-                    windowTitle = mainPage.Title ?? windowTitle;
-                }
-                linuxApp.SetWindowTitle(windowTitle);
+                rootView = LinuxProgramHost.CreateDemoView();
             }
-        }
 
-        // Fallback to demo if no view
-        if (rootView == null)
+            linuxApp.RootView = rootView;
+            linuxApp.Run();
+        }
+        finally
         {
-            rootView = Hosting.LinuxProgramHost.CreateDemoView();
+            linuxApp?.Dispose();
         }
-
-        linuxApp.RootView = rootView;
-        linuxApp.Run();
     }
 
     private static void ParseCommandLineOptions(string[] args, LinuxApplicationOptions options)
@@ -218,16 +340,37 @@ public class LinuxApplication : IDisposable
     /// </summary>
     public void Initialize(LinuxApplicationOptions options)
     {
-        // Create the main window
+        _useGtk = options.UseGtk;
+        if (_useGtk)
+        {
+            InitializeGtk(options);
+        }
+        else
+        {
+            InitializeX11(options);
+        }
+        RegisterServices();
+    }
+
+    private void InitializeX11(LinuxApplicationOptions options)
+    {
         _mainWindow = new X11Window(
             options.Title ?? "MAUI Application",
             options.Width,
             options.Height);
 
-        // Create the rendering engine
+        // Set up WebView main window
+        SkiaWebView.SetMainWindow(_mainWindow.Display, _mainWindow.Handle);
+
+        // Set window icon
+        string? iconPath = ResolveIconPath(options.IconPath);
+        if (!string.IsNullOrEmpty(iconPath))
+        {
+            _mainWindow.SetIcon(iconPath);
+        }
+
         _renderingEngine = new SkiaRenderingEngine(_mainWindow);
 
-        // Wire up events
         _mainWindow.Resized += OnWindowResized;
         _mainWindow.Exposed += OnWindowExposed;
         _mainWindow.KeyDown += OnKeyDown;
@@ -238,9 +381,69 @@ public class LinuxApplication : IDisposable
         _mainWindow.PointerReleased += OnPointerReleased;
         _mainWindow.Scroll += OnScroll;
         _mainWindow.CloseRequested += OnCloseRequested;
+    }
 
-        // Register platform services
-        RegisterServices();
+    private void InitializeGtk(LinuxApplicationOptions options)
+    {
+        _gtkWindow = GtkHostService.Instance.GetOrCreateHostWindow(
+            options.Title ?? "MAUI Application",
+            options.Width,
+            options.Height);
+
+        string? iconPath = ResolveIconPath(options.IconPath);
+        if (!string.IsNullOrEmpty(iconPath))
+        {
+            GtkHostService.Instance.SetWindowIcon(iconPath);
+        }
+
+        if (_gtkWindow.SkiaSurface != null)
+        {
+            _gtkWindow.SkiaSurface.DrawRequested += OnGtkDrawRequested;
+            _gtkWindow.SkiaSurface.PointerPressed += OnGtkPointerPressed;
+            _gtkWindow.SkiaSurface.PointerReleased += OnGtkPointerReleased;
+            _gtkWindow.SkiaSurface.PointerMoved += OnGtkPointerMoved;
+            _gtkWindow.SkiaSurface.KeyPressed += OnGtkKeyPressed;
+            _gtkWindow.SkiaSurface.KeyReleased += OnGtkKeyReleased;
+            _gtkWindow.SkiaSurface.Scrolled += OnGtkScrolled;
+            _gtkWindow.SkiaSurface.TextInput += OnGtkTextInput;
+        }
+        _gtkWindow.Resized += OnGtkResized;
+    }
+
+    private static string? ResolveIconPath(string? explicitPath)
+    {
+        if (!string.IsNullOrEmpty(explicitPath))
+        {
+            if (Path.IsPathRooted(explicitPath))
+            {
+                return File.Exists(explicitPath) ? explicitPath : null;
+            }
+            string resolved = Path.Combine(AppContext.BaseDirectory, explicitPath);
+            return File.Exists(resolved) ? resolved : null;
+        }
+
+        string baseDir = AppContext.BaseDirectory;
+
+        // Check for appicon.meta (generated icon)
+        string metaPath = Path.Combine(baseDir, "appicon.meta");
+        if (File.Exists(metaPath))
+        {
+            string? generated = MauiIconGenerator.GenerateIcon(metaPath);
+            if (!string.IsNullOrEmpty(generated) && File.Exists(generated))
+            {
+                return generated;
+            }
+        }
+
+        // Check for appicon.png
+        string pngPath = Path.Combine(baseDir, "appicon.png");
+        if (File.Exists(pngPath)) return pngPath;
+
+        // Check for appicon.svg
+        string svgPath = Path.Combine(baseDir, "appicon.svg");
+        if (File.Exists(svgPath)) return svgPath;
+
+        return null;
     }
 
     private void RegisterServices()
@@ -262,25 +465,60 @@ public class LinuxApplication : IDisposable
     /// </summary>
     public void Run()
     {
+        if (_useGtk)
+        {
+            RunGtk();
+        }
+        else
+        {
+            RunX11();
+        }
+    }
+
+    private void RunX11()
+    {
         if (_mainWindow == null)
             throw new InvalidOperationException("Application not initialized");
 
         _mainWindow.Show();
-
-        // Initial render
         Render();
 
-        // Run the event loop
+        Console.WriteLine("[LinuxApplication] Starting event loop");
         while (_mainWindow.IsRunning)
         {
-            _mainWindow.ProcessEvents();
+            _loopCounter++;
+            if (_loopCounter % 1000 == 0)
+            {
+                Console.WriteLine($"[LinuxApplication] Loop iteration {_loopCounter}");
+            }
 
-            // Update animations and render
+            _mainWindow.ProcessEvents();
+            SkiaWebView.ProcessGtkEvents();
             UpdateAnimations();
             Render();
-
-            // Small delay to prevent 100% CPU usage
             Thread.Sleep(1);
+        }
+        Console.WriteLine("[LinuxApplication] Event loop ended");
+    }
+
+    private void RunGtk()
+    {
+        if (_gtkWindow == null)
+            throw new InvalidOperationException("Application not initialized");
+
+        StartHeartbeat();
+        PerformGtkLayout(_gtkWindow.Width, _gtkWindow.Height);
+        _gtkWindow.RequestRedraw();
+        _gtkWindow.Run();
+        GtkHostService.Instance.Shutdown();
+    }
+
+    private void PerformGtkLayout(int width, int height)
+    {
+        if (_rootView != null)
+        {
+            _rootView.Measure(new SKSize(width, height));
+            _rootView.Arrange(new SKRect(0, 0, width, height));
         }
     }
 
@@ -358,6 +596,13 @@ public class LinuxApplication : IDisposable
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
+        // Route to context menu if one is active
+        if (LinuxDialogService.HasContextMenu)
+        {
+            LinuxDialogService.ActiveContextMenu?.OnPointerMoved(e);
+            return;
+        }
+
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
         {
@@ -384,6 +629,10 @@ public class LinuxApplication : IDisposable
                 _hoveredView?.OnPointerExited(e);
                 _hoveredView = hitView;
                 _hoveredView?.OnPointerEntered(e);
+
+                // Update cursor based on view's cursor type
+                CursorType cursor = hitView?.CursorType ?? CursorType.Arrow;
+                _mainWindow?.SetCursor(cursor);
             }
 
             hitView?.OnPointerMoved(e);
@@ -393,6 +642,13 @@ public class LinuxApplication : IDisposable
     private void OnPointerPressed(object? sender, PointerEventArgs e)
     {
         Console.WriteLine($"[LinuxApplication] OnPointerPressed at ({e.X}, {e.Y})");
+
+        // Route to context menu if one is active
+        if (LinuxDialogService.HasContextMenu)
+        {
+            LinuxDialogService.ActiveContextMenu?.OnPointerPressed(e);
+            return;
+        }
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
@@ -489,6 +745,224 @@ public class LinuxApplication : IDisposable
         _mainWindow?.Stop();
     }
 
+    // GTK Event Handlers
+    private void OnGtkDrawRequested(object? sender, EventArgs e)
+    {
+        Console.WriteLine("[DIAG] >>> OnGtkDrawRequested ENTER");
+        LogDraw();
+        var surface = _gtkWindow?.SkiaSurface;
+        if (surface?.Canvas != null && _rootView != null)
+        {
+            var bgColor = Application.Current?.UserAppTheme == AppTheme.Dark
+                ? new SKColor(32, 33, 36)
+                : SKColors.White;
+            surface.Canvas.Clear(bgColor);
+            Console.WriteLine("[DIAG] Drawing rootView...");
+            _rootView.Draw(surface.Canvas);
+            Console.WriteLine("[DIAG] Drawing dialogs...");
+            var bounds = new SKRect(0, 0, surface.Width, surface.Height);
+            LinuxDialogService.DrawDialogs(surface.Canvas, bounds);
+            Console.WriteLine("[DIAG] <<< OnGtkDrawRequested EXIT");
+        }
+    }
+
+    private void OnGtkResized(object? sender, (int Width, int Height) size)
+    {
+        PerformGtkLayout(size.Width, size.Height);
+        _gtkWindow?.RequestRedraw();
+    }
+
+    private void OnGtkPointerPressed(object? sender, (double X, double Y, int Button) e)
+    {
+        string buttonName = e.Button == 1 ? "Left" : e.Button == 2 ? "Middle" : e.Button == 3 ? "Right" : $"Unknown({e.Button})";
+        Console.WriteLine($"[LinuxApplication.GTK] PointerPressed at ({e.X:F1}, {e.Y:F1}), Button={e.Button} ({buttonName})");
+
+        if (LinuxDialogService.HasContextMenu)
+        {
+            var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
+            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            LinuxDialogService.ActiveContextMenu?.OnPointerPressed(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
+        if (_rootView == null)
+        {
+            Console.WriteLine("[LinuxApplication.GTK] _rootView is null!");
+            return;
+        }
+
+        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        Console.WriteLine($"[LinuxApplication.GTK] HitView: {hitView?.GetType().Name ?? "null"}");
+
+        if (hitView != null)
+        {
+            if (hitView.IsFocusable && _focusedView != hitView)
+            {
+                _focusedView?.OnFocusLost();
+                _focusedView = hitView;
+                _focusedView.OnFocusGained();
+            }
+            _capturedView = hitView;
+            var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
+            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            Console.WriteLine("[DIAG] >>> Before OnPointerPressed");
+            hitView.OnPointerPressed(args);
+            Console.WriteLine("[DIAG] <<< After OnPointerPressed, calling RequestRedraw");
+            _gtkWindow?.RequestRedraw();
+            Console.WriteLine("[DIAG] <<< After RequestRedraw, returning from handler");
+        }
+    }
+
+    private void OnGtkPointerReleased(object? sender, (double X, double Y, int Button) e)
+    {
+        Console.WriteLine("[DIAG] >>> OnGtkPointerReleased ENTER");
+        if (_rootView == null) return;
+
+        if (_capturedView != null)
+        {
+            var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
+            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            Console.WriteLine($"[DIAG] Calling OnPointerReleased on {_capturedView.GetType().Name}");
+            _capturedView.OnPointerReleased(args);
+            Console.WriteLine("[DIAG] OnPointerReleased returned");
+            _capturedView = null;
+            _gtkWindow?.RequestRedraw();
+            Console.WriteLine("[DIAG] <<< OnGtkPointerReleased EXIT (captured path)");
+        }
+        else
+        {
+            var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+            if (hitView != null)
+            {
+                var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
+                var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+                hitView.OnPointerReleased(args);
+                _gtkWindow?.RequestRedraw();
+            }
+        }
+    }
+
+    private void OnGtkPointerMoved(object? sender, (double X, double Y) e)
+    {
+        if (LinuxDialogService.HasContextMenu)
+        {
+            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            LinuxDialogService.ActiveContextMenu?.OnPointerMoved(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
+        if (_rootView == null) return;
+
+        if (_capturedView != null)
+        {
+            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            _capturedView.OnPointerMoved(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
+        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        if (hitView != _hoveredView)
+        {
+            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            _hoveredView?.OnPointerExited(args);
+            _hoveredView = hitView;
+            _hoveredView?.OnPointerEntered(args);
+            _gtkWindow?.RequestRedraw();
+        }
+
+        if (hitView != null)
+        {
+            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            hitView.OnPointerMoved(args);
+        }
+    }
+
+    private void OnGtkKeyPressed(object? sender, (uint KeyVal, uint KeyCode, uint State) e)
+    {
+        if (_focusedView != null)
+        {
+            var key = ConvertGdkKey(e.KeyVal);
+            var modifiers = ConvertGdkModifiers(e.State);
+            var args = new KeyEventArgs(key, modifiers);
+            _focusedView.OnKeyDown(args);
+            _gtkWindow?.RequestRedraw();
+        }
+    }
+
+    private void OnGtkKeyReleased(object? sender, (uint KeyVal, uint KeyCode, uint State) e)
+    {
+        if (_focusedView != null)
+        {
+            var key = ConvertGdkKey(e.KeyVal);
+            var modifiers = ConvertGdkModifiers(e.State);
+            var args = new KeyEventArgs(key, modifiers);
+            _focusedView.OnKeyUp(args);
+            _gtkWindow?.RequestRedraw();
+        }
+    }
+
+    private void OnGtkScrolled(object? sender, (double X, double Y, double DeltaX, double DeltaY) e)
+    {
+        if (_rootView == null) return;
+
+        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        while (hitView != null)
+        {
+            if (hitView is SkiaScrollView scrollView)
+            {
+                var args = new ScrollEventArgs((float)e.X, (float)e.Y, (float)e.DeltaX, (float)e.DeltaY);
+                scrollView.OnScroll(args);
+                _gtkWindow?.RequestRedraw();
+                break;
+            }
+            hitView = hitView.Parent;
+        }
+    }
+
+    private void OnGtkTextInput(object? sender, string text)
+    {
+        if (_focusedView != null)
+        {
+            var args = new TextInputEventArgs(text);
+            _focusedView.OnTextInput(args);
+            _gtkWindow?.RequestRedraw();
+        }
+    }
+
+    private static Key ConvertGdkKey(uint keyval)
+    {
+        return keyval switch
+        {
+            65288 => Key.Backspace,
+            65289 => Key.Tab,
+            65293 => Key.Enter,
+            65307 => Key.Escape,
+            65360 => Key.Home,
+            65361 => Key.Left,
+            65362 => Key.Up,
+            65363 => Key.Right,
+            65364 => Key.Down,
+            65365 => Key.PageUp,
+            65366 => Key.PageDown,
+            65367 => Key.End,
+            65535 => Key.Delete,
+            >= 32 and <= 126 => (Key)keyval,
+            _ => Key.Unknown
+        };
+    }
+
+    private static KeyModifiers ConvertGdkModifiers(uint state)
+    {
+        var modifiers = KeyModifiers.None;
+        if ((state & 1) != 0) modifiers |= KeyModifiers.Shift;
+        if ((state & 4) != 0) modifiers |= KeyModifiers.Control;
+        if ((state & 8) != 0) modifiers |= KeyModifiers.Alt;
+        return modifiers;
+    }
+
     public void Dispose()
     {
         if (!_disposed)
@@ -538,6 +1012,16 @@ public class LinuxApplicationOptions
     /// Gets or sets whether to force demo mode instead of loading the application's pages.
     /// </summary>
     public bool ForceDemo { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether to use GTK mode instead of X11.
+    /// </summary>
+    public bool UseGtk { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the path to the application icon.
+    /// </summary>
+    public string? IconPath { get; set; }
 }
 
 /// <summary>

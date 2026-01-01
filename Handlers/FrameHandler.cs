@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -92,7 +93,7 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
             {
-                content.Handler = content.ToHandler(handler.MauiContext);
+                content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             if (content.Handler?.PlatformView is SkiaView skiaContent)

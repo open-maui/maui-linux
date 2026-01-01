@@ -1,8 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Linq;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Window;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -29,6 +32,7 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         [nameof(IView.Background)] = MapBackground,
         [nameof(IView.VerticalLayoutAlignment)] = MapVerticalLayoutAlignment,
         [nameof(IView.HorizontalLayoutAlignment)] = MapHorizontalLayoutAlignment,
+        ["FormattedText"] = MapFormattedText,
     };
 
     public static CommandMapper<ILabel, LabelHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -47,6 +51,39 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
     protected override SkiaLabel CreatePlatformView()
     {
         return new SkiaLabel();
+    }
+
+    protected override void ConnectHandler(SkiaLabel platformView)
+    {
+        base.ConnectHandler(platformView);
+
+        if (VirtualView is View view)
+        {
+            platformView.MauiView = view;
+
+            // Set hand cursor if the label has tap gesture recognizers
+            if (view.GestureRecognizers.OfType<TapGestureRecognizer>().Any())
+            {
+                platformView.CursorType = CursorType.Hand;
+            }
+        }
+
+        platformView.Tapped += OnPlatformViewTapped;
+    }
+
+    protected override void DisconnectHandler(SkiaLabel platformView)
+    {
+        platformView.Tapped -= OnPlatformViewTapped;
+        platformView.MauiView = null;
+        base.DisconnectHandler(platformView);
+    }
+
+    private void OnPlatformViewTapped(object? sender, EventArgs e)
+    {
+        if (VirtualView is View view)
+        {
+            GestureManager.ProcessTap(view, 0, 0);
+        }
     }
 
     public static void MapText(LabelHandler handler, ILabel label)
@@ -204,5 +241,54 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
             Primitives.LayoutAlignment.Fill => LayoutOptions.Fill,
             _ => LayoutOptions.Start
         };
+    }
+
+    public static void MapFormattedText(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (label is not Label mauiLabel)
+        {
+            handler.PlatformView.FormattedSpans = null;
+            return;
+        }
+
+        var formattedText = mauiLabel.FormattedText;
+        if (formattedText == null || formattedText.Spans.Count == 0)
+        {
+            handler.PlatformView.FormattedSpans = null;
+            return;
+        }
+
+        var spans = new List<SkiaTextSpan>();
+        foreach (var span in formattedText.Spans)
+        {
+            var skiaSpan = new SkiaTextSpan
+            {
+                Text = span.Text ?? "",
+                IsBold = span.FontAttributes.HasFlag(FontAttributes.Bold),
+                IsItalic = span.FontAttributes.HasFlag(FontAttributes.Italic),
+                IsUnderline = (span.TextDecorations & TextDecorations.Underline) != 0,
+                IsStrikethrough = (span.TextDecorations & TextDecorations.Strikethrough) != 0,
+                CharacterSpacing = (float)span.CharacterSpacing,
+                LineHeight = (float)span.LineHeight
+            };
+
+            if (span.TextColor != null)
+                skiaSpan.TextColor = span.TextColor.ToSKColor();
+
+            if (span.BackgroundColor != null)
+                skiaSpan.BackgroundColor = span.BackgroundColor.ToSKColor();
+
+            if (!string.IsNullOrEmpty(span.FontFamily))
+                skiaSpan.FontFamily = span.FontFamily;
+
+            if (span.FontSize > 0)
+                skiaSpan.FontSize = (float)span.FontSize;
+
+            spans.Add(skiaSpan);
+        }
+
+        handler.PlatformView.FormattedSpans = spans;
     }
 }

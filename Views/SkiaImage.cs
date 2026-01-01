@@ -210,6 +210,25 @@ public class SkiaImage : SkiaView
         }
     }
 
+    /// <summary>
+    /// Loads the image from an SKBitmap.
+    /// </summary>
+    public void LoadFromBitmap(SKBitmap bitmap)
+    {
+        try
+        {
+            Bitmap = bitmap;
+            _isLoading = false;
+            ImageLoaded?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            _isLoading = false;
+            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
+        }
+        Invalidate();
+    }
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         if (_image == null)

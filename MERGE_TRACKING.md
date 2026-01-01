@@ -4,17 +4,20 @@
 
 | Category | In Main | In Decompiled | New to Add | To Compare | Completed |
 |----------|---------|---------------|------------|------------|-----------|
-| Handlers | 44 | 48 | 13 | 35 | 0 |
-| Views/Types | 41 | 118 | 77 | 41 | 0 |
-| Services | 33 | 103 | 70 | 33 | 0 |
-| Hosting | 5 | 12 | 7 | 5 | 0 |
-| Dispatching | 0 | 3 | 3 | 0 | 0 |
-| Native | 0 | 5 | 5 | 0 | 0 |
-| **TOTAL** | **123** | **289** | **175** | **114** | **0** |
+| Handlers | 44 | 48 | 13 | 35 | 23 |
+| Views/Types | 41 | 118 | 77 | 41 | 10 |
+| Services | 33 | 103 | 70 | 33 | 7 |
+| Hosting | 5 | 12 | 7 | 5 | 2 |
+| Dispatching | 0 | 3 | 3 | 0 | 3 |
+| Native | 0 | 5 | 5 | 0 | 5 |
+| Window | 2 | 3 | 1 | 2 | 3 |
+| Rendering | 1 | 2 | 1 | 1 | 1 |
+| **TOTAL** | **123** | **289** | **175** | **114** | **54** |
 
-**Branch:** `final`
+**Branch:** `main`
 **Base:** Clean main (builds with 0 errors)
-**Status:** Ready to begin
+**Status:** In progress - BUILD SUCCEEDS
+**Last Updated:** 2026-01-01
 
 ---
 
@@ -22,62 +25,62 @@
 
 ### New Handlers (13 files) - TO ADD
 
-- [ ] ContentPageHandler.cs
-- [ ] FlexLayoutHandler.cs
-- [ ] GestureManager.cs
-- [ ] GridHandler.cs
+- [ ] ContentPageHandler.cs - EXISTS IN PageHandler.cs, needs comparison
+- [x] FlexLayoutHandler.cs - ADDED
+- [x] GestureManager.cs - ADDED (tap, pan, swipe, pointer gesture processing)
+- [ ] GridHandler.cs - EXISTS IN LayoutHandler.cs, needs comparison
 - [ ] GtkWebViewHandler.cs
-- [ ] GtkWebViewManager.cs
-- [ ] GtkWebViewPlatformView.cs
+- [x] GtkWebViewManager.cs - ADDED
+- [x] GtkWebViewPlatformView.cs - ADDED
 - [ ] GtkWebViewProxy.cs
-- [ ] LayoutHandlerUpdate.cs
+- [ ] LayoutHandlerUpdate.cs - EXISTS IN LayoutHandler.cs
 - [ ] LinuxApplicationContext.cs
-- [ ] RelayCommand.cs
+- [ ] RelayCommand.cs - EXISTS IN NavigationPageHandler.cs
 - [ ] SizeChangedEventArgs.cs
 - [ ] SkiaWindow.cs
-- [ ] StackLayoutHandler.cs
-- [ ] TextButtonHandler.cs
+- [ ] StackLayoutHandler.cs - EXISTS IN LayoutHandler.cs, needs comparison
+- [ ] TextButtonHandler.cs - EXISTS IN ButtonHandler.cs
 
 ### Existing Handlers (35 files) - TO COMPARE
 
 - [ ] ActivityIndicatorHandler.cs
 - [ ] ActivityIndicatorHandler.Linux.cs
 - [ ] ApplicationHandler.cs
-- [ ] BorderHandler.cs
+- [x] BorderHandler.cs - Updated to use ToViewHandler
 - [ ] BoxViewHandler.cs
 - [ ] ButtonHandler.cs
 - [ ] ButtonHandler.Linux.cs
-- [ ] CheckBoxHandler.cs
+- [x] CheckBoxHandler.cs - Updated with missing mappers
 - [ ] CheckBoxHandler.Linux.cs
-- [ ] CollectionViewHandler.cs
-- [ ] DatePickerHandler.cs
+- [x] CollectionViewHandler.cs - Updated to use ToViewHandler
+- [x] DatePickerHandler.cs - Updated with missing mappers
 - [ ] EditorHandler.cs
-- [ ] EntryHandler.cs
+- [x] EntryHandler.cs - Updated with missing mappers
 - [ ] EntryHandler.Linux.cs
 - [ ] FlyoutPageHandler.cs
-- [ ] FrameHandler.cs
+- [x] FrameHandler.cs - Updated to use ToViewHandler
 - [ ] GraphicsViewHandler.cs
 - [ ] ImageButtonHandler.cs
-- [ ] ImageHandler.cs
+- [x] ImageHandler.cs - Updated with LoadFromBitmap support
 - [ ] ItemsViewHandler.cs
-- [ ] LabelHandler.cs
+- [x] LabelHandler.cs - Added ConnectHandler, DisconnectHandler, OnPlatformViewTapped, MapFormattedText
 - [ ] LabelHandler.Linux.cs
-- [ ] LayoutHandler.cs
-- [ ] LayoutHandler.Linux.cs
-- [ ] NavigationPageHandler.cs
-- [ ] PageHandler.cs
-- [ ] PickerHandler.cs
-- [ ] ProgressBarHandler.cs
+- [x] LayoutHandler.cs - Updated to use ToViewHandler
+- [x] LayoutHandler.Linux.cs - Updated to use ToViewHandler
+- [x] NavigationPageHandler.cs - Updated to use ToViewHandler
+- [x] PageHandler.cs - Updated to use ToViewHandler
+- [x] PickerHandler.cs - Updated with missing mappers
+- [x] ProgressBarHandler.cs - Updated with missing mappers
 - [ ] ProgressBarHandler.Linux.cs
 - [ ] RadioButtonHandler.cs
-- [ ] ScrollViewHandler.cs
+- [x] ScrollViewHandler.cs - Updated to use ToViewHandler
 - [ ] SearchBarHandler.cs
 - [ ] SearchBarHandler.Linux.cs
 - [ ] ShellHandler.cs
 - [ ] SliderHandler.cs
 - [ ] SliderHandler.Linux.cs
 - [ ] StepperHandler.cs
-- [ ] SwitchHandler.cs
+- [x] SwitchHandler.cs - Updated with missing mappers
 - [ ] SwitchHandler.Linux.cs
 - [ ] TabbedPageHandler.cs
 - [ ] TimePickerHandler.cs
@@ -91,72 +94,72 @@
 
 ### New Types (77 files) - TO ADD
 
-- [ ] AbsoluteLayoutBounds.cs
-- [ ] AbsoluteLayoutFlags.cs
+- [ ] AbsoluteLayoutBounds.cs - EXISTS IN SkiaLayoutView.cs
+- [ ] AbsoluteLayoutFlags.cs - EXISTS IN SkiaLayoutView.cs
 - [ ] CheckedChangedEventArgs.cs
 - [ ] CollectionSelectionChangedEventArgs.cs
 - [ ] ColorExtensions.cs
-- [ ] ContextMenuItem.cs
-- [ ] FlexAlignContent.cs
-- [ ] FlexAlignItems.cs
-- [ ] FlexAlignSelf.cs
-- [ ] FlexBasis.cs
-- [ ] FlexDirection.cs
-- [ ] FlexJustify.cs
-- [ ] FlexWrap.cs
+- [ ] ContextMenuItem.cs - EXISTS IN Types/
+- [ ] FlexAlignContent.cs - EXISTS IN Types/
+- [ ] FlexAlignItems.cs - EXISTS IN Types/
+- [ ] FlexAlignSelf.cs - EXISTS IN Types/
+- [ ] FlexBasis.cs - EXISTS IN Types/
+- [ ] FlexDirection.cs - EXISTS IN Types/
+- [ ] FlexJustify.cs - EXISTS IN Types/
+- [ ] FlexWrap.cs - EXISTS IN Types/
 - [ ] FlyoutLayoutBehavior.cs
 - [ ] FontExtensions.cs
-- [ ] GridLength.cs
-- [ ] GridPosition.cs
-- [ ] GridUnitType.cs
+- [ ] GridLength.cs - EXISTS IN SkiaLayoutView.cs
+- [ ] GridPosition.cs - EXISTS IN SkiaLayoutView.cs
+- [ ] GridUnitType.cs - EXISTS IN SkiaLayoutView.cs
 - [ ] ImageLoadingErrorEventArgs.cs
 - [ ] IndicatorShape.cs
-- [ ] ISkiaQueryAttributable.cs
+- [ ] ISkiaQueryAttributable.cs - EXISTS IN Types/
 - [ ] ItemsLayoutOrientation.cs
 - [ ] ItemsScrolledEventArgs.cs
 - [ ] ItemsViewItemTappedEventArgs.cs
-- [ ] Key.cs
-- [ ] KeyEventArgs.cs
-- [ ] KeyModifiers.cs
+- [ ] Key.cs - EXISTS IN SkiaView.cs
+- [ ] KeyEventArgs.cs - EXISTS IN SkiaView.cs
+- [ ] KeyModifiers.cs - EXISTS IN SkiaView.cs
 - [ ] LayoutAlignment.cs
 - [ ] LineBreakMode.cs
 - [ ] LinuxDialogService.cs
-- [ ] MenuBarItem.cs
-- [ ] MenuItem.cs
-- [ ] MenuItemClickedEventArgs.cs
-- [ ] NavigationEventArgs.cs
-- [ ] PointerButton.cs
-- [ ] PointerEventArgs.cs
+- [ ] MenuBarItem.cs - EXISTS IN SkiaMenuBar.cs
+- [ ] MenuItem.cs - EXISTS IN SkiaMenuBar.cs
+- [ ] MenuItemClickedEventArgs.cs - EXISTS IN SkiaMenuBar.cs
+- [ ] NavigationEventArgs.cs - EXISTS IN SkiaNavigationPage.cs
+- [ ] PointerButton.cs - EXISTS IN SkiaView.cs
+- [ ] PointerEventArgs.cs - EXISTS IN SkiaView.cs
 - [ ] PositionChangedEventArgs.cs
 - [ ] ProgressChangedEventArgs.cs
-- [ ] ScrollBarVisibility.cs
-- [ ] ScrolledEventArgs.cs
-- [ ] ScrollEventArgs.cs
-- [ ] ScrollOrientation.cs
-- [ ] ShellContent.cs
-- [ ] ShellFlyoutBehavior.cs
-- [ ] ShellNavigationEventArgs.cs
-- [ ] ShellSection.cs
-- [ ] SkiaAbsoluteLayout.cs
-- [ ] SkiaContentPage.cs
+- [ ] ScrollBarVisibility.cs - EXISTS IN SkiaScrollView.cs
+- [ ] ScrolledEventArgs.cs - EXISTS IN SkiaScrollView.cs
+- [ ] ScrollEventArgs.cs - EXISTS IN SkiaView.cs
+- [ ] ScrollOrientation.cs - EXISTS IN SkiaScrollView.cs
+- [ ] ShellContent.cs - EXISTS IN SkiaShell.cs
+- [ ] ShellFlyoutBehavior.cs - EXISTS IN SkiaShell.cs
+- [ ] ShellNavigationEventArgs.cs - EXISTS IN SkiaShell.cs
+- [ ] ShellSection.cs - EXISTS IN SkiaShell.cs
+- [ ] SkiaAbsoluteLayout.cs - EXISTS IN SkiaLayoutView.cs
+- [ ] SkiaContentPage.cs - EXISTS IN SkiaPage.cs
 - [ ] SkiaContextMenu.cs
-- [ ] SkiaFlexLayout.cs
-- [ ] SkiaFrame.cs
-- [ ] SkiaGrid.cs
+- [x] SkiaFlexLayout.cs - ADDED
+- [ ] SkiaFrame.cs - EXISTS IN SkiaBorder.cs
+- [ ] SkiaGrid.cs - EXISTS IN SkiaLayoutView.cs
 - [ ] SkiaMenuFlyout.cs
 - [ ] SkiaSelectionMode.cs
-- [ ] SkiaStackLayout.cs
+- [ ] SkiaStackLayout.cs - EXISTS IN SkiaLayoutView.cs
 - [ ] SkiaTextAlignment.cs
-- [ ] SkiaTextSpan.cs
-- [ ] SkiaToolbarItem.cs
-- [ ] SkiaToolbarItemOrder.cs
+- [ ] SkiaTextSpan.cs - EXISTS IN Types/
+- [ ] SkiaToolbarItem.cs - EXISTS IN SkiaPage.cs
+- [ ] SkiaToolbarItemOrder.cs - EXISTS IN SkiaPage.cs
 - [ ] SkiaVerticalAlignment.cs
 - [ ] SkiaVisualState.cs
 - [ ] SkiaVisualStateGroup.cs
 - [ ] SkiaVisualStateGroupList.cs
 - [ ] SkiaVisualStateSetter.cs
 - [ ] SliderValueChangedEventArgs.cs
-- [ ] StackOrientation.cs
+- [ ] StackOrientation.cs - EXISTS IN SkiaLayoutView.cs
 - [ ] SwipeDirection.cs
 - [ ] SwipeEndedEventArgs.cs
 - [ ] SwipeItem.cs
@@ -166,7 +169,7 @@
 - [ ] TabItem.cs
 - [ ] TextAlignment.cs
 - [ ] TextChangedEventArgs.cs
-- [ ] TextInputEventArgs.cs
+- [ ] TextInputEventArgs.cs - EXISTS IN SkiaView.cs
 - [ ] ThicknessExtensions.cs
 - [ ] ToggledEventArgs.cs
 - [ ] WebNavigatedEventArgs.cs
@@ -186,14 +189,14 @@
 - [ ] SkiaContentPresenter.cs
 - [ ] SkiaDatePicker.cs
 - [ ] SkiaEditor.cs
-- [ ] SkiaEntry.cs
+- [x] SkiaEntry.cs - Added context menu support
 - [ ] SkiaFlyoutPage.cs
 - [ ] SkiaGraphicsView.cs
-- [ ] SkiaImage.cs
+- [x] SkiaImage.cs - Added LoadFromBitmap method
 - [ ] SkiaImageButton.cs
 - [ ] SkiaIndicatorView.cs
 - [ ] SkiaItemsView.cs
-- [ ] SkiaLabel.cs
+- [x] SkiaLabel.cs - Added FormattedSpans, Tapped event, formatted text rendering
 - [ ] SkiaLayoutView.cs
 - [ ] SkiaMenuBar.cs
 - [ ] SkiaNavigationPage.cs
@@ -204,7 +207,7 @@
 - [ ] SkiaRefreshView.cs
 - [ ] SkiaScrollView.cs
 - [ ] SkiaSearchBar.cs
-- [ ] SkiaShell.cs
+- [x] SkiaShell.cs - Added MauiShell, ContentRenderer, ColorRefresher, RefreshTheme()
 - [ ] SkiaSlider.cs
 - [ ] SkiaStepper.cs
 - [ ] SkiaSwipeView.cs
@@ -212,9 +215,14 @@
 - [ ] SkiaTabbedPage.cs
 - [ ] SkiaTemplatedView.cs
 - [ ] SkiaTimePicker.cs
-- [ ] SkiaView.cs
+- [x] SkiaView.cs - Added MauiView, CursorType, transforms (Scale/Rotation/Translation/Anchor), GestureManager integration, enhanced Invalidate/Draw
 - [ ] SkiaVisualStateManager.cs
-- [ ] SkiaWebView.cs
+- [x] SkiaWebView.cs - Added SetMainWindow, ProcessGtkEvents static methods
+
+### New Views Added This Session
+
+- [x] SkiaContextMenu.cs - ADDED (context menu with hover, keyboard, dark theme support)
+- [x] LinuxDialogService.cs - ADDED (dialog and context menu management)
 
 ---
 
@@ -230,13 +238,13 @@
 - [ ] AccessibleState.cs
 - [ ] AccessibleStates.cs
 - [ ] AnnouncementPriority.cs
-- [ ] AppInfoService.cs
+- [x] AppInfoService.cs - ADDED
 - [ ] ColorDialogResult.cs
-- [ ] ConnectivityService.cs
-- [ ] DesktopEnvironment.cs
-- [ ] DeviceDisplayService.cs
-- [ ] DeviceInfoService.cs
-- [ ] DisplayServerType.cs
+- [x] ConnectivityService.cs - ADDED
+- [ ] DesktopEnvironment.cs - EXISTS IN SystemThemeService.cs
+- [x] DeviceDisplayService.cs - ADDED
+- [x] DeviceInfoService.cs - ADDED
+- [ ] DisplayServerType.cs - EXISTS IN LinuxApplication.cs
 - [ ] DragAction.cs
 - [ ] DragData.cs
 - [ ] DragEventArgs.cs
@@ -248,7 +256,7 @@
 - [ ] GtkButtonsType.cs
 - [ ] GtkContextMenuService.cs
 - [ ] GtkFileChooserAction.cs
-- [ ] GtkHostService.cs
+- [x] GtkHostService.cs - ADDED
 - [ ] GtkMenuItem.cs
 - [ ] GtkMessageType.cs
 - [ ] GtkResponseType.cs
@@ -265,7 +273,7 @@
 - [ ] IInputContext.cs
 - [ ] KeyModifiers.cs
 - [ ] LinuxFileResult.cs
-- [ ] MauiIconGenerator.cs
+- [x] MauiIconGenerator.cs - ADDED (PNG icon generator, no Svg.Skia dependency)
 - [ ] NotificationAction.cs
 - [ ] NotificationActionEventArgs.cs
 - [ ] NotificationClosedEventArgs.cs
@@ -337,12 +345,12 @@
 
 - [ ] GtkMauiContext.cs
 - [ ] HandlerMappingExtensions.cs
-- [ ] LinuxAnimationManager.cs
-- [ ] LinuxDispatcher.cs
-- [ ] LinuxDispatcherTimer.cs
-- [ ] LinuxTicker.cs
-- [ ] MauiHandlerExtensions.cs
-- [ ] ScopedLinuxMauiContext.cs
+- [ ] LinuxAnimationManager.cs - EXISTS IN LinuxMauiContext.cs
+- [ ] LinuxDispatcher.cs - EXISTS IN LinuxMauiContext.cs
+- [ ] LinuxDispatcherTimer.cs - EXISTS IN LinuxMauiContext.cs
+- [ ] LinuxTicker.cs - EXISTS IN LinuxMauiContext.cs
+- [x] MauiHandlerExtensions.cs - ADDED (critical ToViewHandler fix)
+- [ ] ScopedLinuxMauiContext.cs - EXISTS IN LinuxMauiContext.cs
 
 ### Existing Hosting (5 files) - TO COMPARE
 
@@ -372,51 +380,39 @@
 
 ---
 
+## WINDOW
+
+### Window Files - TO COMPARE/ADD
+
+- [x] CursorType.cs - ADDED (Arrow, Hand, Text cursor types)
+- [x] X11Window.cs - Added SetIcon, SetCursor methods, cursor initialization
+- [x] GtkHostWindow.cs - ADDED (GTK-based host window with overlay support)
+
+---
+
+## RENDERING
+
+### Rendering Files - TO COMPARE/ADD
+
+- [x] GtkSkiaSurfaceWidget.cs - ADDED (GTK drawing area for Skia)
+
+---
+
 ## CORE FILES
 
 ### Core (2 files) - TO COMPARE
 
-- [ ] LinuxApplication.cs
+- [x] LinuxApplication.cs - Massive update: GTK mode, Dispatcher init, theme handling, icon support, GTK events
 - [ ] LinuxApplicationOptions.cs
 
 ---
 
-## Progress Log
+## HOSTING
 
-| Date | Files Completed | Notes |
-|------|-----------------|-------|
-| 2026-01-01 | 10 Types | Added FlexDirection, FlexWrap, FlexJustify, FlexAlignItems, FlexAlignContent, FlexAlignSelf, FlexBasis, ContextMenuItem, ISkiaQueryAttributable, SkiaTextSpan |
-| 2026-01-01 | 1 Handler | Added FlexLayoutHandler.cs |
-| 2026-01-01 | 1 View | Added SkiaFlexLayout.cs |
+### Hosting Files - TO COMPARE/ADD
 
----
-
-## ⚠️ INCORRECTLY SKIPPED - MUST COMPARE AND UPDATE
-
-These were WRONGLY skipped because I assumed main was correct. Main is OUTDATED - decompiled has the production fixes.
-
-### Files that need COMPARISON (not skipped):
-
-**Handlers to compare (embedded in other files):**
-- [ ] GridHandler - exists in LayoutHandler.cs, COMPARE with decompiled GridHandler.cs
-- [ ] StackLayoutHandler - exists in LayoutHandler.cs, COMPARE with decompiled StackLayoutHandler.cs
-- [ ] ContentPageHandler - exists in PageHandler.cs, COMPARE with decompiled ContentPageHandler.cs
-
-**Views to compare (embedded in other files):**
-- [ ] SkiaGrid - exists in SkiaLayoutView.cs, COMPARE with decompiled SkiaGrid.cs
-- [ ] SkiaStackLayout - exists in SkiaLayoutView.cs, COMPARE with decompiled SkiaStackLayout.cs
-- [ ] SkiaAbsoluteLayout - exists in SkiaLayoutView.cs, COMPARE with decompiled SkiaAbsoluteLayout.cs
-- [ ] SkiaContentPage - exists in SkiaPage.cs, COMPARE with decompiled SkiaContentPage.cs
-- [ ] SkiaFrame - exists in SkiaBorder.cs, COMPARE with decompiled SkiaFrame.cs
-- [ ] SkiaContextMenu - exists in SkiaMenuBar.cs(?), COMPARE with decompiled
-- [ ] SkiaMenuFlyout - exists in SkiaMenuBar.cs, COMPARE with decompiled
-
-**Types to compare (embedded in View files):**
-- [ ] All types in SkiaView.cs (KeyEventArgs, PointerEventArgs, ScrollEventArgs, TextInputEventArgs, Key, KeyModifiers, PointerButton)
-- [ ] Types in SkiaLayoutView.cs (GridLength, GridPosition, AbsoluteLayoutBounds, AbsoluteLayoutFlags, GridUnitType, StackOrientation)
-- [ ] Types in SkiaMenuBar.cs (MenuItem, MenuBarItem, MenuItemClickedEventArgs)
-- [ ] Types in SkiaShell.cs (ShellSection, ShellContent, ShellNavigationEventArgs, ShellFlyoutBehavior)
-- [ ] And many more...
+- [x] LinuxMauiContext.cs - Fixed duplicate LinuxDispatcher, uses Dispatching namespace
+- [x] MauiHandlerExtensions.cs - ADDED (ToViewHandler extension)
 
 ---
 

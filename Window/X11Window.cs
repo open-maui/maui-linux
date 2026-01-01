@@ -21,6 +21,13 @@ public class X11Window : IDisposable
     private int _width;
     private int _height;
 
+    // Cursor handles
+    private IntPtr _arrowCursor;
+    private IntPtr _handCursor;
+    private IntPtr _textCursor;
+    private IntPtr _currentCursor;
+    private CursorType _currentCursorType = CursorType.Arrow;
+
     /// <summary>
     /// Gets the native display handle.
     /// </summary>
@@ -155,7 +162,97 @@ public class X11Window : IDisposable
         // Set up WM_DELETE_WINDOW protocol for proper close handling
         _wmDeleteMessage = X11.XInternAtom(_display, "WM_DELETE_WINDOW", false);
 
-        // Would need XSetWMProtocols here, simplified for now
+        // Initialize cursors
+        _arrowCursor = X11.XCreateFontCursor(_display, 68); // XC_left_ptr
+        _handCursor = X11.XCreateFontCursor(_display, 60);  // XC_hand2
+        _textCursor = X11.XCreateFontCursor(_display, 152); // XC_xterm
+        _currentCursor = _arrowCursor;
+    }
+
+    /// <summary>
+    /// Sets the cursor type for this window.
+    /// </summary>
+    public void SetCursor(CursorType cursorType)
+    {
+        if (_currentCursorType != cursorType)
+        {
+            _currentCursorType = cursorType;
+            IntPtr cursor = cursorType switch
+            {
+                CursorType.Hand => _handCursor,
+                CursorType.Text => _textCursor,
+                _ => _arrowCursor,
+            };
+            if (cursor != _currentCursor)
+            {
+                _currentCursor = cursor;
+                X11.XDefineCursor(_display, _window, _currentCursor);
+                X11.XFlush(_display);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sets the window icon from a file.
+    /// </summary>
+    public unsafe void SetIcon(string iconPath)
+    {
+        if (string.IsNullOrEmpty(iconPath) || !System.IO.File.Exists(iconPath))
+        {
+            Console.WriteLine("[X11Window] Icon file not found: " + iconPath);
+            return;
+        }
+        Console.WriteLine("[X11Window] SetIcon called: " + iconPath);
+        try
+        {
+            SkiaSharp.SKBitmap? bitmap = SkiaSharp.SKBitmap.Decode(iconPath);
+            if (bitmap == null)
+            {
+                Console.WriteLine("[X11Window] Failed to load icon: " + iconPath);
+                return;
+            }
+            Console.WriteLine($"[X11Window] Loaded bitmap: {bitmap.Width}x{bitmap.Height}");
+
+            // Scale to 64x64 if needed
+            int targetSize = 64;
+            if (bitmap.Width != targetSize || bitmap.Height != targetSize)
+            {
+                var scaled = new SkiaSharp.SKBitmap(targetSize, targetSize, false);
+                bitmap.ScalePixels(scaled, SkiaSharp.SKFilterQuality.High);
+                bitmap.Dispose();
+                bitmap = scaled;
+            }
+
+            int width = bitmap.Width;
+            int height = bitmap.Height;
+            int dataSize = 2 + width * height;
+            uint[] iconData = new uint[dataSize];
+            iconData[0] = (uint)width;
+            iconData[1] = (uint)height;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    var pixel = bitmap.GetPixel(x, y);
+                    iconData[2 + y * width + x] = (uint)((pixel.Alpha << 24) | (pixel.Red << 16) | (pixel.Green << 8) | pixel.Blue);
+                }
+            }
+            bitmap.Dispose();
+
+            IntPtr property = X11.XInternAtom(_display, "_NET_WM_ICON", false);
+            IntPtr type = X11.XInternAtom(_display, "CARDINAL", false);
+            fixed (uint* data = iconData)
+            {
+                X11.XChangeProperty(_display, _window, property, type, 32, 0, (nint)data, dataSize);
+            }
+            X11.XFlush(_display);
+            Console.WriteLine($"[X11Window] Set window icon: {width}x{height}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[X11Window] Failed to set icon: " + ex.Message);
+        }
     }
 
     /// <summary>

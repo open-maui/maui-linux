@@ -285,6 +285,21 @@ public class SkiaShell : SkiaLayoutView
     public int CurrentSectionIndex => _selectedSectionIndex;
 
     /// <summary>
+    /// Reference to the MAUI Shell this view represents.
+    /// </summary>
+    public Shell? MauiShell { get; set; }
+
+    /// <summary>
+    /// Callback to render content from a ShellContent.
+    /// </summary>
+    public Func<Microsoft.Maui.Controls.ShellContent, SkiaView?>? ContentRenderer { get; set; }
+
+    /// <summary>
+    /// Callback to refresh shell colors.
+    /// </summary>
+    public Action<SkiaShell, Shell>? ColorRefresher { get; set; }
+
+    /// <summary>
     /// Event raised when FlyoutIsPresented changes.
     /// </summary>
     public event EventHandler? FlyoutIsPresentedChanged;
@@ -339,6 +354,48 @@ public class SkiaShell : SkiaLayoutView
         Title = item.Title;
 
         Navigated?.Invoke(this, new ShellNavigationEventArgs(section, item));
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Refreshes the shell theme and re-renders all pages.
+    /// </summary>
+    public void RefreshTheme()
+    {
+        Console.WriteLine("[SkiaShell] RefreshTheme called - refreshing all pages");
+        if (MauiShell != null && ColorRefresher != null)
+        {
+            Console.WriteLine("[SkiaShell] Refreshing shell colors");
+            ColorRefresher(this, MauiShell);
+        }
+        if (ContentRenderer != null)
+        {
+            foreach (var section in _sections)
+            {
+                foreach (var item in section.Items)
+                {
+                    if (item.MauiShellContent != null)
+                    {
+                        Console.WriteLine("[SkiaShell] Re-rendering: " + item.Title);
+                        var skiaView = ContentRenderer(item.MauiShellContent);
+                        if (skiaView != null)
+                        {
+                            item.Content = skiaView;
+                        }
+                    }
+                }
+            }
+        }
+        if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
+        {
+            var section = _sections[_selectedSectionIndex];
+            if (_selectedItemIndex >= 0 && _selectedItemIndex < section.Items.Count)
+            {
+                var item = section.Items[_selectedItemIndex];
+                SetCurrentContent(item.Content);
+            }
+        }
+        InvalidateMeasure();
         Invalidate();
     }
 
@@ -900,6 +957,11 @@ public class ShellContent
     /// The content view.
     /// </summary>
     public SkiaView? Content { get; set; }
+
+    /// <summary>
+    /// Reference to the MAUI ShellContent this represents.
+    /// </summary>
+    public Microsoft.Maui.Controls.ShellContent? MauiShellContent { get; set; }
 }
 
 /// <summary>

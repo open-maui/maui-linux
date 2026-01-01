@@ -5,6 +5,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -144,7 +145,7 @@ public partial class ContentPageHandler : PageHandler
             if (content.Handler == null)
             {
                 Console.WriteLine($"[ContentPageHandler] Creating handler for content: {content.GetType().Name}");
-                content.Handler = content.ToHandler(handler.MauiContext);
+                content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             // The content's handler should provide the platform view

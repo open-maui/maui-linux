@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -64,7 +65,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
             // Create handler for child if it doesn't exist
             if (child.Handler == null)
             {
-                child.Handler = child.ToHandler(MauiContext);
+                child.Handler = child.ToViewHandler(MauiContext);
             }
 
             // Add child's platform view to our layout
@@ -284,7 +285,7 @@ public partial class GridHandler : LayoutHandler
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
                 {
-                    child.Handler = child.ToHandler(MauiContext);
+                    child.Handler = child.ToViewHandler(MauiContext);
                 }
 
                 // Get grid position from attached properties

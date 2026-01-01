@@ -19,6 +19,7 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         [nameof(ISwitch.TrackColor)] = MapTrackColor,
         [nameof(ISwitch.ThumbColor)] = MapThumbColor,
         [nameof(IView.Background)] = MapBackground,
+        [nameof(IView.IsEnabled)] = MapIsEnabled,
     };
 
     public static CommandMapper<ISwitch, SwitchHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -95,5 +96,11 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapIsEnabled(SwitchHandler handler, ISwitch @switch)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = @switch.IsEnabled;
     }
 }

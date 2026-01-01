@@ -5,6 +5,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -68,7 +69,7 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             if (content.Handler == null)
             {
                 Console.WriteLine($"[BorderHandler] Creating handler for content: {content.GetType().Name}");
-                content.Handler = content.ToHandler(handler.MauiContext);
+                content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             if (content.Handler?.PlatformView is SkiaView skiaContent)

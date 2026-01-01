@@ -1,6 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using SkiaSharp;
 using Microsoft.Maui.Platform.Linux.Rendering;
 
@@ -22,6 +25,17 @@ public class SkiaLabel : SkiaView
             typeof(string),
             typeof(SkiaLabel),
             "",
+            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
+
+    /// <summary>
+    /// Bindable property for FormattedSpans.
+    /// </summary>
+    public static readonly BindableProperty FormattedSpansProperty =
+        BindableProperty.Create(
+            nameof(FormattedSpans),
+            typeof(IList<SkiaTextSpan>),
+            typeof(SkiaLabel),
+            null,
             propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
@@ -189,6 +203,15 @@ public class SkiaLabel : SkiaView
     {
         get => (string)GetValue(TextProperty);
         set => SetValue(TextProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the formatted text spans for rich text rendering.
+    /// </summary>
+    public IList<SkiaTextSpan>? FormattedSpans
+    {
+        get => (IList<SkiaTextSpan>?)GetValue(FormattedSpansProperty);
+        set => SetValue(FormattedSpansProperty, value);
     }
 
     /// <summary>
@@ -363,6 +386,11 @@ public class SkiaLabel : SkiaView
 
     private static SKTypeface? _cachedTypeface;
 
+    /// <summary>
+    /// Event raised when the label is tapped.
+    /// </summary>
+    public event EventHandler? Tapped;
+
     private void OnTextChanged()
     {
         InvalidateMeasure();
@@ -400,6 +428,20 @@ public class SkiaLabel : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Calculate content bounds with padding
+        var contentBounds = new SKRect(
+            bounds.Left + Padding.Left,
+            bounds.Top + Padding.Top,
+            bounds.Right - Padding.Right,
+            bounds.Bottom - Padding.Bottom);
+
+        // Handle formatted spans first (rich text)
+        if (FormattedSpans != null && FormattedSpans.Count > 0)
+        {
+            DrawFormattedText(canvas, contentBounds);
+            return;
+        }
+
         if (string.IsNullOrEmpty(Text))
             return;
 
@@ -420,13 +462,6 @@ public class SkiaLabel : SkiaView
             Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
             IsAntialias = true
         };
-
-        // Calculate content bounds with padding
-        var contentBounds = new SKRect(
-            bounds.Left + Padding.Left,
-            bounds.Top + Padding.Top,
-            bounds.Right - Padding.Right,
-            bounds.Bottom - Padding.Bottom);
 
         // Handle single line vs multiline
         // Use DrawMultiLineWithWrapping when: MaxLines > 1, text has newlines, OR WordWrap is enabled
@@ -814,6 +849,181 @@ public class SkiaLabel : SkiaView
                 maxWidth + Padding.Left + Padding.Right,
                 totalHeight + Padding.Top + Padding.Bottom);
         }
+    }
+
+    private void DrawFormattedText(SKCanvas canvas, SKRect bounds)
+    {
+        if (FormattedSpans == null || FormattedSpans.Count == 0)
+            return;
+
+        float currentX = bounds.Left;
+        float currentY = bounds.Top;
+        float lineHeight = 0f;
+
+        // First pass: calculate line data
+        var lineSpans = new List<(SkiaTextSpan span, float x, float width, float height, SKPaint paint)>();
+
+        foreach (var span in FormattedSpans)
+        {
+            if (string.IsNullOrEmpty(span.Text))
+                continue;
+
+            var paint = CreateSpanPaint(span);
+            var textBounds = new SKRect();
+            paint.MeasureText(span.Text, ref textBounds);
+            lineHeight = Math.Max(lineHeight, textBounds.Height);
+
+            // Word wrap
+            if (currentX + textBounds.Width > bounds.Right && currentX > bounds.Left)
+            {
+                currentY += lineHeight * LineHeight;
+                currentX = bounds.Left;
+                lineHeight = textBounds.Height;
+            }
+
+            lineSpans.Add((span, currentX, textBounds.Width, textBounds.Height, paint));
+            currentX += textBounds.Width;
+        }
+
+        // Calculate vertical offset
+        float totalHeight = currentY + lineHeight - bounds.Top;
+        float verticalOffset = VerticalTextAlignment switch
+        {
+            TextAlignment.Start => 0f,
+            TextAlignment.Center => (bounds.Height - totalHeight) / 2f,
+            TextAlignment.End => bounds.Height - totalHeight,
+            _ => 0f
+        };
+
+        // Second pass: draw with alignment
+        currentX = bounds.Left;
+        currentY = bounds.Top + verticalOffset;
+        lineHeight = 0f;
+
+        var currentLine = new List<(SkiaTextSpan span, float relX, float width, float height, SKPaint paint)>();
+        float lineLeft = bounds.Left;
+
+        foreach (var span in FormattedSpans)
+        {
+            if (string.IsNullOrEmpty(span.Text))
+                continue;
+
+            var paint = CreateSpanPaint(span);
+            var textBounds = new SKRect();
+            paint.MeasureText(span.Text, ref textBounds);
+            lineHeight = Math.Max(lineHeight, textBounds.Height);
+
+            if (currentX + textBounds.Width > bounds.Right && currentX > bounds.Left)
+            {
+                DrawFormattedLine(canvas, bounds, currentLine, currentY + lineHeight);
+                currentY += lineHeight * LineHeight;
+                currentX = bounds.Left;
+                lineHeight = textBounds.Height;
+                currentLine.Clear();
+            }
+
+            currentLine.Add((span, currentX - lineLeft, textBounds.Width, textBounds.Height, paint));
+            currentX += textBounds.Width;
+        }
+
+        if (currentLine.Count > 0)
+        {
+            DrawFormattedLine(canvas, bounds, currentLine, currentY + lineHeight);
+        }
+    }
+
+    private void DrawFormattedLine(SKCanvas canvas, SKRect bounds,
+        List<(SkiaTextSpan span, float x, float width, float height, SKPaint paint)> lineSpans, float y)
+    {
+        if (lineSpans.Count == 0) return;
+
+        float lineWidth = lineSpans.Sum(s => s.width);
+        float startX = HorizontalTextAlignment switch
+        {
+            TextAlignment.Start => bounds.Left,
+            TextAlignment.Center => bounds.Left + (bounds.Width - lineWidth) / 2f,
+            TextAlignment.End => bounds.Right - lineWidth,
+            _ => bounds.Left
+        };
+
+        foreach (var (span, relX, width, height, paint) in lineSpans)
+        {
+            float x = startX + relX;
+
+            // Draw background if specified
+            if (span.BackgroundColor.HasValue && span.BackgroundColor.Value != SKColors.Transparent)
+            {
+                using var bgPaint = new SKPaint
+                {
+                    Color = span.BackgroundColor.Value,
+                    Style = SKPaintStyle.Fill
+                };
+                canvas.DrawRect(x, y - height, width, height + 4f, bgPaint);
+            }
+
+            canvas.DrawText(span.Text, x, y, paint);
+
+            // Draw underline
+            if (span.IsUnderline)
+            {
+                using var linePaint = new SKPaint
+                {
+                    Color = paint.Color,
+                    StrokeWidth = 1f,
+                    IsAntialias = true
+                };
+                canvas.DrawLine(x, y + 2f, x + width, y + 2f, linePaint);
+            }
+
+            // Draw strikethrough
+            if (span.IsStrikethrough)
+            {
+                using var linePaint = new SKPaint
+                {
+                    Color = paint.Color,
+                    StrokeWidth = 1f,
+                    IsAntialias = true
+                };
+                canvas.DrawLine(x, y - height / 3f, x + width, y - height / 3f, linePaint);
+            }
+
+            paint.Dispose();
+        }
+    }
+
+    private SKPaint CreateSpanPaint(SkiaTextSpan span)
+    {
+        var fontStyle = new SKFontStyle(
+            span.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            span.IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+
+        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(span.FontFamily ?? FontFamily, fontStyle);
+        if (typeface == null || typeface == SKTypeface.Default)
+        {
+            typeface = GetLinuxTypeface();
+        }
+
+        var fontSize = span.FontSize > 0f ? span.FontSize : FontSize;
+        using var font = new SKFont(typeface, fontSize);
+
+        var color = span.TextColor ?? TextColor;
+        if (!IsEnabled)
+        {
+            color = color.WithAlpha(128);
+        }
+
+        return new SKPaint(font)
+        {
+            Color = color,
+            IsAntialias = true
+        };
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        Tapped?.Invoke(this, EventArgs.Empty);
     }
 }
 

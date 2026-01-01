@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -31,6 +32,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         [nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
         [nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
         [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
     };
 
     public static CommandMapper<IEntry, EntryHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -210,6 +212,19 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         if (entry.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+        }
+    }
+
+    public static void MapBackgroundColor(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (entry is Entry ve && ve.BackgroundColor != null)
+        {
+            Console.WriteLine($"[EntryHandler] MapBackgroundColor: {ve.BackgroundColor}");
+            var color = ve.BackgroundColor.ToSKColor();
+            Console.WriteLine($"[EntryHandler] Setting EntryBackgroundColor to: {color}");
+            handler.PlatformView.EntryBackgroundColor = color;
         }
     }
 }

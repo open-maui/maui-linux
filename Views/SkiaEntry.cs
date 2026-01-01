@@ -1,8 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Generic;
 using SkiaSharp;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform;
 
@@ -980,10 +982,16 @@ public class SkiaEntry : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaEntry] OnPointerPressed - Text='{Text}', Placeholder='{Placeholder}', IsEnabled={IsEnabled}, IsFocused={IsFocused}");
-        Console.WriteLine($"[SkiaEntry] Bounds={Bounds}, ScreenBounds={ScreenBounds}, e.X={e.X}, e.Y={e.Y}");
-
+        Console.WriteLine($"[SkiaEntry] OnPointerPressed Button={e.Button} at ({e.X}, {e.Y})");
         if (!IsEnabled) return;
+
+        // Handle right-click context menu
+        if (e.Button == PointerButton.Right)
+        {
+            Console.WriteLine("[SkiaEntry] Right-click detected, showing context menu");
+            ShowContextMenu(e.X, e.Y);
+            return;
+        }
 
         // Check if clicked on clear button
         if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
@@ -1215,6 +1223,38 @@ public class SkiaEntry : SkiaView
         Text = newText;
         _cursorPosition = newPos;
         Invalidate();
+    }
+
+    private void ShowContextMenu(float x, float y)
+    {
+        Console.WriteLine($"[SkiaEntry] ShowContextMenu at ({x}, {y})");
+        bool hasSelection = _selectionLength != 0;
+        bool hasText = !string.IsNullOrEmpty(Text);
+        bool hasClipboard = !string.IsNullOrEmpty(SystemClipboard.GetText());
+
+        GtkContextMenuService.ShowContextMenu(new List<GtkMenuItem>
+        {
+            new GtkMenuItem("Cut", () =>
+            {
+                CutToClipboard();
+                Invalidate();
+            }, hasSelection),
+            new GtkMenuItem("Copy", () =>
+            {
+                CopyToClipboard();
+            }, hasSelection),
+            new GtkMenuItem("Paste", () =>
+            {
+                PasteFromClipboard();
+                Invalidate();
+            }, hasClipboard),
+            GtkMenuItem.Separator,
+            new GtkMenuItem("Select All", () =>
+            {
+                SelectAll();
+                Invalidate();
+            }, hasText)
+        });
     }
 
     public override void OnFocusGained()

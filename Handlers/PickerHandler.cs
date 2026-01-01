@@ -22,6 +22,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             [nameof(IPicker.TitleColor)] = MapTitleColor,
             [nameof(IPicker.SelectedIndex)] = MapSelectedIndex,
             [nameof(IPicker.TextColor)] = MapTextColor,
+            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IPicker.CharacterSpacing)] = MapCharacterSpacing,
             [nameof(IPicker.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
             [nameof(IPicker.VerticalTextAlignment)] = MapVerticalTextAlignment,
@@ -127,6 +128,22 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         {
             handler.PlatformView.TextColor = picker.TextColor.ToSKColor();
         }
+    }
+
+    public static void MapFont(PickerHandler handler, IPicker picker)
+    {
+        if (handler.PlatformView is null) return;
+
+        var font = picker.Font;
+        if (!string.IsNullOrEmpty(font.Family))
+        {
+            handler.PlatformView.FontFamily = font.Family;
+        }
+        if (font.Size > 0)
+        {
+            handler.PlatformView.FontSize = (float)font.Size;
+        }
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapCharacterSpacing(PickerHandler handler, IPicker picker)

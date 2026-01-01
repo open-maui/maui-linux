@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Animations;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Dispatching;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
@@ -80,125 +81,6 @@ public class ScopedLinuxMauiContext : IMauiContext
 
     public IServiceProvider Services => _parent.Services;
     public IMauiHandlersFactory Handlers => _parent.Handlers;
-}
-
-/// <summary>
-/// Linux dispatcher for UI thread operations.
-/// </summary>
-internal class LinuxDispatcher : IDispatcher
-{
-    private readonly object _lock = new();
-    private readonly Queue<Action> _queue = new();
-    private bool _isDispatching;
-
-    public bool IsDispatchRequired => false; // Linux uses single-threaded event loop
-
-    public IDispatcherTimer CreateTimer()
-    {
-        return new LinuxDispatcherTimer();
-    }
-
-    public bool Dispatch(Action action)
-    {
-        if (action == null)
-            return false;
-
-        lock (_lock)
-        {
-            _queue.Enqueue(action);
-        }
-
-        ProcessQueue();
-        return true;
-    }
-
-    public bool DispatchDelayed(TimeSpan delay, Action action)
-    {
-        if (action == null)
-            return false;
-
-        Task.Delay(delay).ContinueWith(_ => Dispatch(action));
-        return true;
-    }
-
-    private void ProcessQueue()
-    {
-        if (_isDispatching)
-            return;
-
-        _isDispatching = true;
-        try
-        {
-            while (true)
-            {
-                Action? action;
-                lock (_lock)
-                {
-                    if (_queue.Count == 0)
-                        break;
-                    action = _queue.Dequeue();
-                }
-                action?.Invoke();
-            }
-        }
-        finally
-        {
-            _isDispatching = false;
-        }
-    }
-}
-
-/// <summary>
-/// Linux dispatcher timer implementation.
-/// </summary>
-internal class LinuxDispatcherTimer : IDispatcherTimer
-{
-    private Timer? _timer;
-    private TimeSpan _interval = TimeSpan.FromMilliseconds(16); // ~60fps default
-    private bool _isRunning;
-    private bool _isRepeating = true;
-
-    public TimeSpan Interval
-    {
-        get => _interval;
-        set => _interval = value;
-    }
-
-    public bool IsRunning => _isRunning;
-
-    public bool IsRepeating
-    {
-        get => _isRepeating;
-        set => _isRepeating = value;
-    }
-
-    public event EventHandler? Tick;
-
-    public void Start()
-    {
-        if (_isRunning)
-            return;
-
-        _isRunning = true;
-        _timer = new Timer(OnTimerCallback, null, _interval, _isRepeating ? _interval : Timeout.InfiniteTimeSpan);
-    }
-
-    public void Stop()
-    {
-        _isRunning = false;
-        _timer?.Dispose();
-        _timer = null;
-    }
-
-    private void OnTimerCallback(object? state)
-    {
-        Tick?.Invoke(this, EventArgs.Empty);
-
-        if (!_isRepeating)
-        {
-            Stop();
-        }
-    }
 }
 
 /// <summary>

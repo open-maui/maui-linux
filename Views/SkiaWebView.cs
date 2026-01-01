@@ -129,6 +129,37 @@ public class SkiaWebView : SkiaView
     private const int RTLD_GLOBAL = 0x100;
 
     private static IntPtr _webkitHandle;
+    private static IntPtr _mainDisplay;
+    private static IntPtr _mainWindow;
+    private static readonly HashSet<SkiaWebView> _activeWebViews = new();
+
+    /// <summary>
+    /// Sets the main window for WebView operations.
+    /// </summary>
+    public static void SetMainWindow(IntPtr display, IntPtr window)
+    {
+        _mainDisplay = display;
+        _mainWindow = window;
+        Console.WriteLine($"[WebView] Main window set: display={display}, window={window}");
+    }
+
+    /// <summary>
+    /// Processes pending GTK events for WebViews.
+    /// </summary>
+    public static void ProcessGtkEvents()
+    {
+        bool hasActiveWebViews;
+        lock (_activeWebViews)
+        {
+            hasActiveWebViews = _activeWebViews.Count > 0;
+        }
+        if (hasActiveWebViews && _gtkInitialized)
+        {
+            while (g_main_context_iteration(IntPtr.Zero, mayBlock: false))
+            {
+            }
+        }
+    }
 
     #endregion
 

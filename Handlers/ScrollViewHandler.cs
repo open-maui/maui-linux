@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Hosting;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -52,7 +53,7 @@ public partial class ScrollViewHandler : ViewHandler<IScrollView, SkiaScrollView
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
             {
-                content.Handler = content.ToHandler(handler.MauiContext);
+                content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             if (content.Handler?.PlatformView is SkiaView skiaContent)

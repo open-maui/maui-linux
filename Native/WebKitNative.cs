@@ -1,0 +1,256 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+namespace Microsoft.Maui.Platform.Linux.Native;
+
+internal static class WebKitNative
+{
+    private delegate IntPtr WebKitWebViewNewDelegate();
+    private delegate void WebKitWebViewLoadUriDelegate(IntPtr webView, string uri);
+    private delegate void WebKitWebViewLoadHtmlDelegate(IntPtr webView, string content, string? baseUri);
+    private delegate IntPtr WebKitWebViewGetUriDelegate(IntPtr webView);
+    private delegate IntPtr WebKitWebViewGetTitleDelegate(IntPtr webView);
+    private delegate void WebKitWebViewGoBackDelegate(IntPtr webView);
+    private delegate void WebKitWebViewGoForwardDelegate(IntPtr webView);
+    private delegate bool WebKitWebViewCanGoBackDelegate(IntPtr webView);
+    private delegate bool WebKitWebViewCanGoForwardDelegate(IntPtr webView);
+    private delegate void WebKitWebViewReloadDelegate(IntPtr webView);
+    private delegate void WebKitWebViewStopLoadingDelegate(IntPtr webView);
+    private delegate IntPtr WebKitWebViewGetSettingsDelegate(IntPtr webView);
+    private delegate void WebKitSettingsSetHardwareAccelerationPolicyDelegate(IntPtr settings, int policy);
+    private delegate void WebKitSettingsSetEnableJavascriptDelegate(IntPtr settings, bool enabled);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void LoadChangedCallback(IntPtr webView, int loadEvent, IntPtr userData);
+
+    private delegate ulong GSignalConnectDataDelegate(IntPtr instance, string signalName, LoadChangedCallback callback, IntPtr userData, IntPtr destroyNotify, int connectFlags);
+
+    public enum WebKitLoadEvent
+    {
+        Started,
+        Redirected,
+        Committed,
+        Finished
+    }
+
+    private static IntPtr _handle;
+    private static bool _initialized;
+
+    private static readonly string[] LibraryNames = new string[4]
+    {
+        "libwebkit2gtk-4.1.so.0",
+        "libwebkit2gtk-4.0.so.37",
+        "libwebkit2gtk-4.0.so",
+        "libwebkit2gtk-4.1.so"
+    };
+
+    private static WebKitWebViewNewDelegate? _webkitWebViewNew;
+    private static WebKitWebViewLoadUriDelegate? _webkitLoadUri;
+    private static WebKitWebViewLoadHtmlDelegate? _webkitLoadHtml;
+    private static WebKitWebViewGetUriDelegate? _webkitGetUri;
+    private static WebKitWebViewGetTitleDelegate? _webkitGetTitle;
+    private static WebKitWebViewGoBackDelegate? _webkitGoBack;
+    private static WebKitWebViewGoForwardDelegate? _webkitGoForward;
+    private static WebKitWebViewCanGoBackDelegate? _webkitCanGoBack;
+    private static WebKitWebViewCanGoForwardDelegate? _webkitCanGoForward;
+    private static WebKitWebViewReloadDelegate? _webkitReload;
+    private static WebKitWebViewStopLoadingDelegate? _webkitStopLoading;
+    private static WebKitWebViewGetSettingsDelegate? _webkitGetSettings;
+    private static WebKitSettingsSetHardwareAccelerationPolicyDelegate? _webkitSetHardwareAccel;
+    private static WebKitSettingsSetEnableJavascriptDelegate? _webkitSetJavascript;
+    private static GSignalConnectDataDelegate? _gSignalConnectData;
+
+    private static readonly Dictionary<IntPtr, LoadChangedCallback> _loadChangedCallbacks = new Dictionary<IntPtr, LoadChangedCallback>();
+
+    private const int RTLD_NOW = 2;
+    private const int RTLD_GLOBAL = 256;
+
+    private static IntPtr _gobjectHandle;
+
+    [DllImport("libdl.so.2")]
+    private static extern IntPtr dlopen(string? filename, int flags);
+
+    [DllImport("libdl.so.2")]
+    private static extern IntPtr dlsym(IntPtr handle, string symbol);
+
+    [DllImport("libdl.so.2")]
+    private static extern IntPtr dlerror();
+
+    public static bool Initialize()
+    {
+        if (_initialized)
+        {
+            return _handle != IntPtr.Zero;
+        }
+        _initialized = true;
+
+        string[] libraryNames = LibraryNames;
+        foreach (string text in libraryNames)
+        {
+            _handle = dlopen(text, 258);
+            if (_handle != IntPtr.Zero)
+            {
+                Console.WriteLine("[WebKitNative] Loaded " + text);
+                break;
+            }
+        }
+
+        if (_handle == IntPtr.Zero)
+        {
+            Console.WriteLine("[WebKitNative] Failed to load WebKitGTK library");
+            return false;
+        }
+
+        _webkitWebViewNew = LoadFunction<WebKitWebViewNewDelegate>("webkit_web_view_new");
+        _webkitLoadUri = LoadFunction<WebKitWebViewLoadUriDelegate>("webkit_web_view_load_uri");
+        _webkitLoadHtml = LoadFunction<WebKitWebViewLoadHtmlDelegate>("webkit_web_view_load_html");
+        _webkitGetUri = LoadFunction<WebKitWebViewGetUriDelegate>("webkit_web_view_get_uri");
+        _webkitGetTitle = LoadFunction<WebKitWebViewGetTitleDelegate>("webkit_web_view_get_title");
+        _webkitGoBack = LoadFunction<WebKitWebViewGoBackDelegate>("webkit_web_view_go_back");
+        _webkitGoForward = LoadFunction<WebKitWebViewGoForwardDelegate>("webkit_web_view_go_forward");
+        _webkitCanGoBack = LoadFunction<WebKitWebViewCanGoBackDelegate>("webkit_web_view_can_go_back");
+        _webkitCanGoForward = LoadFunction<WebKitWebViewCanGoForwardDelegate>("webkit_web_view_can_go_forward");
+        _webkitReload = LoadFunction<WebKitWebViewReloadDelegate>("webkit_web_view_reload");
+        _webkitStopLoading = LoadFunction<WebKitWebViewStopLoadingDelegate>("webkit_web_view_stop_loading");
+        _webkitGetSettings = LoadFunction<WebKitWebViewGetSettingsDelegate>("webkit_web_view_get_settings");
+        _webkitSetHardwareAccel = LoadFunction<WebKitSettingsSetHardwareAccelerationPolicyDelegate>("webkit_settings_set_hardware_acceleration_policy");
+        _webkitSetJavascript = LoadFunction<WebKitSettingsSetEnableJavascriptDelegate>("webkit_settings_set_enable_javascript");
+
+        _gobjectHandle = dlopen("libgobject-2.0.so.0", 258);
+        if (_gobjectHandle != IntPtr.Zero)
+        {
+            IntPtr intPtr = dlsym(_gobjectHandle, "g_signal_connect_data");
+            if (intPtr != IntPtr.Zero)
+            {
+                _gSignalConnectData = Marshal.GetDelegateForFunctionPointer<GSignalConnectDataDelegate>(intPtr);
+                Console.WriteLine("[WebKitNative] Loaded g_signal_connect_data");
+            }
+        }
+
+        return _webkitWebViewNew != null;
+    }
+
+    private static T? LoadFunction<T>(string name) where T : Delegate
+    {
+        if (_handle == IntPtr.Zero)
+        {
+            return null;
+        }
+        IntPtr intPtr = dlsym(_handle, name);
+        if (intPtr == IntPtr.Zero)
+        {
+            return null;
+        }
+        return Marshal.GetDelegateForFunctionPointer<T>(intPtr);
+    }
+
+    public static IntPtr WebViewNew()
+    {
+        if (!Initialize() || _webkitWebViewNew == null)
+        {
+            return IntPtr.Zero;
+        }
+        return _webkitWebViewNew();
+    }
+
+    public static void LoadUri(IntPtr webView, string uri)
+    {
+        _webkitLoadUri?.Invoke(webView, uri);
+    }
+
+    public static void LoadHtml(IntPtr webView, string content, string? baseUri = null)
+    {
+        _webkitLoadHtml?.Invoke(webView, content, baseUri);
+    }
+
+    public static string? GetUri(IntPtr webView)
+    {
+        IntPtr intPtr = _webkitGetUri?.Invoke(webView) ?? IntPtr.Zero;
+        if (intPtr == IntPtr.Zero)
+        {
+            return null;
+        }
+        return Marshal.PtrToStringUTF8(intPtr);
+    }
+
+    public static string? GetTitle(IntPtr webView)
+    {
+        IntPtr intPtr = _webkitGetTitle?.Invoke(webView) ?? IntPtr.Zero;
+        if (intPtr == IntPtr.Zero)
+        {
+            return null;
+        }
+        return Marshal.PtrToStringUTF8(intPtr);
+    }
+
+    public static void GoBack(IntPtr webView)
+    {
+        _webkitGoBack?.Invoke(webView);
+    }
+
+    public static void GoForward(IntPtr webView)
+    {
+        _webkitGoForward?.Invoke(webView);
+    }
+
+    public static bool CanGoBack(IntPtr webView)
+    {
+        return _webkitCanGoBack?.Invoke(webView) ?? false;
+    }
+
+    public static bool CanGoForward(IntPtr webView)
+    {
+        return _webkitCanGoForward?.Invoke(webView) ?? false;
+    }
+
+    public static void Reload(IntPtr webView)
+    {
+        _webkitReload?.Invoke(webView);
+    }
+
+    public static void StopLoading(IntPtr webView)
+    {
+        _webkitStopLoading?.Invoke(webView);
+    }
+
+    public static void ConfigureSettings(IntPtr webView, bool disableHardwareAccel = true)
+    {
+        if (_webkitGetSettings != null)
+        {
+            IntPtr intPtr = _webkitGetSettings(webView);
+            if (intPtr != IntPtr.Zero && disableHardwareAccel && _webkitSetHardwareAccel != null)
+            {
+                _webkitSetHardwareAccel(intPtr, 2);
+            }
+        }
+    }
+
+    public static void SetJavascriptEnabled(IntPtr webView, bool enabled)
+    {
+        if (_webkitGetSettings != null && _webkitSetJavascript != null)
+        {
+            IntPtr intPtr = _webkitGetSettings(webView);
+            if (intPtr != IntPtr.Zero)
+            {
+                _webkitSetJavascript(intPtr, enabled);
+            }
+        }
+    }
+
+    public static ulong ConnectLoadChanged(IntPtr webView, LoadChangedCallback callback)
+    {
+        if (_gSignalConnectData == null || webView == IntPtr.Zero)
+        {
+            Console.WriteLine("[WebKitNative] Cannot connect load-changed: signal connect not available");
+            return 0uL;
+        }
+        _loadChangedCallbacks[webView] = callback;
+        return _gSignalConnectData(webView, "load-changed", callback, IntPtr.Zero, IntPtr.Zero, 0);
+    }
+
+    public static void DisconnectLoadChanged(IntPtr webView)
+    {
+        _loadChangedCallbacks.Remove(webView);
+    }
+}

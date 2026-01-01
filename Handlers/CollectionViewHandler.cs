@@ -5,6 +5,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -158,7 +159,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                         // Create handler for the view
                         if (view.Handler == null && handler.MauiContext != null)
                         {
-                            view.Handler = view.ToHandler(handler.MauiContext);
+                            view.Handler = view.ToViewHandler(handler.MauiContext);
                         }
 
                         if (view.Handler?.PlatformView is SkiaView skiaView)
@@ -174,7 +175,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                         {
                             if (cellView.Handler == null && handler.MauiContext != null)
                             {
-                                cellView.Handler = cellView.ToHandler(handler.MauiContext);
+                                cellView.Handler = cellView.ToViewHandler(handler.MauiContext);
                             }
 
                             if (cellView.Handler?.PlatformView is SkiaView skiaView)
