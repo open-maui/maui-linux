@@ -54,12 +54,17 @@ git branch  # Should show: * final
 | NewTodoPage.xaml | [ ] | Add new todo form |
 | TodoDetailPage.xaml | [ ] | Edit todo details |
 
-### XamlBrowser (app + 1 page)
+### XamlBrowser (app + 1 page) - COMPLETE
 
 | File | Status | Notes |
 |------|--------|-------|
-| BrowserApp.xaml | [ ] | Basic app setup |
-| MainPage.xaml | [ ] | WebView browser |
+| App.xaml | [x] | Colors, styles (NavButtonStyle, GoButtonStyle, AddressBarStyle, StatusLabelStyle) |
+| App.xaml.cs | [x] | BrowserApp with ToggleTheme() |
+| MainPage.xaml | [x] | Toolbar with nav buttons, address bar, WebView, status bar |
+| MainPage.xaml.cs | [x] | Navigation logic, progress animation, theme toggle |
+| MauiProgram.cs | [x] | UseLinuxPlatform() setup |
+| Program.cs | [x] | LinuxProgramHost entry point |
+| Resources/Images/*.svg | [x] | 10 toolbar icons (dark/light variants) |
 
 ---
 
