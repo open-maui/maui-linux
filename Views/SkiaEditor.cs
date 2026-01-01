@@ -21,7 +21,7 @@ public class SkiaEditor : SkiaView
             typeof(string),
             typeof(SkiaEditor),
             "",
-            BindingMode.TwoWay,
+            BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).OnTextPropertyChanged((string)o, (string)n));
 
     /// <summary>
@@ -33,6 +33,7 @@ public class SkiaEditor : SkiaView
             typeof(string),
             typeof(SkiaEditor),
             "",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -44,6 +45,7 @@ public class SkiaEditor : SkiaView
             typeof(SKColor),
             typeof(SkiaEditor),
             SKColors.Black,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -55,6 +57,7 @@ public class SkiaEditor : SkiaView
             typeof(SKColor),
             typeof(SkiaEditor),
             new SKColor(0x80, 0x80, 0x80),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -66,6 +69,7 @@ public class SkiaEditor : SkiaView
             typeof(SKColor),
             typeof(SkiaEditor),
             new SKColor(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -77,6 +81,7 @@ public class SkiaEditor : SkiaView
             typeof(SKColor),
             typeof(SkiaEditor),
             new SKColor(0x21, 0x96, 0xF3, 0x60),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -88,6 +93,7 @@ public class SkiaEditor : SkiaView
             typeof(SKColor),
             typeof(SkiaEditor),
             new SKColor(0x21, 0x96, 0xF3),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -99,6 +105,7 @@ public class SkiaEditor : SkiaView
             typeof(string),
             typeof(SkiaEditor),
             "Sans",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
     /// <summary>
@@ -110,6 +117,7 @@ public class SkiaEditor : SkiaView
             typeof(float),
             typeof(SkiaEditor),
             14f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
     /// <summary>
@@ -121,6 +129,7 @@ public class SkiaEditor : SkiaView
             typeof(float),
             typeof(SkiaEditor),
             1.4f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
     /// <summary>
@@ -132,6 +141,7 @@ public class SkiaEditor : SkiaView
             typeof(float),
             typeof(SkiaEditor),
             4f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -143,6 +153,7 @@ public class SkiaEditor : SkiaView
             typeof(float),
             typeof(SkiaEditor),
             12f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
     /// <summary>
@@ -154,6 +165,7 @@ public class SkiaEditor : SkiaView
             typeof(bool),
             typeof(SkiaEditor),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
@@ -164,7 +176,8 @@ public class SkiaEditor : SkiaView
             nameof(MaxLength),
             typeof(int),
             typeof(SkiaEditor),
-            -1);
+            -1,
+            BindingMode.TwoWay);
 
     /// <summary>
     /// Bindable property for AutoSize.
@@ -175,6 +188,7 @@ public class SkiaEditor : SkiaView
             typeof(bool),
             typeof(SkiaEditor),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
     #endregion

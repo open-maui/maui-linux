@@ -24,7 +24,7 @@ public class SkiaEntry : SkiaView
             typeof(string),
             typeof(SkiaEntry),
             "",
-            BindingMode.TwoWay,
+            BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).OnTextPropertyChanged((string)o, (string)n));
 
     /// <summary>

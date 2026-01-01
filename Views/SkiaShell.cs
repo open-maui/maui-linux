@@ -22,7 +22,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(bool),
             typeof(SkiaShell),
             false,
-            BindingMode.TwoWay,
+            BindingMode.OneWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutIsPresentedChanged((bool)n));
 
     /// <summary>
@@ -34,6 +34,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(ShellFlyoutBehavior),
             typeof(SkiaShell),
             ShellFlyoutBehavior.Flyout,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
@@ -45,6 +46,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(float),
             typeof(SkiaShell),
             280f,
+            BindingMode.TwoWay,
             coerceValue: (b, v) => Math.Max(100f, (float)v),
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
@@ -57,6 +59,19 @@ public class SkiaShell : SkiaLayoutView
             typeof(SKColor),
             typeof(SkiaShell),
             SKColors.White,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FlyoutTextColor.
+    /// </summary>
+    public static readonly BindableProperty FlyoutTextColorProperty =
+        BindableProperty.Create(
+            nameof(FlyoutTextColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            new SKColor(33, 33, 33),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
@@ -68,6 +83,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(SKColor),
             typeof(SkiaShell),
             new SKColor(33, 150, 243),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
@@ -79,6 +95,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(SKColor),
             typeof(SkiaShell),
             SKColors.White,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
@@ -90,6 +107,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(float),
             typeof(SkiaShell),
             56f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -101,6 +119,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(float),
             typeof(SkiaShell),
             56f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -112,6 +131,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(bool),
             typeof(SkiaShell),
             true,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -123,6 +143,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(bool),
             typeof(SkiaShell),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -133,8 +154,21 @@ public class SkiaShell : SkiaLayoutView
             nameof(ContentPadding),
             typeof(float),
             typeof(SkiaShell),
-            16f,
+            0f,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ContentBackgroundColor.
+    /// </summary>
+    public static readonly BindableProperty ContentBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(ContentBackgroundColor),
+            typeof(SKColor),
+            typeof(SkiaShell),
+            new SKColor(250, 250, 250),
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
     /// Bindable property for Title.
@@ -145,6 +179,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(string),
             typeof(SkiaShell),
             string.Empty,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     #endregion
@@ -157,6 +192,10 @@ public class SkiaShell : SkiaLayoutView
 
     // Navigation stack for push/pop navigation
     private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new();
+
+    private float _flyoutScrollOffset;
+    private readonly Dictionary<string, Func<SkiaView?>> _registeredRoutes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _routeTitles = new(StringComparer.OrdinalIgnoreCase);
 
     private void OnFlyoutIsPresentedChanged(bool newValue)
     {
@@ -200,6 +239,35 @@ public class SkiaShell : SkiaLayoutView
         get => (SKColor)GetValue(FlyoutBackgroundColorProperty);
         set => SetValue(FlyoutBackgroundColorProperty, value);
     }
+
+    /// <summary>
+    /// Text color in the flyout.
+    /// </summary>
+    public SKColor FlyoutTextColor
+    {
+        get => (SKColor)GetValue(FlyoutTextColorProperty);
+        set => SetValue(FlyoutTextColorProperty, value);
+    }
+
+    /// <summary>
+    /// Optional header view in the flyout.
+    /// </summary>
+    public SkiaView? FlyoutHeaderView { get; set; }
+
+    /// <summary>
+    /// Height of the flyout header.
+    /// </summary>
+    public float FlyoutHeaderHeight { get; set; } = 140f;
+
+    /// <summary>
+    /// Optional footer text in the flyout.
+    /// </summary>
+    public string? FlyoutFooterText { get; set; }
+
+    /// <summary>
+    /// Height of the flyout footer.
+    /// </summary>
+    public float FlyoutFooterHeight { get; set; } = 40f;
 
     /// <summary>
     /// Background color of the navigation bar.
@@ -257,12 +325,20 @@ public class SkiaShell : SkiaLayoutView
 
     /// <summary>
     /// Gets or sets the padding applied to page content.
-    /// Default is 16 pixels on all sides.
     /// </summary>
     public float ContentPadding
     {
         get => (float)GetValue(ContentPaddingProperty);
         set => SetValue(ContentPaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Background color of the content area.
+    /// </summary>
+    public SKColor ContentBackgroundColor
+    {
+        get => (SKColor)GetValue(ContentBackgroundColorProperty);
+        set => SetValue(ContentBackgroundColorProperty, value);
     }
 
     /// <summary>
@@ -404,34 +480,161 @@ public class SkiaShell : SkiaLayoutView
     /// </summary>
     public void GoToAsync(string route)
     {
-        // Simple route parsing - format: "//section/item"
+        GoToAsync(route, null);
+    }
+
+    /// <summary>
+    /// Navigates using a URI route with parameters.
+    /// </summary>
+    public void GoToAsync(string route, IDictionary<string, object>? parameters)
+    {
         if (string.IsNullOrEmpty(route)) return;
 
-        var parts = route.TrimStart('/').Split('/');
+        string routePath = route;
+        Dictionary<string, string> queryParams = new Dictionary<string, string>();
+        int queryIndex = route.IndexOf('?');
+        if (queryIndex >= 0)
+        {
+            routePath = route.Substring(0, queryIndex);
+            queryParams = ParseQueryString(route.Substring(queryIndex + 1));
+        }
+
+        Dictionary<string, object> allParams = new Dictionary<string, object>();
+        foreach (var kvp in queryParams)
+        {
+            allParams[kvp.Key] = kvp.Value;
+        }
+        if (parameters != null)
+        {
+            foreach (var kvp in parameters)
+            {
+                allParams[kvp.Key] = kvp.Value;
+            }
+        }
+
+        var parts = routePath.TrimStart('/').Split('/');
         if (parts.Length == 0) return;
+
+        // Check registered routes first
+        if (_registeredRoutes.TryGetValue(routePath.TrimStart('/'), out Func<SkiaView?>? factory))
+        {
+            var view = factory();
+            if (view != null)
+            {
+                ApplyQueryParameters(view, allParams);
+                PushAsync(view, GetRouteTitle(routePath.TrimStart('/')));
+                return;
+            }
+        }
 
         // Find matching section
         for (int i = 0; i < _sections.Count; i++)
         {
             var section = _sections[i];
-            if (section.Route.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+            if (!section.Route.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (parts.Length > 1)
             {
-                if (parts.Length > 1)
+                // Find matching item
+                for (int j = 0; j < section.Items.Count; j++)
                 {
-                    // Find matching item
-                    for (int j = 0; j < section.Items.Count; j++)
+                    if (section.Items[j].Route.Equals(parts[1], StringComparison.OrdinalIgnoreCase))
                     {
-                        if (section.Items[j].Route.Equals(parts[1], StringComparison.OrdinalIgnoreCase))
+                        NavigateToSection(i, j);
+                        if (section.Items[j].Content != null && allParams.Count > 0)
                         {
-                            NavigateToSection(i, j);
-                            return;
+                            ApplyQueryParameters(section.Items[j].Content!, allParams);
                         }
+                        return;
                     }
                 }
-                NavigateToSection(i, 0);
-                return;
+            }
+            NavigateToSection(i);
+            if (section.Items.Count > 0 && section.Items[0].Content != null && allParams.Count > 0)
+            {
+                ApplyQueryParameters(section.Items[0].Content!, allParams);
+            }
+            break;
+        }
+    }
+
+    private static Dictionary<string, string> ParseQueryString(string queryString)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(queryString)) return result;
+
+        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2)
+            {
+                result[Uri.UnescapeDataString(parts[0])] = Uri.UnescapeDataString(parts[1]);
+            }
+            else if (parts.Length == 1)
+            {
+                result[Uri.UnescapeDataString(parts[0])] = string.Empty;
             }
         }
+        return result;
+    }
+
+    private static void ApplyQueryParameters(SkiaView content, IDictionary<string, object> parameters)
+    {
+        if (parameters.Count == 0) return;
+
+        if (content is ISkiaQueryAttributable attributable)
+        {
+            attributable.ApplyQueryAttributes(parameters);
+        }
+
+        var type = content.GetType();
+        foreach (var param in parameters)
+        {
+            var prop = type.GetProperty(param.Key, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (prop != null && prop.CanWrite)
+            {
+                try
+                {
+                    var value = Convert.ChangeType(param.Value, prop.PropertyType);
+                    prop.SetValue(content, value);
+                }
+                catch { }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a route with a content factory.
+    /// </summary>
+    public void RegisterRoute(string route, Func<SkiaView?> contentFactory, string? title = null)
+    {
+        var key = route.TrimStart('/');
+        _registeredRoutes[key] = contentFactory;
+        if (!string.IsNullOrEmpty(title))
+        {
+            _routeTitles[key] = title;
+        }
+    }
+
+    /// <summary>
+    /// Unregisters a route.
+    /// </summary>
+    public void UnregisterRoute(string route)
+    {
+        var key = route.TrimStart('/');
+        _registeredRoutes.Remove(key);
+        _routeTitles.Remove(key);
+    }
+
+    private string GetRouteTitle(string route)
+    {
+        if (_routeTitles.TryGetValue(route, out string? title))
+        {
+            return title;
+        }
+        return route.Split('/').LastOrDefault() ?? route;
     }
 
     /// <summary>
@@ -883,6 +1086,32 @@ public class SkiaShell : SkiaLayoutView
         }
 
         base.OnPointerPressed(e);
+    }
+
+    public override void OnScroll(ScrollEventArgs e)
+    {
+        if (FlyoutIsPresented && _flyoutAnimationProgress > 0)
+        {
+            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
+
+            if (flyoutBounds.Contains(e.X, e.Y))
+            {
+                float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
+                float footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f;
+                float itemHeight = 48f;
+                float totalItemsHeight = _sections.Count * itemHeight;
+                float viewableHeight = flyoutBounds.Height - headerHeight - footerHeight;
+                float maxScroll = Math.Max(0f, totalItemsHeight - viewableHeight);
+
+                _flyoutScrollOffset -= e.DeltaY * 30f;
+                _flyoutScrollOffset = Math.Max(0f, Math.Min(_flyoutScrollOffset, maxScroll));
+                Invalidate();
+                e.Handled = true;
+                return;
+            }
+        }
+        base.OnScroll(e);
     }
 }
 

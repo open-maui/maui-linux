@@ -69,8 +69,8 @@
 | SkiaContentPresenter.cs | [ ] | |
 | SkiaContextMenu.cs | [ ] | |
 | SkiaDatePicker.cs | [ ] | |
-| SkiaEditor.cs | [ ] | |
-| SkiaEntry.cs | [ ] | |
+| SkiaEditor.cs | [x] | **FIXED 2026-01-01** - All BindingModes corrected (Text=OneWay, others=TwoWay) |
+| SkiaEntry.cs | [x] | **FIXED 2026-01-01** - TextProperty BindingMode.OneWay, others TwoWay |
 | SkiaFlexLayout.cs | [ ] | |
 | SkiaFlyoutPage.cs | [ ] | |
 | SkiaGraphicsView.cs | [ ] | |
@@ -89,7 +89,7 @@
 | SkiaRefreshView.cs | [ ] | |
 | SkiaScrollView.cs | [ ] | |
 | SkiaSearchBar.cs | [ ] | |
-| SkiaShell.cs | [ ] | Contains ShellSection, ShellContent |
+| SkiaShell.cs | [x] | **FIXED 2026-01-01** - Added FlyoutTextColor, ContentBackgroundColor, route registration, query parameters, OnScroll |
 | SkiaSlider.cs | [x] | FIXED - Value=OneWay, rest TwoWay (agent had inverted all) |
 | SkiaStepper.cs | [ ] | |
 | SkiaSwipeView.cs | [ ] | |
@@ -99,7 +99,7 @@
 | SkiaTimePicker.cs | [ ] | |
 | SkiaView.cs | [x] | Made Arrange() virtual |
 | SkiaVisualStateManager.cs | [ ] | |
-| SkiaWebView.cs | [ ] | Contains WebNavigatingEventArgs, WebNavigatedEventArgs (TO REMOVE - use MAUI's) |
+| SkiaWebView.cs | [x] | **FIXED 2026-01-01** - Full X11 embedding, position tracking, hardware accel, load callbacks |
 
 ---
 
