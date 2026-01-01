@@ -1,31 +1,43 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 
-namespace Microsoft.Maui.Platform;
+namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Linux handler for SearchBar control.
 /// </summary>
-public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
+public class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
 {
     public static IPropertyMapper<ISearchBar, SearchBarHandler> Mapper = new PropertyMapper<ISearchBar, SearchBarHandler>(ViewHandler.ViewMapper)
     {
-        [nameof(ISearchBar.Text)] = MapText,
-        [nameof(ISearchBar.Placeholder)] = MapPlaceholder,
-        [nameof(ISearchBar.PlaceholderColor)] = MapPlaceholderColor,
-        [nameof(ISearchBar.TextColor)] = MapTextColor,
-        [nameof(ISearchBar.Font)] = MapFont,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
-        [nameof(IView.Background)] = MapBackground,
+        ["Text"] = MapText,
+        ["TextColor"] = MapTextColor,
+        ["Font"] = MapFont,
+        ["Placeholder"] = MapPlaceholder,
+        ["PlaceholderColor"] = MapPlaceholderColor,
+        ["CancelButtonColor"] = MapCancelButtonColor,
+        ["Background"] = MapBackground
     };
 
     public static CommandMapper<ISearchBar, SearchBarHandler> CommandMapper = new(ViewHandler.ViewCommandMapper);
 
-    public SearchBarHandler() : base(Mapper, CommandMapper) { }
+    public SearchBarHandler() : base(Mapper, CommandMapper)
+    {
+    }
 
-    protected override SkiaSearchBar CreatePlatformView() => new SkiaSearchBar();
+    public SearchBarHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
+
+    protected override SkiaSearchBar CreatePlatformView()
+    {
+        return new SkiaSearchBar();
+    }
 
     protected override void ConnectHandler(SkiaSearchBar platformView)
     {
@@ -43,9 +55,9 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
 
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (VirtualView != null && VirtualView.Text != e.NewText)
+        if (VirtualView != null && PlatformView != null && VirtualView.Text != e.NewTextValue)
         {
-            VirtualView.Text = e.NewText;
+            VirtualView.Text = e.NewTextValue ?? string.Empty;
         }
     }
 
@@ -56,51 +68,68 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
 
     public static void MapText(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView.Text != searchBar.Text)
+        if (handler.PlatformView != null && handler.PlatformView.Text != searchBar.Text)
         {
-            handler.PlatformView.Text = searchBar.Text ?? "";
+            handler.PlatformView.Text = searchBar.Text ?? string.Empty;
+        }
+    }
+
+    public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView != null && searchBar.TextColor != null)
+        {
+            handler.PlatformView.TextColor = searchBar.TextColor.ToSKColor();
+        }
+    }
+
+    public static void MapFont(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView != null)
+        {
+            var font = searchBar.Font;
+            if (font.Size > 0)
+            {
+                handler.PlatformView.FontSize = (float)font.Size;
+            }
+            if (!string.IsNullOrEmpty(font.Family))
+            {
+                handler.PlatformView.FontFamily = font.Family;
+            }
         }
     }
 
     public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar)
     {
-        handler.PlatformView.Placeholder = searchBar.Placeholder ?? "";
-        handler.PlatformView.Invalidate();
+        if (handler.PlatformView != null)
+        {
+            handler.PlatformView.Placeholder = searchBar.Placeholder ?? string.Empty;
+        }
     }
 
     public static void MapPlaceholderColor(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (searchBar.PlaceholderColor != null)
+        if (handler.PlatformView != null && searchBar.PlaceholderColor != null)
+        {
             handler.PlatformView.PlaceholderColor = searchBar.PlaceholderColor.ToSKColor();
-        handler.PlatformView.Invalidate();
+        }
     }
 
-    public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar)
+    public static void MapCancelButtonColor(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (searchBar.TextColor != null)
-            handler.PlatformView.TextColor = searchBar.TextColor.ToSKColor();
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapFont(SearchBarHandler handler, ISearchBar searchBar)
-    {
-        var font = searchBar.Font;
-        if (font.Family != null)
-            handler.PlatformView.FontFamily = font.Family;
-        handler.PlatformView.FontSize = (float)font.Size;
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapIsEnabled(SearchBarHandler handler, ISearchBar searchBar)
-    {
-        handler.PlatformView.IsEnabled = searchBar.IsEnabled;
-        handler.PlatformView.Invalidate();
+        if (handler.PlatformView != null && searchBar.CancelButtonColor != null)
+        {
+            handler.PlatformView.ClearButtonColor = searchBar.CancelButtonColor.ToSKColor();
+        }
     }
 
     public static void MapBackground(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (searchBar.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
-        handler.PlatformView.Invalidate();
+        if (handler.PlatformView != null)
+        {
+            if (searchBar.Background is SolidPaint solidPaint && solidPaint.Color != null)
+            {
+                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            }
+        }
     }
 }

@@ -19,7 +19,7 @@
 | ButtonHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed MapText/TextColor/Font (not in production), fixed namespace, added null checks |
 | CheckBoxHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added VerticalLayoutAlignment/HorizontalLayoutAlignment, fixed namespace |
 | CollectionViewHandler.cs | [ ] | NEEDS VERIFICATION |
-| DatePickerHandler.cs | [ ] | NEEDS VERIFICATION |
+| DatePickerHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, dark theme support |
 | EditorHandler.Linux.cs | [x] | **CREATED 2026-01-01** - Was missing, created from decompiled |
 | EntryHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/ClearButtonVisibility/VerticalTextAlignment, fixed namespace, null checks |
 | FlexLayoutHandler.cs | [ ] | NEEDS VERIFICATION |
@@ -31,8 +31,8 @@
 | GtkWebViewManager.cs | [ ] | NEEDS VERIFICATION |
 | GtkWebViewPlatformView.cs | [ ] | NEEDS VERIFICATION |
 | GtkWebViewProxy.cs | [x] | Added new file from decompiled |
-| ImageButtonHandler.cs | [ ] | NEEDS VERIFICATION |
-| ImageHandler.cs | [ ] | NEEDS VERIFICATION |
+| ImageButtonHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, has ImageSourceServiceResultManager |
+| ImageHandler.Linux.cs | [x] | **VERIFIED 2026-01-01** - Matches production, FontImageSource rendering |
 | ItemsViewHandler.cs | [ ] | NEEDS VERIFICATION |
 | LabelHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/LayoutAlignment/FormattedText, ConnectHandler gesture logic, fixed namespace |
 | LayoutHandler.cs | [ ] | NEEDS VERIFICATION |
@@ -40,15 +40,15 @@
 | PageHandler.cs | [ ] | NEEDS VERIFICATION |
 | PickerHandler.Linux.cs | [x] | **CREATED 2026-01-01** - Was missing, created from decompiled with collection changed tracking |
 | ProgressBarHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added ConnectHandler/DisconnectHandler IsVisible tracking, fixed namespace |
-| RadioButtonHandler.cs | [ ] | NEEDS VERIFICATION |
-| ScrollViewHandler.cs | [ ] | NEEDS VERIFICATION |
-| SearchBarHandler.cs | [ ] | NEEDS VERIFICATION |
+| RadioButtonHandler.Linux.cs | [x] | **VERIFIED 2026-01-01** - Matches production, Content/GroupName/Value in ConnectHandler |
+| ScrollViewHandler.Linux.cs | [x] | **VERIFIED 2026-01-01** - Matches production, CommandMapper with RequestScrollTo |
+| SearchBarHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Fixed namespace, added CancelButtonColor, SolidPaint, null checks |
 | ShellHandler.cs | [ ] | NEEDS VERIFICATION |
 | SliderHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed BackgroundColor (use base), fixed namespace, added ConnectHandler init calls |
-| StepperHandler.cs | [ ] | NEEDS VERIFICATION |
+| StepperHandler.Linux.cs | [x] | **VERIFIED 2026-01-01** - Matches production, dark theme support |
 | SwitchHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added OffTrackColor logic, fixed namespace, removed extra BackgroundColor |
 | TabbedPageHandler.cs | [ ] | NEEDS VERIFICATION |
-| TimePickerHandler.cs | [ ] | NEEDS VERIFICATION |
+| TimePickerHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, dark theme support |
 | WebViewHandler.cs | [ ] | NEEDS VERIFICATION |
 | WindowHandler.cs | [ ] | NEEDS VERIFICATION |
 
