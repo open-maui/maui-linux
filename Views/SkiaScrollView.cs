@@ -1,899 +1,784 @@
-using System;
-using Microsoft.Maui.Controls;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// Skia-rendered scroll view container with full XAML styling support.
+/// </summary>
 public class SkiaScrollView : SkiaView
 {
-	public static readonly BindableProperty OrientationProperty = BindableProperty.Create("Orientation", typeof(ScrollOrientation), typeof(SkiaScrollView), (object)ScrollOrientation.Both, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaScrollView)(object)b).InvalidateMeasure();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    #region BindableProperties
 
-	public static readonly BindableProperty HorizontalScrollBarVisibilityProperty = BindableProperty.Create("HorizontalScrollBarVisibility", typeof(ScrollBarVisibility), typeof(SkiaScrollView), (object)ScrollBarVisibility.Auto, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaScrollView)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for Orientation.
+    /// </summary>
+    public static readonly BindableProperty OrientationProperty =
+        BindableProperty.Create(
+            nameof(Orientation),
+            typeof(ScrollOrientation),
+            typeof(SkiaScrollView),
+            ScrollOrientation.Both,
+            propertyChanged: (b, o, n) => ((SkiaScrollView)b).InvalidateMeasure());
 
-	public static readonly BindableProperty VerticalScrollBarVisibilityProperty = BindableProperty.Create("VerticalScrollBarVisibility", typeof(ScrollBarVisibility), typeof(SkiaScrollView), (object)ScrollBarVisibility.Auto, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaScrollView)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for HorizontalScrollBarVisibility.
+    /// </summary>
+    public static readonly BindableProperty HorizontalScrollBarVisibilityProperty =
+        BindableProperty.Create(
+            nameof(HorizontalScrollBarVisibility),
+            typeof(ScrollBarVisibility),
+            typeof(SkiaScrollView),
+            ScrollBarVisibility.Auto,
+            propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
-	public static readonly BindableProperty ScrollBarColorProperty = BindableProperty.Create("ScrollBarColor", typeof(SKColor), typeof(SkiaScrollView), (object)new SKColor((byte)128, (byte)128, (byte)128, (byte)128), (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaScrollView)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for VerticalScrollBarVisibility.
+    /// </summary>
+    public static readonly BindableProperty VerticalScrollBarVisibilityProperty =
+        BindableProperty.Create(
+            nameof(VerticalScrollBarVisibility),
+            typeof(ScrollBarVisibility),
+            typeof(SkiaScrollView),
+            ScrollBarVisibility.Auto,
+            propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
-	public static readonly BindableProperty ScrollBarWidthProperty = BindableProperty.Create("ScrollBarWidth", typeof(float), typeof(SkiaScrollView), (object)8f, (BindingMode)2, (ValidateValueDelegate)null, (BindingPropertyChangedDelegate)delegate(BindableObject b, object o, object n)
-	{
-		((SkiaScrollView)(object)b).Invalidate();
-	}, (BindingPropertyChangingDelegate)null, (CoerceValueDelegate)null, (CreateDefaultValueDelegate)null);
+    /// <summary>
+    /// Bindable property for ScrollBarColor.
+    /// </summary>
+    public static readonly BindableProperty ScrollBarColorProperty =
+        BindableProperty.Create(
+            nameof(ScrollBarColor),
+            typeof(SKColor),
+            typeof(SkiaScrollView),
+            new SKColor(0x80, 0x80, 0x80, 0x80),
+            propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
-	private SkiaView? _content;
+    /// <summary>
+    /// Bindable property for ScrollBarWidth.
+    /// </summary>
+    public static readonly BindableProperty ScrollBarWidthProperty =
+        BindableProperty.Create(
+            nameof(ScrollBarWidth),
+            typeof(float),
+            typeof(SkiaScrollView),
+            8f,
+            propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
 
-	private float _scrollX;
+    #endregion
 
-	private float _scrollY;
+    #region Properties
 
-	private float _velocityX;
+    /// <summary>
+    /// Gets or sets the scroll orientation.
+    /// </summary>
+    public ScrollOrientation Orientation
+    {
+        get => (ScrollOrientation)GetValue(OrientationProperty);
+        set => SetValue(OrientationProperty, value);
+    }
 
-	private float _velocityY;
+    /// <summary>
+    /// Gets or sets whether to show horizontal scrollbar.
+    /// </summary>
+    public ScrollBarVisibility HorizontalScrollBarVisibility
+    {
+        get => (ScrollBarVisibility)GetValue(HorizontalScrollBarVisibilityProperty);
+        set => SetValue(HorizontalScrollBarVisibilityProperty, value);
+    }
 
-	private bool _isDragging;
+    /// <summary>
+    /// Gets or sets whether to show vertical scrollbar.
+    /// </summary>
+    public ScrollBarVisibility VerticalScrollBarVisibility
+    {
+        get => (ScrollBarVisibility)GetValue(VerticalScrollBarVisibilityProperty);
+        set => SetValue(VerticalScrollBarVisibilityProperty, value);
+    }
 
-	private bool _isDraggingVerticalScrollbar;
+    /// <summary>
+    /// Scrollbar color.
+    /// </summary>
+    public SKColor ScrollBarColor
+    {
+        get => (SKColor)GetValue(ScrollBarColorProperty);
+        set => SetValue(ScrollBarColorProperty, value);
+    }
 
-	private bool _isDraggingHorizontalScrollbar;
+    /// <summary>
+    /// Scrollbar width.
+    /// </summary>
+    public float ScrollBarWidth
+    {
+        get => (float)GetValue(ScrollBarWidthProperty);
+        set => SetValue(ScrollBarWidthProperty, value);
+    }
 
-	private float _scrollbarDragStartY;
+    #endregion
 
-	private float _scrollbarDragStartScrollY;
+    private SkiaView? _content;
+    private float _scrollX;
+    private float _scrollY;
+    private float _velocityX;
+    private float _velocityY;
+    private bool _isDragging;
+    private bool _isDraggingVerticalScrollbar;
+    private bool _isDraggingHorizontalScrollbar;
+    private float _scrollbarDragStartY;
+    private float _scrollbarDragStartScrollY;
+    private float _scrollbarDragStartX;
+    private float _scrollbarDragStartScrollX;
+    private float _scrollbarDragAvailableTrack; // Cache to prevent stutter
+    private float _scrollbarDragScrollableExtent; // Cache to prevent stutter
+    private float _lastPointerX;
+    private float _lastPointerY;
 
-	private float _scrollbarDragStartX;
+    /// <summary>
+    /// Gets or sets the content view.
+    /// </summary>
+    public SkiaView? Content
+    {
+        get => _content;
+        set
+        {
+            if (_content != value)
+            {
+                if (_content != null)
+                    _content.Parent = null;
 
-	private float _scrollbarDragStartScrollX;
+                _content = value;
 
-	private float _scrollbarDragAvailableTrack;
+                if (_content != null)
+                {
+                    _content.Parent = this;
 
-	private float _scrollbarDragScrollableExtent;
+                    // Propagate binding context to new content
+                    if (BindingContext != null)
+                    {
+                        SetInheritedBindingContext(_content, BindingContext);
+                    }
+                }
 
-	private float _lastPointerX;
+                InvalidateMeasure();
+                Invalidate();
+            }
+        }
+    }
 
-	private float _lastPointerY;
+    /// <summary>
+    /// Called when binding context changes. Propagates to content.
+    /// </summary>
+    protected override void OnBindingContextChanged()
+    {
+        base.OnBindingContextChanged();
 
-	public ScrollOrientation Orientation
-	{
-		get
-		{
-			return (ScrollOrientation)((BindableObject)this).GetValue(OrientationProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(OrientationProperty, (object)value);
-		}
-	}
+        // Propagate binding context to content
+        if (_content != null)
+        {
+            SetInheritedBindingContext(_content, BindingContext);
+        }
+    }
 
-	public ScrollBarVisibility HorizontalScrollBarVisibility
-	{
-		get
-		{
-			return (ScrollBarVisibility)((BindableObject)this).GetValue(HorizontalScrollBarVisibilityProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(HorizontalScrollBarVisibilityProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the horizontal scroll position.
+    /// </summary>
+    public float ScrollX
+    {
+        get => _scrollX;
+        set
+        {
+            var clamped = ClampScrollX(value);
+            if (_scrollX != clamped)
+            {
+                _scrollX = clamped;
+                Scrolled?.Invoke(this, new ScrolledEventArgs(_scrollX, _scrollY));
+                Invalidate();
+            }
+        }
+    }
 
-	public ScrollBarVisibility VerticalScrollBarVisibility
-	{
-		get
-		{
-			return (ScrollBarVisibility)((BindableObject)this).GetValue(VerticalScrollBarVisibilityProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(VerticalScrollBarVisibilityProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets or sets the vertical scroll position.
+    /// </summary>
+    public float ScrollY
+    {
+        get => _scrollY;
+        set
+        {
+            var clamped = ClampScrollY(value);
+            if (_scrollY != clamped)
+            {
+                _scrollY = clamped;
+                Scrolled?.Invoke(this, new ScrolledEventArgs(_scrollX, _scrollY));
+                Invalidate();
+            }
+        }
+    }
 
-	public SKColor ScrollBarColor
-	{
-		get
-		{
-			//IL_000b: Unknown result type (might be due to invalid IL or missing references)
-			return (SKColor)((BindableObject)this).GetValue(ScrollBarColorProperty);
-		}
-		set
-		{
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			((BindableObject)this).SetValue(ScrollBarColorProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets the maximum horizontal scroll extent.
+    /// </summary>
+    public float ScrollableWidth
+    {
+        get
+        {
+            // Handle infinite or NaN bounds - use a reasonable default viewport
+            var viewportWidth = float.IsInfinity(Bounds.Width) || float.IsNaN(Bounds.Width) || Bounds.Width <= 0
+                ? 800f
+                : Bounds.Width;
+            return Math.Max(0, ContentSize.Width - viewportWidth);
+        }
+    }
 
-	public float ScrollBarWidth
-	{
-		get
-		{
-			return (float)((BindableObject)this).GetValue(ScrollBarWidthProperty);
-		}
-		set
-		{
-			((BindableObject)this).SetValue(ScrollBarWidthProperty, (object)value);
-		}
-	}
+    /// <summary>
+    /// Gets the maximum vertical scroll extent.
+    /// </summary>
+    public float ScrollableHeight
+    {
+        get
+        {
+            // Handle infinite, NaN, or unreasonably large bounds - use a reasonable default viewport
+            var boundsHeight = Bounds.Height;
+            var viewportHeight = (float.IsInfinity(boundsHeight) || float.IsNaN(boundsHeight) || boundsHeight <= 0 || boundsHeight > 10000)
+                ? 544f  // Default viewport height (600 - 56 for shell header)
+                : boundsHeight;
+            return Math.Max(0, ContentSize.Height - viewportHeight);
+        }
+    }
 
-	public SkiaView? Content
-	{
-		get
-		{
-			return _content;
-		}
-		set
-		{
-			if (_content == value)
-			{
-				return;
-			}
-			if (_content != null)
-			{
-				_content.Parent = null;
-			}
-			_content = value;
-			if (_content != null)
-			{
-				_content.Parent = this;
-				if (((BindableObject)this).BindingContext != null)
-				{
-					BindableObject.SetInheritedBindingContext((BindableObject)(object)_content, ((BindableObject)this).BindingContext);
-				}
-			}
-			InvalidateMeasure();
-			Invalidate();
-		}
-	}
+    /// <summary>
+    /// Gets the content size.
+    /// </summary>
+    public SKSize ContentSize { get; private set; }
 
-	public float ScrollX
-	{
-		get
-		{
-			return _scrollX;
-		}
-		set
-		{
-			float num = ClampScrollX(value);
-			if (_scrollX != num)
-			{
-				_scrollX = num;
-				this.Scrolled?.Invoke(this, new ScrolledEventArgs(_scrollX, _scrollY));
-				Invalidate();
-			}
-		}
-	}
+    /// <summary>
+    /// Event raised when scroll position changes.
+    /// </summary>
+    public event EventHandler<ScrolledEventArgs>? Scrolled;
 
-	public float ScrollY
-	{
-		get
-		{
-			return _scrollY;
-		}
-		set
-		{
-			float num = ClampScrollY(value);
-			if (_scrollY != num)
-			{
-				_scrollY = num;
-				this.Scrolled?.Invoke(this, new ScrolledEventArgs(_scrollX, _scrollY));
-				Invalidate();
-			}
-		}
-	}
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        // Clip to bounds
+        canvas.Save();
+        canvas.ClipRect(bounds);
 
-	public float ScrollableWidth
-	{
-		get
-		{
-			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0016: Unknown result type (might be due to invalid IL or missing references)
-			//IL_001b: Unknown result type (might be due to invalid IL or missing references)
-			//IL_005b: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0060: Unknown result type (might be due to invalid IL or missing references)
-			//IL_002b: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0030: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0040: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0045: Unknown result type (might be due to invalid IL or missing references)
-			SKRect bounds = base.Bounds;
-			float num;
-			if (!float.IsInfinity(((SKRect)(ref bounds)).Width))
-			{
-				bounds = base.Bounds;
-				if (!float.IsNaN(((SKRect)(ref bounds)).Width))
-				{
-					bounds = base.Bounds;
-					if (!(((SKRect)(ref bounds)).Width <= 0f))
-					{
-						bounds = base.Bounds;
-						num = ((SKRect)(ref bounds)).Width;
-						goto IL_0054;
-					}
-				}
-			}
-			num = 800f;
-			goto IL_0054;
-			IL_0054:
-			float num2 = num;
-			SKSize contentSize = ContentSize;
-			return Math.Max(0f, ((SKSize)(ref contentSize)).Width - num2);
-		}
-	}
+        // Draw content with scroll offset
+        if (_content != null)
+        {
+            // Ensure content is measured and arranged
+            // Account for vertical scrollbar width to prevent horizontal scrollbar from appearing
+            var effectiveWidth = bounds.Width;
+            if (Orientation != ScrollOrientation.Horizontal && VerticalScrollBarVisibility != ScrollBarVisibility.Never)
+            {
+                // Reserve space for vertical scrollbar if content might be taller than viewport
+                effectiveWidth -= ScrollBarWidth;
+            }
+            var availableSize = new SKSize(effectiveWidth, float.PositiveInfinity);
+            // Update ContentSize with the properly constrained measurement
+            ContentSize = _content.Measure(availableSize);
 
-	public float ScrollableHeight
-	{
-		get
-		{
-			//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0006: Unknown result type (might be due to invalid IL or missing references)
-			//IL_003e: Unknown result type (might be due to invalid IL or missing references)
-			//IL_0043: Unknown result type (might be due to invalid IL or missing references)
-			SKRect bounds = base.Bounds;
-			float height = ((SKRect)(ref bounds)).Height;
-			float num = ((float.IsInfinity(height) || float.IsNaN(height) || height <= 0f || height > 10000f) ? 544f : height);
-			SKSize contentSize = ContentSize;
-			return Math.Max(0f, ((SKSize)(ref contentSize)).Height - num);
-		}
-	}
+            // Apply content's margin
+            var margin = _content.Margin;
+            var contentBounds = new SKRect(
+                bounds.Left + (float)margin.Left,
+                bounds.Top + (float)margin.Top,
+                bounds.Left + Math.Max(bounds.Width, _content.DesiredSize.Width) - (float)margin.Right,
+                bounds.Top + Math.Max(bounds.Height, _content.DesiredSize.Height) - (float)margin.Bottom);
+            _content.Arrange(contentBounds);
 
-	public SKSize ContentSize { get; private set; }
+            canvas.Save();
+            canvas.Translate(-_scrollX, -_scrollY);
+            _content.Draw(canvas);
+            canvas.Restore();
+        }
 
-	public event EventHandler<ScrolledEventArgs>? Scrolled;
+        // Draw scrollbars
+        DrawScrollbars(canvas, bounds);
 
-	protected override void OnBindingContextChanged()
-	{
-		base.OnBindingContextChanged();
-		if (_content != null)
-		{
-			BindableObject.SetInheritedBindingContext((BindableObject)(object)_content, ((BindableObject)this).BindingContext);
-		}
-	}
+        canvas.Restore();
+    }
 
-	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
-		//IL_012d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0052: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0053: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0068: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00f8: Unknown result type (might be due to invalid IL or missing references)
-		canvas.Save();
-		canvas.ClipRect(bounds, (SKClipOperation)1, false);
-		if (_content != null)
-		{
-			float num = ((SKRect)(ref bounds)).Width;
-			if (Orientation != ScrollOrientation.Horizontal && VerticalScrollBarVisibility != ScrollBarVisibility.Never)
-			{
-				num -= ScrollBarWidth;
-			}
-			SKSize availableSize = default(SKSize);
-			((SKSize)(ref availableSize))._002Ector(num, float.PositiveInfinity);
-			ContentSize = _content.Measure(availableSize);
-			Thickness margin = _content.Margin;
-			float num2 = ((SKRect)(ref bounds)).Left + (float)((Thickness)(ref margin)).Left;
-			float num3 = ((SKRect)(ref bounds)).Top + (float)((Thickness)(ref margin)).Top;
-			float left = ((SKRect)(ref bounds)).Left;
-			float width = ((SKRect)(ref bounds)).Width;
-			SKSize desiredSize = _content.DesiredSize;
-			float num4 = left + Math.Max(width, ((SKSize)(ref desiredSize)).Width) - (float)((Thickness)(ref margin)).Right;
-			float top = ((SKRect)(ref bounds)).Top;
-			float height = ((SKRect)(ref bounds)).Height;
-			desiredSize = _content.DesiredSize;
-			SKRect bounds2 = default(SKRect);
-			((SKRect)(ref bounds2))._002Ector(num2, num3, num4, top + Math.Max(height, ((SKSize)(ref desiredSize)).Height) - (float)((Thickness)(ref margin)).Bottom);
-			_content.Arrange(bounds2);
-			canvas.Save();
-			canvas.Translate(0f - _scrollX, 0f - _scrollY);
-			_content.Draw(canvas);
-			canvas.Restore();
-		}
-		DrawScrollbars(canvas, bounds);
-		canvas.Restore();
-	}
+    private void DrawScrollbars(SKCanvas canvas, SKRect bounds)
+    {
+        var showVertical = ShouldShowVerticalScrollbar();
+        var showHorizontal = ShouldShowHorizontalScrollbar();
 
-	private void DrawScrollbars(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0039: Unknown result type (might be due to invalid IL or missing references)
-		bool flag = ShouldShowVerticalScrollbar();
-		bool flag2 = ShouldShowHorizontalScrollbar();
-		if (flag && ScrollableHeight > 0f)
-		{
-			DrawVerticalScrollbar(canvas, bounds, flag2);
-		}
-		if (flag2 && ScrollableWidth > 0f)
-		{
-			DrawHorizontalScrollbar(canvas, bounds, flag);
-		}
-	}
+        if (showVertical && ScrollableHeight > 0)
+        {
+            DrawVerticalScrollbar(canvas, bounds, showHorizontal);
+        }
 
-	private bool ShouldShowVerticalScrollbar()
-	{
-		if (Orientation == ScrollOrientation.Horizontal)
-		{
-			return false;
-		}
-		return VerticalScrollBarVisibility switch
-		{
-			ScrollBarVisibility.Always => true, 
-			ScrollBarVisibility.Never => false, 
-			_ => ScrollableHeight > 0f, 
-		};
-	}
+        if (showHorizontal && ScrollableWidth > 0)
+        {
+            DrawHorizontalScrollbar(canvas, bounds, showVertical);
+        }
+    }
 
-	private bool ShouldShowHorizontalScrollbar()
-	{
-		if (Orientation == ScrollOrientation.Vertical)
-		{
-			return false;
-		}
-		return HorizontalScrollBarVisibility switch
-		{
-			ScrollBarVisibility.Always => true, 
-			ScrollBarVisibility.Never => false, 
-			_ => ScrollableWidth > 0f, 
-		};
-	}
+    private bool ShouldShowVerticalScrollbar()
+    {
+        if (Orientation == ScrollOrientation.Horizontal) return false;
 
-	private void DrawVerticalScrollbar(SKCanvas canvas, SKRect bounds, bool hasHorizontal)
-	{
-		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0054: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0068: Expected O, but got Unknown
-		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a9: Expected O, but got Unknown
-		float num = ((SKRect)(ref bounds)).Height - (hasHorizontal ? ScrollBarWidth : 0f);
-		float height = ((SKRect)(ref bounds)).Height;
-		SKSize contentSize = ContentSize;
-		float num2 = Math.Max(20f, height / ((SKSize)(ref contentSize)).Height * num);
-		float num3 = ScrollY / ScrollableHeight * (num - num2);
-		SKPaint val = new SKPaint
-		{
-			Color = ScrollBarColor,
-			IsAntialias = true
-		};
-		try
-		{
-			SKRoundRect val2 = new SKRoundRect(new SKRect(((SKRect)(ref bounds)).Right - ScrollBarWidth, ((SKRect)(ref bounds)).Top + num3, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + num3 + num2), ScrollBarWidth / 2f);
-			canvas.DrawRoundRect(val2, val);
-		}
-		finally
-		{
-			((IDisposable)val)?.Dispose();
-		}
-	}
+        return VerticalScrollBarVisibility switch
+        {
+            ScrollBarVisibility.Always => true,
+            ScrollBarVisibility.Never => false,
+            _ => ScrollableHeight > 0
+        };
+    }
 
-	private void DrawHorizontalScrollbar(SKCanvas canvas, SKRect bounds, bool hasVertical)
-	{
-		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0054: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0056: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0068: Expected O, but got Unknown
-		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a9: Expected O, but got Unknown
-		float num = ((SKRect)(ref bounds)).Width - (hasVertical ? ScrollBarWidth : 0f);
-		float width = ((SKRect)(ref bounds)).Width;
-		SKSize contentSize = ContentSize;
-		float num2 = Math.Max(20f, width / ((SKSize)(ref contentSize)).Width * num);
-		float num3 = ScrollX / ScrollableWidth * (num - num2);
-		SKPaint val = new SKPaint
-		{
-			Color = ScrollBarColor,
-			IsAntialias = true
-		};
-		try
-		{
-			SKRoundRect val2 = new SKRoundRect(new SKRect(((SKRect)(ref bounds)).Left + num3, ((SKRect)(ref bounds)).Bottom - ScrollBarWidth, ((SKRect)(ref bounds)).Left + num3 + num2, ((SKRect)(ref bounds)).Bottom), ScrollBarWidth / 2f);
-			canvas.DrawRoundRect(val2, val);
-		}
-		finally
-		{
-			((IDisposable)val)?.Dispose();
-		}
-	}
+    private bool ShouldShowHorizontalScrollbar()
+    {
+        if (Orientation == ScrollOrientation.Vertical) return false;
 
-	public override void OnScroll(ScrollEventArgs e)
-	{
-		float num = 40f;
-		bool flag = false;
-		if (Orientation != ScrollOrientation.Horizontal && ScrollableHeight > 0f)
-		{
-			float scrollY = _scrollY;
-			ScrollY += e.DeltaY * num;
-			if (_scrollY != scrollY)
-			{
-				flag = true;
-			}
-		}
-		if (Orientation != ScrollOrientation.Vertical && ScrollableWidth > 0f)
-		{
-			float scrollX = _scrollX;
-			ScrollX += e.DeltaX * num;
-			if (_scrollX != scrollX)
-			{
-				flag = true;
-			}
-		}
-		if (flag)
-		{
-			e.Handled = true;
-		}
-	}
+        return HorizontalScrollBarVisibility switch
+        {
+            ScrollBarVisibility.Always => true,
+            ScrollBarVisibility.Never => false,
+            _ => ScrollableWidth > 0
+        };
+    }
 
-	public override void OnPointerPressed(PointerEventArgs e)
-	{
-		//IL_001c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00df: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e4: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0061: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0066: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0126: Unknown result type (might be due to invalid IL or missing references)
-		//IL_012b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0087: Unknown result type (might be due to invalid IL or missing references)
-		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_014e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0153: Unknown result type (might be due to invalid IL or missing references)
-		//IL_015d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0162: Unknown result type (might be due to invalid IL or missing references)
-		SKRect bounds;
-		SKSize contentSize;
-		if (ShouldShowVerticalScrollbar() && ScrollableHeight > 0f)
-		{
-			SKRect verticalScrollbarThumbBounds = GetVerticalScrollbarThumbBounds();
-			if (((SKRect)(ref verticalScrollbarThumbBounds)).Contains(e.X, e.Y))
-			{
-				_isDraggingVerticalScrollbar = true;
-				_scrollbarDragStartY = e.Y;
-				_scrollbarDragStartScrollY = _scrollY;
-				bool flag = ShouldShowHorizontalScrollbar();
-				bounds = base.Bounds;
-				float num = ((SKRect)(ref bounds)).Height - (flag ? ScrollBarWidth : 0f);
-				bounds = base.Bounds;
-				float height = ((SKRect)(ref bounds)).Height;
-				contentSize = ContentSize;
-				float num2 = Math.Max(20f, height / ((SKSize)(ref contentSize)).Height * num);
-				_scrollbarDragAvailableTrack = num - num2;
-				_scrollbarDragScrollableExtent = ScrollableHeight;
-				return;
-			}
-		}
-		if (ShouldShowHorizontalScrollbar() && ScrollableWidth > 0f)
-		{
-			SKRect horizontalScrollbarThumbBounds = GetHorizontalScrollbarThumbBounds();
-			if (((SKRect)(ref horizontalScrollbarThumbBounds)).Contains(e.X, e.Y))
-			{
-				_isDraggingHorizontalScrollbar = true;
-				_scrollbarDragStartX = e.X;
-				_scrollbarDragStartScrollX = _scrollX;
-				bool flag2 = ShouldShowVerticalScrollbar();
-				bounds = base.Bounds;
-				float num3 = ((SKRect)(ref bounds)).Width - (flag2 ? ScrollBarWidth : 0f);
-				bounds = base.Bounds;
-				float width = ((SKRect)(ref bounds)).Width;
-				contentSize = ContentSize;
-				float num4 = Math.Max(20f, width / ((SKSize)(ref contentSize)).Width * num3);
-				_scrollbarDragAvailableTrack = num3 - num4;
-				_scrollbarDragScrollableExtent = ScrollableWidth;
-				return;
-			}
-		}
-		if (_content != null)
-		{
-			PointerEventArgs e2 = new PointerEventArgs(e.X + _scrollX, e.Y + _scrollY, e.Button);
-			SkiaView skiaView = _content.HitTest(e2.X, e2.Y);
-			if (skiaView != null && skiaView != _content)
-			{
-				skiaView.OnPointerPressed(e2);
-				return;
-			}
-		}
-		_isDragging = true;
-		_lastPointerX = e.X;
-		_lastPointerY = e.Y;
-		_velocityX = 0f;
-		_velocityY = 0f;
-	}
+    private void DrawVerticalScrollbar(SKCanvas canvas, SKRect bounds, bool hasHorizontal)
+    {
+        var trackHeight = bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
+        var thumbHeight = Math.Max(20, (bounds.Height / ContentSize.Height) * trackHeight);
+        var thumbY = (ScrollY / ScrollableHeight) * (trackHeight - thumbHeight);
 
-	public override void OnPointerMoved(PointerEventArgs e)
-	{
-		if (_isDraggingVerticalScrollbar)
-		{
-			if (_scrollbarDragAvailableTrack > 0f)
-			{
-				float num = (e.Y - _scrollbarDragStartY) / _scrollbarDragAvailableTrack * _scrollbarDragScrollableExtent;
-				ScrollY = _scrollbarDragStartScrollY + num;
-			}
-		}
-		else if (_isDraggingHorizontalScrollbar)
-		{
-			if (_scrollbarDragAvailableTrack > 0f)
-			{
-				float num2 = (e.X - _scrollbarDragStartX) / _scrollbarDragAvailableTrack * _scrollbarDragScrollableExtent;
-				ScrollX = _scrollbarDragStartScrollX + num2;
-			}
-		}
-		else if (_isDragging)
-		{
-			float num3 = _lastPointerX - e.X;
-			float num4 = _lastPointerY - e.Y;
-			_velocityX = num3;
-			_velocityY = num4;
-			if (Orientation != ScrollOrientation.Horizontal)
-			{
-				ScrollY += num4;
-			}
-			if (Orientation != ScrollOrientation.Vertical)
-			{
-				ScrollX += num3;
-			}
-			_lastPointerX = e.X;
-			_lastPointerY = e.Y;
-		}
-	}
+        using var paint = new SKPaint
+        {
+            Color = ScrollBarColor,
+            IsAntialias = true
+        };
 
-	public override void OnPointerReleased(PointerEventArgs e)
-	{
-		_isDragging = false;
-		_isDraggingVerticalScrollbar = false;
-		_isDraggingHorizontalScrollbar = false;
-	}
+        var thumbRect = new SKRoundRect(
+            new SKRect(
+                bounds.Right - ScrollBarWidth,
+                bounds.Top + thumbY,
+                bounds.Right,
+                bounds.Top + thumbY + thumbHeight),
+            ScrollBarWidth / 2);
 
-	private SKRect GetVerticalScrollbarThumbBounds()
-	{
-		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0080: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b1: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b6: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
-		bool flag = ShouldShowHorizontalScrollbar();
-		SKRect bounds = base.Bounds;
-		float num = ((SKRect)(ref bounds)).Height - (flag ? ScrollBarWidth : 0f);
-		bounds = base.Bounds;
-		float height = ((SKRect)(ref bounds)).Height;
-		SKSize contentSize = ContentSize;
-		float num2 = Math.Max(20f, height / ((SKSize)(ref contentSize)).Height * num);
-		float num3 = ((ScrollableHeight > 0f) ? (ScrollY / ScrollableHeight * (num - num2)) : 0f);
-		bounds = base.Bounds;
-		float num4 = ((SKRect)(ref bounds)).Right - ScrollBarWidth;
-		bounds = base.Bounds;
-		float num5 = ((SKRect)(ref bounds)).Top + num3;
-		bounds = base.Bounds;
-		float right = ((SKRect)(ref bounds)).Right;
-		bounds = base.Bounds;
-		return new SKRect(num4, num5, right, ((SKRect)(ref bounds)).Top + num3 + num2);
-	}
+        canvas.DrawRoundRect(thumbRect, paint);
+    }
 
-	private SKRect GetHorizontalScrollbarThumbBounds()
-	{
-		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0033: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0042: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0080: Unknown result type (might be due to invalid IL or missing references)
-		//IL_008c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00a7: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ba: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
-		bool flag = ShouldShowVerticalScrollbar();
-		SKRect bounds = base.Bounds;
-		float num = ((SKRect)(ref bounds)).Width - (flag ? ScrollBarWidth : 0f);
-		bounds = base.Bounds;
-		float width = ((SKRect)(ref bounds)).Width;
-		SKSize contentSize = ContentSize;
-		float num2 = Math.Max(20f, width / ((SKSize)(ref contentSize)).Width * num);
-		float num3 = ((ScrollableWidth > 0f) ? (ScrollX / ScrollableWidth * (num - num2)) : 0f);
-		bounds = base.Bounds;
-		float num4 = ((SKRect)(ref bounds)).Left + num3;
-		bounds = base.Bounds;
-		float num5 = ((SKRect)(ref bounds)).Bottom - ScrollBarWidth;
-		bounds = base.Bounds;
-		float num6 = ((SKRect)(ref bounds)).Left + num3 + num2;
-		bounds = base.Bounds;
-		return new SKRect(num4, num5, num6, ((SKRect)(ref bounds)).Bottom);
-	}
+    private void DrawHorizontalScrollbar(SKCanvas canvas, SKRect bounds, bool hasVertical)
+    {
+        var trackWidth = bounds.Width - (hasVertical ? ScrollBarWidth : 0);
+        var thumbWidth = Math.Max(20, (bounds.Width / ContentSize.Width) * trackWidth);
+        var thumbX = (ScrollX / ScrollableWidth) * (trackWidth - thumbWidth);
 
-	public override SkiaView? HitTest(float x, float y)
-	{
-		//IL_0011: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0016: Unknown result type (might be due to invalid IL or missing references)
-		//IL_001b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0048: Unknown result type (might be due to invalid IL or missing references)
-		//IL_004d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0062: Unknown result type (might be due to invalid IL or missing references)
-		//IL_006b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0070: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0079: Unknown result type (might be due to invalid IL or missing references)
-		//IL_007e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b0: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00b5: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00be: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c3: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d3: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00d8: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e1: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e6: Unknown result type (might be due to invalid IL or missing references)
-		if (base.IsVisible && base.IsEnabled)
-		{
-			SKRect bounds = base.Bounds;
-			if (((SKRect)(ref bounds)).Contains(new SKPoint(x, y)))
-			{
-				if (ShouldShowVerticalScrollbar() && ScrollableHeight > 0f)
-				{
-					GetVerticalScrollbarThumbBounds();
-					bounds = base.Bounds;
-					float num = ((SKRect)(ref bounds)).Right - ScrollBarWidth;
-					bounds = base.Bounds;
-					float top = ((SKRect)(ref bounds)).Top;
-					bounds = base.Bounds;
-					float right = ((SKRect)(ref bounds)).Right;
-					bounds = base.Bounds;
-					SKRect val = default(SKRect);
-					((SKRect)(ref val))._002Ector(num, top, right, ((SKRect)(ref bounds)).Bottom);
-					if (((SKRect)(ref val)).Contains(x, y))
-					{
-						return this;
-					}
-				}
-				if (ShouldShowHorizontalScrollbar() && ScrollableWidth > 0f)
-				{
-					bounds = base.Bounds;
-					float left = ((SKRect)(ref bounds)).Left;
-					bounds = base.Bounds;
-					float num2 = ((SKRect)(ref bounds)).Bottom - ScrollBarWidth;
-					bounds = base.Bounds;
-					float right2 = ((SKRect)(ref bounds)).Right;
-					bounds = base.Bounds;
-					SKRect val2 = default(SKRect);
-					((SKRect)(ref val2))._002Ector(left, num2, right2, ((SKRect)(ref bounds)).Bottom);
-					if (((SKRect)(ref val2)).Contains(x, y))
-					{
-						return this;
-					}
-				}
-				if (_content != null)
-				{
-					SkiaView skiaView = _content.HitTest(x + _scrollX, y + _scrollY);
-					if (skiaView != null)
-					{
-						return skiaView;
-					}
-				}
-				return this;
-			}
-		}
-		return null;
-	}
+        using var paint = new SKPaint
+        {
+            Color = ScrollBarColor,
+            IsAntialias = true
+        };
 
-	public void ScrollTo(float x, float y, bool animated = false)
-	{
-		ScrollX = x;
-		ScrollY = y;
-	}
+        var thumbRect = new SKRoundRect(
+            new SKRect(
+                bounds.Left + thumbX,
+                bounds.Bottom - ScrollBarWidth,
+                bounds.Left + thumbX + thumbWidth,
+                bounds.Bottom),
+            ScrollBarWidth / 2);
 
-	public void ScrollToView(SkiaView view, bool animated = false)
-	{
-		//IL_000a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0040: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0051: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_009f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00dc: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e1: Unknown result type (might be due to invalid IL or missing references)
-		if (_content == null)
-		{
-			return;
-		}
-		SKRect bounds = view.Bounds;
-		float scrollX = ScrollX;
-		float scrollY = ScrollY;
-		float scrollX2 = ScrollX;
-		SKRect bounds2 = base.Bounds;
-		float num = scrollX2 + ((SKRect)(ref bounds2)).Width;
-		float scrollY2 = ScrollY;
-		bounds2 = base.Bounds;
-		SKRect val = default(SKRect);
-		((SKRect)(ref val))._002Ector(scrollX, scrollY, num, scrollY2 + ((SKRect)(ref bounds2)).Height);
-		if (!((SKRect)(ref val)).Contains(bounds))
-		{
-			float x = ScrollX;
-			float y = ScrollY;
-			if (((SKRect)(ref bounds)).Left < ((SKRect)(ref val)).Left)
-			{
-				x = ((SKRect)(ref bounds)).Left;
-			}
-			else if (((SKRect)(ref bounds)).Right > ((SKRect)(ref val)).Right)
-			{
-				float right = ((SKRect)(ref bounds)).Right;
-				bounds2 = base.Bounds;
-				x = right - ((SKRect)(ref bounds2)).Width;
-			}
-			if (((SKRect)(ref bounds)).Top < ((SKRect)(ref val)).Top)
-			{
-				y = ((SKRect)(ref bounds)).Top;
-			}
-			else if (((SKRect)(ref bounds)).Bottom > ((SKRect)(ref val)).Bottom)
-			{
-				float bottom = ((SKRect)(ref bounds)).Bottom;
-				bounds2 = base.Bounds;
-				y = bottom - ((SKRect)(ref bounds2)).Height;
-			}
-			ScrollTo(x, y, animated);
-		}
-	}
+        canvas.DrawRoundRect(thumbRect, paint);
+    }
 
-	private float ClampScrollX(float value)
-	{
-		if (Orientation == ScrollOrientation.Vertical)
-		{
-			return 0f;
-		}
-		return Math.Clamp(value, 0f, ScrollableWidth);
-	}
+    public override void OnScroll(ScrollEventArgs e)
+    {
+        Console.WriteLine($"[SkiaScrollView] OnScroll - DeltaY={e.DeltaY}, ScrollableHeight={ScrollableHeight}, ContentSize={ContentSize}, Bounds={Bounds}");
 
-	private float ClampScrollY(float value)
-	{
-		if (Orientation == ScrollOrientation.Horizontal)
-		{
-			return 0f;
-		}
-		return Math.Clamp(value, 0f, ScrollableHeight);
-	}
+        // Handle mouse wheel scrolling
+        var deltaMultiplier = 40f; // Scroll speed
+        bool scrolled = false;
 
-	protected override SKSize MeasureOverride(SKSize availableSize)
-	{
-		//IL_0118: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0148: Unknown result type (might be due to invalid IL or missing references)
-		//IL_014d: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0186: Unknown result type (might be due to invalid IL or missing references)
-		//IL_018b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0106: Unknown result type (might be due to invalid IL or missing references)
-		//IL_010b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_01a0: Unknown result type (might be due to invalid IL or missing references)
-		if (_content != null)
-		{
-			float num;
-			float num2;
-			switch (Orientation)
-			{
-			case ScrollOrientation.Horizontal:
-				num = float.PositiveInfinity;
-				num2 = (float.IsInfinity(((SKSize)(ref availableSize)).Height) ? 400f : ((SKSize)(ref availableSize)).Height);
-				break;
-			case ScrollOrientation.Neither:
-				num = (float.IsInfinity(((SKSize)(ref availableSize)).Width) ? 400f : ((SKSize)(ref availableSize)).Width);
-				num2 = (float.IsInfinity(((SKSize)(ref availableSize)).Height) ? 400f : ((SKSize)(ref availableSize)).Height);
-				break;
-			case ScrollOrientation.Both:
-				num = (float.IsInfinity(((SKSize)(ref availableSize)).Width) ? 800f : ((SKSize)(ref availableSize)).Width);
-				if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
-				{
-					num -= ScrollBarWidth;
-				}
-				num2 = float.PositiveInfinity;
-				break;
-			default:
-				num = (float.IsInfinity(((SKSize)(ref availableSize)).Width) ? 800f : ((SKSize)(ref availableSize)).Width);
-				if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
-				{
-					num -= ScrollBarWidth;
-				}
-				num2 = float.PositiveInfinity;
-				break;
-			}
-			ContentSize = _content.Measure(new SKSize(num, num2));
-		}
-		else
-		{
-			ContentSize = SKSize.Empty;
-		}
-		float num3;
-		SKSize contentSize;
-		if (!float.IsInfinity(((SKSize)(ref availableSize)).Width) && !float.IsNaN(((SKSize)(ref availableSize)).Width))
-		{
-			num3 = ((SKSize)(ref availableSize)).Width;
-		}
-		else
-		{
-			contentSize = ContentSize;
-			num3 = Math.Min(((SKSize)(ref contentSize)).Width, 400f);
-		}
-		float num4;
-		if (!float.IsInfinity(((SKSize)(ref availableSize)).Height) && !float.IsNaN(((SKSize)(ref availableSize)).Height))
-		{
-			num4 = ((SKSize)(ref availableSize)).Height;
-		}
-		else
-		{
-			contentSize = ContentSize;
-			num4 = Math.Min(((SKSize)(ref contentSize)).Height, 400f);
-		}
-		float num5 = num4;
-		return new SKSize(num3, num5);
-	}
+        if (Orientation != ScrollOrientation.Horizontal && ScrollableHeight > 0)
+        {
+            var oldScrollY = _scrollY;
+            ScrollY += e.DeltaY * deltaMultiplier;
+            Console.WriteLine($"[SkiaScrollView] ScrollY changed: {oldScrollY} -> {_scrollY}");
+            if (_scrollY != oldScrollY)
+                scrolled = true;
+        }
 
-	protected override SKRect ArrangeOverride(SKRect bounds)
-	{
-		//IL_0000: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0117: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0086: Unknown result type (might be due to invalid IL or missing references)
-		//IL_008b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00bd: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00c2: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00e9: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ee: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0111: Unknown result type (might be due to invalid IL or missing references)
-		SKRect result = bounds;
-		if (float.IsInfinity(((SKRect)(ref bounds)).Height) || float.IsNaN(((SKRect)(ref bounds)).Height))
-		{
-			Console.WriteLine($"[SkiaScrollView] WARNING: Infinite/NaN height, using default viewport={544f}");
-			((SKRect)(ref result))._002Ector(((SKRect)(ref bounds)).Left, ((SKRect)(ref bounds)).Top, ((SKRect)(ref bounds)).Right, ((SKRect)(ref bounds)).Top + 544f);
-		}
-		if (_content != null)
-		{
-			Thickness margin = _content.Margin;
-			float num = ((SKRect)(ref result)).Left + (float)((Thickness)(ref margin)).Left;
-			float num2 = ((SKRect)(ref result)).Top + (float)((Thickness)(ref margin)).Top;
-			float left = ((SKRect)(ref result)).Left;
-			float width = ((SKRect)(ref result)).Width;
-			SKSize contentSize = ContentSize;
-			float num3 = left + Math.Max(width, ((SKSize)(ref contentSize)).Width) - (float)((Thickness)(ref margin)).Right;
-			float top = ((SKRect)(ref result)).Top;
-			float height = ((SKRect)(ref result)).Height;
-			contentSize = ContentSize;
-			SKRect bounds2 = default(SKRect);
-			((SKRect)(ref bounds2))._002Ector(num, num2, num3, top + Math.Max(height, ((SKSize)(ref contentSize)).Height) - (float)((Thickness)(ref margin)).Bottom);
-			_content.Arrange(bounds2);
-		}
-		return result;
-	}
+        if (Orientation != ScrollOrientation.Vertical && ScrollableWidth > 0)
+        {
+            var oldScrollX = _scrollX;
+            ScrollX += e.DeltaX * deltaMultiplier;
+            if (_scrollX != oldScrollX)
+                scrolled = true;
+        }
+
+        // Mark as handled so parent scroll views don't also scroll
+        if (scrolled)
+            e.Handled = true;
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        // Check if clicking on vertical scrollbar thumb
+        if (ShouldShowVerticalScrollbar() && ScrollableHeight > 0)
+        {
+            var thumbBounds = GetVerticalScrollbarThumbBounds();
+            if (thumbBounds.Contains(e.X, e.Y))
+            {
+                _isDraggingVerticalScrollbar = true;
+                _scrollbarDragStartY = e.Y;
+                _scrollbarDragStartScrollY = _scrollY;
+                // Cache values to prevent stutter from floating-point recalculations
+                var hasHorizontal = ShouldShowHorizontalScrollbar();
+                var trackHeight = Bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
+                var thumbHeight = Math.Max(20, (Bounds.Height / ContentSize.Height) * trackHeight);
+                _scrollbarDragAvailableTrack = trackHeight - thumbHeight;
+                _scrollbarDragScrollableExtent = ScrollableHeight;
+                return;
+            }
+        }
+
+        // Check if clicking on horizontal scrollbar thumb
+        if (ShouldShowHorizontalScrollbar() && ScrollableWidth > 0)
+        {
+            var thumbBounds = GetHorizontalScrollbarThumbBounds();
+            if (thumbBounds.Contains(e.X, e.Y))
+            {
+                _isDraggingHorizontalScrollbar = true;
+                _scrollbarDragStartX = e.X;
+                _scrollbarDragStartScrollX = _scrollX;
+                // Cache values to prevent stutter from floating-point recalculations
+                var hasVertical = ShouldShowVerticalScrollbar();
+                var trackWidth = Bounds.Width - (hasVertical ? ScrollBarWidth : 0);
+                var thumbWidth = Math.Max(20, (Bounds.Width / ContentSize.Width) * trackWidth);
+                _scrollbarDragAvailableTrack = trackWidth - thumbWidth;
+                _scrollbarDragScrollableExtent = ScrollableWidth;
+                return;
+            }
+        }
+
+        // Forward click to content first
+        if (_content != null)
+        {
+            // Translate coordinates for scroll offset
+            var contentE = new PointerEventArgs(e.X + _scrollX, e.Y + _scrollY, e.Button);
+            var hit = _content.HitTest(contentE.X, contentE.Y);
+            if (hit != null && hit != _content)
+            {
+                // A child view was hit - forward the event to it
+                hit.OnPointerPressed(contentE);
+                return;
+            }
+        }
+
+        // Regular content dragging
+        _isDragging = true;
+        _lastPointerX = e.X;
+        _lastPointerY = e.Y;
+        _velocityX = 0;
+        _velocityY = 0;
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        // Handle vertical scrollbar dragging - use cached values to prevent stutter
+        if (_isDraggingVerticalScrollbar)
+        {
+            if (_scrollbarDragAvailableTrack > 0)
+            {
+                var deltaY = e.Y - _scrollbarDragStartY;
+                var scrollDelta = (deltaY / _scrollbarDragAvailableTrack) * _scrollbarDragScrollableExtent;
+                ScrollY = _scrollbarDragStartScrollY + scrollDelta;
+            }
+            return;
+        }
+
+        // Handle horizontal scrollbar dragging - use cached values to prevent stutter
+        if (_isDraggingHorizontalScrollbar)
+        {
+            if (_scrollbarDragAvailableTrack > 0)
+            {
+                var deltaX = e.X - _scrollbarDragStartX;
+                var scrollDelta = (deltaX / _scrollbarDragAvailableTrack) * _scrollbarDragScrollableExtent;
+                ScrollX = _scrollbarDragStartScrollX + scrollDelta;
+            }
+            return;
+        }
+
+        // Handle content dragging
+        if (!_isDragging) return;
+
+        var contentDeltaX = _lastPointerX - e.X;
+        var contentDeltaY = _lastPointerY - e.Y;
+
+        _velocityX = contentDeltaX;
+        _velocityY = contentDeltaY;
+
+        if (Orientation != ScrollOrientation.Horizontal)
+            ScrollY += contentDeltaY;
+
+        if (Orientation != ScrollOrientation.Vertical)
+            ScrollX += contentDeltaX;
+
+        _lastPointerX = e.X;
+        _lastPointerY = e.Y;
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        _isDragging = false;
+        _isDraggingVerticalScrollbar = false;
+        _isDraggingHorizontalScrollbar = false;
+        // Momentum scrolling could be added here
+    }
+
+    private SKRect GetVerticalScrollbarThumbBounds()
+    {
+        var hasHorizontal = ShouldShowHorizontalScrollbar();
+        var trackHeight = Bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
+        var thumbHeight = Math.Max(20, (Bounds.Height / ContentSize.Height) * trackHeight);
+        var thumbY = ScrollableHeight > 0 ? (ScrollY / ScrollableHeight) * (trackHeight - thumbHeight) : 0;
+
+        return new SKRect(
+            Bounds.Right - ScrollBarWidth,
+            Bounds.Top + thumbY,
+            Bounds.Right,
+            Bounds.Top + thumbY + thumbHeight);
+    }
+
+    private SKRect GetHorizontalScrollbarThumbBounds()
+    {
+        var hasVertical = ShouldShowVerticalScrollbar();
+        var trackWidth = Bounds.Width - (hasVertical ? ScrollBarWidth : 0);
+        var thumbWidth = Math.Max(20, (Bounds.Width / ContentSize.Width) * trackWidth);
+        var thumbX = ScrollableWidth > 0 ? (ScrollX / ScrollableWidth) * (trackWidth - thumbWidth) : 0;
+
+        return new SKRect(
+            Bounds.Left + thumbX,
+            Bounds.Bottom - ScrollBarWidth,
+            Bounds.Left + thumbX + thumbWidth,
+            Bounds.Bottom);
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (!IsVisible || !IsEnabled || !Bounds.Contains(new SKPoint(x, y)))
+            return null;
+
+        // Check scrollbar areas FIRST before content
+        // This ensures scrollbar clicks are handled by the ScrollView, not content underneath
+        if (ShouldShowVerticalScrollbar() && ScrollableHeight > 0)
+        {
+            var thumbBounds = GetVerticalScrollbarThumbBounds();
+            // Check if click is in the scrollbar track area (not just thumb)
+            var trackArea = new SKRect(Bounds.Right - ScrollBarWidth, Bounds.Top, Bounds.Right, Bounds.Bottom);
+            if (trackArea.Contains(x, y))
+                return this;
+        }
+
+        if (ShouldShowHorizontalScrollbar() && ScrollableWidth > 0)
+        {
+            var trackArea = new SKRect(Bounds.Left, Bounds.Bottom - ScrollBarWidth, Bounds.Right, Bounds.Bottom);
+            if (trackArea.Contains(x, y))
+                return this;
+        }
+
+        // Hit test content with scroll offset
+        if (_content != null)
+        {
+            var hit = _content.HitTest(x + _scrollX, y + _scrollY);
+            if (hit != null)
+                return hit;
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Scrolls to the specified position.
+    /// </summary>
+    public void ScrollTo(float x, float y, bool animated = false)
+    {
+        // TODO: Implement animation
+        ScrollX = x;
+        ScrollY = y;
+    }
+
+    /// <summary>
+    /// Scrolls to make the specified view visible.
+    /// </summary>
+    public void ScrollToView(SkiaView view, bool animated = false)
+    {
+        if (_content == null) return;
+
+        var viewBounds = view.Bounds;
+
+        // Check if view is fully visible
+        var visibleRect = new SKRect(
+            ScrollX,
+            ScrollY,
+            ScrollX + Bounds.Width,
+            ScrollY + Bounds.Height);
+
+        if (visibleRect.Contains(viewBounds))
+            return;
+
+        // Calculate scroll position to bring view into view
+        float targetX = ScrollX;
+        float targetY = ScrollY;
+
+        if (viewBounds.Left < visibleRect.Left)
+            targetX = viewBounds.Left;
+        else if (viewBounds.Right > visibleRect.Right)
+            targetX = viewBounds.Right - Bounds.Width;
+
+        if (viewBounds.Top < visibleRect.Top)
+            targetY = viewBounds.Top;
+        else if (viewBounds.Bottom > visibleRect.Bottom)
+            targetY = viewBounds.Bottom - Bounds.Height;
+
+        ScrollTo(targetX, targetY, animated);
+    }
+
+    private float ClampScrollX(float value)
+    {
+        if (Orientation == ScrollOrientation.Vertical) return 0;
+        return Math.Clamp(value, 0, ScrollableWidth);
+    }
+
+    private float ClampScrollY(float value)
+    {
+        if (Orientation == ScrollOrientation.Horizontal) return 0;
+        return Math.Clamp(value, 0, ScrollableHeight);
+    }
+
+    protected override SKSize MeasureOverride(SKSize availableSize)
+    {
+        if (_content != null)
+        {
+            // For responsive layout:
+            // - Vertical: give content viewport width, infinite height
+            // - Horizontal: give content infinite width, viewport height
+            // - Both: give content viewport width first (for responsive layout),
+            //         but if content exceeds it, horizontal scrollbar appears
+            // - Neither: give content exact viewport size
+
+            float contentWidth, contentHeight;
+
+            switch (Orientation)
+            {
+                case ScrollOrientation.Horizontal:
+                    contentWidth = float.PositiveInfinity;
+                    contentHeight = float.IsInfinity(availableSize.Height) ? 400f : availableSize.Height;
+                    break;
+                case ScrollOrientation.Neither:
+                    contentWidth = float.IsInfinity(availableSize.Width) ? 400f : availableSize.Width;
+                    contentHeight = float.IsInfinity(availableSize.Height) ? 400f : availableSize.Height;
+                    break;
+                case ScrollOrientation.Both:
+                    // For Both: first measure with viewport width to get responsive layout
+                    // Content can still exceed viewport if it has minimum width constraints
+                    // Reserve space for vertical scrollbar to prevent horizontal scrollbar
+                    contentWidth = float.IsInfinity(availableSize.Width) ? 800f : availableSize.Width;
+                    if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
+                        contentWidth -= ScrollBarWidth;
+                    contentHeight = float.PositiveInfinity;
+                    break;
+                case ScrollOrientation.Vertical:
+                default:
+                    // Reserve space for vertical scrollbar to prevent horizontal scrollbar
+                    contentWidth = float.IsInfinity(availableSize.Width) ? 800f : availableSize.Width;
+                    if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
+                        contentWidth -= ScrollBarWidth;
+                    contentHeight = float.PositiveInfinity;
+                    break;
+            }
+
+            ContentSize = _content.Measure(new SKSize(contentWidth, contentHeight));
+        }
+        else
+        {
+            ContentSize = SKSize.Empty;
+        }
+
+        // Return available size, but clamp infinite dimensions
+        // IMPORTANT: When available is infinite, return a reasonable viewport size, NOT content size
+        // A ScrollView should NOT expand to fit its content - it should stay at a fixed viewport
+        // and scroll the content. Use a default viewport size when parent gives infinity.
+        const float DefaultViewportWidth = 400f;
+        const float DefaultViewportHeight = 400f;
+
+        var width = float.IsInfinity(availableSize.Width) || float.IsNaN(availableSize.Width)
+            ? Math.Min(ContentSize.Width, DefaultViewportWidth)
+            : availableSize.Width;
+        var height = float.IsInfinity(availableSize.Height) || float.IsNaN(availableSize.Height)
+            ? Math.Min(ContentSize.Height, DefaultViewportHeight)
+            : availableSize.Height;
+
+        return new SKSize(width, height);
+    }
+
+    protected override SKRect ArrangeOverride(SKRect bounds)
+    {
+
+        // CRITICAL: If bounds has infinite height, use a fixed viewport size
+        // NOT ContentSize.Height - that would make ScrollableHeight = 0
+        const float DefaultViewportHeight = 544f; // 600 - 56 for shell header
+        var actualBounds = bounds;
+        if (float.IsInfinity(bounds.Height) || float.IsNaN(bounds.Height))
+        {
+            Console.WriteLine($"[SkiaScrollView] WARNING: Infinite/NaN height, using default viewport={DefaultViewportHeight}");
+            actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + DefaultViewportHeight);
+        }
+
+        if (_content != null)
+        {
+            // Apply content's margin and arrange content at its full size
+            var margin = _content.Margin;
+            var contentBounds = new SKRect(
+                actualBounds.Left + (float)margin.Left,
+                actualBounds.Top + (float)margin.Top,
+                actualBounds.Left + Math.Max(actualBounds.Width, ContentSize.Width) - (float)margin.Right,
+                actualBounds.Top + Math.Max(actualBounds.Height, ContentSize.Height) - (float)margin.Bottom);
+
+            _content.Arrange(contentBounds);
+        }
+        return actualBounds;
+    }
+}
+
+/// <summary>
+/// Scroll orientation options.
+/// </summary>
+public enum ScrollOrientation
+{
+    Vertical,
+    Horizontal,
+    Both,
+    Neither
+}
+
+/// <summary>
+/// Scrollbar visibility options.
+/// </summary>
+public enum ScrollBarVisibility
+{
+    Default,
+    Always,
+    Never,
+    Auto
+}
+
+/// <summary>
+/// Event args for scroll events.
+/// </summary>
+public class ScrolledEventArgs : EventArgs
+{
+    public float ScrollX { get; }
+    public float ScrollY { get; }
+
+    public ScrolledEventArgs(float scrollX, float scrollY)
+    {
+        ScrollX = scrollX;
+        ScrollY = scrollY;
+    }
 }

@@ -46,6 +46,9 @@
     <!-- HarfBuzz for advanced text shaping -->
     <PackageReference Include="HarfBuzzSharp" Version="7.3.0.3" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.3" />
+
+    <!-- SVG support for icon loading -->
+    <PackageReference Include="Svg.Skia" Version="2.0.0.4" />
   </ItemGroup>
 
   <!-- Include README and icon in package -->
