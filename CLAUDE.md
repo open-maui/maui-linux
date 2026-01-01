@@ -1,202 +1,228 @@
-# CLAUDE.md - OpenMaui Linux Recovery Instructions
+# CLAUDE.md - OpenMaui XAML Reconstruction
 
-## READ THIS FIRST
+## CURRENT TASK: Reconstruct XAML from Decompiled Code
 
-This file contains critical instructions for restoring lost production code. **Read this entire file before doing ANY work.**
-
----
-
-## Background
-
-Production code was lost. The only surviving copy was recovered by decompiling production DLLs. The decompiled code has ugly syntax but represents the **actual working production code**.
+The sample applications (ShellDemo, TodoApp, XamlBrowser) were recovered from decompiled DLLs. The XAML files were compiled away - we have only the generated `InitializeComponent()` code. **Screenshots will be provided** to help verify visual accuracy.
 
 ---
 
-## The Core Rule
-
-**DECOMPILED CODE = SOURCE OF TRUTH**
-
-The decompiled code in the `recovered` folder is what was actually running in production. Your job is to:
-
-1. Read the decompiled file
-2. Understand the LOGIC (ignore ugly syntax)
-3. Write that same logic in clean, maintainable C#
-4. Save it to the `final` branch
-
-**Do NOT:**
-- Skip files because "main looks fine"
-- Assume main is correct
-- Change the logic from decompiled
-- Stub out code with comments
-
----
-
-## File Locations
+## Project Locations
 
 | What | Path |
 |------|------|
-| **Target (write here)** | `/Users/nible/Documents/GitHub/maui-linux-main/` |
-| **Decompiled Views** | `/Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform/` |
-| **Decompiled Handlers** | `/Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform.Linux.Handlers/` |
-| **Decompiled Services** | `/Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform.Linux.Services/` |
-| **Decompiled Hosting** | `/Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform.Linux.Hosting/` |
+| **Main codebase** | `/Users/nible/Documents/GitHub/maui-linux-main/` |
+| **Samples (target)** | `/Users/nible/Documents/GitHub/maui-linux-main/samples_temp/` |
+| **Decompiled samples** | `/Users/nible/Documents/GitHub/recovered/source/` |
 
 ---
 
-## Branch
+## Git Branch
 
-**Work on `final` branch ONLY.**
+**Work on `final` branch.** Commit frequently.
 
-The user will review all changes before merging to main. Always verify you're on `final`:
 ```bash
-git branch  # Should show * final
+git branch  # Should show: * final
 ```
 
 ---
 
-## How to Process Each File
+## XAML Reconstruction Overview
 
-### Step 1: Read the decompiled version
-```
-Read /Users/nible/Documents/GitHub/recovered/source/OpenMaui/[path]/[FileName].cs
-```
+### ShellDemo (10 pages + shell + app)
 
-### Step 2: Read the current main version
-```
-Read /Users/nible/Documents/GitHub/maui-linux-main/[path]/[FileName].cs
-```
+| File | Status | Notes |
+|------|--------|-------|
+| App.xaml | [ ] | Colors, Styles (ThemedEntry, TitleLabel, etc.) |
+| AppShell.xaml | [ ] | Shell with FlyoutHeader, 9 FlyoutItems |
+| HomePage.xaml | [ ] | Welcome screen with logo |
+| ButtonsPage.xaml | [ ] | Button demos |
+| TextInputPage.xaml | [ ] | Entry/Editor demos |
+| SelectionPage.xaml | [ ] | CheckBox, Switch, RadioButton demos |
+| PickersPage.xaml | [ ] | DatePicker, TimePicker, Picker demos |
+| ListsPage.xaml | [ ] | CollectionView demos |
+| ProgressPage.xaml | [ ] | ProgressBar, ActivityIndicator demos |
+| GridsPage.xaml | [ ] | Grid layout demos |
+| AboutPage.xaml | [ ] | About information |
+| DetailPage.xaml | [ ] | Navigation detail page |
 
-### Step 3: Compare the LOGIC
-- Ignore syntax differences (decompiler artifacts)
-- Look for: missing methods, different behavior, missing properties, different logic flow
+### TodoApp (app + 3 pages)
 
-### Step 4: If logic differs, update main with clean version
-Write the decompiled logic using clean C# syntax.
+| File | Status | Notes |
+|------|--------|-------|
+| App.xaml | [ ] | Colors, Icon strings |
+| TodoListPage.xaml | [ ] | Main list with swipe actions |
+| NewTodoPage.xaml | [ ] | Add new todo form |
+| TodoDetailPage.xaml | [ ] | Edit todo details |
 
-### Step 5: Build and verify
-```bash
-dotnet build
-```
+### XamlBrowser (app + 1 page)
 
-### Step 6: Report what changed
-Tell the user specifically what was different, not just "looks equivalent."
-
----
-
-## Cleaning Decompiled Code
-
-### Decompiler artifacts to fix:
-
-| Ugly (decompiled) | Clean (what you write) |
-|-------------------|------------------------|
-| `((ViewHandler<T, U>)(object)handler).PlatformView` | `handler.PlatformView` |
-| `((BindableObject)this).GetValue(X)` | `GetValue(X)` |
-| `(Type)(object)((x is Type) ? x : null)` | `x as Type` or `x is Type t ? t : null` |
-| `//IL_xxxx: Unknown result type` | Delete these comments |
-| `_002Ector` | Constructor call |
-| `(BindingMode)2` | `BindingMode.TwoWay` |
-| `(WebNavigationEvent)3` | `WebNavigationEvent.NewPage` |
-| `((Thickness)(ref padding)).Left` | `padding.Left` |
-| `((SKRect)(ref bounds)).Width` | `bounds.Width` |
+| File | Status | Notes |
+|------|--------|-------|
+| BrowserApp.xaml | [ ] | Basic app setup |
+| MainPage.xaml | [ ] | WebView browser |
 
 ---
 
-## Using Agents (Task Tool)
+## How to Reconstruct XAML
 
-Agents work fine IF you give them the right instructions. Previous failures happened because the agent prompts didn't include the critical rules.
+### Step 1: Read the decompiled InitializeComponent()
 
-### Required Agent Prompt Template
+Look for patterns like:
+```csharp
+// Setting a property
+((BindableObject)val8).SetValue(Label.TextProperty, (object)"OpenMaui");
 
-When spawning an agent, ALWAYS include this in the prompt:
+// AppThemeBinding (light/dark mode)
+val7.Light = "White";
+val7.Dark = "#E0E0E0";
 
-```
-## CRITICAL RULES - READ FIRST
+// StaticResource
+val.Key = "PrimaryColor";
 
-1. DECOMPILED CODE = PRODUCTION (source of truth)
-2. MAIN BRANCH = OUTDATED (needs to be updated)
-3. Do NOT skip files
-4. Do NOT assume main is correct
-5. Do NOT say "equivalent" or "no changes needed" without listing every method/property you compared
-
-## Your Task
-
-Compare these two files:
-- DECOMPILED (truth): [full path to decompiled file]
-- MAIN (to update): [full path to main file]
-
-For each method/property in decompiled:
-1. Check if it exists in main
-2. Check if the LOGIC is the same (ignore syntax differences)
-3. Report: "METHOD X: [exists/missing] [logic same/different]"
-
-If ANY logic differs or methods are missing, write the clean version to main.
-
-## Decompiler Syntax to Clean Up
-- `((ViewHandler<T,U>)(object)handler).PlatformView` → `handler.PlatformView`
-- `//IL_xxxx:` comments → delete
-- `(BindingMode)2` → `BindingMode.TwoWay`
-- `((Thickness)(ref x)).Left` → `x.Left`
+// Layout hierarchy
+((Layout)val12).Children.Add((IView)(object)val6);
 ```
 
-### Example Agent Call
-
-```
-Task tool prompt:
-"Compare ButtonHandler files.
-
-CRITICAL RULES:
-1. DECOMPILED = PRODUCTION (truth)
-2. MAIN = OUTDATED
-3. Do NOT skip or say 'equivalent' without proof
-
-DECOMPILED: /Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform.Linux.Handlers/ButtonHandler.cs
-MAIN: /Users/nible/Documents/GitHub/maui-linux-main/Handlers/ButtonHandler.cs
-
-List every method in decompiled. For each one, confirm it exists in main with same logic. If different, write the fix."
-```
-
-### Why Previous Agents Failed
-
-The prompts said things like "compare these files" without:
-- Stating which file is the source of truth
-- Requiring method-by-method comparison
-- Forbidding "no changes needed" shortcuts
-
-Agents took shortcuts because the prompts allowed it.
-
----
-
-## Event Args - Use MAUI's Directly
-
-**Do NOT create custom event args that duplicate MAUI's types.**
-
-The codebase currently has custom `WebNavigatingEventArgs` and `WebNavigatedEventArgs` at the bottom of `Views/SkiaWebView.cs`. These are unnecessary and should be removed. Use MAUI's versions directly:
+### Step 2: Convert to XAML
 
 ```csharp
-// WRONG - custom event args (remove these)
-public class WebNavigatingEventArgs : EventArgs { ... }  // in SkiaWebView.cs
-
-// RIGHT - use MAUI's directly
-Microsoft.Maui.Controls.WebNavigatingEventArgs
-Microsoft.Maui.Controls.WebNavigatedEventArgs
+// This C#:
+((BindableObject)val8).SetValue(Label.TextProperty, (object)"OpenMaui");
+((BindableObject)val8).SetValue(Label.FontSizeProperty, (object)22.0);
+((BindableObject)val8).SetValue(Label.FontAttributesProperty, (object)(FontAttributes)1);
+val7.Light = "White";
+val7.Dark = "#E0E0E0";
+((BindableObject)val8).SetBinding(Label.TextColorProperty, val74);
 ```
 
-### TODO: Cleanup needed
+```xml
+<!-- Becomes this XAML: -->
+<Label Text="OpenMaui"
+       FontSize="22"
+       FontAttributes="Bold"
+       TextColor="{AppThemeBinding Light=White, Dark=#E0E0E0}" />
+```
 
-1. Remove custom event args from `Views/SkiaWebView.cs` (lines 699-726)
-2. Update `SkiaWebView` to fire MAUI's event args
-3. Update handlers to use MAUI's event args directly (no translation layer)
+### Step 3: Verify with screenshots (when provided)
 
-### Types that exist in both namespaces
+Compare the reconstructed XAML against the actual screenshots to ensure visual fidelity.
 
-These MAUI types also exist in our `Microsoft.Maui.Platform` namespace - use MAUI's:
+---
 
-| Use This (MAUI) | Not This (ours) |
-|-----------------|-----------------|
-| `Microsoft.Maui.Controls.WebNavigatingEventArgs` | `Microsoft.Maui.Platform.WebNavigatingEventArgs` |
-| `Microsoft.Maui.Controls.WebNavigatedEventArgs` | `Microsoft.Maui.Platform.WebNavigatedEventArgs` |
-| `Microsoft.Maui.TextAlignment` | `Microsoft.Maui.Platform.TextAlignment` |
-| `Microsoft.Maui.LineBreakMode` | `Microsoft.Maui.Platform.LineBreakMode` |
+## App.xaml Resources Reference
+
+### ShellDemo Colors (extracted from decompiled)
+
+```xml
+<!-- Light theme -->
+<Color x:Key="PrimaryColor">#2196F3</Color>
+<Color x:Key="PrimaryDarkColor">#1976D2</Color>
+<Color x:Key="AccentColor">#FF4081</Color>
+<Color x:Key="PageBackgroundLight">#F8F8F8</Color>
+<Color x:Key="CardBackgroundLight">#FFFFFF</Color>
+<Color x:Key="TextPrimaryLight">#212121</Color>
+<Color x:Key="TextSecondaryLight">#757575</Color>
+<Color x:Key="BorderLight">#E0E0E0</Color>
+<Color x:Key="EntryBackgroundLight">#F9F9F9</Color>
+<Color x:Key="ShellBackgroundLight">#FFFFFF</Color>
+<Color x:Key="FlyoutBackgroundLight">#FFFFFF</Color>
+<Color x:Key="ProgressTrackLight">#E0E0E0</Color>
+
+<!-- Dark theme -->
+<Color x:Key="PageBackgroundDark">#121212</Color>
+<Color x:Key="CardBackgroundDark">#1E1E1E</Color>
+<Color x:Key="TextPrimaryDark">#FFFFFF</Color>
+<Color x:Key="TextSecondaryDark">#B0B0B0</Color>
+<Color x:Key="BorderDark">#424242</Color>
+<Color x:Key="EntryBackgroundDark">#2C2C2C</Color>
+<Color x:Key="ShellBackgroundDark">#1E1E1E</Color>
+<Color x:Key="FlyoutBackgroundDark">#1E1E1E</Color>
+<Color x:Key="ProgressTrackDark">#424242</Color>
+```
+
+### ShellDemo Styles (extracted from decompiled)
+
+- **ThemedEntry**: BackgroundColor, TextColor, PlaceholderColor with AppThemeBinding
+- **ThemedEditor**: BackgroundColor, TextColor, PlaceholderColor with AppThemeBinding
+- **TitleLabel**: FontSize=24, FontAttributes=Bold, TextColor with AppThemeBinding
+- **SubtitleLabel**: FontSize=16, TextColor with AppThemeBinding
+- **ThemedFrame**: BackgroundColor, BorderColor with AppThemeBinding
+- **ThemedProgressBar**: ProgressColor=PrimaryColor, BackgroundColor with AppThemeBinding
+- **PrimaryButton**: BackgroundColor=PrimaryColor, TextColor=White
+- **SecondaryButton**: Light/dark themed background and text
+
+### TodoApp Colors
+
+```xml
+<Color x:Key="PrimaryColor">#5C6BC0</Color>
+<Color x:Key="PrimaryDarkColor">#3949AB</Color>
+<Color x:Key="AccentColor">#26A69A</Color>
+<Color x:Key="DangerColor">#EF5350</Color>
+<!-- ... plus light/dark theme colors -->
+```
+
+### TodoApp Icons (Material Design)
+
+```xml
+<x:String x:Key="IconAdd">&#xe145;</x:String>
+<x:String x:Key="IconDelete">&#xe872;</x:String>
+<x:String x:Key="IconSave">&#xe161;</x:String>
+<x:String x:Key="IconCheck">&#xe876;</x:String>
+<x:String x:Key="IconEdit">&#xe3c9;</x:String>
+```
+
+---
+
+## AppShell.xaml Structure (ShellDemo)
+
+From decompiled code, the shell has:
+
+```xml
+<Shell Title="OpenMaui Controls Demo"
+       FlyoutBehavior="Flyout"
+       FlyoutBackgroundColor="{AppThemeBinding Light={StaticResource FlyoutBackgroundLight}, Dark={StaticResource FlyoutBackgroundDark}}">
+
+    <!-- FlyoutHeader: Grid with logo and title -->
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="{AppThemeBinding ...}" HeightRequest="140" Padding="15">
+            <HorizontalStackLayout VerticalOptions="Center" Spacing="12">
+                <Image Source="openmaui_logo.svg" WidthRequest="60" HeightRequest="60" />
+                <VerticalStackLayout VerticalOptions="Center">
+                    <Label Text="OpenMaui" FontSize="22" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light=White, Dark=#E0E0E0}" />
+                    <Label Text="Controls Demo" FontSize="13" Opacity="0.9"
+                           TextColor="{AppThemeBinding Light=White, Dark=#B0B0B0}" />
+                </VerticalStackLayout>
+            </HorizontalStackLayout>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <!-- FlyoutItems with emoji icons -->
+    <FlyoutItem Title="Home" Route="Home">
+        <FlyoutItem.Icon><FontImageSource Glyph="🏠" FontFamily="Default" Color="{AppThemeBinding ...}" /></FlyoutItem.Icon>
+        <ShellContent ContentTemplate="{DataTemplate local:HomePage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Buttons" Route="Buttons">...</FlyoutItem>
+    <FlyoutItem Title="Text Input" Route="TextInput">...</FlyoutItem>
+    <FlyoutItem Title="Selection" Route="Selection">...</FlyoutItem>
+    <FlyoutItem Title="Pickers" Route="Pickers">...</FlyoutItem>
+    <FlyoutItem Title="Lists" Route="Lists">...</FlyoutItem>
+    <FlyoutItem Title="Progress" Route="Progress">...</FlyoutItem>
+    <FlyoutItem Title="Grids" Route="Grids">...</FlyoutItem>
+    <FlyoutItem Title="About" Route="About">...</FlyoutItem>
+</Shell>
+```
+
+---
+
+## Decompiled File Locations
+
+| Sample | Decompiled Path |
+|--------|-----------------|
+| ShellDemo | `/Users/nible/Documents/GitHub/recovered/source/ShellDemo/ShellDemo/` |
+| TodoApp | `/Users/nible/Documents/GitHub/recovered/source/TodoApp/TodoApp/` |
+| XamlBrowser | `/Users/nible/Documents/GitHub/recovered/source/XamlBrowser/XamlBrowser/` |
 
 ---
 
@@ -204,48 +230,63 @@ These MAUI types also exist in our `Microsoft.Maui.Platform` namespace - use MAU
 
 ```bash
 cd /Users/nible/Documents/GitHub/maui-linux-main
-dotnet build
-```
-
-Build after completing a batch of related changes, not after every single file.
-
----
-
-## What Was Already Done (This Session)
-
-Files modified in this session:
-- `Handlers/GtkWebViewHandler.cs` - Added (new file from decompiled)
-- `Handlers/GtkWebViewProxy.cs` - Added (new file from decompiled)
-- `Handlers/WebViewHandler.cs` - Fixed navigation event handling
-- `Handlers/PageHandler.cs` - Added MapBackgroundColor
-- `Views/SkiaView.cs` - Made Arrange() virtual
-
-Build status: **SUCCEEDS** as of last check.
-
----
-
-## Files Still To Process
-
-The following decompiled files need to be compared with main:
-- All files in `Microsoft.Maui.Platform/` (Views)
-- All files in `Microsoft.Maui.Platform.Linux.Handlers/` (Handlers)
-- All files in `Microsoft.Maui.Platform.Linux.Services/` (Services)
-- All files in `Microsoft.Maui.Platform.Linux.Hosting/` (Hosting)
-
-Use this to list decompiled files:
-```bash
-ls /Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform/*.cs
-ls /Users/nible/Documents/GitHub/recovered/source/OpenMaui/Microsoft.Maui.Platform.Linux.Handlers/*.cs
+dotnet build OpenMaui.Controls.Linux.csproj
 ```
 
 ---
 
-## Summary for New Session
+## Key Patterns in Decompiled Code
 
-1. You're restoring production code from decompiled DLLs
-2. Decompiled = truth, main = outdated
-3. Clean up syntax, preserve logic
-4. Work on `final` branch
-5. Build after every change
-6. Agents work - but MUST include the critical rules in every prompt (see "Using Agents" section)
-7. Don't skip files or say "equivalent" without listing every method compared
+### 1. Color Values
+```csharp
+Color val = new Color(11f / 85f, 0.5882353f, 81f / 85f, 1f);
+// = Color.FromRgba(0.129, 0.588, 0.953, 1.0) = #2196F3
+```
+
+### 2. AppThemeBinding
+```csharp
+AppThemeBindingExtension val7 = new AppThemeBindingExtension();
+val7.Light = "White";
+val7.Dark = "#E0E0E0";
+```
+Becomes: `{AppThemeBinding Light=White, Dark=#E0E0E0}`
+
+### 3. StaticResource
+```csharp
+val.Key = "PrimaryColor";
+```
+Becomes: `{StaticResource PrimaryColor}`
+
+### 4. Layout Hierarchy
+```csharp
+((Layout)val12).Children.Add((IView)(object)val6);
+((Layout)val12).Children.Add((IView)(object)val11);
+```
+The children are added in order - first child is val6, second is val11.
+
+### 5. FontAttributes Enum
+```csharp
+(FontAttributes)1  // Bold
+(FontAttributes)2  // Italic
+```
+
+---
+
+## Workflow for Each File
+
+1. **Read decompiled** `InitializeComponent()` method
+2. **Extract** all UI elements and their properties
+3. **Write XAML** with proper structure
+4. **Create code-behind** (usually just constructor calling InitializeComponent)
+5. **Verify** against screenshot if available
+6. **Update tracking** in this file
+7. **Commit** with descriptive message
+
+---
+
+## Notes
+
+- The decompiled code has ALL the information needed - it's just in C# form instead of XAML
+- Screenshots will help verify visual accuracy
+- Focus on one file at a time
+- Commit after each completed file
