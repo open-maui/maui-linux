@@ -1,195 +1,201 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Text.Json;
-using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
+using MauiAppInfo = Microsoft.Maui.ApplicationModel.AppInfo;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
+/// <summary>
+/// Linux preferences implementation using JSON file storage.
+/// Follows XDG Base Directory Specification.
+/// </summary>
 public class PreferencesService : IPreferences
 {
-	private readonly string _preferencesPath;
+    private readonly string _preferencesPath;
+    private readonly object _lock = new();
+    private Dictionary<string, Dictionary<string, object?>> _preferences = new();
+    private bool _loaded;
 
-	private readonly object _lock = new object();
+    public PreferencesService()
+    {
+        // Use XDG config directory
+        var configHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        if (string.IsNullOrEmpty(configHome))
+        {
+            configHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+        }
 
-	private Dictionary<string, Dictionary<string, object?>> _preferences = new Dictionary<string, Dictionary<string, object>>();
+        var appName = MauiAppInfo.Current?.Name ?? "MauiApp";
+        var appDir = Path.Combine(configHome, appName);
+        Directory.CreateDirectory(appDir);
 
-	private bool _loaded;
+        _preferencesPath = Path.Combine(appDir, "preferences.json");
+    }
 
-	public PreferencesService()
-	{
-		string text = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-		if (string.IsNullOrEmpty(text))
-		{
-			text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-		}
-		IAppInfo current = AppInfo.Current;
-		string path = ((current != null) ? current.Name : null) ?? "MauiApp";
-		string text2 = Path.Combine(text, path);
-		Directory.CreateDirectory(text2);
-		_preferencesPath = Path.Combine(text2, "preferences.json");
-	}
+    private void EnsureLoaded()
+    {
+        if (_loaded) return;
 
-	private void EnsureLoaded()
-	{
-		if (_loaded)
-		{
-			return;
-		}
-		lock (_lock)
-		{
-			if (_loaded)
-			{
-				return;
-			}
-			try
-			{
-				if (File.Exists(_preferencesPath))
-				{
-					string json = File.ReadAllText(_preferencesPath);
-					_preferences = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(json) ?? new Dictionary<string, Dictionary<string, object>>();
-				}
-			}
-			catch
-			{
-				_preferences = new Dictionary<string, Dictionary<string, object>>();
-			}
-			_loaded = true;
-		}
-	}
+        lock (_lock)
+        {
+            if (_loaded) return;
 
-	private void Save()
-	{
-		lock (_lock)
-		{
-			try
-			{
-				string contents = JsonSerializer.Serialize(_preferences, new JsonSerializerOptions
-				{
-					WriteIndented = true
-				});
-				File.WriteAllText(_preferencesPath, contents);
-			}
-			catch
-			{
-			}
-		}
-	}
+            try
+            {
+                if (File.Exists(_preferencesPath))
+                {
+                    var json = File.ReadAllText(_preferencesPath);
+                    _preferences = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object?>>>(json)
+                                   ?? new();
+                }
+            }
+            catch
+            {
+                _preferences = new();
+            }
 
-	private Dictionary<string, object?> GetContainer(string? sharedName)
-	{
-		string key = sharedName ?? "__default__";
-		EnsureLoaded();
-		if (!_preferences.TryGetValue(key, out Dictionary<string, object> value))
-		{
-			value = new Dictionary<string, object>();
-			_preferences[key] = value;
-		}
-		return value;
-	}
+            _loaded = true;
+        }
+    }
 
-	public bool ContainsKey(string key, string? sharedName = null)
-	{
-		return GetContainer(sharedName).ContainsKey(key);
-	}
+    private void Save()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(_preferences, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                File.WriteAllText(_preferencesPath, json);
+            }
+            catch
+            {
+                // Silently fail save operations
+            }
+        }
+    }
 
-	public void Remove(string key, string? sharedName = null)
-	{
-		lock (_lock)
-		{
-			if (GetContainer(sharedName).Remove(key))
-			{
-				Save();
-			}
-		}
-	}
+    private Dictionary<string, object?> GetContainer(string? sharedName)
+    {
+        var key = sharedName ?? "__default__";
 
-	public void Clear(string? sharedName = null)
-	{
-		lock (_lock)
-		{
-			GetContainer(sharedName).Clear();
-			Save();
-		}
-	}
+        EnsureLoaded();
 
-	public void Set<T>(string key, T value, string? sharedName = null)
-	{
-		lock (_lock)
-		{
-			GetContainer(sharedName)[key] = value;
-			Save();
-		}
-	}
+        if (!_preferences.TryGetValue(key, out var container))
+        {
+            container = new Dictionary<string, object?>();
+            _preferences[key] = container;
+        }
 
-	public T Get<T>(string key, T defaultValue, string? sharedName = null)
-	{
-		if (!GetContainer(sharedName).TryGetValue(key, out object value))
-		{
-			return defaultValue;
-		}
-		if (value == null)
-		{
-			return defaultValue;
-		}
-		try
-		{
-			if (value is JsonElement element)
-			{
-				return ConvertJsonElement(element, defaultValue);
-			}
-			if (value is T result)
-			{
-				return result;
-			}
-			return (T)Convert.ChangeType(value, typeof(T));
-		}
-		catch
-		{
-			return defaultValue;
-		}
-	}
+        return container;
+    }
 
-	private T ConvertJsonElement<T>(JsonElement element, T defaultValue)
-	{
-		Type typeFromHandle = typeof(T);
-		try
-		{
-			if (typeFromHandle == typeof(string))
-			{
-				return (T)(object)element.GetString();
-			}
-			if (typeFromHandle == typeof(int))
-			{
-				return (T)(object)element.GetInt32();
-			}
-			if (typeFromHandle == typeof(long))
-			{
-				return (T)(object)element.GetInt64();
-			}
-			if (typeFromHandle == typeof(float))
-			{
-				return (T)(object)element.GetSingle();
-			}
-			if (typeFromHandle == typeof(double))
-			{
-				return (T)(object)element.GetDouble();
-			}
-			if (typeFromHandle == typeof(bool))
-			{
-				return (T)(object)element.GetBoolean();
-			}
-			if (typeFromHandle == typeof(DateTime))
-			{
-				return (T)(object)element.GetDateTime();
-			}
-			T val = element.Deserialize<T>();
-			return (T)((val != null) ? ((object)val) : ((object)defaultValue));
-		}
-		catch
-		{
-			return defaultValue;
-		}
-	}
+    public bool ContainsKey(string key, string? sharedName = null)
+    {
+        var container = GetContainer(sharedName);
+        return container.ContainsKey(key);
+    }
+
+    public void Remove(string key, string? sharedName = null)
+    {
+        lock (_lock)
+        {
+            var container = GetContainer(sharedName);
+            if (container.Remove(key))
+            {
+                Save();
+            }
+        }
+    }
+
+    public void Clear(string? sharedName = null)
+    {
+        lock (_lock)
+        {
+            var container = GetContainer(sharedName);
+            container.Clear();
+            Save();
+        }
+    }
+
+    public void Set<T>(string key, T value, string? sharedName = null)
+    {
+        lock (_lock)
+        {
+            var container = GetContainer(sharedName);
+            container[key] = value;
+            Save();
+        }
+    }
+
+    public T Get<T>(string key, T defaultValue, string? sharedName = null)
+    {
+        var container = GetContainer(sharedName);
+
+        if (!container.TryGetValue(key, out var value))
+            return defaultValue;
+
+        if (value == null)
+            return defaultValue;
+
+        try
+        {
+            // Handle JsonElement conversion (from deserialization)
+            if (value is JsonElement element)
+            {
+                return ConvertJsonElement<T>(element, defaultValue);
+            }
+
+            // Direct conversion
+            if (value is T typedValue)
+                return typedValue;
+
+            // Try Convert.ChangeType for primitive types
+            return (T)Convert.ChangeType(value, typeof(T));
+        }
+        catch
+        {
+            return defaultValue;
+        }
+    }
+
+    private T ConvertJsonElement<T>(JsonElement element, T defaultValue)
+    {
+        var targetType = typeof(T);
+
+        try
+        {
+            if (targetType == typeof(string))
+                return (T)(object)element.GetString()!;
+
+            if (targetType == typeof(int))
+                return (T)(object)element.GetInt32();
+
+            if (targetType == typeof(long))
+                return (T)(object)element.GetInt64();
+
+            if (targetType == typeof(float))
+                return (T)(object)element.GetSingle();
+
+            if (targetType == typeof(double))
+                return (T)(object)element.GetDouble();
+
+            if (targetType == typeof(bool))
+                return (T)(object)element.GetBoolean();
+
+            if (targetType == typeof(DateTime))
+                return (T)(object)element.GetDateTime();
+
+            // For complex types, deserialize
+            return element.Deserialize<T>() ?? defaultValue;
+        }
+        catch
+        {
+            return defaultValue;
+        }
+    }
 }

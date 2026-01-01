@@ -1,360 +1,381 @@
-using System;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// A page that displays a flyout menu and detail content.
+/// </summary>
 public class SkiaFlyoutPage : SkiaLayoutView
 {
-	private SkiaView? _flyout;
+    private SkiaView? _flyout;
+    private SkiaView? _detail;
+    private bool _isPresented = false;
+    private float _flyoutWidth = 300f;
+    private float _flyoutAnimationProgress = 0f;
+    private bool _gestureEnabled = true;
 
-	private SkiaView? _detail;
+    // Gesture tracking
+    private bool _isDragging = false;
+    private float _dragStartX;
+    private float _dragCurrentX;
 
-	private bool _isPresented;
+    /// <summary>
+    /// Gets or sets the flyout content (menu).
+    /// </summary>
+    public SkiaView? Flyout
+    {
+        get => _flyout;
+        set
+        {
+            if (_flyout != value)
+            {
+                if (_flyout != null)
+                {
+                    RemoveChild(_flyout);
+                }
 
-	private float _flyoutWidth = 300f;
+                _flyout = value;
 
-	private float _flyoutAnimationProgress;
+                if (_flyout != null)
+                {
+                    AddChild(_flyout);
+                }
 
-	private bool _gestureEnabled = true;
+                Invalidate();
+            }
+        }
+    }
 
-	private bool _isDragging;
+    /// <summary>
+    /// Gets or sets the detail content (main content).
+    /// </summary>
+    public SkiaView? Detail
+    {
+        get => _detail;
+        set
+        {
+            if (_detail != value)
+            {
+                if (_detail != null)
+                {
+                    RemoveChild(_detail);
+                }
 
-	private float _dragStartX;
+                _detail = value;
 
-	private float _dragCurrentX;
+                if (_detail != null)
+                {
+                    AddChild(_detail);
+                }
 
-	public SkiaView? Flyout
-	{
-		get
-		{
-			return _flyout;
-		}
-		set
-		{
-			if (_flyout != value)
-			{
-				if (_flyout != null)
-				{
-					RemoveChild(_flyout);
-				}
-				_flyout = value;
-				if (_flyout != null)
-				{
-					AddChild(_flyout);
-				}
-				Invalidate();
-			}
-		}
-	}
+                Invalidate();
+            }
+        }
+    }
 
-	public SkiaView? Detail
-	{
-		get
-		{
-			return _detail;
-		}
-		set
-		{
-			if (_detail != value)
-			{
-				if (_detail != null)
-				{
-					RemoveChild(_detail);
-				}
-				_detail = value;
-				if (_detail != null)
-				{
-					AddChild(_detail);
-				}
-				Invalidate();
-			}
-		}
-	}
+    /// <summary>
+    /// Gets or sets whether the flyout is currently presented.
+    /// </summary>
+    public bool IsPresented
+    {
+        get => _isPresented;
+        set
+        {
+            if (_isPresented != value)
+            {
+                _isPresented = value;
+                _flyoutAnimationProgress = value ? 1f : 0f;
+                IsPresentedChanged?.Invoke(this, EventArgs.Empty);
+                Invalidate();
+            }
+        }
+    }
 
-	public bool IsPresented
-	{
-		get
-		{
-			return _isPresented;
-		}
-		set
-		{
-			if (_isPresented != value)
-			{
-				_isPresented = value;
-				_flyoutAnimationProgress = (value ? 1f : 0f);
-				this.IsPresentedChanged?.Invoke(this, EventArgs.Empty);
-				Invalidate();
-			}
-		}
-	}
+    /// <summary>
+    /// Gets or sets the width of the flyout panel.
+    /// </summary>
+    public float FlyoutWidth
+    {
+        get => _flyoutWidth;
+        set
+        {
+            if (_flyoutWidth != value)
+            {
+                _flyoutWidth = Math.Max(100, value);
+                InvalidateMeasure();
+                Invalidate();
+            }
+        }
+    }
 
-	public float FlyoutWidth
-	{
-		get
-		{
-			return _flyoutWidth;
-		}
-		set
-		{
-			if (_flyoutWidth != value)
-			{
-				_flyoutWidth = Math.Max(100f, value);
-				InvalidateMeasure();
-				Invalidate();
-			}
-		}
-	}
+    /// <summary>
+    /// Gets or sets whether swipe gestures are enabled.
+    /// </summary>
+    public bool GestureEnabled
+    {
+        get => _gestureEnabled;
+        set => _gestureEnabled = value;
+    }
 
-	public bool GestureEnabled
-	{
-		get
-		{
-			return _gestureEnabled;
-		}
-		set
-		{
-			_gestureEnabled = value;
-		}
-	}
+    /// <summary>
+    /// The flyout layout behavior.
+    /// </summary>
+    public FlyoutLayoutBehavior FlyoutLayoutBehavior { get; set; } = FlyoutLayoutBehavior.Default;
 
-	public FlyoutLayoutBehavior FlyoutLayoutBehavior { get; set; }
+    /// <summary>
+    /// Background color of the scrim when flyout is open.
+    /// </summary>
+    public SKColor ScrimColor { get; set; } = new SKColor(0, 0, 0, 100);
 
-	public SKColor ScrimColor { get; set; } = new SKColor((byte)0, (byte)0, (byte)0, (byte)100);
+    /// <summary>
+    /// Shadow width for the flyout.
+    /// </summary>
+    public float ShadowWidth { get; set; } = 8f;
 
-	public float ShadowWidth { get; set; } = 8f;
+    /// <summary>
+    /// Event raised when IsPresented changes.
+    /// </summary>
+    public event EventHandler? IsPresentedChanged;
 
-	public event EventHandler? IsPresentedChanged;
+    protected override SKSize MeasureOverride(SKSize availableSize)
+    {
+        // Measure flyout
+        if (_flyout != null)
+        {
+            _flyout.Measure(new SKSize(FlyoutWidth, availableSize.Height));
+        }
 
-	protected override SKSize MeasureOverride(SKSize availableSize)
-	{
-		//IL_001b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0020: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0035: Unknown result type (might be due to invalid IL or missing references)
-		if (_flyout != null)
-		{
-			_flyout.Measure(new SKSize(FlyoutWidth, ((SKSize)(ref availableSize)).Height));
-		}
-		if (_detail != null)
-		{
-			_detail.Measure(availableSize);
-		}
-		return availableSize;
-	}
+        // Measure detail to full size
+        if (_detail != null)
+        {
+            _detail.Measure(availableSize);
+        }
 
-	protected override SKRect ArrangeOverride(SKRect bounds)
-	{
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0063: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005d: Unknown result type (might be due to invalid IL or missing references)
-		if (_detail != null)
-		{
-			_detail.Arrange(bounds);
-		}
-		if (_flyout != null)
-		{
-			float num = ((SKRect)(ref bounds)).Left - FlyoutWidth + FlyoutWidth * _flyoutAnimationProgress;
-			SKRect bounds2 = default(SKRect);
-			((SKRect)(ref bounds2))._002Ector(num, ((SKRect)(ref bounds)).Top, num + FlyoutWidth, ((SKRect)(ref bounds)).Bottom);
-			_flyout.Arrange(bounds2);
-		}
-		return bounds;
-	}
+        return availableSize;
+    }
 
-	protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-	{
-		//IL_0008: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0034: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0036: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003b: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0044: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0055: Unknown result type (might be due to invalid IL or missing references)
-		//IL_005f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0067: Expected O, but got Unknown
-		//IL_0069: Unknown result type (might be due to invalid IL or missing references)
-		canvas.Save();
-		canvas.ClipRect(bounds, (SKClipOperation)1, false);
-		_detail?.Draw(canvas);
-		if (_flyoutAnimationProgress > 0f)
-		{
-			SKPaint val = new SKPaint();
-			SKColor scrimColor = ScrimColor;
-			SKColor scrimColor2 = ScrimColor;
-			val.Color = ((SKColor)(ref scrimColor)).WithAlpha((byte)((float)(int)((SKColor)(ref scrimColor2)).Alpha * _flyoutAnimationProgress));
-			val.Style = (SKPaintStyle)0;
-			SKPaint val2 = val;
-			try
-			{
-				canvas.DrawRect(base.Bounds, val2);
-				if (_flyout != null && ShadowWidth > 0f)
-				{
-					DrawFlyoutShadow(canvas);
-				}
-				_flyout?.Draw(canvas);
-			}
-			finally
-			{
-				((IDisposable)val2)?.Dispose();
-			}
-		}
-		canvas.Restore();
-	}
+    protected override SKRect ArrangeOverride(SKRect bounds)
+    {
+        // Arrange detail to fill the entire area
+        if (_detail != null)
+        {
+            _detail.Arrange(bounds);
+        }
 
-	private void DrawFlyoutShadow(SKCanvas canvas)
-	{
-		//IL_000f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0014: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0021: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0026: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0037: Unknown result type (might be due to invalid IL or missing references)
-		//IL_003c: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0049: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0050: Expected O, but got Unknown
-		//IL_0060: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0073: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0085: Unknown result type (might be due to invalid IL or missing references)
-		//IL_008a: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0091: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0096: Unknown result type (might be due to invalid IL or missing references)
-		//IL_00ab: Unknown result type (might be due to invalid IL or missing references)
-		if (_flyout == null)
-		{
-			return;
-		}
-		SKRect bounds = _flyout.Bounds;
-		float right = ((SKRect)(ref bounds)).Right;
-		bounds = base.Bounds;
-		float top = ((SKRect)(ref bounds)).Top;
-		float num = right + ShadowWidth;
-		bounds = base.Bounds;
-		SKRect val = default(SKRect);
-		((SKRect)(ref val))._002Ector(right, top, num, ((SKRect)(ref bounds)).Bottom);
-		SKPaint val2 = new SKPaint();
-		val2.Shader = SKShader.CreateLinearGradient(new SKPoint(((SKRect)(ref val)).Left, ((SKRect)(ref val)).MidY), new SKPoint(((SKRect)(ref val)).Right, ((SKRect)(ref val)).MidY), (SKColor[])(object)new SKColor[2]
-		{
-			new SKColor((byte)0, (byte)0, (byte)0, (byte)60),
-			SKColors.Transparent
-		}, (float[])null, (SKShaderTileMode)0);
-		SKPaint val3 = val2;
-		try
-		{
-			canvas.DrawRect(val, val3);
-		}
-		finally
-		{
-			((IDisposable)val3)?.Dispose();
-		}
-	}
+        // Arrange flyout (positioned based on animation progress)
+        if (_flyout != null)
+        {
+            float flyoutX = bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(
+                flyoutX,
+                bounds.Top,
+                flyoutX + FlyoutWidth,
+                bounds.Bottom);
+            _flyout.Arrange(flyoutBounds);
+        }
 
-	public override SkiaView? HitTest(float x, float y)
-	{
-		//IL_0009: Unknown result type (might be due to invalid IL or missing references)
-		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		if (base.IsVisible)
-		{
-			SKRect bounds = base.Bounds;
-			if (((SKRect)(ref bounds)).Contains(x, y))
-			{
-				if (_flyoutAnimationProgress > 0f && _flyout != null)
-				{
-					SkiaView skiaView = _flyout.HitTest(x, y);
-					if (skiaView != null)
-					{
-						return skiaView;
-					}
-					if (_isPresented)
-					{
-						return this;
-					}
-				}
-				if (_detail != null)
-				{
-					SkiaView skiaView2 = _detail.HitTest(x, y);
-					if (skiaView2 != null)
-					{
-						return skiaView2;
-					}
-				}
-				return this;
-			}
-		}
-		return null;
-	}
+        return bounds;
+    }
 
-	public override void OnPointerPressed(PointerEventArgs e)
-	{
-		//IL_001f: Unknown result type (might be due to invalid IL or missing references)
-		//IL_0024: Unknown result type (might be due to invalid IL or missing references)
-		if (!base.IsEnabled)
-		{
-			return;
-		}
-		if (_isPresented && _flyout != null)
-		{
-			SKRect bounds = _flyout.Bounds;
-			if (!((SKRect)(ref bounds)).Contains(e.X, e.Y))
-			{
-				IsPresented = false;
-				e.Handled = true;
-				return;
-			}
-		}
-		if (_gestureEnabled)
-		{
-			_isDragging = true;
-			_dragStartX = e.X;
-			_dragCurrentX = e.X;
-		}
-		base.OnPointerPressed(e);
-	}
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        canvas.Save();
+        canvas.ClipRect(bounds);
 
-	public override void OnPointerMoved(PointerEventArgs e)
-	{
-		if (_isDragging && _gestureEnabled)
-		{
-			_dragCurrentX = e.X;
-			float num = _dragCurrentX - _dragStartX;
-			if (_isPresented)
-			{
-				_flyoutAnimationProgress = Math.Clamp(1f + num / FlyoutWidth, 0f, 1f);
-			}
-			else if (_dragStartX < 30f)
-			{
-				_flyoutAnimationProgress = Math.Clamp(num / FlyoutWidth, 0f, 1f);
-			}
-			Invalidate();
-			e.Handled = true;
-		}
-		base.OnPointerMoved(e);
-	}
+        // Draw detail content first
+        _detail?.Draw(canvas);
 
-	public override void OnPointerReleased(PointerEventArgs e)
-	{
-		if (_isDragging)
-		{
-			_isDragging = false;
-			if (_flyoutAnimationProgress > 0.5f)
-			{
-				_isPresented = true;
-				_flyoutAnimationProgress = 1f;
-			}
-			else
-			{
-				_isPresented = false;
-				_flyoutAnimationProgress = 0f;
-			}
-			this.IsPresentedChanged?.Invoke(this, EventArgs.Empty);
-			Invalidate();
-		}
-		base.OnPointerReleased(e);
-	}
+        // If flyout is visible, draw scrim and flyout
+        if (_flyoutAnimationProgress > 0)
+        {
+            // Draw scrim (semi-transparent overlay)
+            using var scrimPaint = new SKPaint
+            {
+                Color = ScrimColor.WithAlpha((byte)(ScrimColor.Alpha * _flyoutAnimationProgress)),
+                Style = SKPaintStyle.Fill
+            };
+            canvas.DrawRect(Bounds, scrimPaint);
 
-	public void ToggleFlyout()
-	{
-		IsPresented = !IsPresented;
-	}
+            // Draw flyout shadow
+            if (_flyout != null && ShadowWidth > 0)
+            {
+                DrawFlyoutShadow(canvas);
+            }
+
+            // Draw flyout
+            _flyout?.Draw(canvas);
+        }
+
+        canvas.Restore();
+    }
+
+    private void DrawFlyoutShadow(SKCanvas canvas)
+    {
+        if (_flyout == null) return;
+
+        float shadowRight = _flyout.Bounds.Right;
+        var shadowRect = new SKRect(
+            shadowRight,
+            Bounds.Top,
+            shadowRight + ShadowWidth,
+            Bounds.Bottom);
+
+        using var shadowPaint = new SKPaint
+        {
+            Shader = SKShader.CreateLinearGradient(
+                new SKPoint(shadowRect.Left, shadowRect.MidY),
+                new SKPoint(shadowRect.Right, shadowRect.MidY),
+                new SKColor[] { new SKColor(0, 0, 0, 60), SKColors.Transparent },
+                null,
+                SKShaderTileMode.Clamp)
+        };
+
+        canvas.DrawRect(shadowRect, shadowPaint);
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (!IsVisible || !Bounds.Contains(x, y)) return null;
+
+        // If flyout is presented, check if hit is in flyout
+        if (_flyoutAnimationProgress > 0 && _flyout != null)
+        {
+            var flyoutHit = _flyout.HitTest(x, y);
+            if (flyoutHit != null) return flyoutHit;
+
+            // Hit on scrim closes flyout
+            if (_isPresented)
+            {
+                return this; // Return self to handle scrim tap
+            }
+        }
+
+        // Check detail content
+        if (_detail != null)
+        {
+            var detailHit = _detail.HitTest(x, y);
+            if (detailHit != null) return detailHit;
+        }
+
+        return this;
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        if (!IsEnabled) return;
+
+        // Check if tap is on scrim (outside flyout but flyout is open)
+        if (_isPresented && _flyout != null && !_flyout.Bounds.Contains(e.X, e.Y))
+        {
+            IsPresented = false;
+            e.Handled = true;
+            return;
+        }
+
+        // Start drag gesture
+        if (_gestureEnabled)
+        {
+            _isDragging = true;
+            _dragStartX = e.X;
+            _dragCurrentX = e.X;
+        }
+
+        base.OnPointerPressed(e);
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        if (_isDragging && _gestureEnabled)
+        {
+            _dragCurrentX = e.X;
+            float delta = _dragCurrentX - _dragStartX;
+
+            // Calculate new animation progress
+            if (_isPresented)
+            {
+                // Dragging to close
+                _flyoutAnimationProgress = Math.Clamp(1f + (delta / FlyoutWidth), 0f, 1f);
+            }
+            else
+            {
+                // Dragging to open (only from left edge)
+                if (_dragStartX < 30)
+                {
+                    _flyoutAnimationProgress = Math.Clamp(delta / FlyoutWidth, 0f, 1f);
+                }
+            }
+
+            Invalidate();
+            e.Handled = true;
+        }
+
+        base.OnPointerMoved(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        if (_isDragging)
+        {
+            _isDragging = false;
+
+            // Determine final state based on progress
+            if (_flyoutAnimationProgress > 0.5f)
+            {
+                _isPresented = true;
+                _flyoutAnimationProgress = 1f;
+            }
+            else
+            {
+                _isPresented = false;
+                _flyoutAnimationProgress = 0f;
+            }
+
+            IsPresentedChanged?.Invoke(this, EventArgs.Empty);
+            Invalidate();
+        }
+
+        base.OnPointerReleased(e);
+    }
+
+    /// <summary>
+    /// Toggles the flyout presentation state.
+    /// </summary>
+    public void ToggleFlyout()
+    {
+        IsPresented = !IsPresented;
+    }
+}
+
+/// <summary>
+/// Defines how the flyout behaves.
+/// </summary>
+public enum FlyoutLayoutBehavior
+{
+    /// <summary>
+    /// Default behavior based on device/window size.
+    /// </summary>
+    Default,
+
+    /// <summary>
+    /// Flyout slides over the detail content.
+    /// </summary>
+    Popover,
+
+    /// <summary>
+    /// Flyout and detail are shown side by side.
+    /// </summary>
+    Split,
+
+    /// <summary>
+    /// Flyout pushes the detail content.
+    /// </summary>
+    SplitOnLandscape,
+
+    /// <summary>
+    /// Flyout is always shown in portrait, side by side in landscape.
+    /// </summary>
+    SplitOnPortrait
 }
