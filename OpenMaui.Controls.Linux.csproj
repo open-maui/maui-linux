@@ -42,6 +42,7 @@
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
     <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.88.9" />
+    <PackageReference Include="Svg.Skia" Version="1.0.0" />
 
     <!-- HarfBuzz for advanced text shaping -->
     <PackageReference Include="HarfBuzzSharp" Version="7.3.0.3" />

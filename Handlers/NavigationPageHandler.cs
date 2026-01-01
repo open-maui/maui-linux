@@ -1,12 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.IO;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
+using Svg.Skia;
 using System.Collections.Specialized;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -164,7 +166,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
             contentPage.ToolbarItems.Clear();
             foreach (var item in page.ToolbarItems)
             {
-                Console.WriteLine($"[NavigationPageHandler] Adding toolbar item: '{item.Text}', Order={item.Order}");
+                Console.WriteLine($"[NavigationPageHandler] Adding toolbar item: '{item.Text}', IconImageSource={item.IconImageSource}, Order={item.Order}");
                 // Default and Primary should both be treated as Primary (shown in toolbar)
                 // Only Secondary goes to overflow menu
                 var order = item.Order == ToolbarItemOrder.Secondary
@@ -188,9 +190,17 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
                     }
                 });
 
+                // Load icon if specified
+                SKBitmap? icon = null;
+                if (item.IconImageSource is FileImageSource fileSource && !string.IsNullOrEmpty(fileSource.File))
+                {
+                    icon = LoadToolbarIcon(fileSource.File);
+                }
+
                 contentPage.ToolbarItems.Add(new SkiaToolbarItem
                 {
                     Text = item.Text ?? "",
+                    Icon = icon,
                     Order = order,
                     Command = clickCommand
                 });
@@ -208,6 +218,56 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
                 };
                 _toolbarSubscriptions[page] = (skiaPage, notifyCollection);
             }
+        }
+    }
+
+    private SKBitmap? LoadToolbarIcon(string fileName)
+    {
+        try
+        {
+            string baseDirectory = AppContext.BaseDirectory;
+            string pngPath = Path.Combine(baseDirectory, fileName);
+            string svgPath = Path.Combine(baseDirectory, Path.ChangeExtension(fileName, ".svg"));
+
+            Console.WriteLine($"[NavigationPageHandler] LoadToolbarIcon: Looking for {fileName}");
+            Console.WriteLine($"[NavigationPageHandler]   Trying PNG: {pngPath} (exists: {File.Exists(pngPath)})");
+            Console.WriteLine($"[NavigationPageHandler]   Trying SVG: {svgPath} (exists: {File.Exists(svgPath)})");
+
+            // Try SVG first
+            if (File.Exists(svgPath))
+            {
+                using var svg = new SKSvg();
+                svg.Load(svgPath);
+                if (svg.Picture != null)
+                {
+                    var cullRect = svg.Picture.CullRect;
+                    float scale = 24f / Math.Max(cullRect.Width, cullRect.Height);
+                    var bitmap = new SKBitmap(24, 24, false);
+                    using var canvas = new SKCanvas(bitmap);
+                    canvas.Clear(SKColors.Transparent);
+                    canvas.Scale(scale);
+                    canvas.DrawPicture(svg.Picture, null);
+                    Console.WriteLine($"[NavigationPageHandler] Loaded SVG icon: {svgPath}");
+                    return bitmap;
+                }
+            }
+
+            // Try PNG
+            if (File.Exists(pngPath))
+            {
+                using var stream = File.OpenRead(pngPath);
+                var result = SKBitmap.Decode(stream);
+                Console.WriteLine($"[NavigationPageHandler] Loaded PNG icon: {pngPath}");
+                return result;
+            }
+
+            Console.WriteLine($"[NavigationPageHandler] Icon not found: {fileName}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NavigationPageHandler] Error loading icon {fileName}: {ex.Message}");
+            return null;
         }
     }
 
@@ -232,12 +292,30 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
                 skiaPage.ShowNavigationBar = true;
                 skiaPage.TitleBarColor = PlatformView.BarBackgroundColor;
                 skiaPage.TitleTextColor = PlatformView.BarTextColor;
+                skiaPage.Title = e.Page.Title ?? "";
+
+                // Handle content if null
+                if (skiaPage.Content == null && e.Page is ContentPage contentPage && contentPage.Content != null)
+                {
+                    Console.WriteLine($"[NavigationPageHandler] Content is null, creating handler for: {contentPage.Content.GetType().Name}");
+                    if (contentPage.Content.Handler == null)
+                    {
+                        contentPage.Content.Handler = contentPage.Content.ToViewHandler(MauiContext);
+                    }
+                    if (contentPage.Content.Handler?.PlatformView is SkiaView skiaContent)
+                    {
+                        skiaPage.Content = skiaContent;
+                        Console.WriteLine($"[NavigationPageHandler] Set content to: {skiaContent.GetType().Name}");
+                    }
+                }
+
                 Console.WriteLine($"[NavigationPageHandler] Mapping toolbar items");
                 MapToolbarItems(skiaPage, e.Page);
                 Console.WriteLine($"[NavigationPageHandler] Pushing page to platform");
-                PlatformView.Push(skiaPage, true);
-                Console.WriteLine($"[NavigationPageHandler] Push complete");
+                PlatformView.Push(skiaPage, false);
+                Console.WriteLine($"[NavigationPageHandler] Push complete, thread={Environment.CurrentManagedThreadId}");
             }
+            Console.WriteLine("[NavigationPageHandler] OnVirtualViewPushed returning");
         }
         catch (Exception ex)
         {
@@ -251,13 +329,13 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
     {
         Console.WriteLine($"[NavigationPageHandler] VirtualView Popped: {e.Page?.Title}");
         // Pop on the platform side to sync with MAUI navigation
-        PlatformView?.Pop(true);
+        PlatformView?.Pop();
     }
 
     private void OnVirtualViewPoppedToRoot(object? sender, Microsoft.Maui.Controls.NavigationEventArgs e)
     {
         Console.WriteLine($"[NavigationPageHandler] VirtualView PoppedToRoot");
-        PlatformView?.PopToRoot(true);
+        PlatformView?.PopToRoot();
     }
 
     private void OnPushed(object? sender, NavigationEventArgs e)

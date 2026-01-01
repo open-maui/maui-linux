@@ -17,11 +17,11 @@
 | ButtonHandler.cs | [x] | Contains TextButtonHandler - Verified |
 | CheckBoxHandler.cs | [x] | Verified |
 | CollectionViewHandler.cs | [ ] | |
-| DatePickerHandler.cs | [ ] | |
+| DatePickerHandler.cs | [x] | Verified |
 | EditorHandler.cs | [x] | Verified |
 | EntryHandler.cs | [x] | Verified |
 | FlexLayoutHandler.cs | [ ] | |
-| FlyoutPageHandler.cs | [ ] | |
+| FlyoutPageHandler.cs | [x] | Verified - matches decompiled |
 | FrameHandler.cs | [ ] | |
 | GestureManager.cs | [ ] | |
 | GraphicsViewHandler.cs | [ ] | |
@@ -34,19 +34,19 @@
 | ItemsViewHandler.cs | [ ] | |
 | LabelHandler.cs | [x] | Verified |
 | LayoutHandler.cs | [x] | Contains GridHandler, StackLayoutHandler, LayoutHandlerUpdate - Verified |
-| NavigationPageHandler.cs | [ ] | Contains RelayCommand |
+| NavigationPageHandler.cs | [x] | FIXED - Added LoadToolbarIcon, Icon loading, content handling, animated params |
 | PageHandler.cs | [x] | Added MapBackgroundColor |
-| PickerHandler.cs | [ ] | |
+| PickerHandler.cs | [x] | Verified |
 | ProgressBarHandler.cs | [x] | Verified |
-| RadioButtonHandler.cs | [ ] | |
+| RadioButtonHandler.cs | [x] | Verified - matches decompiled |
 | ScrollViewHandler.cs | [x] | Verified |
-| SearchBarHandler.cs | [ ] | |
-| ShellHandler.cs | [ ] | |
+| SearchBarHandler.cs | [x] | Verified - matches decompiled |
+| ShellHandler.cs | [x] | Verified - matches decompiled |
 | SliderHandler.cs | [x] | Verified |
-| StepperHandler.cs | [ ] | |
+| StepperHandler.cs | [x] | FIXED - Added MapIncrement, MapIsEnabled, dark theme colors |
 | SwitchHandler.cs | [x] | Verified |
-| TabbedPageHandler.cs | [ ] | |
-| TimePickerHandler.cs | [ ] | |
+| TabbedPageHandler.cs | [x] | Verified - matches decompiled |
+| TimePickerHandler.cs | [x] | FIXED - Added dark theme colors |
 | WebViewHandler.cs | [x] | Fixed namespace-qualified event args |
 | WindowHandler.cs | [ ] | Contains SkiaWindow, SizeChangedEventArgs, LinuxApplicationContext |
 
@@ -80,7 +80,7 @@
 | SkiaLayoutView.cs | [ ] | Contains SkiaGrid, SkiaStackLayout, SkiaAbsoluteLayout, GridLength, GridPosition |
 | SkiaMenuBar.cs | [ ] | Contains MenuItem, MenuBarItem |
 | SkiaNavigationPage.cs | [ ] | |
-| SkiaPage.cs | [ ] | Contains SkiaContentPage, SkiaToolbarItem |
+| SkiaPage.cs | [x] | Added SkiaToolbarItem.Icon property |
 | SkiaPicker.cs | [ ] | |
 | SkiaProgressBar.cs | [ ] | |
 | SkiaRadioButton.cs | [ ] | |

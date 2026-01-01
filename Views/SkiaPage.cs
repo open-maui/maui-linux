@@ -449,6 +449,7 @@ public class SkiaContentPage : SkiaPage
 public class SkiaToolbarItem
 {
     public string Text { get; set; } = "";
+    public SKBitmap? Icon { get; set; }
     public SkiaToolbarItemOrder Order { get; set; } = SkiaToolbarItemOrder.Primary;
     public System.Windows.Input.ICommand? Command { get; set; }
     public SKRect HitBounds { get; set; }

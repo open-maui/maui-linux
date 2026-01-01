@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 
@@ -19,7 +20,9 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
             [nameof(IStepper.Value)] = MapValue,
             [nameof(IStepper.Minimum)] = MapMinimum,
             [nameof(IStepper.Maximum)] = MapMaximum,
+            ["Increment"] = MapIncrement,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(IView.IsEnabled)] = MapIsEnabled,
         };
 
     public static CommandMapper<IStepper, StepperHandler> CommandMapper =
@@ -45,6 +48,17 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
     {
         base.ConnectHandler(platformView);
         platformView.ValueChanged += OnValueChanged;
+
+        // Apply dark theme colors if needed
+        if (Application.Current?.UserAppTheme == AppTheme.Dark)
+        {
+            platformView.ButtonBackgroundColor = new SKColor(66, 66, 66);
+            platformView.ButtonPressedColor = new SKColor(97, 97, 97);
+            platformView.ButtonDisabledColor = new SKColor(48, 48, 48);
+            platformView.SymbolColor = new SKColor(224, 224, 224);
+            platformView.SymbolDisabledColor = new SKColor(97, 97, 97);
+            platformView.BorderColor = new SKColor(97, 97, 97);
+        }
     }
 
     protected override void DisconnectHandler(SkiaStepper platformView)
@@ -85,5 +99,21 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapIncrement(StepperHandler handler, IStepper stepper)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (stepper is Stepper stepperControl)
+        {
+            handler.PlatformView.Increment = stepperControl.Increment;
+        }
+    }
+
+    public static void MapIsEnabled(StepperHandler handler, IStepper stepper)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = stepper.IsEnabled;
     }
 }
