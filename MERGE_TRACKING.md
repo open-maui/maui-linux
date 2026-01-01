@@ -13,27 +13,27 @@
 | File | Status | Notes |
 |------|--------|-------|
 | ActivityIndicatorHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed IsEnabled/BackgroundColor (not in production), fixed namespace |
-| ApplicationHandler.cs | [ ] | NEEDS VERIFICATION |
+| ApplicationHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | BorderHandler.cs | [ ] | BLOCKED - needs SkiaBorder.MauiView and Tapped |
 | BoxViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, Color/CornerRadius/Background/BackgroundColor |
 | ButtonHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Removed MapText/TextColor/Font (not in production), fixed namespace, added null checks |
 | CheckBoxHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added VerticalLayoutAlignment/HorizontalLayoutAlignment, fixed namespace |
-| CollectionViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| CollectionViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | DatePickerHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, dark theme support |
 | EditorHandler.Linux.cs | [x] | **CREATED 2026-01-01** - Was missing, created from decompiled |
 | EntryHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/ClearButtonVisibility/VerticalTextAlignment, fixed namespace, null checks |
-| FlexLayoutHandler.cs | [ ] | NEEDS VERIFICATION |
-| FlyoutPageHandler.cs | [ ] | NEEDS VERIFICATION |
+| FlexLayoutHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
+| FlyoutPageHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | FrameHandler.cs | [ ] | BLOCKED - needs SkiaFrame.MauiView and Tapped event |
 | GestureManager.cs | [ ] | NEEDS VERIFICATION |
-| GraphicsViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| GraphicsViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | GtkWebViewHandler.cs | [x] | Added new file from decompiled |
 | GtkWebViewManager.cs | [ ] | NEEDS VERIFICATION |
 | GtkWebViewPlatformView.cs | [ ] | NEEDS VERIFICATION |
 | GtkWebViewProxy.cs | [x] | Added new file from decompiled |
 | ImageButtonHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, has ImageSourceServiceResultManager |
 | ImageHandler.Linux.cs | [x] | **VERIFIED 2026-01-01** - Matches production, FontImageSource rendering |
-| ItemsViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| ItemsViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | LabelHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added CharacterSpacing/LayoutAlignment/FormattedText, ConnectHandler gesture logic, fixed namespace |
 | LayoutHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, includes StackLayoutHandler/GridHandler |
 | NavigationPageHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, toolbar items, SVG/PNG icons |
@@ -49,7 +49,7 @@
 | SwitchHandler.Linux.cs | [x] | **FIXED 2026-01-01** - Added OffTrackColor logic, fixed namespace, removed extra BackgroundColor |
 | TabbedPageHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, SelectedIndexChanged event |
 | TimePickerHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, dark theme support |
-| WebViewHandler.cs | [ ] | NEEDS VERIFICATION |
+| WebViewHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production |
 | WindowHandler.cs | [x] | **VERIFIED 2026-01-01** - Matches production, includes SkiaWindow class |
 
 ---
