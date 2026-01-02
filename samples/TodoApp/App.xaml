@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TodoApp.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Primary Colors -->
+            <Color x:Key="PrimaryColor">#5C6BC0</Color>
+            <Color x:Key="PrimaryDarkColor">#3949AB</Color>
+            <Color x:Key="AccentColor">#26A69A</Color>
+            <Color x:Key="DangerColor">#EF5350</Color>
+
+            <!-- Page Backgrounds -->
+            <Color x:Key="PageBackgroundLight">#F5F5F5</Color>
+            <Color x:Key="PageBackgroundDark">#1E1E1E</Color>
+
+            <!-- Card/Surface Backgrounds -->
+            <Color x:Key="CardBackgroundLight">#FFFFFF</Color>
+            <Color x:Key="CardBackgroundDark">#2D2D2D</Color>
+
+            <!-- Input Backgrounds -->
+            <Color x:Key="InputBackgroundLight">#FFFFFF</Color>
+            <Color x:Key="InputBackgroundDark">#3D3D3D</Color>
+
+            <!-- Text Colors -->
+            <Color x:Key="TextPrimaryLight">#212121</Color>
+            <Color x:Key="TextPrimaryDark">#FFFFFF</Color>
+            <Color x:Key="TextSecondaryLight">#757575</Color>
+            <Color x:Key="TextSecondaryDark">#B0B0B0</Color>
+
+            <!-- Border Colors -->
+            <Color x:Key="BorderLight">#E0E0E0</Color>
+            <Color x:Key="BorderDark">#424242</Color>
+
+            <!-- Footer/Status Bar -->
+            <Color x:Key="FooterBackgroundLight">#5C6BC0</Color>
+            <Color x:Key="FooterBackgroundDark">#3949AB</Color>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

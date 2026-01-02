@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="TodoApp.TodoDetailPage"
+             Title="Task Details"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource PageBackgroundDark}}">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IconImageSource="icon_delete_light.svg" Clicked="OnDeleteClicked" />
+        <ToolbarItem IconImageSource="icon_save_light.svg" Clicked="OnSaveClicked" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto"
+          RowSpacing="16"
+          Padding="20">
+
+        <!-- Title Section -->
+        <VerticalStackLayout Grid.Row="0" Spacing="8">
+            <Label Text="TITLE"
+                   FontSize="13"
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryColor}" />
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}"
+                    StrokeThickness="1"
+                    Padding="16,12">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Entry x:Name="TitleEntry"
+                       FontSize="18"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource InputBackgroundLight}, Dark={StaticResource InputBackgroundDark}}"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </Border>
+        </VerticalStackLayout>
+
+        <!-- Notes Label -->
+        <Label Grid.Row="1"
+               Text="NOTES"
+               FontSize="13"
+               FontAttributes="Bold"
+               TextColor="{StaticResource PrimaryColor}" />
+
+        <!-- Notes Section -->
+        <Border Grid.Row="2"
+                BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}"
+                Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}"
+                StrokeThickness="1"
+                Padding="16,12">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="10" />
+            </Border.StrokeShape>
+            <Editor x:Name="NotesEditor"
+                    FontSize="14"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource InputBackgroundLight}, Dark={StaticResource InputBackgroundDark}}"
+                    TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}"
+                    VerticalOptions="Fill" />
+        </Border>
+
+        <!-- Status Section -->
+        <VerticalStackLayout Grid.Row="3" Spacing="8">
+            <Label Text="STATUS"
+                   FontSize="13"
+                   FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryColor}" />
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}"
+                    StrokeThickness="1"
+                    Padding="16,12">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="12">
+                    <CheckBox x:Name="CompletedCheckBox"
+                              VerticalOptions="Center" />
+                    <Label Text="In Progress"
+                           FontSize="16"
+                           VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </HorizontalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+
+        <!-- Created Date -->
+        <Label x:Name="CreatedLabel"
+               Grid.Row="4"
+               HorizontalOptions="Center"
+               FontSize="12"
+               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+    </Grid>
+</ContentPage>
