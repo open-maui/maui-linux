@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.Pages.MoreControlsPage"
+             Title="More Controls"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid RowDefinitions="*,Auto">
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20" Spacing="20">
+
+                <Label Text="More Controls" FontSize="24" FontAttributes="Bold" />
+
+                <!-- Stepper -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="Stepper" FontSize="16" FontAttributes="Bold" />
+
+                        <HorizontalStackLayout Spacing="15">
+                            <Stepper x:Name="BasicStepper" Minimum="0" Maximum="10" Increment="1" ValueChanged="OnStepperChanged" />
+                            <Label x:Name="StepperValueLabel" Text="Value: 0" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Label Text="Custom Range (0-100, step 5):" FontSize="12" Margin="0,10,0,0" />
+                        <HorizontalStackLayout Spacing="15">
+                            <Stepper x:Name="CustomStepper" Minimum="0" Maximum="100" Increment="5" Value="50" ValueChanged="OnCustomStepperChanged" />
+                            <Label x:Name="CustomStepperLabel" Text="Value: 50" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- RadioButton -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="RadioButton" FontSize="16" FontAttributes="Bold" />
+
+                        <Label Text="Select a size:" FontSize="12" />
+                        <VerticalStackLayout RadioButtonGroup.GroupName="SizeGroup" Spacing="5">
+                            <RadioButton Content="Small" Value="S" CheckedChanged="OnRadioChanged" />
+                            <RadioButton Content="Medium" Value="M" IsChecked="True" CheckedChanged="OnRadioChanged" />
+                            <RadioButton Content="Large" Value="L" CheckedChanged="OnRadioChanged" />
+                            <RadioButton Content="Extra Large" Value="XL" CheckedChanged="OnRadioChanged" />
+                        </VerticalStackLayout>
+                        <Label x:Name="RadioResultLabel" Text="Selected: Medium" TextColor="{StaticResource TextSecondary}" FontSize="12" />
+
+                        <Label Text="Horizontal Radio Group:" FontSize="12" Margin="0,10,0,0" />
+                        <HorizontalStackLayout RadioButtonGroup.GroupName="ColorGroup" Spacing="10">
+                            <RadioButton Content="Red" CheckedChanged="OnColorRadioChanged" />
+                            <RadioButton Content="Green" CheckedChanged="OnColorRadioChanged" />
+                            <RadioButton Content="Blue" IsChecked="True" CheckedChanged="OnColorRadioChanged" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Image -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="Image &amp; ImageButton" FontSize="16" FontAttributes="Bold" />
+
+                        <Label Text="Image with different aspects:" FontSize="12" />
+                        <HorizontalStackLayout Spacing="10">
+                            <VerticalStackLayout>
+                                <BoxView WidthRequest="80" HeightRequest="80" BackgroundColor="#E3F2FD" />
+                                <Label Text="AspectFit" FontSize="10" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout>
+                                <BoxView WidthRequest="80" HeightRequest="80" BackgroundColor="#E8F5E9" />
+                                <Label Text="AspectFill" FontSize="10" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout>
+                                <BoxView WidthRequest="80" HeightRequest="80" BackgroundColor="#FFF3E0" />
+                                <Label Text="Fill" FontSize="10" HorizontalOptions="Center" />
+                            </VerticalStackLayout>
+                        </HorizontalStackLayout>
+
+                        <Label Text="Note: Replace BoxView with Image when you have image assets" FontSize="11" TextColor="{StaticResource TextSecondary}" FontAttributes="Italic" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Clipboard -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Clipboard" FontSize="16" FontAttributes="Bold" />
+
+                        <Entry x:Name="ClipboardEntry" Placeholder="Type text to copy..." />
+
+                        <HorizontalStackLayout Spacing="10">
+                            <Button Text="Copy"
+                                    BackgroundColor="{StaticResource PrimaryColor}"
+                                    TextColor="White"
+                                    Clicked="OnCopyClicked" />
+                            <Button Text="Paste"
+                                    BackgroundColor="{StaticResource SuccessColor}"
+                                    TextColor="White"
+                                    Clicked="OnPasteClicked" />
+                        </HorizontalStackLayout>
+
+                        <Label x:Name="ClipboardResultLabel" Text="Clipboard: (empty)" TextColor="{StaticResource TextSecondary}" FontSize="12" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Share -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Share &amp; Launcher" FontSize="16" FontAttributes="Bold" />
+
+                        <Button Text="Share Text"
+                                BackgroundColor="{StaticResource PurpleColor}"
+                                TextColor="White"
+                                Clicked="OnShareTextClicked" />
+
+                        <Button Text="Open URL in Browser"
+                                BackgroundColor="#FF5722"
+                                TextColor="White"
+                                Clicked="OnOpenUrlClicked" />
+
+                        <Button Text="Open Email Client"
+                                BackgroundColor="#795548"
+                                TextColor="White"
+                                Clicked="OnOpenEmailClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- BoxView & Shapes -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="BoxView &amp; Shapes" FontSize="16" FontAttributes="Bold" />
+
+                        <HorizontalStackLayout Spacing="15">
+                            <BoxView WidthRequest="50" HeightRequest="50" BackgroundColor="Red" />
+                            <BoxView WidthRequest="50" HeightRequest="50" BackgroundColor="Green" CornerRadius="10" />
+                            <BoxView WidthRequest="50" HeightRequest="50" BackgroundColor="Blue" CornerRadius="25" />
+                            <BoxView WidthRequest="80" HeightRequest="50" BackgroundColor="Orange" CornerRadius="5" />
+                        </HorizontalStackLayout>
+
+                        <Label Text="BoxView as divider:" FontSize="12" />
+                        <BoxView HeightRequest="2" BackgroundColor="{StaticResource BorderColor}" />
+
+                        <Label Text="BoxView with gradient-like effect (stacked):" FontSize="12" />
+                        <Grid HeightRequest="30">
+                            <BoxView BackgroundColor="#E3F2FD" />
+                            <BoxView BackgroundColor="#BBDEFB" Margin="0,0,0,10" />
+                            <BoxView BackgroundColor="#90CAF9" Margin="0,0,0,20" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Event Log -->
+        <Border Grid.Row="1" BackgroundColor="#F5F5F5" Padding="12" StrokeThickness="0">
+            <VerticalStackLayout>
+                <Label Text="Event Log:" FontSize="12" FontAttributes="Bold" />
+                <ScrollView HeightRequest="60">
+                    <Label x:Name="EventLog" Text="Events will appear here..." FontSize="11" TextColor="{StaticResource TextSecondary}" LineBreakMode="WordWrap" />
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

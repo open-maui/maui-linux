@@ -41,6 +41,14 @@
         <ShellContent ContentTemplate="{DataTemplate pages:GridsPage}" />
     </FlyoutItem>
 
+    <FlyoutItem Title="Dialogs" Route="Dialogs">
+        <ShellContent ContentTemplate="{DataTemplate pages:DialogsPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="More Controls" Route="MoreControls">
+        <ShellContent ContentTemplate="{DataTemplate pages:MoreControlsPage}" />
+    </FlyoutItem>
+
     <FlyoutItem Title="About" Route="About">
         <ShellContent ContentTemplate="{DataTemplate pages:AboutPage}" />
     </FlyoutItem>
