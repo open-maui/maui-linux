@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:ShellDemo.Pages"
+             x:Class="ShellDemo.Pages.ListsPage"
+             Title="Lists"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid RowDefinitions="*,Auto">
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20" Spacing="20">
+
+                <Label Text="List Controls" FontSize="24" FontAttributes="Bold" />
+
+                <!-- Fruits CollectionView -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="CollectionView - Fruits" FontSize="16" FontAttributes="Bold" />
+                        <CollectionView x:Name="FruitsCollectionView"
+                                        HeightRequest="200"
+                                        SelectionMode="Single"
+                                        BackgroundColor="#FAFAFA"
+                                        SelectionChanged="OnFruitSelected" />
+                        <Label x:Name="FruitSelectedLabel" Text="Tap a fruit to select" TextColor="{StaticResource TextSecondary}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Colors CollectionView -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="CollectionView - Colors" FontSize="16" FontAttributes="Bold" />
+                        <CollectionView x:Name="ColorsCollectionView"
+                                        HeightRequest="180"
+                                        SelectionMode="Single"
+                                        BackgroundColor="White"
+                                        SelectionChanged="OnColorSelected" />
+                        <Label Text="Scroll to see all colors" FontSize="11" TextColor="{StaticResource TextSecondary}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Contacts CollectionView -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="CollectionView - Contacts" FontSize="16" FontAttributes="Bold" />
+                        <CollectionView x:Name="ContactsCollectionView"
+                                        HeightRequest="200"
+                                        SelectionMode="Single"
+                                        BackgroundColor="White"
+                                        SelectionChanged="OnContactSelected" />
+                        <HorizontalStackLayout Spacing="10">
+                            <Button Text="Add Contact"
+                                    BackgroundColor="Green"
+                                    TextColor="White"
+                                    Clicked="OnAddContactClicked" />
+                            <Button Text="Delete Selected"
+                                    BackgroundColor="Red"
+                                    TextColor="White"
+                                    Clicked="OnDeleteContactClicked" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Event Log Panel -->
+        <Border Grid.Row="1" BackgroundColor="#F5F5F5" Padding="12" StrokeThickness="0">
+            <VerticalStackLayout>
+                <Label Text="Event Log:" FontSize="12" FontAttributes="Bold" />
+                <ScrollView HeightRequest="60">
+                    <Label x:Name="EventLog"
+                           Text="Events will appear here..."
+                           FontSize="11"
+                           TextColor="{StaticResource TextSecondary}"
+                           LineBreakMode="WordWrap" />
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

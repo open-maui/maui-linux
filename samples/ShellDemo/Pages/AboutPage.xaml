@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.Pages.AboutPage"
+             Title="About"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <Label Text="OpenMaui Linux"
+                   FontSize="32"
+                   FontAttributes="Bold"
+                   TextColor="#1A237E"
+                   HorizontalOptions="Center" />
+
+            <Label Text="Version 1.0.0"
+                   FontSize="16"
+                   TextColor="{StaticResource TextSecondary}"
+                   HorizontalOptions="Center" />
+
+            <BoxView HeightRequest="1" Color="LightGray" />
+
+            <Label Text="OpenMaui Linux brings .NET MAUI to Linux desktops using SkiaSharp for rendering. It provides a native Linux experience while maintaining compatibility with MAUI's cross-platform API."
+                   FontSize="14"
+                   LineBreakMode="WordWrap" />
+
+            <!-- Info Cards -->
+            <Border BackgroundColor="#F5F5F5" Padding="15" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout>
+                    <Label Text="Platform:" FontAttributes="Bold" WidthRequest="100" />
+                    <Label Text="Linux (X11/Wayland)" TextColor="{StaticResource TextSecondary}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="#F5F5F5" Padding="15" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout>
+                    <Label Text="Rendering:" FontAttributes="Bold" WidthRequest="100" />
+                    <Label Text="SkiaSharp" TextColor="{StaticResource TextSecondary}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="#F5F5F5" Padding="15" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout>
+                    <Label Text="Framework:" FontAttributes="Bold" WidthRequest="100" />
+                    <Label Text=".NET MAUI" TextColor="{StaticResource TextSecondary}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="#F5F5F5" Padding="15" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout>
+                    <Label Text="License:" FontAttributes="Bold" WidthRequest="100" />
+                    <Label Text="MIT License" TextColor="{StaticResource TextSecondary}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <BoxView HeightRequest="1" Color="LightGray" />
+
+            <Label Text="Features"
+                   FontSize="20"
+                   FontAttributes="Bold" />
+
+            <!-- Feature Items -->
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="&#x2713;" TextColor="#4CAF50" FontSize="16" />
+                <Label Text="Full XAML support with styles and resources" FontSize="14" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="&#x2713;" TextColor="#4CAF50" FontSize="16" />
+                <Label Text="Shell navigation with flyout menus" FontSize="14" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="&#x2713;" TextColor="#4CAF50" FontSize="16" />
+                <Label Text="All standard MAUI controls" FontSize="14" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="&#x2713;" TextColor="#4CAF50" FontSize="16" />
+                <Label Text="Data binding and MVVM" FontSize="14" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="&#x2713;" TextColor="#4CAF50" FontSize="16" />
+                <Label Text="Keyboard and mouse input" FontSize="14" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="&#x2713;" TextColor="#4CAF50" FontSize="16" />
+                <Label Text="High DPI support" FontSize="14" />
+            </HorizontalStackLayout>
+
+            <BoxView HeightRequest="1" Color="LightGray" />
+
+            <Label Text="https://github.com/pablotoledo/OpenMaui-Linux"
+                   FontSize="12"
+                   TextColor="Blue"
+                   HorizontalOptions="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

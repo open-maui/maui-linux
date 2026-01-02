@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.Pages.SelectionPage"
+             Title="Selection"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Main Content -->
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20" Spacing="20">
+
+                <Label Text="Selection Controls"
+                       FontSize="24"
+                       FontAttributes="Bold" />
+
+                <!-- CheckBox Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="CheckBox" FontSize="16" FontAttributes="Bold" />
+
+                        <HorizontalStackLayout Spacing="20">
+                            <CheckBox x:Name="Checkbox1" CheckedChanged="OnCheckbox1Changed" />
+                            <Label Text="Option 1" VerticalOptions="Center" />
+                            <CheckBox x:Name="Checkbox2" IsChecked="True" CheckedChanged="OnCheckbox2Changed" />
+                            <Label Text="Option 2 (default checked)" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Label Text="Colored Checkboxes:" FontSize="12" />
+                        <HorizontalStackLayout Spacing="20">
+                            <CheckBox Color="Red" IsChecked="True" CheckedChanged="OnColoredCheckboxChanged" />
+                            <CheckBox Color="Green" IsChecked="True" CheckedChanged="OnColoredCheckboxChanged" />
+                            <CheckBox Color="Blue" IsChecked="True" CheckedChanged="OnColoredCheckboxChanged" />
+                            <CheckBox Color="Purple" IsChecked="True" CheckedChanged="OnColoredCheckboxChanged" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Spacing="10">
+                            <CheckBox IsChecked="True" IsEnabled="False" />
+                            <Label Text="Disabled (checked)" VerticalOptions="Center" TextColor="{StaticResource TextSecondary}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Switch Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="Switch" FontSize="16" FontAttributes="Bold" />
+
+                        <HorizontalStackLayout Spacing="15">
+                            <Switch x:Name="BasicSwitch" Toggled="OnBasicSwitchToggled" />
+                            <Label x:Name="SwitchStatusLabel" Text="Off" VerticalOptions="Center" WidthRequest="50" />
+                        </HorizontalStackLayout>
+
+                        <Label Text="Colored Switches:" FontSize="12" />
+                        <HorizontalStackLayout Spacing="20">
+                            <Switch IsToggled="True" OnColor="Green" Toggled="OnColoredSwitchToggled" />
+                            <Switch IsToggled="True" OnColor="Orange" Toggled="OnColoredSwitchToggled" />
+                            <Switch IsToggled="True" OnColor="Purple" Toggled="OnColoredSwitchToggled" />
+                        </HorizontalStackLayout>
+
+                        <HorizontalStackLayout Spacing="10">
+                            <Switch IsToggled="True" IsEnabled="False" />
+                            <Label Text="Disabled (on)" VerticalOptions="Center" TextColor="{StaticResource TextSecondary}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Slider Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="Slider" FontSize="16" FontAttributes="Bold" />
+
+                        <Slider x:Name="BasicSlider" Minimum="0" Maximum="100" Value="50" ValueChanged="OnBasicSliderChanged" />
+                        <Label x:Name="SliderValueLabel" Text="Value: 50" />
+
+                        <Label Text="Temperature (0-40C):" FontSize="12" Margin="0,10,0,0" />
+                        <Slider x:Name="TempSlider" Minimum="0" Maximum="40" Value="20" ValueChanged="OnTempSliderChanged" />
+                        <Label x:Name="TempLabel" Text="20C" />
+
+                        <Label Text="Colored Slider:" FontSize="12" Margin="0,10,0,0" />
+                        <Slider Minimum="0" Maximum="100" Value="75"
+                                MinimumTrackColor="Green"
+                                MaximumTrackColor="LightGray"
+                                ThumbColor="DarkGreen"
+                                ValueChanged="OnColoredSliderChanged" />
+
+                        <Label Text="Disabled Slider:" FontSize="12" Margin="0,10,0,0" />
+                        <Slider Minimum="0" Maximum="100" Value="30" IsEnabled="False" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Event Log Panel -->
+        <Border Grid.Row="1"
+                BackgroundColor="#F5F5F5"
+                Padding="12"
+                StrokeThickness="0">
+            <VerticalStackLayout>
+                <Label Text="Event Log:" FontSize="12" FontAttributes="Bold" />
+                <ScrollView HeightRequest="60">
+                    <Label x:Name="EventLog"
+                           Text="Events will appear here..."
+                           FontSize="11"
+                           TextColor="{StaticResource TextSecondary}"
+                           LineBreakMode="WordWrap" />
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

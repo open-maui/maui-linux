@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.Pages.ButtonsPage"
+             Title="Buttons"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Main Content -->
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20" Spacing="20">
+
+                <Label Text="Button Styles &amp; Events"
+                       FontSize="24"
+                       FontAttributes="Bold" />
+
+                <!-- Basic Buttons Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Basic Buttons"
+                               FontSize="16"
+                               FontAttributes="Bold" />
+
+                        <Button x:Name="DefaultButton"
+                                Text="Default Button"
+                                BackgroundColor="{StaticResource PrimaryColor}"
+                                TextColor="White"
+                                Clicked="OnDefaultButtonClicked"
+                                Pressed="OnDefaultButtonPressed"
+                                Released="OnDefaultButtonReleased" />
+
+                        <Button Text="Text Only"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource PrimaryColor}"
+                                Clicked="OnTextButtonClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Styled Buttons Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Styled Buttons"
+                               FontSize="16"
+                               FontAttributes="Bold" />
+
+                        <HorizontalStackLayout Spacing="8">
+                            <Button Text="Primary"
+                                    BackgroundColor="{StaticResource PrimaryColor}"
+                                    TextColor="White"
+                                    CornerRadius="5"
+                                    Clicked="OnPrimaryClicked" />
+                            <Button Text="Success"
+                                    BackgroundColor="{StaticResource SuccessColor}"
+                                    TextColor="White"
+                                    CornerRadius="5"
+                                    Clicked="OnSuccessClicked" />
+                            <Button Text="Warning"
+                                    BackgroundColor="{StaticResource WarningColor}"
+                                    TextColor="White"
+                                    CornerRadius="5"
+                                    Clicked="OnWarningClicked" />
+                            <Button Text="Danger"
+                                    BackgroundColor="{StaticResource DangerColor}"
+                                    TextColor="White"
+                                    CornerRadius="5"
+                                    Clicked="OnDangerClicked" />
+                            <Button Text="Purple"
+                                    BackgroundColor="{StaticResource PurpleColor}"
+                                    TextColor="White"
+                                    CornerRadius="5"
+                                    Clicked="OnPurpleClicked" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Button States Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Button States"
+                               FontSize="16"
+                               FontAttributes="Bold" />
+
+                        <Button Text="Enabled Button"
+                                BackgroundColor="{StaticResource PrimaryColor}"
+                                TextColor="White"
+                                IsEnabled="True"
+                                Clicked="OnEnabledClicked" />
+
+                        <Button x:Name="DisabledButton"
+                                Text="Disabled Button"
+                                IsEnabled="False" />
+
+                        <Button Text="Toggle Above Button"
+                                BackgroundColor="{StaticResource PrimaryColor}"
+                                TextColor="White"
+                                Clicked="OnToggleClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Button Variations Section -->
+                <Border BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderColor}"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="8" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Button Variations"
+                               FontSize="16"
+                               FontAttributes="Bold" />
+
+                        <Button Text="Wide Button"
+                                BackgroundColor="{StaticResource DeepPurpleColor}"
+                                TextColor="White"
+                                HorizontalOptions="Fill"
+                                Clicked="OnWideClicked" />
+
+                        <Button Text="Tall Button"
+                                BackgroundColor="#009688"
+                                TextColor="White"
+                                HeightRequest="60"
+                                Clicked="OnTallClicked" />
+
+                        <Button Text="Round"
+                                BackgroundColor="#E91E63"
+                                TextColor="White"
+                                WidthRequest="80"
+                                HeightRequest="80"
+                                CornerRadius="40"
+                                HorizontalOptions="Start"
+                                Clicked="OnRoundClicked" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Event Log Panel -->
+        <Border Grid.Row="1"
+                BackgroundColor="#F5F5F5"
+                Padding="12"
+                StrokeThickness="0">
+            <VerticalStackLayout>
+                <Label Text="Event Log:"
+                       FontSize="12"
+                       FontAttributes="Bold" />
+                <ScrollView HeightRequest="60">
+                    <Label x:Name="EventLog"
+                           Text="Events will appear here..."
+                           FontSize="11"
+                           TextColor="{StaticResource TextSecondary}"
+                           LineBreakMode="WordWrap" />
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>

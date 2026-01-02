@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:pages="clr-namespace:ShellDemo.Pages"
+       x:Class="ShellDemo.AppShell"
+       Title="OpenMaui Controls Demo"
+       FlyoutBehavior="Flyout"
+       Shell.BackgroundColor="{StaticResource PrimaryColor}"
+       Shell.ForegroundColor="White"
+       Shell.TitleColor="White">
+
+    <FlyoutItem Title="Home" Route="Home">
+        <ShellContent ContentTemplate="{DataTemplate pages:HomePage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Buttons" Route="Buttons">
+        <ShellContent ContentTemplate="{DataTemplate pages:ButtonsPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Text Input" Route="TextInput">
+        <ShellContent ContentTemplate="{DataTemplate pages:TextInputPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Selection" Route="Selection">
+        <ShellContent ContentTemplate="{DataTemplate pages:SelectionPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Pickers" Route="Pickers">
+        <ShellContent ContentTemplate="{DataTemplate pages:PickersPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Lists" Route="Lists">
+        <ShellContent ContentTemplate="{DataTemplate pages:ListsPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Progress" Route="Progress">
+        <ShellContent ContentTemplate="{DataTemplate pages:ProgressPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Grids" Route="Grids">
+        <ShellContent ContentTemplate="{DataTemplate pages:GridsPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="About" Route="About">
+        <ShellContent ContentTemplate="{DataTemplate pages:AboutPage}" />
+    </FlyoutItem>
+
+</Shell>

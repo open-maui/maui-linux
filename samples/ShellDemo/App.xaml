@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Primary Colors -->
+            <Color x:Key="PrimaryColor">#03A9F4</Color>
+            <Color x:Key="PrimaryDarkColor">#0288D1</Color>
+
+            <!-- Semantic Colors -->
+            <Color x:Key="SuccessColor">#4CAF50</Color>
+            <Color x:Key="WarningColor">#FF9800</Color>
+            <Color x:Key="DangerColor">#F44336</Color>
+            <Color x:Key="PurpleColor">#9C27B0</Color>
+            <Color x:Key="DeepPurpleColor">#673AB7</Color>
+
+            <!-- Background Colors -->
+            <Color x:Key="PageBackground">#F5F5F5</Color>
+            <Color x:Key="CardBackground">#FFFFFF</Color>
+            <Color x:Key="ThemeToggleBackground">#E1F5FE</Color>
+
+            <!-- Text Colors -->
+            <Color x:Key="TextPrimary">#212121</Color>
+            <Color x:Key="TextSecondary">#757575</Color>
+
+            <!-- Border Colors -->
+            <Color x:Key="BorderColor">#E0E0E0</Color>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
