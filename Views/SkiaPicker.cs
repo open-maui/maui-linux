@@ -464,11 +464,28 @@ public class SkiaPicker : SkiaView
         canvas.DrawRoundRect(buttonRect, borderPaint);
 
         // Draw text or title
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        SKTypeface typeface = SKTypeface.Default;
+        if (!string.IsNullOrEmpty(FontFamily))
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
+        }
+
+        using var font = new SKFont(typeface, fontSize);
         using var textPaint = new SKPaint(font)
         {
             IsAntialias = true
         };
+
+        // Note: SkiaSharp doesn't have direct character spacing support.
+        // CharacterSpacing is stored but would require custom text rendering
+        // for full implementation (drawing characters individually with offsets).
 
         string displayText;
         if (SelectedIndex >= 0 && SelectedIndex < _items.Count)
@@ -485,8 +502,24 @@ public class SkiaPicker : SkiaView
         var textBounds = new SKRect();
         textPaint.MeasureText(displayText, ref textBounds);
 
-        var textX = bounds.Left + 12;
-        var textY = bounds.MidY - textBounds.MidY;
+        // Calculate horizontal position based on alignment
+        float arrowWidth = 24f; // Reserve space for dropdown arrow
+        float availableWidth = bounds.Width - 24 - arrowWidth; // 12px padding on each side
+        float textX = HorizontalTextAlignment switch
+        {
+            TextAlignment.Center => bounds.Left + 12 + (availableWidth - textBounds.Width) / 2,
+            TextAlignment.End => bounds.Right - arrowWidth - 12 - textBounds.Width,
+            _ => bounds.Left + 12 // Start alignment
+        };
+
+        // Calculate vertical position based on alignment
+        float textY = VerticalTextAlignment switch
+        {
+            TextAlignment.Start => bounds.Top + fontSize + 4,
+            TextAlignment.End => bounds.Bottom - 4,
+            _ => bounds.MidY - textBounds.MidY // Center alignment
+        };
+
         canvas.DrawText(displayText, textX, textY, textPaint);
 
         // Draw dropdown arrow
