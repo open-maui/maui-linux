@@ -226,20 +226,20 @@ public static class LinuxProgramHost
         var buttonSection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
 
         var btnPrimary = new SkiaButton { Text = "Primary", FontSize = 14 };
-        btnPrimary.BackgroundColor = new SKColor(0x21, 0x96, 0xF3);
-        btnPrimary.TextColor = SKColors.White;
+        btnPrimary.BackgroundColor = new SKColor(0x21, 0x96, 0xF3); // Uses base SkiaView's SKColor BackgroundColor
+        btnPrimary.TextColor = Colors.White;
         var clickCount = 0;
         btnPrimary.Clicked += (s, e) => { clickCount++; btnPrimary.Text = $"Clicked {clickCount}x"; };
         buttonSection.AddChild(btnPrimary);
 
         var btnSuccess = new SkiaButton { Text = "Success", FontSize = 14 };
         btnSuccess.BackgroundColor = new SKColor(0x4C, 0xAF, 0x50);
-        btnSuccess.TextColor = SKColors.White;
+        btnSuccess.TextColor = Colors.White;
         buttonSection.AddChild(btnSuccess);
 
         var btnDanger = new SkiaButton { Text = "Danger", FontSize = 14 };
         btnDanger.BackgroundColor = new SKColor(0xF4, 0x43, 0x36);
-        btnDanger.TextColor = SKColors.White;
+        btnDanger.TextColor = Colors.White;
         buttonSection.AddChild(btnDanger);
 
         root.AddChild(buttonSection);
