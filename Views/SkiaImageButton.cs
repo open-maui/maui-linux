@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -14,12 +17,79 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered image button control.
 /// Combines button behavior with image display.
+/// Implements MAUI IImageButton interface requirements.
 /// </summary>
 public class SkiaImageButton : SkiaView
 {
+    #region Private Fields
     private SKBitmap? _bitmap;
     private SKImage? _image;
     private bool _isLoading;
+    #endregion
+
+    #region SKColor Helper
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+    #endregion
+
+    #region BindableProperties
+
+    public static readonly BindableProperty AspectProperty = BindableProperty.Create(
+        nameof(Aspect), typeof(Aspect), typeof(SkiaImageButton), Aspect.AspectFit,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty IsOpaqueProperty = BindableProperty.Create(
+        nameof(IsOpaque), typeof(bool), typeof(SkiaImageButton), false,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty StrokeColorProperty = BindableProperty.Create(
+        nameof(StrokeColor), typeof(Color), typeof(SkiaImageButton), Colors.Transparent,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty StrokeThicknessProperty = BindableProperty.Create(
+        nameof(StrokeThickness), typeof(double), typeof(SkiaImageButton), 0.0,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty CornerRadiusProperty = BindableProperty.Create(
+        nameof(CornerRadius), typeof(int), typeof(SkiaImageButton), 0,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty PaddingProperty = BindableProperty.Create(
+        nameof(Padding), typeof(Thickness), typeof(SkiaImageButton), new Thickness(0),
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty PressedBackgroundColorProperty = BindableProperty.Create(
+        nameof(PressedBackgroundColor), typeof(Color), typeof(SkiaImageButton),
+        Color.FromRgba(0, 0, 0, 30),
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty HoveredBackgroundColorProperty = BindableProperty.Create(
+        nameof(HoveredBackgroundColor), typeof(Color), typeof(SkiaImageButton),
+        Color.FromRgba(0, 0, 0, 15),
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty ImageBackgroundColorProperty = BindableProperty.Create(
+        nameof(ImageBackgroundColor), typeof(Color), typeof(SkiaImageButton), null,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
+
+    public static readonly BindableProperty CommandProperty = BindableProperty.Create(
+        nameof(Command), typeof(ICommand), typeof(SkiaImageButton), null,
+        propertyChanged: OnCommandChanged);
+
+    public static readonly BindableProperty CommandParameterProperty = BindableProperty.Create(
+        nameof(CommandParameter), typeof(object), typeof(SkiaImageButton), null,
+        propertyChanged: (b, o, n) => ((SkiaImageButton)b).UpdateCommandCanExecute());
+
+    #endregion
+
+    #region Properties
 
     public SKBitmap? Bitmap
     {
@@ -34,57 +104,172 @@ public class SkiaImageButton : SkiaView
         }
     }
 
-    // Image properties
-    public Aspect Aspect { get; set; } = Aspect.AspectFit;
-    public bool IsOpaque { get; set; }
+    public Aspect Aspect
+    {
+        get => (Aspect)GetValue(AspectProperty);
+        set => SetValue(AspectProperty, value);
+    }
+
+    public bool IsOpaque
+    {
+        get => (bool)GetValue(IsOpaqueProperty);
+        set => SetValue(IsOpaqueProperty, value);
+    }
+
     public bool IsLoading => _isLoading;
 
-    // Button stroke properties
-    public SKColor StrokeColor { get; set; } = SKColors.Transparent;
-    public float StrokeThickness { get; set; } = 0;
-    public float CornerRadius { get; set; } = 0;
+    public Color StrokeColor
+    {
+        get => (Color)GetValue(StrokeColorProperty);
+        set => SetValue(StrokeColorProperty, value);
+    }
+
+    public double StrokeThickness
+    {
+        get => (double)GetValue(StrokeThicknessProperty);
+        set => SetValue(StrokeThicknessProperty, value);
+    }
+
+    public int CornerRadius
+    {
+        get => (int)GetValue(CornerRadiusProperty);
+        set => SetValue(CornerRadiusProperty, value);
+    }
+
+    public Thickness Padding
+    {
+        get => (Thickness)GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
+
+    public Color PressedBackgroundColor
+    {
+        get => (Color)GetValue(PressedBackgroundColorProperty);
+        set => SetValue(PressedBackgroundColorProperty, value);
+    }
+
+    public Color HoveredBackgroundColor
+    {
+        get => (Color)GetValue(HoveredBackgroundColorProperty);
+        set => SetValue(HoveredBackgroundColorProperty, value);
+    }
+
+    public Color? ImageBackgroundColor
+    {
+        get => (Color?)GetValue(ImageBackgroundColorProperty);
+        set => SetValue(ImageBackgroundColorProperty, value);
+    }
+
+    public ICommand? Command
+    {
+        get => (ICommand?)GetValue(CommandProperty);
+        set => SetValue(CommandProperty, value);
+    }
+
+    public object? CommandParameter
+    {
+        get => GetValue(CommandParameterProperty);
+        set => SetValue(CommandParameterProperty, value);
+    }
 
     // Button state
     public bool IsPressed { get; private set; }
     public bool IsHovered { get; private set; }
 
-    // Visual state colors
-    public SKColor PressedBackgroundColor { get; set; } = new SKColor(0, 0, 0, 30);
-    public SKColor HoveredBackgroundColor { get; set; } = new SKColor(0, 0, 0, 15);
+    #endregion
 
-    // Padding for the image content
-    public float PaddingLeft { get; set; }
-    public float PaddingTop { get; set; }
-    public float PaddingRight { get; set; }
-    public float PaddingBottom { get; set; }
-
+    #region Events
     public event EventHandler? Clicked;
     public event EventHandler? Pressed;
     public event EventHandler? Released;
     public event EventHandler? ImageLoaded;
     public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
+    #endregion
+
+    #region Constructor
 
     public SkiaImageButton()
     {
         IsFocusable = true;
     }
 
+    #endregion
+
+    #region Command Support
+
+    private static void OnCommandChanged(BindableObject bindable, object oldValue, object newValue)
+    {
+        var button = (SkiaImageButton)bindable;
+
+        if (oldValue is ICommand oldCommand)
+        {
+            oldCommand.CanExecuteChanged -= button.OnCommandCanExecuteChanged;
+        }
+
+        if (newValue is ICommand newCommand)
+        {
+            newCommand.CanExecuteChanged += button.OnCommandCanExecuteChanged;
+        }
+
+        button.UpdateCommandCanExecute();
+    }
+
+    private void OnCommandCanExecuteChanged(object? sender, EventArgs e)
+    {
+        UpdateCommandCanExecute();
+    }
+
+    private void UpdateCommandCanExecute()
+    {
+        if (Command != null)
+        {
+            IsEnabled = Command.CanExecute(CommandParameter);
+        }
+    }
+
+    private void ExecuteCommand()
+    {
+        if (Command?.CanExecute(CommandParameter) == true)
+        {
+            Command.Execute(CommandParameter);
+        }
+    }
+
+    #endregion
+
+    #region Rendering
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Apply padding
+        var padding = Padding;
         var contentBounds = new SKRect(
-            bounds.Left + PaddingLeft,
-            bounds.Top + PaddingTop,
-            bounds.Right - PaddingRight,
-            bounds.Bottom - PaddingBottom);
+            bounds.Left + (float)padding.Left,
+            bounds.Top + (float)padding.Top,
+            bounds.Right - (float)padding.Right,
+            bounds.Bottom - (float)padding.Bottom);
 
-        // Draw background based on state
-        if (IsPressed || IsHovered || !IsOpaque && BackgroundColor != SKColors.Transparent)
+        // Determine background color
+        SKColor bgColor;
+        if (IsPressed)
         {
-            var bgColor = IsPressed ? PressedBackgroundColor
-                        : IsHovered ? HoveredBackgroundColor
-                        : BackgroundColor;
+            bgColor = ToSKColor(PressedBackgroundColor);
+        }
+        else if (IsHovered)
+        {
+            bgColor = ToSKColor(HoveredBackgroundColor);
+        }
+        else if (ImageBackgroundColor != null)
+        {
+            bgColor = ToSKColor(ImageBackgroundColor);
+        }
+        else
+        {
+            bgColor = BackgroundColor;
+        }
 
+        // Draw background
+        if (bgColor != SKColors.Transparent || !IsOpaque)
+        {
             using var bgPaint = new SKPaint
             {
                 Color = bgColor,
@@ -130,13 +315,15 @@ public class SkiaImageButton : SkiaView
         }
 
         // Draw stroke/border
-        if (StrokeThickness > 0 && StrokeColor != SKColors.Transparent)
+        var strokeThickness = (float)StrokeThickness;
+        var strokeColor = ToSKColor(StrokeColor);
+        if (strokeThickness > 0 && strokeColor != SKColors.Transparent)
         {
             using var strokePaint = new SKPaint
             {
-                Color = StrokeColor,
+                Color = strokeColor,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = StrokeThickness,
+                StrokeWidth = strokeThickness,
                 IsAntialias = true
             };
 
@@ -210,7 +397,10 @@ public class SkiaImageButton : SkiaView
         }
     }
 
-    // Image loading methods
+    #endregion
+
+    #region Image Loading
+
     public async Task LoadFromFileAsync(string filePath)
     {
         _isLoading = true;
@@ -257,6 +447,7 @@ public class SkiaImageButton : SkiaView
                 return;
             }
 
+            var padding = Padding;
             await Task.Run(() =>
             {
                 if (foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
@@ -272,10 +463,10 @@ public class SkiaImageButton : SkiaView
                         // Default to 24x24 for icons when no size specified
                         const float DefaultIconSize = 24f;
                         float targetWidth = hasWidth
-                            ? (float)(WidthRequest - PaddingLeft - PaddingRight)
+                            ? (float)(WidthRequest - padding.Left - padding.Right)
                             : DefaultIconSize;
                         float targetHeight = hasHeight
-                            ? (float)(HeightRequest - PaddingTop - PaddingBottom)
+                            ? (float)(HeightRequest - padding.Top - padding.Bottom)
                             : DefaultIconSize;
 
                         float scale = Math.Min(targetWidth / cullRect.Width, targetHeight / cullRect.Height);
@@ -376,6 +567,12 @@ public class SkiaImageButton : SkiaView
     {
         try
         {
+            if (data == null || data.Length == 0)
+            {
+                Bitmap = null;
+                return;
+            }
+
             using var stream = new MemoryStream(data);
             var bitmap = SKBitmap.Decode(stream);
             if (bitmap != null)
@@ -390,7 +587,16 @@ public class SkiaImageButton : SkiaView
         }
     }
 
-    // Pointer event handlers
+    public void LoadFromBitmap(SKBitmap bitmap)
+    {
+        Bitmap = bitmap;
+        ImageLoaded?.Invoke(this, EventArgs.Empty);
+    }
+
+    #endregion
+
+    #region Pointer Event Handlers
+
     public override void OnPointerEntered(PointerEventArgs e)
     {
         if (!IsEnabled) return;
@@ -438,10 +644,14 @@ public class SkiaImageButton : SkiaView
         if (wasPressed && Bounds.Contains(new SKPoint(e.X, e.Y)))
         {
             Clicked?.Invoke(this, EventArgs.Empty);
+            ExecuteCommand();
         }
     }
 
-    // Keyboard event handlers
+    #endregion
+
+    #region Keyboard Event Handlers
+
     public override void OnKeyDown(KeyEventArgs e)
     {
         if (!IsEnabled) return;
@@ -467,13 +677,22 @@ public class SkiaImageButton : SkiaView
                 Invalidate();
                 Released?.Invoke(this, EventArgs.Empty);
                 Clicked?.Invoke(this, EventArgs.Empty);
+                ExecuteCommand();
             }
             e.Handled = true;
         }
     }
 
+    #endregion
+
+    #region Layout
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
+        var padding = Padding;
+        var paddingWidth = (float)(padding.Left + padding.Right);
+        var paddingHeight = (float)(padding.Top + padding.Bottom);
+
         // Respect explicit WidthRequest/HeightRequest first (MAUI standard behavior)
         if (WidthRequest > 0 && HeightRequest > 0)
         {
@@ -497,10 +716,8 @@ public class SkiaImageButton : SkiaView
         }
 
         // No explicit size - calculate from content
-        var padding = new SKSize(PaddingLeft + PaddingRight, PaddingTop + PaddingBottom);
-
         if (_image == null)
-            return new SKSize(44 + padding.Width, 44 + padding.Height); // Default touch target size
+            return new SKSize(44 + paddingWidth, 44 + paddingHeight); // Default touch target size
 
         var imageWidth = _image.Width;
         var imageHeight = _image.Height;
@@ -508,25 +725,25 @@ public class SkiaImageButton : SkiaView
         if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
         {
             var availableContent = new SKSize(
-                availableSize.Width - padding.Width,
-                availableSize.Height - padding.Height);
+                availableSize.Width - paddingWidth,
+                availableSize.Height - paddingHeight);
             var scale = Math.Min(availableContent.Width / imageWidth, availableContent.Height / imageHeight);
-            return new SKSize(imageWidth * scale + padding.Width, imageHeight * scale + padding.Height);
+            return new SKSize(imageWidth * scale + paddingWidth, imageHeight * scale + paddingHeight);
         }
         else if (availableSize.Width < float.MaxValue)
         {
-            var availableWidth = availableSize.Width - padding.Width;
+            var availableWidth = availableSize.Width - paddingWidth;
             var scale = availableWidth / imageWidth;
-            return new SKSize(availableSize.Width, imageHeight * scale + padding.Height);
+            return new SKSize(availableSize.Width, imageHeight * scale + paddingHeight);
         }
         else if (availableSize.Height < float.MaxValue)
         {
-            var availableHeight = availableSize.Height - padding.Height;
+            var availableHeight = availableSize.Height - paddingHeight;
             var scale = availableHeight / imageHeight;
-            return new SKSize(imageWidth * scale + padding.Width, availableSize.Height);
+            return new SKSize(imageWidth * scale + paddingWidth, availableSize.Height);
         }
 
-        return new SKSize(imageWidth + padding.Width, imageHeight + padding.Height);
+        return new SKSize(imageWidth + paddingWidth, imageHeight + paddingHeight);
     }
 
     protected override SKRect ArrangeOverride(SKRect bounds)
@@ -576,13 +793,25 @@ public class SkiaImageButton : SkiaView
         return bounds;
     }
 
+    #endregion
+
+    #region Dispose
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            // Unsubscribe from command
+            if (Command != null)
+            {
+                Command.CanExecuteChanged -= OnCommandCanExecuteChanged;
+            }
+
             _bitmap?.Dispose();
             _image?.Dispose();
         }
         base.Dispose(disposing);
     }
+
+    #endregion
 }

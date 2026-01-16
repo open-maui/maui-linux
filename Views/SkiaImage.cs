@@ -2,25 +2,199 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered image control with SVG support.
+/// Skia-rendered image control with SVG support and GIF animation.
+/// Full MAUI-compliant implementation.
 /// </summary>
 public class SkiaImage : SkiaView
 {
+    #region Image Cache
+
+    /// <summary>
+    /// Static image cache for decoded bitmaps to avoid re-decoding.
+    /// Key is the file path or URI, value is the cached bitmap data.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, CachedImage> _imageCache = new();
+    private static readonly object _cacheLock = new();
+    private const int MaxCacheSize = 50; // Maximum number of cached images
+    private const long MaxCacheMemoryBytes = 100 * 1024 * 1024; // 100MB max cache
+
+    private class CachedImage
+    {
+        public SKBitmap? Bitmap { get; set; }
+        public List<AnimationFrame>? Frames { get; set; }
+        public bool IsAnimated { get; set; }
+        public DateTime LastAccessed { get; set; }
+        public long MemorySize { get; set; }
+    }
+
+    /// <summary>
+    /// Clears the image cache.
+    /// </summary>
+    public static void ClearCache()
+    {
+        lock (_cacheLock)
+        {
+            foreach (var cached in _imageCache.Values)
+            {
+                cached.Bitmap?.Dispose();
+                if (cached.Frames != null)
+                {
+                    foreach (var frame in cached.Frames)
+                    {
+                        frame.Bitmap?.Dispose();
+                    }
+                }
+            }
+            _imageCache.Clear();
+        }
+    }
+
+    private static void TrimCacheIfNeeded()
+    {
+        lock (_cacheLock)
+        {
+            if (_imageCache.Count <= MaxCacheSize)
+                return;
+
+            // Calculate total memory
+            long totalMemory = 0;
+            foreach (var cached in _imageCache.Values)
+            {
+                totalMemory += cached.MemorySize;
+            }
+
+            // If under memory limit and count limit, don't trim
+            if (totalMemory < MaxCacheMemoryBytes && _imageCache.Count <= MaxCacheSize)
+                return;
+
+            // Remove oldest entries until under limits
+            var sortedEntries = _imageCache.ToArray();
+            Array.Sort(sortedEntries, (a, b) => a.Value.LastAccessed.CompareTo(b.Value.LastAccessed));
+
+            int removeCount = Math.Max(1, _imageCache.Count - MaxCacheSize + 10);
+            for (int i = 0; i < removeCount && i < sortedEntries.Length; i++)
+            {
+                if (_imageCache.TryRemove(sortedEntries[i].Key, out var removed))
+                {
+                    removed.Bitmap?.Dispose();
+                    if (removed.Frames != null)
+                    {
+                        foreach (var frame in removed.Frames)
+                        {
+                            frame.Bitmap?.Dispose();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #endregion
+
+    #region Animation Support
+
+    private class AnimationFrame
+    {
+        public SKBitmap? Bitmap { get; set; }
+        public int Duration { get; set; } // Duration in milliseconds
+    }
+
+    private List<AnimationFrame>? _animationFrames;
+    private int _currentFrameIndex;
+    private System.Timers.Timer? _animationTimer;
+    private bool _isAnimatedImage;
+
+    #endregion
+
+    #region BindableProperties
+
+    /// <summary>
+    /// Bindable property for Aspect.
+    /// </summary>
+    public static readonly BindableProperty AspectProperty =
+        BindableProperty.Create(
+            nameof(Aspect),
+            typeof(Aspect),
+            typeof(SkiaImage),
+            Aspect.AspectFit,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaImage)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for IsOpaque.
+    /// </summary>
+    public static readonly BindableProperty IsOpaqueProperty =
+        BindableProperty.Create(
+            nameof(IsOpaque),
+            typeof(bool),
+            typeof(SkiaImage),
+            false,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaImage)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for IsAnimationPlaying.
+    /// </summary>
+    public static readonly BindableProperty IsAnimationPlayingProperty =
+        BindableProperty.Create(
+            nameof(IsAnimationPlaying),
+            typeof(bool),
+            typeof(SkiaImage),
+            false,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaImage)b).OnIsAnimationPlayingChanged((bool)n));
+
+    /// <summary>
+    /// Bindable property for ImageBackgroundColor (MAUI Color for background).
+    /// </summary>
+    public static readonly BindableProperty ImageBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(ImageBackgroundColor),
+            typeof(Color),
+            typeof(SkiaImage),
+            Colors.Transparent,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaImage)b).Invalidate());
+
+    #endregion
+
+    #region Color Conversion Helper
+
+    /// <summary>
+    /// Converts a MAUI Color to SkiaSharp SKColor.
+    /// </summary>
+    private static SKColor ToSKColor(Color color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    #endregion
+
     private SKBitmap? _bitmap;
     private SKImage? _image;
     private bool _isLoading;
     private string? _currentFilePath;
+    private string? _cacheKey;
     private bool _isSvg;
     private CancellationTokenSource? _loadCts;
     private readonly object _loadLock = new object();
@@ -34,7 +208,11 @@ public class SkiaImage : SkiaView
         get => _bitmap;
         set
         {
-            _bitmap?.Dispose();
+            // Don't dispose if this is a cached bitmap
+            if (_bitmap != null && (_cacheKey == null || !_imageCache.ContainsKey(_cacheKey)))
+            {
+                _bitmap.Dispose();
+            }
             _bitmap = value;
             _image?.Dispose();
             _image = value != null ? SKImage.FromBitmap(value) : null;
@@ -42,13 +220,48 @@ public class SkiaImage : SkiaView
         }
     }
 
-    public Aspect Aspect { get; set; }
+    /// <summary>
+    /// Gets or sets the aspect ratio scaling mode.
+    /// </summary>
+    public Aspect Aspect
+    {
+        get => (Aspect)GetValue(AspectProperty);
+        set => SetValue(AspectProperty, value);
+    }
 
-    public bool IsOpaque { get; set; }
+    /// <summary>
+    /// Gets or sets whether the image is opaque.
+    /// </summary>
+    public bool IsOpaque
+    {
+        get => (bool)GetValue(IsOpaqueProperty);
+        set => SetValue(IsOpaqueProperty, value);
+    }
 
+    /// <summary>
+    /// Gets whether the image is currently loading.
+    /// </summary>
     public bool IsLoading => _isLoading;
 
-    public bool IsAnimationPlaying { get; set; }
+    /// <summary>
+    /// Gets or sets whether animation is playing (for GIF support).
+    /// When set to true, animated GIFs will play their animation.
+    /// When set to false, the first frame is displayed.
+    /// </summary>
+    public bool IsAnimationPlaying
+    {
+        get => (bool)GetValue(IsAnimationPlayingProperty);
+        set => SetValue(IsAnimationPlayingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the image background color (MAUI Color type).
+    /// </summary>
+    public Color ImageBackgroundColor
+    {
+        get => (Color)GetValue(ImageBackgroundColorProperty);
+        set => SetValue(ImageBackgroundColorProperty, value);
+    }
 
     public new double WidthRequest
     {
@@ -73,6 +286,78 @@ public class SkiaImage : SkiaView
     public event EventHandler? ImageLoaded;
     public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
 
+    private void OnIsAnimationPlayingChanged(bool isPlaying)
+    {
+        if (_isAnimatedImage && _animationFrames != null && _animationFrames.Count > 1)
+        {
+            if (isPlaying)
+            {
+                StartAnimation();
+            }
+            else
+            {
+                StopAnimation();
+            }
+        }
+    }
+
+    private void StartAnimation()
+    {
+        if (_animationFrames == null || _animationFrames.Count <= 1)
+            return;
+
+        StopAnimation();
+
+        var frame = _animationFrames[_currentFrameIndex];
+        int duration = frame.Duration > 0 ? frame.Duration : 100; // Default 100ms if not specified
+
+        _animationTimer = new System.Timers.Timer(duration);
+        _animationTimer.Elapsed += OnAnimationTimerElapsed;
+        _animationTimer.AutoReset = false;
+        _animationTimer.Start();
+    }
+
+    private void StopAnimation()
+    {
+        if (_animationTimer != null)
+        {
+            _animationTimer.Stop();
+            _animationTimer.Elapsed -= OnAnimationTimerElapsed;
+            _animationTimer.Dispose();
+            _animationTimer = null;
+        }
+    }
+
+    private void OnAnimationTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        if (_animationFrames == null || _animationFrames.Count <= 1 || !IsAnimationPlaying)
+            return;
+
+        // Move to next frame
+        _currentFrameIndex = (_currentFrameIndex + 1) % _animationFrames.Count;
+
+        // Update the displayed image
+        var frame = _animationFrames[_currentFrameIndex];
+        if (frame.Bitmap != null)
+        {
+            _image?.Dispose();
+            _image = SKImage.FromBitmap(frame.Bitmap);
+            Invalidate();
+        }
+
+        // Schedule next frame
+        if (IsAnimationPlaying)
+        {
+            int duration = frame.Duration > 0 ? frame.Duration : 100;
+            _animationTimer?.Stop();
+            if (_animationTimer != null)
+            {
+                _animationTimer.Interval = duration;
+                _animationTimer.Start();
+            }
+        }
+    }
+
     private void ScheduleSvgReloadIfNeeded()
     {
         if (_isSvg && !string.IsNullOrEmpty(_currentFilePath))
@@ -95,7 +380,6 @@ public class SkiaImage : SkiaView
         _pendingSvgReload = false;
         if (!string.IsNullOrEmpty(_currentFilePath) && WidthRequest > 0.0 && HeightRequest > 0.0)
         {
-            Console.WriteLine($"[SkiaImage] Reloading SVG at {WidthRequest}x{HeightRequest} (was {_svgLoadedWidth}x{_svgLoadedHeight})");
             await LoadSvgAtSizeAsync(_currentFilePath, WidthRequest, HeightRequest);
         }
     }
@@ -103,11 +387,12 @@ public class SkiaImage : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background if not opaque
-        if (!IsOpaque && BackgroundColor != SKColors.Transparent)
+        var bgColor = ImageBackgroundColor != null ? ToSKColor(ImageBackgroundColor) : SKColors.Transparent;
+        if (!IsOpaque && bgColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = BackgroundColor,
+                Color = bgColor,
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);
@@ -176,7 +461,6 @@ public class SkiaImage : SkiaView
     {
         _isLoading = true;
         Invalidate();
-        Console.WriteLine($"[SkiaImage] LoadFromFileAsync: {filePath}, WidthRequest={WidthRequest}, HeightRequest={HeightRequest}");
 
         try
         {
@@ -204,40 +488,63 @@ public class SkiaImage : SkiaView
                 if (File.Exists(path))
                 {
                     foundPath = path;
-                    Console.WriteLine("[SkiaImage] Found file at: " + path);
                     break;
                 }
             }
 
             if (foundPath == null)
             {
-                Console.WriteLine("[SkiaImage] File not found: " + filePath);
                 _isLoading = false;
                 _isSvg = false;
                 _currentFilePath = null;
+                _cacheKey = null;
                 ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
                 return;
             }
 
             _isSvg = foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
             _currentFilePath = foundPath;
+            _cacheKey = foundPath;
 
-            if (!_isSvg)
+            // Check cache first
+            if (_imageCache.TryGetValue(foundPath, out var cached))
             {
-                await Task.Run(() =>
+                cached.LastAccessed = DateTime.UtcNow;
+                if (cached.IsAnimated && cached.Frames != null)
                 {
-                    using FileStream stream = File.OpenRead(foundPath);
-                    SKBitmap? bitmap = SKBitmap.Decode(stream);
-                    if (bitmap != null)
+                    _isAnimatedImage = true;
+                    _animationFrames = cached.Frames;
+                    _currentFrameIndex = 0;
+                    if (cached.Frames.Count > 0 && cached.Frames[0].Bitmap != null)
                     {
-                        Bitmap = bitmap;
-                        Console.WriteLine("[SkiaImage] Loaded image: " + foundPath);
+                        _image?.Dispose();
+                        _image = SKImage.FromBitmap(cached.Frames[0].Bitmap);
                     }
-                });
+                    if (IsAnimationPlaying)
+                    {
+                        StartAnimation();
+                    }
+                }
+                else if (cached.Bitmap != null)
+                {
+                    _isAnimatedImage = false;
+                    _bitmap = cached.Bitmap;
+                    _image?.Dispose();
+                    _image = SKImage.FromBitmap(cached.Bitmap);
+                }
+                _isLoading = false;
+                ImageLoaded?.Invoke(this, EventArgs.Empty);
+                Invalidate();
+                return;
+            }
+
+            if (_isSvg)
+            {
+                await LoadSvgAtSizeAsync(foundPath, WidthRequest, HeightRequest);
             }
             else
             {
-                await LoadSvgAtSizeAsync(foundPath, WidthRequest, HeightRequest);
+                await LoadImageWithAnimationSupportAsync(foundPath);
             }
 
             _isLoading = false;
@@ -250,6 +557,103 @@ public class SkiaImage : SkiaView
         }
 
         Invalidate();
+    }
+
+    private async Task LoadImageWithAnimationSupportAsync(string filePath)
+    {
+        await Task.Run(() =>
+        {
+            using var stream = File.OpenRead(filePath);
+            using var codec = SKCodec.Create(stream);
+
+            if (codec == null)
+            {
+                // Fallback to simple decode
+                stream.Position = 0;
+                var bitmap = SKBitmap.Decode(stream);
+                if (bitmap != null)
+                {
+                    CacheAndSetBitmap(filePath, bitmap, false);
+                }
+                return;
+            }
+
+            int frameCount = codec.FrameCount;
+
+            if (frameCount > 1)
+            {
+                // Animated image (GIF)
+                _isAnimatedImage = true;
+                _animationFrames = new List<AnimationFrame>();
+                var info = codec.Info;
+
+                for (int i = 0; i < frameCount; i++)
+                {
+                    var frameInfo = codec.FrameInfo[i];
+                    var bitmap = new SKBitmap(info.Width, info.Height);
+
+                    var options = new SKCodecOptions(i);
+                    codec.GetPixels(bitmap.Info, bitmap.GetPixels(), options);
+
+                    _animationFrames.Add(new AnimationFrame
+                    {
+                        Bitmap = bitmap,
+                        Duration = frameInfo.Duration > 0 ? frameInfo.Duration : 100
+                    });
+                }
+
+                // Cache the animation frames
+                long memorySize = _animationFrames.Sum(f => (long)(f.Bitmap?.ByteCount ?? 0));
+                _imageCache[filePath] = new CachedImage
+                {
+                    Frames = _animationFrames,
+                    IsAnimated = true,
+                    LastAccessed = DateTime.UtcNow,
+                    MemorySize = memorySize
+                };
+                TrimCacheIfNeeded();
+
+                // Set first frame as current image
+                _currentFrameIndex = 0;
+                if (_animationFrames.Count > 0 && _animationFrames[0].Bitmap != null)
+                {
+                    _image?.Dispose();
+                    _image = SKImage.FromBitmap(_animationFrames[0].Bitmap);
+                }
+
+                // Start animation if requested
+                if (IsAnimationPlaying)
+                {
+                    StartAnimation();
+                }
+            }
+            else
+            {
+                // Static image
+                _isAnimatedImage = false;
+                var bitmap = SKBitmap.Decode(codec, codec.Info);
+                if (bitmap != null)
+                {
+                    CacheAndSetBitmap(filePath, bitmap, false);
+                }
+            }
+        });
+    }
+
+    private void CacheAndSetBitmap(string cacheKey, SKBitmap bitmap, bool isAnimated)
+    {
+        _imageCache[cacheKey] = new CachedImage
+        {
+            Bitmap = bitmap,
+            IsAnimated = isAnimated,
+            LastAccessed = DateTime.UtcNow,
+            MemorySize = bitmap.ByteCount
+        };
+        TrimCacheIfNeeded();
+
+        _bitmap = bitmap;
+        _image?.Dispose();
+        _image = SKImage.FromBitmap(bitmap);
     }
 
     private async Task LoadSvgAtSizeAsync(string svgPath, double targetWidth, double targetHeight)
@@ -293,8 +697,6 @@ public class SkiaImage : SkiaView
                     canvas.Clear(SKColors.Transparent);
                     canvas.Scale(scale);
                     canvas.DrawPicture(svg.Picture, null);
-
-                    Console.WriteLine($"[SkiaImage] Loaded SVG: {svgPath} at {bitmapWidth}x{bitmapHeight} (requested {targetWidth}x{targetHeight})");
                 }
             }, cts.Token);
 
@@ -302,6 +704,7 @@ public class SkiaImage : SkiaView
             {
                 _svgLoadedWidth = (targetWidth > 0.0) ? targetWidth : newBitmap.Width;
                 _svgLoadedHeight = (targetHeight > 0.0) ? targetHeight : newBitmap.Height;
+                _isAnimatedImage = false;
                 Bitmap = newBitmap;
             }
             else
@@ -318,16 +721,71 @@ public class SkiaImage : SkiaView
     public async Task LoadFromStreamAsync(Stream stream)
     {
         _isLoading = true;
+        _cacheKey = null; // Streams are not cached by default
         Invalidate();
 
         try
         {
             await Task.Run(() =>
             {
-                SKBitmap? bitmap = SKBitmap.Decode(stream);
-                if (bitmap != null)
+                using var codec = SKCodec.Create(stream);
+
+                if (codec == null)
                 {
-                    Bitmap = bitmap;
+                    stream.Position = 0;
+                    var bitmap = SKBitmap.Decode(stream);
+                    if (bitmap != null)
+                    {
+                        _isAnimatedImage = false;
+                        Bitmap = bitmap;
+                    }
+                    return;
+                }
+
+                int frameCount = codec.FrameCount;
+
+                if (frameCount > 1)
+                {
+                    // Animated image
+                    _isAnimatedImage = true;
+                    _animationFrames = new List<AnimationFrame>();
+                    var info = codec.Info;
+
+                    for (int i = 0; i < frameCount; i++)
+                    {
+                        var frameInfo = codec.FrameInfo[i];
+                        var bitmap = new SKBitmap(info.Width, info.Height);
+
+                        var options = new SKCodecOptions(i);
+                        codec.GetPixels(bitmap.Info, bitmap.GetPixels(), options);
+
+                        _animationFrames.Add(new AnimationFrame
+                        {
+                            Bitmap = bitmap,
+                            Duration = frameInfo.Duration > 0 ? frameInfo.Duration : 100
+                        });
+                    }
+
+                    _currentFrameIndex = 0;
+                    if (_animationFrames.Count > 0 && _animationFrames[0].Bitmap != null)
+                    {
+                        _image?.Dispose();
+                        _image = SKImage.FromBitmap(_animationFrames[0].Bitmap);
+                    }
+
+                    if (IsAnimationPlaying)
+                    {
+                        StartAnimation();
+                    }
+                }
+                else
+                {
+                    _isAnimatedImage = false;
+                    var bitmap = SKBitmap.Decode(codec, codec.Info);
+                    if (bitmap != null)
+                    {
+                        Bitmap = bitmap;
+                    }
                 }
             });
 
@@ -346,17 +804,120 @@ public class SkiaImage : SkiaView
     public async Task LoadFromUriAsync(Uri uri)
     {
         _isLoading = true;
+        _cacheKey = uri.ToString();
         Invalidate();
 
         try
         {
-            using HttpClient httpClient = new HttpClient();
-            using MemoryStream stream = new MemoryStream(await httpClient.GetByteArrayAsync(uri));
-            SKBitmap? bitmap = SKBitmap.Decode(stream);
-            if (bitmap != null)
+            // Check cache first
+            if (_imageCache.TryGetValue(_cacheKey, out var cached))
             {
-                Bitmap = bitmap;
+                cached.LastAccessed = DateTime.UtcNow;
+                if (cached.IsAnimated && cached.Frames != null)
+                {
+                    _isAnimatedImage = true;
+                    _animationFrames = cached.Frames;
+                    _currentFrameIndex = 0;
+                    if (cached.Frames.Count > 0 && cached.Frames[0].Bitmap != null)
+                    {
+                        _image?.Dispose();
+                        _image = SKImage.FromBitmap(cached.Frames[0].Bitmap);
+                    }
+                    if (IsAnimationPlaying)
+                    {
+                        StartAnimation();
+                    }
+                }
+                else if (cached.Bitmap != null)
+                {
+                    _isAnimatedImage = false;
+                    _bitmap = cached.Bitmap;
+                    _image?.Dispose();
+                    _image = SKImage.FromBitmap(cached.Bitmap);
+                }
+                _isLoading = false;
+                ImageLoaded?.Invoke(this, EventArgs.Empty);
+                Invalidate();
+                return;
             }
+
+            using HttpClient httpClient = new HttpClient();
+            var data = await httpClient.GetByteArrayAsync(uri);
+            using var stream = new MemoryStream(data);
+
+            await Task.Run(() =>
+            {
+                using var codec = SKCodec.Create(stream);
+
+                if (codec == null)
+                {
+                    stream.Position = 0;
+                    var bitmap = SKBitmap.Decode(stream);
+                    if (bitmap != null)
+                    {
+                        _isAnimatedImage = false;
+                        CacheAndSetBitmap(_cacheKey, bitmap, false);
+                    }
+                    return;
+                }
+
+                int frameCount = codec.FrameCount;
+
+                if (frameCount > 1)
+                {
+                    // Animated image
+                    _isAnimatedImage = true;
+                    _animationFrames = new List<AnimationFrame>();
+                    var info = codec.Info;
+
+                    for (int i = 0; i < frameCount; i++)
+                    {
+                        var frameInfo = codec.FrameInfo[i];
+                        var bitmap = new SKBitmap(info.Width, info.Height);
+
+                        var options = new SKCodecOptions(i);
+                        codec.GetPixels(bitmap.Info, bitmap.GetPixels(), options);
+
+                        _animationFrames.Add(new AnimationFrame
+                        {
+                            Bitmap = bitmap,
+                            Duration = frameInfo.Duration > 0 ? frameInfo.Duration : 100
+                        });
+                    }
+
+                    // Cache the animation frames
+                    long memorySize = _animationFrames.Sum(f => (long)(f.Bitmap?.ByteCount ?? 0));
+                    _imageCache[_cacheKey] = new CachedImage
+                    {
+                        Frames = _animationFrames,
+                        IsAnimated = true,
+                        LastAccessed = DateTime.UtcNow,
+                        MemorySize = memorySize
+                    };
+                    TrimCacheIfNeeded();
+
+                    _currentFrameIndex = 0;
+                    if (_animationFrames.Count > 0 && _animationFrames[0].Bitmap != null)
+                    {
+                        _image?.Dispose();
+                        _image = SKImage.FromBitmap(_animationFrames[0].Bitmap);
+                    }
+
+                    if (IsAnimationPlaying)
+                    {
+                        StartAnimation();
+                    }
+                }
+                else
+                {
+                    _isAnimatedImage = false;
+                    var bitmap = SKBitmap.Decode(codec, codec.Info);
+                    if (bitmap != null)
+                    {
+                        CacheAndSetBitmap(_cacheKey, bitmap, false);
+                    }
+                }
+            });
 
             _isLoading = false;
             ImageLoaded?.Invoke(this, EventArgs.Empty);
@@ -374,12 +935,69 @@ public class SkiaImage : SkiaView
     {
         try
         {
-            using MemoryStream stream = new MemoryStream(data);
-            SKBitmap? bitmap = SKBitmap.Decode(stream);
-            if (bitmap != null)
+            _cacheKey = null;
+            using var stream = new MemoryStream(data);
+            using var codec = SKCodec.Create(stream);
+
+            if (codec == null)
             {
-                Bitmap = bitmap;
+                stream.Position = 0;
+                var bitmap = SKBitmap.Decode(stream);
+                if (bitmap != null)
+                {
+                    _isAnimatedImage = false;
+                    Bitmap = bitmap;
+                }
+                ImageLoaded?.Invoke(this, EventArgs.Empty);
+                return;
             }
+
+            int frameCount = codec.FrameCount;
+
+            if (frameCount > 1)
+            {
+                // Animated image
+                _isAnimatedImage = true;
+                _animationFrames = new List<AnimationFrame>();
+                var info = codec.Info;
+
+                for (int i = 0; i < frameCount; i++)
+                {
+                    var frameInfo = codec.FrameInfo[i];
+                    var bitmap = new SKBitmap(info.Width, info.Height);
+
+                    var options = new SKCodecOptions(i);
+                    codec.GetPixels(bitmap.Info, bitmap.GetPixels(), options);
+
+                    _animationFrames.Add(new AnimationFrame
+                    {
+                        Bitmap = bitmap,
+                        Duration = frameInfo.Duration > 0 ? frameInfo.Duration : 100
+                    });
+                }
+
+                _currentFrameIndex = 0;
+                if (_animationFrames.Count > 0 && _animationFrames[0].Bitmap != null)
+                {
+                    _image?.Dispose();
+                    _image = SKImage.FromBitmap(_animationFrames[0].Bitmap);
+                }
+
+                if (IsAnimationPlaying)
+                {
+                    StartAnimation();
+                }
+            }
+            else
+            {
+                _isAnimatedImage = false;
+                var bitmap = SKBitmap.Decode(codec, codec.Info);
+                if (bitmap != null)
+                {
+                    Bitmap = bitmap;
+                }
+            }
+
             ImageLoaded?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
@@ -397,6 +1015,10 @@ public class SkiaImage : SkiaView
         {
             _isSvg = false;
             _currentFilePath = null;
+            _cacheKey = null;
+            _isAnimatedImage = false;
+            StopAnimation();
+            _animationFrames = null;
             Bitmap = bitmap;
             _isLoading = false;
             ImageLoaded?.Invoke(this, EventArgs.Empty);
@@ -426,7 +1048,6 @@ public class SkiaImage : SkiaView
                     (width != _lastArrangedBounds.Width || height != _lastArrangedBounds.Height))
                 {
                     _lastArrangedBounds = bounds;
-                    Console.WriteLine($"[SkiaImage] Arrange detected larger bounds: {width}x{height} vs loaded {_svgLoadedWidth}x{_svgLoadedHeight}");
                     _ = LoadSvgAtSizeAsync(_currentFilePath, width, height);
                 }
             }
@@ -435,42 +1056,24 @@ public class SkiaImage : SkiaView
 
     protected override SKRect ArrangeOverride(SKRect bounds)
     {
-        // If we have explicit size requests, constrain to desired size
-        // This follows MAUI standard behavior - controls respect WidthRequest/HeightRequest
         var desiredWidth = DesiredSize.Width;
         var desiredHeight = DesiredSize.Height;
 
-        // If desired size is smaller than available bounds, align within bounds
         if (desiredWidth > 0 && desiredHeight > 0 &&
             (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
         {
             float finalWidth = Math.Min(desiredWidth, bounds.Width);
             float finalHeight = Math.Min(desiredHeight, bounds.Height);
 
-            // Calculate position based on HorizontalOptions
-            // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
             float x = bounds.Left;
             var hAlignValue = (int)HorizontalOptions.Alignment;
-            if (hAlignValue == 1) // Center
-            {
-                x = bounds.Left + (bounds.Width - finalWidth) / 2;
-            }
-            else if (hAlignValue == 2) // End
-            {
-                x = bounds.Right - finalWidth;
-            }
+            if (hAlignValue == 1) x = bounds.Left + (bounds.Width - finalWidth) / 2;
+            else if (hAlignValue == 2) x = bounds.Right - finalWidth;
 
-            // Calculate position based on VerticalOptions
             float y = bounds.Top;
             var vAlignValue = (int)VerticalOptions.Alignment;
-            if (vAlignValue == 1) // Center
-            {
-                y = bounds.Top + (bounds.Height - finalHeight) / 2;
-            }
-            else if (vAlignValue == 2) // End
-            {
-                y = bounds.Bottom - finalHeight;
-            }
+            if (vAlignValue == 1) y = bounds.Top + (bounds.Height - finalHeight) / 2;
+            else if (vAlignValue == 2) y = bounds.Bottom - finalHeight;
 
             return new SKRect(x, y, x + finalWidth, y + finalHeight);
         }
@@ -483,40 +1086,31 @@ public class SkiaImage : SkiaView
         double widthRequest = base.WidthRequest;
         double heightRequest = base.HeightRequest;
 
-        // If both dimensions explicitly requested, use them
         if (widthRequest > 0.0 && heightRequest > 0.0)
-        {
             return new SKSize((float)widthRequest, (float)heightRequest);
-        }
 
-        // If no image, return default or requested size
         if (_image == null)
         {
-            if (widthRequest > 0.0)
-                return new SKSize((float)widthRequest, (float)widthRequest);
-            if (heightRequest > 0.0)
-                return new SKSize((float)heightRequest, (float)heightRequest);
+            if (widthRequest > 0.0) return new SKSize((float)widthRequest, (float)widthRequest);
+            if (heightRequest > 0.0) return new SKSize((float)heightRequest, (float)heightRequest);
             return new SKSize(100f, 100f);
         }
 
         float imageWidth = _image.Width;
         float imageHeight = _image.Height;
 
-        // If only width requested, scale height proportionally
         if (widthRequest > 0.0)
         {
             float scale = (float)widthRequest / imageWidth;
             return new SKSize((float)widthRequest, imageHeight * scale);
         }
 
-        // If only height requested, scale width proportionally
         if (heightRequest > 0.0)
         {
             float scale = (float)heightRequest / imageHeight;
             return new SKSize(imageWidth * scale, (float)heightRequest);
         }
 
-        // Scale to fit available size
         if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
         {
             float scale = Math.Min(availableSize.Width / imageWidth, availableSize.Height / imageHeight);
@@ -542,7 +1136,20 @@ public class SkiaImage : SkiaView
     {
         if (disposing)
         {
-            _bitmap?.Dispose();
+            StopAnimation();
+
+            // Only dispose if not cached
+            if (_cacheKey == null || !_imageCache.ContainsKey(_cacheKey))
+            {
+                _bitmap?.Dispose();
+                if (_animationFrames != null)
+                {
+                    foreach (var frame in _animationFrames)
+                    {
+                        frame.Bitmap?.Dispose();
+                    }
+                }
+            }
             _image?.Dispose();
         }
         base.Dispose(disposing);

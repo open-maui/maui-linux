@@ -114,7 +114,7 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
 
         if (image.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.ImageBackgroundColor = solidPaint.Color;
         }
     }
 

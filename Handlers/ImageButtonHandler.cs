@@ -121,13 +121,13 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         if (handler.PlatformView is null) return;
 
         if (imageButton.StrokeColor is not null)
-            handler.PlatformView.StrokeColor = imageButton.StrokeColor.ToSKColor();
+            handler.PlatformView.StrokeColor = imageButton.StrokeColor;
     }
 
     public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.StrokeThickness = (float)imageButton.StrokeThickness;
+        handler.PlatformView.StrokeThickness = imageButton.StrokeThickness;
     }
 
     public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton)
@@ -139,12 +139,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
     public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
-
-        var padding = imageButton.Padding;
-        handler.PlatformView.PaddingLeft = (float)padding.Left;
-        handler.PlatformView.PaddingTop = (float)padding.Top;
-        handler.PlatformView.PaddingRight = (float)padding.Right;
-        handler.PlatformView.PaddingBottom = (float)padding.Bottom;
+        handler.PlatformView.Padding = imageButton.Padding;
     }
 
     public static void MapBackground(ImageButtonHandler handler, IImageButton imageButton)
@@ -153,7 +148,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
 
         if (imageButton.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.ImageBackgroundColor = solidPaint.Color;
         }
     }
 
@@ -163,7 +158,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
 
         if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.BackgroundColor is not null)
         {
-            handler.PlatformView.BackgroundColor = imgBtn.BackgroundColor.ToSKColor();
+            handler.PlatformView.ImageBackgroundColor = imgBtn.BackgroundColor;
         }
     }
 
