@@ -29,6 +29,8 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         [nameof(IEntry.IsPassword)] = MapIsPassword,
         [nameof(IEntry.ReturnType)] = MapReturnType,
         [nameof(IEntry.ClearButtonVisibility)] = MapClearButtonVisibility,
+        [nameof(IEntry.IsTextPredictionEnabled)] = MapIsTextPredictionEnabled,
+        [nameof(IEntry.IsSpellCheckEnabled)] = MapIsSpellCheckEnabled,
         [nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
         [nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
         [nameof(IView.Background)] = MapBackground,
@@ -98,7 +100,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         if (handler.PlatformView is null) return;
 
         if (entry.TextColor is not null)
-            handler.PlatformView.TextColor = entry.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = entry.TextColor;
     }
 
     public static void MapFont(EntryHandler handler, IEntry entry)
@@ -107,19 +109,24 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
         var font = entry.Font;
         if (font.Size > 0)
-            handler.PlatformView.FontSize = (float)font.Size;
+            handler.PlatformView.FontSize = font.Size;
 
         if (!string.IsNullOrEmpty(font.Family))
             handler.PlatformView.FontFamily = font.Family;
 
-        handler.PlatformView.IsBold = font.Weight >= FontWeight.Bold;
-        handler.PlatformView.IsItalic = font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique;
+        // Convert Font weight/slant to FontAttributes
+        FontAttributes attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapCharacterSpacing(EntryHandler handler, IEntry entry)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = (float)entry.CharacterSpacing;
+        handler.PlatformView.CharacterSpacing = entry.CharacterSpacing;
     }
 
     public static void MapPlaceholder(EntryHandler handler, IEntry entry)
@@ -133,7 +140,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         if (handler.PlatformView is null) return;
 
         if (entry.PlaceholderColor is not null)
-            handler.PlatformView.PlaceholderColor = entry.PlaceholderColor.ToSKColor();
+            handler.PlatformView.PlaceholderColor = entry.PlaceholderColor;
     }
 
     public static void MapIsReadOnly(EntryHandler handler, IEntry entry)
@@ -179,16 +186,28 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         handler.PlatformView.ShowClearButton = entry.ClearButtonVisibility == ClearButtonVisibility.WhileEditing;
     }
 
+    public static void MapIsTextPredictionEnabled(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsTextPredictionEnabled = entry.IsTextPredictionEnabled;
+    }
+
+    public static void MapIsSpellCheckEnabled(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsSpellCheckEnabled = entry.IsSpellCheckEnabled;
+    }
+
     public static void MapHorizontalTextAlignment(EntryHandler handler, IEntry entry)
     {
         if (handler.PlatformView is null) return;
 
         handler.PlatformView.HorizontalTextAlignment = entry.HorizontalTextAlignment switch
         {
-            Microsoft.Maui.TextAlignment.Start => Platform.TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => Platform.TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => Platform.TextAlignment.End,
-            _ => Platform.TextAlignment.Start
+            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
+            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
+            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
+            _ => TextAlignment.Start
         };
     }
 
@@ -198,10 +217,10 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
         handler.PlatformView.VerticalTextAlignment = entry.VerticalTextAlignment switch
         {
-            Microsoft.Maui.TextAlignment.Start => Platform.TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => Platform.TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => Platform.TextAlignment.End,
-            _ => Platform.TextAlignment.Center
+            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
+            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
+            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
+            _ => TextAlignment.Center
         };
     }
 
@@ -221,10 +240,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
         if (entry is Entry ve && ve.BackgroundColor != null)
         {
-            Console.WriteLine($"[EntryHandler] MapBackgroundColor: {ve.BackgroundColor}");
-            var color = ve.BackgroundColor.ToSKColor();
-            Console.WriteLine($"[EntryHandler] Setting EntryBackgroundColor to: {color}");
-            handler.PlatformView.EntryBackgroundColor = color;
+            handler.PlatformView.EntryBackgroundColor = ve.BackgroundColor;
         }
     }
 }

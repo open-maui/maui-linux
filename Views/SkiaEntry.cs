@@ -1,10 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Collections.Generic;
-using SkiaSharp;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
@@ -44,9 +47,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty PlaceholderColorProperty =
         BindableProperty.Create(
             nameof(PlaceholderColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            new SKColor(0x9E, 0x9E, 0x9E),
+            Color.FromRgb(0x9E, 0x9E, 0x9E),
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -55,20 +58,20 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty TextColorProperty =
         BindableProperty.Create(
             nameof(TextColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            SKColors.Black,
+            Colors.Black,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
-    /// Bindable property for EntryBackgroundColor.
+    /// Bindable property for EntryBackgroundColor (specific to entry, separate from base BackgroundColor).
     /// </summary>
     public static readonly BindableProperty EntryBackgroundColorProperty =
         BindableProperty.Create(
             nameof(EntryBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            SKColors.White,
+            Colors.White,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -77,9 +80,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty BorderColorProperty =
         BindableProperty.Create(
             nameof(BorderColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            Color.FromRgb(0xBD, 0xBD, 0xBD),
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -88,9 +91,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty FocusedBorderColorProperty =
         BindableProperty.Create(
             nameof(FocusedBorderColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            new SKColor(0x21, 0x96, 0xF3),
+            Color.FromRgb(0x21, 0x96, 0xF3),
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -99,9 +102,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty SelectionColorProperty =
         BindableProperty.Create(
             nameof(SelectionColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            new SKColor(0x21, 0x96, 0xF3, 0x80),
+            Color.FromRgba(0x21, 0x96, 0xF3, 0x80),
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -110,9 +113,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty CursorColorProperty =
         BindableProperty.Create(
             nameof(CursorColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEntry),
-            new SKColor(0x21, 0x96, 0xF3),
+            Color.FromRgb(0x21, 0x96, 0xF3),
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -132,31 +135,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty FontSizeProperty =
         BindableProperty.Create(
             nameof(FontSize),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEntry),
-            14f,
-            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for IsBold.
-    /// </summary>
-    public static readonly BindableProperty IsBoldProperty =
-        BindableProperty.Create(
-            nameof(IsBold),
-            typeof(bool),
-            typeof(SkiaEntry),
-            false,
-            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for IsItalic.
-    /// </summary>
-    public static readonly BindableProperty IsItalicProperty =
-        BindableProperty.Create(
-            nameof(IsItalic),
-            typeof(bool),
-            typeof(SkiaEntry),
-            false,
+            14.0,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
 
     /// <summary>
@@ -165,9 +146,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(
             nameof(CornerRadius),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEntry),
-            4f,
+            4.0,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -176,9 +157,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty BorderWidthProperty =
         BindableProperty.Create(
             nameof(BorderWidth),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEntry),
-            1f,
+            1.0,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -187,9 +168,9 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty PaddingProperty =
         BindableProperty.Create(
             nameof(Padding),
-            typeof(SKRect),
+            typeof(Thickness),
             typeof(SkiaEntry),
-            new SKRect(12, 8, 12, 8),
+            new Thickness(12, 8),
             propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
 
     /// <summary>
@@ -274,10 +255,92 @@ public class SkiaEntry : SkiaView
     public static readonly BindableProperty CharacterSpacingProperty =
         BindableProperty.Create(
             nameof(CharacterSpacing),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEntry),
-            0f,
+            0.0,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for FontAttributes.
+    /// </summary>
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(
+            nameof(FontAttributes),
+            typeof(FontAttributes),
+            typeof(SkiaEntry),
+            FontAttributes.None,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ReturnType.
+    /// </summary>
+    public static readonly BindableProperty ReturnTypeProperty =
+        BindableProperty.Create(
+            nameof(ReturnType),
+            typeof(ReturnType),
+            typeof(SkiaEntry),
+            ReturnType.Default);
+
+    /// <summary>
+    /// Bindable property for ReturnCommand.
+    /// </summary>
+    public static readonly BindableProperty ReturnCommandProperty =
+        BindableProperty.Create(
+            nameof(ReturnCommand),
+            typeof(System.Windows.Input.ICommand),
+            typeof(SkiaEntry),
+            null);
+
+    /// <summary>
+    /// Bindable property for ReturnCommandParameter.
+    /// </summary>
+    public static readonly BindableProperty ReturnCommandParameterProperty =
+        BindableProperty.Create(
+            nameof(ReturnCommandParameter),
+            typeof(object),
+            typeof(SkiaEntry),
+            null);
+
+    /// <summary>
+    /// Bindable property for Keyboard.
+    /// </summary>
+    public static readonly BindableProperty KeyboardProperty =
+        BindableProperty.Create(
+            nameof(Keyboard),
+            typeof(Keyboard),
+            typeof(SkiaEntry),
+            Keyboard.Default);
+
+    /// <summary>
+    /// Bindable property for ClearButtonVisibility.
+    /// </summary>
+    public static readonly BindableProperty ClearButtonVisibilityProperty =
+        BindableProperty.Create(
+            nameof(ClearButtonVisibility),
+            typeof(ClearButtonVisibility),
+            typeof(SkiaEntry),
+            ClearButtonVisibility.Never,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for IsTextPredictionEnabled.
+    /// </summary>
+    public static readonly BindableProperty IsTextPredictionEnabledProperty =
+        BindableProperty.Create(
+            nameof(IsTextPredictionEnabled),
+            typeof(bool),
+            typeof(SkiaEntry),
+            true);
+
+    /// <summary>
+    /// Bindable property for IsSpellCheckEnabled.
+    /// </summary>
+    public static readonly BindableProperty IsSpellCheckEnabledProperty =
+        BindableProperty.Create(
+            nameof(IsSpellCheckEnabled),
+            typeof(bool),
+            typeof(SkiaEntry),
+            true);
 
     #endregion
 
@@ -304,63 +367,63 @@ public class SkiaEntry : SkiaView
     /// <summary>
     /// Gets or sets the placeholder color.
     /// </summary>
-    public SKColor PlaceholderColor
+    public Color PlaceholderColor
     {
-        get => (SKColor)GetValue(PlaceholderColorProperty);
+        get => (Color)GetValue(PlaceholderColorProperty);
         set => SetValue(PlaceholderColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public SKColor TextColor
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the entry background color.
     /// </summary>
-    public SKColor EntryBackgroundColor
+    public Color EntryBackgroundColor
     {
-        get => (SKColor)GetValue(EntryBackgroundColorProperty);
+        get => (Color)GetValue(EntryBackgroundColorProperty);
         set => SetValue(EntryBackgroundColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public SKColor BorderColor
+    public Color BorderColor
     {
-        get => (SKColor)GetValue(BorderColorProperty);
+        get => (Color)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the focused border color.
     /// </summary>
-    public SKColor FocusedBorderColor
+    public Color FocusedBorderColor
     {
-        get => (SKColor)GetValue(FocusedBorderColorProperty);
+        get => (Color)GetValue(FocusedBorderColorProperty);
         set => SetValue(FocusedBorderColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the selection color.
     /// </summary>
-    public SKColor SelectionColor
+    public Color SelectionColor
     {
-        get => (SKColor)GetValue(SelectionColorProperty);
+        get => (Color)GetValue(SelectionColorProperty);
         set => SetValue(SelectionColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the cursor color.
     /// </summary>
-    public SKColor CursorColor
+    public Color CursorColor
     {
-        get => (SKColor)GetValue(CursorColorProperty);
+        get => (Color)GetValue(CursorColorProperty);
         set => SetValue(CursorColorProperty, value);
     }
 
@@ -376,54 +439,36 @@ public class SkiaEntry : SkiaView
     /// <summary>
     /// Gets or sets the font size.
     /// </summary>
-    public float FontSize
+    public double FontSize
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether the text is bold.
-    /// </summary>
-    public bool IsBold
-    {
-        get => (bool)GetValue(IsBoldProperty);
-        set => SetValue(IsBoldProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets whether the text is italic.
-    /// </summary>
-    public bool IsItalic
-    {
-        get => (bool)GetValue(IsItalicProperty);
-        set => SetValue(IsItalicProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the corner radius.
     /// </summary>
-    public float CornerRadius
+    public double CornerRadius
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the border width.
     /// </summary>
-    public float BorderWidth
+    public double BorderWidth
     {
-        get => (float)GetValue(BorderWidthProperty);
+        get => (double)GetValue(BorderWidthProperty);
         set => SetValue(BorderWidthProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the padding.
     /// </summary>
-    public SKRect Padding
+    public Thickness Padding
     {
-        get => (SKRect)GetValue(PaddingProperty);
+        get => (Thickness)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
     }
 
@@ -493,10 +538,64 @@ public class SkiaEntry : SkiaView
     /// <summary>
     /// Gets or sets the character spacing.
     /// </summary>
-    public float CharacterSpacing
+    public double CharacterSpacing
     {
-        get => (float)GetValue(CharacterSpacingProperty);
+        get => (double)GetValue(CharacterSpacingProperty);
         set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font attributes (bold, italic).
+    /// </summary>
+    public FontAttributes FontAttributes
+    {
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the return key type for the soft keyboard.
+    /// </summary>
+    public ReturnType ReturnType
+    {
+        get => (ReturnType)GetValue(ReturnTypeProperty);
+        set => SetValue(ReturnTypeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the command to execute when the return key is pressed.
+    /// </summary>
+    public System.Windows.Input.ICommand? ReturnCommand
+    {
+        get => (System.Windows.Input.ICommand?)GetValue(ReturnCommandProperty);
+        set => SetValue(ReturnCommandProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the parameter for the return command.
+    /// </summary>
+    public object? ReturnCommandParameter
+    {
+        get => GetValue(ReturnCommandParameterProperty);
+        set => SetValue(ReturnCommandParameterProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the keyboard type for this entry.
+    /// </summary>
+    public Keyboard Keyboard
+    {
+        get => (Keyboard)GetValue(KeyboardProperty);
+        set => SetValue(KeyboardProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets when the clear button is visible.
+    /// </summary>
+    public ClearButtonVisibility ClearButtonVisibility
+    {
+        get => (ClearButtonVisibility)GetValue(ClearButtonVisibilityProperty);
+        set => SetValue(ClearButtonVisibilityProperty, value);
     }
 
     /// <summary>
@@ -524,6 +623,26 @@ public class SkiaEntry : SkiaView
             _selectionLength = value;
             Invalidate();
         }
+    }
+
+    /// <summary>
+    /// Gets or sets whether text prediction is enabled.
+    /// Note: This is a hint to the input system; actual behavior depends on platform support.
+    /// </summary>
+    public bool IsTextPredictionEnabled
+    {
+        get => (bool)GetValue(IsTextPredictionEnabledProperty);
+        set => SetValue(IsTextPredictionEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether spell checking is enabled.
+    /// Note: This is a hint to the input system; actual behavior depends on platform support.
+    /// </summary>
+    public bool IsSpellCheckEnabled
+    {
+        get => (bool)GetValue(IsSpellCheckEnabledProperty);
+        set => SetValue(IsSpellCheckEnabledProperty, value);
     }
 
     #endregion
@@ -554,6 +673,19 @@ public class SkiaEntry : SkiaView
         IsFocusable = true;
     }
 
+    /// <summary>
+    /// Converts a MAUI Color to SkiaSharp SKColor for rendering.
+    /// </summary>
+    private static SKColor ToSKColor(Color color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
     private void OnTextPropertyChanged(string oldText, string newText)
     {
         _cursorPosition = Math.Min(_cursorPosition, (newText ?? "").Length);
@@ -568,17 +700,17 @@ public class SkiaEntry : SkiaView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = EntryBackgroundColor,
+            Color = ToSKColor(EntryBackgroundColor),
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
 
-        var rect = new SKRoundRect(bounds, CornerRadius);
+        var rect = new SKRoundRect(bounds, (float)CornerRadius);
         canvas.DrawRoundRect(rect, bgPaint);
 
         // Draw border
-        var borderColor = IsFocused ? FocusedBorderColor : BorderColor;
-        var borderWidth = IsFocused ? BorderWidth + 1 : BorderWidth;
+        var borderColor = IsFocused ? ToSKColor(FocusedBorderColor) : ToSKColor(BorderColor);
+        var borderWidth = IsFocused ? (float)BorderWidth + 1 : (float)BorderWidth;
 
         using var borderPaint = new SKPaint
         {
@@ -591,15 +723,16 @@ public class SkiaEntry : SkiaView
 
         // Calculate content bounds
         var contentBounds = new SKRect(
-            bounds.Left + Padding.Left,
-            bounds.Top + Padding.Top,
-            bounds.Right - Padding.Right,
-            bounds.Bottom - Padding.Bottom);
+            bounds.Left + (float)Padding.Left,
+            bounds.Top + (float)Padding.Top,
+            bounds.Right - (float)Padding.Right,
+            bounds.Bottom - (float)Padding.Bottom);
 
         // Reserve space for clear button if shown
         var clearButtonSize = 20f;
         var clearButtonMargin = 8f;
-        if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
+        var showClear = ShouldShowClearButton();
+        if (showClear)
         {
             contentBounds.Right -= clearButtonSize + clearButtonMargin;
         }
@@ -612,7 +745,7 @@ public class SkiaEntry : SkiaView
         var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, FontSize);
+        using var font = new SKFont(typeface, (float)FontSize);
         using var paint = new SKPaint(font) { IsAntialias = true };
 
         var displayText = GetDisplayText();
@@ -620,7 +753,7 @@ public class SkiaEntry : SkiaView
 
         if (hasText)
         {
-            paint.Color = TextColor;
+            paint.Color = ToSKColor(TextColor);
 
             // Measure text to cursor position for scrolling
             var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));
@@ -665,7 +798,7 @@ public class SkiaEntry : SkiaView
         else if (!string.IsNullOrEmpty(Placeholder))
         {
             // Draw placeholder
-            paint.Color = PlaceholderColor;
+            paint.Color = ToSKColor(PlaceholderColor);
 
             var textBounds = new SKRect();
             paint.MeasureText(Placeholder, ref textBounds);
@@ -684,19 +817,37 @@ public class SkiaEntry : SkiaView
         canvas.Restore();
 
         // Draw clear button if applicable
-        if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
+        if (showClear)
         {
             DrawClearButton(canvas, bounds, clearButtonSize, clearButtonMargin);
         }
     }
 
+    private bool ShouldShowClearButton()
+    {
+        if (string.IsNullOrEmpty(Text)) return false;
+
+        // Check both legacy ShowClearButton and MAUI ClearButtonVisibility
+        if (ShowClearButton && IsFocused) return true;
+
+        return ClearButtonVisibility switch
+        {
+            ClearButtonVisibility.WhileEditing => IsFocused,
+            ClearButtonVisibility.Never => false,
+            _ => false
+        };
+    }
+
     private SKFontStyle GetFontStyle()
     {
-        if (IsBold && IsItalic)
+        bool isBold = FontAttributes.HasFlag(FontAttributes.Bold);
+        bool isItalic = FontAttributes.HasFlag(FontAttributes.Italic);
+
+        if (isBold && isItalic)
             return SKFontStyle.BoldItalic;
-        if (IsBold)
+        if (isBold)
             return SKFontStyle.Bold;
-        if (IsItalic)
+        if (isItalic)
             return SKFontStyle.Italic;
         return SKFontStyle.Normal;
     }
@@ -752,7 +903,7 @@ public class SkiaEntry : SkiaView
 
         using var selPaint = new SKPaint
         {
-            Color = SelectionColor,
+            Color = ToSKColor(SelectionColor),
             Style = SKPaintStyle.Fill
         };
 
@@ -766,7 +917,7 @@ public class SkiaEntry : SkiaView
 
         using var cursorPaint = new SKPaint
         {
-            Color = CursorColor,
+            Color = ToSKColor(CursorColor),
             StrokeWidth = 2,
             IsAntialias = true
         };
@@ -975,6 +1126,11 @@ public class SkiaEntry : SkiaView
 
             case Key.Enter:
                 Completed?.Invoke(this, EventArgs.Empty);
+                // Execute ReturnCommand if set and can execute
+                if (ReturnCommand?.CanExecute(ReturnCommandParameter) == true)
+                {
+                    ReturnCommand.Execute(ReturnCommandParameter);
+                }
                 e.Handled = true;
                 break;
         }
@@ -994,7 +1150,7 @@ public class SkiaEntry : SkiaView
         }
 
         // Check if clicked on clear button
-        if (ShowClearButton && !string.IsNullOrEmpty(Text) && IsFocused)
+        if (ShouldShowClearButton())
         {
             var clearButtonSize = 20f;
             var clearButtonMargin = 8f;
@@ -1016,7 +1172,7 @@ public class SkiaEntry : SkiaView
 
         // Calculate cursor position from click using screen coordinates
         var screenBounds = ScreenBounds;
-        var clickX = e.X - screenBounds.Left - Padding.Left + _scrollOffset;
+        var clickX = e.X - screenBounds.Left - (float)Padding.Left + _scrollOffset;
         _cursorPosition = GetCharacterIndexAtX(clickX);
 
         // Check for double-click (select word)
@@ -1077,7 +1233,7 @@ public class SkiaEntry : SkiaView
 
         // Extend selection to current mouse position
         var screenBounds = ScreenBounds;
-        var clickX = e.X - screenBounds.Left - Padding.Left + _scrollOffset;
+        var clickX = e.X - screenBounds.Left - (float)Padding.Left + _scrollOffset;
         var newPosition = GetCharacterIndexAtX(clickX);
 
         if (newPosition != _cursorPosition)
@@ -1102,7 +1258,7 @@ public class SkiaEntry : SkiaView
         var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, FontSize);
+        using var font = new SKFont(typeface, (float)FontSize);
         using var paint = new SKPaint(font);
 
         var displayText = GetDisplayText();
@@ -1275,7 +1431,7 @@ public class SkiaEntry : SkiaView
         var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, FontSize);
+        using var font = new SKFont(typeface, (float)FontSize);
 
         // Use font metrics for consistent height regardless of text content
         // This prevents size changes when placeholder disappears or text changes
@@ -1284,7 +1440,7 @@ public class SkiaEntry : SkiaView
 
         return new SKSize(
             200, // Default width, will be overridden by layout
-            textHeight + Padding.Top + Padding.Bottom + BorderWidth * 2);
+            textHeight + (float)Padding.Top + (float)Padding.Bottom + (float)BorderWidth * 2);
     }
 }
 
