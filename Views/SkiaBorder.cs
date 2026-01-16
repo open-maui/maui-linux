@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using SkiaSharp;
 
@@ -10,37 +11,26 @@ namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered border/frame container control with full XAML styling support.
+/// Implements MAUI IBorderView interface patterns.
 /// </summary>
 public class SkiaBorder : SkiaLayoutView
 {
     #region BindableProperties
 
     public static readonly BindableProperty StrokeThicknessProperty =
-        BindableProperty.Create(nameof(StrokeThickness), typeof(float), typeof(SkiaBorder), 1f,
+        BindableProperty.Create(nameof(StrokeThickness), typeof(double), typeof(SkiaBorder), 1.0,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaBorder), 0f,
+        BindableProperty.Create(nameof(CornerRadius), typeof(double), typeof(SkiaBorder), 0.0,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty StrokeProperty =
-        BindableProperty.Create(nameof(Stroke), typeof(SKColor), typeof(SkiaBorder), SKColors.Black,
+        BindableProperty.Create(nameof(Stroke), typeof(Color), typeof(SkiaBorder), Colors.Black,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
-    public static readonly BindableProperty PaddingLeftProperty =
-        BindableProperty.Create(nameof(PaddingLeft), typeof(float), typeof(SkiaBorder), 0f,
-            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
-
-    public static readonly BindableProperty PaddingTopProperty =
-        BindableProperty.Create(nameof(PaddingTop), typeof(float), typeof(SkiaBorder), 0f,
-            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
-
-    public static readonly BindableProperty PaddingRightProperty =
-        BindableProperty.Create(nameof(PaddingRight), typeof(float), typeof(SkiaBorder), 0f,
-            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
-
-    public static readonly BindableProperty PaddingBottomProperty =
-        BindableProperty.Create(nameof(PaddingBottom), typeof(float), typeof(SkiaBorder), 0f,
+    public static readonly BindableProperty BorderPaddingProperty =
+        BindableProperty.Create(nameof(BorderPadding), typeof(Thickness), typeof(SkiaBorder), new Thickness(0),
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).InvalidateMeasure());
 
     public static readonly BindableProperty HasShadowProperty =
@@ -48,19 +38,19 @@ public class SkiaBorder : SkiaLayoutView
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowColorProperty =
-        BindableProperty.Create(nameof(ShadowColor), typeof(SKColor), typeof(SkiaBorder), new SKColor(0, 0, 0, 40),
+        BindableProperty.Create(nameof(ShadowColor), typeof(Color), typeof(SkiaBorder), Color.FromRgba(0, 0, 0, 40),
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowBlurRadiusProperty =
-        BindableProperty.Create(nameof(ShadowBlurRadius), typeof(float), typeof(SkiaBorder), 4f,
+        BindableProperty.Create(nameof(ShadowBlurRadius), typeof(double), typeof(SkiaBorder), 4.0,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowOffsetXProperty =
-        BindableProperty.Create(nameof(ShadowOffsetX), typeof(float), typeof(SkiaBorder), 2f,
+        BindableProperty.Create(nameof(ShadowOffsetX), typeof(double), typeof(SkiaBorder), 2.0,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     public static readonly BindableProperty ShadowOffsetYProperty =
-        BindableProperty.Create(nameof(ShadowOffsetY), typeof(float), typeof(SkiaBorder), 2f,
+        BindableProperty.Create(nameof(ShadowOffsetY), typeof(double), typeof(SkiaBorder), 2.0,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     #endregion
@@ -69,46 +59,53 @@ public class SkiaBorder : SkiaLayoutView
 
     #region Properties
 
-    public float StrokeThickness
+    public double StrokeThickness
     {
-        get => (float)GetValue(StrokeThicknessProperty);
+        get => (double)GetValue(StrokeThicknessProperty);
         set => SetValue(StrokeThicknessProperty, value);
     }
 
-    public float CornerRadius
+    public double CornerRadius
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
-    public SKColor Stroke
+    public Color Stroke
     {
-        get => (SKColor)GetValue(StrokeProperty);
+        get => (Color)GetValue(StrokeProperty);
         set => SetValue(StrokeProperty, value);
     }
 
-    public float PaddingLeft
+    public Thickness BorderPadding
     {
-        get => (float)GetValue(PaddingLeftProperty);
-        set => SetValue(PaddingLeftProperty, value);
+        get => (Thickness)GetValue(BorderPaddingProperty);
+        set => SetValue(BorderPaddingProperty, value);
     }
 
-    public float PaddingTop
+    // Convenience properties for backward compatibility
+    public double PaddingLeft
     {
-        get => (float)GetValue(PaddingTopProperty);
-        set => SetValue(PaddingTopProperty, value);
+        get => BorderPadding.Left;
+        set => BorderPadding = new Thickness(value, BorderPadding.Top, BorderPadding.Right, BorderPadding.Bottom);
     }
 
-    public float PaddingRight
+    public double PaddingTop
     {
-        get => (float)GetValue(PaddingRightProperty);
-        set => SetValue(PaddingRightProperty, value);
+        get => BorderPadding.Top;
+        set => BorderPadding = new Thickness(BorderPadding.Left, value, BorderPadding.Right, BorderPadding.Bottom);
     }
 
-    public float PaddingBottom
+    public double PaddingRight
     {
-        get => (float)GetValue(PaddingBottomProperty);
-        set => SetValue(PaddingBottomProperty, value);
+        get => BorderPadding.Right;
+        set => BorderPadding = new Thickness(BorderPadding.Left, BorderPadding.Top, value, BorderPadding.Bottom);
+    }
+
+    public double PaddingBottom
+    {
+        get => BorderPadding.Bottom;
+        set => BorderPadding = new Thickness(BorderPadding.Left, BorderPadding.Top, BorderPadding.Right, value);
     }
 
     public bool HasShadow
@@ -117,27 +114,27 @@ public class SkiaBorder : SkiaLayoutView
         set => SetValue(HasShadowProperty, value);
     }
 
-    public SKColor ShadowColor
+    public Color ShadowColor
     {
-        get => (SKColor)GetValue(ShadowColorProperty);
+        get => (Color)GetValue(ShadowColorProperty);
         set => SetValue(ShadowColorProperty, value);
     }
 
-    public float ShadowBlurRadius
+    public double ShadowBlurRadius
     {
-        get => (float)GetValue(ShadowBlurRadiusProperty);
+        get => (double)GetValue(ShadowBlurRadiusProperty);
         set => SetValue(ShadowBlurRadiusProperty, value);
     }
 
-    public float ShadowOffsetX
+    public double ShadowOffsetX
     {
-        get => (float)GetValue(ShadowOffsetXProperty);
+        get => (double)GetValue(ShadowOffsetXProperty);
         set => SetValue(ShadowOffsetXProperty, value);
     }
 
-    public float ShadowOffsetY
+    public double ShadowOffsetY
     {
-        get => (float)GetValue(ShadowOffsetYProperty);
+        get => (double)GetValue(ShadowOffsetYProperty);
         set => SetValue(ShadowOffsetYProperty, value);
     }
 
@@ -149,42 +146,57 @@ public class SkiaBorder : SkiaLayoutView
 
     #endregion
 
+    #region Helper Methods
+
+    /// <summary>
+    /// Converts a MAUI Color to SkiaSharp SKColor.
+    /// </summary>
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    #endregion
+
     #region SetPadding Methods
 
     /// <summary>
     /// Sets uniform padding on all sides.
     /// </summary>
-    public void SetPadding(float all)
+    public void SetPadding(double all)
     {
-        PaddingLeft = PaddingTop = PaddingRight = PaddingBottom = all;
+        BorderPadding = new Thickness(all);
     }
 
     /// <summary>
     /// Sets padding with horizontal and vertical values.
     /// </summary>
-    public void SetPadding(float horizontal, float vertical)
+    public void SetPadding(double horizontal, double vertical)
     {
-        PaddingLeft = PaddingRight = horizontal;
-        PaddingTop = PaddingBottom = vertical;
+        BorderPadding = new Thickness(horizontal, vertical);
     }
 
     /// <summary>
     /// Sets padding with individual values for each side.
     /// </summary>
-    public void SetPadding(float left, float top, float right, float bottom)
+    public void SetPadding(double left, double top, double right, double bottom)
     {
-        PaddingLeft = left;
-        PaddingTop = top;
-        PaddingRight = right;
-        PaddingBottom = bottom;
+        BorderPadding = new Thickness(left, top, right, bottom);
     }
 
     #endregion
 
+    #region Drawing
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var strokeThickness = StrokeThickness;
-        var cornerRadius = CornerRadius;
+        float strokeThickness = (float)StrokeThickness;
+        float cornerRadius = (float)CornerRadius;
 
         var borderRect = new SKRect(
             bounds.Left + strokeThickness / 2f,
@@ -197,15 +209,15 @@ public class SkiaBorder : SkiaLayoutView
         {
             using var shadowPaint = new SKPaint
             {
-                Color = ShadowColor,
-                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, ShadowBlurRadius),
+                Color = ToSKColor(ShadowColor),
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (float)ShadowBlurRadius),
                 Style = SKPaintStyle.Fill
             };
             var shadowRect = new SKRect(
-                borderRect.Left + ShadowOffsetX,
-                borderRect.Top + ShadowOffsetY,
-                borderRect.Right + ShadowOffsetX,
-                borderRect.Bottom + ShadowOffsetY);
+                borderRect.Left + (float)ShadowOffsetX,
+                borderRect.Top + (float)ShadowOffsetY,
+                borderRect.Right + (float)ShadowOffsetX,
+                borderRect.Bottom + (float)ShadowOffsetY);
             canvas.DrawRoundRect(new SKRoundRect(shadowRect, cornerRadius), shadowPaint);
         }
 
@@ -223,7 +235,7 @@ public class SkiaBorder : SkiaLayoutView
         {
             using var borderPaint = new SKPaint
             {
-                Color = Stroke,
+                Color = ToSKColor(Stroke),
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = strokeThickness,
                 IsAntialias = true
@@ -241,6 +253,10 @@ public class SkiaBorder : SkiaLayoutView
         }
     }
 
+    #endregion
+
+    #region Layout
+
     protected override SKRect GetContentBounds()
     {
         return GetContentBounds(Bounds);
@@ -248,19 +264,21 @@ public class SkiaBorder : SkiaLayoutView
 
     protected new SKRect GetContentBounds(SKRect bounds)
     {
-        var strokeThickness = StrokeThickness;
+        float strokeThickness = (float)StrokeThickness;
+        var padding = BorderPadding;
         return new SKRect(
-            bounds.Left + PaddingLeft + strokeThickness,
-            bounds.Top + PaddingTop + strokeThickness,
-            bounds.Right - PaddingRight - strokeThickness,
-            bounds.Bottom - PaddingBottom - strokeThickness);
+            bounds.Left + (float)padding.Left + strokeThickness,
+            bounds.Top + (float)padding.Top + strokeThickness,
+            bounds.Right - (float)padding.Right - strokeThickness,
+            bounds.Bottom - (float)padding.Bottom - strokeThickness);
     }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        var strokeThickness = StrokeThickness;
-        var paddingWidth = PaddingLeft + PaddingRight + strokeThickness * 2f;
-        var paddingHeight = PaddingTop + PaddingBottom + strokeThickness * 2f;
+        float strokeThickness = (float)StrokeThickness;
+        var padding = BorderPadding;
+        float paddingWidth = (float)(padding.Left + padding.Right) + strokeThickness * 2f;
+        float paddingHeight = (float)(padding.Top + padding.Bottom) + strokeThickness * 2f;
 
         // Respect explicit size requests
         var requestedWidth = WidthRequest >= 0.0 ? (float)WidthRequest : availableSize.Width;
@@ -306,6 +324,10 @@ public class SkiaBorder : SkiaLayoutView
         return bounds;
     }
 
+    #endregion
+
+    #region Input Handling
+
     private bool HasTapGestureRecognizers()
     {
         if (MauiView?.GestureRecognizers == null)
@@ -333,7 +355,6 @@ public class SkiaBorder : SkiaLayoutView
             {
                 if (HasTapGestureRecognizers())
                 {
-                    Console.WriteLine("[SkiaBorder.HitTest] Intercepting for gesture - returning self");
                     return this;
                 }
                 return base.HitTest(x, y);
@@ -348,7 +369,6 @@ public class SkiaBorder : SkiaLayoutView
         {
             _isPressed = true;
             e.Handled = true;
-            Console.WriteLine("[SkiaBorder] OnPointerPressed INTERCEPTED for gesture, MauiView=" + MauiView?.GetType().Name);
             if (MauiView != null)
             {
                 GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
@@ -366,7 +386,6 @@ public class SkiaBorder : SkiaLayoutView
         {
             _isPressed = false;
             e.Handled = true;
-            Console.WriteLine("[SkiaBorder] OnPointerReleased - processing gesture recognizers, MauiView=" + MauiView?.GetType().Name);
             if (MauiView != null)
             {
                 GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
@@ -384,4 +403,6 @@ public class SkiaBorder : SkiaLayoutView
         base.OnPointerExited(e);
         _isPressed = false;
     }
+
+    #endregion
 }

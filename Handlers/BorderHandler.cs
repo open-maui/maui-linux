@@ -101,14 +101,14 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
 
         if (border.Stroke is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.Stroke = solidPaint.Color.ToSKColor();
+            handler.PlatformView.Stroke = solidPaint.Color;
         }
     }
 
     public static void MapStrokeThickness(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.StrokeThickness = (float)border.StrokeThickness;
+        handler.PlatformView.StrokeThickness = border.StrokeThickness;
     }
 
     public static void MapBackground(BorderHandler handler, IBorderView border)
@@ -137,10 +137,10 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         if (handler.PlatformView is null) return;
 
         var padding = border.Padding;
-        handler.PlatformView.PaddingLeft = (float)padding.Left;
-        handler.PlatformView.PaddingTop = (float)padding.Top;
-        handler.PlatformView.PaddingRight = (float)padding.Right;
-        handler.PlatformView.PaddingBottom = (float)padding.Bottom;
+        handler.PlatformView.PaddingLeft = padding.Left;
+        handler.PlatformView.PaddingTop = padding.Top;
+        handler.PlatformView.PaddingRight = padding.Right;
+        handler.PlatformView.PaddingBottom = padding.Bottom;
     }
 
     public static void MapStrokeShape(BorderHandler handler, IBorderView border)
@@ -156,17 +156,17 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             // RoundRectangle can have different corner radii, but we use a uniform one
             // Take the top-left corner as the uniform radius
             var cornerRadius = roundRect.CornerRadius;
-            handler.PlatformView.CornerRadius = (float)cornerRadius.TopLeft;
+            handler.PlatformView.CornerRadius = cornerRadius.TopLeft;
         }
         else if (shape is Microsoft.Maui.Controls.Shapes.Rectangle)
         {
-            handler.PlatformView.CornerRadius = 0;
+            handler.PlatformView.CornerRadius = 0.0;
         }
         else if (shape is Microsoft.Maui.Controls.Shapes.Ellipse)
         {
             // For ellipse, use half the min dimension as corner radius
             // This will be applied during rendering when bounds are known
-            handler.PlatformView.CornerRadius = float.MaxValue; // Marker for "fully rounded"
+            handler.PlatformView.CornerRadius = double.MaxValue; // Marker for "fully rounded"
         }
 
         handler.PlatformView.Invalidate();
