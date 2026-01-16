@@ -34,17 +34,13 @@ public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
     {
         if (boxView.Color != null)
         {
-            handler.PlatformView.Color = new SKColor(
-                (byte)(boxView.Color.Red * 255),
-                (byte)(boxView.Color.Green * 255),
-                (byte)(boxView.Color.Blue * 255),
-                (byte)(boxView.Color.Alpha * 255));
+            handler.PlatformView.Color = boxView.Color;
         }
     }
 
     public static void MapCornerRadius(BoxViewHandler handler, BoxView boxView)
     {
-        handler.PlatformView.CornerRadius = (float)boxView.CornerRadius.TopLeft;
+        handler.PlatformView.CornerRadius = boxView.CornerRadius;
     }
 
     public static void MapBackground(BoxViewHandler handler, BoxView boxView)
