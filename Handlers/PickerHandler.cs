@@ -5,13 +5,13 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
-using SkiaSharp;
 using System.Collections.Specialized;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for Picker on Linux using Skia rendering.
+/// Maps IPicker interface to SkiaPicker platform view.
 /// </summary>
 public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
 {
@@ -27,6 +27,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             [nameof(IPicker.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
             [nameof(IPicker.VerticalTextAlignment)] = MapVerticalTextAlignment,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(IView.IsEnabled)] = MapIsEnabled,
             [nameof(Picker.ItemsSource)] = MapItemsSource,
         };
 
@@ -63,8 +64,17 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             _itemsCollection.CollectionChanged += OnItemsCollectionChanged;
         }
 
-        // Load items
+        // Load items and sync properties
         ReloadItems();
+
+        if (VirtualView != null)
+        {
+            MapTitle(this, VirtualView);
+            MapTitleColor(this, VirtualView);
+            MapTextColor(this, VirtualView);
+            MapSelectedIndex(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
     }
 
     protected override void DisconnectHandler(SkiaPicker platformView)
@@ -85,11 +95,14 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         ReloadItems();
     }
 
-    private void OnSelectedIndexChanged(object? sender, EventArgs e)
+    private void OnSelectedIndexChanged(object? sender, SelectedIndexChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.SelectedIndex = PlatformView.SelectedIndex;
+        if (VirtualView.SelectedIndex != e.NewIndex)
+        {
+            VirtualView.SelectedIndex = e.NewIndex;
+        }
     }
 
     private void ReloadItems()
@@ -111,14 +124,18 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         if (handler.PlatformView is null) return;
         if (picker.TitleColor is not null)
         {
-            handler.PlatformView.TitleColor = picker.TitleColor.ToSKColor();
+            handler.PlatformView.TitleColor = picker.TitleColor;
         }
     }
 
     public static void MapSelectedIndex(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.SelectedIndex = picker.SelectedIndex;
+
+        if (handler.PlatformView.SelectedIndex != picker.SelectedIndex)
+        {
+            handler.PlatformView.SelectedIndex = picker.SelectedIndex;
+        }
     }
 
     public static void MapTextColor(PickerHandler handler, IPicker picker)
@@ -126,7 +143,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         if (handler.PlatformView is null) return;
         if (picker.TextColor is not null)
         {
-            handler.PlatformView.TextColor = picker.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = picker.TextColor;
         }
     }
 
@@ -141,7 +158,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         }
         if (font.Size > 0)
         {
-            handler.PlatformView.FontSize = (float)font.Size;
+            handler.PlatformView.FontSize = font.Size;
         }
         handler.PlatformView.Invalidate();
     }
@@ -169,6 +186,13 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapIsEnabled(PickerHandler handler, IPicker picker)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = picker.IsEnabled;
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapItemsSource(PickerHandler handler, IPicker picker)

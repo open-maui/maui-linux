@@ -1,32 +1,49 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered picker/dropdown control with full XAML styling support.
+/// Skia-rendered picker/dropdown control with full MAUI compliance.
+/// Implements IPicker interface requirements:
+/// - Title, TitleColor for placeholder
+/// - SelectedIndex, SelectedItem for selection
+/// - TextColor, Font properties for styling
+/// - Items collection
 /// </summary>
 public class SkiaPicker : SkiaView
 {
+    #region SKColor Helper
+
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    #endregion
+
     #region BindableProperties
 
-    /// <summary>
-    /// Bindable property for SelectedIndex.
-    /// </summary>
     public static readonly BindableProperty SelectedIndexProperty =
         BindableProperty.Create(
             nameof(SelectedIndex),
             typeof(int),
             typeof(SkiaPicker),
             -1,
-            BindingMode.OneWay,
-            propertyChanged: (b, o, n) => ((SkiaPicker)b).OnSelectedIndexChanged());
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaPicker)b).OnSelectedIndexChanged((int)o, (int)n));
 
-    /// <summary>
-    /// Bindable property for Title.
-    /// </summary>
     public static readonly BindableProperty TitleProperty =
         BindableProperty.Create(
             nameof(Title),
@@ -36,81 +53,60 @@ public class SkiaPicker : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for TextColor.
-    /// </summary>
     public static readonly BindableProperty TextColorProperty =
         BindableProperty.Create(
             nameof(TextColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaPicker),
-            SKColors.Black,
+            Colors.Black,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for TitleColor.
-    /// </summary>
     public static readonly BindableProperty TitleColorProperty =
         BindableProperty.Create(
             nameof(TitleColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaPicker),
-            new SKColor(0x80, 0x80, 0x80),
+            Color.FromRgb(0x80, 0x80, 0x80),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for BorderColor.
-    /// </summary>
     public static readonly BindableProperty BorderColorProperty =
         BindableProperty.Create(
             nameof(BorderColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaPicker),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            Color.FromRgb(0xBD, 0xBD, 0xBD),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for DropdownBackgroundColor.
-    /// </summary>
     public static readonly BindableProperty DropdownBackgroundColorProperty =
         BindableProperty.Create(
             nameof(DropdownBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaPicker),
-            SKColors.White,
+            Colors.White,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for SelectedItemBackgroundColor.
-    /// </summary>
     public static readonly BindableProperty SelectedItemBackgroundColorProperty =
         BindableProperty.Create(
             nameof(SelectedItemBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaPicker),
-            new SKColor(0x21, 0x96, 0xF3, 0x30),
+            Color.FromRgba(0x21, 0x96, 0xF3, 0x30),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for HoverItemBackgroundColor.
-    /// </summary>
     public static readonly BindableProperty HoverItemBackgroundColorProperty =
         BindableProperty.Create(
             nameof(HoverItemBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaPicker),
-            new SKColor(0xE0, 0xE0, 0xE0),
+            Color.FromRgb(0xE0, 0xE0, 0xE0),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for FontFamily.
-    /// </summary>
     public static readonly BindableProperty FontFamilyProperty =
         BindableProperty.Create(
             nameof(FontFamily),
@@ -120,39 +116,30 @@ public class SkiaPicker : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).InvalidateMeasure());
 
-    /// <summary>
-    /// Bindable property for FontSize.
-    /// </summary>
     public static readonly BindableProperty FontSizeProperty =
         BindableProperty.Create(
             nameof(FontSize),
-            typeof(float),
+            typeof(double),
             typeof(SkiaPicker),
-            14f,
+            14.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).InvalidateMeasure());
 
-    /// <summary>
-    /// Bindable property for ItemHeight.
-    /// </summary>
     public static readonly BindableProperty ItemHeightProperty =
         BindableProperty.Create(
             nameof(ItemHeight),
-            typeof(float),
+            typeof(double),
             typeof(SkiaPicker),
-            40f,
+            40.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for CornerRadius.
-    /// </summary>
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(
             nameof(CornerRadius),
-            typeof(float),
+            typeof(double),
             typeof(SkiaPicker),
-            4f,
+            4.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
 
@@ -181,54 +168,54 @@ public class SkiaPicker : SkiaView
     /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public SKColor TextColor
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the title color.
     /// </summary>
-    public SKColor TitleColor
+    public Color TitleColor
     {
-        get => (SKColor)GetValue(TitleColorProperty);
+        get => (Color)GetValue(TitleColorProperty);
         set => SetValue(TitleColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public SKColor BorderColor
+    public Color BorderColor
     {
-        get => (SKColor)GetValue(BorderColorProperty);
+        get => (Color)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the dropdown background color.
     /// </summary>
-    public SKColor DropdownBackgroundColor
+    public Color DropdownBackgroundColor
     {
-        get => (SKColor)GetValue(DropdownBackgroundColorProperty);
+        get => (Color)GetValue(DropdownBackgroundColorProperty);
         set => SetValue(DropdownBackgroundColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the selected item background color.
     /// </summary>
-    public SKColor SelectedItemBackgroundColor
+    public Color SelectedItemBackgroundColor
     {
-        get => (SKColor)GetValue(SelectedItemBackgroundColorProperty);
+        get => (Color)GetValue(SelectedItemBackgroundColorProperty);
         set => SetValue(SelectedItemBackgroundColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the hover item background color.
     /// </summary>
-    public SKColor HoverItemBackgroundColor
+    public Color HoverItemBackgroundColor
     {
-        get => (SKColor)GetValue(HoverItemBackgroundColorProperty);
+        get => (Color)GetValue(HoverItemBackgroundColorProperty);
         set => SetValue(HoverItemBackgroundColorProperty, value);
     }
 
@@ -244,27 +231,27 @@ public class SkiaPicker : SkiaView
     /// <summary>
     /// Gets or sets the font size.
     /// </summary>
-    public float FontSize
+    public double FontSize
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the item height.
     /// </summary>
-    public float ItemHeight
+    public double ItemHeight
     {
-        get => (float)GetValue(ItemHeightProperty);
+        get => (double)GetValue(ItemHeightProperty);
         set => SetValue(ItemHeightProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the corner radius.
     /// </summary>
-    public float CornerRadius
+    public double CornerRadius
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
@@ -304,26 +291,44 @@ public class SkiaPicker : SkiaView
 
     #endregion
 
+    #region Private Fields
+
     private readonly List<string> _items = new();
     private bool _isOpen;
-    private float _dropdownMaxHeight = 200;
+    private double _dropdownMaxHeight = 200;
     private int _hoveredItemIndex = -1;
+
+    #endregion
+
+    #region Events
 
     /// <summary>
     /// Event raised when selected index changes.
     /// </summary>
-    public event EventHandler? SelectedIndexChanged;
+    public event EventHandler<SelectedIndexChangedEventArgs>? SelectedIndexChanged;
+
+    #endregion
+
+    #region Constructor
 
     public SkiaPicker()
     {
         IsFocusable = true;
     }
 
-    private void OnSelectedIndexChanged()
+    #endregion
+
+    #region Event Handlers
+
+    private void OnSelectedIndexChanged(int oldValue, int newValue)
     {
-        SelectedIndexChanged?.Invoke(this, EventArgs.Empty);
+        SelectedIndexChanged?.Invoke(this, new SelectedIndexChangedEventArgs(oldValue, newValue));
         Invalidate();
     }
+
+    #endregion
+
+    #region Public Methods
 
     /// <summary>
     /// Sets the items in the picker.
@@ -339,10 +344,13 @@ public class SkiaPicker : SkiaView
         Invalidate();
     }
 
+    #endregion
+
+    #region Rendering
+
     private void DrawDropdownOverlay(SKCanvas canvas)
     {
         if (_items.Count == 0 || !_isOpen) return;
-        // Use ScreenBounds for overlay drawing to account for scroll offset
         DrawDropdown(canvas, ScreenBounds);
     }
 
@@ -353,21 +361,30 @@ public class SkiaPicker : SkiaView
 
     private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
     {
+        var cornerRadius = (float)CornerRadius;
+        var fontSize = (float)FontSize;
+
+        // Get colors
+        var textColorSK = ToSKColor(TextColor);
+        var titleColorSK = ToSKColor(TitleColor);
+        var borderColorSK = ToSKColor(BorderColor);
+        var focusColorSK = ToSKColor(Color.FromRgb(0x21, 0x96, 0xF3));
+
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? BackgroundColor : new SKColor(0xF5, 0xF5, 0xF5),
+            Color = IsEnabled ? BackgroundColor : ToSKColor(Color.FromRgb(0xF5, 0xF5, 0xF5)),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
-        var buttonRect = new SKRoundRect(bounds, CornerRadius);
+        var buttonRect = new SKRoundRect(bounds, cornerRadius);
         canvas.DrawRoundRect(buttonRect, bgPaint);
 
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = IsFocused ? new SKColor(0x21, 0x96, 0xF3) : BorderColor,
+            Color = IsFocused ? focusColorSK : borderColorSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = IsFocused ? 2 : 1,
             IsAntialias = true
@@ -375,7 +392,7 @@ public class SkiaPicker : SkiaView
         canvas.DrawRoundRect(buttonRect, borderPaint);
 
         // Draw text or title
-        using var font = new SKFont(SKTypeface.Default, FontSize);
+        using var font = new SKFont(SKTypeface.Default, fontSize);
         using var textPaint = new SKPaint(font)
         {
             IsAntialias = true
@@ -385,12 +402,12 @@ public class SkiaPicker : SkiaView
         if (SelectedIndex >= 0 && SelectedIndex < _items.Count)
         {
             displayText = _items[SelectedIndex];
-            textPaint.Color = IsEnabled ? TextColor : TextColor.WithAlpha(128);
+            textPaint.Color = IsEnabled ? textColorSK : textColorSK.WithAlpha(128);
         }
         else
         {
             displayText = Title;
-            textPaint.Color = TitleColor;
+            textPaint.Color = titleColorSK;
         }
 
         var textBounds = new SKRect();
@@ -401,14 +418,14 @@ public class SkiaPicker : SkiaView
         canvas.DrawText(displayText, textX, textY, textPaint);
 
         // Draw dropdown arrow
-        DrawDropdownArrow(canvas, bounds);
+        DrawDropdownArrow(canvas, bounds, textColorSK);
     }
 
-    private void DrawDropdownArrow(SKCanvas canvas, SKRect bounds)
+    private void DrawDropdownArrow(SKCanvas canvas, SKRect bounds, SKColor color)
     {
         using var paint = new SKPaint
         {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
+            Color = IsEnabled ? color : color.WithAlpha(128),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             IsAntialias = true,
@@ -440,12 +457,24 @@ public class SkiaPicker : SkiaView
     {
         if (_items.Count == 0) return;
 
-        var dropdownHeight = Math.Min(_items.Count * ItemHeight, _dropdownMaxHeight);
+        var itemHeight = (float)ItemHeight;
+        var cornerRadius = (float)CornerRadius;
+        var fontSize = (float)FontSize;
+        var dropdownMaxHeight = (float)_dropdownMaxHeight;
+
+        var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
         var dropdownRect = new SKRect(
             bounds.Left,
             bounds.Bottom + 4,
             bounds.Right,
             bounds.Bottom + 4 + dropdownHeight);
+
+        // Get colors
+        var dropdownBgColorSK = ToSKColor(DropdownBackgroundColor);
+        var borderColorSK = ToSKColor(BorderColor);
+        var textColorSK = ToSKColor(TextColor);
+        var selectedBgColorSK = ToSKColor(SelectedItemBackgroundColor);
+        var hoverBgColorSK = ToSKColor(HoverItemBackgroundColor);
 
         // Draw shadow
         using var shadowPaint = new SKPaint
@@ -455,52 +484,52 @@ public class SkiaPicker : SkiaView
             Style = SKPaintStyle.Fill
         };
         var shadowRect = new SKRect(dropdownRect.Left + 2, dropdownRect.Top + 2, dropdownRect.Right + 2, dropdownRect.Bottom + 2);
-        canvas.DrawRoundRect(new SKRoundRect(shadowRect, CornerRadius), shadowPaint);
+        canvas.DrawRoundRect(new SKRoundRect(shadowRect, cornerRadius), shadowPaint);
 
         // Draw dropdown background
         using var bgPaint = new SKPaint
         {
-            Color = DropdownBackgroundColor,
+            Color = dropdownBgColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(dropdownRect, CornerRadius), bgPaint);
+        canvas.DrawRoundRect(new SKRoundRect(dropdownRect, cornerRadius), bgPaint);
 
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = BorderColor,
+            Color = borderColorSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(dropdownRect, CornerRadius), borderPaint);
+        canvas.DrawRoundRect(new SKRoundRect(dropdownRect, cornerRadius), borderPaint);
 
         // Clip to dropdown bounds
         canvas.Save();
-        canvas.ClipRoundRect(new SKRoundRect(dropdownRect, CornerRadius));
+        canvas.ClipRoundRect(new SKRoundRect(dropdownRect, cornerRadius));
 
         // Draw items
-        using var font = new SKFont(SKTypeface.Default, FontSize);
+        using var font = new SKFont(SKTypeface.Default, fontSize);
         using var textPaint = new SKPaint(font)
         {
-            Color = TextColor,
+            Color = textColorSK,
             IsAntialias = true
         };
 
         for (int i = 0; i < _items.Count; i++)
         {
-            var itemTop = dropdownRect.Top + i * ItemHeight;
+            var itemTop = dropdownRect.Top + i * itemHeight;
             if (itemTop > dropdownRect.Bottom) break;
 
-            var itemRect = new SKRect(dropdownRect.Left, itemTop, dropdownRect.Right, itemTop + ItemHeight);
+            var itemRect = new SKRect(dropdownRect.Left, itemTop, dropdownRect.Right, itemTop + itemHeight);
 
             // Draw item background
             if (i == SelectedIndex)
             {
                 using var selectedPaint = new SKPaint
                 {
-                    Color = SelectedItemBackgroundColor,
+                    Color = selectedBgColorSK,
                     Style = SKPaintStyle.Fill
                 };
                 canvas.DrawRect(itemRect, selectedPaint);
@@ -509,7 +538,7 @@ public class SkiaPicker : SkiaView
             {
                 using var hoverPaint = new SKPaint
                 {
-                    Color = HoverItemBackgroundColor,
+                    Color = hoverBgColorSK,
                     Style = SKPaintStyle.Fill
                 };
                 canvas.DrawRect(itemRect, hoverPaint);
@@ -527,18 +556,23 @@ public class SkiaPicker : SkiaView
         canvas.Restore();
     }
 
+    #endregion
+
+    #region Pointer Events
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
         if (!IsEnabled) return;
 
+        var itemHeight = (float)ItemHeight;
+
         if (IsOpen)
         {
-            // Use ScreenBounds for popup coordinate calculations (accounts for scroll offset)
             var screenBounds = ScreenBounds;
             var dropdownTop = screenBounds.Bottom + 4;
             if (e.Y >= dropdownTop)
             {
-                var itemIndex = (int)((e.Y - dropdownTop) / ItemHeight);
+                var itemIndex = (int)((e.Y - dropdownTop) / itemHeight);
                 if (itemIndex >= 0 && itemIndex < _items.Count)
                 {
                     SelectedIndex = itemIndex;
@@ -551,6 +585,7 @@ public class SkiaPicker : SkiaView
             IsOpen = true;
         }
 
+        e.Handled = true;
         Invalidate();
     }
 
@@ -558,12 +593,13 @@ public class SkiaPicker : SkiaView
     {
         if (!_isOpen) return;
 
-        // Use ScreenBounds for popup coordinate calculations (accounts for scroll offset)
+        var itemHeight = (float)ItemHeight;
         var screenBounds = ScreenBounds;
         var dropdownTop = screenBounds.Bottom + 4;
+
         if (e.Y >= dropdownTop)
         {
-            var newHovered = (int)((e.Y - dropdownTop) / ItemHeight);
+            var newHovered = (int)((e.Y - dropdownTop) / itemHeight);
             if (newHovered != _hoveredItemIndex && newHovered >= 0 && newHovered < _items.Count)
             {
                 _hoveredItemIndex = newHovered;
@@ -585,6 +621,10 @@ public class SkiaPicker : SkiaView
         _hoveredItemIndex = -1;
         Invalidate();
     }
+
+    #endregion
+
+    #region Keyboard Events
 
     public override void OnKeyDown(KeyEventArgs e)
     {
@@ -623,8 +663,28 @@ public class SkiaPicker : SkiaView
                     e.Handled = true;
                 }
                 break;
+
+            case Key.Home:
+                if (_items.Count > 0)
+                {
+                    SelectedIndex = 0;
+                    e.Handled = true;
+                }
+                break;
+
+            case Key.End:
+                if (_items.Count > 0)
+                {
+                    SelectedIndex = _items.Count - 1;
+                    e.Handled = true;
+                }
+                break;
         }
     }
+
+    #endregion
+
+    #region Lifecycle
 
     public override void OnFocusLost()
     {
@@ -635,6 +695,18 @@ public class SkiaPicker : SkiaView
         }
     }
 
+    protected override void OnEnabledChanged()
+    {
+        base.OnEnabledChanged();
+        SkiaVisualStateManager.GoToState(this, IsEnabled
+            ? SkiaVisualStateManager.CommonStates.Normal
+            : SkiaVisualStateManager.CommonStates.Disabled);
+    }
+
+    #endregion
+
+    #region Layout
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         return new SKSize(
@@ -642,12 +714,15 @@ public class SkiaPicker : SkiaView
             40);
     }
 
+    #endregion
+
+    #region Hit Testing
+
     /// <summary>
     /// Override to include dropdown area in hit testing.
     /// </summary>
     protected override bool HitTestPopupArea(float x, float y)
     {
-        // Use ScreenBounds for hit testing (accounts for scroll offset)
         var screenBounds = ScreenBounds;
 
         // Always include the picker button itself
@@ -657,7 +732,9 @@ public class SkiaPicker : SkiaView
         // When open, also include the dropdown area
         if (_isOpen && _items.Count > 0)
         {
-            var dropdownHeight = Math.Min(_items.Count * ItemHeight, _dropdownMaxHeight);
+            var itemHeight = (float)ItemHeight;
+            var dropdownMaxHeight = (float)_dropdownMaxHeight;
+            var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
             var dropdownRect = new SKRect(
                 screenBounds.Left,
                 screenBounds.Bottom + 4,
@@ -668,5 +745,29 @@ public class SkiaPicker : SkiaView
         }
 
         return false;
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// Event args for selected index changed events.
+/// </summary>
+public class SelectedIndexChangedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets the old selected index.
+    /// </summary>
+    public int OldIndex { get; }
+
+    /// <summary>
+    /// Gets the new selected index.
+    /// </summary>
+    public int NewIndex { get; }
+
+    public SelectedIndexChangedEventArgs(int oldIndex, int newIndex)
+    {
+        OldIndex = oldIndex;
+        NewIndex = newIndex;
     }
 }
