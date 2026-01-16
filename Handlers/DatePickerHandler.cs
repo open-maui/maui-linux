@@ -23,6 +23,7 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
             [nameof(IDatePicker.Format)] = MapFormat,
             [nameof(IDatePicker.TextColor)] = MapTextColor,
             [nameof(IDatePicker.CharacterSpacing)] = MapCharacterSpacing,
+            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IView.Background)] = MapBackground,
         };
 
@@ -110,7 +111,27 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
 
     public static void MapCharacterSpacing(DatePickerHandler handler, IDatePicker datePicker)
     {
-        // Character spacing would require custom text rendering
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = datePicker.CharacterSpacing;
+    }
+
+    public static void MapFont(DatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler.PlatformView is null) return;
+
+        var font = datePicker.Font;
+        if (font.Size > 0)
+            handler.PlatformView.FontSize = font.Size;
+
+        if (!string.IsNullOrEmpty(font.Family))
+            handler.PlatformView.FontFamily = font.Family;
+
+        // Map FontAttributes from the Font weight/slant
+        var attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        // Note: Font.Slant for italic would require checking FontSlant
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapBackground(DatePickerHandler handler, IDatePicker datePicker)

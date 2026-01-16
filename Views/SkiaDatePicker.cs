@@ -61,9 +61,21 @@ public class SkiaDatePicker : SkiaView
         BindableProperty.Create(nameof(DisabledDayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(189, 189, 189), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
+    public static readonly BindableProperty FontFamilyProperty =
+        BindableProperty.Create(nameof(FontFamily), typeof(string), typeof(SkiaDatePicker), string.Empty, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
+
     public static readonly BindableProperty FontSizeProperty =
         BindableProperty.Create(nameof(FontSize), typeof(double), typeof(SkiaDatePicker), 14.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).InvalidateMeasure());
+
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(nameof(FontAttributes), typeof(FontAttributes), typeof(SkiaDatePicker), FontAttributes.None, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
+
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(nameof(CharacterSpacing), typeof(double), typeof(SkiaDatePicker), 0.0, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(nameof(CornerRadius), typeof(double), typeof(SkiaDatePicker), 4.0, BindingMode.TwoWay,
@@ -150,10 +162,28 @@ public class SkiaDatePicker : SkiaView
         set => SetValue(DisabledDayColorProperty, value);
     }
 
+    public string FontFamily
+    {
+        get => (string)GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
     public double FontSize
     {
         get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
+    }
+
+    public FontAttributes FontAttributes
+    {
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
     }
 
     public double CornerRadius
@@ -305,7 +335,33 @@ public class SkiaDatePicker : SkiaView
         canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
 
         SKColor textColor = ToSKColor(TextColor);
-        using var font = new SKFont(SKTypeface.Default, fontSize, 1f, 0f);
+
+        // Get typeface based on FontFamily and FontAttributes
+        SKTypeface typeface = SKTypeface.Default;
+        if (!string.IsNullOrEmpty(FontFamily))
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
+        }
+        else if (FontAttributes != FontAttributes.None)
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
+        }
+
+        using var font = new SKFont(typeface, fontSize, 1f, 0f);
         using var textPaint = new SKPaint(font)
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
