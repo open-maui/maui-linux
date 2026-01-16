@@ -18,9 +18,11 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
         [nameof(ITextInput.Text)] = MapText,
         [nameof(ITextStyle.TextColor)] = MapTextColor,
         [nameof(ITextStyle.Font)] = MapFont,
+        [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
         [nameof(IPlaceholder.Placeholder)] = MapPlaceholder,
         [nameof(IPlaceholder.PlaceholderColor)] = MapPlaceholderColor,
         [nameof(ISearchBar.CancelButtonColor)] = MapCancelButtonColor,
+        [nameof(ISearchBar.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
         [nameof(IView.Background)] = MapBackground,
     };
 
@@ -93,10 +95,28 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
 
         var font = searchBar.Font;
         if (font.Size > 0)
-            handler.PlatformView.FontSize = (float)font.Size;
+            handler.PlatformView.FontSize = font.Size;
 
         if (!string.IsNullOrEmpty(font.Family))
             handler.PlatformView.FontFamily = font.Family;
+
+        // Map FontAttributes from the Font weight
+        var attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        handler.PlatformView.FontAttributes = attrs;
+    }
+
+    public static void MapCharacterSpacing(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = searchBar.CharacterSpacing;
+    }
+
+    public static void MapHorizontalTextAlignment(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.HorizontalTextAlignment = searchBar.HorizontalTextAlignment;
     }
 
     public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar)
