@@ -27,22 +27,9 @@ public class GtkWebViewProxy : SkiaView
     public override void Arrange(SKRect bounds)
     {
         base.Arrange(bounds);
-        var windowBounds = TransformToWindow(bounds);
-        _handler.RegisterWithHost(windowBounds);
-    }
-
-    private SKRect TransformToWindow(SKRect localBounds)
-    {
-        float x = localBounds.Left;
-        float y = localBounds.Top;
-
-        for (var parent = Parent; parent != null; parent = parent.Parent)
-        {
-            x += parent.Bounds.Left;
-            y += parent.Bounds.Top;
-        }
-
-        return new SKRect(x, y, x + localBounds.Width, y + localBounds.Height);
+        // Bounds are already in absolute window coordinates - use them directly
+        // The Skia layout system uses absolute coordinates throughout
+        _handler.RegisterWithHost(Bounds);
     }
 
     public override void Draw(SKCanvas canvas)

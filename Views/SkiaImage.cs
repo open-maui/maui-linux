@@ -433,6 +433,51 @@ public class SkiaImage : SkiaView
         }
     }
 
+    protected override SKRect ArrangeOverride(SKRect bounds)
+    {
+        // If we have explicit size requests, constrain to desired size
+        // This follows MAUI standard behavior - controls respect WidthRequest/HeightRequest
+        var desiredWidth = DesiredSize.Width;
+        var desiredHeight = DesiredSize.Height;
+
+        // If desired size is smaller than available bounds, align within bounds
+        if (desiredWidth > 0 && desiredHeight > 0 &&
+            (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
+        {
+            float finalWidth = Math.Min(desiredWidth, bounds.Width);
+            float finalHeight = Math.Min(desiredHeight, bounds.Height);
+
+            // Calculate position based on HorizontalOptions
+            // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
+            float x = bounds.Left;
+            var hAlignValue = (int)HorizontalOptions.Alignment;
+            if (hAlignValue == 1) // Center
+            {
+                x = bounds.Left + (bounds.Width - finalWidth) / 2;
+            }
+            else if (hAlignValue == 2) // End
+            {
+                x = bounds.Right - finalWidth;
+            }
+
+            // Calculate position based on VerticalOptions
+            float y = bounds.Top;
+            var vAlignValue = (int)VerticalOptions.Alignment;
+            if (vAlignValue == 1) // Center
+            {
+                y = bounds.Top + (bounds.Height - finalHeight) / 2;
+            }
+            else if (vAlignValue == 2) // End
+            {
+                y = bounds.Bottom - finalHeight;
+            }
+
+            return new SKRect(x, y, x + finalWidth, y + finalHeight);
+        }
+
+        return bounds;
+    }
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         double widthRequest = base.WidthRequest;

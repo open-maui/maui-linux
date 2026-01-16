@@ -269,12 +269,14 @@ public class SkiaImageButton : SkiaView
                         bool hasWidth = WidthRequest > 0;
                         bool hasHeight = HeightRequest > 0;
 
+                        // Default to 24x24 for icons when no size specified
+                        const float DefaultIconSize = 24f;
                         float targetWidth = hasWidth
                             ? (float)(WidthRequest - PaddingLeft - PaddingRight)
-                            : cullRect.Width;
+                            : DefaultIconSize;
                         float targetHeight = hasHeight
                             ? (float)(HeightRequest - PaddingTop - PaddingBottom)
-                            : cullRect.Height;
+                            : DefaultIconSize;
 
                         float scale = Math.Min(targetWidth / cullRect.Width, targetHeight / cullRect.Height);
                         int width = Math.Max(1, (int)(cullRect.Width * scale));
@@ -472,6 +474,29 @@ public class SkiaImageButton : SkiaView
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
+        // Respect explicit WidthRequest/HeightRequest first (MAUI standard behavior)
+        if (WidthRequest > 0 && HeightRequest > 0)
+        {
+            return new SKSize((float)WidthRequest, (float)HeightRequest);
+        }
+        if (WidthRequest > 0)
+        {
+            // Fixed width, calculate height from aspect ratio or use width
+            float height = HeightRequest > 0 ? (float)HeightRequest
+                         : _image != null ? (float)WidthRequest * _image.Height / _image.Width
+                         : (float)WidthRequest;
+            return new SKSize((float)WidthRequest, height);
+        }
+        if (HeightRequest > 0)
+        {
+            // Fixed height, calculate width from aspect ratio or use height
+            float width = WidthRequest > 0 ? (float)WidthRequest
+                        : _image != null ? (float)HeightRequest * _image.Width / _image.Height
+                        : (float)HeightRequest;
+            return new SKSize(width, (float)HeightRequest);
+        }
+
+        // No explicit size - calculate from content
         var padding = new SKSize(PaddingLeft + PaddingRight, PaddingTop + PaddingBottom);
 
         if (_image == null)
@@ -502,6 +527,53 @@ public class SkiaImageButton : SkiaView
         }
 
         return new SKSize(imageWidth + padding.Width, imageHeight + padding.Height);
+    }
+
+    protected override SKRect ArrangeOverride(SKRect bounds)
+    {
+        // If we have explicit size requests, constrain to desired size
+        // This follows MAUI standard behavior - controls respect WidthRequest/HeightRequest
+        var desiredWidth = DesiredSize.Width;
+        var desiredHeight = DesiredSize.Height;
+
+        // If desired size is smaller than available bounds, align within bounds
+        if (desiredWidth > 0 && desiredHeight > 0 &&
+            (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
+        {
+            float finalWidth = Math.Min(desiredWidth, bounds.Width);
+            float finalHeight = Math.Min(desiredHeight, bounds.Height);
+
+            // Calculate position based on HorizontalOptions
+            // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
+            float x = bounds.Left;
+            var hAlignValue = (int)HorizontalOptions.Alignment;
+            if (hAlignValue == 1) // Center
+            {
+                x = bounds.Left + (bounds.Width - finalWidth) / 2;
+            }
+            else if (hAlignValue == 2) // End
+            {
+                x = bounds.Right - finalWidth;
+            }
+            // Fill (3) and Start (0) both use x = bounds.Left
+
+            // Calculate position based on VerticalOptions
+            float y = bounds.Top;
+            var vAlignValue = (int)VerticalOptions.Alignment;
+            if (vAlignValue == 1) // Center
+            {
+                y = bounds.Top + (bounds.Height - finalHeight) / 2;
+            }
+            else if (vAlignValue == 2) // End
+            {
+                y = bounds.Bottom - finalHeight;
+            }
+            // Fill (3) and Start (0) both use y = bounds.Top
+
+            return new SKRect(x, y, x + finalWidth, y + finalHeight);
+        }
+
+        return bounds;
     }
 
     protected override void Dispose(bool disposing)

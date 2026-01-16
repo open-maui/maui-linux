@@ -25,6 +25,8 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         [nameof(IPadding.Padding)] = MapPadding,
         [nameof(IView.Background)] = MapBackground,
         ["BackgroundColor"] = MapBackgroundColor,
+        [nameof(IView.Width)] = MapWidth,
+        [nameof(IView.Height)] = MapHeight,
     };
 
     public static CommandMapper<IImageButton, ImageButtonHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -162,6 +164,28 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.BackgroundColor is not null)
         {
             handler.PlatformView.BackgroundColor = imgBtn.BackgroundColor.ToSKColor();
+        }
+    }
+
+    public static void MapWidth(ImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler.PlatformView is null) return;
+
+        // Map WidthRequest from the MAUI ImageButton to the platform view
+        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.WidthRequest > 0)
+        {
+            handler.PlatformView.WidthRequest = imgBtn.WidthRequest;
+        }
+    }
+
+    public static void MapHeight(ImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler.PlatformView is null) return;
+
+        // Map HeightRequest from the MAUI ImageButton to the platform view
+        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.HeightRequest > 0)
+        {
+            handler.PlatformView.HeightRequest = imgBtn.HeightRequest;
         }
     }
 

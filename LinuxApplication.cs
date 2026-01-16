@@ -219,6 +219,21 @@ public class LinuxApplication : IDisposable
     /// <param name="configure">Optional configuration action.</param>
     public static void Run(MauiApp app, string[] args, Action<LinuxApplicationOptions>? configure)
     {
+        // Force X11 backend for GTK/WebKitGTK - MUST be set before any GTK code runs
+        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+
+        // Pre-initialize GTK for WebView compatibility (even when using X11 mode)
+        int argc = 0;
+        IntPtr argv = IntPtr.Zero;
+        if (!GtkNative.gtk_init_check(ref argc, ref argv))
+        {
+            Console.WriteLine("[LinuxApplication] Warning: GTK initialization failed - WebView may not work");
+        }
+        else
+        {
+            Console.WriteLine("[LinuxApplication] GTK pre-initialized for WebView support");
+        }
+
         // Initialize dispatcher
         LinuxDispatcher.Initialize();
         DispatcherProvider.SetCurrent(LinuxDispatcherProvider.Instance);
