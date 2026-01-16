@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Rendering;
@@ -333,6 +334,128 @@ public abstract class SkiaView : BindableObject, IDisposable
             0.5,
             propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for InputTransparent.
+    /// When true, the view does not receive input events and they pass through to views below.
+    /// </summary>
+    public static readonly BindableProperty InputTransparentProperty =
+        BindableProperty.Create(
+            nameof(InputTransparent),
+            typeof(bool),
+            typeof(SkiaView),
+            false);
+
+    /// <summary>
+    /// Bindable property for FlowDirection.
+    /// Controls the layout direction for RTL language support.
+    /// </summary>
+    public static readonly BindableProperty FlowDirectionProperty =
+        BindableProperty.Create(
+            nameof(FlowDirection),
+            typeof(FlowDirection),
+            typeof(SkiaView),
+            FlowDirection.MatchParent,
+            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for ZIndex.
+    /// Controls the rendering order within a layout.
+    /// </summary>
+    public static readonly BindableProperty ZIndexProperty =
+        BindableProperty.Create(
+            nameof(ZIndex),
+            typeof(int),
+            typeof(SkiaView),
+            0,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Parent?.Invalidate());
+
+    /// <summary>
+    /// Bindable property for MaximumWidthRequest.
+    /// </summary>
+    public static readonly BindableProperty MaximumWidthRequestProperty =
+        BindableProperty.Create(
+            nameof(MaximumWidthRequest),
+            typeof(double),
+            typeof(SkiaView),
+            double.PositiveInfinity,
+            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for MaximumHeightRequest.
+    /// </summary>
+    public static readonly BindableProperty MaximumHeightRequestProperty =
+        BindableProperty.Create(
+            nameof(MaximumHeightRequest),
+            typeof(double),
+            typeof(SkiaView),
+            double.PositiveInfinity,
+            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for AutomationId.
+    /// Used for UI testing and accessibility.
+    /// </summary>
+    public static readonly BindableProperty AutomationIdProperty =
+        BindableProperty.Create(
+            nameof(AutomationId),
+            typeof(string),
+            typeof(SkiaView),
+            string.Empty);
+
+    /// <summary>
+    /// Bindable property for Padding.
+    /// </summary>
+    public static readonly BindableProperty PaddingProperty =
+        BindableProperty.Create(
+            nameof(Padding),
+            typeof(Thickness),
+            typeof(SkiaView),
+            default(Thickness),
+            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for Background (Brush).
+    /// </summary>
+    public static readonly BindableProperty BackgroundProperty =
+        BindableProperty.Create(
+            nameof(Background),
+            typeof(Brush),
+            typeof(SkiaView),
+            null,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Clip geometry.
+    /// </summary>
+    public static readonly BindableProperty ClipProperty =
+        BindableProperty.Create(
+            nameof(Clip),
+            typeof(Geometry),
+            typeof(SkiaView),
+            null,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Shadow.
+    /// </summary>
+    public static readonly BindableProperty ShadowProperty =
+        BindableProperty.Create(
+            nameof(Shadow),
+            typeof(Shadow),
+            typeof(SkiaView),
+            null,
+            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for Visual.
+    /// </summary>
+    public static readonly BindableProperty VisualProperty =
+        BindableProperty.Create(
+            nameof(Visual),
+            typeof(IVisual),
+            typeof(SkiaView),
+            VisualMarker.Default);
+
     #endregion
 
     private bool _disposed;
@@ -614,6 +737,107 @@ public abstract class SkiaView : BindableObject, IDisposable
     }
 
     /// <summary>
+    /// Gets or sets whether this view is transparent to input.
+    /// When true, input events pass through to views below.
+    /// </summary>
+    public bool InputTransparent
+    {
+        get => (bool)GetValue(InputTransparentProperty);
+        set => SetValue(InputTransparentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the flow direction for RTL support.
+    /// </summary>
+    public FlowDirection FlowDirection
+    {
+        get => (FlowDirection)GetValue(FlowDirectionProperty);
+        set => SetValue(FlowDirectionProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the Z-index for rendering order.
+    /// Higher values render on top of lower values.
+    /// </summary>
+    public int ZIndex
+    {
+        get => (int)GetValue(ZIndexProperty);
+        set => SetValue(ZIndexProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum width request.
+    /// </summary>
+    public double MaximumWidthRequest
+    {
+        get => (double)GetValue(MaximumWidthRequestProperty);
+        set => SetValue(MaximumWidthRequestProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum height request.
+    /// </summary>
+    public double MaximumHeightRequest
+    {
+        get => (double)GetValue(MaximumHeightRequestProperty);
+        set => SetValue(MaximumHeightRequestProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the automation ID for UI testing.
+    /// </summary>
+    public string AutomationId
+    {
+        get => (string)GetValue(AutomationIdProperty);
+        set => SetValue(AutomationIdProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the padding inside the view.
+    /// </summary>
+    public Thickness Padding
+    {
+        get => (Thickness)GetValue(PaddingProperty);
+        set => SetValue(PaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the background brush.
+    /// </summary>
+    public Brush? Background
+    {
+        get => (Brush?)GetValue(BackgroundProperty);
+        set => SetValue(BackgroundProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the clip geometry.
+    /// </summary>
+    public Geometry? Clip
+    {
+        get => (Geometry?)GetValue(ClipProperty);
+        set => SetValue(ClipProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the shadow.
+    /// </summary>
+    public Shadow? Shadow
+    {
+        get => (Shadow?)GetValue(ShadowProperty);
+        set => SetValue(ShadowProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the visual style.
+    /// </summary>
+    public IVisual Visual
+    {
+        get => (IVisual)GetValue(VisualProperty);
+        set => SetValue(VisualProperty, value);
+    }
+
+    /// <summary>
     /// Gets or sets the cursor type when hovering over this view.
     /// </summary>
     public CursorType CursorType { get; set; }
@@ -865,12 +1089,20 @@ public abstract class SkiaView : BindableObject, IDisposable
             canvas.SaveLayer(new SKPaint { Color = SKColors.White.WithAlpha((byte)(Opacity * 255)) });
         }
 
-        // Draw background at absolute bounds
-        if (BackgroundColor != SKColors.Transparent)
+        // Draw shadow if set
+        if (Shadow != null)
         {
-            using var paint = new SKPaint { Color = BackgroundColor };
-            canvas.DrawRect(Bounds, paint);
+            DrawShadow(canvas, Bounds);
         }
+
+        // Apply clip geometry if set
+        if (Clip != null)
+        {
+            ApplyClip(canvas, Bounds);
+        }
+
+        // Draw background at absolute bounds
+        DrawBackground(canvas, Bounds);
 
         // Draw content at absolute bounds
         OnDraw(canvas, Bounds);
@@ -894,6 +1126,166 @@ public abstract class SkiaView : BindableObject, IDisposable
     /// </summary>
     protected virtual void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+    }
+
+    /// <summary>
+    /// Draws the shadow for this view.
+    /// </summary>
+    protected virtual void DrawShadow(SKCanvas canvas, SKRect bounds)
+    {
+        if (Shadow == null) return;
+
+        var shadowColor = Shadow.Brush is SolidColorBrush scb
+            ? new SKColor(
+                (byte)(scb.Color.Red * 255),
+                (byte)(scb.Color.Green * 255),
+                (byte)(scb.Color.Blue * 255),
+                (byte)(scb.Color.Alpha * 255 * Shadow.Opacity))
+            : new SKColor(0, 0, 0, (byte)(255 * Shadow.Opacity));
+
+        using var shadowPaint = new SKPaint
+        {
+            Color = shadowColor,
+            IsAntialias = true,
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (float)Shadow.Radius / 2)
+        };
+
+        var shadowBounds = new SKRect(
+            bounds.Left + (float)Shadow.Offset.X,
+            bounds.Top + (float)Shadow.Offset.Y,
+            bounds.Right + (float)Shadow.Offset.X,
+            bounds.Bottom + (float)Shadow.Offset.Y);
+
+        canvas.DrawRect(shadowBounds, shadowPaint);
+    }
+
+    /// <summary>
+    /// Applies the clip geometry to the canvas.
+    /// </summary>
+    protected virtual void ApplyClip(SKCanvas canvas, SKRect bounds)
+    {
+        if (Clip == null) return;
+
+        // Convert MAUI Geometry to SkiaSharp path
+        var path = ConvertGeometryToPath(Clip, bounds);
+        if (path != null)
+        {
+            canvas.ClipPath(path);
+        }
+    }
+
+    /// <summary>
+    /// Converts a MAUI Geometry to a SkiaSharp path.
+    /// </summary>
+    private SKPath? ConvertGeometryToPath(Geometry geometry, SKRect bounds)
+    {
+        var path = new SKPath();
+
+        if (geometry is RectangleGeometry rect)
+        {
+            var r = rect.Rect;
+            path.AddRect(new SKRect(
+                bounds.Left + (float)r.Left,
+                bounds.Top + (float)r.Top,
+                bounds.Left + (float)r.Right,
+                bounds.Top + (float)r.Bottom));
+        }
+        else if (geometry is EllipseGeometry ellipse)
+        {
+            path.AddOval(new SKRect(
+                bounds.Left + (float)(ellipse.Center.X - ellipse.RadiusX),
+                bounds.Top + (float)(ellipse.Center.Y - ellipse.RadiusY),
+                bounds.Left + (float)(ellipse.Center.X + ellipse.RadiusX),
+                bounds.Top + (float)(ellipse.Center.Y + ellipse.RadiusY)));
+        }
+        else if (geometry is RoundRectangleGeometry roundRect)
+        {
+            var r = roundRect.Rect;
+            var cr = roundRect.CornerRadius;
+            var skRect = new SKRect(
+                bounds.Left + (float)r.Left,
+                bounds.Top + (float)r.Top,
+                bounds.Left + (float)r.Right,
+                bounds.Top + (float)r.Bottom);
+            var skRoundRect = new SKRoundRect();
+            skRoundRect.SetRectRadii(skRect, new[]
+            {
+                new SKPoint((float)cr.TopLeft, (float)cr.TopLeft),
+                new SKPoint((float)cr.TopRight, (float)cr.TopRight),
+                new SKPoint((float)cr.BottomRight, (float)cr.BottomRight),
+                new SKPoint((float)cr.BottomLeft, (float)cr.BottomLeft)
+            });
+            path.AddRoundRect(skRoundRect);
+        }
+        // Add more geometry types as needed
+
+        return path;
+    }
+
+    /// <summary>
+    /// Draws the background (color or brush) for this view.
+    /// </summary>
+    protected virtual void DrawBackground(SKCanvas canvas, SKRect bounds)
+    {
+        // First try to use Background brush
+        if (Background != null)
+        {
+            using var paint = new SKPaint { IsAntialias = true };
+
+            if (Background is SolidColorBrush scb)
+            {
+                paint.Color = new SKColor(
+                    (byte)(scb.Color.Red * 255),
+                    (byte)(scb.Color.Green * 255),
+                    (byte)(scb.Color.Blue * 255),
+                    (byte)(scb.Color.Alpha * 255));
+                canvas.DrawRect(bounds, paint);
+            }
+            else if (Background is LinearGradientBrush lgb)
+            {
+                var start = new SKPoint(
+                    bounds.Left + (float)(lgb.StartPoint.X * bounds.Width),
+                    bounds.Top + (float)(lgb.StartPoint.Y * bounds.Height));
+                var end = new SKPoint(
+                    bounds.Left + (float)(lgb.EndPoint.X * bounds.Width),
+                    bounds.Top + (float)(lgb.EndPoint.Y * bounds.Height));
+
+                var colors = lgb.GradientStops.Select(s =>
+                    new SKColor(
+                        (byte)(s.Color.Red * 255),
+                        (byte)(s.Color.Green * 255),
+                        (byte)(s.Color.Blue * 255),
+                        (byte)(s.Color.Alpha * 255))).ToArray();
+                var positions = lgb.GradientStops.Select(s => s.Offset).ToArray();
+
+                paint.Shader = SKShader.CreateLinearGradient(start, end, colors, positions, SKShaderTileMode.Clamp);
+                canvas.DrawRect(bounds, paint);
+            }
+            else if (Background is RadialGradientBrush rgb)
+            {
+                var center = new SKPoint(
+                    bounds.Left + (float)(rgb.Center.X * bounds.Width),
+                    bounds.Top + (float)(rgb.Center.Y * bounds.Height));
+                var radius = (float)(rgb.Radius * Math.Max(bounds.Width, bounds.Height));
+
+                var colors = rgb.GradientStops.Select(s =>
+                    new SKColor(
+                        (byte)(s.Color.Red * 255),
+                        (byte)(s.Color.Green * 255),
+                        (byte)(s.Color.Blue * 255),
+                        (byte)(s.Color.Alpha * 255))).ToArray();
+                var positions = rgb.GradientStops.Select(s => s.Offset).ToArray();
+
+                paint.Shader = SKShader.CreateRadialGradient(center, radius, colors, positions, SKShaderTileMode.Clamp);
+                canvas.DrawRect(bounds, paint);
+            }
+        }
+        // Fall back to BackgroundColor
+        else if (BackgroundColor != SKColors.Transparent)
+        {
+            using var paint = new SKPaint { Color = BackgroundColor };
+            canvas.DrawRect(bounds, paint);
+        }
     }
 
     /// <summary>
@@ -967,6 +1359,10 @@ public abstract class SkiaView : BindableObject, IDisposable
             if (hit != null)
                 return hit;
         }
+
+        // If InputTransparent, don't capture input - let it pass through
+        if (InputTransparent)
+            return null;
 
         return this;
     }
