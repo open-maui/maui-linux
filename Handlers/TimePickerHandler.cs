@@ -51,11 +51,11 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
         // Apply dark theme colors if needed
         if (Application.Current?.UserAppTheme == AppTheme.Dark)
         {
-            platformView.ClockBackgroundColor = new SKColor(30, 30, 30);
-            platformView.ClockFaceColor = new SKColor(45, 45, 45);
-            platformView.TextColor = new SKColor(224, 224, 224);
-            platformView.BorderColor = new SKColor(97, 97, 97);
-            platformView.BackgroundColor = new SKColor(45, 45, 45);
+            platformView.ClockBackgroundColor = Color.FromRgb(30, 30, 30);
+            platformView.ClockFaceColor = Color.FromRgb(45, 45, 45);
+            platformView.TextColor = Color.FromRgb(224, 224, 224);
+            platformView.BorderColor = Color.FromRgb(97, 97, 97);
+            platformView.BackgroundColor = Color.FromRgb(45, 45, 45).ToSKColor();
         }
     }
 
@@ -65,11 +65,11 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
         base.DisconnectHandler(platformView);
     }
 
-    private void OnTimeSelected(object? sender, EventArgs e)
+    private void OnTimeSelected(object? sender, TimeChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.Time = PlatformView.Time;
+        VirtualView.Time = e.NewTime;
     }
 
     public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
@@ -89,7 +89,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
         if (handler.PlatformView is null) return;
         if (timePicker.TextColor is not null)
         {
-            handler.PlatformView.TextColor = timePicker.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = timePicker.TextColor;
         }
     }
 
