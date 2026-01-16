@@ -68,7 +68,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         base.DisconnectHandler(platformView);
     }
 
-    private void OnValueChanged(object? sender, SliderValueChangedEventArgs e)
+    private void OnValueChanged(object? sender, ValueChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
@@ -112,18 +112,16 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
     {
         if (handler.PlatformView is null) return;
 
-        // MinimumTrackColor maps to ActiveTrackColor (the filled portion)
         if (slider.MinimumTrackColor is not null)
-            handler.PlatformView.ActiveTrackColor = slider.MinimumTrackColor.ToSKColor();
+            handler.PlatformView.MinimumTrackColor = slider.MinimumTrackColor;
     }
 
     public static void MapMaximumTrackColor(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
 
-        // MaximumTrackColor maps to TrackColor (the unfilled portion)
         if (slider.MaximumTrackColor is not null)
-            handler.PlatformView.TrackColor = slider.MaximumTrackColor.ToSKColor();
+            handler.PlatformView.MaximumTrackColor = slider.MaximumTrackColor;
     }
 
     public static void MapThumbColor(SliderHandler handler, ISlider slider)
@@ -131,7 +129,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         if (handler.PlatformView is null) return;
 
         if (slider.ThumbColor is not null)
-            handler.PlatformView.ThumbColor = slider.ThumbColor.ToSKColor();
+            handler.PlatformView.ThumbColor = slider.ThumbColor;
     }
 
     public static void MapBackground(SliderHandler handler, ISlider slider)
