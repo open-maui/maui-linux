@@ -80,7 +80,7 @@ public partial class RadioButtonHandler : ViewHandler<IRadioButton, SkiaRadioBut
 
         if (radioButton.TextColor is not null)
         {
-            handler.PlatformView.TextColor = radioButton.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = radioButton.TextColor;
         }
     }
 

@@ -1,140 +1,309 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered radio button control with full XAML styling support.
+/// Skia-rendered radio button control with full MAUI compliance.
+/// Implements IRadioButton interface requirements:
+/// - IsChecked property with CheckedChanged event
+/// - GroupName for mutual exclusion
+/// - Value property for binding
+/// - Content property for label text
 /// </summary>
 public class SkiaRadioButton : SkiaView
 {
+    #region SKColor Helper
+
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    #endregion
+
     #region BindableProperties
 
     public static readonly BindableProperty IsCheckedProperty =
-        BindableProperty.Create(nameof(IsChecked), typeof(bool), typeof(SkiaRadioButton), false, BindingMode.OneWay,
+        BindableProperty.Create(
+            nameof(IsChecked),
+            typeof(bool),
+            typeof(SkiaRadioButton),
+            false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).OnIsCheckedChanged());
 
     public static readonly BindableProperty ContentProperty =
-        BindableProperty.Create(nameof(Content), typeof(string), typeof(SkiaRadioButton), "", BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(Content),
+            typeof(string),
+            typeof(SkiaRadioButton),
+            "",
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     public static readonly BindableProperty ValueProperty =
-        BindableProperty.Create(nameof(Value), typeof(object), typeof(SkiaRadioButton), null, BindingMode.TwoWay);
+        BindableProperty.Create(
+            nameof(Value),
+            typeof(object),
+            typeof(SkiaRadioButton),
+            null,
+            BindingMode.TwoWay);
 
     public static readonly BindableProperty GroupNameProperty =
-        BindableProperty.Create(nameof(GroupName), typeof(string), typeof(SkiaRadioButton), null, BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(GroupName),
+            typeof(string),
+            typeof(SkiaRadioButton),
+            null,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).OnGroupNameChanged((string?)o, (string?)n));
 
     public static readonly BindableProperty RadioColorProperty =
-        BindableProperty.Create(nameof(RadioColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0x21, 0x96, 0xF3), BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(RadioColor),
+            typeof(Color),
+            typeof(SkiaRadioButton),
+            Color.FromRgb(0x21, 0x96, 0xF3), // Material Blue
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty UncheckedColorProperty =
-        BindableProperty.Create(nameof(UncheckedColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0x75, 0x75, 0x75), BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(UncheckedColor),
+            typeof(Color),
+            typeof(SkiaRadioButton),
+            Color.FromRgb(0x75, 0x75, 0x75),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaRadioButton), SKColors.Black, BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(TextColor),
+            typeof(Color),
+            typeof(SkiaRadioButton),
+            Colors.Black,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty DisabledColorProperty =
-        BindableProperty.Create(nameof(DisabledColor), typeof(SKColor), typeof(SkiaRadioButton), new SKColor(0xBD, 0xBD, 0xBD), BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(DisabledColor),
+            typeof(Color),
+            typeof(SkiaRadioButton),
+            Color.FromRgb(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaRadioButton), 14f, BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(FontSize),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            14.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     public static readonly BindableProperty RadioSizeProperty =
-        BindableProperty.Create(nameof(RadioSize), typeof(float), typeof(SkiaRadioButton), 20f, BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(RadioSize),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            20.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
     public static readonly BindableProperty SpacingProperty =
-        BindableProperty.Create(nameof(Spacing), typeof(float), typeof(SkiaRadioButton), 8f, BindingMode.TwoWay,
+        BindableProperty.Create(
+            nameof(Spacing),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            8.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
+
+    public static readonly BindableProperty BorderColorProperty =
+        BindableProperty.Create(
+            nameof(BorderColor),
+            typeof(Color),
+            typeof(SkiaRadioButton),
+            Color.FromRgb(0x75, 0x75, 0x75),
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
+
+    public static readonly BindableProperty BorderWidthProperty =
+        BindableProperty.Create(
+            nameof(BorderWidth),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            2.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
 
     #endregion
 
     #region Properties
 
+    /// <summary>
+    /// Gets or sets whether the radio button is checked.
+    /// </summary>
     public bool IsChecked
     {
         get => (bool)GetValue(IsCheckedProperty);
         set => SetValue(IsCheckedProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the text content displayed next to the radio button.
+    /// </summary>
     public string Content
     {
         get => (string)GetValue(ContentProperty);
         set => SetValue(ContentProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the value associated with this radio button.
+    /// </summary>
     public object? Value
     {
         get => GetValue(ValueProperty);
         set => SetValue(ValueProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the group name for mutual exclusion.
+    /// </summary>
     public string? GroupName
     {
         get => (string?)GetValue(GroupNameProperty);
         set => SetValue(GroupNameProperty, value);
     }
 
-    public SKColor RadioColor
+    /// <summary>
+    /// Gets or sets the color of the radio circle when checked.
+    /// </summary>
+    public Color RadioColor
     {
-        get => (SKColor)GetValue(RadioColorProperty);
+        get => (Color)GetValue(RadioColorProperty);
         set => SetValue(RadioColorProperty, value);
     }
 
-    public SKColor UncheckedColor
+    /// <summary>
+    /// Gets or sets the color of the radio circle when unchecked.
+    /// </summary>
+    public Color UncheckedColor
     {
-        get => (SKColor)GetValue(UncheckedColorProperty);
+        get => (Color)GetValue(UncheckedColorProperty);
         set => SetValue(UncheckedColorProperty, value);
     }
 
-    public SKColor TextColor
+    /// <summary>
+    /// Gets or sets the text color.
+    /// </summary>
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
-    public SKColor DisabledColor
+    /// <summary>
+    /// Gets or sets the color used when disabled.
+    /// </summary>
+    public Color DisabledColor
     {
-        get => (SKColor)GetValue(DisabledColorProperty);
+        get => (Color)GetValue(DisabledColorProperty);
         set => SetValue(DisabledColorProperty, value);
     }
 
-    public float FontSize
+    /// <summary>
+    /// Gets or sets the font size for the content text.
+    /// </summary>
+    public double FontSize
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
-    public float RadioSize
+    /// <summary>
+    /// Gets or sets the size of the radio circle.
+    /// </summary>
+    public double RadioSize
     {
-        get => (float)GetValue(RadioSizeProperty);
+        get => (double)GetValue(RadioSizeProperty);
         set => SetValue(RadioSizeProperty, value);
     }
 
-    public float Spacing
+    /// <summary>
+    /// Gets or sets the spacing between the radio circle and content.
+    /// </summary>
+    public double Spacing
     {
-        get => (float)GetValue(SpacingProperty);
+        get => (double)GetValue(SpacingProperty);
         set => SetValue(SpacingProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the border color.
+    /// </summary>
+    public Color BorderColor
+    {
+        get => (Color)GetValue(BorderColorProperty);
+        set => SetValue(BorderColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the border width.
+    /// </summary>
+    public double BorderWidth
+    {
+        get => (double)GetValue(BorderWidthProperty);
+        set => SetValue(BorderWidthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets whether the control is currently hovered.
+    /// </summary>
+    public bool IsHovered { get; private set; }
+
     #endregion
+
+    #region Group Management
 
     private static readonly Dictionary<string, List<WeakReference<SkiaRadioButton>>> _groups = new();
 
-    public event EventHandler? CheckedChanged;
+    #endregion
+
+    #region Events
+
+    /// <summary>
+    /// Occurs when IsChecked changes.
+    /// </summary>
+    public event EventHandler<CheckedChangedEventArgs>? CheckedChanged;
+
+    #endregion
+
+    #region Constructor
 
     public SkiaRadioButton()
     {
         IsFocusable = true;
     }
+
+    #endregion
+
+    #region Event Handlers
 
     private void OnIsCheckedChanged()
     {
@@ -142,8 +311,10 @@ public class SkiaRadioButton : SkiaView
         {
             UncheckOthersInGroup();
         }
-        CheckedChanged?.Invoke(this, EventArgs.Empty);
-        SkiaVisualStateManager.GoToState(this, IsChecked ? SkiaVisualStateManager.CommonStates.Checked : SkiaVisualStateManager.CommonStates.Unchecked);
+        CheckedChanged?.Invoke(this, new CheckedChangedEventArgs(IsChecked));
+        SkiaVisualStateManager.GoToState(this, IsChecked
+            ? SkiaVisualStateManager.CommonStates.Checked
+            : SkiaVisualStateManager.CommonStates.Unchecked);
         Invalidate();
     }
 
@@ -152,6 +323,10 @@ public class SkiaRadioButton : SkiaView
         RemoveFromGroup(oldValue);
         AddToGroup(newValue);
     }
+
+    #endregion
+
+    #region Group Management Methods
 
     private void AddToGroup(string? groupName)
     {
@@ -163,6 +338,7 @@ public class SkiaRadioButton : SkiaView
             _groups[groupName] = group;
         }
 
+        // Clean up dead references
         group.RemoveAll(wr => !wr.TryGetTarget(out _));
         group.Add(new WeakReference<SkiaRadioButton>(this));
     }
@@ -194,64 +370,119 @@ public class SkiaRadioButton : SkiaView
         }
     }
 
+    #endregion
+
+    #region Rendering
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var radioRadius = RadioSize / 2;
+        var radioSize = (float)RadioSize;
+        var fontSize = (float)FontSize;
+        var spacing = (float)Spacing;
+        var borderWidth = (float)BorderWidth;
+
+        var radioRadius = radioSize / 2;
         var radioCenterX = bounds.Left + radioRadius;
         var radioCenterY = bounds.MidY;
 
-        using var outerPaint = new SKPaint
-        {
-            Color = IsEnabled ? (IsChecked ? RadioColor : UncheckedColor) : DisabledColor,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
-            IsAntialias = true
-        };
-        canvas.DrawCircle(radioCenterX, radioCenterY, radioRadius - 1, outerPaint);
+        // Get colors
+        var radioColorSK = ToSKColor(RadioColor);
+        var uncheckedColorSK = ToSKColor(UncheckedColor);
+        var textColorSK = ToSKColor(TextColor);
+        var disabledColorSK = ToSKColor(DisabledColor);
+        var borderColorSK = ToSKColor(BorderColor);
 
-        if (IsChecked)
-        {
-            using var innerPaint = new SKPaint
-            {
-                Color = IsEnabled ? RadioColor : DisabledColor,
-                Style = SKPaintStyle.Fill,
-                IsAntialias = true
-            };
-            canvas.DrawCircle(radioCenterX, radioCenterY, radioRadius - 5, innerPaint);
-        }
-
+        // Draw focus ring behind radio circle
         if (IsFocused)
         {
             using var focusPaint = new SKPaint
             {
-                Color = RadioColor.WithAlpha(80),
+                Color = radioColorSK.WithAlpha(80),
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
             canvas.DrawCircle(radioCenterX, radioCenterY, radioRadius + 4, focusPaint);
         }
 
+        // Draw outer circle (border)
+        using var outerPaint = new SKPaint
+        {
+            Color = IsEnabled
+                ? (IsChecked ? radioColorSK : (IsHovered ? radioColorSK : uncheckedColorSK))
+                : disabledColorSK,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = borderWidth,
+            IsAntialias = true
+        };
+        canvas.DrawCircle(radioCenterX, radioCenterY, radioRadius - 1, outerPaint);
+
+        // Draw inner filled circle when checked
+        if (IsChecked)
+        {
+            using var innerPaint = new SKPaint
+            {
+                Color = IsEnabled ? radioColorSK : disabledColorSK,
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            canvas.DrawCircle(radioCenterX, radioCenterY, radioRadius - 5, innerPaint);
+        }
+
+        // Draw content text
         if (!string.IsNullOrEmpty(Content))
         {
-            using var font = new SKFont(SKTypeface.Default, FontSize);
+            using var font = new SKFont(SKTypeface.Default, fontSize);
             using var textPaint = new SKPaint(font)
             {
-                Color = IsEnabled ? TextColor : DisabledColor,
+                Color = IsEnabled ? textColorSK : disabledColorSK,
                 IsAntialias = true
             };
 
-            var textX = bounds.Left + RadioSize + Spacing;
+            var textX = bounds.Left + radioSize + spacing;
             var textBounds = new SKRect();
             textPaint.MeasureText(Content, ref textBounds);
             canvas.DrawText(Content, textX, bounds.MidY - textBounds.MidY, textPaint);
         }
     }
 
+    #endregion
+
+    #region Pointer Events
+
+    public override void OnPointerEntered(PointerEventArgs e)
+    {
+        if (IsEnabled)
+        {
+            IsHovered = true;
+            SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
+            Invalidate();
+        }
+    }
+
+    public override void OnPointerExited(PointerEventArgs e)
+    {
+        IsHovered = false;
+        SkiaVisualStateManager.GoToState(this, IsEnabled
+            ? SkiaVisualStateManager.CommonStates.Normal
+            : SkiaVisualStateManager.CommonStates.Disabled);
+        Invalidate();
+    }
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
         if (!IsEnabled) return;
         if (!IsChecked) IsChecked = true;
+        e.Handled = true;
     }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        // No action needed
+    }
+
+    #endregion
+
+    #region Keyboard Events
 
     public override void OnKeyDown(KeyEventArgs e)
     {
@@ -264,21 +495,37 @@ public class SkiaRadioButton : SkiaView
         }
     }
 
+    #endregion
+
+    #region Lifecycle
+
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
+        SkiaVisualStateManager.GoToState(this, IsEnabled
+            ? SkiaVisualStateManager.CommonStates.Normal
+            : SkiaVisualStateManager.CommonStates.Disabled);
     }
+
+    #endregion
+
+    #region Layout
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
+        var radioSize = (float)RadioSize;
+        var fontSize = (float)FontSize;
+        var spacing = (float)Spacing;
+
         var textWidth = 0f;
         if (!string.IsNullOrEmpty(Content))
         {
-            using var font = new SKFont(SKTypeface.Default, FontSize);
+            using var font = new SKFont(SKTypeface.Default, fontSize);
             using var paint = new SKPaint(font);
-            textWidth = paint.MeasureText(Content) + Spacing;
+            textWidth = paint.MeasureText(Content) + spacing;
         }
-        return new SKSize(RadioSize + textWidth, Math.Max(RadioSize, FontSize * 1.5f));
+        return new SKSize(radioSize + textWidth, Math.Max(radioSize, fontSize * 1.5f));
     }
+
+    #endregion
 }
