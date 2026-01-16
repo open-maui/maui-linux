@@ -21,6 +21,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
             [nameof(ITimePicker.Format)] = MapFormat,
             [nameof(ITimePicker.TextColor)] = MapTextColor,
             [nameof(ITimePicker.CharacterSpacing)] = MapCharacterSpacing,
+            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IView.Background)] = MapBackground,
         };
 
@@ -95,7 +96,26 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
 
     public static void MapCharacterSpacing(TimePickerHandler handler, ITimePicker timePicker)
     {
-        // Character spacing would require custom text rendering
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = timePicker.CharacterSpacing;
+    }
+
+    public static void MapFont(TimePickerHandler handler, ITimePicker timePicker)
+    {
+        if (handler.PlatformView is null) return;
+
+        var font = timePicker.Font;
+        if (font.Size > 0)
+            handler.PlatformView.FontSize = font.Size;
+
+        if (!string.IsNullOrEmpty(font.Family))
+            handler.PlatformView.FontFamily = font.Family;
+
+        // Map FontAttributes from the Font weight/slant
+        var attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapBackground(TimePickerHandler handler, ITimePicker timePicker)

@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
@@ -62,9 +63,21 @@ public class SkiaTimePicker : SkiaView
         BindableProperty.Create(nameof(HeaderColor), typeof(Color), typeof(SkiaTimePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
+    public static readonly BindableProperty FontFamilyProperty =
+        BindableProperty.Create(nameof(FontFamily), typeof(string), typeof(SkiaTimePicker), string.Empty, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
+
     public static readonly BindableProperty FontSizeProperty =
         BindableProperty.Create(nameof(FontSize), typeof(double), typeof(SkiaTimePicker), 14.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).InvalidateMeasure());
+
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(nameof(FontAttributes), typeof(FontAttributes), typeof(SkiaTimePicker), FontAttributes.None, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
+
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(nameof(CharacterSpacing), typeof(double), typeof(SkiaTimePicker), 0.0, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(nameof(CornerRadius), typeof(double), typeof(SkiaTimePicker), 4.0, BindingMode.TwoWay,
@@ -122,10 +135,28 @@ public class SkiaTimePicker : SkiaView
         set => SetValue(HeaderColorProperty, value);
     }
 
+    public string FontFamily
+    {
+        get => (string)GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
     public double FontSize
     {
         get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
+    }
+
+    public FontAttributes FontAttributes
+    {
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
     }
 
     public double CornerRadius
@@ -282,7 +313,32 @@ public class SkiaTimePicker : SkiaView
         };
         canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
 
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        // Get typeface based on FontFamily and FontAttributes
+        SKTypeface typeface = SKTypeface.Default;
+        if (!string.IsNullOrEmpty(FontFamily))
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
+        }
+        else if (FontAttributes != FontAttributes.None)
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
+        }
+
+        using var font = new SKFont(typeface, fontSize);
         using var textPaint = new SKPaint(font)
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
