@@ -5,7 +5,7 @@ using System.ComponentModel;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
-using SkiaSharp;
+using Microsoft.Maui.Platform;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -56,6 +56,14 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
         {
             platformView.IsVisible = visualElement.IsVisible;
         }
+
+        // Sync properties
+        if (VirtualView != null)
+        {
+            MapProgress(this, VirtualView);
+            MapProgressColor(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
     }
 
     protected override void DisconnectHandler(SkiaProgressBar platformView)
@@ -89,7 +97,7 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
 
         if (progress.ProgressColor is not null)
         {
-            handler.PlatformView.ProgressColor = progress.ProgressColor.ToSKColor();
+            handler.PlatformView.ProgressColor = progress.ProgressColor;
         }
         handler.PlatformView.Invalidate();
     }
@@ -119,7 +127,7 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
 
         if (progress is VisualElement visualElement && visualElement.BackgroundColor is not null)
         {
-            handler.PlatformView.BackgroundColor = visualElement.BackgroundColor.ToSKColor();
+            handler.PlatformView.TrackColor = visualElement.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }
