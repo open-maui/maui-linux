@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
 
@@ -10,14 +11,15 @@ namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered date picker control with calendar popup.
+/// Implements MAUI IDatePicker interface patterns.
 /// </summary>
 public class SkiaDatePicker : SkiaView
 {
     #region BindableProperties
 
     public static readonly BindableProperty DateProperty =
-        BindableProperty.Create(nameof(Date), typeof(DateTime), typeof(SkiaDatePicker), DateTime.Today, BindingMode.OneWay,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).OnDatePropertyChanged());
+        BindableProperty.Create(nameof(Date), typeof(DateTime), typeof(SkiaDatePicker), DateTime.Today, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).OnDatePropertyChanged((DateTime)o, (DateTime)n));
 
     public static readonly BindableProperty MinimumDateProperty =
         BindableProperty.Create(nameof(MinimumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(1900, 1, 1), BindingMode.TwoWay,
@@ -32,39 +34,39 @@ public class SkiaDatePicker : SkiaView
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaDatePicker), SKColors.Black, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(TextColor), typeof(Color), typeof(SkiaDatePicker), Colors.Black, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(189, 189, 189), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(BorderColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(189, 189, 189), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty CalendarBackgroundColorProperty =
-        BindableProperty.Create(nameof(CalendarBackgroundColor), typeof(SKColor), typeof(SkiaDatePicker), SKColors.White, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(CalendarBackgroundColor), typeof(Color), typeof(SkiaDatePicker), Colors.White, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty SelectedDayColorProperty =
-        BindableProperty.Create(nameof(SelectedDayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(33, 150, 243), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(SelectedDayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty TodayColorProperty =
-        BindableProperty.Create(nameof(TodayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(33, 150, 243, 64), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(TodayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgba(33, 150, 243, 64), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty HeaderColorProperty =
-        BindableProperty.Create(nameof(HeaderColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(33, 150, 243), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(HeaderColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty DisabledDayColorProperty =
-        BindableProperty.Create(nameof(DisabledDayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(189, 189, 189), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(DisabledDayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(189, 189, 189), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaDatePicker), 14f, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(FontSize), typeof(double), typeof(SkiaDatePicker), 14.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).InvalidateMeasure());
 
     public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaDatePicker), 4f, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(CornerRadius), typeof(double), typeof(SkiaDatePicker), 4.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     #endregion
@@ -106,57 +108,57 @@ public class SkiaDatePicker : SkiaView
         set => SetValue(FormatProperty, value);
     }
 
-    public SKColor TextColor
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
-    public SKColor BorderColor
+    public Color BorderColor
     {
-        get => (SKColor)GetValue(BorderColorProperty);
+        get => (Color)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
-    public SKColor CalendarBackgroundColor
+    public Color CalendarBackgroundColor
     {
-        get => (SKColor)GetValue(CalendarBackgroundColorProperty);
+        get => (Color)GetValue(CalendarBackgroundColorProperty);
         set => SetValue(CalendarBackgroundColorProperty, value);
     }
 
-    public SKColor SelectedDayColor
+    public Color SelectedDayColor
     {
-        get => (SKColor)GetValue(SelectedDayColorProperty);
+        get => (Color)GetValue(SelectedDayColorProperty);
         set => SetValue(SelectedDayColorProperty, value);
     }
 
-    public SKColor TodayColor
+    public Color TodayColor
     {
-        get => (SKColor)GetValue(TodayColorProperty);
+        get => (Color)GetValue(TodayColorProperty);
         set => SetValue(TodayColorProperty, value);
     }
 
-    public SKColor HeaderColor
+    public Color HeaderColor
     {
-        get => (SKColor)GetValue(HeaderColorProperty);
+        get => (Color)GetValue(HeaderColorProperty);
         set => SetValue(HeaderColorProperty, value);
     }
 
-    public SKColor DisabledDayColor
+    public Color DisabledDayColor
     {
-        get => (SKColor)GetValue(DisabledDayColorProperty);
+        get => (Color)GetValue(DisabledDayColorProperty);
         set => SetValue(DisabledDayColorProperty, value);
     }
 
-    public float FontSize
+    public double FontSize
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
-    public float CornerRadius
+    public double CornerRadius
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
@@ -181,7 +183,7 @@ public class SkiaDatePicker : SkiaView
 
     #region Events
 
-    public event EventHandler? DateSelected;
+    public event EventHandler<DateChangedEventArgs>? DateSelected;
 
     #endregion
 
@@ -191,6 +193,36 @@ public class SkiaDatePicker : SkiaView
     {
         IsFocusable = true;
         _displayMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Converts a MAUI Color to SkiaSharp SKColor.
+    /// </summary>
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    /// <summary>
+    /// Converts a MAUI Color to SKColor with modified alpha.
+    /// </summary>
+    private static SKColor ToSKColorWithAlpha(Color? color, byte alpha)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            alpha);
     }
 
     #endregion
@@ -225,10 +257,10 @@ public class SkiaDatePicker : SkiaView
         return new SKRect(calendarLeft, calendarTop, calendarLeft + CalendarWidth, calendarTop + CalendarHeight);
     }
 
-    private void OnDatePropertyChanged()
+    private void OnDatePropertyChanged(DateTime oldValue, DateTime newValue)
     {
-        _displayMonth = new DateTime(Date.Year, Date.Month, 1);
-        DateSelected?.Invoke(this, EventArgs.Empty);
+        _displayMonth = new DateTime(newValue.Year, newValue.Month, 1);
+        DateSelected?.Invoke(this, new DateChangedEventArgs(oldValue, newValue));
         Invalidate();
     }
 
@@ -251,27 +283,32 @@ public class SkiaDatePicker : SkiaView
 
     private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
     {
+        float cornerRadius = (float)CornerRadius;
+        float fontSize = (float)FontSize;
+
         using var bgPaint = new SKPaint
         {
             Color = IsEnabled ? BackgroundColor : new SKColor(245, 245, 245),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), bgPaint);
+        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
 
+        SKColor borderColor = IsFocused ? ToSKColor(SelectedDayColor) : ToSKColor(BorderColor);
         using var borderPaint = new SKPaint
         {
-            Color = IsFocused ? SelectedDayColor : BorderColor,
+            Color = borderColor,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = IsFocused ? 2 : 1,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), borderPaint);
+        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
 
-        using var font = new SKFont(SKTypeface.Default, FontSize, 1f, 0f);
+        SKColor textColor = ToSKColor(TextColor);
+        using var font = new SKFont(SKTypeface.Default, fontSize, 1f, 0f);
         using var textPaint = new SKPaint(font)
         {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
+            Color = IsEnabled ? textColor : textColor.WithAlpha(128),
             IsAntialias = true
         };
 
@@ -285,9 +322,10 @@ public class SkiaDatePicker : SkiaView
 
     private void DrawCalendarIcon(SKCanvas canvas, SKRect bounds)
     {
+        SKColor textColor = ToSKColor(TextColor);
         using var paint = new SKPaint
         {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
+            Color = IsEnabled ? textColor : textColor.WithAlpha(128),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1.5f,
             IsAntialias = true
@@ -312,6 +350,7 @@ public class SkiaDatePicker : SkiaView
     private void DrawCalendar(SKCanvas canvas, SKRect bounds)
     {
         SKRect calendarRect = GetCalendarRect(bounds);
+        float cornerRadius = (float)CornerRadius;
 
         using var shadowPaint = new SKPaint
         {
@@ -319,24 +358,24 @@ public class SkiaDatePicker : SkiaView
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f),
             Style = SKPaintStyle.Fill
         };
-        canvas.DrawRoundRect(new SKRoundRect(new SKRect(calendarRect.Left + 2f, calendarRect.Top + 2f, calendarRect.Right + 2f, calendarRect.Bottom + 2f), CornerRadius), shadowPaint);
+        canvas.DrawRoundRect(new SKRoundRect(new SKRect(calendarRect.Left + 2f, calendarRect.Top + 2f, calendarRect.Right + 2f, calendarRect.Bottom + 2f), cornerRadius), shadowPaint);
 
         using var bgPaint = new SKPaint
         {
-            Color = CalendarBackgroundColor,
+            Color = ToSKColor(CalendarBackgroundColor),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), bgPaint);
+        canvas.DrawRoundRect(new SKRoundRect(calendarRect, cornerRadius), bgPaint);
 
         using var borderPaint = new SKPaint
         {
-            Color = BorderColor,
+            Color = ToSKColor(BorderColor),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1f,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), borderPaint);
+        canvas.DrawRoundRect(new SKRoundRect(calendarRect, cornerRadius), borderPaint);
 
         DrawCalendarHeader(canvas, new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + 48f));
         DrawWeekdayHeaders(canvas, new SKRect(calendarRect.Left, calendarRect.Top + 48f, calendarRect.Right, calendarRect.Top + 48f + 30f));
@@ -345,17 +384,19 @@ public class SkiaDatePicker : SkiaView
 
     private void DrawCalendarHeader(SKCanvas canvas, SKRect bounds)
     {
+        float cornerRadius = (float)CornerRadius;
+
         using var headerPaint = new SKPaint
         {
-            Color = HeaderColor,
+            Color = ToSKColor(HeaderColor),
             Style = SKPaintStyle.Fill
         };
 
         canvas.Save();
-        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + CornerRadius * 2f), CornerRadius), SKClipOperation.Intersect, false);
+        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + cornerRadius * 2f), cornerRadius), SKClipOperation.Intersect, false);
         canvas.DrawRect(bounds, headerPaint);
         canvas.Restore();
-        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + CornerRadius, bounds.Right, bounds.Bottom), headerPaint);
+        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
         using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
         using var textPaint = new SKPaint(font)
@@ -433,6 +474,11 @@ public class SkiaDatePicker : SkiaView
         DateTime today = DateTime.Today;
         SKRect cellRect = default;
 
+        SKColor textColor = ToSKColor(TextColor);
+        SKColor selectedDayColor = ToSKColor(SelectedDayColor);
+        SKColor todayColor = ToSKColor(TodayColor);
+        SKColor disabledDayColor = ToSKColor(DisabledDayColor);
+
         for (int day = 1; day <= daysInMonth; day++)
         {
             DateTime dayDate = new DateTime(_displayMonth.Year, _displayMonth.Month, day);
@@ -452,16 +498,16 @@ public class SkiaDatePicker : SkiaView
 
             if (isSelected)
             {
-                bgPaint.Color = SelectedDayColor;
+                bgPaint.Color = selectedDayColor;
                 canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2f - 2f, bgPaint);
             }
             else if (isToday)
             {
-                bgPaint.Color = TodayColor;
+                bgPaint.Color = todayColor;
                 canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2f - 2f, bgPaint);
             }
 
-            textPaint.Color = isSelected ? SKColors.White : (isDisabled ? DisabledDayColor : TextColor);
+            textPaint.Color = isSelected ? SKColors.White : (isDisabled ? disabledDayColor : textColor);
             string dayText = day.ToString();
             SKRect dayTextBounds = default;
             textPaint.MeasureText(dayText, ref dayTextBounds);

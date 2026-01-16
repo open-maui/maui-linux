@@ -54,11 +54,11 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
         var current = Application.Current;
         if (current != null && (int)current.UserAppTheme == 2) // Dark theme
         {
-            platformView.CalendarBackgroundColor = new SKColor(30, 30, 30);
-            platformView.TextColor = new SKColor(224, 224, 224);
-            platformView.BorderColor = new SKColor(97, 97, 97);
-            platformView.DisabledDayColor = new SKColor(97, 97, 97);
-            platformView.BackgroundColor = new SKColor(45, 45, 45);
+            platformView.CalendarBackgroundColor = Color.FromRgb(30, 30, 30);
+            platformView.TextColor = Color.FromRgb(224, 224, 224);
+            platformView.BorderColor = Color.FromRgb(97, 97, 97);
+            platformView.DisabledDayColor = Color.FromRgb(97, 97, 97);
+            platformView.BackgroundColor = Color.FromRgb(45, 45, 45).ToSKColor();
         }
     }
 
@@ -68,11 +68,11 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
         base.DisconnectHandler(platformView);
     }
 
-    private void OnDateSelected(object? sender, EventArgs e)
+    private void OnDateSelected(object? sender, DateChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.Date = PlatformView.Date;
+        VirtualView.Date = e.NewDate;
     }
 
     public static void MapDate(DatePickerHandler handler, IDatePicker datePicker)
@@ -104,7 +104,7 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
         if (handler.PlatformView is null) return;
         if (datePicker.TextColor is not null)
         {
-            handler.PlatformView.TextColor = datePicker.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = datePicker.TextColor;
         }
     }
 
