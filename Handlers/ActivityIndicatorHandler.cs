@@ -3,7 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
-using SkiaSharp;
+using Microsoft.Maui.Platform;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -18,6 +18,7 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
         [nameof(IActivityIndicator.IsRunning)] = MapIsRunning,
         [nameof(IActivityIndicator.Color)] = MapColor,
         [nameof(IView.Background)] = MapBackground,
+        [nameof(IView.IsEnabled)] = MapIsEnabled,
     };
 
     public static CommandMapper<IActivityIndicator, ActivityIndicatorHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -38,6 +39,19 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
         return new SkiaActivityIndicator();
     }
 
+    protected override void ConnectHandler(SkiaActivityIndicator platformView)
+    {
+        base.ConnectHandler(platformView);
+
+        // Sync properties
+        if (VirtualView != null)
+        {
+            MapIsRunning(this, VirtualView);
+            MapColor(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
+    }
+
     public static void MapIsRunning(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
         if (handler.PlatformView is null) return;
@@ -49,7 +63,7 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
         if (handler.PlatformView is null) return;
 
         if (activityIndicator.Color is not null)
-            handler.PlatformView.Color = activityIndicator.Color.ToSKColor();
+            handler.PlatformView.Color = activityIndicator.Color;
     }
 
     public static void MapBackground(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
@@ -60,5 +74,12 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
+    }
+
+    public static void MapIsEnabled(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = activityIndicator.IsEnabled;
+        handler.PlatformView.Invalidate();
     }
 }
