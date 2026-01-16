@@ -4,13 +4,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SkiaSharp;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered label control for displaying text with full XAML styling support.
+/// Skia-rendered label control matching the .NET MAUI Label API.
 /// </summary>
 public class SkiaLabel : SkiaView
 {
@@ -19,194 +21,172 @@ public class SkiaLabel : SkiaView
     /// <summary>
     /// Bindable property for Text.
     /// </summary>
-    public static readonly BindableProperty TextProperty =
-        BindableProperty.Create(
-            nameof(Text),
-            typeof(string),
-            typeof(SkiaLabel),
-            "",
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
-
-    /// <summary>
-    /// Bindable property for FormattedSpans.
-    /// </summary>
-    public static readonly BindableProperty FormattedSpansProperty =
-        BindableProperty.Create(
-            nameof(FormattedSpans),
-            typeof(IList<SkiaTextSpan>),
-            typeof(SkiaLabel),
-            null,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
+    public static readonly BindableProperty TextProperty = BindableProperty.Create(
+        nameof(Text),
+        typeof(string),
+        typeof(SkiaLabel),
+        string.Empty,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
     /// Bindable property for TextColor.
     /// </summary>
-    public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(
-            nameof(TextColor),
-            typeof(SKColor),
-            typeof(SkiaLabel),
-            SKColors.Black,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+    public static readonly BindableProperty TextColorProperty = BindableProperty.Create(
+        nameof(TextColor),
+        typeof(Color),
+        typeof(SkiaLabel),
+        Colors.Black,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
     /// Bindable property for FontFamily.
     /// </summary>
-    public static readonly BindableProperty FontFamilyProperty =
-        BindableProperty.Create(
-            nameof(FontFamily),
-            typeof(string),
-            typeof(SkiaLabel),
-            "Sans",
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
+    public static readonly BindableProperty FontFamilyProperty = BindableProperty.Create(
+        nameof(FontFamily),
+        typeof(string),
+        typeof(SkiaLabel),
+        string.Empty,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
     /// Bindable property for FontSize.
     /// </summary>
-    public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(
-            nameof(FontSize),
-            typeof(float),
-            typeof(SkiaLabel),
-            14f,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
+    public static readonly BindableProperty FontSizeProperty = BindableProperty.Create(
+        nameof(FontSize),
+        typeof(double),
+        typeof(SkiaLabel),
+        14.0,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
-    /// Bindable property for IsBold.
+    /// Bindable property for FontAttributes.
     /// </summary>
-    public static readonly BindableProperty IsBoldProperty =
-        BindableProperty.Create(
-            nameof(IsBold),
-            typeof(bool),
-            typeof(SkiaLabel),
-            false,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
+    public static readonly BindableProperty FontAttributesProperty = BindableProperty.Create(
+        nameof(FontAttributes),
+        typeof(FontAttributes),
+        typeof(SkiaLabel),
+        FontAttributes.None,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
-    /// Bindable property for IsItalic.
+    /// Bindable property for FontAutoScalingEnabled.
     /// </summary>
-    public static readonly BindableProperty IsItalicProperty =
-        BindableProperty.Create(
-            nameof(IsItalic),
-            typeof(bool),
-            typeof(SkiaLabel),
-            false,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
-
-    /// <summary>
-    /// Bindable property for IsUnderline.
-    /// </summary>
-    public static readonly BindableProperty IsUnderlineProperty =
-        BindableProperty.Create(
-            nameof(IsUnderline),
-            typeof(bool),
-            typeof(SkiaLabel),
-            false,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for IsStrikethrough.
-    /// </summary>
-    public static readonly BindableProperty IsStrikethroughProperty =
-        BindableProperty.Create(
-            nameof(IsStrikethrough),
-            typeof(bool),
-            typeof(SkiaLabel),
-            false,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for HorizontalTextAlignment.
-    /// </summary>
-    public static readonly BindableProperty HorizontalTextAlignmentProperty =
-        BindableProperty.Create(
-            nameof(HorizontalTextAlignment),
-            typeof(TextAlignment),
-            typeof(SkiaLabel),
-            TextAlignment.Start,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for VerticalTextAlignment.
-    /// </summary>
-    public static readonly BindableProperty VerticalTextAlignmentProperty =
-        BindableProperty.Create(
-            nameof(VerticalTextAlignment),
-            typeof(TextAlignment),
-            typeof(SkiaLabel),
-            TextAlignment.Center,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for LineBreakMode.
-    /// </summary>
-    public static readonly BindableProperty LineBreakModeProperty =
-        BindableProperty.Create(
-            nameof(LineBreakMode),
-            typeof(LineBreakMode),
-            typeof(SkiaLabel),
-            LineBreakMode.TailTruncation,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for MaxLines.
-    /// </summary>
-    public static readonly BindableProperty MaxLinesProperty =
-        BindableProperty.Create(
-            nameof(MaxLines),
-            typeof(int),
-            typeof(SkiaLabel),
-            0,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
-
-    /// <summary>
-    /// Bindable property for LineHeight.
-    /// </summary>
-    public static readonly BindableProperty LineHeightProperty =
-        BindableProperty.Create(
-            nameof(LineHeight),
-            typeof(float),
-            typeof(SkiaLabel),
-            1.2f,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
+    public static readonly BindableProperty FontAutoScalingEnabledProperty = BindableProperty.Create(
+        nameof(FontAutoScalingEnabled),
+        typeof(bool),
+        typeof(SkiaLabel),
+        true,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFontChanged());
 
     /// <summary>
     /// Bindable property for CharacterSpacing.
     /// </summary>
-    public static readonly BindableProperty CharacterSpacingProperty =
-        BindableProperty.Create(
-            nameof(CharacterSpacing),
-            typeof(float),
-            typeof(SkiaLabel),
-            0f,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+    public static readonly BindableProperty CharacterSpacingProperty = BindableProperty.Create(
+        nameof(CharacterSpacing),
+        typeof(double),
+        typeof(SkiaLabel),
+        0.0,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for TextDecorations.
+    /// </summary>
+    public static readonly BindableProperty TextDecorationsProperty = BindableProperty.Create(
+        nameof(TextDecorations),
+        typeof(TextDecorations),
+        typeof(SkiaLabel),
+        TextDecorations.None,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for HorizontalTextAlignment.
+    /// </summary>
+    public static readonly BindableProperty HorizontalTextAlignmentProperty = BindableProperty.Create(
+        nameof(HorizontalTextAlignment),
+        typeof(TextAlignment),
+        typeof(SkiaLabel),
+        TextAlignment.Start,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for VerticalTextAlignment.
+    /// </summary>
+    public static readonly BindableProperty VerticalTextAlignmentProperty = BindableProperty.Create(
+        nameof(VerticalTextAlignment),
+        typeof(TextAlignment),
+        typeof(SkiaLabel),
+        TextAlignment.Center,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for LineBreakMode.
+    /// </summary>
+    public static readonly BindableProperty LineBreakModeProperty = BindableProperty.Create(
+        nameof(LineBreakMode),
+        typeof(LineBreakMode),
+        typeof(SkiaLabel),
+        LineBreakMode.TailTruncation,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for MaxLines.
+    /// </summary>
+    public static readonly BindableProperty MaxLinesProperty = BindableProperty.Create(
+        nameof(MaxLines),
+        typeof(int),
+        typeof(SkiaLabel),
+        0,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
+
+    /// <summary>
+    /// Bindable property for LineHeight.
+    /// </summary>
+    public static readonly BindableProperty LineHeightProperty = BindableProperty.Create(
+        nameof(LineHeight),
+        typeof(double),
+        typeof(SkiaLabel),
+        1.2,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
+
+    /// <summary>
+    /// Bindable property for TextTransform.
+    /// </summary>
+    public static readonly BindableProperty TextTransformProperty = BindableProperty.Create(
+        nameof(TextTransform),
+        typeof(TextTransform),
+        typeof(SkiaLabel),
+        TextTransform.Default,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for TextType.
+    /// </summary>
+    public static readonly BindableProperty TextTypeProperty = BindableProperty.Create(
+        nameof(TextType),
+        typeof(TextType),
+        typeof(SkiaLabel),
+        TextType.Text,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
     /// Bindable property for Padding.
     /// </summary>
-    public static readonly BindableProperty PaddingProperty =
-        BindableProperty.Create(
-            nameof(Padding),
-            typeof(SKRect),
-            typeof(SkiaLabel),
-            SKRect.Empty,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
+    public static new readonly BindableProperty PaddingProperty = BindableProperty.Create(
+        nameof(Padding),
+        typeof(Thickness),
+        typeof(SkiaLabel),
+        new Thickness(0),
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for FormattedText.
+    /// </summary>
+    public static readonly BindableProperty FormattedTextProperty = BindableProperty.Create(
+        nameof(FormattedText),
+        typeof(FormattedString),
+        typeof(SkiaLabel),
+        null,
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnFormattedTextChanged((FormattedString?)o, (FormattedString?)n));
 
     #endregion
 
@@ -222,20 +202,11 @@ public class SkiaLabel : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the formatted text spans for rich text rendering.
-    /// </summary>
-    public IList<SkiaTextSpan>? FormattedSpans
-    {
-        get => (IList<SkiaTextSpan>?)GetValue(FormattedSpansProperty);
-        set => SetValue(FormattedSpansProperty, value);
-    }
-
-    /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public SKColor TextColor
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
@@ -251,46 +222,46 @@ public class SkiaLabel : SkiaView
     /// <summary>
     /// Gets or sets the font size.
     /// </summary>
-    public float FontSize
+    public double FontSize
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets whether the text is bold.
+    /// Gets or sets the font attributes.
     /// </summary>
-    public bool IsBold
+    public FontAttributes FontAttributes
     {
-        get => (bool)GetValue(IsBoldProperty);
-        set => SetValue(IsBoldProperty, value);
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets whether the text is italic.
+    /// Gets or sets whether font auto-scaling is enabled.
     /// </summary>
-    public bool IsItalic
+    public bool FontAutoScalingEnabled
     {
-        get => (bool)GetValue(IsItalicProperty);
-        set => SetValue(IsItalicProperty, value);
+        get => (bool)GetValue(FontAutoScalingEnabledProperty);
+        set => SetValue(FontAutoScalingEnabledProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets whether the text has underline.
+    /// Gets or sets the character spacing.
     /// </summary>
-    public bool IsUnderline
+    public double CharacterSpacing
     {
-        get => (bool)GetValue(IsUnderlineProperty);
-        set => SetValue(IsUnderlineProperty, value);
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets whether the text has strikethrough.
+    /// Gets or sets the text decorations.
     /// </summary>
-    public bool IsStrikethrough
+    public TextDecorations TextDecorations
     {
-        get => (bool)GetValue(IsStrikethroughProperty);
-        set => SetValue(IsStrikethroughProperty, value);
+        get => (TextDecorations)GetValue(TextDecorationsProperty);
+        set => SetValue(TextDecorationsProperty, value);
     }
 
     /// <summary>
@@ -321,7 +292,7 @@ public class SkiaLabel : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the maximum number of lines. 0 = unlimited.
+    /// Gets or sets the maximum number of lines.
     /// </summary>
     public int MaxLines
     {
@@ -332,80 +303,74 @@ public class SkiaLabel : SkiaView
     /// <summary>
     /// Gets or sets the line height multiplier.
     /// </summary>
-    public float LineHeight
+    public double LineHeight
     {
-        get => (float)GetValue(LineHeightProperty);
+        get => (double)GetValue(LineHeightProperty);
         set => SetValue(LineHeightProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the character spacing.
+    /// Gets or sets the text transform.
     /// </summary>
-    public float CharacterSpacing
+    public TextTransform TextTransform
     {
-        get => (float)GetValue(CharacterSpacingProperty);
-        set => SetValue(CharacterSpacingProperty, value);
+        get => (TextTransform)GetValue(TextTransformProperty);
+        set => SetValue(TextTransformProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the text type.
+    /// </summary>
+    public TextType TextType
+    {
+        get => (TextType)GetValue(TextTypeProperty);
+        set => SetValue(TextTypeProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the padding.
     /// </summary>
-    public SKRect Padding
+    public new Thickness Padding
     {
-        get => (SKRect)GetValue(PaddingProperty);
+        get => (Thickness)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the horizontal alignment (compatibility property).
+    /// Gets or sets the formatted text.
     /// </summary>
-    public SkiaTextAlignment HorizontalAlignment
+    public FormattedString? FormattedText
     {
-        get => HorizontalTextAlignment switch
-        {
-            TextAlignment.Start => SkiaTextAlignment.Left,
-            TextAlignment.Center => SkiaTextAlignment.Center,
-            TextAlignment.End => SkiaTextAlignment.Right,
-            _ => SkiaTextAlignment.Left
-        };
-        set => HorizontalTextAlignment = value switch
-        {
-            SkiaTextAlignment.Left => TextAlignment.Start,
-            SkiaTextAlignment.Center => TextAlignment.Center,
-            SkiaTextAlignment.Right => TextAlignment.End,
-            _ => TextAlignment.Start
-        };
-    }
-
-    /// <summary>
-    /// Gets or sets the vertical alignment (compatibility property).
-    /// </summary>
-    public SkiaVerticalAlignment VerticalAlignment
-    {
-        get => VerticalTextAlignment switch
-        {
-            TextAlignment.Start => SkiaVerticalAlignment.Top,
-            TextAlignment.Center => SkiaVerticalAlignment.Center,
-            TextAlignment.End => SkiaVerticalAlignment.Bottom,
-            _ => SkiaVerticalAlignment.Top
-        };
-        set => VerticalTextAlignment = value switch
-        {
-            SkiaVerticalAlignment.Top => TextAlignment.Start,
-            SkiaVerticalAlignment.Center => TextAlignment.Center,
-            SkiaVerticalAlignment.Bottom => TextAlignment.End,
-            _ => TextAlignment.Start
-        };
+        get => (FormattedString?)GetValue(FormattedTextProperty);
+        set => SetValue(FormattedTextProperty, value);
     }
 
     #endregion
 
-    private static SKTypeface? _cachedTypeface;
+    #region Events
 
     /// <summary>
-    /// Event raised when the label is tapped.
+    /// Occurs when the label is tapped.
     /// </summary>
     public event EventHandler? Tapped;
+
+    /// <summary>
+    /// Raises the Tapped event.
+    /// </summary>
+    protected virtual void OnTapped()
+    {
+        Tapped?.Invoke(this, EventArgs.Empty);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        OnTapped();
+    }
+
+    #endregion
+
+    #region Private Methods
 
     private void OnTextChanged()
     {
@@ -419,102 +384,144 @@ public class SkiaLabel : SkiaView
         Invalidate();
     }
 
-    private static SKTypeface GetLinuxTypeface()
+    private void OnFormattedTextChanged(FormattedString? oldValue, FormattedString? newValue)
     {
-        if (_cachedTypeface != null) return _cachedTypeface;
-
-        // Try common Linux font paths
-        string[] fontPaths = {
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
-        };
-
-        foreach (var path in fontPaths)
+        if (oldValue != null)
         {
-            if (System.IO.File.Exists(path))
-            {
-                _cachedTypeface = SKTypeface.FromFile(path, 0);
-                if (_cachedTypeface != null) return _cachedTypeface;
-            }
+            oldValue.PropertyChanged -= OnFormattedTextPropertyChanged;
         }
-        return SKTypeface.Default;
+        if (newValue != null)
+        {
+            newValue.PropertyChanged += OnFormattedTextPropertyChanged;
+        }
+        OnTextChanged();
     }
+
+    private void OnFormattedTextPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        OnTextChanged();
+    }
+
+    private SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Black;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    private string GetDisplayText()
+    {
+        var text = Text ?? string.Empty;
+
+        // Handle TextType.Html by stripping tags (basic implementation)
+        if (TextType == TextType.Html)
+        {
+            text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]*>", "");
+        }
+
+        // Apply text transform
+        return TextTransform switch
+        {
+            TextTransform.Uppercase => text.ToUpperInvariant(),
+            TextTransform.Lowercase => text.ToLowerInvariant(),
+            _ => text
+        };
+    }
+
+    private SKFontStyle GetFontStyle()
+    {
+        bool isBold = FontAttributes.HasFlag(FontAttributes.Bold);
+        bool isItalic = FontAttributes.HasFlag(FontAttributes.Italic);
+
+        return new SKFontStyle(
+            isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+    }
+
+    #endregion
+
+    #region Drawing
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Calculate content bounds with padding
+        var padding = Padding;
         var contentBounds = new SKRect(
-            bounds.Left + Padding.Left,
-            bounds.Top + Padding.Top,
-            bounds.Right - Padding.Right,
-            bounds.Bottom - Padding.Bottom);
+            bounds.Left + (float)padding.Left,
+            bounds.Top + (float)padding.Top,
+            bounds.Right - (float)padding.Right,
+            bounds.Bottom - (float)padding.Bottom);
 
-        // Handle formatted spans first (rich text)
-        if (FormattedSpans != null && FormattedSpans.Count > 0)
+        // If we have FormattedText, draw that instead
+        if (FormattedText != null && FormattedText.Spans.Count > 0)
         {
             DrawFormattedText(canvas, contentBounds);
             return;
         }
 
-        if (string.IsNullOrEmpty(Text))
-            return;
+        string displayText = GetDisplayText();
+        if (string.IsNullOrEmpty(displayText)) return;
 
-        var fontStyle = new SKFontStyle(
-            IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+        var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle);
-        if (typeface == null || typeface == SKTypeface.Default)
-        {
-            typeface = GetLinuxTypeface();
-        }
+        using var font = new SKFont(
+            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            fontSize);
 
-        using var font = new SKFont(typeface, FontSize);
         using var paint = new SKPaint(font)
         {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
+            Color = ToSKColor(TextColor),
             IsAntialias = true
         };
 
-        // Handle single line vs multiline
-        // Use DrawMultiLineWithWrapping when: MaxLines > 1, text has newlines, OR WordWrap is enabled
-        bool needsMultiLine = MaxLines > 1 || Text.Contains('\n') ||
-                              LineBreakMode == LineBreakMode.WordWrap ||
-                              LineBreakMode == LineBreakMode.CharacterWrap;
+        // Check if we need multi-line rendering
+        bool needsMultiLine = LineBreakMode == LineBreakMode.WordWrap ||
+                             LineBreakMode == LineBreakMode.CharacterWrap ||
+                             MaxLines > 1 ||
+                             displayText.Contains('\n');
+
         if (needsMultiLine)
         {
-            DrawMultiLineWithWrapping(canvas, paint, font, contentBounds);
+            DrawMultiLineText(canvas, paint, font, contentBounds, displayText);
         }
         else
         {
-            DrawSingleLine(canvas, paint, font, contentBounds);
+            DrawSingleLineText(canvas, paint, contentBounds, displayText);
         }
     }
 
-    private void DrawSingleLine(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds)
+    private void DrawSingleLineText(SKCanvas canvas, SKPaint paint, SKRect bounds, string text)
     {
-        var displayText = Text;
-
-        // Measure text
         var textBounds = new SKRect();
-        paint.MeasureText(displayText, ref textBounds);
+        paint.MeasureText(text, ref textBounds);
 
         // Apply truncation if needed
-        if (textBounds.Width > bounds.Width && LineBreakMode == LineBreakMode.TailTruncation)
+        string displayText = text;
+        float availableWidth = bounds.Width;
+
+        if (textBounds.Width > availableWidth && LineBreakMode != LineBreakMode.NoWrap)
         {
-            displayText = TruncateText(paint, displayText, bounds.Width);
+            displayText = TruncateText(text, paint, availableWidth, LineBreakMode);
             paint.MeasureText(displayText, ref textBounds);
+        }
+
+        // Account for character spacing in measurement
+        float textWidth = textBounds.Width;
+        if (CharacterSpacing != 0 && displayText.Length > 1)
+        {
+            textWidth += (float)(CharacterSpacing * (displayText.Length - 1));
         }
 
         // Calculate position based on alignment
         float x = HorizontalTextAlignment switch
         {
             TextAlignment.Start => bounds.Left,
-            TextAlignment.Center => bounds.MidX - textBounds.Width / 2,
-            TextAlignment.End => bounds.Right - textBounds.Width,
+            TextAlignment.Center => bounds.MidX - textWidth / 2,
+            TextAlignment.End => bounds.Right - textWidth,
             _ => bounds.Left
         };
 
@@ -526,562 +533,378 @@ public class SkiaLabel : SkiaView
             _ => bounds.MidY - textBounds.MidY
         };
 
-        canvas.DrawText(displayText, x, y, paint);
-
-        // Draw underline if needed
-        if (IsUnderline)
-        {
-            using var linePaint = new SKPaint
-            {
-                Color = paint.Color,
-                StrokeWidth = 1,
-                IsAntialias = true
-            };
-            var underlineY = y + 2;
-            canvas.DrawLine(x, underlineY, x + textBounds.Width, underlineY, linePaint);
-        }
-
-        // Draw strikethrough if needed
-        if (IsStrikethrough)
-        {
-            using var linePaint = new SKPaint
-            {
-                Color = paint.Color,
-                StrokeWidth = 1,
-                IsAntialias = true
-            };
-            var strikeY = y - textBounds.Height / 3;
-            canvas.DrawLine(x, strikeY, x + textBounds.Width, strikeY, linePaint);
-        }
+        DrawTextWithSpacing(canvas, displayText, x, y, paint);
+        DrawTextDecorations(canvas, paint, x, y, textBounds);
     }
 
-    private void DrawMultiLineWithWrapping(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds)
+    private void DrawMultiLineText(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds, string text)
     {
-        // Handle inverted or zero-height/width bounds
-        var effectiveBounds = bounds;
+        float lineHeight = (float)(FontSize * LineHeight);
+        float y = bounds.Top;
+        int lineCount = 0;
 
-        // Fix invalid height
-        if (bounds.Height <= 0)
+        var lines = WrapText(text, paint, bounds.Width);
+
+        foreach (var line in lines)
         {
-            var effectiveLH = LineHeight <= 0 ? 1.2f : LineHeight;
-            var estimatedHeight = MaxLines > 0 ? MaxLines * FontSize * effectiveLH : FontSize * effectiveLH * 10;
-            effectiveBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + estimatedHeight);
-        }
-
-        // Fix invalid width - use a reasonable default if width is invalid or extremely large
-        float effectiveWidth = effectiveBounds.Width;
-        if (effectiveWidth <= 0)
-        {
-            // Use a default width based on canvas
-            effectiveWidth = 400; // Reasonable default
-        }
-
-        // Note: Previously had width capping logic here that reduced effective width
-        // to 60% for multiline labels. Removed - the layout system should now provide
-        // correct widths, and artificially capping causes text to wrap too early.
-
-        // First, word-wrap the text to fit within bounds
-        var wrappedLines = WrapText(paint, Text, effectiveWidth);
-
-        // LineHeight of -1 or <= 0 means "use default" - use 1.2 as default multiplier
-        var effectiveLineHeight = LineHeight <= 0 ? 1.2f : LineHeight;
-        var lineSpacing = FontSize * effectiveLineHeight;
-        var maxLinesToDraw = MaxLines > 0 ? Math.Min(MaxLines, wrappedLines.Count) : wrappedLines.Count;
-
-        // Calculate total height
-        var totalHeight = maxLinesToDraw * lineSpacing;
-
-        // Calculate starting Y based on vertical alignment
-        float startY = VerticalTextAlignment switch
-        {
-            TextAlignment.Start => effectiveBounds.Top + FontSize,
-            TextAlignment.Center => effectiveBounds.MidY - totalHeight / 2 + FontSize,
-            TextAlignment.End => effectiveBounds.Bottom - totalHeight + FontSize,
-            _ => effectiveBounds.Top + FontSize
-        };
-
-        for (int i = 0; i < maxLinesToDraw; i++)
-        {
-            var line = wrappedLines[i];
-
-            // Add ellipsis if this is the last line and there are more lines
-            bool isLastLine = i == maxLinesToDraw - 1;
-            bool hasMoreContent = maxLinesToDraw < wrappedLines.Count;
-            if (isLastLine && hasMoreContent && LineBreakMode == LineBreakMode.TailTruncation)
-            {
-                line = TruncateTextWithEllipsis(paint, line, effectiveWidth);
-            }
+            if (MaxLines > 0 && lineCount >= MaxLines) break;
+            if (y + lineHeight > bounds.Bottom && MaxLines == 0) break;
 
             var textBounds = new SKRect();
             paint.MeasureText(line, ref textBounds);
 
+            float textWidth = textBounds.Width;
+            if (CharacterSpacing != 0 && line.Length > 1)
+            {
+                textWidth += (float)(CharacterSpacing * (line.Length - 1));
+            }
+
             float x = HorizontalTextAlignment switch
             {
-                TextAlignment.Start => effectiveBounds.Left,
-                TextAlignment.Center => effectiveBounds.MidX - textBounds.Width / 2,
-                TextAlignment.End => effectiveBounds.Right - textBounds.Width,
-                _ => effectiveBounds.Left
+                TextAlignment.Start => bounds.Left,
+                TextAlignment.Center => bounds.MidX - textWidth / 2,
+                TextAlignment.End => bounds.Right - textWidth,
+                _ => bounds.Left
             };
 
-            float y = startY + i * lineSpacing;
+            float textY = y - textBounds.Top;
+            DrawTextWithSpacing(canvas, line, x, textY, paint);
+            DrawTextDecorations(canvas, paint, x, textY, textBounds);
 
-            // Don't break early for inverted bounds - just draw
-            if (effectiveBounds.Height > 0 && y > effectiveBounds.Bottom)
-                break;
-
-            canvas.DrawText(line, x, y, paint);
+            y += lineHeight;
+            lineCount++;
         }
     }
 
-    private List<string> WrapText(SKPaint paint, string text, float maxWidth)
+    private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKPaint paint)
     {
-        var result = new List<string>();
+        if (CharacterSpacing == 0 || string.IsNullOrEmpty(text) || text.Length <= 1)
+        {
+            canvas.DrawText(text, x, y, paint);
+            return;
+        }
 
-        // Split by newlines first
+        float currentX = x;
+        foreach (char c in text)
+        {
+            string charStr = c.ToString();
+            canvas.DrawText(charStr, currentX, y, paint);
+            currentX += paint.MeasureText(charStr) + (float)CharacterSpacing;
+        }
+    }
+
+    private void DrawTextDecorations(SKCanvas canvas, SKPaint paint, float x, float y, SKRect textBounds)
+    {
+        if (TextDecorations == TextDecorations.None) return;
+
+        using var linePaint = new SKPaint
+        {
+            Color = paint.Color,
+            StrokeWidth = 1,
+            IsAntialias = true
+        };
+
+        float textWidth = textBounds.Width;
+        if (CharacterSpacing != 0)
+        {
+            // Approximate width adjustment for decorations
+            textWidth += (float)(CharacterSpacing * Math.Max(0, Text?.Length - 1 ?? 0));
+        }
+
+        if (TextDecorations.HasFlag(TextDecorations.Underline))
+        {
+            float underlineY = y + 2;
+            canvas.DrawLine(x, underlineY, x + textWidth, underlineY, linePaint);
+        }
+
+        if (TextDecorations.HasFlag(TextDecorations.Strikethrough))
+        {
+            float strikeY = y - textBounds.Height / 3;
+            canvas.DrawLine(x, strikeY, x + textWidth, strikeY, linePaint);
+        }
+    }
+
+    private void DrawFormattedText(SKCanvas canvas, SKRect bounds)
+    {
+        if (FormattedText == null) return;
+
+        float x = bounds.Left;
+        float y = bounds.Top;
+        float lineHeight = (float)(FontSize * LineHeight);
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+
+        // Calculate baseline for first line
+        using var measureFont = new SKFont(SKTypeface.Default, fontSize);
+        using var measurePaint = new SKPaint(measureFont);
+        var metrics = measurePaint.FontMetrics;
+        y -= metrics.Ascent;
+
+        foreach (var span in FormattedText.Spans)
+        {
+            if (string.IsNullOrEmpty(span.Text)) continue;
+
+            // Get span-specific styling
+            var spanFontSize = span.FontSize > 0 ? (float)span.FontSize : fontSize;
+            var spanFontFamily = !string.IsNullOrEmpty(span.FontFamily) ? span.FontFamily :
+                                 (!string.IsNullOrEmpty(FontFamily) ? FontFamily : "Sans");
+
+            bool isBold = span.FontAttributes.HasFlag(FontAttributes.Bold) ||
+                         FontAttributes.HasFlag(FontAttributes.Bold);
+            bool isItalic = span.FontAttributes.HasFlag(FontAttributes.Italic) ||
+                           FontAttributes.HasFlag(FontAttributes.Italic);
+
+            var fontStyle = new SKFontStyle(
+                isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+                SKFontStyleWidth.Normal,
+                isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+
+            using var font = new SKFont(
+                SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(spanFontFamily, fontStyle) ?? SKTypeface.Default,
+                spanFontSize);
+
+            var spanColor = span.TextColor ?? TextColor;
+            using var paint = new SKPaint(font)
+            {
+                Color = ToSKColor(spanColor),
+                IsAntialias = true
+            };
+
+            var textBounds = new SKRect();
+            paint.MeasureText(span.Text, ref textBounds);
+
+            // Check if we need to wrap to next line
+            if (x + textBounds.Width > bounds.Right && x > bounds.Left)
+            {
+                x = bounds.Left;
+                y += lineHeight;
+            }
+
+            canvas.DrawText(span.Text, x, y, paint);
+
+            // Draw span decorations
+            if (span.TextDecorations != TextDecorations.None)
+            {
+                using var linePaint = new SKPaint { Color = paint.Color, StrokeWidth = 1, IsAntialias = true };
+
+                if (span.TextDecorations.HasFlag(TextDecorations.Underline))
+                {
+                    canvas.DrawLine(x, y + 2, x + textBounds.Width, y + 2, linePaint);
+                }
+                if (span.TextDecorations.HasFlag(TextDecorations.Strikethrough))
+                {
+                    float strikeY = y - textBounds.Height / 3;
+                    canvas.DrawLine(x, strikeY, x + textBounds.Width, strikeY, linePaint);
+                }
+            }
+
+            x += textBounds.Width;
+        }
+    }
+
+    private string TruncateText(string text, SKPaint paint, float maxWidth, LineBreakMode mode)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+
+        var bounds = new SKRect();
+        paint.MeasureText(text, ref bounds);
+        if (bounds.Width <= maxWidth) return text;
+
+        string ellipsis = "...";
+        float ellipsisWidth = paint.MeasureText(ellipsis);
+
+        switch (mode)
+        {
+            case LineBreakMode.HeadTruncation:
+                for (int i = 1; i < text.Length; i++)
+                {
+                    string truncated = ellipsis + text.Substring(i);
+                    if (paint.MeasureText(truncated) <= maxWidth)
+                        return truncated;
+                }
+                return ellipsis;
+
+            case LineBreakMode.MiddleTruncation:
+                int half = text.Length / 2;
+                for (int i = 0; i < half; i++)
+                {
+                    string truncated = text.Substring(0, half - i) + ellipsis + text.Substring(half + i);
+                    if (paint.MeasureText(truncated) <= maxWidth)
+                        return truncated;
+                }
+                return ellipsis;
+
+            case LineBreakMode.TailTruncation:
+            default:
+                for (int i = text.Length - 1; i > 0; i--)
+                {
+                    string truncated = text.Substring(0, i) + ellipsis;
+                    if (paint.MeasureText(truncated) <= maxWidth)
+                        return truncated;
+                }
+                return ellipsis;
+        }
+    }
+
+    private List<string> WrapText(string text, SKPaint paint, float maxWidth)
+    {
+        var lines = new List<string>();
+        if (string.IsNullOrEmpty(text)) return lines;
+
+        // Split by existing newlines first
         var paragraphs = text.Split('\n');
 
         foreach (var paragraph in paragraphs)
         {
             if (string.IsNullOrEmpty(paragraph))
             {
-                result.Add("");
+                lines.Add(string.Empty);
                 continue;
             }
 
-            // Check if paragraph fits in one line
-            if (paint.MeasureText(paragraph) <= maxWidth)
+            if (LineBreakMode == LineBreakMode.CharacterWrap)
             {
-                result.Add(paragraph);
-                continue;
+                WrapByCharacter(paragraph, paint, maxWidth, lines);
             }
-
-            // Word wrap this paragraph
-            var words = paragraph.Split(' ');
-            var currentLine = "";
-
-            foreach (var word in words)
-            {
-                var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
-                var lineWidth = paint.MeasureText(testLine);
-
-                if (lineWidth > maxWidth && !string.IsNullOrEmpty(currentLine))
-                {
-                    result.Add(currentLine);
-                    currentLine = word;
-                }
-                else
-                {
-                    currentLine = testLine;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(currentLine))
-            {
-                result.Add(currentLine);
-            }
-        }
-
-        return result;
-    }
-
-    private void DrawMultiLine(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds)
-    {
-        var lines = Text.Split('\n');
-        var effectiveLineHeight = LineHeight <= 0 ? 1.2f : LineHeight;
-        var lineSpacing = FontSize * effectiveLineHeight;
-        var maxLinesToDraw = MaxLines > 0 ? Math.Min(MaxLines, lines.Length) : lines.Length;
-
-        // Calculate total height
-        var totalHeight = maxLinesToDraw * lineSpacing;
-
-        // Calculate starting Y based on vertical alignment
-        float startY = VerticalTextAlignment switch
-        {
-            TextAlignment.Start => bounds.Top + FontSize,
-            TextAlignment.Center => bounds.MidY - totalHeight / 2 + FontSize,
-            TextAlignment.End => bounds.Bottom - totalHeight + FontSize,
-            _ => bounds.Top + FontSize
-        };
-
-        for (int i = 0; i < maxLinesToDraw; i++)
-        {
-            var line = lines[i];
-
-            // Add ellipsis if this is the last line and there are more
-            if (i == maxLinesToDraw - 1 && i < lines.Length - 1 && LineBreakMode == LineBreakMode.TailTruncation)
-            {
-                line = TruncateText(paint, line, bounds.Width);
-            }
-
-            var textBounds = new SKRect();
-            paint.MeasureText(line, ref textBounds);
-
-            float x = HorizontalTextAlignment switch
-            {
-                TextAlignment.Start => bounds.Left,
-                TextAlignment.Center => bounds.MidX - textBounds.Width / 2,
-                TextAlignment.End => bounds.Right - textBounds.Width,
-                _ => bounds.Left
-            };
-
-            float y = startY + i * lineSpacing;
-
-            if (y > bounds.Bottom)
-                break;
-
-            canvas.DrawText(line, x, y, paint);
-        }
-    }
-
-    /// <summary>
-    /// Truncates text and ALWAYS adds ellipsis (used when there's more content to indicate).
-    /// </summary>
-    private string TruncateTextWithEllipsis(SKPaint paint, string text, float maxWidth)
-    {
-        const string ellipsis = "...";
-        var ellipsisWidth = paint.MeasureText(ellipsis);
-        var textWidth = paint.MeasureText(text);
-
-        // If text + ellipsis fits, just append ellipsis
-        if (textWidth + ellipsisWidth <= maxWidth)
-            return text + ellipsis;
-
-        // Otherwise, truncate to make room for ellipsis
-        var availableWidth = maxWidth - ellipsisWidth;
-        if (availableWidth <= 0)
-            return ellipsis;
-
-        // Binary search for the right length
-        int low = 0;
-        int high = text.Length;
-
-        while (low < high)
-        {
-            int mid = (low + high + 1) / 2;
-            var substring = text.Substring(0, mid);
-
-            if (paint.MeasureText(substring) <= availableWidth)
-                low = mid;
             else
-                high = mid - 1;
+            {
+                WrapByWord(paragraph, paint, maxWidth, lines);
+            }
         }
 
-        return text.Substring(0, low) + ellipsis;
+        return lines;
     }
 
-    private string TruncateText(SKPaint paint, string text, float maxWidth)
+    private void WrapByWord(string text, SKPaint paint, float maxWidth, List<string> lines)
     {
-        const string ellipsis = "...";
-        var ellipsisWidth = paint.MeasureText(ellipsis);
+        var words = text.Split(' ');
+        string currentLine = "";
 
-        if (paint.MeasureText(text) <= maxWidth)
-            return text;
-
-        var availableWidth = maxWidth - ellipsisWidth;
-        if (availableWidth <= 0)
-            return ellipsis;
-
-        // Binary search for the right length
-        int low = 0;
-        int high = text.Length;
-
-        while (low < high)
+        foreach (var word in words)
         {
-            int mid = (low + high + 1) / 2;
-            var substring = text.Substring(0, mid);
+            string testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
+            float width = paint.MeasureText(testLine);
 
-            if (paint.MeasureText(substring) <= availableWidth)
-                low = mid;
+            if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
+            {
+                lines.Add(currentLine);
+                currentLine = word;
+            }
             else
-                high = mid - 1;
+            {
+                currentLine = testLine;
+            }
         }
 
-        return text.Substring(0, low) + ellipsis;
+        if (!string.IsNullOrEmpty(currentLine))
+        {
+            lines.Add(currentLine);
+        }
     }
+
+    private void WrapByCharacter(string text, SKPaint paint, float maxWidth, List<string> lines)
+    {
+        string currentLine = "";
+
+        foreach (char c in text)
+        {
+            string testLine = currentLine + c;
+            float width = paint.MeasureText(testLine);
+
+            if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
+            {
+                lines.Add(currentLine);
+                currentLine = c.ToString();
+            }
+            else
+            {
+                currentLine = testLine;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(currentLine))
+        {
+            lines.Add(currentLine);
+        }
+    }
+
+    #endregion
+
+    #region Measurement
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        if (string.IsNullOrEmpty(Text))
+        var padding = Padding;
+        float paddingH = (float)(padding.Left + padding.Right);
+        float paddingV = (float)(padding.Top + padding.Bottom);
+
+        string displayText = GetDisplayText();
+        if (string.IsNullOrEmpty(displayText) && (FormattedText == null || FormattedText.Spans.Count == 0))
         {
-            return new SKSize(
-                Padding.Left + Padding.Right,
-                FontSize + Padding.Top + Padding.Bottom);
+            return new SKSize(paddingH, paddingV + (float)FontSize);
         }
 
-        var fontStyle = new SKFontStyle(
-            IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+        var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
-        // Use same typeface logic as OnDraw to ensure consistent measurement
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle);
-        if (typeface == null || typeface == SKTypeface.Default)
-        {
-            typeface = GetLinuxTypeface();
-        }
+        using var font = new SKFont(
+            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            fontSize);
 
-        using var font = new SKFont(typeface, FontSize);
         using var paint = new SKPaint(font);
 
-        // Use multiline when: MaxLines > 1, text has newlines, OR WordWrap is enabled
-        bool needsMultiLine = MaxLines > 1 || Text.Contains('\n') ||
-                              LineBreakMode == LineBreakMode.WordWrap ||
-                              LineBreakMode == LineBreakMode.CharacterWrap;
-        if (!needsMultiLine)
+        float width, height;
+
+        if (FormattedText != null && FormattedText.Spans.Count > 0)
         {
-            var textBounds = new SKRect();
-            paint.MeasureText(Text, ref textBounds);
-
-            // Add small buffer for font rendering tolerance
-            const float widthBuffer = 4f;
-
-            return new SKSize(
-                textBounds.Width + Padding.Left + Padding.Right + widthBuffer,
-                textBounds.Height + Padding.Top + Padding.Bottom);
+            // Measure formatted text
+            width = 0;
+            height = (float)(fontSize * LineHeight);
+            foreach (var span in FormattedText.Spans)
+            {
+                if (!string.IsNullOrEmpty(span.Text))
+                {
+                    width += paint.MeasureText(span.Text);
+                }
+            }
         }
         else
         {
-            // Use available width for word wrapping measurement
-            var wrapWidth = availableSize.Width - Padding.Left - Padding.Right;
-            if (wrapWidth <= 0)
-            {
-                wrapWidth = float.MaxValue; // No wrapping if no width constraint
-            }
-
-            // Wrap text to get actual line count
-            var wrappedLines = WrapText(paint, Text, wrapWidth);
-            var maxLinesToMeasure = MaxLines > 0 ? Math.Min(MaxLines, wrappedLines.Count) : wrappedLines.Count;
-
-            float maxWidth = 0;
-            foreach (var line in wrappedLines.Take(maxLinesToMeasure))
-            {
-                maxWidth = Math.Max(maxWidth, paint.MeasureText(line));
-            }
-
-            var effectiveLineHeight = LineHeight <= 0 ? 1.2f : LineHeight;
-            var totalHeight = maxLinesToMeasure * FontSize * effectiveLineHeight;
-
-            return new SKSize(
-                maxWidth + Padding.Left + Padding.Right,
-                totalHeight + Padding.Top + Padding.Bottom);
-        }
-    }
-
-    private void DrawFormattedText(SKCanvas canvas, SKRect bounds)
-    {
-        if (FormattedSpans == null || FormattedSpans.Count == 0)
-            return;
-
-        float currentX = bounds.Left;
-        float currentY = bounds.Top;
-        float lineHeight = 0f;
-
-        // First pass: calculate line data
-        var lineSpans = new List<(SkiaTextSpan span, float x, float width, float height, SKPaint paint)>();
-
-        foreach (var span in FormattedSpans)
-        {
-            if (string.IsNullOrEmpty(span.Text))
-                continue;
-
-            var paint = CreateSpanPaint(span);
             var textBounds = new SKRect();
-            paint.MeasureText(span.Text, ref textBounds);
-            lineHeight = Math.Max(lineHeight, textBounds.Height);
+            paint.MeasureText(displayText, ref textBounds);
+            width = textBounds.Width;
+            height = textBounds.Height;
 
-            // Word wrap
-            if (currentX + textBounds.Width > bounds.Right && currentX > bounds.Left)
+            // Account for character spacing
+            if (CharacterSpacing != 0 && displayText.Length > 1)
             {
-                currentY += lineHeight * LineHeight;
-                currentX = bounds.Left;
-                lineHeight = textBounds.Height;
+                width += (float)(CharacterSpacing * (displayText.Length - 1));
             }
 
-            lineSpans.Add((span, currentX, textBounds.Width, textBounds.Height, paint));
-            currentX += textBounds.Width;
-        }
-
-        // Calculate vertical offset
-        float totalHeight = currentY + lineHeight - bounds.Top;
-        float verticalOffset = VerticalTextAlignment switch
-        {
-            TextAlignment.Start => 0f,
-            TextAlignment.Center => (bounds.Height - totalHeight) / 2f,
-            TextAlignment.End => bounds.Height - totalHeight,
-            _ => 0f
-        };
-
-        // Second pass: draw with alignment
-        currentX = bounds.Left;
-        currentY = bounds.Top + verticalOffset;
-        lineHeight = 0f;
-
-        var currentLine = new List<(SkiaTextSpan span, float relX, float width, float height, SKPaint paint)>();
-        float lineLeft = bounds.Left;
-
-        foreach (var span in FormattedSpans)
-        {
-            if (string.IsNullOrEmpty(span.Text))
-                continue;
-
-            var paint = CreateSpanPaint(span);
-            var textBounds = new SKRect();
-            paint.MeasureText(span.Text, ref textBounds);
-            lineHeight = Math.Max(lineHeight, textBounds.Height);
-
-            if (currentX + textBounds.Width > bounds.Right && currentX > bounds.Left)
+            // Account for multi-line
+            if (displayText.Contains('\n') || MaxLines > 1)
             {
-                DrawFormattedLine(canvas, bounds, currentLine, currentY + lineHeight);
-                currentY += lineHeight * LineHeight;
-                currentX = bounds.Left;
-                lineHeight = textBounds.Height;
-                currentLine.Clear();
+                var lines = displayText.Split('\n');
+                int lineCount = MaxLines > 0 ? Math.Min(lines.Length, MaxLines) : lines.Length;
+                height = (float)(lineCount * fontSize * LineHeight);
             }
-
-            currentLine.Add((span, currentX - lineLeft, textBounds.Width, textBounds.Height, paint));
-            currentX += textBounds.Width;
         }
 
-        if (currentLine.Count > 0)
+        width += paddingH;
+        height += paddingV;
+
+        // Respect explicit size requests
+        if (WidthRequest >= 0)
         {
-            DrawFormattedLine(canvas, bounds, currentLine, currentY + lineHeight);
+            width = (float)WidthRequest;
         }
+        if (HeightRequest >= 0)
+        {
+            height = (float)HeightRequest;
+        }
+
+        return new SKSize(Math.Max(width, 1f), Math.Max(height, 1f));
     }
 
-    private void DrawFormattedLine(SKCanvas canvas, SKRect bounds,
-        List<(SkiaTextSpan span, float x, float width, float height, SKPaint paint)> lineSpans, float y)
-    {
-        if (lineSpans.Count == 0) return;
-
-        float lineWidth = lineSpans.Sum(s => s.width);
-        float startX = HorizontalTextAlignment switch
-        {
-            TextAlignment.Start => bounds.Left,
-            TextAlignment.Center => bounds.Left + (bounds.Width - lineWidth) / 2f,
-            TextAlignment.End => bounds.Right - lineWidth,
-            _ => bounds.Left
-        };
-
-        foreach (var (span, relX, width, height, paint) in lineSpans)
-        {
-            float x = startX + relX;
-
-            // Draw background if specified
-            if (span.BackgroundColor.HasValue && span.BackgroundColor.Value != SKColors.Transparent)
-            {
-                using var bgPaint = new SKPaint
-                {
-                    Color = span.BackgroundColor.Value,
-                    Style = SKPaintStyle.Fill
-                };
-                canvas.DrawRect(x, y - height, width, height + 4f, bgPaint);
-            }
-
-            canvas.DrawText(span.Text, x, y, paint);
-
-            // Draw underline
-            if (span.IsUnderline)
-            {
-                using var linePaint = new SKPaint
-                {
-                    Color = paint.Color,
-                    StrokeWidth = 1f,
-                    IsAntialias = true
-                };
-                canvas.DrawLine(x, y + 2f, x + width, y + 2f, linePaint);
-            }
-
-            // Draw strikethrough
-            if (span.IsStrikethrough)
-            {
-                using var linePaint = new SKPaint
-                {
-                    Color = paint.Color,
-                    StrokeWidth = 1f,
-                    IsAntialias = true
-                };
-                canvas.DrawLine(x, y - height / 3f, x + width, y - height / 3f, linePaint);
-            }
-
-            paint.Dispose();
-        }
-    }
-
-    private SKPaint CreateSpanPaint(SkiaTextSpan span)
-    {
-        var fontStyle = new SKFontStyle(
-            span.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            span.IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(span.FontFamily ?? FontFamily, fontStyle);
-        if (typeface == null || typeface == SKTypeface.Default)
-        {
-            typeface = GetLinuxTypeface();
-        }
-
-        var fontSize = span.FontSize > 0f ? span.FontSize : FontSize;
-        using var font = new SKFont(typeface, fontSize);
-
-        var color = span.TextColor ?? TextColor;
-        if (!IsEnabled)
-        {
-            color = color.WithAlpha(128);
-        }
-
-        return new SKPaint(font)
-        {
-            Color = color,
-            IsAntialias = true
-        };
-    }
-
-    public override void OnPointerPressed(PointerEventArgs e)
-    {
-        base.OnPointerPressed(e);
-        Tapped?.Invoke(this, EventArgs.Empty);
-    }
+    #endregion
 }
 
-/// <summary>
-/// Text alignment options.
-/// </summary>
-public enum TextAlignment
-{
-    Start,
-    Center,
-    End
-}
-
-/// <summary>
-/// Line break mode options.
-/// </summary>
-public enum LineBreakMode
-{
-    NoWrap,
-    WordWrap,
-    CharacterWrap,
-    HeadTruncation,
-    TailTruncation,
-    MiddleTruncation
-}
-
-/// <summary>
-/// Horizontal text alignment for Skia label.
-/// </summary>
-public enum SkiaTextAlignment
-{
-    Left,
-    Center,
-    Right
-}
-
-/// <summary>
-/// Vertical text alignment for Skia label.
-/// </summary>
-public enum SkiaVerticalAlignment
-{
-    Top,
-    Center,
-    Bottom
-}

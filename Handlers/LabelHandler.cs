@@ -97,7 +97,7 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         if (handler.PlatformView is null) return;
 
         if (label.TextColor is not null)
-            handler.PlatformView.TextColor = label.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = label.TextColor;
     }
 
     public static void MapFont(LabelHandler handler, ILabel label)
@@ -106,32 +106,37 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
 
         var font = label.Font;
         if (font.Size > 0)
-            handler.PlatformView.FontSize = (float)font.Size;
+            handler.PlatformView.FontSize = font.Size;
 
         if (!string.IsNullOrEmpty(font.Family))
             handler.PlatformView.FontFamily = font.Family;
 
-        handler.PlatformView.IsBold = font.Weight >= FontWeight.Bold;
-        handler.PlatformView.IsItalic = font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique;
+        // Convert Font weight/slant to FontAttributes
+        FontAttributes attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapCharacterSpacing(LabelHandler handler, ILabel label)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = (float)label.CharacterSpacing;
+        handler.PlatformView.CharacterSpacing = label.CharacterSpacing;
     }
 
     public static void MapHorizontalTextAlignment(LabelHandler handler, ILabel label)
     {
         if (handler.PlatformView is null) return;
 
-        // Map MAUI TextAlignment to our internal TextAlignment
+        // Map MAUI TextAlignment to our TextAlignment
         handler.PlatformView.HorizontalTextAlignment = label.HorizontalTextAlignment switch
         {
-            Microsoft.Maui.TextAlignment.Start => Platform.TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => Platform.TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => Platform.TextAlignment.End,
-            _ => Platform.TextAlignment.Start
+            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
+            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
+            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
+            _ => TextAlignment.Start
         };
     }
 
@@ -141,25 +146,23 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
 
         handler.PlatformView.VerticalTextAlignment = label.VerticalTextAlignment switch
         {
-            Microsoft.Maui.TextAlignment.Start => Platform.TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => Platform.TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => Platform.TextAlignment.End,
-            _ => Platform.TextAlignment.Center
+            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
+            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
+            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
+            _ => TextAlignment.Center
         };
     }
 
     public static void MapTextDecorations(LabelHandler handler, ILabel label)
     {
         if (handler.PlatformView is null) return;
-
-        handler.PlatformView.IsUnderline = (label.TextDecorations & TextDecorations.Underline) != 0;
-        handler.PlatformView.IsStrikethrough = (label.TextDecorations & TextDecorations.Strikethrough) != 0;
+        handler.PlatformView.TextDecorations = label.TextDecorations;
     }
 
     public static void MapLineHeight(LabelHandler handler, ILabel label)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.LineHeight = (float)label.LineHeight;
+        handler.PlatformView.LineHeight = label.LineHeight;
     }
 
     public static void MapLineBreakMode(LabelHandler handler, ILabel label)
@@ -169,16 +172,7 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         // LineBreakMode is on Label control, not ILabel interface
         if (label is Microsoft.Maui.Controls.Label mauiLabel)
         {
-            handler.PlatformView.LineBreakMode = mauiLabel.LineBreakMode switch
-            {
-                Microsoft.Maui.LineBreakMode.NoWrap => Platform.LineBreakMode.NoWrap,
-                Microsoft.Maui.LineBreakMode.WordWrap => Platform.LineBreakMode.WordWrap,
-                Microsoft.Maui.LineBreakMode.CharacterWrap => Platform.LineBreakMode.CharacterWrap,
-                Microsoft.Maui.LineBreakMode.HeadTruncation => Platform.LineBreakMode.HeadTruncation,
-                Microsoft.Maui.LineBreakMode.TailTruncation => Platform.LineBreakMode.TailTruncation,
-                Microsoft.Maui.LineBreakMode.MiddleTruncation => Platform.LineBreakMode.MiddleTruncation,
-                _ => Platform.LineBreakMode.TailTruncation
-            };
+            handler.PlatformView.LineBreakMode = mauiLabel.LineBreakMode;
         }
     }
 
@@ -198,11 +192,11 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         if (handler.PlatformView is null) return;
 
         var padding = label.Padding;
-        handler.PlatformView.Padding = new SKRect(
-            (float)padding.Left,
-            (float)padding.Top,
-            (float)padding.Right,
-            (float)padding.Bottom);
+        handler.PlatformView.Padding = new Thickness(
+            padding.Left,
+            padding.Top,
+            padding.Right,
+            padding.Bottom);
     }
 
     public static void MapBackground(LabelHandler handler, ILabel label)
@@ -211,7 +205,11 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
 
         if (label.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = new SKColor(
+                (byte)(solidPaint.Color.Red * 255),
+                (byte)(solidPaint.Color.Green * 255),
+                (byte)(solidPaint.Color.Blue * 255),
+                (byte)(solidPaint.Color.Alpha * 255));
         }
     }
 
@@ -249,46 +247,10 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
 
         if (label is not Label mauiLabel)
         {
-            handler.PlatformView.FormattedSpans = null;
+            handler.PlatformView.FormattedText = null;
             return;
         }
 
-        var formattedText = mauiLabel.FormattedText;
-        if (formattedText == null || formattedText.Spans.Count == 0)
-        {
-            handler.PlatformView.FormattedSpans = null;
-            return;
-        }
-
-        var spans = new List<SkiaTextSpan>();
-        foreach (var span in formattedText.Spans)
-        {
-            var skiaSpan = new SkiaTextSpan
-            {
-                Text = span.Text ?? "",
-                IsBold = span.FontAttributes.HasFlag(FontAttributes.Bold),
-                IsItalic = span.FontAttributes.HasFlag(FontAttributes.Italic),
-                IsUnderline = (span.TextDecorations & TextDecorations.Underline) != 0,
-                IsStrikethrough = (span.TextDecorations & TextDecorations.Strikethrough) != 0,
-                CharacterSpacing = (float)span.CharacterSpacing,
-                LineHeight = (float)span.LineHeight
-            };
-
-            if (span.TextColor != null)
-                skiaSpan.TextColor = span.TextColor.ToSKColor();
-
-            if (span.BackgroundColor != null)
-                skiaSpan.BackgroundColor = span.BackgroundColor.ToSKColor();
-
-            if (!string.IsNullOrEmpty(span.FontFamily))
-                skiaSpan.FontFamily = span.FontFamily;
-
-            if (span.FontSize > 0)
-                skiaSpan.FontSize = (float)span.FontSize;
-
-            spans.Add(skiaSpan);
-        }
-
-        handler.PlatformView.FormattedSpans = spans;
+        handler.PlatformView.FormattedText = mauiLabel.FormattedText;
     }
 }
