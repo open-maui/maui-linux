@@ -125,6 +125,42 @@ public class SkiaPicker : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaPicker)b).InvalidateMeasure());
 
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(
+            nameof(FontAttributes),
+            typeof(FontAttributes),
+            typeof(SkiaPicker),
+            FontAttributes.None,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
+
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(
+            nameof(CharacterSpacing),
+            typeof(double),
+            typeof(SkiaPicker),
+            0.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
+
+    public static readonly BindableProperty HorizontalTextAlignmentProperty =
+        BindableProperty.Create(
+            nameof(HorizontalTextAlignment),
+            typeof(TextAlignment),
+            typeof(SkiaPicker),
+            TextAlignment.Start,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
+
+    public static readonly BindableProperty VerticalTextAlignmentProperty =
+        BindableProperty.Create(
+            nameof(VerticalTextAlignment),
+            typeof(TextAlignment),
+            typeof(SkiaPicker),
+            TextAlignment.Center,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaPicker)b).Invalidate());
+
     public static readonly BindableProperty ItemHeightProperty =
         BindableProperty.Create(
             nameof(ItemHeight),
@@ -235,6 +271,42 @@ public class SkiaPicker : SkiaView
     {
         get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font attributes.
+    /// </summary>
+    public FontAttributes FontAttributes
+    {
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the character spacing.
+    /// </summary>
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the horizontal text alignment.
+    /// </summary>
+    public TextAlignment HorizontalTextAlignment
+    {
+        get => (TextAlignment)GetValue(HorizontalTextAlignmentProperty);
+        set => SetValue(HorizontalTextAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the vertical text alignment.
+    /// </summary>
+    public TextAlignment VerticalTextAlignment
+    {
+        get => (TextAlignment)GetValue(VerticalTextAlignmentProperty);
+        set => SetValue(VerticalTextAlignmentProperty, value);
     }
 
     /// <summary>

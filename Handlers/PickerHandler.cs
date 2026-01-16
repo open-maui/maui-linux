@@ -160,22 +160,32 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         {
             handler.PlatformView.FontSize = font.Size;
         }
+
+        // Map FontAttributes from the Font weight
+        var attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        handler.PlatformView.FontAttributes = attrs;
+
         handler.PlatformView.Invalidate();
     }
 
     public static void MapCharacterSpacing(PickerHandler handler, IPicker picker)
     {
-        // Character spacing could be implemented with custom text rendering
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = picker.CharacterSpacing;
     }
 
     public static void MapHorizontalTextAlignment(PickerHandler handler, IPicker picker)
     {
-        // Text alignment would require changes to SkiaPicker drawing
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.HorizontalTextAlignment = picker.HorizontalTextAlignment;
     }
 
     public static void MapVerticalTextAlignment(PickerHandler handler, IPicker picker)
     {
-        // Text alignment would require changes to SkiaPicker drawing
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.VerticalTextAlignment = picker.VerticalTextAlignment;
     }
 
     public static void MapBackground(PickerHandler handler, IPicker picker)
