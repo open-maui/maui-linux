@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using SkiaSharp;
@@ -51,6 +53,30 @@ public class SkiaBorder : SkiaLayoutView
 
     public static readonly BindableProperty ShadowOffsetYProperty =
         BindableProperty.Create(nameof(ShadowOffsetY), typeof(double), typeof(SkiaBorder), 2.0,
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+
+    public static readonly BindableProperty StrokeShapeProperty =
+        BindableProperty.Create(nameof(StrokeShape), typeof(IShape), typeof(SkiaBorder), null,
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashArrayProperty =
+        BindableProperty.Create(nameof(StrokeDashArray), typeof(DoubleCollection), typeof(SkiaBorder), null,
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashOffsetProperty =
+        BindableProperty.Create(nameof(StrokeDashOffset), typeof(double), typeof(SkiaBorder), 0.0,
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+
+    public static readonly BindableProperty StrokeLineCapProperty =
+        BindableProperty.Create(nameof(StrokeLineCap), typeof(LineCap), typeof(SkiaBorder), LineCap.Butt,
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+
+    public static readonly BindableProperty StrokeLineJoinProperty =
+        BindableProperty.Create(nameof(StrokeLineJoin), typeof(LineJoin), typeof(SkiaBorder), LineJoin.Miter,
+            BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
+
+    public static readonly BindableProperty StrokeMiterLimitProperty =
+        BindableProperty.Create(nameof(StrokeMiterLimit), typeof(double), typeof(SkiaBorder), 10.0,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaBorder)b).Invalidate());
 
     #endregion
@@ -138,6 +164,60 @@ public class SkiaBorder : SkiaLayoutView
         set => SetValue(ShadowOffsetYProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the shape of the border stroke (Rectangle, RoundRectangle, Ellipse, etc.).
+    /// </summary>
+    public IShape? StrokeShape
+    {
+        get => (IShape?)GetValue(StrokeShapeProperty);
+        set => SetValue(StrokeShapeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the dash pattern for the stroke.
+    /// </summary>
+    public DoubleCollection? StrokeDashArray
+    {
+        get => (DoubleCollection?)GetValue(StrokeDashArrayProperty);
+        set => SetValue(StrokeDashArrayProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the offset into the dash pattern.
+    /// </summary>
+    public double StrokeDashOffset
+    {
+        get => (double)GetValue(StrokeDashOffsetProperty);
+        set => SetValue(StrokeDashOffsetProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cap style for the stroke line ends.
+    /// </summary>
+    public LineCap StrokeLineCap
+    {
+        get => (LineCap)GetValue(StrokeLineCapProperty);
+        set => SetValue(StrokeLineCapProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the join style for stroke corners.
+    /// </summary>
+    public LineJoin StrokeLineJoin
+    {
+        get => (LineJoin)GetValue(StrokeLineJoinProperty);
+        set => SetValue(StrokeLineJoinProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the miter limit for stroke joins.
+    /// </summary>
+    public double StrokeMiterLimit
+    {
+        get => (double)GetValue(StrokeMiterLimitProperty);
+        set => SetValue(StrokeMiterLimitProperty, value);
+    }
+
     #endregion
 
     #region Events
@@ -193,6 +273,78 @@ public class SkiaBorder : SkiaLayoutView
 
     #region Drawing
 
+    /// <summary>
+    /// Converts LineCap to SKStrokeCap.
+    /// </summary>
+    private static SKStrokeCap ToSKStrokeCap(LineCap lineCap)
+    {
+        return lineCap switch
+        {
+            LineCap.Round => SKStrokeCap.Round,
+            LineCap.Square => SKStrokeCap.Square,
+            _ => SKStrokeCap.Butt
+        };
+    }
+
+    /// <summary>
+    /// Converts LineJoin to SKStrokeJoin.
+    /// </summary>
+    private static SKStrokeJoin ToSKStrokeJoin(LineJoin lineJoin)
+    {
+        return lineJoin switch
+        {
+            LineJoin.Round => SKStrokeJoin.Round,
+            LineJoin.Bevel => SKStrokeJoin.Bevel,
+            _ => SKStrokeJoin.Miter
+        };
+    }
+
+    /// <summary>
+    /// Creates an SKPath for the border based on StrokeShape.
+    /// </summary>
+    private SKPath CreateShapePath(SKRect rect, float defaultCornerRadius)
+    {
+        var path = new SKPath();
+
+        if (StrokeShape is RoundRectangle roundRect)
+        {
+            // Use RoundRectangle's corner radii
+            var cr = roundRect.CornerRadius;
+            var radii = new SKPoint[]
+            {
+                new SKPoint((float)cr.TopLeft, (float)cr.TopLeft),
+                new SKPoint((float)cr.TopRight, (float)cr.TopRight),
+                new SKPoint((float)cr.BottomRight, (float)cr.BottomRight),
+                new SKPoint((float)cr.BottomLeft, (float)cr.BottomLeft)
+            };
+            var skRoundRect = new SKRoundRect();
+            skRoundRect.SetRectRadii(rect, radii);
+            path.AddRoundRect(skRoundRect);
+        }
+        else if (StrokeShape is Ellipse)
+        {
+            path.AddOval(rect);
+        }
+        else if (StrokeShape is Rectangle)
+        {
+            path.AddRect(rect);
+        }
+        else
+        {
+            // Default: use CornerRadius property
+            if (defaultCornerRadius > 0)
+            {
+                path.AddRoundRect(rect, defaultCornerRadius, defaultCornerRadius);
+            }
+            else
+            {
+                path.AddRect(rect);
+            }
+        }
+
+        return path;
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         float strokeThickness = (float)StrokeThickness;
@@ -204,6 +356,9 @@ public class SkiaBorder : SkiaLayoutView
             bounds.Right - strokeThickness / 2f,
             bounds.Bottom - strokeThickness / 2f);
 
+        // Create the shape path
+        using var shapePath = CreateShapePath(borderRect, cornerRadius);
+
         // Draw shadow if enabled
         if (HasShadow)
         {
@@ -213,12 +368,10 @@ public class SkiaBorder : SkiaLayoutView
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (float)ShadowBlurRadius),
                 Style = SKPaintStyle.Fill
             };
-            var shadowRect = new SKRect(
-                borderRect.Left + (float)ShadowOffsetX,
-                borderRect.Top + (float)ShadowOffsetY,
-                borderRect.Right + (float)ShadowOffsetX,
-                borderRect.Bottom + (float)ShadowOffsetY);
-            canvas.DrawRoundRect(new SKRoundRect(shadowRect, cornerRadius), shadowPaint);
+            canvas.Save();
+            canvas.Translate((float)ShadowOffsetX, (float)ShadowOffsetY);
+            canvas.DrawPath(shapePath, shadowPaint);
+            canvas.Restore();
         }
 
         // Draw background
@@ -228,7 +381,7 @@ public class SkiaBorder : SkiaLayoutView
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(borderRect, cornerRadius), bgPaint);
+        canvas.DrawPath(shapePath, bgPaint);
 
         // Draw border
         if (strokeThickness > 0f)
@@ -238,9 +391,24 @@ public class SkiaBorder : SkiaLayoutView
                 Color = ToSKColor(Stroke),
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = strokeThickness,
-                IsAntialias = true
+                IsAntialias = true,
+                StrokeCap = ToSKStrokeCap(StrokeLineCap),
+                StrokeJoin = ToSKStrokeJoin(StrokeLineJoin),
+                StrokeMiter = (float)StrokeMiterLimit
             };
-            canvas.DrawRoundRect(new SKRoundRect(borderRect, cornerRadius), borderPaint);
+
+            // Apply dash pattern if specified
+            if (StrokeDashArray != null && StrokeDashArray.Count > 0)
+            {
+                var dashArray = new float[StrokeDashArray.Count];
+                for (int i = 0; i < StrokeDashArray.Count; i++)
+                {
+                    dashArray[i] = (float)(StrokeDashArray[i] * strokeThickness);
+                }
+                borderPaint.PathEffect = SKPathEffect.CreateDash(dashArray, (float)(StrokeDashOffset * strokeThickness));
+            }
+
+            canvas.DrawPath(shapePath, borderPaint);
         }
 
         // Draw children

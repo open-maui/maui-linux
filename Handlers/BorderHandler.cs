@@ -21,6 +21,11 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             [nameof(IBorderView.Content)] = MapContent,
             [nameof(IBorderStroke.Stroke)] = MapStroke,
             [nameof(IBorderStroke.StrokeThickness)] = MapStrokeThickness,
+            ["StrokeDashArray"] = MapStrokeDashArray,
+            ["StrokeDashOffset"] = MapStrokeDashOffset,
+            [nameof(IBorderStroke.StrokeLineCap)] = MapStrokeLineCap,
+            [nameof(IBorderStroke.StrokeLineJoin)] = MapStrokeLineJoin,
+            [nameof(IBorderStroke.StrokeMiterLimit)] = MapStrokeMiterLimit,
             ["StrokeShape"] = MapStrokeShape,  // StrokeShape is on Border, not IBorderStroke
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
@@ -151,10 +156,13 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         if (border is not Border borderControl) return;
 
         var shape = borderControl.StrokeShape;
+
+        // Pass the shape directly to the platform view for full shape support
+        handler.PlatformView.StrokeShape = shape;
+
+        // Also set CornerRadius for backward compatibility when StrokeShape is RoundRectangle
         if (shape is Microsoft.Maui.Controls.Shapes.RoundRectangle roundRect)
         {
-            // RoundRectangle can have different corner radii, but we use a uniform one
-            // Take the top-left corner as the uniform radius
             var cornerRadius = roundRect.CornerRadius;
             handler.PlatformView.CornerRadius = cornerRadius.TopLeft;
         }
@@ -164,11 +172,71 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         }
         else if (shape is Microsoft.Maui.Controls.Shapes.Ellipse)
         {
-            // For ellipse, use half the min dimension as corner radius
-            // This will be applied during rendering when bounds are known
-            handler.PlatformView.CornerRadius = double.MaxValue; // Marker for "fully rounded"
+            handler.PlatformView.CornerRadius = double.MaxValue;
         }
 
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeDashArray(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        // StrokeDashArray is on Border class
+        if (border is Border borderControl && borderControl.StrokeDashArray != null)
+        {
+            var dashArray = new DoubleCollection();
+            foreach (var value in borderControl.StrokeDashArray)
+            {
+                dashArray.Add(value);
+            }
+            handler.PlatformView.StrokeDashArray = dashArray;
+        }
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeDashOffset(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        // StrokeDashOffset is on Border class
+        if (border is Border borderControl)
+        {
+            handler.PlatformView.StrokeDashOffset = borderControl.StrokeDashOffset;
+        }
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeLineCap(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is IBorderStroke borderStroke)
+        {
+            handler.PlatformView.StrokeLineCap = borderStroke.StrokeLineCap;
+        }
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeLineJoin(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is IBorderStroke borderStroke)
+        {
+            handler.PlatformView.StrokeLineJoin = borderStroke.StrokeLineJoin;
+        }
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeMiterLimit(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is IBorderStroke borderStroke)
+        {
+            handler.PlatformView.StrokeMiterLimit = borderStroke.StrokeMiterLimit;
+        }
         handler.PlatformView.Invalidate();
     }
 }
