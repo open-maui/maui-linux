@@ -73,7 +73,7 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
 
         if (checkBox.Foreground is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.CheckColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.CheckColor = solidPaint.Color;
         }
     }
 
@@ -83,7 +83,7 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
 
         if (checkBox.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.Color = solidPaint.Color;
         }
     }
 
