@@ -15,6 +15,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
     public static IPropertyMapper<IWebView, WebViewHandler> Mapper = new PropertyMapper<IWebView, WebViewHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IWebView.Source)] = MapSource,
+        [nameof(IWebView.UserAgent)] = MapUserAgent,
     };
 
     public static CommandMapper<IWebView, WebViewHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -22,6 +23,8 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
         [nameof(IWebView.GoBack)] = MapGoBack,
         [nameof(IWebView.GoForward)] = MapGoForward,
         [nameof(IWebView.Reload)] = MapReload,
+        [nameof(IWebView.Eval)] = MapEval,
+        [nameof(IWebView.EvaluateJavaScriptAsync)] = MapEvaluateJavaScriptAsync,
     };
 
     public WebViewHandler() : base(Mapper, CommandMapper)
@@ -126,5 +129,67 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
     public static void MapReload(WebViewHandler handler, IWebView webView, object? args)
     {
         handler.PlatformView?.Reload();
+    }
+
+    public static void MapUserAgent(WebViewHandler handler, IWebView webView)
+    {
+        if (handler.PlatformView != null && !string.IsNullOrEmpty(webView.UserAgent))
+        {
+            handler.PlatformView.UserAgent = webView.UserAgent;
+        }
+    }
+
+    public static void MapEval(WebViewHandler handler, IWebView webView, object? args)
+    {
+        if (args is string script)
+        {
+            handler.PlatformView?.Eval(script);
+        }
+    }
+
+    public static void MapEvaluateJavaScriptAsync(WebViewHandler handler, IWebView webView, object? args)
+    {
+        // Handle EvaluateJavaScriptAsyncRequest from Microsoft.Maui.Platform namespace
+        if (args is EvaluateJavaScriptAsyncRequest request)
+        {
+            var result = handler.PlatformView?.EvaluateJavaScriptAsync(request.Script);
+            if (result != null)
+            {
+                result.ContinueWith(t =>
+                {
+                    request.SetResult(t.Result);
+                });
+            }
+            else
+            {
+                request.SetResult(null);
+            }
+        }
+        else if (args is string script)
+        {
+            // Direct script string
+            handler.PlatformView?.EvaluateJavaScriptAsync(script);
+        }
+    }
+}
+
+/// <summary>
+/// Request object for async JavaScript evaluation (matches Microsoft.Maui.Platform.EvaluateJavaScriptAsyncRequest).
+/// </summary>
+public class EvaluateJavaScriptAsyncRequest
+{
+    public string Script { get; }
+    private readonly System.Threading.Tasks.TaskCompletionSource<string?> _tcs = new();
+
+    public EvaluateJavaScriptAsyncRequest(string script)
+    {
+        Script = script;
+    }
+
+    public System.Threading.Tasks.Task<string?> Task => _tcs.Task;
+
+    public void SetResult(string? result)
+    {
+        _tcs.TrySetResult(result);
     }
 }

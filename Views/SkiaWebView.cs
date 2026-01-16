@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Runtime.InteropServices;
 using SkiaSharp;
 
@@ -33,6 +34,9 @@ public class SkiaWebView : SkiaView
     private delegate void WebKitSettingsSetEnableJavascriptDelegate(IntPtr settings, bool enabled);
     private delegate void WebKitSettingsSetHardwareAccelerationPolicyDelegate(IntPtr settings, int policy);
     private delegate void WebKitSettingsSetEnableWebglDelegate(IntPtr settings, bool enabled);
+    private delegate void WebKitSettingsSetUserAgentDelegate(IntPtr settings, [MarshalAs(UnmanagedType.LPStr)] string userAgent);
+    private delegate IntPtr WebKitSettingsGetUserAgentDelegate(IntPtr settings);
+    private delegate void WebKitWebViewRunJavascriptDelegate(IntPtr webView, [MarshalAs(UnmanagedType.LPStr)] string script, IntPtr cancellable, IntPtr callback, IntPtr userData);
 
     #endregion
 
@@ -109,6 +113,9 @@ public class SkiaWebView : SkiaView
     private static WebKitSettingsSetEnableJavascriptDelegate? _webkitSetJavascript;
     private static WebKitSettingsSetHardwareAccelerationPolicyDelegate? _webkitSetHardwareAcceleration;
     private static WebKitSettingsSetEnableWebglDelegate? _webkitSetWebgl;
+    private static WebKitSettingsSetUserAgentDelegate? _webkitSetUserAgent;
+    private static WebKitSettingsGetUserAgentDelegate? _webkitGetUserAgent;
+    private static WebKitWebViewRunJavascriptDelegate? _webkitRunJavascript;
 
     private static readonly List<SkiaWebView> _activeWebViews = new();
     private static readonly Dictionary<IntPtr, SkiaWebView> _webViewInstances = new();
@@ -127,6 +134,8 @@ public class SkiaWebView : SkiaView
     private bool _isEmbedded;
     private bool _isProperlyReparented;
     private bool _javascriptEnabled = true;
+    private string? _userAgent;
+    private CookieContainer _cookies = new();
     private double _loadProgress;
     private SKRect _lastBounds;
     private int _lastMainX;
@@ -447,6 +456,38 @@ public class SkiaWebView : SkiaView
 
     public double LoadProgress => _loadProgress;
 
+    public string? UserAgent
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_userAgent))
+                return _userAgent;
+            if (_webView == IntPtr.Zero || _webkitGetSettings == null || _webkitGetUserAgent == null)
+                return null;
+            var settings = _webkitGetSettings(_webView);
+            if (settings == IntPtr.Zero) return null;
+            var ptr = _webkitGetUserAgent(settings);
+            return ptr != IntPtr.Zero ? Marshal.PtrToStringAnsi(ptr) : null;
+        }
+        set
+        {
+            _userAgent = value;
+            UpdateUserAgentSetting();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the cookie container for this WebView.
+    /// Note: Cookies set here are available for .NET code but are not automatically
+    /// synchronized with WebKitGTK's internal cookie storage. For full cookie
+    /// integration, use JavaScript-based cookie operations.
+    /// </summary>
+    public CookieContainer Cookies
+    {
+        get => _cookies;
+        set => _cookies = value ?? new CookieContainer();
+    }
+
     public static bool IsSupported => InitializeWebKit();
 
     #endregion
@@ -534,6 +575,9 @@ public class SkiaWebView : SkiaView
         _webkitSetJavascript = LoadFunction<WebKitSettingsSetEnableJavascriptDelegate>("webkit_settings_set_enable_javascript");
         _webkitSetHardwareAcceleration = LoadFunction<WebKitSettingsSetHardwareAccelerationPolicyDelegate>("webkit_settings_set_hardware_acceleration_policy");
         _webkitSetWebgl = LoadFunction<WebKitSettingsSetEnableWebglDelegate>("webkit_settings_set_enable_webgl");
+        _webkitSetUserAgent = LoadFunction<WebKitSettingsSetUserAgentDelegate>("webkit_settings_set_user_agent");
+        _webkitGetUserAgent = LoadFunction<WebKitSettingsGetUserAgentDelegate>("webkit_settings_get_user_agent");
+        _webkitRunJavascript = LoadFunction<WebKitWebViewRunJavascriptDelegate>("webkit_web_view_run_javascript");
 
         Console.WriteLine($"[WebView] Using {_webkitLib}");
         return _webkitWebViewNew != null;
@@ -663,6 +707,7 @@ public class SkiaWebView : SkiaView
 
             ConfigureWebKitSettings();
             UpdateJavaScriptSetting();
+            UpdateUserAgentSetting();
             _isInitialized = true;
 
             lock (_activeWebViews)
@@ -740,6 +785,18 @@ public class SkiaWebView : SkiaView
         }
     }
 
+    private void UpdateUserAgentSetting()
+    {
+        if (_webView == IntPtr.Zero || _webkitGetSettings == null || _webkitSetUserAgent == null) return;
+        if (string.IsNullOrEmpty(_userAgent)) return;
+
+        var settings = _webkitGetSettings(_webView);
+        if (settings != IntPtr.Zero)
+        {
+            _webkitSetUserAgent(settings, _userAgent);
+        }
+    }
+
     #endregion
 
     #region Navigation
@@ -800,6 +857,37 @@ public class SkiaWebView : SkiaView
     public void Stop()
     {
         _webkitStopLoading?.Invoke(_webView);
+    }
+
+    /// <summary>
+    /// Evaluates JavaScript in the WebView. This is a fire-and-forget operation.
+    /// For MAUI compatibility - use EvaluateJavaScriptAsync for async results.
+    /// </summary>
+    public void Eval(string script)
+    {
+        if (_webView == IntPtr.Zero || _webkitRunJavascript == null || string.IsNullOrEmpty(script)) return;
+        _webkitRunJavascript(_webView, script, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// Evaluates JavaScript in the WebView asynchronously.
+    /// Note: WebKitGTK async result handling is complex - this implementation
+    /// executes the script but returns null. Full async result support would
+    /// require GAsyncReadyCallback integration.
+    /// </summary>
+    public System.Threading.Tasks.Task<string?> EvaluateJavaScriptAsync(string script)
+    {
+        if (_webView == IntPtr.Zero || _webkitRunJavascript == null || string.IsNullOrEmpty(script))
+        {
+            return System.Threading.Tasks.Task.FromResult<string?>(null);
+        }
+
+        // Execute the JavaScript
+        _webkitRunJavascript(_webView, script, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+
+        // Note: Full async result handling would require GAsyncReadyCallback
+        // For now, we execute and return null (script side effects still work)
+        return System.Threading.Tasks.Task.FromResult<string?>(null);
     }
 
     #endregion
