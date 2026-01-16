@@ -67,11 +67,7 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
     {
         if (frame.BorderColor != null)
         {
-            handler.PlatformView.Stroke = new SKColor(
-                (byte)(frame.BorderColor.Red * 255),
-                (byte)(frame.BorderColor.Green * 255),
-                (byte)(frame.BorderColor.Blue * 255),
-                (byte)(frame.BorderColor.Alpha * 255));
+            handler.PlatformView.Stroke = frame.BorderColor;
         }
     }
 
