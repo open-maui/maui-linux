@@ -70,13 +70,12 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
     {
         if (handler.PlatformView is null) return;
 
-        // TrackColor sets both On and Off track colors
+        // TrackColor sets the On track color (MAUI's OnColor)
         if (@switch.TrackColor is not null)
         {
-            var color = @switch.TrackColor.ToSKColor();
-            handler.PlatformView.OnTrackColor = color;
-            // Off track could be a lighter version
-            handler.PlatformView.OffTrackColor = color.WithAlpha(128);
+            handler.PlatformView.OnTrackColor = @switch.TrackColor;
+            // Off track is a lighter/desaturated version
+            handler.PlatformView.OffTrackColor = @switch.TrackColor.WithAlpha(0.5f);
         }
     }
 
@@ -85,7 +84,7 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         if (handler.PlatformView is null) return;
 
         if (@switch.ThumbColor is not null)
-            handler.PlatformView.ThumbColor = @switch.ThumbColor.ToSKColor();
+            handler.PlatformView.ThumbColor = @switch.ThumbColor;
     }
 
     public static void MapBackground(SwitchHandler handler, ISwitch @switch)
@@ -94,6 +93,7 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
 
         if (@switch.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
+            // Background color for the switch container (not the track)
             handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
     }

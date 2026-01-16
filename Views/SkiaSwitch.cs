@@ -3,122 +3,115 @@
 
 using System;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered toggle switch control with full XAML styling support.
+/// Skia-rendered toggle switch control with full MAUI compliance.
+/// Implements ISwitch interface requirements:
+/// - IsOn property with Toggled event
+/// - OnColor (TrackColor when on)
+/// - ThumbColor
+/// - Smooth animation on toggle
 /// </summary>
 public class SkiaSwitch : SkiaView
 {
+    #region SKColor Helper
+
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
+    #endregion
+
     #region BindableProperties
 
-    /// <summary>
-    /// Bindable property for IsOn.
-    /// </summary>
     public static readonly BindableProperty IsOnProperty =
         BindableProperty.Create(
             nameof(IsOn),
             typeof(bool),
             typeof(SkiaSwitch),
             false,
-            BindingMode.OneWay,
-            propertyChanged: (b, o, n) => ((SkiaSwitch)b).OnIsOnChanged());
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaSwitch)b).OnIsOnChanged((bool)o, (bool)n));
 
-    /// <summary>
-    /// Bindable property for OnTrackColor.
-    /// </summary>
     public static readonly BindableProperty OnTrackColorProperty =
         BindableProperty.Create(
             nameof(OnTrackColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaSwitch),
-            new SKColor(33, 150, 243),
+            Color.FromRgb(33, 150, 243), // Material Blue
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for OffTrackColor.
-    /// </summary>
     public static readonly BindableProperty OffTrackColorProperty =
         BindableProperty.Create(
             nameof(OffTrackColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaSwitch),
-            new SKColor(158, 158, 158),
+            Color.FromRgb(158, 158, 158),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for ThumbColor.
-    /// </summary>
     public static readonly BindableProperty ThumbColorProperty =
         BindableProperty.Create(
             nameof(ThumbColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaSwitch),
-            SKColors.White,
+            Colors.White,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for DisabledColor.
-    /// </summary>
     public static readonly BindableProperty DisabledColorProperty =
         BindableProperty.Create(
             nameof(DisabledColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaSwitch),
-            new SKColor(189, 189, 189),
+            Color.FromRgb(189, 189, 189),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for TrackWidth.
-    /// </summary>
     public static readonly BindableProperty TrackWidthProperty =
         BindableProperty.Create(
             nameof(TrackWidth),
-            typeof(float),
+            typeof(double),
             typeof(SkiaSwitch),
-            52f,
+            52.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).InvalidateMeasure());
 
-    /// <summary>
-    /// Bindable property for TrackHeight.
-    /// </summary>
     public static readonly BindableProperty TrackHeightProperty =
         BindableProperty.Create(
             nameof(TrackHeight),
-            typeof(float),
+            typeof(double),
             typeof(SkiaSwitch),
-            32f,
+            32.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).InvalidateMeasure());
 
-    /// <summary>
-    /// Bindable property for ThumbRadius.
-    /// </summary>
     public static readonly BindableProperty ThumbRadiusProperty =
         BindableProperty.Create(
             nameof(ThumbRadius),
-            typeof(float),
+            typeof(double),
             typeof(SkiaSwitch),
-            12f,
+            12.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
-    /// <summary>
-    /// Bindable property for ThumbPadding.
-    /// </summary>
     public static readonly BindableProperty ThumbPaddingProperty =
         BindableProperty.Create(
             nameof(ThumbPadding),
-            typeof(float),
+            typeof(double),
             typeof(SkiaSwitch),
-            4f,
+            4.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSwitch)b).Invalidate());
 
@@ -136,114 +129,203 @@ public class SkiaSwitch : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the on track color.
+    /// Gets or sets the track color when the switch is on.
+    /// This is the primary MAUI Switch.OnColor property.
     /// </summary>
-    public SKColor OnTrackColor
+    public Color OnTrackColor
     {
-        get => (SKColor)GetValue(OnTrackColorProperty);
+        get => (Color)GetValue(OnTrackColorProperty);
         set => SetValue(OnTrackColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the off track color.
+    /// Gets or sets the track color when the switch is off.
     /// </summary>
-    public SKColor OffTrackColor
+    public Color OffTrackColor
     {
-        get => (SKColor)GetValue(OffTrackColorProperty);
+        get => (Color)GetValue(OffTrackColorProperty);
         set => SetValue(OffTrackColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the thumb color.
     /// </summary>
-    public SKColor ThumbColor
+    public Color ThumbColor
     {
-        get => (SKColor)GetValue(ThumbColorProperty);
+        get => (Color)GetValue(ThumbColorProperty);
         set => SetValue(ThumbColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the disabled color.
+    /// Gets or sets the color used when the control is disabled.
     /// </summary>
-    public SKColor DisabledColor
+    public Color DisabledColor
     {
-        get => (SKColor)GetValue(DisabledColorProperty);
+        get => (Color)GetValue(DisabledColorProperty);
         set => SetValue(DisabledColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the track width.
+    /// Gets or sets the track width in device-independent units.
     /// </summary>
-    public float TrackWidth
+    public double TrackWidth
     {
-        get => (float)GetValue(TrackWidthProperty);
+        get => (double)GetValue(TrackWidthProperty);
         set => SetValue(TrackWidthProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the track height.
+    /// Gets or sets the track height in device-independent units.
     /// </summary>
-    public float TrackHeight
+    public double TrackHeight
     {
-        get => (float)GetValue(TrackHeightProperty);
+        get => (double)GetValue(TrackHeightProperty);
         set => SetValue(TrackHeightProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the thumb radius.
+    /// Gets or sets the thumb radius in device-independent units.
     /// </summary>
-    public float ThumbRadius
+    public double ThumbRadius
     {
-        get => (float)GetValue(ThumbRadiusProperty);
+        get => (double)GetValue(ThumbRadiusProperty);
         set => SetValue(ThumbRadiusProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the thumb padding.
+    /// Gets or sets the thumb padding in device-independent units.
     /// </summary>
-    public float ThumbPadding
+    public double ThumbPadding
     {
-        get => (float)GetValue(ThumbPaddingProperty);
+        get => (double)GetValue(ThumbPaddingProperty);
         set => SetValue(ThumbPaddingProperty, value);
     }
 
     #endregion
 
+    #region Animation Fields
+
     private float _animationProgress;
+    private System.Timers.Timer? _animationTimer;
+    private bool _animatingToOn;
+    private const int AnimationDurationMs = 200;
+    private const int AnimationFrameMs = 16; // ~60fps
+
+    #endregion
+
+    #region Events
 
     /// <summary>
     /// Event raised when the switch is toggled.
     /// </summary>
     public event EventHandler<ToggledEventArgs>? Toggled;
 
+    #endregion
+
+    #region Constructor
+
     public SkiaSwitch()
     {
         IsFocusable = true;
+        _animationProgress = 0f;
     }
 
-    private void OnIsOnChanged()
+    #endregion
+
+    #region Event Handlers
+
+    private void OnIsOnChanged(bool oldValue, bool newValue)
     {
-        _animationProgress = IsOn ? 1f : 0f;
-        Toggled?.Invoke(this, new ToggledEventArgs(IsOn));
-        SkiaVisualStateManager.GoToState(this, IsOn ? "On" : "Off");
+        // Start animation
+        StartAnimation(newValue);
+
+        Toggled?.Invoke(this, new ToggledEventArgs(newValue));
+        SkiaVisualStateManager.GoToState(this, newValue ? "On" : "Off");
+    }
+
+    #endregion
+
+    #region Animation
+
+    private void StartAnimation(bool toOn)
+    {
+        _animatingToOn = toOn;
+
+        // Stop existing animation
+        _animationTimer?.Stop();
+        _animationTimer?.Dispose();
+
+        // Create new animation timer
+        _animationTimer = new System.Timers.Timer(AnimationFrameMs);
+        _animationTimer.Elapsed += OnAnimationFrame;
+        _animationTimer.AutoReset = true;
+        _animationTimer.Start();
+    }
+
+    private void OnAnimationFrame(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        float step = AnimationFrameMs / (float)AnimationDurationMs;
+
+        if (_animatingToOn)
+        {
+            _animationProgress += step;
+            if (_animationProgress >= 1f)
+            {
+                _animationProgress = 1f;
+                StopAnimation();
+            }
+        }
+        else
+        {
+            _animationProgress -= step;
+            if (_animationProgress <= 0f)
+            {
+                _animationProgress = 0f;
+                StopAnimation();
+            }
+        }
+
+        // Request redraw on UI thread
         Invalidate();
     }
 
+    private void StopAnimation()
+    {
+        _animationTimer?.Stop();
+        _animationTimer?.Dispose();
+        _animationTimer = null;
+    }
+
+    #endregion
+
+    #region Rendering
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var centerY = bounds.MidY;
-        var trackLeft = bounds.MidX - TrackWidth / 2f;
-        var trackRight = trackLeft + TrackWidth;
+        var trackWidth = (float)TrackWidth;
+        var trackHeight = (float)TrackHeight;
+        var thumbRadius = (float)ThumbRadius;
+        var thumbPadding = (float)ThumbPadding;
 
-        // Calculate thumb position
-        var thumbMinX = trackLeft + ThumbPadding + ThumbRadius;
-        var thumbMaxX = trackRight - ThumbPadding - ThumbRadius;
+        var centerY = bounds.MidY;
+        var trackLeft = bounds.MidX - trackWidth / 2f;
+        var trackRight = trackLeft + trackWidth;
+
+        // Calculate thumb position based on animation progress
+        var thumbMinX = trackLeft + thumbPadding + thumbRadius;
+        var thumbMaxX = trackRight - thumbPadding - thumbRadius;
         var thumbX = thumbMinX + _animationProgress * (thumbMaxX - thumbMinX);
 
-        // Interpolate track color
+        // Get colors
+        var onColorSK = ToSKColor(OnTrackColor);
+        var offColorSK = ToSKColor(OffTrackColor);
+        var thumbColorSK = ToSKColor(ThumbColor);
+        var disabledColorSK = ToSKColor(DisabledColor);
+
+        // Interpolate track color based on animation progress
         var trackColor = IsEnabled
-            ? InterpolateColor(OffTrackColor, OnTrackColor, _animationProgress)
-            : DisabledColor;
+            ? InterpolateColor(offColorSK, onColorSK, _animationProgress)
+            : disabledColorSK;
 
         // Draw track
         using var trackPaint = new SKPaint
@@ -254,11 +336,11 @@ public class SkiaSwitch : SkiaView
         };
 
         var trackRect = new SKRoundRect(
-            new SKRect(trackLeft, centerY - TrackHeight / 2f, trackRight, centerY + TrackHeight / 2f),
-            TrackHeight / 2f);
+            new SKRect(trackLeft, centerY - trackHeight / 2f, trackRight, centerY + trackHeight / 2f),
+            trackHeight / 2f);
         canvas.DrawRoundRect(trackRect, trackPaint);
 
-        // Draw thumb shadow
+        // Draw thumb shadow (only when enabled)
         if (IsEnabled)
         {
             using var shadowPaint = new SKPaint
@@ -267,29 +349,29 @@ public class SkiaSwitch : SkiaView
                 IsAntialias = true,
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f)
             };
-            canvas.DrawCircle(thumbX + 1f, centerY + 1f, ThumbRadius, shadowPaint);
+            canvas.DrawCircle(thumbX + 1f, centerY + 1f, thumbRadius, shadowPaint);
         }
 
         // Draw thumb
         using var thumbPaint = new SKPaint
         {
-            Color = IsEnabled ? ThumbColor : new SKColor(245, 245, 245),
+            Color = IsEnabled ? thumbColorSK : new SKColor(245, 245, 245),
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
-        canvas.DrawCircle(thumbX, centerY, ThumbRadius, thumbPaint);
+        canvas.DrawCircle(thumbX, centerY, thumbRadius, thumbPaint);
 
         // Draw focus ring
         if (IsFocused)
         {
             using var focusPaint = new SKPaint
             {
-                Color = OnTrackColor.WithAlpha(60),
+                Color = onColorSK.WithAlpha(60),
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 3f
             };
-            var focusRect = new SKRoundRect(trackRect.Rect, TrackHeight / 2f);
+            var focusRect = new SKRoundRect(trackRect.Rect, trackHeight / 2f);
             focusRect.Inflate(3f, 3f);
             canvas.DrawRoundRect(focusRect, focusPaint);
         }
@@ -297,12 +379,19 @@ public class SkiaSwitch : SkiaView
 
     private static SKColor InterpolateColor(SKColor from, SKColor to, float t)
     {
+        // Clamp t to [0, 1]
+        t = Math.Max(0f, Math.Min(1f, t));
+
         return new SKColor(
             (byte)(from.Red + (to.Red - from.Red) * t),
             (byte)(from.Green + (to.Green - from.Green) * t),
             (byte)(from.Blue + (to.Blue - from.Blue) * t),
             (byte)(from.Alpha + (to.Alpha - from.Alpha) * t));
     }
+
+    #endregion
+
+    #region Pointer Events
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
@@ -315,7 +404,12 @@ public class SkiaSwitch : SkiaView
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
+        // No action needed
     }
+
+    #endregion
+
+    #region Keyboard Events
 
     public override void OnKeyDown(KeyEventArgs e)
     {
@@ -326,14 +420,35 @@ public class SkiaSwitch : SkiaView
         }
     }
 
+    #endregion
+
+    #region Lifecycle
+
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
         SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
     }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            StopAnimation();
+        }
+        base.Dispose(disposing);
+    }
+
+    #endregion
+
+    #region Layout
+
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        return new SKSize(TrackWidth + 8f, TrackHeight + 8f);
+        var trackWidth = (float)TrackWidth;
+        var trackHeight = (float)TrackHeight;
+        return new SKSize(trackWidth + 8f, trackHeight + 8f);
     }
+
+    #endregion
 }
