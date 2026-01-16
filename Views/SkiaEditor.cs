@@ -1,6 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using System.Collections.Generic;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Rendering;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -42,9 +47,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty TextColorProperty =
         BindableProperty.Create(
             nameof(TextColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEditor),
-            SKColors.Black,
+            Colors.Black,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -54,9 +59,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty PlaceholderColorProperty =
         BindableProperty.Create(
             nameof(PlaceholderColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEditor),
-            new SKColor(0x80, 0x80, 0x80),
+            Color.FromRgb(0x80, 0x80, 0x80),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -66,9 +71,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty BorderColorProperty =
         BindableProperty.Create(
             nameof(BorderColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEditor),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            Color.FromRgb(0xBD, 0xBD, 0xBD),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -78,9 +83,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty SelectionColorProperty =
         BindableProperty.Create(
             nameof(SelectionColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEditor),
-            new SKColor(0x21, 0x96, 0xF3, 0x60),
+            Color.FromRgba(0x21, 0x96, 0xF3, 0x60),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -90,9 +95,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty CursorColorProperty =
         BindableProperty.Create(
             nameof(CursorColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaEditor),
-            new SKColor(0x21, 0x96, 0xF3),
+            Color.FromRgb(0x21, 0x96, 0xF3),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -114,9 +119,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty FontSizeProperty =
         BindableProperty.Create(
             nameof(FontSize),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEditor),
-            14f,
+            14.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
@@ -126,9 +131,9 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty LineHeightProperty =
         BindableProperty.Create(
             nameof(LineHeight),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEditor),
-            1.4f,
+            1.4,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
@@ -138,21 +143,21 @@ public class SkiaEditor : SkiaView
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(
             nameof(CornerRadius),
-            typeof(float),
+            typeof(double),
             typeof(SkiaEditor),
-            4f,
+            4.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
     /// Bindable property for Padding.
     /// </summary>
-    public static readonly BindableProperty PaddingProperty =
+    public static new readonly BindableProperty PaddingProperty =
         BindableProperty.Create(
             nameof(Padding),
-            typeof(float),
+            typeof(Thickness),
             typeof(SkiaEditor),
-            12f,
+            new Thickness(12),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
@@ -191,6 +196,127 @@ public class SkiaEditor : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
+    /// <summary>
+    /// Bindable property for FontAttributes.
+    /// </summary>
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(
+            nameof(FontAttributes),
+            typeof(FontAttributes),
+            typeof(SkiaEditor),
+            FontAttributes.None,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
+
+    /// <summary>
+    /// Bindable property for CharacterSpacing.
+    /// </summary>
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(
+            nameof(CharacterSpacing),
+            typeof(double),
+            typeof(SkiaEditor),
+            0.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for IsTextPredictionEnabled.
+    /// </summary>
+    public static readonly BindableProperty IsTextPredictionEnabledProperty =
+        BindableProperty.Create(
+            nameof(IsTextPredictionEnabled),
+            typeof(bool),
+            typeof(SkiaEditor),
+            true);
+
+    /// <summary>
+    /// Bindable property for IsSpellCheckEnabled.
+    /// </summary>
+    public static readonly BindableProperty IsSpellCheckEnabledProperty =
+        BindableProperty.Create(
+            nameof(IsSpellCheckEnabled),
+            typeof(bool),
+            typeof(SkiaEditor),
+            true);
+
+    /// <summary>
+    /// Bindable property for SelectionLength.
+    /// </summary>
+    public static readonly BindableProperty SelectionLengthProperty =
+        BindableProperty.Create(
+            nameof(SelectionLength),
+            typeof(int),
+            typeof(SkiaEditor),
+            0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for CursorPosition.
+    /// </summary>
+    public static readonly BindableProperty CursorPositionProperty =
+        BindableProperty.Create(
+            nameof(CursorPosition),
+            typeof(int),
+            typeof(SkiaEditor),
+            0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnCursorPositionPropertyChanged((int)n));
+
+    /// <summary>
+    /// Bindable property for HorizontalTextAlignment.
+    /// </summary>
+    public static readonly BindableProperty HorizontalTextAlignmentProperty =
+        BindableProperty.Create(
+            nameof(HorizontalTextAlignment),
+            typeof(TextAlignment),
+            typeof(SkiaEditor),
+            TextAlignment.Start,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for VerticalTextAlignment.
+    /// </summary>
+    public static readonly BindableProperty VerticalTextAlignmentProperty =
+        BindableProperty.Create(
+            nameof(VerticalTextAlignment),
+            typeof(TextAlignment),
+            typeof(SkiaEditor),
+            TextAlignment.Start,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for background color exposed for MAUI binding.
+    /// </summary>
+    public static readonly BindableProperty EditorBackgroundColorProperty =
+        BindableProperty.Create(
+            nameof(EditorBackgroundColor),
+            typeof(Color),
+            typeof(SkiaEditor),
+            Colors.White,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
+
+    #endregion
+
+    #region Color Conversion Helper
+
+    /// <summary>
+    /// Converts a MAUI Color to SkiaSharp SKColor.
+    /// </summary>
+    private static SKColor ToSKColor(Color color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return new SKColor(
+            (byte)(color.Red * 255),
+            (byte)(color.Green * 255),
+            (byte)(color.Blue * 255),
+            (byte)(color.Alpha * 255));
+    }
+
     #endregion
 
     #region Properties
@@ -216,45 +342,45 @@ public class SkiaEditor : SkiaView
     /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public SKColor TextColor
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the placeholder color.
     /// </summary>
-    public SKColor PlaceholderColor
+    public Color PlaceholderColor
     {
-        get => (SKColor)GetValue(PlaceholderColorProperty);
+        get => (Color)GetValue(PlaceholderColorProperty);
         set => SetValue(PlaceholderColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public SKColor BorderColor
+    public Color BorderColor
     {
-        get => (SKColor)GetValue(BorderColorProperty);
+        get => (Color)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the selection color.
     /// </summary>
-    public SKColor SelectionColor
+    public Color SelectionColor
     {
-        get => (SKColor)GetValue(SelectionColorProperty);
+        get => (Color)GetValue(SelectionColorProperty);
         set => SetValue(SelectionColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the cursor color.
     /// </summary>
-    public SKColor CursorColor
+    public Color CursorColor
     {
-        get => (SKColor)GetValue(CursorColorProperty);
+        get => (Color)GetValue(CursorColorProperty);
         set => SetValue(CursorColorProperty, value);
     }
 
@@ -270,36 +396,36 @@ public class SkiaEditor : SkiaView
     /// <summary>
     /// Gets or sets the font size.
     /// </summary>
-    public float FontSize
+    public double FontSize
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the line height multiplier.
     /// </summary>
-    public float LineHeight
+    public double LineHeight
     {
-        get => (float)GetValue(LineHeightProperty);
+        get => (double)GetValue(LineHeightProperty);
         set => SetValue(LineHeightProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the corner radius.
     /// </summary>
-    public float CornerRadius
+    public double CornerRadius
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the padding.
     /// </summary>
-    public float Padding
+    public new Thickness Padding
     {
-        get => (float)GetValue(PaddingProperty);
+        get => (Thickness)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
     }
 
@@ -331,6 +457,42 @@ public class SkiaEditor : SkiaView
     }
 
     /// <summary>
+    /// Gets or sets the font attributes (Bold, Italic, etc.).
+    /// </summary>
+    public FontAttributes FontAttributes
+    {
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the character spacing.
+    /// </summary>
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether text prediction is enabled.
+    /// </summary>
+    public bool IsTextPredictionEnabled
+    {
+        get => (bool)GetValue(IsTextPredictionEnabledProperty);
+        set => SetValue(IsTextPredictionEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether spell check is enabled.
+    /// </summary>
+    public bool IsSpellCheckEnabled
+    {
+        get => (bool)GetValue(IsSpellCheckEnabledProperty);
+        set => SetValue(IsSpellCheckEnabledProperty, value);
+    }
+
+    /// <summary>
     /// Gets or sets the cursor position.
     /// </summary>
     public int CursorPosition
@@ -338,13 +500,73 @@ public class SkiaEditor : SkiaView
         get => _cursorPosition;
         set
         {
-            _cursorPosition = Math.Clamp(value, 0, Text.Length);
+            var newValue = Math.Clamp(value, 0, (Text ?? "").Length);
+            if (_cursorPosition != newValue)
+            {
+                _cursorPosition = newValue;
+                SetValue(CursorPositionProperty, newValue);
+                EnsureCursorVisible();
+                Invalidate();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the selection length.
+    /// </summary>
+    public int SelectionLength
+    {
+        get => _selectionLength;
+        set
+        {
+            if (_selectionLength != value)
+            {
+                _selectionLength = value;
+                SetValue(SelectionLengthProperty, value);
+                Invalidate();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the horizontal text alignment.
+    /// </summary>
+    public TextAlignment HorizontalTextAlignment
+    {
+        get => (TextAlignment)GetValue(HorizontalTextAlignmentProperty);
+        set => SetValue(HorizontalTextAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the vertical text alignment.
+    /// </summary>
+    public TextAlignment VerticalTextAlignment
+    {
+        get => (TextAlignment)GetValue(VerticalTextAlignmentProperty);
+        set => SetValue(VerticalTextAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the editor background color (MAUI-exposed property).
+    /// </summary>
+    public Color EditorBackgroundColor
+    {
+        get => (Color)GetValue(EditorBackgroundColorProperty);
+        set => SetValue(EditorBackgroundColorProperty, value);
+    }
+
+    #endregion
+
+    private void OnCursorPositionPropertyChanged(int newValue)
+    {
+        var clampedValue = Math.Clamp(newValue, 0, (Text ?? "").Length);
+        if (_cursorPosition != clampedValue)
+        {
+            _cursorPosition = clampedValue;
             EnsureCursorVisible();
             Invalidate();
         }
     }
-
-    #endregion
 
     private int _cursorPosition;
     private int _selectionStart = -1;
@@ -404,7 +626,7 @@ public class SkiaEditor : SkiaView
             return;
         }
 
-        using var font = new SKFont(SKTypeface.Default, FontSize);
+        using var font = new SKFont(SKTypeface.Default, (float)FontSize);
 
         // Split by actual newlines first
         var paragraphs = text.Split('\n');
@@ -494,8 +716,16 @@ public class SkiaEditor : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        var paddingLeft = (float)Padding.Left;
+        var paddingTop = (float)Padding.Top;
+        var paddingRight = (float)Padding.Right;
+        var paddingBottom = (float)Padding.Bottom;
+        var fontSize = (float)FontSize;
+        var lineHeight = (float)LineHeight;
+        var cornerRadius = (float)CornerRadius;
+
         // Update wrap width if bounds changed and re-wrap text
-        var newWrapWidth = bounds.Width - Padding * 2;
+        var newWrapWidth = bounds.Width - paddingLeft - paddingRight;
         if (Math.Abs(newWrapWidth - _wrapWidth) > 1)
         {
             _wrapWidth = newWrapWidth;
@@ -510,34 +740,36 @@ public class SkiaEditor : SkiaView
         }
 
         // Draw background
+        var bgColor = EditorBackgroundColor != null ? ToSKColor(EditorBackgroundColor) :
+            (IsEnabled ? SKColors.White : new SKColor(0xF5, 0xF5, 0xF5));
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? BackgroundColor : new SKColor(0xF5, 0xF5, 0xF5),
+            Color = bgColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), bgPaint);
+        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
 
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = IsFocused ? CursorColor : BorderColor,
+            Color = IsFocused ? ToSKColor(CursorColor) : ToSKColor(BorderColor),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = IsFocused ? 2 : 1,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), borderPaint);
+        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
 
         // Setup text rendering
-        using var font = new SKFont(SKTypeface.Default, FontSize);
-        var lineSpacing = FontSize * LineHeight;
+        using var font = new SKFont(SKTypeface.Default, fontSize);
+        var lineSpacing = fontSize * lineHeight;
 
         // Clip to content area
         var contentRect = new SKRect(
-            bounds.Left + Padding,
-            bounds.Top + Padding,
-            bounds.Right - Padding,
-            bounds.Bottom - Padding);
+            bounds.Left + paddingLeft,
+            bounds.Top + paddingTop,
+            bounds.Right - paddingRight,
+            bounds.Bottom - paddingBottom);
 
         canvas.Save();
         canvas.ClipRect(contentRect);
@@ -548,25 +780,26 @@ public class SkiaEditor : SkiaView
         {
             using var placeholderPaint = new SKPaint(font)
             {
-                Color = PlaceholderColor,
+                Color = ToSKColor(PlaceholderColor),
                 IsAntialias = true
             };
-            canvas.DrawText(Placeholder, contentRect.Left, contentRect.Top + FontSize, placeholderPaint);
+            canvas.DrawText(Placeholder, contentRect.Left, contentRect.Top + fontSize, placeholderPaint);
         }
         else
         {
+            var textColor = ToSKColor(TextColor);
             using var textPaint = new SKPaint(font)
             {
-                Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
+                Color = IsEnabled ? textColor : textColor.WithAlpha(128),
                 IsAntialias = true
             };
             using var selectionPaint = new SKPaint
             {
-                Color = SelectionColor,
+                Color = ToSKColor(SelectionColor),
                 Style = SKPaintStyle.Fill
             };
 
-            var y = contentRect.Top + FontSize;
+            var y = contentRect.Top + fontSize;
             var charIndex = 0;
 
             for (int lineIndex = 0; lineIndex < _lines.Count; lineIndex++)
@@ -591,7 +824,7 @@ public class SkiaEditor : SkiaView
                         var startX = x + MeasureText(line.Substring(0, selStartInLine), font);
                         var endX = x + MeasureText(line.Substring(0, selEndInLine), font);
 
-                        canvas.DrawRect(new SKRect(startX, y - FontSize, endX, y + lineSpacing - FontSize), selectionPaint);
+                        canvas.DrawRect(new SKRect(startX, y - fontSize, endX, y + lineSpacing - fontSize), selectionPaint);
                     }
                 }
 
@@ -606,12 +839,12 @@ public class SkiaEditor : SkiaView
                         var cursorX = x + MeasureText(line.Substring(0, Math.Min(cursorCol, line.Length)), font);
                         using var cursorPaint = new SKPaint
                         {
-                            Color = CursorColor,
+                            Color = ToSKColor(CursorColor),
                             Style = SKPaintStyle.Stroke,
                             StrokeWidth = 2,
                             IsAntialias = true
                         };
-                        canvas.DrawLine(cursorX, y - FontSize + 2, cursorX, y + 2, cursorPaint);
+                        canvas.DrawLine(cursorX, y - fontSize + 2, cursorX, y + 2, cursorPaint);
                     }
                 }
 
@@ -623,7 +856,7 @@ public class SkiaEditor : SkiaView
         canvas.Restore();
 
         // Draw scrollbar if needed
-        var totalHeight = _lines.Count * FontSize * LineHeight;
+        var totalHeight = _lines.Count * fontSize * lineHeight;
         if (totalHeight > contentRect.Height)
         {
             DrawScrollbar(canvas, bounds, contentRect.Height, totalHeight);
@@ -641,8 +874,9 @@ public class SkiaEditor : SkiaView
     {
         var scrollbarWidth = 6f;
         var scrollbarMargin = 2f;
+        var paddingTop = (float)Padding.Top;
         var scrollbarHeight = Math.Max(20, viewHeight * (viewHeight / contentHeight));
-        var scrollbarY = bounds.Top + Padding + (_scrollOffsetY / contentHeight) * (viewHeight - scrollbarHeight);
+        var scrollbarY = bounds.Top + paddingTop + (_scrollOffsetY / contentHeight) * (viewHeight - scrollbarHeight);
 
         using var paint = new SKPaint
         {
@@ -663,9 +897,11 @@ public class SkiaEditor : SkiaView
     private void EnsureCursorVisible()
     {
         var (line, col) = GetLineColumn(_cursorPosition);
-        var lineSpacing = FontSize * LineHeight;
+        var fontSize = (float)FontSize;
+        var lineHeight = (float)LineHeight;
+        var lineSpacing = fontSize * lineHeight;
         var cursorY = line * lineSpacing;
-        var viewHeight = Bounds.Height - Padding * 2;
+        var viewHeight = Bounds.Height - (float)(Padding.Top + Padding.Bottom);
 
         if (cursorY < _scrollOffsetY)
         {
@@ -685,13 +921,16 @@ public class SkiaEditor : SkiaView
 
         // Use screen coordinates for proper hit detection
         var screenBounds = ScreenBounds;
-        var contentX = e.X - screenBounds.Left - Padding;
-        var contentY = e.Y - screenBounds.Top - Padding + _scrollOffsetY;
+        var paddingLeft = (float)Padding.Left;
+        var paddingTop = (float)Padding.Top;
+        var contentX = e.X - screenBounds.Left - paddingLeft;
+        var contentY = e.Y - screenBounds.Top - paddingTop + _scrollOffsetY;
 
-        var lineSpacing = FontSize * LineHeight;
+        var fontSize = (float)FontSize;
+        var lineSpacing = fontSize * (float)LineHeight;
         var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
 
-        using var font = new SKFont(SKTypeface.Default, FontSize);
+        using var font = new SKFont(SKTypeface.Default, fontSize);
         var line = _lines[clickedLine];
         var clickedCol = 0;
 
@@ -743,13 +982,16 @@ public class SkiaEditor : SkiaView
 
         // Calculate position from mouse coordinates
         var screenBounds = ScreenBounds;
-        var contentX = e.X - screenBounds.Left - Padding;
-        var contentY = e.Y - screenBounds.Top - Padding + _scrollOffsetY;
+        var paddingLeft = (float)Padding.Left;
+        var paddingTop = (float)Padding.Top;
+        var contentX = e.X - screenBounds.Left - paddingLeft;
+        var contentY = e.Y - screenBounds.Top - paddingTop + _scrollOffsetY;
 
-        var lineSpacing = FontSize * LineHeight;
+        var fontSize = (float)FontSize;
+        var lineSpacing = fontSize * (float)LineHeight;
         var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
 
-        using var font = new SKFont(SKTypeface.Default, FontSize);
+        using var font = new SKFont(SKTypeface.Default, fontSize);
         var line = _lines[clickedLine];
         var clickedCol = 0;
 
@@ -963,9 +1205,11 @@ public class SkiaEditor : SkiaView
 
     public override void OnScroll(ScrollEventArgs e)
     {
-        var lineSpacing = FontSize * LineHeight;
+        var fontSize = (float)FontSize;
+        var lineHeight = (float)LineHeight;
+        var lineSpacing = fontSize * lineHeight;
         var totalHeight = _lines.Count * lineSpacing;
-        var viewHeight = Bounds.Height - Padding * 2;
+        var viewHeight = Bounds.Height - (float)(Padding.Top + Padding.Bottom);
         var maxScroll = Math.Max(0, totalHeight - viewHeight);
 
         _scrollOffsetY = Math.Clamp(_scrollOffsetY - e.DeltaY * 3, 0, maxScroll);
@@ -1073,8 +1317,11 @@ public class SkiaEditor : SkiaView
     {
         if (AutoSize)
         {
-            var lineSpacing = FontSize * LineHeight;
-            var height = Math.Max(lineSpacing + Padding * 2, _lines.Count * lineSpacing + Padding * 2);
+            var fontSize = (float)FontSize;
+            var lineHeight = (float)LineHeight;
+            var lineSpacing = fontSize * lineHeight;
+            var verticalPadding = (float)(Padding.Top + Padding.Bottom);
+            var height = Math.Max(lineSpacing + verticalPadding, _lines.Count * lineSpacing + verticalPadding);
             return new SKSize(
                 availableSize.Width < float.MaxValue ? availableSize.Width : 200,
                 (float)Math.Min(height, availableSize.Height < float.MaxValue ? availableSize.Height : 200));

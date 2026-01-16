@@ -347,6 +347,38 @@ public class SkiaLabel : SkiaView
 
     #endregion
 
+    #region Selection State
+
+    private int _selectionStart = -1;
+    private int _selectionLength = 0;
+    private bool _isSelecting = false;
+    private DateTime _lastClickTime = DateTime.MinValue;
+    private float _lastClickX;
+    private const double DoubleClickThresholdMs = 400;
+
+    /// <summary>
+    /// Gets or sets whether text selection is enabled.
+    /// </summary>
+    public bool IsTextSelectionEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets the currently selected text.
+    /// </summary>
+    public string SelectedText
+    {
+        get
+        {
+            if (_selectionStart < 0 || _selectionLength == 0) return string.Empty;
+            var text = GetDisplayText();
+            var start = Math.Min(_selectionStart, _selectionStart + _selectionLength);
+            var length = Math.Abs(_selectionLength);
+            if (start < 0 || start >= text.Length) return string.Empty;
+            return text.Substring(start, Math.Min(length, text.Length - start));
+        }
+    }
+
+    #endregion
+
     #region Events
 
     /// <summary>
@@ -362,10 +394,177 @@ public class SkiaLabel : SkiaView
         Tapped?.Invoke(this, EventArgs.Empty);
     }
 
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        base.OnPointerPressed(e);
+
+        if (!IsTextSelectionEnabled || string.IsNullOrEmpty(Text)) return;
+
+        var text = GetDisplayText();
+        if (string.IsNullOrEmpty(text)) return;
+
+        // Calculate character position from click
+        var screenBounds = ScreenBounds;
+        var clickX = e.X - screenBounds.Left - (float)Padding.Left;
+        var charIndex = GetCharacterIndexAtX(clickX);
+
+        // Check for double-click (select word)
+        var now = DateTime.UtcNow;
+        var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
+        var distanceFromLastClick = Math.Abs(e.X - _lastClickX);
+
+        if (timeSinceLastClick < DoubleClickThresholdMs && distanceFromLastClick < 10)
+        {
+            // Double-click: select word
+            SelectWordAt(charIndex);
+            _lastClickTime = DateTime.MinValue;
+            _isSelecting = false;
+        }
+        else
+        {
+            // Single click: start selection
+            _selectionStart = charIndex;
+            _selectionLength = 0;
+            _isSelecting = true;
+            _lastClickTime = now;
+            _lastClickX = e.X;
+        }
+
+        Invalidate();
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+
+        if (!IsTextSelectionEnabled || !_isSelecting) return;
+
+        var text = GetDisplayText();
+        if (string.IsNullOrEmpty(text)) return;
+
+        var screenBounds = ScreenBounds;
+        var clickX = e.X - screenBounds.Left - (float)Padding.Left;
+        var charIndex = GetCharacterIndexAtX(clickX);
+
+        _selectionLength = charIndex - _selectionStart;
+        Invalidate();
+    }
+
     public override void OnPointerReleased(PointerEventArgs e)
     {
         base.OnPointerReleased(e);
-        OnTapped();
+
+        if (_isSelecting && _selectionLength == 0)
+        {
+            // No drag happened, it's a tap
+            OnTapped();
+        }
+
+        _isSelecting = false;
+    }
+
+    public override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (!IsTextSelectionEnabled) return;
+
+        // Ctrl+A: Select All
+        if (e.Key == Key.A && e.Modifiers.HasFlag(KeyModifiers.Control))
+        {
+            SelectAll();
+            e.Handled = true;
+        }
+        // Ctrl+C: Copy
+        else if (e.Key == Key.C && e.Modifiers.HasFlag(KeyModifiers.Control))
+        {
+            CopyToClipboard();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Selects all text in the label.
+    /// </summary>
+    public void SelectAll()
+    {
+        var text = GetDisplayText();
+        _selectionStart = 0;
+        _selectionLength = text.Length;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Clears the current selection.
+    /// </summary>
+    public void ClearSelection()
+    {
+        _selectionStart = -1;
+        _selectionLength = 0;
+        Invalidate();
+    }
+
+    private void SelectWordAt(int charIndex)
+    {
+        var text = GetDisplayText();
+        if (string.IsNullOrEmpty(text) || charIndex < 0 || charIndex >= text.Length) return;
+
+        int start = charIndex;
+        int end = charIndex;
+
+        // Move start backwards to beginning of word
+        while (start > 0 && IsWordChar(text[start - 1]))
+            start--;
+
+        // Move end forwards to end of word
+        while (end < text.Length && IsWordChar(text[end]))
+            end++;
+
+        _selectionStart = start;
+        _selectionLength = end - start;
+    }
+
+    private static bool IsWordChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
+    }
+
+    private int GetCharacterIndexAtX(float x)
+    {
+        var text = GetDisplayText();
+        if (string.IsNullOrEmpty(text)) return 0;
+
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+        var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
+
+        using var font = new SKFont(
+            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            fontSize);
+        using var paint = new SKPaint(font);
+
+        for (int i = 0; i <= text.Length; i++)
+        {
+            var substring = text.Substring(0, i);
+            var width = paint.MeasureText(substring);
+            if (CharacterSpacing != 0 && i > 0)
+            {
+                width += (float)(CharacterSpacing * i);
+            }
+            if (width > x)
+            {
+                return i > 0 ? i - 1 : 0;
+            }
+        }
+        return text.Length;
+    }
+
+    private void CopyToClipboard()
+    {
+        var selectedText = SelectedText;
+        if (!string.IsNullOrEmpty(selectedText))
+        {
+            SystemClipboard.SetText(selectedText);
+        }
     }
 
     #endregion
@@ -533,8 +732,48 @@ public class SkiaLabel : SkiaView
             _ => bounds.MidY - textBounds.MidY
         };
 
+        // Draw selection highlight if applicable
+        if (_selectionStart >= 0 && _selectionLength != 0)
+        {
+            DrawSelectionHighlight(canvas, paint, x, y, displayText, textBounds);
+        }
+
         DrawTextWithSpacing(canvas, displayText, x, y, paint);
         DrawTextDecorations(canvas, paint, x, y, textBounds);
+    }
+
+    private void DrawSelectionHighlight(SKCanvas canvas, SKPaint paint, float x, float y, string text, SKRect textBounds)
+    {
+        var selStart = Math.Min(_selectionStart, _selectionStart + _selectionLength);
+        var selEnd = Math.Max(_selectionStart, _selectionStart + _selectionLength);
+
+        // Clamp to text length
+        selStart = Math.Max(0, Math.Min(selStart, text.Length));
+        selEnd = Math.Max(0, Math.Min(selEnd, text.Length));
+
+        if (selStart >= selEnd) return;
+
+        var textToStart = text.Substring(0, selStart);
+        var textToEnd = text.Substring(0, selEnd);
+
+        float startX = x + paint.MeasureText(textToStart);
+        float endX = x + paint.MeasureText(textToEnd);
+
+        if (CharacterSpacing != 0)
+        {
+            startX += (float)(CharacterSpacing * selStart);
+            endX += (float)(CharacterSpacing * selEnd);
+        }
+
+        using var selectionPaint = new SKPaint
+        {
+            Color = new SKColor(0x21, 0x96, 0xF3, 0x60), // Semi-transparent blue
+            Style = SKPaintStyle.Fill
+        };
+
+        float selectionTop = y + textBounds.Top;
+        float selectionBottom = y + textBounds.Bottom;
+        canvas.DrawRect(new SKRect(startX, selectionTop, endX, selectionBottom), selectionPaint);
     }
 
     private void DrawMultiLineText(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds, string text)

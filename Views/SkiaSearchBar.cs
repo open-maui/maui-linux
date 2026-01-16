@@ -1,8 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using SkiaSharp;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
@@ -26,13 +27,13 @@ public class SkiaSearchBar : SkiaView
         set => _entry.Placeholder = value;
     }
 
-    public SKColor TextColor
+    public Color TextColor
     {
         get => _entry.TextColor;
         set => _entry.TextColor = value;
     }
 
-    public SKColor PlaceholderColor
+    public Color PlaceholderColor
     {
         get => _entry.PlaceholderColor;
         set => _entry.PlaceholderColor = value;
@@ -55,10 +56,10 @@ public class SkiaSearchBar : SkiaView
         _entry = new SkiaEntry
         {
             Placeholder = "Search...",
-            EntryBackgroundColor = SKColors.Transparent,
+            EntryBackgroundColor = Colors.Transparent,
             BackgroundColor = SKColors.Transparent,
-            BorderColor = SKColors.Transparent,
-            FocusedBorderColor = SKColors.Transparent,
+            BorderColor = Colors.Transparent,
+            FocusedBorderColor = Colors.Transparent,
             BorderWidth = 0
         };
 

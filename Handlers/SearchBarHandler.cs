@@ -84,7 +84,7 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
         if (handler.PlatformView is null) return;
 
         if (searchBar.TextColor is not null)
-            handler.PlatformView.TextColor = searchBar.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = searchBar.TextColor;
     }
 
     public static void MapFont(SearchBarHandler handler, ISearchBar searchBar)
@@ -110,7 +110,7 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
         if (handler.PlatformView is null) return;
 
         if (searchBar.PlaceholderColor is not null)
-            handler.PlatformView.PlaceholderColor = searchBar.PlaceholderColor.ToSKColor();
+            handler.PlatformView.PlaceholderColor = searchBar.PlaceholderColor;
     }
 
     public static void MapCancelButtonColor(SearchBarHandler handler, ISearchBar searchBar)
