@@ -183,7 +183,7 @@ public abstract class SkiaTemplatedView : SkiaView
             Microsoft.Maui.Controls.Border border => CreateSkiaBorder(border),
             Microsoft.Maui.Controls.Label label => CreateSkiaLabel(label),
             Microsoft.Maui.Controls.ContentPresenter cp => new SkiaContentPresenter(),
-            _ => new SkiaLabel { Text = $"[{element.GetType().Name}]", TextColor = SKColors.Gray }
+            _ => new SkiaLabel { Text = $"[{element.GetType().Name}]", TextColor = Colors.Gray }
         };
     }
 
@@ -269,7 +269,7 @@ public abstract class SkiaTemplatedView : SkiaView
 
         if (border.Stroke is SolidColorBrush strokeBrush)
         {
-            skiaBorder.Stroke = strokeBrush.Color.ToSKColor();
+            skiaBorder.Stroke = strokeBrush.Color;
         }
 
         if (border.Background is SolidColorBrush bgBrush)
@@ -292,12 +292,12 @@ public abstract class SkiaTemplatedView : SkiaView
         var skiaLabel = new SkiaLabel
         {
             Text = label.Text ?? "",
-            FontSize = (float)label.FontSize
+            FontSize = label.FontSize
         };
 
         if (label.TextColor != null)
         {
-            skiaLabel.TextColor = label.TextColor.ToSKColor();
+            skiaLabel.TextColor = label.TextColor;
         }
 
         return skiaLabel;

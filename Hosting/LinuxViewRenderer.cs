@@ -574,7 +574,7 @@ public class LinuxViewRenderer
         return new SkiaLabel
         {
             Text = $"[{view.GetType().Name}]",
-            TextColor = SKColors.Gray,
+            TextColor = Colors.Gray,
             FontSize = 12
         };
     }

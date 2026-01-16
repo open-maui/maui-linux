@@ -4,6 +4,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Hosting;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
@@ -200,24 +201,24 @@ public static class LinuxProgramHost
         {
             Text = "OpenMaui Linux Control Demo",
             FontSize = 28,
-            TextColor = new SKColor(0x1A, 0x23, 0x7E),
-            IsBold = true
+            TextColor = Color.FromRgb(0x1A, 0x23, 0x7E),
+            FontAttributes = FontAttributes.Bold
         });
         root.AddChild(new SkiaLabel
         {
             Text = "All controls rendered using SkiaSharp on X11",
             FontSize = 14,
-            TextColor = SKColors.Gray
+            TextColor = Colors.Gray
         });
 
         // ========== LABELS SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Labels"));
         var labelSection = new SkiaStackLayout { Orientation = StackOrientation.Vertical, Spacing = 5 };
-        labelSection.AddChild(new SkiaLabel { Text = "Normal Label", FontSize = 16, TextColor = SKColors.Black });
-        labelSection.AddChild(new SkiaLabel { Text = "Bold Label", FontSize = 16, TextColor = SKColors.Black, IsBold = true });
-        labelSection.AddChild(new SkiaLabel { Text = "Italic Label", FontSize = 16, TextColor = SKColors.Gray, IsItalic = true });
-        labelSection.AddChild(new SkiaLabel { Text = "Colored Label (Pink)", FontSize = 16, TextColor = new SKColor(0xE9, 0x1E, 0x63) });
+        labelSection.AddChild(new SkiaLabel { Text = "Normal Label", FontSize = 16, TextColor = Colors.Black });
+        labelSection.AddChild(new SkiaLabel { Text = "Bold Label", FontSize = 16, TextColor = Colors.Black, FontAttributes = FontAttributes.Bold });
+        labelSection.AddChild(new SkiaLabel { Text = "Italic Label", FontSize = 16, TextColor = Colors.Gray, FontAttributes = FontAttributes.Italic });
+        labelSection.AddChild(new SkiaLabel { Text = "Colored Label (Pink)", FontSize = 16, TextColor = Color.FromRgb(0xE9, 0x1E, 0x63) });
         root.AddChild(labelSection);
 
         // ========== BUTTONS SECTION ==========
@@ -254,7 +255,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("SearchBar"));
         var searchBar = new SkiaSearchBar { Placeholder = "Search for items..." };
-        var searchResultLabel = new SkiaLabel { Text = "", FontSize = 12, TextColor = SKColors.Gray };
+        var searchResultLabel = new SkiaLabel { Text = "", FontSize = 12, TextColor = Colors.Gray };
         searchBar.TextChanged += (s, e) => searchResultLabel.Text = $"Searching: {e.NewTextValue}";
         searchBar.SearchButtonPressed += (s, e) => searchResultLabel.Text = $"Search submitted: {searchBar.Text}";
         root.AddChild(searchBar);
@@ -329,7 +330,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSectionHeader("ProgressBar"));
         var progress = new SkiaProgressBar { Progress = 0.7f };
         root.AddChild(progress);
-        root.AddChild(new SkiaLabel { Text = "70% Complete", FontSize = 12, TextColor = SKColors.Gray });
+        root.AddChild(new SkiaLabel { Text = "70% Complete", FontSize = 12, TextColor = Colors.Gray });
 
         // ========== ACTIVITYINDICATOR SECTION ==========
         root.AddChild(CreateSeparator());
@@ -337,7 +338,7 @@ public static class LinuxProgramHost
         var activitySection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
         var activity = new SkiaActivityIndicator { IsRunning = true };
         activitySection.AddChild(activity);
-        activitySection.AddChild(new SkiaLabel { Text = "Loading...", FontSize = 14, TextColor = SKColors.Gray });
+        activitySection.AddChild(new SkiaLabel { Text = "Loading...", FontSize = 14, TextColor = Colors.Gray });
         root.AddChild(activitySection);
 
         // ========== PICKER SECTION ==========
@@ -345,7 +346,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSectionHeader("Picker (Dropdown)"));
         var picker = new SkiaPicker { Title = "Select an item" };
         picker.SetItems(new[] { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape" });
-        var pickerLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = SKColors.Gray };
+        var pickerLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = Colors.Gray };
         picker.SelectedIndexChanged += (s, e) => pickerLabel.Text = $"Selected: {picker.SelectedItem}";
         root.AddChild(picker);
         root.AddChild(pickerLabel);
@@ -354,7 +355,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("DatePicker"));
         var datePicker = new SkiaDatePicker { Date = DateTime.Today };
-        var dateLabel = new SkiaLabel { Text = $"Date: {DateTime.Today:d}", FontSize = 12, TextColor = SKColors.Gray };
+        var dateLabel = new SkiaLabel { Text = $"Date: {DateTime.Today:d}", FontSize = 12, TextColor = Colors.Gray };
         datePicker.DateSelected += (s, e) => dateLabel.Text = $"Date: {datePicker.Date:d}";
         root.AddChild(datePicker);
         root.AddChild(dateLabel);
@@ -363,7 +364,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("TimePicker"));
         var timePicker = new SkiaTimePicker();
-        var timeLabel = new SkiaLabel { Text = $"Time: {DateTime.Now:t}", FontSize = 12, TextColor = SKColors.Gray };
+        var timeLabel = new SkiaLabel { Text = $"Time: {DateTime.Now:t}", FontSize = 12, TextColor = Colors.Gray };
         timePicker.TimeSelected += (s, e) => timeLabel.Text = $"Time: {DateTime.Today.Add(timePicker.Time):t}";
         root.AddChild(timePicker);
         root.AddChild(timeLabel);
@@ -375,11 +376,11 @@ public static class LinuxProgramHost
         {
             CornerRadius = 8,
             StrokeThickness = 2,
-            Stroke = new SKColor(0x21, 0x96, 0xF3),
-            BackgroundColor = new SKColor(0xE3, 0xF2, 0xFD)
+            Stroke = Color.FromRgb(0x21, 0x96, 0xF3),
+            BackgroundColor = Color.FromRgb(0xE3, 0xF2, 0xFD).ToSKColor()
         };
         border.SetPadding(15);
-        border.AddChild(new SkiaLabel { Text = "Content inside a styled Border", FontSize = 14, TextColor = new SKColor(0x1A, 0x23, 0x7E) });
+        border.AddChild(new SkiaLabel { Text = "Content inside a styled Border", FontSize = 14, TextColor = Color.FromRgb(0x1A, 0x23, 0x7E) });
         root.AddChild(border);
 
         // ========== FRAME SECTION ==========
@@ -400,7 +401,7 @@ public static class LinuxProgramHost
             Footer = "End of list"
         };
         collectionView.ItemsSource =(new object[] { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape", "Honeydew" });
-        var collectionLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = SKColors.Gray };
+        var collectionLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = Colors.Gray };
         collectionView.SelectionChanged += (s, e) =>
         {
             var selected = e.CurrentSelection.FirstOrDefault();
@@ -418,18 +419,15 @@ public static class LinuxProgramHost
         var imgBtn = new SkiaImageButton
         {
             CornerRadius = 8,
-            StrokeColor = new SKColor(0x21, 0x96, 0xF3),
+            StrokeColor = Color.FromRgb(0x21, 0x96, 0xF3),
             StrokeThickness = 1,
-            BackgroundColor = new SKColor(0xE3, 0xF2, 0xFD),
-            PaddingLeft = 10,
-            PaddingRight = 10,
-            PaddingTop = 10,
-            PaddingBottom = 10
+            ImageBackgroundColor = Color.FromRgb(0xE3, 0xF2, 0xFD),
+            Padding = new Thickness(10)
         };
         // Generate a simple star icon bitmap
         var iconBitmap = CreateStarIcon(32, new SKColor(0x21, 0x96, 0xF3));
         imgBtn.Bitmap = iconBitmap;
-        var imgBtnLabel = new SkiaLabel { Text = "Click the star!", FontSize = 12, TextColor = SKColors.Gray };
+        var imgBtnLabel = new SkiaLabel { Text = "Click the star!", FontSize = 12, TextColor = Colors.Gray };
         imgBtn.Clicked += (s, e) => imgBtnLabel.Text = "Star clicked!";
         imageButtonSection.AddChild(imgBtn);
         imageButtonSection.AddChild(imgBtnLabel);
@@ -445,7 +443,7 @@ public static class LinuxProgramHost
         var sampleBitmap = CreateSampleImage(80, 60);
         img.Bitmap = sampleBitmap;
         imageSection.AddChild(img);
-        imageSection.AddChild(new SkiaLabel { Text = "Sample generated image", FontSize = 12, TextColor = SKColors.Gray });
+        imageSection.AddChild(new SkiaLabel { Text = "Sample generated image", FontSize = 12, TextColor = Colors.Gray });
         root.AddChild(imageSection);
 
         // ========== FOOTER ==========
@@ -454,14 +452,14 @@ public static class LinuxProgramHost
         {
             Text = "All 25+ controls are interactive - try them all!",
             FontSize = 16,
-            TextColor = new SKColor(0x4C, 0xAF, 0x50),
-            IsBold = true
+            TextColor = Color.FromRgb(0x4C, 0xAF, 0x50),
+            FontAttributes = FontAttributes.Bold
         });
         root.AddChild(new SkiaLabel
         {
             Text = "Scroll down to see more controls",
             FontSize = 12,
-            TextColor = SKColors.Gray
+            TextColor = Colors.Gray
         });
 
         scroll.Content = root;
@@ -474,8 +472,8 @@ public static class LinuxProgramHost
         {
             Text = text,
             FontSize = 18,
-            TextColor = new SKColor(0x37, 0x47, 0x4F),
-            IsBold = true
+            TextColor = Color.FromRgb(0x37, 0x47, 0x4F),
+            FontAttributes = FontAttributes.Bold
         };
     }
 
