@@ -119,7 +119,7 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
 
         // CancelButtonColor maps to ClearButtonColor
         if (searchBar.CancelButtonColor is not null)
-            handler.PlatformView.ClearButtonColor = searchBar.CancelButtonColor.ToSKColor();
+            handler.PlatformView.ClearButtonColor = searchBar.CancelButtonColor;
     }
 
 
