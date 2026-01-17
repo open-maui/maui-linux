@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -91,27 +92,27 @@ public class SkiaCollectionView : SkiaItemsView
 
     public static readonly BindableProperty SelectionColorProperty = BindableProperty.Create(
         nameof(SelectionColor),
-        typeof(SKColor),
+        typeof(Color),
         typeof(SkiaCollectionView),
-        new SKColor(33, 150, 243, 89),
+        Color.FromRgba(33, 150, 243, 89),
         BindingMode.TwoWay,
-        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectionColorChanged((Color?)n));
 
     public static readonly BindableProperty HeaderBackgroundColorProperty = BindableProperty.Create(
         nameof(HeaderBackgroundColor),
-        typeof(SKColor),
+        typeof(Color),
         typeof(SkiaCollectionView),
-        new SKColor(245, 245, 245),
+        Color.FromRgb(245, 245, 245),
         BindingMode.TwoWay,
-        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnHeaderBackgroundColorChanged((Color?)n));
 
     public static readonly BindableProperty FooterBackgroundColorProperty = BindableProperty.Create(
         nameof(FooterBackgroundColor),
-        typeof(SKColor),
+        typeof(Color),
         typeof(SkiaCollectionView),
-        new SKColor(245, 245, 245),
+        Color.FromRgb(245, 245, 245),
         BindingMode.TwoWay,
-        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnFooterBackgroundColorChanged((Color?)n));
 
     #endregion
 
@@ -119,6 +120,11 @@ public class SkiaCollectionView : SkiaItemsView
     private int _selectedIndex = -1;
     private bool _isSelectingItem;
     private bool _heightsChangedDuringDraw;
+
+    // SKColor fields for rendering
+    private SKColor _selectionColorSK = SkiaTheme.PrimarySelectionSK;
+    private SKColor _headerBackgroundColorSK = SkiaTheme.Gray100SK;
+    private SKColor _footerBackgroundColorSK = SkiaTheme.Gray100SK;
 
     public SkiaSelectionMode SelectionMode
     {
@@ -192,23 +198,32 @@ public class SkiaCollectionView : SkiaItemsView
         set => SetValue(FooterHeightProperty, value);
     }
 
-    public SKColor SelectionColor
+    public Color SelectionColor
     {
-        get => (SKColor)GetValue(SelectionColorProperty);
+        get => (Color)GetValue(SelectionColorProperty);
         set => SetValue(SelectionColorProperty, value);
     }
 
-    public SKColor HeaderBackgroundColor
+    /// <summary>Gets the SKColor for rendering selection highlight.</summary>
+    public SKColor SelectionColorSK => _selectionColorSK;
+
+    public Color HeaderBackgroundColor
     {
-        get => (SKColor)GetValue(HeaderBackgroundColorProperty);
+        get => (Color)GetValue(HeaderBackgroundColorProperty);
         set => SetValue(HeaderBackgroundColorProperty, value);
     }
 
-    public SKColor FooterBackgroundColor
+    /// <summary>Gets the SKColor for rendering header background.</summary>
+    public SKColor HeaderBackgroundColorSK => _headerBackgroundColorSK;
+
+    public Color FooterBackgroundColor
     {
-        get => (SKColor)GetValue(FooterBackgroundColorProperty);
+        get => (Color)GetValue(FooterBackgroundColorProperty);
         set => SetValue(FooterBackgroundColorProperty, value);
     }
+
+    /// <summary>Gets the SKColor for rendering footer background.</summary>
+    public SKColor FooterBackgroundColorSK => _footerBackgroundColorSK;
 
     public event EventHandler<CollectionSelectionChangedEventArgs>? SelectionChanged;
 
@@ -263,6 +278,24 @@ public class SkiaCollectionView : SkiaItemsView
     private void OnFooterChanged(object? newValue)
     {
         FooterHeight = newValue != null ? 44 : 0;
+        Invalidate();
+    }
+
+    private void OnSelectionColorChanged(Color? newValue)
+    {
+        _selectionColorSK = newValue?.ToSKColor() ?? SkiaTheme.PrimarySelectionSK;
+        Invalidate();
+    }
+
+    private void OnHeaderBackgroundColorChanged(Color? newValue)
+    {
+        _headerBackgroundColorSK = newValue?.ToSKColor() ?? SkiaTheme.Gray100SK;
+        Invalidate();
+    }
+
+    private void OnFooterBackgroundColorChanged(Color? newValue)
+    {
+        _footerBackgroundColorSK = newValue?.ToSKColor() ?? SkiaTheme.Gray100SK;
         Invalidate();
     }
 
@@ -365,7 +398,7 @@ public class SkiaCollectionView : SkiaItemsView
 
         if (Orientation == ItemsLayoutOrientation.Vertical && SpanCount == 1)
         {
-            paint.Color = new SKColor(224, 224, 224);
+            paint.Color = SkiaTheme.Gray300SK;
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 1f;
             canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
@@ -409,7 +442,7 @@ public class SkiaCollectionView : SkiaItemsView
 
                     if (isSelected)
                     {
-                        paint.Color = SelectionColor;
+                        paint.Color = SelectionColorSK;
                         paint.Style = SKPaintStyle.Fill;
                         canvas.DrawRoundRect(actualBounds, 12f, 12f, paint);
                     }
@@ -433,13 +466,13 @@ public class SkiaCollectionView : SkiaItemsView
             return;
         }
 
-        paint.Color = SKColors.Black;
+        paint.Color = SkiaTheme.TextPrimarySK;
         paint.Style = SKPaintStyle.Fill;
 
         using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
         using var textPaint = new SKPaint(font)
         {
-            Color = SKColors.Black,
+            Color = SkiaTheme.TextPrimarySK,
             IsAntialias = true
         };
 
@@ -461,7 +494,7 @@ public class SkiaCollectionView : SkiaItemsView
     {
         using var paint = new SKPaint
         {
-            Color = new SKColor(33, 150, 243),
+            Color = SkiaTheme.PrimarySK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2f,
             IsAntialias = true,
@@ -627,7 +660,7 @@ public class SkiaCollectionView : SkiaItemsView
                 {
                     using var cellBgPaint = new SKPaint
                     {
-                        Color = _selectedItems.Contains(item) ? SelectionColor : new SKColor(250, 250, 250),
+                        Color = _selectedItems.Contains(item) ? SelectionColorSK : SkiaTheme.Gray50SK,
                         Style = SKPaintStyle.Fill
                     };
                     canvas.DrawRoundRect(new SKRoundRect(cellRect, 4f), cellBgPaint);
@@ -657,7 +690,7 @@ public class SkiaCollectionView : SkiaItemsView
 
         using var trackPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 20),
+            Color = SkiaTheme.Shadow10SK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRoundRect(new SKRoundRect(trackRect, 3f), trackPaint);
@@ -673,7 +706,7 @@ public class SkiaCollectionView : SkiaItemsView
 
         using var thumbPaint = new SKPaint
         {
-            Color = new SKColor(100, 100, 100, 180),
+            Color = SkiaTheme.ScrollbarThumbSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -690,7 +723,7 @@ public class SkiaCollectionView : SkiaItemsView
     {
         using var bgPaint = new SKPaint
         {
-            Color = HeaderBackgroundColor,
+            Color = HeaderBackgroundColorSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, bgPaint);
@@ -701,7 +734,7 @@ public class SkiaCollectionView : SkiaItemsView
             using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
             using var textPaint = new SKPaint(font)
             {
-                Color = SKColors.Black,
+                Color = SkiaTheme.TextPrimarySK,
                 IsAntialias = true
             };
 
@@ -715,7 +748,7 @@ public class SkiaCollectionView : SkiaItemsView
 
         using var sepPaint = new SKPaint
         {
-            Color = new SKColor(224, 224, 224),
+            Color = SkiaTheme.Gray300SK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1f
         };
@@ -726,14 +759,14 @@ public class SkiaCollectionView : SkiaItemsView
     {
         using var bgPaint = new SKPaint
         {
-            Color = FooterBackgroundColor,
+            Color = FooterBackgroundColorSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, bgPaint);
 
         using var sepPaint = new SKPaint
         {
-            Color = new SKColor(224, 224, 224),
+            Color = SkiaTheme.Gray300SK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1f
         };
@@ -745,7 +778,7 @@ public class SkiaCollectionView : SkiaItemsView
             using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
             using var textPaint = new SKPaint(font)
             {
-                Color = new SKColor(128, 128, 128),
+                Color = SkiaTheme.TextPlaceholderSK,
                 IsAntialias = true
             };
 

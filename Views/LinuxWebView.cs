@@ -393,7 +393,7 @@ public class LinuxWebView : SkiaView
         // Draw a placeholder rectangle where the WebView will be overlaid
         using var paint = new SKPaint
         {
-            Color = new SKColor(240, 240, 240),
+            Color = SkiaTheme.MenuBackgroundSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, paint);
@@ -401,7 +401,7 @@ public class LinuxWebView : SkiaView
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = new SKColor(200, 200, 200),
+            Color = SkiaTheme.BorderMediumSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
@@ -412,7 +412,7 @@ public class LinuxWebView : SkiaView
         {
             using var textPaint = new SKPaint
             {
-                Color = SKColors.Gray,
+                Color = SkiaTheme.TextPlaceholderSK,
                 TextSize = 14,
                 IsAntialias = true
             };

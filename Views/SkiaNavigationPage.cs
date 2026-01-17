@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
 
@@ -23,28 +24,32 @@ public class SkiaNavigationPage : SkiaView
     private bool _isPushAnimation;
 
     // Navigation bar styling
-    private SKColor _barBackgroundColor = new SKColor(0x21, 0x96, 0xF3);
+    private SKColor _barBackgroundColor = SkiaTheme.PrimarySK;
     private SKColor _barTextColor = SKColors.White;
+    private Color _barBackgroundColorMaui = Color.FromRgb(0x21, 0x96, 0xF3);
+    private Color _barTextColorMaui = Colors.White;
     private float _navigationBarHeight = 56;
     private bool _showBackButton = true;
 
-    public SKColor BarBackgroundColor
+    public Color BarBackgroundColor
     {
-        get => _barBackgroundColor;
+        get => _barBackgroundColorMaui;
         set
         {
-            _barBackgroundColor = value;
+            _barBackgroundColorMaui = value;
+            _barBackgroundColor = value.ToSKColor();
             UpdatePageNavigationBar();
             Invalidate();
         }
     }
 
-    public SKColor BarTextColor
+    public Color BarTextColor
     {
-        get => _barTextColor;
+        get => _barTextColorMaui;
         set
         {
-            _barTextColor = value;
+            _barTextColorMaui = value;
+            _barTextColor = value.ToSKColor();
             UpdatePageNavigationBar();
             Invalidate();
         }
@@ -194,8 +199,8 @@ public class SkiaNavigationPage : SkiaView
     private void ConfigurePage(SkiaPage page, bool showBackButton)
     {
         page.ShowNavigationBar = true;
-        page.TitleBarColor = _barBackgroundColor;
-        page.TitleTextColor = _barTextColor;
+        page.TitleBarColor = _barBackgroundColorMaui;
+        page.TitleTextColor = _barTextColorMaui;
         page.NavigationBarHeight = _navigationBarHeight;
         _showBackButton = showBackButton && _navigationStack.Count > 0;
     }
@@ -204,8 +209,8 @@ public class SkiaNavigationPage : SkiaView
     {
         if (_currentPage != null)
         {
-            _currentPage.TitleBarColor = _barBackgroundColor;
-            _currentPage.TitleTextColor = _barTextColor;
+            _currentPage.TitleBarColor = _barBackgroundColorMaui;
+            _currentPage.TitleTextColor = _barTextColorMaui;
             _currentPage.NavigationBarHeight = _navigationBarHeight;
         }
     }

@@ -608,12 +608,8 @@ public class SkiaLabel : SkiaView
 
     private SKColor ToSKColor(Color? color)
     {
-        if (color == null) return SKColors.Black;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        if (color == null) return SkiaTheme.TextPrimarySK;
+        return color.ToSKColor();
     }
 
     private string GetDisplayText()
@@ -791,7 +787,7 @@ public class SkiaLabel : SkiaView
 
         using var selectionPaint = new SKPaint
         {
-            Color = new SKColor(0x21, 0x96, 0xF3, 0x60), // Semi-transparent blue
+            Color = SkiaTheme.PrimaryLightSK,
             Style = SKPaintStyle.Fill
         };
 

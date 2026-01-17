@@ -35,8 +35,8 @@ public class SkiaItemsView : SkiaView
     // Scroll bar
     private bool _showVerticalScrollBar = true;
     private float _scrollBarWidth = 8;
-    private SKColor _scrollBarColor = new SKColor(128, 128, 128, 128);
-    private SKColor _scrollBarTrackColor = new SKColor(200, 200, 200, 64);
+    private Color _scrollBarColor = SkiaTheme.ScrollbarThumb;
+    private Color _scrollBarTrackColor = SkiaTheme.ScrollbarTrack;
 
     public IEnumerable? ItemsSource
     {
@@ -261,7 +261,7 @@ public class SkiaItemsView : SkiaView
         // Draw selection highlight
         if (index == SelectedIndex)
         {
-            paint.Color = new SKColor(0x21, 0x96, 0xF3, 0x59); // Light blue with 35% opacity
+            paint.Color = SkiaTheme.PrimarySelectionSK;
             paint.Style = SKPaintStyle.Fill;
             canvas.DrawRect(bounds, paint);
         }
@@ -312,7 +312,7 @@ public class SkiaItemsView : SkiaView
         }
 
         // Draw separator
-        paint.Color = new SKColor(0xE0, 0xE0, 0xE0);
+        paint.Color = SkiaTheme.Gray300SK;
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1;
         canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
@@ -325,13 +325,13 @@ public class SkiaItemsView : SkiaView
         }
 
         // Default rendering - just show ToString
-        paint.Color = SKColors.Black;
+        paint.Color = SkiaTheme.TextPrimarySK;
         paint.Style = SKPaintStyle.Fill;
 
         using var font = new SKFont(SKTypeface.Default, 14);
         using var textPaint = new SKPaint(font)
         {
-            Color = SKColors.Black,
+            Color = SkiaTheme.TextPrimarySK,
             IsAntialias = true
         };
 
@@ -348,14 +348,14 @@ public class SkiaItemsView : SkiaView
     {
         using var paint = new SKPaint
         {
-            Color = new SKColor(0x80, 0x80, 0x80),
+            Color = SkiaTheme.TextPlaceholderSK,
             IsAntialias = true
         };
 
         using var font = new SKFont(SKTypeface.Default, 16);
         using var textPaint = new SKPaint(font)
         {
-            Color = new SKColor(0x80, 0x80, 0x80),
+            Color = SkiaTheme.TextPlaceholderSK,
             IsAntialias = true
         };
 
@@ -379,7 +379,7 @@ public class SkiaItemsView : SkiaView
         // Draw track
         using var trackPaint = new SKPaint
         {
-            Color = _scrollBarTrackColor,
+            Color = SkiaTheme.ScrollbarTrackSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(trackRect, trackPaint);
@@ -399,7 +399,7 @@ public class SkiaItemsView : SkiaView
         // Draw thumb
         using var thumbPaint = new SKPaint
         {
-            Color = _scrollBarColor,
+            Color = SkiaTheme.ScrollbarThumbSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

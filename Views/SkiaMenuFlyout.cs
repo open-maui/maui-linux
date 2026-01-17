@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -12,19 +13,73 @@ public class SkiaMenuFlyout : SkiaView
     private int _hoveredIndex = -1;
     private SKRect _bounds;
 
+    // SKColor fields for rendering
+    private SKColor _menuBackgroundColorSK = SkiaTheme.BackgroundWhiteSK;
+    private SKColor _textColorSK = SkiaTheme.TextPrimarySK;
+    private SKColor _disabledTextColorSK = SkiaTheme.TextDisabledSK;
+    private SKColor _hoverBackgroundColorSK = SkiaTheme.Gray200SK;
+    private SKColor _separatorColorSK = SkiaTheme.MenuSeparatorSK;
+
+    // Color backing fields
+    private Color _menuBackgroundColor = Colors.White;
+    private Color _textColor = Color.FromRgb(33, 33, 33);
+    private Color _disabledTextColor = Color.FromRgb(160, 160, 160);
+    private Color _hoverBackgroundColor = Color.FromRgb(230, 230, 230);
+    private Color _separatorColor = Color.FromRgb(220, 220, 220);
+
     public List<MenuItem> Items { get; set; } = new List<MenuItem>();
 
     public SKPoint Position { get; set; }
 
-    public new SKColor BackgroundColor { get; set; } = SKColors.White;
+    public Color MenuBackgroundColor
+    {
+        get => _menuBackgroundColor;
+        set
+        {
+            _menuBackgroundColor = value;
+            _menuBackgroundColorSK = value.ToSKColor();
+        }
+    }
 
-    public SKColor TextColor { get; set; } = new SKColor(33, 33, 33);
+    public Color TextColor
+    {
+        get => _textColor;
+        set
+        {
+            _textColor = value;
+            _textColorSK = value.ToSKColor();
+        }
+    }
 
-    public SKColor DisabledTextColor { get; set; } = new SKColor(160, 160, 160);
+    public Color DisabledTextColor
+    {
+        get => _disabledTextColor;
+        set
+        {
+            _disabledTextColor = value;
+            _disabledTextColorSK = value.ToSKColor();
+        }
+    }
 
-    public SKColor HoverBackgroundColor { get; set; } = new SKColor(230, 230, 230);
+    public Color HoverBackgroundColor
+    {
+        get => _hoverBackgroundColor;
+        set
+        {
+            _hoverBackgroundColor = value;
+            _hoverBackgroundColorSK = value.ToSKColor();
+        }
+    }
 
-    public SKColor SeparatorColor { get; set; } = new SKColor(220, 220, 220);
+    public Color SeparatorColor
+    {
+        get => _separatorColor;
+        set
+        {
+            _separatorColor = value;
+            _separatorColorSK = value.ToSKColor();
+        }
+    }
 
     public float FontSize { get; set; } = 13f;
 
@@ -77,14 +132,14 @@ public class SkiaMenuFlyout : SkiaView
         // Draw shadow
         using var shadowPaint = new SKPaint
         {
-            ImageFilter = SKImageFilter.CreateDropShadow(0f, 2f, 8f, 8f, new SKColor(0, 0, 0, 40))
+            ImageFilter = SKImageFilter.CreateDropShadow(0f, 2f, 8f, 8f, SkiaTheme.Shadow25SK)
         };
         canvas.DrawRect(_bounds, shadowPaint);
 
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = BackgroundColor,
+            Color = _menuBackgroundColorSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(_bounds, bgPaint);
@@ -92,7 +147,7 @@ public class SkiaMenuFlyout : SkiaView
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = new SKColor(200, 200, 200),
+            Color = SkiaTheme.BorderMediumSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1f
         };
@@ -100,7 +155,7 @@ public class SkiaMenuFlyout : SkiaView
 
         // Draw items
         float y = _bounds.Top;
-        textPaint.Color = TextColor;
+        textPaint.Color = _textColorSK;
 
         for (int i = 0; i < Items.Count; i++)
         {
@@ -111,7 +166,7 @@ public class SkiaMenuFlyout : SkiaView
                 float separatorY = y + SeparatorHeight / 2f;
                 using var sepPaint = new SKPaint
                 {
-                    Color = SeparatorColor,
+                    Color = _separatorColorSK,
                     StrokeWidth = 1f
                 };
                 canvas.DrawLine(_bounds.Left + 8f, separatorY, _bounds.Right - 8f, separatorY, sepPaint);
@@ -126,7 +181,7 @@ public class SkiaMenuFlyout : SkiaView
             {
                 using var hoverPaint = new SKPaint
                 {
-                    Color = HoverBackgroundColor,
+                    Color = _hoverBackgroundColorSK,
                     Style = SKPaintStyle.Fill
                 };
                 canvas.DrawRect(itemBounds, hoverPaint);
@@ -137,7 +192,7 @@ public class SkiaMenuFlyout : SkiaView
             {
                 using var checkPaint = new SKPaint
                 {
-                    Color = menuItem.IsEnabled ? TextColor : DisabledTextColor,
+                    Color = menuItem.IsEnabled ? _textColorSK : _disabledTextColorSK,
                     TextSize = FontSize,
                     IsAntialias = true
                 };
@@ -145,13 +200,13 @@ public class SkiaMenuFlyout : SkiaView
             }
 
             // Draw text
-            textPaint.Color = menuItem.IsEnabled ? TextColor : DisabledTextColor;
+            textPaint.Color = menuItem.IsEnabled ? _textColorSK : _disabledTextColorSK;
             canvas.DrawText(menuItem.Text, _bounds.Left + 28f, y + ItemHeight / 2f + 5f, textPaint);
 
             // Draw shortcut
             if (!string.IsNullOrEmpty(menuItem.Shortcut))
             {
-                textPaint.Color = DisabledTextColor;
+                textPaint.Color = _disabledTextColorSK;
                 var shortcutBounds = new SKRect();
                 textPaint.MeasureText(menuItem.Shortcut, ref shortcutBounds);
                 canvas.DrawText(menuItem.Shortcut, _bounds.Right - shortcutBounds.Width - 12f, y + ItemHeight / 2f + 5f, textPaint);

@@ -523,11 +523,7 @@ public class SkiaButton : SkiaView, IButtonController
     private SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     private float GetEffectiveCornerRadius()
@@ -554,11 +550,11 @@ public class SkiaButton : SkiaView, IButtonController
         }
         else if (IsPressed)
         {
-            currentBgColor = hasBackground ? DarkenColor(bgColor, 0.2f) : new SKColor(0, 0, 0, 30);
+            currentBgColor = hasBackground ? DarkenColor(bgColor, 0.2f) : SkiaTheme.Shadow20SK;
         }
         else if (IsPointerOver)
         {
-            currentBgColor = hasBackground ? LightenColor(bgColor, 0.1f) : new SKColor(0, 0, 0, 15);
+            currentBgColor = hasBackground ? LightenColor(bgColor, 0.1f) : SkiaTheme.Shadow10SK;
         }
         else
         {
@@ -605,7 +601,7 @@ public class SkiaButton : SkiaView, IButtonController
         {
             using var focusPaint = new SKPaint
             {
-                Color = new SKColor(33, 150, 243, 128),
+                Color = SkiaTheme.PrimaryHalfSK,
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2f
@@ -645,7 +641,7 @@ public class SkiaButton : SkiaView, IButtonController
             fontSize);
 
         // Prepare text color (null means use platform default: white for buttons)
-        var textColor = TextColor != null ? ToSKColor(TextColor) : SKColors.White;
+        var textColor = TextColor != null ? ToSKColor(TextColor) : SkiaTheme.BackgroundWhiteSK;
         if (!IsEnabled)
         {
             textColor = textColor.WithAlpha(128);
@@ -765,7 +761,7 @@ public class SkiaButton : SkiaView, IButtonController
             if (!IsEnabled)
             {
                 imagePaint.ColorFilter = SKColorFilter.CreateBlendMode(
-                    new SKColor(128, 128, 128, 128), SKBlendMode.Modulate);
+                    SkiaTheme.ScrollbarThumbSK, SKBlendMode.Modulate);
             }
             canvas.DrawBitmap(_loadedImage!, imageRect, imagePaint);
 
@@ -781,7 +777,7 @@ public class SkiaButton : SkiaView, IButtonController
             if (!IsEnabled)
             {
                 imagePaint.ColorFilter = SKColorFilter.CreateBlendMode(
-                    new SKColor(128, 128, 128, 128), SKBlendMode.Modulate);
+                    SkiaTheme.ScrollbarThumbSK, SKBlendMode.Modulate);
             }
             canvas.DrawBitmap(_loadedImage!, imageRect, imagePaint);
         }
@@ -815,7 +811,7 @@ public class SkiaButton : SkiaView, IButtonController
     {
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 50),
+            Color = SkiaTheme.Shadow20SK,
             IsAntialias = true,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f)
         };

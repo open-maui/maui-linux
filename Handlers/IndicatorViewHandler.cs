@@ -89,7 +89,7 @@ public partial class IndicatorViewHandler : ViewHandler<IndicatorView, SkiaIndic
 
         if (indicatorView.IndicatorColor is not null)
         {
-            handler.PlatformView.IndicatorColor = indicatorView.IndicatorColor.ToSKColor();
+            handler.PlatformView.IndicatorColor = indicatorView.IndicatorColor;
         }
     }
 
@@ -99,7 +99,7 @@ public partial class IndicatorViewHandler : ViewHandler<IndicatorView, SkiaIndic
 
         if (indicatorView.SelectedIndicatorColor is not null)
         {
-            handler.PlatformView.SelectedIndicatorColor = indicatorView.SelectedIndicatorColor.ToSKColor();
+            handler.PlatformView.SelectedIndicatorColor = indicatorView.SelectedIndicatorColor;
         }
     }
 

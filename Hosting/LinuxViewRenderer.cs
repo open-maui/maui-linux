@@ -259,47 +259,37 @@ public class LinuxViewRenderer
         // Flyout background color
         if (shell.FlyoutBackgroundColor != null && shell.FlyoutBackgroundColor != Colors.Transparent)
         {
-            var color = shell.FlyoutBackgroundColor;
-            skiaShell.FlyoutBackgroundColor = new SKColor(
-                (byte)(color.Red * 255f),
-                (byte)(color.Green * 255f),
-                (byte)(color.Blue * 255f),
-                (byte)(color.Alpha * 255f));
+            skiaShell.FlyoutBackgroundColor = shell.FlyoutBackgroundColor;
             Console.WriteLine($"[ApplyShellColors] FlyoutBackgroundColor from MAUI: {skiaShell.FlyoutBackgroundColor}");
         }
         else
         {
             skiaShell.FlyoutBackgroundColor = isDark
-                ? new SKColor(30, 30, 30)
-                : new SKColor(255, 255, 255);
+                ? Color.FromRgb(30, 30, 30)
+                : Color.FromRgb(255, 255, 255);
             Console.WriteLine($"[ApplyShellColors] Using default FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
         }
 
         // Flyout text color
         skiaShell.FlyoutTextColor = isDark
-            ? new SKColor(224, 224, 224)
-            : new SKColor(33, 33, 33);
+            ? Color.FromRgb(224, 224, 224)
+            : Color.FromRgb(33, 33, 33);
         Console.WriteLine($"[ApplyShellColors] FlyoutTextColor: {skiaShell.FlyoutTextColor}");
 
         // Content background color
         skiaShell.ContentBackgroundColor = isDark
-            ? new SKColor(18, 18, 18)
-            : new SKColor(250, 250, 250);
+            ? Color.FromRgb(18, 18, 18)
+            : Color.FromRgb(250, 250, 250);
         Console.WriteLine($"[ApplyShellColors] ContentBackgroundColor: {skiaShell.ContentBackgroundColor}");
 
         // NavBar background color
         if (shell.BackgroundColor != null && shell.BackgroundColor != Colors.Transparent)
         {
-            var color = shell.BackgroundColor;
-            skiaShell.NavBarBackgroundColor = new SKColor(
-                (byte)(color.Red * 255f),
-                (byte)(color.Green * 255f),
-                (byte)(color.Blue * 255f),
-                (byte)(color.Alpha * 255f));
+            skiaShell.NavBarBackgroundColor = shell.BackgroundColor;
         }
         else
         {
-            skiaShell.NavBarBackgroundColor = new SKColor(33, 150, 243); // Material blue
+            skiaShell.NavBarBackgroundColor = Color.FromRgb(33, 150, 243); // Material blue
         }
     }
 

@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -27,6 +28,12 @@ public class SkiaCarouselView : SkiaLayoutView
     private float _animationTargetOffset;
     private DateTime _animationStartTime;
     private const float AnimationDurationMs = 300f;
+
+    // Indicator color fields
+    private Color _indicatorColor = Color.FromRgb(180, 180, 180);
+    private Color _selectedIndicatorColor = Color.FromRgb(33, 150, 243);
+    private SKColor _indicatorColorSK = SkiaTheme.IndicatorUnselectedSK;
+    private SKColor _selectedIndicatorColorSK = SkiaTheme.PrimarySK;
 
     /// <summary>
     /// Gets or sets the current position (item index).
@@ -79,12 +86,30 @@ public class SkiaCarouselView : SkiaLayoutView
     /// <summary>
     /// Gets or sets the indicator color.
     /// </summary>
-    public SKColor IndicatorColor { get; set; } = new SKColor(180, 180, 180);
+    public Color IndicatorColor
+    {
+        get => _indicatorColor;
+        set
+        {
+            _indicatorColor = value;
+            _indicatorColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the selected indicator color.
     /// </summary>
-    public SKColor SelectedIndicatorColor { get; set; } = new SKColor(33, 150, 243);
+    public Color SelectedIndicatorColor
+    {
+        get => _selectedIndicatorColor;
+        set
+        {
+            _selectedIndicatorColor = value;
+            _selectedIndicatorColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Event raised when position changes.
@@ -279,14 +304,14 @@ public class SkiaCarouselView : SkiaLayoutView
 
         using var normalPaint = new SKPaint
         {
-            Color = IndicatorColor,
+            Color = _indicatorColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
         using var selectedPaint = new SKPaint
         {
-            Color = SelectedIndicatorColor,
+            Color = _selectedIndicatorColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

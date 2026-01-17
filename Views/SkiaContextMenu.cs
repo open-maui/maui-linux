@@ -12,15 +12,15 @@ public class SkiaContextMenu : SkiaView
     private int _hoveredIndex = -1;
     private SKRect[] _itemBounds = Array.Empty<SKRect>();
 
-    private static readonly SKColor MenuBackground = new SKColor(255, 255, 255);
-    private static readonly SKColor MenuBackgroundDark = new SKColor(48, 48, 48);
-    private static readonly SKColor ItemHoverBackground = new SKColor(227, 242, 253);
-    private static readonly SKColor ItemHoverBackgroundDark = new SKColor(80, 80, 80);
-    private static readonly SKColor ItemTextColor = new SKColor(33, 33, 33);
-    private static readonly SKColor ItemTextColorDark = new SKColor(224, 224, 224);
-    private static readonly SKColor DisabledTextColor = new SKColor(158, 158, 158);
-    private static readonly SKColor SeparatorColor = new SKColor(224, 224, 224);
-    private static readonly SKColor ShadowColor = new SKColor(0, 0, 0, 40);
+    private static readonly SKColor MenuBackground = SkiaTheme.BackgroundWhiteSK;
+    private static readonly SKColor MenuBackgroundDark = SkiaTheme.DarkBackgroundSK;
+    private static readonly SKColor ItemHoverBackground = SkiaTheme.PrimarySelectionSK;
+    private static readonly SKColor ItemHoverBackgroundDark = SkiaTheme.DarkHoverSK;
+    private static readonly SKColor ItemTextColor = SkiaTheme.TextPrimarySK;
+    private static readonly SKColor ItemTextColorDark = SkiaTheme.DarkTextSK;
+    private static readonly SKColor DisabledTextColor = SkiaTheme.TextDisabledSK;
+    private static readonly SKColor SeparatorColor = SkiaTheme.Gray300SK;
+    private static readonly SKColor ShadowColor = SkiaTheme.Shadow25SK;
 
     private const float MenuPadding = 4f;
     private const float ItemHeight = 32f;

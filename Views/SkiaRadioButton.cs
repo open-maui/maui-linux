@@ -24,11 +24,7 @@ public class SkiaRadioButton : SkiaView
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     #endregion

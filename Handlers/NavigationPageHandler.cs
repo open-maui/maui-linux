@@ -364,7 +364,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.BarBackgroundColor is not null)
         {
-            handler.PlatformView.BarBackgroundColor = navigationPage.BarBackgroundColor.ToSKColor();
+            handler.PlatformView.BarBackgroundColor = navigationPage.BarBackgroundColor;
         }
     }
 
@@ -374,7 +374,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.BarBackground is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BarBackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BarBackgroundColor = solidBrush.Color;
         }
     }
 
@@ -384,7 +384,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.BarTextColor is not null)
         {
-            handler.PlatformView.BarTextColor = navigationPage.BarTextColor.ToSKColor();
+            handler.PlatformView.BarTextColor = navigationPage.BarTextColor;
         }
     }
 

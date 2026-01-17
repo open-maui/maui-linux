@@ -4,6 +4,7 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
+using Microsoft.Maui.Platform.Linux.Converters;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -223,11 +224,7 @@ public class SkiaTimePicker : SkiaView
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     /// <summary>
@@ -236,11 +233,7 @@ public class SkiaTimePicker : SkiaView
     private static SKColor ToSKColorWithAlpha(Color? color, byte alpha)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            alpha);
+        return color.ToSKColor().WithAlpha(alpha);
     }
 
     /// <summary>
@@ -298,7 +291,7 @@ public class SkiaTimePicker : SkiaView
 
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? GetEffectiveBackgroundColor() : new SKColor(245, 245, 245),
+            Color = IsEnabled ? GetEffectiveBackgroundColor() : SkiaTheme.Gray100SK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -375,7 +368,7 @@ public class SkiaTimePicker : SkiaView
         float cornerRadius = (float)CornerRadius;
         var popupRect = GetPopupRect(bounds);
 
-        using var shadowPaint = new SKPaint { Color = new SKColor(0, 0, 0, 40), MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4), Style = SKPaintStyle.Fill };
+        using var shadowPaint = new SKPaint { Color = SkiaTheme.Shadow25SK, MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4), Style = SKPaintStyle.Fill };
         canvas.DrawRoundRect(new SKRoundRect(new SKRect(popupRect.Left + 2, popupRect.Top + 2, popupRect.Right + 2, popupRect.Bottom + 2), cornerRadius), shadowPaint);
 
         using var bgPaint = new SKPaint { Color = ToSKColor(ClockBackgroundColor), Style = SKPaintStyle.Fill, IsAntialias = true };
@@ -399,8 +392,8 @@ public class SkiaTimePicker : SkiaView
         canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
         using var font = new SKFont(SKTypeface.Default, 32);
-        using var selectedPaint = new SKPaint(font) { Color = SKColors.White, IsAntialias = true };
-        using var unselectedPaint = new SKPaint(font) { Color = new SKColor(255, 255, 255, 150), IsAntialias = true };
+        using var selectedPaint = new SKPaint(font) { Color = SkiaTheme.BackgroundWhiteSK, IsAntialias = true };
+        using var unselectedPaint = new SKPaint(font) { Color = SkiaTheme.WhiteSemiTransparentSK, IsAntialias = true };
 
         var hourText = _selectedHour.ToString("D2");
         var minuteText = _selectedMinute.ToString("D2");
@@ -448,7 +441,7 @@ public class SkiaTimePicker : SkiaView
                 {
                     using var selBgPaint = new SKPaint { Color = selectedColor, Style = SKPaintStyle.Fill, IsAntialias = true };
                     canvas.DrawCircle(x, y, 18, selBgPaint);
-                    textPaint.Color = SKColors.White;
+                    textPaint.Color = SkiaTheme.BackgroundWhiteSK;
                 }
                 else textPaint.Color = textColor;
                 var tBounds = new SKRect();
@@ -470,7 +463,7 @@ public class SkiaTimePicker : SkiaView
                 {
                     using var selBgPaint = new SKPaint { Color = selectedColor, Style = SKPaintStyle.Fill, IsAntialias = true };
                     canvas.DrawCircle(x, y, 18, selBgPaint);
-                    textPaint.Color = SKColors.White;
+                    textPaint.Color = SkiaTheme.BackgroundWhiteSK;
                 }
                 else textPaint.Color = textColor;
                 var tBounds = new SKRect();

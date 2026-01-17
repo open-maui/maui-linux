@@ -24,11 +24,7 @@ public class SkiaPicker : SkiaView
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     #endregion
@@ -584,7 +580,7 @@ public class SkiaPicker : SkiaView
         // Draw shadow
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 40),
+            Color = SkiaTheme.Shadow25SK,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4),
             Style = SKPaintStyle.Fill
         };

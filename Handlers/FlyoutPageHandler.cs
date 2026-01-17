@@ -171,7 +171,7 @@ public partial class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage
 
         if (flyoutView is FlyoutPage flyoutPage && flyoutPage.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.ScrimColor = solidBrush.Color.ToSKColor().WithAlpha(100);
+            handler.PlatformView.ScrimColor = solidBrush.Color.WithAlpha(100f / 255f);
         }
     }
 }

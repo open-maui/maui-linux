@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -54,11 +55,19 @@ public class SkiaScrollView : SkiaView
     public static readonly BindableProperty ScrollBarColorProperty =
         BindableProperty.Create(
             nameof(ScrollBarColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaScrollView),
-            new SKColor(0x80, 0x80, 0x80, 0x80),
+            Color.FromRgba(0x80, 0x80, 0x80, 0x80),
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
+            propertyChanged: (b, o, n) =>
+            {
+                var view = (SkiaScrollView)b;
+                if (n is Color color)
+                {
+                    view._scrollBarColorSK = color.ToSKColor();
+                }
+                view.Invalidate();
+            });
 
     /// <summary>
     /// Bindable property for ScrollBarWidth.
@@ -106,9 +115,9 @@ public class SkiaScrollView : SkiaView
     /// <summary>
     /// Scrollbar color.
     /// </summary>
-    public SKColor ScrollBarColor
+    public Color ScrollBarColor
     {
-        get => (SKColor)GetValue(ScrollBarColorProperty);
+        get => (Color)GetValue(ScrollBarColorProperty);
         set => SetValue(ScrollBarColorProperty, value);
     }
 
@@ -126,6 +135,7 @@ public class SkiaScrollView : SkiaView
     private SkiaView? _content;
     private float _scrollX;
     private float _scrollY;
+    private SKColor _scrollBarColorSK = SkiaTheme.ScrollbarThumbSK;
     private float _velocityX;
     private float _velocityY;
     private bool _isDragging;
@@ -353,7 +363,7 @@ public class SkiaScrollView : SkiaView
 
         using var paint = new SKPaint
         {
-            Color = ScrollBarColor,
+            Color = _scrollBarColorSK,
             IsAntialias = true
         };
 
@@ -376,7 +386,7 @@ public class SkiaScrollView : SkiaView
 
         using var paint = new SKPaint
         {
-            Color = ScrollBarColor,
+            Color = _scrollBarColorSK,
             IsAntialias = true
         };
 

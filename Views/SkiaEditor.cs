@@ -315,11 +315,7 @@ public class SkiaEditor : SkiaView, IInputContext
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     /// <summary>
@@ -327,7 +323,7 @@ public class SkiaEditor : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectiveTextColor()
     {
-        return TextColor != null ? ToSKColor(TextColor) : SKColors.Black;
+        return TextColor != null ? ToSKColor(TextColor) : SkiaTheme.TextPrimarySK;
     }
 
     /// <summary>
@@ -335,7 +331,7 @@ public class SkiaEditor : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectivePlaceholderColor()
     {
-        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : new SKColor(0x80, 0x80, 0x80);
+        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : SkiaTheme.TextPlaceholderSK;
     }
 
     /// <summary>
@@ -886,7 +882,7 @@ public class SkiaEditor : SkiaView, IInputContext
 
         // Draw background
         var bgColor = EditorBackgroundColor != null ? ToSKColor(EditorBackgroundColor) :
-            (IsEnabled ? SKColors.White : new SKColor(0xF5, 0xF5, 0xF5));
+            (IsEnabled ? SkiaTheme.BackgroundWhiteSK : SkiaTheme.Gray100SK);
         using var bgPaint = new SKPaint
         {
             Color = bgColor,
@@ -1052,7 +1048,7 @@ public class SkiaEditor : SkiaView, IInputContext
 
         using var paint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 60),
+            Color = SkiaTheme.Shadow25SK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

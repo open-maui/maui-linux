@@ -23,11 +23,7 @@ public class SkiaSwitch : SkiaView
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     #endregion
@@ -345,7 +341,7 @@ public class SkiaSwitch : SkiaView
         {
             using var shadowPaint = new SKPaint
             {
-                Color = new SKColor(0, 0, 0, 40),
+                Color = SkiaTheme.Shadow25SK,
                 IsAntialias = true,
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f)
             };
@@ -355,7 +351,7 @@ public class SkiaSwitch : SkiaView
         // Draw thumb
         using var thumbPaint = new SKPaint
         {
-            Color = IsEnabled ? thumbColorSK : new SKColor(245, 245, 245),
+            Color = IsEnabled ? thumbColorSK : SkiaTheme.Gray100SK,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };

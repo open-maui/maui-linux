@@ -22,11 +22,7 @@ public class SkiaSlider : SkiaView
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     #endregion
@@ -187,10 +183,10 @@ public class SkiaSlider : SkiaView
         set => SetValue(ThumbColorProperty, value);
     }
 
-    // Platform defaults for colors when null
-    private static readonly SKColor DefaultMinimumTrackColor = new SKColor(0x21, 0x96, 0xF3); // Material Blue
-    private static readonly SKColor DefaultMaximumTrackColor = new SKColor(0xE0, 0xE0, 0xE0); // Gray
-    private static readonly SKColor DefaultThumbColor = new SKColor(0x21, 0x96, 0xF3); // Material Blue
+    // Platform defaults for colors when null - using centralized theme
+    private static readonly SKColor DefaultMinimumTrackColor = SkiaTheme.PrimarySK; // Material Blue
+    private static readonly SKColor DefaultMaximumTrackColor = SkiaTheme.Gray300SK; // Gray
+    private static readonly SKColor DefaultThumbColor = SkiaTheme.PrimarySK; // Material Blue
 
     private SKColor GetEffectiveMinimumTrackColor() => MinimumTrackColor != null ? ToSKColor(MinimumTrackColor) : DefaultMinimumTrackColor;
     private SKColor GetEffectiveMaximumTrackColor() => MaximumTrackColor != null ? ToSKColor(MaximumTrackColor) : DefaultMaximumTrackColor;
@@ -346,7 +342,7 @@ public class SkiaSlider : SkiaView
         {
             using var shadowPaint = new SKPaint
             {
-                Color = new SKColor(0, 0, 0, 30),
+                Color = SkiaTheme.Shadow20SK,
                 IsAntialias = true,
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3)
             };

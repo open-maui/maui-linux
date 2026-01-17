@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -56,11 +57,11 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty FlyoutBackgroundColorProperty =
         BindableProperty.Create(
             nameof(FlyoutBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaShell),
-            SKColors.White,
+            Colors.White,
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutBackgroundColorChanged());
 
     /// <summary>
     /// Bindable property for FlyoutTextColor.
@@ -68,11 +69,11 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty FlyoutTextColorProperty =
         BindableProperty.Create(
             nameof(FlyoutTextColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaShell),
-            new SKColor(33, 33, 33),
+            Color.FromRgb(33, 33, 33),
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutTextColorChanged());
 
     /// <summary>
     /// Bindable property for NavBarBackgroundColor.
@@ -80,11 +81,11 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty NavBarBackgroundColorProperty =
         BindableProperty.Create(
             nameof(NavBarBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaShell),
-            new SKColor(33, 150, 243),
+            Color.FromRgb(33, 150, 243),
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnNavBarBackgroundColorChanged());
 
     /// <summary>
     /// Bindable property for NavBarTextColor.
@@ -92,11 +93,11 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty NavBarTextColorProperty =
         BindableProperty.Create(
             nameof(NavBarTextColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaShell),
-            SKColors.White,
+            Colors.White,
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnNavBarTextColorChanged());
 
     /// <summary>
     /// Bindable property for NavBarHeight.
@@ -164,11 +165,11 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty ContentBackgroundColorProperty =
         BindableProperty.Create(
             nameof(ContentBackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaShell),
-            new SKColor(250, 250, 250),
+            Color.FromRgb(250, 250, 250),
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnContentBackgroundColorChanged());
 
     /// <summary>
     /// Bindable property for Title.
@@ -196,6 +197,43 @@ public class SkiaShell : SkiaLayoutView
     private float _flyoutScrollOffset;
     private readonly Dictionary<string, Func<SkiaView?>> _registeredRoutes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _routeTitles = new(StringComparer.OrdinalIgnoreCase);
+
+    // Internal SKColor fields for rendering
+    private SKColor _flyoutBackgroundColorSK = SkiaTheme.BackgroundWhiteSK;
+    private SKColor _flyoutTextColorSK = SkiaTheme.TextPrimarySK;
+    private SKColor _navBarBackgroundColorSK = SkiaTheme.PrimarySK;
+    private SKColor _navBarTextColorSK = SkiaTheme.BackgroundWhiteSK;
+    private SKColor _contentBackgroundColorSK = SkiaTheme.Gray50SK;
+
+    private void OnFlyoutBackgroundColorChanged()
+    {
+        _flyoutBackgroundColorSK = FlyoutBackgroundColor?.ToSKColor() ?? SkiaTheme.BackgroundWhiteSK;
+        Invalidate();
+    }
+
+    private void OnFlyoutTextColorChanged()
+    {
+        _flyoutTextColorSK = FlyoutTextColor?.ToSKColor() ?? SkiaTheme.TextPrimarySK;
+        Invalidate();
+    }
+
+    private void OnNavBarBackgroundColorChanged()
+    {
+        _navBarBackgroundColorSK = NavBarBackgroundColor?.ToSKColor() ?? SkiaTheme.PrimarySK;
+        Invalidate();
+    }
+
+    private void OnNavBarTextColorChanged()
+    {
+        _navBarTextColorSK = NavBarTextColor?.ToSKColor() ?? SkiaTheme.BackgroundWhiteSK;
+        Invalidate();
+    }
+
+    private void OnContentBackgroundColorChanged()
+    {
+        _contentBackgroundColorSK = ContentBackgroundColor?.ToSKColor() ?? SkiaTheme.Gray50SK;
+        Invalidate();
+    }
 
     private void OnFlyoutIsPresentedChanged(bool newValue)
     {
@@ -234,18 +272,18 @@ public class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Background color of the flyout.
     /// </summary>
-    public SKColor FlyoutBackgroundColor
+    public Color? FlyoutBackgroundColor
     {
-        get => (SKColor)GetValue(FlyoutBackgroundColorProperty);
+        get => (Color?)GetValue(FlyoutBackgroundColorProperty);
         set => SetValue(FlyoutBackgroundColorProperty, value);
     }
 
     /// <summary>
     /// Text color in the flyout.
     /// </summary>
-    public SKColor FlyoutTextColor
+    public Color? FlyoutTextColor
     {
-        get => (SKColor)GetValue(FlyoutTextColorProperty);
+        get => (Color?)GetValue(FlyoutTextColorProperty);
         set => SetValue(FlyoutTextColorProperty, value);
     }
 
@@ -272,18 +310,18 @@ public class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Background color of the navigation bar.
     /// </summary>
-    public SKColor NavBarBackgroundColor
+    public Color? NavBarBackgroundColor
     {
-        get => (SKColor)GetValue(NavBarBackgroundColorProperty);
+        get => (Color?)GetValue(NavBarBackgroundColorProperty);
         set => SetValue(NavBarBackgroundColorProperty, value);
     }
 
     /// <summary>
     /// Text color of the navigation bar title.
     /// </summary>
-    public SKColor NavBarTextColor
+    public Color? NavBarTextColor
     {
-        get => (SKColor)GetValue(NavBarTextColorProperty);
+        get => (Color?)GetValue(NavBarTextColorProperty);
         set => SetValue(NavBarTextColorProperty, value);
     }
 
@@ -335,9 +373,9 @@ public class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Background color of the content area.
     /// </summary>
-    public SKColor ContentBackgroundColor
+    public Color? ContentBackgroundColor
     {
-        get => (SKColor)GetValue(ContentBackgroundColorProperty);
+        get => (Color?)GetValue(ContentBackgroundColorProperty);
         set => SetValue(ContentBackgroundColorProperty, value);
     }
 
@@ -789,7 +827,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = NavBarBackgroundColor,
+            Color = _navBarBackgroundColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -798,7 +836,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw nav icon (back arrow if can go back, else hamburger menu if flyout enabled)
         using var iconPaint = new SKPaint
         {
-            Color = NavBarTextColor,
+            Color = _navBarTextColorSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             StrokeCap = SKStrokeCap.Round,
@@ -813,7 +851,7 @@ public class SkiaShell : SkiaLayoutView
             // Draw iOS-style back chevron "<"
             using var chevronPaint = new SKPaint
             {
-                Color = NavBarTextColor,
+                Color = _navBarTextColorSK,
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2.5f,
                 StrokeCap = SKStrokeCap.Round,
@@ -838,7 +876,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw title
         using var titlePaint = new SKPaint
         {
-            Color = NavBarTextColor,
+            Color = _navBarTextColorSK,
             TextSize = 20f,
             IsAntialias = true,
             FakeBoldText = true
@@ -865,7 +903,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = SKColors.White,
+            Color = SkiaTheme.BackgroundWhiteSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -874,7 +912,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw top border
         using var borderPaint = new SKPaint
         {
-            Color = new SKColor(224, 224, 224),
+            Color = SkiaTheme.Gray300SK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
@@ -894,7 +932,7 @@ public class SkiaShell : SkiaLayoutView
             var item = section.Items[i];
             bool isSelected = i == _selectedItemIndex;
 
-            textPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(117, 117, 117);
+            textPaint.Color = isSelected ? _navBarBackgroundColorSK : SkiaTheme.TextTertiarySK;
 
             var textBounds = new SKRect();
             textPaint.MeasureText(item.Title, ref textBounds);
@@ -911,7 +949,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw scrim
         using var scrimPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, (byte)(100 * _flyoutAnimationProgress)),
+            Color = SkiaTheme.Shadow40SK.WithAlpha((byte)(100 * _flyoutAnimationProgress)),
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, scrimPaint);
@@ -926,7 +964,7 @@ public class SkiaShell : SkiaLayoutView
 
         using var flyoutPaint = new SKPaint
         {
-            Color = FlyoutBackgroundColor,
+            Color = _flyoutBackgroundColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -952,14 +990,14 @@ public class SkiaShell : SkiaLayoutView
             {
                 using var selectionPaint = new SKPaint
                 {
-                    Color = new SKColor(33, 150, 243, 30),
+                    Color = SkiaTheme.PrimarySelectionSK.WithAlpha(30),
                     Style = SKPaintStyle.Fill
                 };
                 var selectionRect = new SKRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight);
                 canvas.DrawRect(selectionRect, selectionPaint);
             }
 
-            itemTextPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(33, 33, 33);
+            itemTextPaint.Color = isSelected ? _navBarBackgroundColorSK : _flyoutTextColorSK;
             canvas.DrawText(section.Title, flyoutBounds.Left + 16, itemY + 30, itemTextPaint);
 
             itemY += itemHeight;

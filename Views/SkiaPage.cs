@@ -13,8 +13,10 @@ public class SkiaPage : SkiaView
 {
     private SkiaView? _content;
     private string _title = "";
-    private SKColor _titleBarColor = new SKColor(0x21, 0x96, 0xF3); // Material Blue
-    private SKColor _titleTextColor = SKColors.White;
+    protected SKColor _titleBarColor = SkiaTheme.PrimarySK;
+    protected SKColor _titleTextColor = SKColors.White;
+    private Color _titleBarColorMaui = Color.FromRgb(0x21, 0x96, 0xF3); // Material Blue
+    private Color _titleTextColorMaui = Colors.White;
     private bool _showNavigationBar = false;
     private float _navigationBarHeight = 56;
 
@@ -52,22 +54,24 @@ public class SkiaPage : SkiaView
         }
     }
 
-    public SKColor TitleBarColor
+    public Color TitleBarColor
     {
-        get => _titleBarColor;
+        get => _titleBarColorMaui;
         set
         {
-            _titleBarColor = value;
+            _titleBarColorMaui = value;
+            _titleBarColor = value.ToSKColor();
             Invalidate();
         }
     }
 
-    public SKColor TitleTextColor
+    public Color TitleTextColor
     {
-        get => _titleTextColor;
+        get => _titleTextColorMaui;
         set
         {
-            _titleTextColor = value;
+            _titleTextColorMaui = value;
+            _titleTextColor = value.ToSKColor();
             Invalidate();
         }
     }
@@ -228,7 +232,7 @@ public class SkiaPage : SkiaView
         // Draw shadow
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 30),
+            Color = SkiaTheme.Shadow20SK,
             Style = SKPaintStyle.Fill,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
         };
@@ -240,7 +244,7 @@ public class SkiaPage : SkiaView
         // Draw semi-transparent overlay
         using var overlayPaint = new SKPaint
         {
-            Color = new SKColor(255, 255, 255, 180),
+            Color = SkiaTheme.WhiteSemiTransparentSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, overlayPaint);
@@ -379,7 +383,7 @@ public class SkiaContentPage : SkiaPage
         // Draw navigation bar background
         using var barPaint = new SKPaint
         {
-            Color = TitleBarColor,
+            Color = _titleBarColor,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, barPaint);
@@ -390,7 +394,7 @@ public class SkiaContentPage : SkiaPage
             using var font = new SKFont(SKTypeface.Default, 20);
             using var textPaint = new SKPaint(font)
             {
-                Color = TitleTextColor,
+                Color = _titleTextColor,
                 IsAntialias = true
             };
 
@@ -408,7 +412,7 @@ public class SkiaContentPage : SkiaPage
         // Draw shadow
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 30),
+            Color = SkiaTheme.Shadow20SK,
             Style = SKPaintStyle.Fill,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
         };
@@ -424,7 +428,7 @@ public class SkiaContentPage : SkiaPage
         using var font = new SKFont(SKTypeface.Default, 14);
         using var textPaint = new SKPaint(font)
         {
-            Color = TitleTextColor,
+            Color = _titleTextColor,
             IsAntialias = true
         };
 

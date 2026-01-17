@@ -123,7 +123,7 @@ public partial class RefreshViewHandler : ViewHandler<RefreshView, SkiaRefreshVi
 
         if (refreshView.RefreshColor is not null)
         {
-            handler.PlatformView.RefreshColor = refreshView.RefreshColor.ToSKColor();
+            handler.PlatformView.RefreshColor = refreshView.RefreshColor;
         }
     }
 
@@ -145,7 +145,7 @@ public partial class RefreshViewHandler : ViewHandler<RefreshView, SkiaRefreshVi
 
         if (refreshView.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.RefreshBackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.RefreshBackgroundColor = solidBrush.Color;
         }
     }
 }

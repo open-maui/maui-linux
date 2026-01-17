@@ -22,17 +22,17 @@ public class SkiaAlertDialog : SkiaView
     private bool _cancelHovered;
     private bool _acceptHovered;
 
-    // Dialog styling
-    private static readonly SKColor OverlayColor = new SKColor(0, 0, 0, 128);
-    private static readonly SKColor DialogBackground = SKColors.White;
-    private static readonly SKColor TitleColor = new SKColor(0x21, 0x21, 0x21);
-    private static readonly SKColor MessageColor = new SKColor(0x61, 0x61, 0x61);
-    private static readonly SKColor ButtonColor = new SKColor(0x21, 0x96, 0xF3);
-    private static readonly SKColor ButtonHoverColor = new SKColor(0x19, 0x76, 0xD2);
-    private static readonly SKColor ButtonTextColor = SKColors.White;
-    private static readonly SKColor CancelButtonColor = new SKColor(0x9E, 0x9E, 0x9E);
-    private static readonly SKColor CancelButtonHoverColor = new SKColor(0x75, 0x75, 0x75);
-    private static readonly SKColor BorderColor = new SKColor(0xE0, 0xE0, 0xE0);
+    // Dialog styling - using SkiaTheme for MAUI-compliant theming
+    private static readonly SKColor OverlayColor = SkiaTheme.Overlay50SK;
+    private static readonly SKColor DialogBackground = SkiaTheme.BackgroundWhiteSK;
+    private static readonly SKColor TitleColor = SkiaTheme.TextPrimarySK;
+    private static readonly SKColor MessageColor = SkiaTheme.TextSecondarySK;
+    private static readonly SKColor ButtonColor = SkiaTheme.PrimarySK;
+    private static readonly SKColor ButtonHoverColor = SkiaTheme.PrimaryDarkSK;
+    private static readonly SKColor ButtonTextColor = SkiaTheme.BackgroundWhiteSK;
+    private static readonly SKColor CancelButtonColor = SkiaTheme.ButtonCancelSK;
+    private static readonly SKColor CancelButtonHoverColor = SkiaTheme.ButtonCancelHoverSK;
+    private static readonly SKColor BorderColor = SkiaTheme.BorderLightSK;
 
     private const float DialogWidth = 400;
     private const float DialogPadding = 24;
@@ -80,7 +80,7 @@ public class SkiaAlertDialog : SkiaView
         // Draw dialog shadow
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 60),
+            Color = SkiaTheme.Shadow25SK,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 8),
             Style = SKPaintStyle.Fill
         };

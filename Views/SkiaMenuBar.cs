@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -15,30 +16,78 @@ public class SkiaMenuBar : SkiaView
     private int _openIndex = -1;
     private SkiaMenuFlyout? _openFlyout;
 
+    // Internal SKColor fields for rendering
+    private SKColor _menuBackgroundColorSK = SkiaTheme.MenuBackgroundSK;
+    private SKColor _textColorSK = SkiaTheme.TextPrimarySK;
+    private SKColor _hoverBackgroundColorSK = SkiaTheme.MenuHoverSK;
+    private SKColor _activeBackgroundColorSK = SkiaTheme.MenuActiveSK;
+
+    // MAUI Color backing fields
+    private Color _menuBackgroundColor = Color.FromRgb(240, 240, 240);
+    private Color _textColor = Color.FromRgb(33, 33, 33);
+    private Color _hoverBackgroundColor = Color.FromRgb(220, 220, 220);
+    private Color _activeBackgroundColor = Color.FromRgb(200, 200, 200);
+
     /// <summary>
     /// Gets the menu bar items.
     /// </summary>
     public IList<MenuBarItem> Items => _items;
 
     /// <summary>
-    /// Gets or sets the background color.
+    /// Gets or sets the menu bar background color.
     /// </summary>
-    public SKColor BackgroundColor { get; set; } = new SKColor(240, 240, 240);
+    public new Color MenuBackgroundColor
+    {
+        get => _menuBackgroundColor;
+        set
+        {
+            _menuBackgroundColor = value;
+            _menuBackgroundColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public SKColor TextColor { get; set; } = new SKColor(33, 33, 33);
+    public Color TextColor
+    {
+        get => _textColor;
+        set
+        {
+            _textColor = value;
+            _textColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the hover background color.
     /// </summary>
-    public SKColor HoverBackgroundColor { get; set; } = new SKColor(220, 220, 220);
+    public Color HoverBackgroundColor
+    {
+        get => _hoverBackgroundColor;
+        set
+        {
+            _hoverBackgroundColor = value;
+            _hoverBackgroundColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the active background color.
     /// </summary>
-    public SKColor ActiveBackgroundColor { get; set; } = new SKColor(200, 200, 200);
+    public Color ActiveBackgroundColor
+    {
+        get => _activeBackgroundColor;
+        set
+        {
+            _activeBackgroundColor = value;
+            _activeBackgroundColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the bar height.
@@ -67,7 +116,7 @@ public class SkiaMenuBar : SkiaView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = BackgroundColor,
+            Color = _menuBackgroundColorSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(Bounds, bgPaint);
@@ -75,7 +124,7 @@ public class SkiaMenuBar : SkiaView
         // Draw bottom border
         using var borderPaint = new SKPaint
         {
-            Color = new SKColor(200, 200, 200),
+            Color = SkiaTheme.BorderMediumSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
@@ -84,7 +133,7 @@ public class SkiaMenuBar : SkiaView
         // Draw menu items
         using var textPaint = new SKPaint
         {
-            Color = TextColor,
+            Color = _textColorSK,
             TextSize = FontSize,
             IsAntialias = true
         };
@@ -103,12 +152,12 @@ public class SkiaMenuBar : SkiaView
             // Draw item background
             if (i == _openIndex)
             {
-                using var activePaint = new SKPaint { Color = ActiveBackgroundColor, Style = SKPaintStyle.Fill };
+                using var activePaint = new SKPaint { Color = _activeBackgroundColorSK, Style = SKPaintStyle.Fill };
                 canvas.DrawRect(itemBounds, activePaint);
             }
             else if (i == _hoveredIndex)
             {
-                using var hoverPaint = new SKPaint { Color = HoverBackgroundColor, Style = SKPaintStyle.Fill };
+                using var hoverPaint = new SKPaint { Color = _hoverBackgroundColorSK, Style = SKPaintStyle.Fill };
                 canvas.DrawRect(itemBounds, hoverPaint);
             }
 

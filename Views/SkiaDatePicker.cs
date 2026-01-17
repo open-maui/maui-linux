@@ -235,11 +235,7 @@ public class SkiaDatePicker : SkiaView
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     /// <summary>
@@ -248,11 +244,7 @@ public class SkiaDatePicker : SkiaView
     private static SKColor ToSKColorWithAlpha(Color? color, byte alpha)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            alpha);
+        return color.ToSKColor().WithAlpha(alpha);
     }
 
     #endregion
@@ -318,7 +310,7 @@ public class SkiaDatePicker : SkiaView
 
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? GetEffectiveBackgroundColor() : new SKColor(245, 245, 245),
+            Color = IsEnabled ? GetEffectiveBackgroundColor() : SkiaTheme.Gray100SK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -410,7 +402,7 @@ public class SkiaDatePicker : SkiaView
 
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 40),
+            Color = SkiaTheme.Shadow25SK,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f),
             Style = SKPaintStyle.Fill
         };
@@ -457,7 +449,7 @@ public class SkiaDatePicker : SkiaView
         using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
         using var textPaint = new SKPaint(font)
         {
-            Color = SKColors.White,
+            Color = SkiaTheme.BackgroundWhiteSK,
             IsAntialias = true
         };
 
@@ -468,7 +460,7 @@ public class SkiaDatePicker : SkiaView
 
         using var arrowPaint = new SKPaint
         {
-            Color = SKColors.White,
+            Color = SkiaTheme.BackgroundWhiteSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2f,
             IsAntialias = true,
@@ -496,7 +488,7 @@ public class SkiaDatePicker : SkiaView
         using var font = new SKFont(SKTypeface.Default, 12f, 1f, 0f);
         using var paint = new SKPaint(font)
         {
-            Color = new SKColor(128, 128, 128),
+            Color = SkiaTheme.TextPlaceholderSK,
             IsAntialias = true
         };
 
@@ -563,7 +555,7 @@ public class SkiaDatePicker : SkiaView
                 canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2f - 2f, bgPaint);
             }
 
-            textPaint.Color = isSelected ? SKColors.White : (isDisabled ? disabledDayColor : textColor);
+            textPaint.Color = isSelected ? SkiaTheme.BackgroundWhiteSK : (isDisabled ? disabledDayColor : textColor);
             string dayText = day.ToString();
             SKRect dayTextBounds = default;
             textPaint.MeasureText(dayText, ref dayTextBounds);

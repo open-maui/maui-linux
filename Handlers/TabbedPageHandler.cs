@@ -126,7 +126,7 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
 
         if (tabbedView is TabbedPage tabbedPage && tabbedPage.BarBackgroundColor is Color color)
         {
-            handler.PlatformView.TabBarBackgroundColor = color.ToSKColor();
+            handler.PlatformView.TabBarBackgroundColor = color;
         }
     }
 
@@ -137,7 +137,7 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
         if (tabbedView is TabbedPage tabbedPage && tabbedPage.BarTextColor is Color color)
         {
             // BarTextColor applies to unselected tabs
-            handler.PlatformView.UnselectedTabColor = color.ToSKColor();
+            handler.PlatformView.UnselectedTabColor = color;
         }
     }
 
@@ -147,8 +147,8 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
 
         if (tabbedView is TabbedPage tabbedPage && tabbedPage.SelectedTabColor is Color color)
         {
-            handler.PlatformView.SelectedTabColor = color.ToSKColor();
-            handler.PlatformView.IndicatorColor = color.ToSKColor();
+            handler.PlatformView.SelectedTabColor = color;
+            handler.PlatformView.IndicatorColor = color;
         }
     }
 
@@ -158,7 +158,7 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
 
         if (tabbedView is TabbedPage tabbedPage && tabbedPage.UnselectedTabColor is Color color)
         {
-            handler.PlatformView.UnselectedTabColor = color.ToSKColor();
+            handler.PlatformView.UnselectedTabColor = color;
         }
     }
 }

@@ -239,17 +239,17 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         // Sync flyout colors
         if (shell.FlyoutBackgroundColor is Color flyoutBgColor)
         {
-            platformView.FlyoutBackgroundColor = flyoutBgColor.ToSKColor();
+            platformView.FlyoutBackgroundColor = flyoutBgColor;
         }
         else if (shell.FlyoutBackground is SolidColorBrush flyoutBrush)
         {
-            platformView.FlyoutBackgroundColor = flyoutBrush.Color.ToSKColor();
+            platformView.FlyoutBackgroundColor = flyoutBrush.Color;
         }
 
         // Sync nav bar colors
         if (shell.BackgroundColor is Color bgColor)
         {
-            platformView.NavBarBackgroundColor = bgColor.ToSKColor();
+            platformView.NavBarBackgroundColor = bgColor;
         }
     }
 
@@ -293,7 +293,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
         if (shell.FlyoutBackgroundColor is Color color)
         {
-            handler.PlatformView.FlyoutBackgroundColor = color.ToSKColor();
+            handler.PlatformView.FlyoutBackgroundColor = color;
         }
     }
 
@@ -303,7 +303,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
         if (shell.FlyoutBackground is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.FlyoutBackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.FlyoutBackgroundColor = solidBrush.Color;
         }
     }
 
@@ -313,7 +313,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
         if (shell.BackgroundColor is Color color)
         {
-            handler.PlatformView.NavBarBackgroundColor = color.ToSKColor();
+            handler.PlatformView.NavBarBackgroundColor = color;
         }
     }
 

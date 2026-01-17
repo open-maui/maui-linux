@@ -1377,7 +1377,7 @@ public class SkiaWebView : SkiaView
 
         using var borderPaint = new SKPaint
         {
-            Color = new SKColor(200, 200, 200),
+            Color = SkiaTheme.BorderMediumSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
@@ -1388,7 +1388,7 @@ public class SkiaWebView : SkiaView
 
         using var iconPaint = new SKPaint
         {
-            Color = new SKColor(100, 100, 100),
+            Color = SkiaTheme.Gray600SK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             IsAntialias = true
@@ -1399,7 +1399,7 @@ public class SkiaWebView : SkiaView
 
         using var textPaint = new SKPaint
         {
-            Color = new SKColor(80, 80, 80),
+            Color = SkiaTheme.Gray700SK,
             IsAntialias = true,
             TextSize = 14
         };
@@ -1429,7 +1429,7 @@ public class SkiaWebView : SkiaView
         {
             using var hintPaint = new SKPaint
             {
-                Color = new SKColor(120, 120, 120),
+                Color = SkiaTheme.Gray600SK,
                 IsAntialias = true,
                 TextSize = 11
             };
@@ -1441,12 +1441,12 @@ public class SkiaWebView : SkiaView
         if (_loadProgress > 0 && _loadProgress < 1)
         {
             var progressRect = new SKRect(bounds.Left + 20, bounds.Bottom - 30, bounds.Right - 20, bounds.Bottom - 20);
-            using var progressBgPaint = new SKPaint { Color = new SKColor(230, 230, 230), Style = SKPaintStyle.Fill };
+            using var progressBgPaint = new SKPaint { Color = SkiaTheme.Gray200SK, Style = SKPaintStyle.Fill };
             canvas.DrawRoundRect(new SKRoundRect(progressRect, 5), progressBgPaint);
 
             float filledWidth = progressRect.Width * (float)_loadProgress;
             var filledRect = new SKRect(progressRect.Left, progressRect.Top, progressRect.Left + filledWidth, progressRect.Bottom);
-            using var progressPaint = new SKPaint { Color = new SKColor(33, 150, 243), Style = SKPaintStyle.Fill };
+            using var progressPaint = new SKPaint { Color = SkiaTheme.PrimarySK, Style = SKPaintStyle.Fill };
             canvas.DrawRoundRect(new SKRoundRect(filledRect, 5), progressPaint);
         }
     }

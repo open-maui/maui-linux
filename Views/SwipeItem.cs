@@ -36,18 +36,10 @@ public class SwipeItem
     /// <summary>
     /// Helper to convert BackgroundColor to SKColor for rendering.
     /// </summary>
-    internal SKColor GetBackgroundColorSK() => new SKColor(
-        (byte)(BackgroundColor.Red * 255),
-        (byte)(BackgroundColor.Green * 255),
-        (byte)(BackgroundColor.Blue * 255),
-        (byte)(BackgroundColor.Alpha * 255));
+    internal SKColor GetBackgroundColorSK() => BackgroundColor.ToSKColor();
 
     /// <summary>
     /// Helper to convert TextColor to SKColor for rendering.
     /// </summary>
-    internal SKColor GetTextColorSK() => new SKColor(
-        (byte)(TextColor.Red * 255),
-        (byte)(TextColor.Green * 255),
-        (byte)(TextColor.Blue * 255),
-        (byte)(TextColor.Alpha * 255));
+    internal SKColor GetTextColorSK() => TextColor.ToSKColor();
 }

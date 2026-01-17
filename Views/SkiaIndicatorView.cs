@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -13,6 +14,16 @@ public class SkiaIndicatorView : SkiaView
 {
     private int _count = 0;
     private int _position = 0;
+
+    // SKColor fields for rendering
+    private SKColor _indicatorColorSK = SkiaTheme.IndicatorUnselectedSK;
+    private SKColor _selectedIndicatorColorSK = SkiaTheme.PrimarySK;
+    private SKColor _borderColorSK = SkiaTheme.Gray600SK;
+
+    // MAUI Color backing fields
+    private Color _indicatorColor = Color.FromRgb(180, 180, 180);
+    private Color _selectedIndicatorColor = Color.FromRgb(33, 150, 243);
+    private Color _borderColor = Color.FromRgb(100, 100, 100);
 
     /// <summary>
     /// Gets or sets the number of indicators to display.
@@ -55,12 +66,30 @@ public class SkiaIndicatorView : SkiaView
     /// <summary>
     /// Gets or sets the indicator color.
     /// </summary>
-    public SKColor IndicatorColor { get; set; } = new SKColor(180, 180, 180);
+    public Color IndicatorColor
+    {
+        get => _indicatorColor;
+        set
+        {
+            _indicatorColor = value;
+            _indicatorColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the selected indicator color.
     /// </summary>
-    public SKColor SelectedIndicatorColor { get; set; } = new SKColor(33, 150, 243);
+    public Color SelectedIndicatorColor
+    {
+        get => _selectedIndicatorColor;
+        set
+        {
+            _selectedIndicatorColor = value;
+            _selectedIndicatorColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the indicator size.
@@ -90,7 +119,16 @@ public class SkiaIndicatorView : SkiaView
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public SKColor BorderColor { get; set; } = new SKColor(100, 100, 100);
+    public Color BorderColor
+    {
+        get => _borderColor;
+        set
+        {
+            _borderColor = value;
+            _borderColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the border width.
@@ -150,21 +188,21 @@ public class SkiaIndicatorView : SkiaView
 
         using var normalPaint = new SKPaint
         {
-            Color = IndicatorColor,
+            Color = _indicatorColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
         using var selectedPaint = new SKPaint
         {
-            Color = SelectedIndicatorColor,
+            Color = _selectedIndicatorColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
         using var borderPaint = new SKPaint
         {
-            Color = BorderColor,
+            Color = _borderColorSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = BorderWidth,
             IsAntialias = true

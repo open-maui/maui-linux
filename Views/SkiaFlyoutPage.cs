@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,6 +22,10 @@ public class SkiaFlyoutPage : SkiaLayoutView
     private bool _isDragging = false;
     private float _dragStartX;
     private float _dragCurrentX;
+
+    // ScrimColor backing fields
+    private SKColor _scrimColorSK = SkiaTheme.Overlay40SK;
+    private Color _scrimColor = SkiaTheme.Overlay40;
 
     /// <summary>
     /// Gets or sets the flyout content (menu).
@@ -128,7 +133,16 @@ public class SkiaFlyoutPage : SkiaLayoutView
     /// <summary>
     /// Background color of the scrim when flyout is open.
     /// </summary>
-    public SKColor ScrimColor { get; set; } = new SKColor(0, 0, 0, 100);
+    public Color ScrimColor
+    {
+        get => _scrimColor;
+        set
+        {
+            _scrimColor = value;
+            _scrimColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Shadow width for the flyout.
@@ -194,7 +208,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
             // Draw scrim (semi-transparent overlay)
             using var scrimPaint = new SKPaint
             {
-                Color = ScrimColor.WithAlpha((byte)(ScrimColor.Alpha * _flyoutAnimationProgress)),
+                Color = _scrimColorSK.WithAlpha((byte)(_scrimColorSK.Alpha * _flyoutAnimationProgress)),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(Bounds, scrimPaint);
@@ -228,7 +242,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
             Shader = SKShader.CreateLinearGradient(
                 new SKPoint(shadowRect.Left, shadowRect.MidY),
                 new SKPoint(shadowRect.Right, shadowRect.MidY),
-                new SKColor[] { new SKColor(0, 0, 0, 60), SKColors.Transparent },
+                new SKColor[] { SkiaTheme.Shadow25SK, SKColors.Transparent },
                 null,
                 SKShaderTileMode.Clamp)
         };

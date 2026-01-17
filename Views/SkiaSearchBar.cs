@@ -133,36 +133,6 @@ public class SkiaSearchBar : SkiaView
 
     #endregion
 
-    #region Helper Methods
-
-    /// <summary>
-    /// Converts a MAUI Color to SkiaSharp SKColor.
-    /// </summary>
-    private static SKColor ToSKColor(Color? color)
-    {
-        if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
-    }
-
-    /// <summary>
-    /// Converts a MAUI Color to SKColor with modified alpha.
-    /// </summary>
-    private static SKColor ToSKColorWithAlpha(Color? color, byte alpha)
-    {
-        if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            alpha);
-    }
-
-    #endregion
-
     #region Drawing
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -175,7 +145,7 @@ public class SkiaSearchBar : SkiaView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = ToSKColor(SearchBarBackgroundColor),
+            Color = SearchBarBackgroundColor.ToSKColor(),
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -188,7 +158,7 @@ public class SkiaSearchBar : SkiaView
         {
             using var borderPaint = new SKPaint
             {
-                Color = ToSKColor(FocusedBorderColor),
+                Color = FocusedBorderColor.ToSKColor(),
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2
@@ -224,7 +194,7 @@ public class SkiaSearchBar : SkiaView
     {
         using var paint = new SKPaint
         {
-            Color = ToSKColor(IconColor),
+            Color = IconColor.ToSKColor(),
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
@@ -252,7 +222,7 @@ public class SkiaSearchBar : SkiaView
         // Draw circle background
         using var bgPaint = new SKPaint
         {
-            Color = ToSKColorWithAlpha(ClearButtonColor, 80),
+            Color = ClearButtonColor.ToSKColor().WithAlpha(80),
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -261,7 +231,7 @@ public class SkiaSearchBar : SkiaView
         // Draw X
         using var paint = new SKPaint
         {
-            Color = ToSKColor(ClearButtonColor),
+            Color = ClearButtonColor.ToSKColor(),
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,

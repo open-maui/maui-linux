@@ -100,19 +100,19 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
         InitializeHighContrastService();
         return _highContrastService?.GetColors() ?? new HighContrastColors
         {
-            Background = SKColors.White,
-            Foreground = new SKColor(33, 33, 33),
-            Accent = new SKColor(33, 150, 243),
-            Border = new SKColor(200, 200, 200),
-            Error = new SKColor(244, 67, 54),
-            Success = new SKColor(76, 175, 80),
-            Warning = new SKColor(255, 152, 0),
-            Link = new SKColor(33, 150, 243),
-            LinkVisited = new SKColor(156, 39, 176),
-            Selection = new SKColor(33, 150, 243),
-            SelectionText = SKColors.White,
-            DisabledText = new SKColor(158, 158, 158),
-            DisabledBackground = new SKColor(238, 238, 238)
+            Background = SkiaTheme.BackgroundWhiteSK,
+            Foreground = SkiaTheme.TextPrimarySK,
+            Accent = SkiaTheme.PrimarySK,
+            Border = SkiaTheme.BorderMediumSK,
+            Error = SkiaTheme.ErrorSK,
+            Success = SkiaTheme.SuccessSK,
+            Warning = SkiaTheme.WarningSK,
+            Link = SkiaTheme.TextLinkSK,
+            LinkVisited = SkiaTheme.TextLinkVisitedSK,
+            Selection = SkiaTheme.PrimarySK,
+            SelectionText = SkiaTheme.BackgroundWhiteSK,
+            DisabledText = SkiaTheme.TextDisabledSK,
+            DisabledBackground = SkiaTheme.BackgroundDisabledSK
         };
     }
 
@@ -1386,12 +1386,8 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
         if (Shadow == null) return;
 
         var shadowColor = Shadow.Brush is SolidColorBrush scb
-            ? new SKColor(
-                (byte)(scb.Color.Red * 255),
-                (byte)(scb.Color.Green * 255),
-                (byte)(scb.Color.Blue * 255),
-                (byte)(scb.Color.Alpha * 255 * Shadow.Opacity))
-            : new SKColor(0, 0, 0, (byte)(255 * Shadow.Opacity));
+            ? scb.Color.ToSKColor().WithAlpha((byte)(scb.Color.Alpha * 255 * Shadow.Opacity))
+            : SKColors.Black.WithAlpha((byte)(255 * Shadow.Opacity));
 
         using var shadowPaint = new SKPaint
         {
@@ -1484,11 +1480,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
             if (Background is SolidColorBrush scb)
             {
-                paint.Color = new SKColor(
-                    (byte)(scb.Color.Red * 255),
-                    (byte)(scb.Color.Green * 255),
-                    (byte)(scb.Color.Blue * 255),
-                    (byte)(scb.Color.Alpha * 255));
+                paint.Color = scb.Color.ToSKColor();
                 canvas.DrawRect(bounds, paint);
             }
             else if (Background is LinearGradientBrush lgb)
@@ -1500,12 +1492,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
                     bounds.Left + (float)(lgb.EndPoint.X * bounds.Width),
                     bounds.Top + (float)(lgb.EndPoint.Y * bounds.Height));
 
-                var colors = lgb.GradientStops.Select(s =>
-                    new SKColor(
-                        (byte)(s.Color.Red * 255),
-                        (byte)(s.Color.Green * 255),
-                        (byte)(s.Color.Blue * 255),
-                        (byte)(s.Color.Alpha * 255))).ToArray();
+                var colors = lgb.GradientStops.Select(s => s.Color.ToSKColor()).ToArray();
                 var positions = lgb.GradientStops.Select(s => s.Offset).ToArray();
 
                 paint.Shader = SKShader.CreateLinearGradient(start, end, colors, positions, SKShaderTileMode.Clamp);
@@ -1518,12 +1505,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
                     bounds.Top + (float)(rgb.Center.Y * bounds.Height));
                 var radius = (float)(rgb.Radius * Math.Max(bounds.Width, bounds.Height));
 
-                var colors = rgb.GradientStops.Select(s =>
-                    new SKColor(
-                        (byte)(s.Color.Red * 255),
-                        (byte)(s.Color.Green * 255),
-                        (byte)(s.Color.Blue * 255),
-                        (byte)(s.Color.Alpha * 255))).ToArray();
+                var colors = rgb.GradientStops.Select(s => s.Color.ToSKColor()).ToArray();
                 var positions = rgb.GradientStops.Select(s => s.Offset).ToArray();
 
                 paint.Shader = SKShader.CreateRadialGradient(center, radius, colors, positions, SKShaderTileMode.Clamp);

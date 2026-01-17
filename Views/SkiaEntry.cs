@@ -777,11 +777,7 @@ public class SkiaEntry : SkiaView, IInputContext
     private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
-        return new SKColor(
-            (byte)(color.Red * 255),
-            (byte)(color.Green * 255),
-            (byte)(color.Blue * 255),
-            (byte)(color.Alpha * 255));
+        return color.ToSKColor();
     }
 
     /// <summary>
@@ -789,7 +785,7 @@ public class SkiaEntry : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectiveTextColor()
     {
-        return TextColor != null ? ToSKColor(TextColor) : SKColors.Black;
+        return TextColor != null ? ToSKColor(TextColor) : SkiaTheme.TextPrimarySK;
     }
 
     /// <summary>
@@ -797,7 +793,7 @@ public class SkiaEntry : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectivePlaceholderColor()
     {
-        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : new SKColor(0x9E, 0x9E, 0x9E);
+        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : SkiaTheme.TextDisabledSK;
     }
 
     /// <summary>
@@ -1018,7 +1014,7 @@ public class SkiaEntry : SkiaView, IInputContext
         // Draw circle background
         using var circlePaint = new SKPaint
         {
-            Color = new SKColor(0xBD, 0xBD, 0xBD),
+            Color = SkiaTheme.Gray400SK,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -1027,7 +1023,7 @@ public class SkiaEntry : SkiaView, IInputContext
         // Draw X
         using var xPaint = new SKPaint
         {
-            Color = SKColors.White,
+            Color = SkiaTheme.BackgroundWhiteSK,
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
