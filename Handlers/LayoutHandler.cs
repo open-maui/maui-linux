@@ -143,12 +143,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
         if (layout is IPadding paddable)
         {
-            var padding = paddable.Padding;
-            handler.PlatformView.Padding = new SKRect(
-                (float)padding.Left,
-                (float)padding.Top,
-                (float)padding.Right,
-                (float)padding.Bottom);
+            handler.PlatformView.Padding = paddable.Padding;
             handler.PlatformView.InvalidateMeasure();
             handler.PlatformView.Invalidate();
         }
@@ -262,11 +257,7 @@ public partial class GridHandler : LayoutHandler
             if (VirtualView is IPadding paddable)
             {
                 var padding = paddable.Padding;
-                platformView.Padding = new SKRect(
-                    (float)padding.Left,
-                    (float)padding.Top,
-                    (float)padding.Right,
-                    (float)padding.Bottom);
+                platformView.Padding = padding;
                 Console.WriteLine($"[GridHandler] Applied Padding: L={padding.Left}, T={padding.Top}, R={padding.Right}, B={padding.Bottom}");
             }
 

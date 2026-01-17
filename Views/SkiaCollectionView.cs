@@ -205,7 +205,7 @@ public class SkiaCollectionView : SkiaItemsView
     }
 
     /// <summary>Gets the SKColor for rendering selection highlight.</summary>
-    public SKColor SelectionColorSK => _selectionColorSK;
+    internal SKColor SelectionColorSK => _selectionColorSK;
 
     public Color HeaderBackgroundColor
     {
@@ -214,7 +214,7 @@ public class SkiaCollectionView : SkiaItemsView
     }
 
     /// <summary>Gets the SKColor for rendering header background.</summary>
-    public SKColor HeaderBackgroundColorSK => _headerBackgroundColorSK;
+    internal SKColor HeaderBackgroundColorSK => _headerBackgroundColorSK;
 
     public Color FooterBackgroundColor
     {
@@ -223,7 +223,7 @@ public class SkiaCollectionView : SkiaItemsView
     }
 
     /// <summary>Gets the SKColor for rendering footer background.</summary>
-    public SKColor FooterBackgroundColorSK => _footerBackgroundColorSK;
+    internal SKColor FooterBackgroundColorSK => _footerBackgroundColorSK;
 
     public event EventHandler<CollectionSelectionChangedEventArgs>? SelectionChanged;
 

@@ -66,12 +66,12 @@ public class SkiaCarouselView : SkiaLayoutView
     /// <summary>
     /// Gets or sets the peek amount (how much of adjacent items to show).
     /// </summary>
-    public float PeekAreaInsets { get; set; } = 0f;
+    public double PeekAreaInsets { get; set; } = 0.0;
 
     /// <summary>
     /// Gets or sets the spacing between items.
     /// </summary>
-    public float ItemSpacing { get; set; } = 0f;
+    public double ItemSpacing { get; set; } = 0.0;
 
     /// <summary>
     /// Gets or sets whether swipe gestures are enabled.
@@ -204,20 +204,20 @@ public class SkiaCarouselView : SkiaLayoutView
 
     private float GetOffsetForPosition(int position)
     {
-        float itemWidth = Bounds.Width - PeekAreaInsets * 2;
-        return position * (itemWidth + ItemSpacing);
+        float itemWidth = Bounds.Width - (float)PeekAreaInsets * 2;
+        return position * (itemWidth + (float)ItemSpacing);
     }
 
     private int GetPositionForOffset(float offset)
     {
-        float itemWidth = Bounds.Width - PeekAreaInsets * 2;
+        float itemWidth = Bounds.Width - (float)PeekAreaInsets * 2;
         if (itemWidth <= 0) return 0;
-        return Math.Clamp((int)Math.Round(offset / (itemWidth + ItemSpacing)), 0, Math.Max(0, _items.Count - 1));
+        return Math.Clamp((int)Math.Round(offset / (itemWidth + (float)ItemSpacing)), 0, Math.Max(0, _items.Count - 1));
     }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        float itemWidth = availableSize.Width - PeekAreaInsets * 2;
+        float itemWidth = availableSize.Width - (float)PeekAreaInsets * 2;
         float itemHeight = availableSize.Height - (ShowIndicators ? 30 : 0);
 
         foreach (var item in _items)
@@ -230,12 +230,12 @@ public class SkiaCarouselView : SkiaLayoutView
 
     protected override SKRect ArrangeOverride(SKRect bounds)
     {
-        float itemWidth = bounds.Width - PeekAreaInsets * 2;
+        float itemWidth = bounds.Width - (float)PeekAreaInsets * 2;
         float itemHeight = bounds.Height - (ShowIndicators ? 30 : 0);
 
         for (int i = 0; i < _items.Count; i++)
         {
-            float x = bounds.Left + PeekAreaInsets + i * (itemWidth + ItemSpacing) - _scrollOffset;
+            float x = bounds.Left + (float)PeekAreaInsets + i * (itemWidth + (float)ItemSpacing) - _scrollOffset;
             var itemBounds = new SKRect(x, bounds.Top, x + itemWidth, bounds.Top + itemHeight);
             _items[i].Arrange(itemBounds);
         }
@@ -271,12 +271,12 @@ public class SkiaCarouselView : SkiaLayoutView
         canvas.ClipRect(bounds);
 
         // Draw visible items
-        float itemWidth = bounds.Width - PeekAreaInsets * 2;
+        float itemWidth = bounds.Width - (float)PeekAreaInsets * 2;
         float contentHeight = bounds.Height - (ShowIndicators ? 30 : 0);
 
         for (int i = 0; i < _items.Count; i++)
         {
-            float x = bounds.Left + PeekAreaInsets + i * (itemWidth + ItemSpacing) - _scrollOffset;
+            float x = bounds.Left + (float)PeekAreaInsets + i * (itemWidth + (float)ItemSpacing) - _scrollOffset;
 
             // Only draw visible items
             if (x + itemWidth > bounds.Left && x < bounds.Right)
@@ -389,7 +389,7 @@ public class SkiaCarouselView : SkiaLayoutView
         _isDragging = false;
 
         // Determine target position based on velocity and position
-        float itemWidth = Bounds.Width - PeekAreaInsets * 2;
+        float itemWidth = Bounds.Width - (float)PeekAreaInsets * 2;
         int targetPosition = GetPositionForOffset(_scrollOffset);
 
         // Apply velocity influence

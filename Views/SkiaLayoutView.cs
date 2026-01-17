@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Microsoft.Maui;
 
@@ -19,9 +20,9 @@ public abstract class SkiaLayoutView : SkiaView
     public static readonly BindableProperty SpacingProperty =
         BindableProperty.Create(
             nameof(Spacing),
-            typeof(float),
+            typeof(double),
             typeof(SkiaLayoutView),
-            0f,
+            0.0,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLayoutView)b).InvalidateMeasure());
 
@@ -31,9 +32,9 @@ public abstract class SkiaLayoutView : SkiaView
     public static readonly BindableProperty PaddingProperty =
         BindableProperty.Create(
             nameof(Padding),
-            typeof(SKRect),
+            typeof(Thickness),
             typeof(SkiaLayoutView),
-            SKRect.Empty,
+            default(Thickness),
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaLayoutView)b).InvalidateMeasure());
 
@@ -61,18 +62,18 @@ public abstract class SkiaLayoutView : SkiaView
     /// <summary>
     /// Spacing between children.
     /// </summary>
-    public float Spacing
+    public double Spacing
     {
-        get => (float)GetValue(SpacingProperty);
+        get => (double)GetValue(SpacingProperty);
         set => SetValue(SpacingProperty, value);
     }
 
     /// <summary>
     /// Padding around the content.
     /// </summary>
-    public SKRect Padding
+    public Thickness Padding
     {
-        get => (SKRect)GetValue(PaddingProperty);
+        get => (Thickness)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
     }
 
@@ -201,10 +202,10 @@ public abstract class SkiaLayoutView : SkiaView
     protected SKRect GetContentBounds(SKRect bounds)
     {
         return new SKRect(
-            bounds.Left + Padding.Left,
-            bounds.Top + Padding.Top,
-            bounds.Right - Padding.Right,
-            bounds.Bottom - Padding.Bottom);
+            bounds.Left + (float)Padding.Left,
+            bounds.Top + (float)Padding.Top,
+            bounds.Right - (float)Padding.Right,
+            bounds.Bottom - (float)Padding.Bottom);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -359,10 +360,10 @@ public class SkiaStackLayout : SkiaLayoutView
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         // Handle NaN/Infinity in padding
-        var paddingLeft = float.IsNaN(Padding.Left) ? 0 : Padding.Left;
-        var paddingRight = float.IsNaN(Padding.Right) ? 0 : Padding.Right;
-        var paddingTop = float.IsNaN(Padding.Top) ? 0 : Padding.Top;
-        var paddingBottom = float.IsNaN(Padding.Bottom) ? 0 : Padding.Bottom;
+        var paddingLeft = (float)(double.IsNaN(Padding.Left) ? 0 : Padding.Left);
+        var paddingRight = (float)(double.IsNaN(Padding.Right) ? 0 : Padding.Right);
+        var paddingTop = (float)(double.IsNaN(Padding.Top) ? 0 : Padding.Top);
+        var paddingBottom = (float)(double.IsNaN(Padding.Bottom) ? 0 : Padding.Bottom);
 
         var contentWidth = availableSize.Width - paddingLeft - paddingRight;
         var contentHeight = availableSize.Height - paddingTop - paddingBottom;
@@ -402,7 +403,7 @@ public class SkiaStackLayout : SkiaLayoutView
 
         // Add spacing
         var visibleCount = Children.Count(c => c.IsVisible);
-        var totalSpacing = Math.Max(0, visibleCount - 1) * Spacing;
+        var totalSpacing = (float)(Math.Max(0, visibleCount - 1) * Spacing);
 
         if (Orientation == StackOrientation.Vertical)
         {
@@ -459,7 +460,7 @@ public class SkiaStackLayout : SkiaLayoutView
                     content.Top + offset,
                     content.Left + contentWidth,
                     content.Top + offset + useHeight);
-                offset += useHeight + Spacing;
+                offset += useHeight + (float)Spacing;
             }
             else
             {
@@ -499,7 +500,7 @@ public class SkiaStackLayout : SkiaLayoutView
                     childTop,
                     content.Left + offset + useWidth,
                     childBottom);
-                offset += useWidth + Spacing;
+                offset += useWidth + (float)Spacing;
             }
 
             // Apply child's margin
@@ -627,8 +628,8 @@ public class SkiaGrid : SkiaLayoutView
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        var contentWidth = availableSize.Width - Padding.Left - Padding.Right;
-        var contentHeight = availableSize.Height - Padding.Top - Padding.Bottom;
+        var contentWidth = availableSize.Width - (float)Padding.Left - (float)Padding.Right;
+        var contentHeight = availableSize.Height - (float)Padding.Top - (float)Padding.Bottom;
 
         // Handle NaN/Infinity
         if (float.IsNaN(contentWidth) || float.IsInfinity(contentWidth)) contentWidth = 800;
@@ -713,8 +714,8 @@ public class SkiaGrid : SkiaLayoutView
         var totalHeight = _rowHeights.Sum() + Math.Max(0, rowCount - 1) * RowSpacing;
 
         return new SKSize(
-            totalWidth + Padding.Left + Padding.Right,
-            totalHeight + Padding.Top + Padding.Bottom);
+            totalWidth + (float)Padding.Left + (float)Padding.Right,
+            totalHeight + (float)Padding.Top + (float)Padding.Bottom);
     }
 
     private int GetMaxRow()
@@ -1042,8 +1043,8 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
         }
 
         return new SKSize(
-            maxRight + Padding.Left + Padding.Right,
-            maxBottom + Padding.Top + Padding.Bottom);
+            maxRight + (float)Padding.Left + (float)Padding.Right,
+            maxBottom + (float)Padding.Top + (float)Padding.Bottom);
     }
 
     protected override SKRect ArrangeOverride(SKRect bounds)

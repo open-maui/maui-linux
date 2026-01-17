@@ -235,86 +235,86 @@ public static class SkiaTheme
     #region SKColor Cached Conversions (for rendering performance)
 
     // Primary
-    public static readonly SKColor PrimarySK = Primary.ToSKColor();
-    public static readonly SKColor PrimaryDarkSK = PrimaryDark.ToSKColor();
-    public static readonly SKColor PrimaryLightSK = PrimaryLight.ToSKColor();
-    public static readonly SKColor PrimarySelectionSK = PrimarySelection.ToSKColor();
-    public static readonly SKColor PrimaryHalfSK = PrimaryHalf.ToSKColor();
+    internal static readonly SKColor PrimarySK = Primary.ToSKColor();
+    internal static readonly SKColor PrimaryDarkSK = PrimaryDark.ToSKColor();
+    internal static readonly SKColor PrimaryLightSK = PrimaryLight.ToSKColor();
+    internal static readonly SKColor PrimarySelectionSK = PrimarySelection.ToSKColor();
+    internal static readonly SKColor PrimaryHalfSK = PrimaryHalf.ToSKColor();
 
     // Text
-    public static readonly SKColor TextPrimarySK = TextPrimary.ToSKColor();
-    public static readonly SKColor TextSecondarySK = TextSecondary.ToSKColor();
-    public static readonly SKColor TextTertiarySK = TextTertiary.ToSKColor();
-    public static readonly SKColor TextDisabledSK = TextDisabled.ToSKColor();
-    public static readonly SKColor TextPlaceholderSK = TextPlaceholder.ToSKColor();
-    public static readonly SKColor TextLinkSK = TextLink.ToSKColor();
-    public static readonly SKColor TextLinkVisitedSK = TextLinkVisited.ToSKColor();
+    internal static readonly SKColor TextPrimarySK = TextPrimary.ToSKColor();
+    internal static readonly SKColor TextSecondarySK = TextSecondary.ToSKColor();
+    internal static readonly SKColor TextTertiarySK = TextTertiary.ToSKColor();
+    internal static readonly SKColor TextDisabledSK = TextDisabled.ToSKColor();
+    internal static readonly SKColor TextPlaceholderSK = TextPlaceholder.ToSKColor();
+    internal static readonly SKColor TextLinkSK = TextLink.ToSKColor();
+    internal static readonly SKColor TextLinkVisitedSK = TextLinkVisited.ToSKColor();
 
     // Backgrounds
-    public static readonly SKColor BackgroundWhiteSK = SKColors.White;
-    public static readonly SKColor WhiteSemiTransparentSK = WhiteSemiTransparent.ToSKColor();
-    public static readonly SKColor BackgroundLightSK = BackgroundLight.ToSKColor();
-    public static readonly SKColor BackgroundLightAltSK = BackgroundLightAlt.ToSKColor();
-    public static readonly SKColor BackgroundSurfaceSK = BackgroundSurface.ToSKColor();
-    public static readonly SKColor BackgroundDisabledSK = BackgroundDisabled.ToSKColor();
+    internal static readonly SKColor BackgroundWhiteSK = SKColors.White;
+    internal static readonly SKColor WhiteSemiTransparentSK = WhiteSemiTransparent.ToSKColor();
+    internal static readonly SKColor BackgroundLightSK = BackgroundLight.ToSKColor();
+    internal static readonly SKColor BackgroundLightAltSK = BackgroundLightAlt.ToSKColor();
+    internal static readonly SKColor BackgroundSurfaceSK = BackgroundSurface.ToSKColor();
+    internal static readonly SKColor BackgroundDisabledSK = BackgroundDisabled.ToSKColor();
 
     // Gray scale
-    public static readonly SKColor Gray50SK = Gray50.ToSKColor();
-    public static readonly SKColor Gray100SK = Gray100.ToSKColor();
-    public static readonly SKColor Gray200SK = Gray200.ToSKColor();
-    public static readonly SKColor Gray300SK = Gray300.ToSKColor();
-    public static readonly SKColor Gray400SK = Gray400.ToSKColor();
-    public static readonly SKColor Gray500SK = Gray500.ToSKColor();
-    public static readonly SKColor Gray600SK = Gray600.ToSKColor();
-    public static readonly SKColor Gray700SK = Gray700.ToSKColor();
-    public static readonly SKColor Gray800SK = Gray800.ToSKColor();
-    public static readonly SKColor Gray900SK = Gray900.ToSKColor();
+    internal static readonly SKColor Gray50SK = Gray50.ToSKColor();
+    internal static readonly SKColor Gray100SK = Gray100.ToSKColor();
+    internal static readonly SKColor Gray200SK = Gray200.ToSKColor();
+    internal static readonly SKColor Gray300SK = Gray300.ToSKColor();
+    internal static readonly SKColor Gray400SK = Gray400.ToSKColor();
+    internal static readonly SKColor Gray500SK = Gray500.ToSKColor();
+    internal static readonly SKColor Gray600SK = Gray600.ToSKColor();
+    internal static readonly SKColor Gray700SK = Gray700.ToSKColor();
+    internal static readonly SKColor Gray800SK = Gray800.ToSKColor();
+    internal static readonly SKColor Gray900SK = Gray900.ToSKColor();
 
     // Borders
-    public static readonly SKColor BorderLightSK = BorderLight.ToSKColor();
-    public static readonly SKColor BorderMediumSK = BorderMedium.ToSKColor();
-    public static readonly SKColor BorderDarkSK = BorderDark.ToSKColor();
+    internal static readonly SKColor BorderLightSK = BorderLight.ToSKColor();
+    internal static readonly SKColor BorderMediumSK = BorderMedium.ToSKColor();
+    internal static readonly SKColor BorderDarkSK = BorderDark.ToSKColor();
 
     // Shadows
-    public static readonly SKColor Shadow10SK = Shadow10.ToSKColor();
-    public static readonly SKColor Shadow15SK = Shadow15.ToSKColor();
-    public static readonly SKColor Shadow20SK = Shadow20.ToSKColor();
-    public static readonly SKColor Shadow25SK = Shadow25.ToSKColor();
-    public static readonly SKColor Shadow40SK = Shadow40.ToSKColor();
-    public static readonly SKColor Shadow50SK = Shadow50.ToSKColor();
+    internal static readonly SKColor Shadow10SK = Shadow10.ToSKColor();
+    internal static readonly SKColor Shadow15SK = Shadow15.ToSKColor();
+    internal static readonly SKColor Shadow20SK = Shadow20.ToSKColor();
+    internal static readonly SKColor Shadow25SK = Shadow25.ToSKColor();
+    internal static readonly SKColor Shadow40SK = Shadow40.ToSKColor();
+    internal static readonly SKColor Shadow50SK = Shadow50.ToSKColor();
 
     // Overlays
-    public static readonly SKColor Overlay40SK = Overlay40.ToSKColor();
-    public static readonly SKColor Overlay50SK = Overlay50.ToSKColor();
+    internal static readonly SKColor Overlay40SK = Overlay40.ToSKColor();
+    internal static readonly SKColor Overlay50SK = Overlay50.ToSKColor();
 
     // Status
-    public static readonly SKColor ErrorSK = Error.ToSKColor();
-    public static readonly SKColor SuccessSK = Success.ToSKColor();
-    public static readonly SKColor WarningSK = Warning.ToSKColor();
+    internal static readonly SKColor ErrorSK = Error.ToSKColor();
+    internal static readonly SKColor SuccessSK = Success.ToSKColor();
+    internal static readonly SKColor WarningSK = Warning.ToSKColor();
 
     // Buttons
-    public static readonly SKColor ButtonCancelSK = ButtonCancel.ToSKColor();
-    public static readonly SKColor ButtonCancelHoverSK = ButtonCancelHover.ToSKColor();
+    internal static readonly SKColor ButtonCancelSK = ButtonCancel.ToSKColor();
+    internal static readonly SKColor ButtonCancelHoverSK = ButtonCancelHover.ToSKColor();
 
     // Scrollbars
-    public static readonly SKColor ScrollbarThumbSK = ScrollbarThumb.ToSKColor();
-    public static readonly SKColor ScrollbarTrackSK = ScrollbarTrack.ToSKColor();
+    internal static readonly SKColor ScrollbarThumbSK = ScrollbarThumb.ToSKColor();
+    internal static readonly SKColor ScrollbarTrackSK = ScrollbarTrack.ToSKColor();
 
     // Indicators
-    public static readonly SKColor IndicatorUnselectedSK = IndicatorUnselected.ToSKColor();
-    public static readonly SKColor IndicatorSelectedSK = IndicatorSelected.ToSKColor();
+    internal static readonly SKColor IndicatorUnselectedSK = IndicatorUnselected.ToSKColor();
+    internal static readonly SKColor IndicatorSelectedSK = IndicatorSelected.ToSKColor();
 
     // Menu
-    public static readonly SKColor MenuBackgroundSK = MenuBackground.ToSKColor();
-    public static readonly SKColor MenuHoverSK = MenuHover.ToSKColor();
-    public static readonly SKColor MenuActiveSK = MenuActive.ToSKColor();
-    public static readonly SKColor MenuSeparatorSK = MenuSeparator.ToSKColor();
+    internal static readonly SKColor MenuBackgroundSK = MenuBackground.ToSKColor();
+    internal static readonly SKColor MenuHoverSK = MenuHover.ToSKColor();
+    internal static readonly SKColor MenuActiveSK = MenuActive.ToSKColor();
+    internal static readonly SKColor MenuSeparatorSK = MenuSeparator.ToSKColor();
 
     // Dark theme
-    public static readonly SKColor DarkBackgroundSK = DarkBackground.ToSKColor();
-    public static readonly SKColor DarkSurfaceSK = DarkSurface.ToSKColor();
-    public static readonly SKColor DarkTextSK = DarkText.ToSKColor();
-    public static readonly SKColor DarkHoverSK = DarkHover.ToSKColor();
+    internal static readonly SKColor DarkBackgroundSK = DarkBackground.ToSKColor();
+    internal static readonly SKColor DarkSurfaceSK = DarkSurface.ToSKColor();
+    internal static readonly SKColor DarkTextSK = DarkText.ToSKColor();
+    internal static readonly SKColor DarkHoverSK = DarkHover.ToSKColor();
 
     #endregion
 }

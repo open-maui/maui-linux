@@ -194,7 +194,7 @@ public static class LinuxProgramHost
             Spacing = 15,
             BackgroundColor = Color.FromRgb(0xF5, 0xF5, 0xF5)
         };
-        root.Padding = new SKRect(20, 20, 20, 20);
+        root.Padding = new Thickness(20, 20, 20, 20);
 
         // ========== TITLE ==========
         root.AddChild(new SkiaLabel
