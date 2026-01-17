@@ -51,6 +51,32 @@ public class DeviceDisplayService : IDeviceDisplay
     {
         try
         {
+            // Try to use MonitorService for accurate XRandR-based info
+            var primaryMonitor = MonitorService.Instance.PrimaryMonitor;
+            if (primaryMonitor != null)
+            {
+                double scaleFactor = GetScaleFactor();
+                // If scale factor not set via env, use monitor's DPI-based scale
+                if (scaleFactor == 1.0 && primaryMonitor.ScaleFactor > 1.0)
+                {
+                    scaleFactor = Math.Round(primaryMonitor.ScaleFactor * 4) / 4; // Round to nearest 0.25
+                }
+
+                DisplayOrientation orientation = (primaryMonitor.Width <= primaryMonitor.Height)
+                    ? DisplayOrientation.Portrait
+                    : DisplayOrientation.Landscape;
+
+                _mainDisplayInfo = new DisplayInfo(
+                    primaryMonitor.Width,
+                    primaryMonitor.Height,
+                    scaleFactor,
+                    orientation,
+                    DisplayRotation.Rotation0,
+                    (float)primaryMonitor.RefreshRate);
+                return;
+            }
+
+            // Fall back to GDK
             IntPtr screen = GdkNative.gdk_screen_get_default();
             if (screen != IntPtr.Zero)
             {

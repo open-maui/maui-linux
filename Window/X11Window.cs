@@ -322,6 +322,84 @@ public class X11Window : IDisposable
     }
 
     /// <summary>
+    /// Moves the window to the specified position.
+    /// </summary>
+    public void SetPosition(int x, int y)
+    {
+        X11.XMoveWindow(_display, _window, x, y);
+        X11.XFlush(_display);
+    }
+
+    /// <summary>
+    /// Maximizes the window.
+    /// </summary>
+    public void Maximize()
+    {
+        SendWindowStateEvent(true, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
+    }
+
+    /// <summary>
+    /// Minimizes (iconifies) the window.
+    /// </summary>
+    public void Minimize()
+    {
+        X11.XIconifyWindow(_display, _window, _screen);
+        X11.XFlush(_display);
+    }
+
+    /// <summary>
+    /// Restores the window from maximized or minimized state.
+    /// </summary>
+    public void Restore()
+    {
+        // Remove maximized state
+        SendWindowStateEvent(false, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
+        // Map window if it was minimized
+        X11.XMapWindow(_display, _window);
+        X11.XFlush(_display);
+    }
+
+    /// <summary>
+    /// Sets fullscreen mode.
+    /// </summary>
+    public void SetFullscreen(bool fullscreen)
+    {
+        SendWindowStateEvent(fullscreen, "_NET_WM_STATE_FULLSCREEN");
+    }
+
+    private void SendWindowStateEvent(bool add, params string[] stateNames)
+    {
+        var wmState = X11.XInternAtom(_display, "_NET_WM_STATE", false);
+        var rootWindow = X11.XRootWindow(_display, _screen);
+
+        foreach (var stateName in stateNames)
+        {
+            var stateAtom = X11.XInternAtom(_display, stateName, false);
+
+            var xev = new XEvent();
+            xev.ClientMessageEvent.Type = X11.ClientMessage;
+            xev.ClientMessageEvent.Window = _window;
+            xev.ClientMessageEvent.MessageType = wmState;
+            xev.ClientMessageEvent.Format = 32;
+
+            // data.l[0] = action (0=remove, 1=add, 2=toggle)
+            // data.l[1] = first property
+            // data.l[2] = second property (optional)
+            // data.l[3] = source indication (1 = normal application)
+            xev.ClientMessageEvent.Data.L0 = add ? 1 : 0;
+            xev.ClientMessageEvent.Data.L1 = (long)stateAtom;
+            xev.ClientMessageEvent.Data.L2 = 0;
+            xev.ClientMessageEvent.Data.L3 = 1;
+
+            X11.XSendEvent(_display, rootWindow, false,
+                X11.SubstructureRedirectMask | X11.SubstructureNotifyMask,
+                ref xev);
+        }
+
+        X11.XFlush(_display);
+    }
+
+    /// <summary>
     /// Processes pending X11 events.
     /// </summary>
     public void ProcessEvents()

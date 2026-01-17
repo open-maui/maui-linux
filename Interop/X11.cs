@@ -11,6 +11,13 @@ internal static partial class X11
 
     public const int ZPixmap = 2;
 
+    // Event types
+    public const int ClientMessage = 33;
+
+    // Event masks for XSendEvent
+    public const long SubstructureRedirectMask = 1L << 20;
+    public const long SubstructureNotifyMask = 1L << 19;
+
     [LibraryImport(LibX11)]
     public static partial IntPtr XOpenDisplay(IntPtr displayName);
 
@@ -71,6 +78,9 @@ internal static partial class X11
 
     [LibraryImport(LibX11)]
     public static partial int XResizeWindow(IntPtr display, IntPtr window, uint width, uint height);
+
+    [LibraryImport(LibX11)]
+    public static partial int XIconifyWindow(IntPtr display, IntPtr window, int screen);
 
     [LibraryImport(LibX11)]
     public static partial int XMoveResizeWindow(IntPtr display, IntPtr window, int x, int y, uint width, uint height);
