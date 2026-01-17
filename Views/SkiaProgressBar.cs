@@ -187,9 +187,22 @@ public class SkiaProgressBar : SkiaView
         var barHeight = (float)BarHeight;
         var cornerRadius = (float)CornerRadius;
 
-        float midY = bounds.MidY;
-        float trackTop = midY - barHeight / 2f;
-        float trackBottom = midY + barHeight / 2f;
+        // If bounds height is small (HeightRequest was set), use the full bounds height
+        // Otherwise, center the bar vertically within the bounds
+        float trackTop, trackBottom;
+        if (bounds.Height <= barHeight + 4)
+        {
+            // Small bounds - fill the height
+            trackTop = bounds.Top;
+            trackBottom = bounds.Bottom;
+        }
+        else
+        {
+            // Large bounds - center the bar
+            float midY = bounds.MidY;
+            trackTop = midY - barHeight / 2f;
+            trackBottom = midY + barHeight / 2f;
+        }
 
         // Get colors
         var trackColorSK = ToSKColor(TrackColor);
@@ -246,8 +259,11 @@ public class SkiaProgressBar : SkiaView
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        var barHeight = BarHeight;
-        return new Size(200, barHeight + 8);
+        // Respect HeightRequest if set, otherwise use BarHeight with padding
+        var height = HeightRequest >= 0 ? HeightRequest : BarHeight + 8;
+        // Respect WidthRequest if set, otherwise use available width or default
+        var width = WidthRequest >= 0 ? WidthRequest : (availableSize.Width > 0 ? availableSize.Width : 200);
+        return new Size(width, height);
     }
 
     #endregion

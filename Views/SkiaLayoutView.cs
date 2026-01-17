@@ -248,13 +248,7 @@ public abstract class SkiaLayoutView : SkiaView
     public override SkiaView? HitTest(float x, float y)
     {
         if (!IsVisible || !IsEnabled || !Bounds.Contains(x, y))
-        {
-            if (this is SkiaBorder)
-            {
-                Console.WriteLine($"[SkiaBorder.HitTest] Miss - x={x}, y={y}, Bounds={Bounds}, IsVisible={IsVisible}, IsEnabled={IsEnabled}");
-            }
             return null;
-        }
 
         // Hit test children in reverse order (top-most first)
         for (int i = _children.Count - 1; i >= 0; i--)
@@ -262,19 +256,9 @@ public abstract class SkiaLayoutView : SkiaView
             var child = _children[i];
             var hit = child.HitTest(x, y);
             if (hit != null)
-            {
-                if (this is SkiaBorder)
-                {
-                    Console.WriteLine($"[SkiaBorder.HitTest] Hit child - x={x}, y={y}, Bounds={Bounds}, child={hit.GetType().Name}");
-                }
                 return hit;
-            }
         }
 
-        if (this is SkiaBorder)
-        {
-            Console.WriteLine($"[SkiaBorder.HitTest] Hit self - x={x}, y={y}, Bounds={Bounds}, children={_children.Count}");
-        }
         return this;
     }
 

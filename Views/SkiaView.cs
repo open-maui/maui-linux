@@ -6,6 +6,7 @@ using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Window;
@@ -1270,8 +1271,27 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Requests that this view be redrawn.
+    /// Thread-safe - will marshal to GTK thread if needed.
     /// </summary>
     public void Invalidate()
+    {
+        // Check if we're on the GTK thread - if not, marshal the entire call
+        int currentThread = Environment.CurrentManagedThreadId;
+        int gtkThread = LinuxApplication.GtkThreadId;
+        if (gtkThread != 0 && currentThread != gtkThread)
+        {
+            GLibNative.IdleAdd(() =>
+            {
+                InvalidateInternal();
+                return false;
+            });
+            return;
+        }
+
+        InvalidateInternal();
+    }
+
+    private void InvalidateInternal()
     {
         LinuxApplication.LogInvalidate(GetType().Name);
         Invalidated?.Invoke(this, EventArgs.Empty);
@@ -1286,7 +1306,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
         if (_parent != null)
         {
-            _parent.Invalidate();
+            _parent.InvalidateInternal();
         }
         else
         {

@@ -35,6 +35,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         [nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
         [nameof(IView.Background)] = MapBackground,
         ["BackgroundColor"] = MapBackgroundColor,
+        ["SelectAllOnDoubleClick"] = MapSelectAllOnDoubleClick,
     };
 
     public static CommandMapper<IEntry, EntryHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -243,6 +244,16 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
             handler.PlatformView.EntryBackgroundColor = ve.BackgroundColor;
             // Also set base BackgroundColor so SkiaView.DrawBackground() respects transparency
             handler.PlatformView.BackgroundColor = ve.BackgroundColor;
+        }
+    }
+
+    public static void MapSelectAllOnDoubleClick(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (entry is BindableObject bindable)
+        {
+            handler.PlatformView.SelectAllOnDoubleClick = EntryExtensions.GetSelectAllOnDoubleClick(bindable);
         }
     }
 }

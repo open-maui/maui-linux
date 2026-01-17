@@ -31,6 +31,7 @@ public class LinuxApplication : IDisposable
     private static int _requestRedrawCount;
     private static int _drawCount;
     private static int _gtkThreadId;
+    public static int GtkThreadId => _gtkThreadId;
     private static DateTime _lastCounterReset = DateTime.Now;
     private static bool _isRedrawing;
     private static int _loopCounter = 0;

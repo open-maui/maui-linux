@@ -210,6 +210,17 @@ public class SkiaEntry : SkiaView, IInputContext
             0);
 
     /// <summary>
+    /// Bindable property for SelectAllOnDoubleClick.
+    /// When true, double-clicking selects all text instead of just the word.
+    /// </summary>
+    public static readonly BindableProperty SelectAllOnDoubleClickProperty =
+        BindableProperty.Create(
+            nameof(SelectAllOnDoubleClick),
+            typeof(bool),
+            typeof(SkiaEntry),
+            false);
+
+    /// <summary>
     /// Bindable property for IsReadOnly.
     /// </summary>
     public static readonly BindableProperty IsReadOnlyProperty =
@@ -502,6 +513,16 @@ public class SkiaEntry : SkiaView, IInputContext
     {
         get => (int)GetValue(MaxLengthProperty);
         set => SetValue(MaxLengthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether double-clicking selects all text instead of just the word.
+    /// Useful for URL bars and similar inputs.
+    /// </summary>
+    public bool SelectAllOnDoubleClick
+    {
+        get => (bool)GetValue(SelectAllOnDoubleClickProperty);
+        set => SetValue(SelectAllOnDoubleClickProperty, value);
     }
 
     /// <summary>
@@ -1372,13 +1393,11 @@ public class SkiaEntry : SkiaView, IInputContext
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaEntry] OnPointerPressed Button={e.Button} at ({e.X}, {e.Y})");
         if (!IsEnabled) return;
 
         // Handle right-click context menu
         if (e.Button == PointerButton.Right)
         {
-            Console.WriteLine("[SkiaEntry] Right-click detected, showing context menu");
             ShowContextMenu(e.X, e.Y);
             return;
         }
@@ -1409,15 +1428,22 @@ public class SkiaEntry : SkiaView, IInputContext
         var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left + _scrollOffset;
         _cursorPosition = GetCharacterIndexAtX(clickX);
 
-        // Check for double-click (select word)
+        // Check for double-click (select word or select all)
         var now = DateTime.UtcNow;
         var timeSinceLastClick = (now - _lastClickTime).TotalMilliseconds;
         var distanceFromLastClick = Math.Abs(e.X - _lastClickX);
 
         if (timeSinceLastClick < DoubleClickThresholdMs && distanceFromLastClick < 10)
         {
-            // Double-click: select the word at cursor
-            SelectWordAtCursor();
+            // Double-click: select all or select word based on property
+            if (SelectAllOnDoubleClick)
+            {
+                SelectAll();
+            }
+            else
+            {
+                SelectWordAtCursor();
+            }
             _lastClickTime = DateTime.MinValue; // Reset to prevent triple-click issues
             _isSelecting = false;
         }

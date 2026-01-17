@@ -805,12 +805,9 @@ public class SkiaImageButton : SkiaView
             }
             // Fill (3) and Start (0) both use y = bounds.Top
 
-            var result1 = new Rect(x, y, finalWidth, finalHeight);
-            Console.WriteLine($"[SkiaImageButton] ArrangeOverride output (aligned): Y={result1.Y}, Height={result1.Height}");
-            return result1;
+            return new Rect(x, y, finalWidth, finalHeight);
         }
 
-        Console.WriteLine($"[SkiaImageButton] ArrangeOverride output (unchanged): Y={bounds.Y}, Height={bounds.Height}");
         return bounds;
     }
 

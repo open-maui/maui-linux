@@ -250,15 +250,21 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
     private bool OnButtonPress(IntPtr widget, IntPtr eventData, IntPtr userData)
     {
         GtkNative.gtk_widget_grab_focus(_widget);
-        var (x, y, button) = ParseButtonEvent(eventData);
-        Console.WriteLine($"[GtkSkiaSurfaceWidget] ButtonPress at ({x}, {y}), button={button}");
+        var (x, y, button, eventType) = ParseButtonEvent(eventData);
+
+        // GTK event types: GDK_BUTTON_PRESS=4, GDK_2BUTTON_PRESS=5, GDK_3BUTTON_PRESS=6
+        // Only process single button press events. GTK sends 2BUTTON_PRESS and 3BUTTON_PRESS
+        // events after detecting double/triple clicks, but we handle that ourselves in SkiaEntry.
+        if (eventType != 4) // GDK_BUTTON_PRESS
+            return true;
+
         PointerPressed?.Invoke(this, (x, y, button));
         return true;
     }
 
     private bool OnButtonRelease(IntPtr widget, IntPtr eventData, IntPtr userData)
     {
-        var (x, y, button) = ParseButtonEvent(eventData);
+        var (x, y, button, _) = ParseButtonEvent(eventData);
         PointerReleased?.Invoke(this, (x, y, button));
         return true;
     }
@@ -272,7 +278,6 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
 
     public void RaisePointerPressed(double x, double y, int button)
     {
-        Console.WriteLine($"[GtkSkiaSurfaceWidget] RaisePointerPressed at ({x}, {y}), button={button}");
         PointerPressed?.Invoke(this, (x, y, button));
     }
 
@@ -319,10 +324,10 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
         return true;
     }
 
-    private static (double x, double y, int button) ParseButtonEvent(IntPtr eventData)
+    private static (double x, double y, int button, int eventType) ParseButtonEvent(IntPtr eventData)
     {
         var evt = Marshal.PtrToStructure<GdkEventButton>(eventData);
-        return (evt.x, evt.y, (int)evt.button);
+        return (evt.x, evt.y, (int)evt.button, evt.type);
     }
 
     private static (double x, double y) ParseMotionEvent(IntPtr eventData)

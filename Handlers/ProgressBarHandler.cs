@@ -23,6 +23,9 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
         [nameof(IView.IsEnabled)] = MapIsEnabled,
         [nameof(IView.Background)] = MapBackground,
         ["BackgroundColor"] = MapBackgroundColor,
+        [nameof(IView.Height)] = MapHeight,
+        [nameof(IView.Width)] = MapWidth,
+        ["VerticalOptions"] = MapVerticalOptions,
     };
 
     public static CommandMapper<IProgress, ProgressBarHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -129,6 +132,36 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
         {
             handler.PlatformView.TrackColor = visualElement.BackgroundColor;
             handler.PlatformView.Invalidate();
+        }
+    }
+
+    public static void MapHeight(ProgressBarHandler handler, IProgress progress)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (progress is VisualElement visualElement && visualElement.HeightRequest >= 0)
+        {
+            handler.PlatformView.HeightRequest = visualElement.HeightRequest;
+        }
+    }
+
+    public static void MapWidth(ProgressBarHandler handler, IProgress progress)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (progress is VisualElement visualElement && visualElement.WidthRequest >= 0)
+        {
+            handler.PlatformView.WidthRequest = visualElement.WidthRequest;
+        }
+    }
+
+    public static void MapVerticalOptions(ProgressBarHandler handler, IProgress progress)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (progress is Microsoft.Maui.Controls.View view)
+        {
+            handler.PlatformView.VerticalOptions = view.VerticalOptions;
         }
     }
 }
