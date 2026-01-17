@@ -118,12 +118,26 @@ public class SkiaPage : SkiaView
 
     public bool IsBusy { get; set; }
 
+    /// <summary>
+    /// Icon image source for this page (used by navigation containers).
+    /// </summary>
+    public SKBitmap? IconImage { get; set; }
+
+    /// <summary>
+    /// Background image source for this page.
+    /// </summary>
+    public SKBitmap? BackgroundImage { get; set; }
+
+    // Lifecycle events
     public event EventHandler? Appearing;
     public event EventHandler? Disappearing;
+    public event EventHandler? NavigatedTo;
+    public event EventHandler? NavigatedFrom;
+    public event EventHandler? NavigatingFrom;
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Draw background
+        // Draw background color
         if (BackgroundColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
@@ -132,6 +146,13 @@ public class SkiaPage : SkiaView
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);
+        }
+
+        // Draw background image if set
+        if (BackgroundImage != null)
+        {
+            var destRect = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Bottom);
+            canvas.DrawBitmap(BackgroundImage, destRect);
         }
 
         var contentTop = bounds.Top;
@@ -252,6 +273,21 @@ public class SkiaPage : SkiaView
     public void OnDisappearing()
     {
         Disappearing?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OnNavigatedTo()
+    {
+        NavigatedTo?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OnNavigatedFrom()
+    {
+        NavigatedFrom?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OnNavigatingFrom()
+    {
+        NavigatingFrom?.Invoke(this, EventArgs.Empty);
     }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
