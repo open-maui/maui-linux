@@ -48,11 +48,13 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
     protected override SkiaShell CreatePlatformView()
     {
+        Console.WriteLine("[ShellHandler] CreatePlatformView - creating SkiaShell");
         return new SkiaShell();
     }
 
     protected override void ConnectHandler(SkiaShell platformView)
     {
+        Console.WriteLine("[ShellHandler] ConnectHandler - connecting to SkiaShell");
         base.ConnectHandler(platformView);
         platformView.FlyoutIsPresentedChanged += OnFlyoutIsPresentedChanged;
         platformView.Navigated += OnNavigated;

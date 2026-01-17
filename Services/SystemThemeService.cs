@@ -71,6 +71,8 @@ public class SystemThemeService
     };
 
     private FileSystemWatcher? _settingsWatcher;
+    private Timer? _pollTimer;
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
     private SystemThemeService()
     {
@@ -78,6 +80,7 @@ public class SystemThemeService
         DetectTheme();
         UpdateColors();
         SetupWatcher();
+        SetupPolling();
     }
 
     private void DetectDesktopEnvironment()
@@ -371,6 +374,33 @@ public class SystemThemeService
             }
         }
         catch { }
+    }
+
+    private void SetupPolling()
+    {
+        // For GNOME and other desktops that use dconf/gsettings,
+        // file watching doesn't work. Use periodic polling instead.
+        _pollTimer = new Timer(OnPollTimer, null, PollInterval, PollInterval);
+    }
+
+    private void OnPollTimer(object? state)
+    {
+        try
+        {
+            var oldTheme = CurrentTheme;
+            DetectTheme();
+
+            if (oldTheme != CurrentTheme)
+            {
+                Console.WriteLine($"[SystemThemeService] Theme change detected via polling: {oldTheme} -> {CurrentTheme}");
+                UpdateColors();
+                ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(CurrentTheme));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SystemThemeService] Error in poll timer: {ex.Message}");
+        }
     }
 
     private void OnSettingsChanged(object sender, FileSystemEventArgs e)

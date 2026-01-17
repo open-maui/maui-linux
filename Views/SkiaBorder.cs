@@ -407,7 +407,9 @@ public class SkiaBorder : SkiaLayoutView
             canvas.DrawPath(shapePath, borderPaint);
         }
 
-        // Draw children
+        // Clip to shape and draw children
+        canvas.Save();
+        canvas.ClipPath(shapePath);
         foreach (var child in Children)
         {
             if (child.IsVisible)
@@ -415,6 +417,7 @@ public class SkiaBorder : SkiaLayoutView
                 child.Draw(canvas);
             }
         }
+        canvas.Restore();
     }
 
     #endregion

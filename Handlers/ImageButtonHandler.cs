@@ -27,6 +27,8 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         ["BackgroundColor"] = MapBackgroundColor,
         [nameof(IView.Width)] = MapWidth,
         [nameof(IView.Height)] = MapHeight,
+        ["VerticalOptions"] = MapVerticalOptions,
+        ["HorizontalOptions"] = MapHorizontalOptions,
     };
 
     public static CommandMapper<IImageButton, ImageButtonHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -181,6 +183,26 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.HeightRequest > 0)
         {
             handler.PlatformView.HeightRequest = imgBtn.HeightRequest;
+        }
+    }
+
+    public static void MapVerticalOptions(ImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn)
+        {
+            handler.PlatformView.VerticalOptions = imgBtn.VerticalOptions;
+        }
+    }
+
+    public static void MapHorizontalOptions(ImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn)
+        {
+            handler.PlatformView.HorizontalOptions = imgBtn.HorizontalOptions;
         }
     }
 

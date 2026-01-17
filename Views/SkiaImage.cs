@@ -693,6 +693,8 @@ public class SkiaImage : SkiaView
                     using var canvas = new SKCanvas(newBitmap);
                     canvas.Clear(SKColors.Transparent);
                     canvas.Scale(scale);
+                    // Translate to handle negative viewBox coordinates (e.g., Material icons use 0 -960 960 960)
+                    canvas.Translate(-cullRect.Left, -cullRect.Top);
                     canvas.DrawPicture(svg.Picture, null);
                 }
             }, cts.Token);

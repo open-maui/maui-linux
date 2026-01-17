@@ -110,10 +110,32 @@ public class LinuxApplication : IDisposable
 
     /// <summary>
     /// Requests a redraw of the application.
+    /// Thread-safe - will marshal to GTK thread if needed.
     /// </summary>
     public static void RequestRedraw()
     {
         LogRequestRedraw();
+        if (_isRedrawing)
+            return;
+
+        // Check if we're on the GTK thread
+        int currentThread = Environment.CurrentManagedThreadId;
+        if (_gtkThreadId != 0 && currentThread != _gtkThreadId)
+        {
+            // We're on a background thread - use IdleAdd to marshal to GTK thread
+            GLibNative.IdleAdd(() =>
+            {
+                RequestRedrawInternal();
+                return false; // Don't repeat
+            });
+            return;
+        }
+
+        RequestRedrawInternal();
+    }
+
+    private static void RequestRedrawInternal()
+    {
         if (_isRedrawing)
             return;
 
@@ -197,7 +219,18 @@ public class LinuxApplication : IDisposable
         Current = this;
 
         // Set up dialog service invalidation callback
-        LinuxDialogService.SetInvalidateCallback(() => _renderingEngine?.InvalidateAll());
+        // This callback will work for both GTK and X11 modes
+        LinuxDialogService.SetInvalidateCallback(() =>
+        {
+            if (_useGtk)
+            {
+                _gtkWindow?.RequestRedraw();
+            }
+            else
+            {
+                _renderingEngine?.InvalidateAll();
+            }
+        });
     }
 
     /// <summary>
@@ -265,6 +298,20 @@ public class LinuxApplication : IDisposable
                     currentProperty.SetValue(null, mauiApplication);
                 }
 
+                // Set initial theme based on system theme
+                var systemTheme = SystemThemeService.Instance.CurrentTheme;
+                Console.WriteLine($"[LinuxApplication] System theme detected at startup: {systemTheme}");
+                if (systemTheme == SystemTheme.Dark)
+                {
+                    mauiApplication.UserAppTheme = AppTheme.Dark;
+                    Console.WriteLine("[LinuxApplication] Set initial UserAppTheme to Dark based on system theme");
+                }
+                else
+                {
+                    mauiApplication.UserAppTheme = AppTheme.Light;
+                    Console.WriteLine("[LinuxApplication] Set initial UserAppTheme to Light based on system theme");
+                }
+
                 // Handle user-initiated theme changes
                 ((BindableObject)mauiApplication).PropertyChanged += (s, e) =>
                 {
@@ -272,7 +319,19 @@ public class LinuxApplication : IDisposable
                     {
                         Console.WriteLine($"[LinuxApplication] User theme changed to: {mauiApplication.UserAppTheme}");
                         LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
-                        linuxApp._renderingEngine?.InvalidateAll();
+
+                        // Force re-render the entire page to pick up theme changes
+                        linuxApp.RefreshPageForThemeChange();
+
+                        // Invalidate to redraw - use correct method based on mode
+                        if (linuxApp._useGtk)
+                        {
+                            linuxApp._gtkWindow?.RequestRedraw();
+                        }
+                        else
+                        {
+                            linuxApp._renderingEngine?.InvalidateAll();
+                        }
                     }
                 };
 
@@ -280,15 +339,73 @@ public class LinuxApplication : IDisposable
                 SystemThemeService.Instance.ThemeChanged += (s, e) =>
                 {
                     Console.WriteLine($"[LinuxApplication] System theme changed to: {e.NewTheme}");
-                    // Notify MAUI framework that system theme changed
-                    // This will cause AppThemeBinding to re-evaluate
-                    LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
-                    linuxApp._renderingEngine?.InvalidateAll();
+
+                    // Update MAUI's UserAppTheme to match system theme
+                    // This will trigger the PropertyChanged handler which does the refresh
+                    var newAppTheme = e.NewTheme == SystemTheme.Dark ? AppTheme.Dark : AppTheme.Light;
+                    if (mauiApplication.UserAppTheme != newAppTheme)
+                    {
+                        Console.WriteLine($"[LinuxApplication] Setting UserAppTheme to {newAppTheme} to match system");
+                        mauiApplication.UserAppTheme = newAppTheme;
+                    }
+                    else
+                    {
+                        // If UserAppTheme didn't change (user manually set it), still refresh
+                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
+                        linuxApp.RefreshPageForThemeChange();
+                        if (linuxApp._useGtk)
+                        {
+                            linuxApp._gtkWindow?.RequestRedraw();
+                        }
+                        else
+                        {
+                            linuxApp._renderingEngine?.InvalidateAll();
+                        }
+                    }
                 };
 
-                if (mauiApplication.MainPage != null)
+                // Get the main page - prefer CreateWindow() over deprecated MainPage
+                Page? mainPage = null;
+
+                // Try CreateWindow() first (the modern MAUI pattern)
+                try
                 {
-                    var mainPage = mauiApplication.MainPage;
+                    // CreateWindow is protected, use reflection
+                    var createWindowMethod = typeof(Application).GetMethod("CreateWindow",
+                        BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                        null, new[] { typeof(IActivationState) }, null);
+
+                    if (createWindowMethod != null)
+                    {
+                        var mauiWindow = createWindowMethod.Invoke(mauiApplication, new object?[] { null }) as Microsoft.Maui.Controls.Window;
+                        if (mauiWindow != null)
+                        {
+                            Console.WriteLine($"[LinuxApplication] Got Window from CreateWindow: {mauiWindow.GetType().Name}");
+                            mainPage = mauiWindow.Page;
+                            Console.WriteLine($"[LinuxApplication] Window.Page: {mainPage?.GetType().Name}");
+
+                            // Add to windows list
+                            var windowsField = typeof(Application).GetField("_windows",
+                                BindingFlags.NonPublic | BindingFlags.Instance);
+                            var windowsList = windowsField?.GetValue(mauiApplication) as List<Microsoft.Maui.Controls.Window>;
+                            if (windowsList != null && !windowsList.Contains(mauiWindow))
+                            {
+                                windowsList.Add(mauiWindow);
+                                mauiWindow.Parent = mauiApplication;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[LinuxApplication] CreateWindow failed: {ex.Message}");
+                }
+
+                // Fall back to deprecated MainPage if CreateWindow didn't work
+                if (mainPage == null && mauiApplication.MainPage != null)
+                {
+                    Console.WriteLine($"[LinuxApplication] Falling back to MainPage: {mauiApplication.MainPage.GetType().Name}");
+                    mainPage = mauiApplication.MainPage;
 
                     var windowsField = typeof(Application).GetField("_windows",
                         BindingFlags.NonPublic | BindingFlags.Instance);
@@ -304,7 +421,10 @@ public class LinuxApplication : IDisposable
                     {
                         windowsList[0].Page = mainPage;
                     }
+                }
 
+                if (mainPage != null)
+                {
                     var renderer = new LinuxViewRenderer(mauiContext);
                     rootView = renderer.RenderPage(mainPage);
 
@@ -544,6 +664,133 @@ public class LinuxApplication : IDisposable
         {
             _rootView.Measure(new Size(width, height));
             _rootView.Arrange(new Rect(0, 0, width, height));
+        }
+    }
+
+    /// <summary>
+    /// Forces all views to refresh their theme-dependent properties.
+    /// This is needed because AppThemeBinding may not automatically trigger
+    /// property mappers on all platforms.
+    /// </summary>
+    private void RefreshPageForThemeChange()
+    {
+        Console.WriteLine("[LinuxApplication] RefreshPageForThemeChange - forcing property updates");
+
+        // First, try to trigger MAUI's RequestedThemeChanged event using reflection
+        // This ensures AppThemeBinding bindings re-evaluate
+        TriggerMauiThemeChanged();
+
+        if (_rootView == null) return;
+
+        // Traverse the visual tree and force theme-dependent properties to update
+        RefreshViewTheme(_rootView);
+    }
+
+    /// <summary>
+    /// Triggers MAUI's internal RequestedThemeChanged event to force AppThemeBinding updates.
+    /// </summary>
+    private void TriggerMauiThemeChanged()
+    {
+        try
+        {
+            var app = Application.Current;
+            if (app == null) return;
+
+            var currentTheme = app.UserAppTheme;
+            Console.WriteLine($"[LinuxApplication] Triggering theme changed event for: {currentTheme}");
+
+            // Try to find and invoke the RequestedThemeChanged event
+            var eventField = typeof(Application).GetField("RequestedThemeChanged",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+            if (eventField != null)
+            {
+                var eventDelegate = eventField.GetValue(app) as MulticastDelegate;
+                if (eventDelegate != null)
+                {
+                    var args = new AppThemeChangedEventArgs(currentTheme);
+                    foreach (var handler in eventDelegate.GetInvocationList())
+                    {
+                        handler.DynamicInvoke(app, args);
+                    }
+                    Console.WriteLine("[LinuxApplication] Successfully invoked RequestedThemeChanged handlers");
+                }
+            }
+            else
+            {
+                // Try alternative approach - trigger OnPropertyChanged for RequestedTheme
+                var onPropertyChangedMethod = typeof(BindableObject).GetMethod("OnPropertyChanged",
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                    null, new[] { typeof(string) }, null);
+
+                if (onPropertyChangedMethod != null)
+                {
+                    onPropertyChangedMethod.Invoke(app, new object[] { "RequestedTheme" });
+                    Console.WriteLine("[LinuxApplication] Triggered OnPropertyChanged for RequestedTheme");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LinuxApplication] Error triggering theme changed: {ex.Message}");
+        }
+    }
+
+    private void RefreshViewTheme(SkiaView view)
+    {
+        // Get the associated MAUI view and handler
+        var mauiView = view.MauiView;
+        var handler = mauiView?.Handler;
+
+        if (handler != null && mauiView != null)
+        {
+            // Force key properties to be re-mapped
+            // This ensures theme-dependent bindings are re-evaluated
+            try
+            {
+                // Background/BackgroundColor
+                handler.UpdateValue(nameof(IView.Background));
+
+                // For ImageButton, force Source to be re-mapped
+                if (mauiView is Microsoft.Maui.Controls.ImageButton)
+                {
+                    handler.UpdateValue(nameof(IImageSourcePart.Source));
+                }
+
+                // For Image, force Source to be re-mapped
+                if (mauiView is Microsoft.Maui.Controls.Image)
+                {
+                    handler.UpdateValue(nameof(IImageSourcePart.Source));
+                }
+
+                // For views with text colors
+                if (mauiView is ITextStyle)
+                {
+                    handler.UpdateValue(nameof(ITextStyle.TextColor));
+                }
+
+                // For Entry/Editor placeholder colors
+                if (mauiView is IPlaceholder)
+                {
+                    handler.UpdateValue(nameof(IPlaceholder.PlaceholderColor));
+                }
+
+                // For Border stroke
+                if (mauiView is IBorderStroke)
+                {
+                    handler.UpdateValue(nameof(IBorderStroke.Stroke));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LinuxApplication] Error refreshing theme for {mauiView.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        // Recursively process children
+        foreach (var child in view.Children)
+        {
+            RefreshViewTheme(child);
         }
     }
 
@@ -802,6 +1049,16 @@ public class LinuxApplication : IDisposable
         string buttonName = e.Button == 1 ? "Left" : e.Button == 2 ? "Middle" : e.Button == 3 ? "Right" : $"Unknown({e.Button})";
         Console.WriteLine($"[LinuxApplication.GTK] PointerPressed at ({e.X:F1}, {e.Y:F1}), Button={e.Button} ({buttonName})");
 
+        // Route to dialog if one is active
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
+            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            LinuxDialogService.TopDialog?.OnPointerPressed(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
         if (LinuxDialogService.HasContextMenu)
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
@@ -842,6 +1099,17 @@ public class LinuxApplication : IDisposable
     private void OnGtkPointerReleased(object? sender, (double X, double Y, int Button) e)
     {
         Console.WriteLine("[DIAG] >>> OnGtkPointerReleased ENTER");
+
+        // Route to dialog if one is active
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
+            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            LinuxDialogService.TopDialog?.OnPointerReleased(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
         if (_rootView == null) return;
 
         if (_capturedView != null)
@@ -870,6 +1138,15 @@ public class LinuxApplication : IDisposable
 
     private void OnGtkPointerMoved(object? sender, (double X, double Y) e)
     {
+        // Route to dialog if one is active
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            LinuxDialogService.TopDialog?.OnPointerMoved(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
         if (LinuxDialogService.HasContextMenu)
         {
             var args = new PointerEventArgs((float)e.X, (float)e.Y);
@@ -907,11 +1184,20 @@ public class LinuxApplication : IDisposable
 
     private void OnGtkKeyPressed(object? sender, (uint KeyVal, uint KeyCode, uint State) e)
     {
+        var key = ConvertGdkKey(e.KeyVal);
+        var modifiers = ConvertGdkModifiers(e.State);
+        var args = new KeyEventArgs(key, modifiers);
+
+        // Route to dialog if one is active
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            LinuxDialogService.TopDialog?.OnKeyDown(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
         if (_focusedView != null)
         {
-            var key = ConvertGdkKey(e.KeyVal);
-            var modifiers = ConvertGdkModifiers(e.State);
-            var args = new KeyEventArgs(key, modifiers);
             _focusedView.OnKeyDown(args);
             _gtkWindow?.RequestRedraw();
         }
@@ -919,11 +1205,20 @@ public class LinuxApplication : IDisposable
 
     private void OnGtkKeyReleased(object? sender, (uint KeyVal, uint KeyCode, uint State) e)
     {
+        var key = ConvertGdkKey(e.KeyVal);
+        var modifiers = ConvertGdkModifiers(e.State);
+        var args = new KeyEventArgs(key, modifiers);
+
+        // Route to dialog if one is active
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            LinuxDialogService.TopDialog?.OnKeyUp(args);
+            _gtkWindow?.RequestRedraw();
+            return;
+        }
+
         if (_focusedView != null)
         {
-            var key = ConvertGdkKey(e.KeyVal);
-            var modifiers = ConvertGdkModifiers(e.State);
-            var args = new KeyEventArgs(key, modifiers);
             _focusedView.OnKeyUp(args);
             _gtkWindow?.RequestRedraw();
         }

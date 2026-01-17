@@ -81,12 +81,19 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
 
     public static void MapContent(WindowHandler handler, IWindow window)
     {
+        Console.Error.WriteLine($"[WindowHandler] MapContent - PlatformView={handler.PlatformView != null}");
         if (handler.PlatformView is null) return;
 
         var content = window.Content;
+        Console.Error.WriteLine($"[WindowHandler] MapContent - content type={content?.GetType().Name}, handler={content?.Handler?.GetType().Name}");
         if (content?.Handler?.PlatformView is SkiaView skiaContent)
         {
+            Console.Error.WriteLine($"[WindowHandler] MapContent - setting SkiaView content: {skiaContent.GetType().Name}");
             handler.PlatformView.Content = skiaContent;
+        }
+        else
+        {
+            Console.Error.WriteLine($"[WindowHandler] MapContent - content has no SkiaView! Handler={content?.Handler}, PlatformView={content?.Handler?.PlatformView}");
         }
     }
 

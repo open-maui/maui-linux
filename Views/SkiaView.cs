@@ -1534,8 +1534,8 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
                 canvas.DrawRect(bounds, paint);
             }
         }
-        // Fall back to BackgroundColor
-        else if (_backgroundColorSK != SKColors.Transparent)
+        // Fall back to BackgroundColor (skip if transparent)
+        else if (_backgroundColorSK.Alpha > 0)
         {
             using var paint = new SKPaint { Color = _backgroundColorSK };
             canvas.DrawRect(bounds, paint);

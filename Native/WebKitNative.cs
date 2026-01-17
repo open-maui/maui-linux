@@ -20,11 +20,31 @@ internal static class WebKitNative
     private delegate IntPtr WebKitWebViewGetSettingsDelegate(IntPtr webView);
     private delegate void WebKitSettingsSetHardwareAccelerationPolicyDelegate(IntPtr settings, int policy);
     private delegate void WebKitSettingsSetEnableJavascriptDelegate(IntPtr settings, bool enabled);
+    private delegate void WebKitWebViewSetBackgroundColorDelegate(IntPtr webView, ref GdkRGBA color);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct GdkRGBA
+    {
+        public double Red;
+        public double Green;
+        public double Blue;
+        public double Alpha;
+    }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void LoadChangedCallback(IntPtr webView, int loadEvent, IntPtr userData);
 
-    private delegate ulong GSignalConnectDataDelegate(IntPtr instance, string signalName, LoadChangedCallback callback, IntPtr userData, IntPtr destroyNotify, int connectFlags);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate bool ScriptDialogCallback(IntPtr webView, IntPtr dialog, IntPtr userData);
+
+    private delegate ulong GSignalConnectDataDelegate(IntPtr instance, string signalName, Delegate callback, IntPtr userData, IntPtr destroyNotify, int connectFlags);
+
+    // WebKitScriptDialog functions
+    private delegate int WebKitScriptDialogGetDialogTypeDelegate(IntPtr dialog);
+    private delegate IntPtr WebKitScriptDialogGetMessageDelegate(IntPtr dialog);
+    private delegate void WebKitScriptDialogConfirmSetConfirmedDelegate(IntPtr dialog, bool confirmed);
+    private delegate IntPtr WebKitScriptDialogPromptGetDefaultTextDelegate(IntPtr dialog);
+    private delegate void WebKitScriptDialogPromptSetTextDelegate(IntPtr dialog, string text);
 
     public enum WebKitLoadEvent
     {
@@ -32,6 +52,14 @@ internal static class WebKitNative
         Redirected,
         Committed,
         Finished
+    }
+
+    public enum WebKitScriptDialogType
+    {
+        Alert = 0,
+        Confirm = 1,
+        Prompt = 2,
+        BeforeUnloadConfirm = 3
     }
 
     private static IntPtr _handle;
@@ -59,9 +87,21 @@ internal static class WebKitNative
     private static WebKitWebViewGetSettingsDelegate? _webkitGetSettings;
     private static WebKitSettingsSetHardwareAccelerationPolicyDelegate? _webkitSetHardwareAccel;
     private static WebKitSettingsSetEnableJavascriptDelegate? _webkitSetJavascript;
+    private static WebKitWebViewSetBackgroundColorDelegate? _webkitSetBackgroundColor;
     private static GSignalConnectDataDelegate? _gSignalConnectData;
+    private static WebKitScriptDialogGetDialogTypeDelegate? _webkitScriptDialogGetDialogType;
+    private static WebKitScriptDialogGetMessageDelegate? _webkitScriptDialogGetMessage;
+    private static WebKitScriptDialogConfirmSetConfirmedDelegate? _webkitScriptDialogConfirmSetConfirmed;
+    private static WebKitScriptDialogPromptGetDefaultTextDelegate? _webkitScriptDialogPromptGetDefaultText;
+    private static WebKitScriptDialogPromptSetTextDelegate? _webkitScriptDialogPromptSetText;
 
     private static readonly Dictionary<IntPtr, LoadChangedCallback> _loadChangedCallbacks = new Dictionary<IntPtr, LoadChangedCallback>();
+    private static readonly Dictionary<IntPtr, ScriptDialogCallback> _scriptDialogCallbacks = new Dictionary<IntPtr, ScriptDialogCallback>();
+
+    /// <summary>
+    /// Event raised when a JavaScript dialog (alert, confirm, prompt) is requested.
+    /// </summary>
+    public static event Action<IntPtr, WebKitScriptDialogType, string>? ScriptDialogRequested;
 
     private const int RTLD_NOW = 2;
     private const int RTLD_GLOBAL = 256;
@@ -116,6 +156,12 @@ internal static class WebKitNative
         _webkitGetSettings = LoadFunction<WebKitWebViewGetSettingsDelegate>("webkit_web_view_get_settings");
         _webkitSetHardwareAccel = LoadFunction<WebKitSettingsSetHardwareAccelerationPolicyDelegate>("webkit_settings_set_hardware_acceleration_policy");
         _webkitSetJavascript = LoadFunction<WebKitSettingsSetEnableJavascriptDelegate>("webkit_settings_set_enable_javascript");
+        _webkitSetBackgroundColor = LoadFunction<WebKitWebViewSetBackgroundColorDelegate>("webkit_web_view_set_background_color");
+        _webkitScriptDialogGetDialogType = LoadFunction<WebKitScriptDialogGetDialogTypeDelegate>("webkit_script_dialog_get_dialog_type");
+        _webkitScriptDialogGetMessage = LoadFunction<WebKitScriptDialogGetMessageDelegate>("webkit_script_dialog_get_message");
+        _webkitScriptDialogConfirmSetConfirmed = LoadFunction<WebKitScriptDialogConfirmSetConfirmedDelegate>("webkit_script_dialog_confirm_set_confirmed");
+        _webkitScriptDialogPromptGetDefaultText = LoadFunction<WebKitScriptDialogPromptGetDefaultTextDelegate>("webkit_script_dialog_prompt_get_default_text");
+        _webkitScriptDialogPromptSetText = LoadFunction<WebKitScriptDialogPromptSetTextDelegate>("webkit_script_dialog_prompt_set_text");
 
         _gobjectHandle = dlopen("libgobject-2.0.so.0", 258);
         if (_gobjectHandle != IntPtr.Zero)
@@ -238,6 +284,15 @@ internal static class WebKitNative
         }
     }
 
+    public static void SetBackgroundColor(IntPtr webView, double r, double g, double b, double a = 1.0)
+    {
+        if (_webkitSetBackgroundColor != null && webView != IntPtr.Zero)
+        {
+            var color = new GdkRGBA { Red = r, Green = g, Blue = b, Alpha = a };
+            _webkitSetBackgroundColor(webView, ref color);
+        }
+    }
+
     public static ulong ConnectLoadChanged(IntPtr webView, LoadChangedCallback callback)
     {
         if (_gSignalConnectData == null || webView == IntPtr.Zero)
@@ -252,5 +307,73 @@ internal static class WebKitNative
     public static void DisconnectLoadChanged(IntPtr webView)
     {
         _loadChangedCallbacks.Remove(webView);
+    }
+
+    /// <summary>
+    /// Connects to the script-dialog signal to intercept JavaScript alert/confirm/prompt dialogs.
+    /// Returns true from the callback to prevent the default WebKitGTK dialog.
+    /// </summary>
+    public static ulong ConnectScriptDialog(IntPtr webView, ScriptDialogCallback callback)
+    {
+        if (_gSignalConnectData == null || webView == IntPtr.Zero)
+        {
+            Console.WriteLine("[WebKitNative] Cannot connect script-dialog: signal connect not available");
+            return 0uL;
+        }
+        _scriptDialogCallbacks[webView] = callback;
+        return _gSignalConnectData(webView, "script-dialog", callback, IntPtr.Zero, IntPtr.Zero, 0);
+    }
+
+    public static void DisconnectScriptDialog(IntPtr webView)
+    {
+        _scriptDialogCallbacks.Remove(webView);
+    }
+
+    /// <summary>
+    /// Gets the type of a script dialog.
+    /// </summary>
+    public static WebKitScriptDialogType GetScriptDialogType(IntPtr dialog)
+    {
+        if (_webkitScriptDialogGetDialogType == null || dialog == IntPtr.Zero)
+            return WebKitScriptDialogType.Alert;
+        return (WebKitScriptDialogType)_webkitScriptDialogGetDialogType(dialog);
+    }
+
+    /// <summary>
+    /// Gets the message from a script dialog.
+    /// </summary>
+    public static string? GetScriptDialogMessage(IntPtr dialog)
+    {
+        if (_webkitScriptDialogGetMessage == null || dialog == IntPtr.Zero)
+            return null;
+        IntPtr msgPtr = _webkitScriptDialogGetMessage(dialog);
+        return msgPtr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(msgPtr);
+    }
+
+    /// <summary>
+    /// Sets the confirmed state for a confirm dialog.
+    /// </summary>
+    public static void SetScriptDialogConfirmed(IntPtr dialog, bool confirmed)
+    {
+        _webkitScriptDialogConfirmSetConfirmed?.Invoke(dialog, confirmed);
+    }
+
+    /// <summary>
+    /// Gets the default text for a prompt dialog.
+    /// </summary>
+    public static string? GetScriptDialogPromptDefaultText(IntPtr dialog)
+    {
+        if (_webkitScriptDialogPromptGetDefaultText == null || dialog == IntPtr.Zero)
+            return null;
+        IntPtr textPtr = _webkitScriptDialogPromptGetDefaultText(dialog);
+        return textPtr == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(textPtr);
+    }
+
+    /// <summary>
+    /// Sets the text response for a prompt dialog.
+    /// </summary>
+    public static void SetScriptDialogPromptText(IntPtr dialog, string text)
+    {
+        _webkitScriptDialogPromptSetText?.Invoke(dialog, text);
     }
 }

@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
@@ -52,6 +53,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         {
             _platformWebView.NavigationStarted += OnNavigationStarted;
             _platformWebView.NavigationCompleted += OnNavigationCompleted;
+            _platformWebView.ScriptDialogRequested += OnScriptDialogRequested;
         }
         Console.WriteLine("[GtkWebViewHandler] ConnectHandler - WebView ready");
     }
@@ -62,11 +64,41 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         {
             _platformWebView.NavigationStarted -= OnNavigationStarted;
             _platformWebView.NavigationCompleted -= OnNavigationCompleted;
+            _platformWebView.ScriptDialogRequested -= OnScriptDialogRequested;
             UnregisterFromHost();
             _platformWebView.Dispose();
             _platformWebView = null;
         }
         base.DisconnectHandler(platformView);
+    }
+
+    private async void OnScriptDialogRequested(object? sender,
+        (ScriptDialogType Type, string Message, Action<bool> Callback) e)
+    {
+        Console.WriteLine($"[GtkWebViewHandler] Script dialog requested: type={e.Type}, message={e.Message}");
+
+        string title = e.Type switch
+        {
+            ScriptDialogType.Alert => "Alert",
+            ScriptDialogType.Confirm => "Confirm",
+            ScriptDialogType.Prompt => "Prompt",
+            _ => "Message"
+        };
+
+        string? acceptButton = e.Type == ScriptDialogType.Alert ? "OK" : "OK";
+        string? cancelButton = e.Type == ScriptDialogType.Alert ? null : "Cancel";
+
+        try
+        {
+            bool result = await LinuxDialogService.ShowAlertAsync(title, e.Message, acceptButton, cancelButton);
+            e.Callback(result);
+            Console.WriteLine($"[GtkWebViewHandler] Dialog result: {result}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GtkWebViewHandler] Error showing dialog: {ex.Message}");
+            e.Callback(false);
+        }
     }
 
     private void OnNavigationStarted(object? sender, string uri)

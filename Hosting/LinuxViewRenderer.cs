@@ -164,18 +164,11 @@ public class LinuxViewRenderer
         page.Handler?.DisconnectHandler();
         var handler = page.ToHandler(_mauiContext);
 
+        // The handler's property mappers (e.g., ContentPageHandler.MapContent)
+        // already set up the content and child handlers - no need to re-render here.
+        // Re-rendering would disconnect the existing handler hierarchy.
         if (handler.PlatformView is SkiaView skiaPage)
         {
-            // For ContentPage, render the content
-            if (page is ContentPage contentPage && contentPage.Content != null)
-            {
-                var contentView = RenderView(contentPage.Content);
-                if (skiaPage is SkiaPage sp && contentView != null)
-                {
-                    sp.Content = contentView;
-                }
-            }
-
             return skiaPage;
         }
 

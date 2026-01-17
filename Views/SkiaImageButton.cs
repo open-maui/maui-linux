@@ -239,6 +239,20 @@ public class SkiaImageButton : SkiaView
 
     #region Rendering
 
+    protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
+    {
+        // Skip base background drawing if button is transparent
+        var baseBgColor = ImageBackgroundColor != null
+            ? ToSKColor(ImageBackgroundColor)
+            : GetEffectiveBackgroundColor();
+
+        if (baseBgColor.Alpha < 10)
+            return;
+
+        // Otherwise let base class draw
+        base.DrawBackground(canvas, bounds);
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         var padding = Padding;
@@ -249,26 +263,29 @@ public class SkiaImageButton : SkiaView
             bounds.Bottom - (float)padding.Bottom);
 
         // Determine background color
+        var baseBgColor = ImageBackgroundColor != null
+            ? ToSKColor(ImageBackgroundColor)
+            : GetEffectiveBackgroundColor();
+        var isTransparentButton = baseBgColor.Alpha < 10;
+
         SKColor bgColor;
-        if (IsPressed)
+        if (IsPressed && !isTransparentButton)
         {
+            // Only show pressed state for non-transparent buttons
             bgColor = ToSKColor(PressedBackgroundColor);
         }
-        else if (IsHovered)
+        else if (IsHovered && !isTransparentButton)
         {
+            // Only show hovered state for non-transparent buttons
             bgColor = ToSKColor(HoveredBackgroundColor);
-        }
-        else if (ImageBackgroundColor != null)
-        {
-            bgColor = ToSKColor(ImageBackgroundColor);
         }
         else
         {
-            bgColor = GetEffectiveBackgroundColor();
+            bgColor = baseBgColor;
         }
 
-        // Draw background
-        if (bgColor != SKColors.Transparent || !IsOpaque)
+        // Draw background (skip if fully transparent)
+        if (bgColor.Alpha > 0)
         {
             using var bgPaint = new SKPaint
             {
@@ -477,9 +494,11 @@ public class SkiaImageButton : SkiaView
                         using var canvas = new SKCanvas(bitmap);
                         canvas.Clear(SKColors.Transparent);
                         canvas.Scale(scale);
+                        // Translate to handle negative viewBox coordinates (e.g., Material icons use 0 -960 960 960)
+                        canvas.Translate(-cullRect.Left, -cullRect.Top);
                         canvas.DrawPicture(svg.Picture);
                         Bitmap = bitmap;
-                        Console.WriteLine($"[SkiaImageButton] Loaded SVG: {foundPath} ({width}x{height})");
+                        Console.WriteLine($"[SkiaImageButton] Loaded SVG: {foundPath} ({width}x{height}), cullRect={cullRect}");
                     }
                 }
                 else
@@ -786,9 +805,12 @@ public class SkiaImageButton : SkiaView
             }
             // Fill (3) and Start (0) both use y = bounds.Top
 
-            return new Rect(x, y, finalWidth, finalHeight);
+            var result1 = new Rect(x, y, finalWidth, finalHeight);
+            Console.WriteLine($"[SkiaImageButton] ArrangeOverride output (aligned): Y={result1.Y}, Height={result1.Height}");
+            return result1;
         }
 
+        Console.WriteLine($"[SkiaImageButton] ArrangeOverride output (unchanged): Y={bounds.Y}, Height={bounds.Height}");
         return bounds;
     }
 

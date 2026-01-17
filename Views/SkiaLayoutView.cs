@@ -907,12 +907,46 @@ public class SkiaGrid : SkiaLayoutView
 
             // Apply child's margin
             var margin = child.Margin;
-            var marginedBounds = new Rect(
-                x + (float)margin.Left,
-                y + (float)margin.Top,
-                width - (float)margin.Left - (float)margin.Right,
-                height - (float)margin.Top - (float)margin.Bottom);
-            child.Arrange(marginedBounds);
+            var cellX = x + (float)margin.Left;
+            var cellY = y + (float)margin.Top;
+            var cellWidth = width - (float)margin.Left - (float)margin.Right;
+            var cellHeight = height - (float)margin.Top - (float)margin.Bottom;
+
+            // Get child's desired size
+            var childDesiredSize = child.Measure(new Size(cellWidth, cellHeight));
+            var childWidth = (float)childDesiredSize.Width;
+            var childHeight = (float)childDesiredSize.Height;
+
+            var vAlign = (int)child.VerticalOptions.Alignment;
+
+            // Apply HorizontalOptions
+            // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
+            float finalX = cellX;
+            float finalWidth = cellWidth;
+            var hAlign = (int)child.HorizontalOptions.Alignment;
+            if (hAlign != 3 && childWidth < cellWidth && childWidth > 0) // 3 = Fill
+            {
+                finalWidth = childWidth;
+                if (hAlign == 1) // Center
+                    finalX = cellX + (cellWidth - childWidth) / 2;
+                else if (hAlign == 2) // End
+                    finalX = cellX + cellWidth - childWidth;
+            }
+
+            // Apply VerticalOptions
+            float finalY = cellY;
+            float finalHeight = cellHeight;
+            // vAlign already calculated above for debug logging
+            if (vAlign != 3 && childHeight < cellHeight && childHeight > 0) // 3 = Fill
+            {
+                finalHeight = childHeight;
+                if (vAlign == 1) // Center
+                    finalY = cellY + (cellHeight - childHeight) / 2;
+                else if (vAlign == 2) // End
+                    finalY = cellY + cellHeight - childHeight;
+            }
+
+            child.Arrange(new Rect(finalX, finalY, finalWidth, finalHeight));
         }
         return bounds;
         }

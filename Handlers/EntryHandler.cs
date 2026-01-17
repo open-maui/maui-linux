@@ -241,6 +241,8 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         if (entry is Entry ve && ve.BackgroundColor != null)
         {
             handler.PlatformView.EntryBackgroundColor = ve.BackgroundColor;
+            // Also set base BackgroundColor so SkiaView.DrawBackground() respects transparency
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
         }
     }
 }

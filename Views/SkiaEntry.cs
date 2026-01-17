@@ -74,7 +74,7 @@ public class SkiaEntry : SkiaView, IInputContext
             nameof(EntryBackgroundColor),
             typeof(Color),
             typeof(SkiaEntry),
-            Colors.White,
+            Colors.Transparent,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -837,31 +837,52 @@ public class SkiaEntry : SkiaView, IInputContext
         Invalidate();
     }
 
+    protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
+    {
+        // Skip base background drawing if Entry is transparent
+        // (transparent Entry is likely inside a Border that handles appearance)
+        var bgColor = ToSKColor(EntryBackgroundColor);
+        var baseBgColor = GetEffectiveBackgroundColor();
+        if (bgColor.Alpha < 10 && baseBgColor.Alpha < 10)
+            return;
+
+        // Otherwise let base class draw
+        base.DrawBackground(canvas, bounds);
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Draw background
-        using var bgPaint = new SKPaint
+        var bgColor = ToSKColor(EntryBackgroundColor);
+        var isTransparent = bgColor.Alpha < 10; // Consider nearly transparent as transparent
+
+        // Only draw background and border if not transparent
+        // (transparent means the Entry is likely inside a Border that handles appearance)
+        if (!isTransparent)
         {
-            Color = ToSKColor(EntryBackgroundColor),
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill
-        };
+            // Draw background
+            using var bgPaint = new SKPaint
+            {
+                Color = bgColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill
+            };
 
-        var rect = new SKRoundRect(bounds, (float)CornerRadius);
-        canvas.DrawRoundRect(rect, bgPaint);
+            var rect = new SKRoundRect(bounds, (float)CornerRadius);
+            canvas.DrawRoundRect(rect, bgPaint);
 
-        // Draw border
-        var borderColor = IsFocused ? ToSKColor(FocusedBorderColor) : ToSKColor(BorderColor);
-        var borderWidth = IsFocused ? (float)BorderWidth + 1 : (float)BorderWidth;
+            // Draw border
+            var borderColor = IsFocused ? ToSKColor(FocusedBorderColor) : ToSKColor(BorderColor);
+            var borderWidth = IsFocused ? (float)BorderWidth + 1 : (float)BorderWidth;
 
-        using var borderPaint = new SKPaint
-        {
-            Color = borderColor,
-            IsAntialias = true,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = borderWidth
-        };
-        canvas.DrawRoundRect(rect, borderPaint);
+            using var borderPaint = new SKPaint
+            {
+                Color = borderColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = borderWidth
+            };
+            canvas.DrawRoundRect(rect, borderPaint);
+        }
 
         // Calculate content bounds
         var contentBounds = new SKRect(

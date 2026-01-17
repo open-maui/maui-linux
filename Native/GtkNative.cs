@@ -189,4 +189,97 @@ internal static class GtkNative
 
     [DllImport("libgdk-3.so.0")]
     public static extern void gdk_event_free(IntPtr eventPtr);
+
+    // Message Dialog support
+    public const int GTK_DIALOG_MODAL = 1;
+    public const int GTK_DIALOG_DESTROY_WITH_PARENT = 2;
+
+    public const int GTK_MESSAGE_INFO = 0;
+    public const int GTK_MESSAGE_WARNING = 1;
+    public const int GTK_MESSAGE_QUESTION = 2;
+    public const int GTK_MESSAGE_ERROR = 3;
+    public const int GTK_MESSAGE_OTHER = 4;
+
+    public const int GTK_BUTTONS_NONE = 0;
+    public const int GTK_BUTTONS_OK = 1;
+    public const int GTK_BUTTONS_CLOSE = 2;
+    public const int GTK_BUTTONS_CANCEL = 3;
+    public const int GTK_BUTTONS_YES_NO = 4;
+    public const int GTK_BUTTONS_OK_CANCEL = 5;
+
+    public const int GTK_RESPONSE_NONE = -1;
+    public const int GTK_RESPONSE_REJECT = -2;
+    public const int GTK_RESPONSE_ACCEPT = -3;
+    public const int GTK_RESPONSE_DELETE_EVENT = -4;
+    public const int GTK_RESPONSE_OK = -5;
+    public const int GTK_RESPONSE_CANCEL = -6;
+    public const int GTK_RESPONSE_CLOSE = -7;
+    public const int GTK_RESPONSE_YES = -8;
+    public const int GTK_RESPONSE_NO = -9;
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_message_dialog_new(
+        IntPtr parent,
+        int flags,
+        int type,
+        int buttons,
+        string message,
+        IntPtr args);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern int gtk_dialog_run(IntPtr dialog);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_window_set_transient_for(IntPtr window, IntPtr parent);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_window_set_modal(IntPtr window, bool modal);
+
+    // Dialog with custom content (for prompt dialogs)
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_dialog_new_with_buttons(
+        string title,
+        IntPtr parent,
+        int flags,
+        string firstButtonText,
+        int firstButtonResponse,
+        string secondButtonText,
+        int secondButtonResponse,
+        IntPtr terminator);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_dialog_get_content_area(IntPtr dialog);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_box_new(int orientation, int spacing);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_box_pack_start(IntPtr box, IntPtr child, bool expand, bool fill, uint padding);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_label_new(string text);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_entry_new();
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_entry_set_text(IntPtr entry, string text);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_entry_get_text(IntPtr entry);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_widget_set_margin_start(IntPtr widget, int margin);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_widget_set_margin_end(IntPtr widget, int margin);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_widget_set_margin_top(IntPtr widget, int margin);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_widget_set_margin_bottom(IntPtr widget, int margin);
+
+    public const int GTK_ORIENTATION_HORIZONTAL = 0;
+    public const int GTK_ORIENTATION_VERTICAL = 1;
 }
