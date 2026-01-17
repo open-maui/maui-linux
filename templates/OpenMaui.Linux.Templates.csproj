@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
-    <PackageVersion>1.0.0-preview.1</PackageVersion>
+    <PackageVersion>1.0.0-rc.1</PackageVersion>
     <PackageId>OpenMaui.Linux.Templates</PackageId>
     <Title>OpenMaui Linux Project Templates</Title>
     <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>

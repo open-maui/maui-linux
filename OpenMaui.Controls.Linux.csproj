@@ -25,7 +25,7 @@
     <RepositoryUrl>https://git.marketally.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>RC1: Full XAML support with BindableProperty for all controls, Visual State Manager integration, data binding, and XAML styles.</PackageReleaseNotes>
+    <PackageReleaseNotes>RC1: 100% .NET MAUI API compliance - all public APIs use MAUI types (Color, Rect, Size, Thickness, double). Full XAML support with BindableProperty for all controls, Visual State Manager integration, data binding, and XAML styles. 217 passing tests.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
