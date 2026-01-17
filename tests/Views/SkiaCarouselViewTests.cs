@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Xunit;
 
@@ -15,7 +16,7 @@ public class SkiaCarouselViewTests
 
         Assert.Equal(0, carousel.Position);
         Assert.False(carousel.Loop);
-        Assert.Equal(0f, carousel.PeekAreaInsets);
+        Assert.Equal(0.0, carousel.PeekAreaInsets);
         Assert.Equal(0, carousel.ItemCount);
     }
 
@@ -71,9 +72,9 @@ public class SkiaCarouselViewTests
     {
         var carousel = new SkiaCarouselView();
 
-        carousel.PeekAreaInsets = 20f;
+        carousel.PeekAreaInsets = 20.0;
 
-        Assert.Equal(20f, carousel.PeekAreaInsets);
+        Assert.Equal(20.0, carousel.PeekAreaInsets);
     }
 
     [Fact]
@@ -180,9 +181,9 @@ public class SkiaCarouselViewTests
     {
         var carousel = new SkiaCarouselView();
 
-        carousel.IndicatorColor = SKColors.Gray;
+        carousel.IndicatorColor = Colors.Grey;
 
-        Assert.Equal(SKColors.Gray, carousel.IndicatorColor);
+        Assert.Equal(Colors.Grey, carousel.IndicatorColor);
     }
 
     [Fact]
@@ -190,9 +191,9 @@ public class SkiaCarouselViewTests
     {
         var carousel = new SkiaCarouselView();
 
-        carousel.SelectedIndicatorColor = SKColors.Blue;
+        carousel.SelectedIndicatorColor = Colors.Blue;
 
-        Assert.Equal(SKColors.Blue, carousel.SelectedIndicatorColor);
+        Assert.Equal(Colors.Blue, carousel.SelectedIndicatorColor);
     }
 
     [Fact]
@@ -213,7 +214,7 @@ public class SkiaCarouselViewTests
     {
         var carousel = new SkiaCarouselView();
 
-        Assert.Equal(0f, carousel.ItemSpacing);
+        Assert.Equal(0.0, carousel.ItemSpacing);
     }
 
     [Fact]
@@ -221,9 +222,9 @@ public class SkiaCarouselViewTests
     {
         var carousel = new SkiaCarouselView();
 
-        carousel.ItemSpacing = 16f;
+        carousel.ItemSpacing = 16.0;
 
-        Assert.Equal(16f, carousel.ItemSpacing);
+        Assert.Equal(16.0, carousel.ItemSpacing);
     }
 
     [Fact]
@@ -245,7 +246,7 @@ public class SkiaCarouselViewTests
     {
         var carousel = new SkiaCarouselView();
         carousel.AddItem(new SkiaLabel { Text = "Item" });
-        carousel.Arrange(new SKRect(0, 0, 300, 200));
+        carousel.Arrange(new Rect(0, 0, 300, 200));
 
         var hit = carousel.HitTest(150, 100);
 

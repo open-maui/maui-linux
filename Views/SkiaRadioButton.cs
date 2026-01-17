@@ -507,7 +507,7 @@ public class SkiaRadioButton : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var radioSize = (float)RadioSize;
         var fontSize = (float)FontSize;
@@ -520,7 +520,7 @@ public class SkiaRadioButton : SkiaView
             using var paint = new SKPaint(font);
             textWidth = paint.MeasureText(Content) + spacing;
         }
-        return new SKSize(radioSize + textWidth, Math.Max(radioSize, fontSize * 1.5f));
+        return new Size(radioSize + textWidth, Math.Max(radioSize, fontSize * 1.5f));
     }
 
     #endregion

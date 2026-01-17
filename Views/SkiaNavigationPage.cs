@@ -287,7 +287,7 @@ public class SkiaNavigationPage : SkiaView
                 {
                     canvas.Save();
                     canvas.Translate(currentOffset, 0);
-                    _currentPage.Bounds = bounds;
+                    _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                     _currentPage.Draw(canvas);
                     canvas.Restore();
                 }
@@ -295,7 +295,7 @@ public class SkiaNavigationPage : SkiaView
                 // Draw incoming page
                 canvas.Save();
                 canvas.Translate(incomingOffset, 0);
-                _incomingPage.Bounds = bounds;
+                _incomingPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                 _incomingPage.Draw(canvas);
                 canvas.Restore();
             }
@@ -308,7 +308,7 @@ public class SkiaNavigationPage : SkiaView
                 // Draw incoming page (sliding in)
                 canvas.Save();
                 canvas.Translate(incomingOffset, 0);
-                _incomingPage.Bounds = bounds;
+                _incomingPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                 _incomingPage.Draw(canvas);
                 canvas.Restore();
 
@@ -317,7 +317,7 @@ public class SkiaNavigationPage : SkiaView
                 {
                     canvas.Save();
                     canvas.Translate(currentOffset, 0);
-                    _currentPage.Bounds = bounds;
+                    _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                     _currentPage.Draw(canvas);
                     canvas.Restore();
                 }
@@ -327,7 +327,7 @@ public class SkiaNavigationPage : SkiaView
         {
             // Draw current page normally
             Console.WriteLine("[SkiaNavigationPage] OnDraw: drawing _currentPage=" + _currentPage.Title);
-            _currentPage.Bounds = bounds;
+            _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
             _currentPage.Draw(canvas);
 
             // Draw back button if applicable
@@ -368,7 +368,7 @@ public class SkiaNavigationPage : SkiaView
         return 1 - (float)Math.Pow(1 - t, 3);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         return availableSize;
     }

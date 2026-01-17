@@ -1028,7 +1028,7 @@ public class SkiaImage : SkiaView
         Invalidate();
     }
 
-    public override void Arrange(SKRect bounds)
+    public override void Arrange(Rect bounds)
     {
         base.Arrange(bounds);
 
@@ -1037,21 +1037,21 @@ public class SkiaImage : SkiaView
         {
             if (_isSvg && !string.IsNullOrEmpty(_currentFilePath) && !_isLoading)
             {
-                float width = bounds.Width;
-                float height = bounds.Height;
+                float width = (float)bounds.Width;
+                float height = (float)bounds.Height;
 
                 if ((width > _svgLoadedWidth * 1.1 || height > _svgLoadedHeight * 1.1) &&
                     width > 0f && height > 0f &&
                     (width != _lastArrangedBounds.Width || height != _lastArrangedBounds.Height))
                 {
-                    _lastArrangedBounds = bounds;
+                    _lastArrangedBounds = new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom);
                     _ = LoadSvgAtSizeAsync(_currentFilePath, width, height);
                 }
             }
         }
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         var desiredWidth = DesiredSize.Width;
         var desiredHeight = DesiredSize.Height;
@@ -1059,38 +1059,38 @@ public class SkiaImage : SkiaView
         if (desiredWidth > 0 && desiredHeight > 0 &&
             (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
         {
-            float finalWidth = Math.Min(desiredWidth, bounds.Width);
-            float finalHeight = Math.Min(desiredHeight, bounds.Height);
+            double finalWidth = Math.Min(desiredWidth, bounds.Width);
+            double finalHeight = Math.Min(desiredHeight, bounds.Height);
 
-            float x = bounds.Left;
+            double x = bounds.Left;
             var hAlignValue = (int)HorizontalOptions.Alignment;
             if (hAlignValue == 1) x = bounds.Left + (bounds.Width - finalWidth) / 2;
             else if (hAlignValue == 2) x = bounds.Right - finalWidth;
 
-            float y = bounds.Top;
+            double y = bounds.Top;
             var vAlignValue = (int)VerticalOptions.Alignment;
             if (vAlignValue == 1) y = bounds.Top + (bounds.Height - finalHeight) / 2;
             else if (vAlignValue == 2) y = bounds.Bottom - finalHeight;
 
-            return new SKRect(x, y, x + finalWidth, y + finalHeight);
+            return new Rect(x, y, finalWidth, finalHeight);
         }
 
         return bounds;
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         double widthRequest = base.WidthRequest;
         double heightRequest = base.HeightRequest;
 
         if (widthRequest > 0.0 && heightRequest > 0.0)
-            return new SKSize((float)widthRequest, (float)heightRequest);
+            return new Size(widthRequest, heightRequest);
 
         if (_image == null)
         {
-            if (widthRequest > 0.0) return new SKSize((float)widthRequest, (float)widthRequest);
-            if (heightRequest > 0.0) return new SKSize((float)heightRequest, (float)heightRequest);
-            return new SKSize(100f, 100f);
+            if (widthRequest > 0.0) return new Size(widthRequest, widthRequest);
+            if (heightRequest > 0.0) return new Size(heightRequest, heightRequest);
+            return new Size(100.0, 100.0);
         }
 
         float imageWidth = _image.Width;
@@ -1098,35 +1098,35 @@ public class SkiaImage : SkiaView
 
         if (widthRequest > 0.0)
         {
-            float scale = (float)widthRequest / imageWidth;
-            return new SKSize((float)widthRequest, imageHeight * scale);
+            double scale = widthRequest / imageWidth;
+            return new Size(widthRequest, imageHeight * scale);
         }
 
         if (heightRequest > 0.0)
         {
-            float scale = (float)heightRequest / imageHeight;
-            return new SKSize(imageWidth * scale, (float)heightRequest);
+            double scale = heightRequest / imageHeight;
+            return new Size(imageWidth * scale, heightRequest);
         }
 
-        if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
+        if (availableSize.Width < double.MaxValue && availableSize.Height < double.MaxValue)
         {
-            float scale = Math.Min(availableSize.Width / imageWidth, availableSize.Height / imageHeight);
-            return new SKSize(imageWidth * scale, imageHeight * scale);
+            double scale = Math.Min(availableSize.Width / imageWidth, availableSize.Height / imageHeight);
+            return new Size(imageWidth * scale, imageHeight * scale);
         }
 
-        if (availableSize.Width < float.MaxValue)
+        if (availableSize.Width < double.MaxValue)
         {
-            float scale = availableSize.Width / imageWidth;
-            return new SKSize(availableSize.Width, imageHeight * scale);
+            double scale = availableSize.Width / imageWidth;
+            return new Size(availableSize.Width, imageHeight * scale);
         }
 
-        if (availableSize.Height < float.MaxValue)
+        if (availableSize.Height < double.MaxValue)
         {
-            float scale = availableSize.Height / imageHeight;
-            return new SKSize(imageWidth * scale, availableSize.Height);
+            double scale = availableSize.Height / imageHeight;
+            return new Size(imageWidth * scale, availableSize.Height);
         }
 
-        return new SKSize(imageWidth, imageHeight);
+        return new Size(imageWidth, imageHeight);
     }
 
     protected override void Dispose(bool disposing)

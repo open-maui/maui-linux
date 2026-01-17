@@ -137,7 +137,7 @@ public class SkiaWebView : SkiaView
     private string? _userAgent;
     private CookieContainer _cookies = new();
     private double _loadProgress;
-    private SKRect _lastBounds;
+    private Rect _lastBounds;
     private int _lastMainX;
     private int _lastMainY;
     private int _lastPosX;
@@ -1340,7 +1340,7 @@ public class SkiaWebView : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         base.OnDraw(canvas, bounds);
-        Bounds = bounds;
+        Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
 
         if (_isInitialized)
         {
@@ -1364,7 +1364,7 @@ public class SkiaWebView : SkiaView
                 if (needsUpdate && bounds.Width > 50f && bounds.Height > 50f)
                 {
                     PositionUsingGtk();
-                    _lastBounds = bounds;
+                    _lastBounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                 }
             }
         }

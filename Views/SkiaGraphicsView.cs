@@ -49,17 +49,17 @@ public class SkiaGraphicsView : SkiaView
         }
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Graphics view takes all available space by default
-        if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
+        if (availableSize.Width < double.MaxValue && availableSize.Height < double.MaxValue)
         {
             return availableSize;
         }
 
         // Return a reasonable default size
-        return new SKSize(
-            availableSize.Width < float.MaxValue ? availableSize.Width : 100,
-            availableSize.Height < float.MaxValue ? availableSize.Height : 100);
+        return new Size(
+            availableSize.Width < double.MaxValue ? availableSize.Width : 100,
+            availableSize.Height < double.MaxValue ? availableSize.Height : 100);
     }
 }

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using FluentAssertions;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 using Xunit;
@@ -46,8 +47,8 @@ public class SkiaScrollViewTests
         content.AddChild(new SkiaButton { Text = "1", RequestedHeight = 100 });
         content.AddChild(new SkiaButton { Text = "2", RequestedHeight = 100 });
         scrollView.Content = content;
-        scrollView.Measure(new SKSize(200, 100)); // Viewport smaller than content
-        scrollView.Arrange(new SKRect(0, 0, 200, 100));
+        scrollView.Measure(new Size(200, 100)); // Viewport smaller than content
+        scrollView.Arrange(new Rect(0, 0, 200, 100));
 
         // Act - Try to scroll below 0
         scrollView.ScrollY = -50;
@@ -67,8 +68,8 @@ public class SkiaScrollViewTests
             content.AddChild(new SkiaButton { Text = $"Button {i}", RequestedHeight = 50 });
         }
         scrollView.Content = content;
-        scrollView.Measure(new SKSize(200, 300));
-        scrollView.Arrange(new SKRect(0, 0, 200, 300));
+        scrollView.Measure(new Size(200, 300));
+        scrollView.Arrange(new Rect(0, 0, 200, 300));
 
         var initialScrollY = scrollView.ScrollY;
 
@@ -89,8 +90,8 @@ public class SkiaScrollViewTests
         content.AddChild(button);
         scrollView.Content = content;
 
-        scrollView.Measure(new SKSize(200, 200));
-        scrollView.Arrange(new SKRect(0, 0, 200, 200));
+        scrollView.Measure(new Size(200, 200));
+        scrollView.Arrange(new Rect(0, 0, 200, 200));
 
         // Act
         var hit = scrollView.HitTest(100, 25);
@@ -111,8 +112,8 @@ public class SkiaScrollViewTests
         }
         scrollView.Content = content;
 
-        scrollView.Measure(new SKSize(200, 100));
-        scrollView.Arrange(new SKRect(0, 0, 200, 100));
+        scrollView.Measure(new Size(200, 100));
+        scrollView.Arrange(new Rect(0, 0, 200, 100));
 
         // Act
         scrollView.ScrollY = 50;
@@ -129,7 +130,7 @@ public class SkiaScrollViewTests
         var content = new SkiaStackLayout();
         content.AddChild(new SkiaButton { Text = "Test" });
         scrollView.Content = content;
-        scrollView.Bounds = new SKRect(0, 0, 200, 200);
+        scrollView.Bounds = new Rect(0, 0, 200, 200);
 
         using var surface = SKSurface.Create(new SKImageInfo(300, 300));
         var canvas = surface.Canvas;
@@ -150,8 +151,8 @@ public class SkiaScrollViewTests
             content.AddChild(new SkiaButton { Text = $"Button {i}", RequestedHeight = 50 });
         }
         scrollView.Content = content;
-        scrollView.Measure(new SKSize(200, 200));
-        scrollView.Arrange(new SKRect(0, 0, 200, 200));
+        scrollView.Measure(new Size(200, 200));
+        scrollView.Arrange(new Rect(0, 0, 200, 200));
 
         // Act - Scroll to maximum
         scrollView.ScrollY = 10000; // Very large value

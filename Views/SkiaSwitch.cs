@@ -439,11 +439,11 @@ public class SkiaSwitch : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var trackWidth = (float)TrackWidth;
-        var trackHeight = (float)TrackHeight;
-        return new SKSize(trackWidth + 8f, trackHeight + 8f);
+        var trackWidth = TrackWidth;
+        var trackHeight = TrackHeight;
+        return new Size(trackWidth + 8, trackHeight + 8);
     }
 
     #endregion

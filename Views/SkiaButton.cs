@@ -940,7 +940,7 @@ public class SkiaButton : SkiaView, IButtonController
 
     #region Measurement
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var padding = Padding;
         float paddingH = (float)(padding.Left + padding.Right);
@@ -1037,7 +1037,7 @@ public class SkiaButton : SkiaView, IButtonController
             height = (float)HeightRequest;
         }
 
-        return new SKSize(Math.Max(width, 44f), Math.Max(height, 30f));
+        return new Size(Math.Max(width, 44f), Math.Max(height, 30f));
     }
 
     #endregion

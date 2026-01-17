@@ -278,7 +278,8 @@ public class SkiaTimePicker : SkiaView
     private void DrawClockOverlay(SKCanvas canvas)
     {
         if (!_isOpen) return;
-        DrawClockPopup(canvas, ScreenBounds);
+        var sb = ScreenBounds;
+        DrawClockPopup(canvas, new SKRect((float)sb.Left, (float)sb.Top, (float)sb.Right, (float)sb.Bottom));
     }
 
     private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
@@ -499,7 +500,7 @@ public class SkiaTimePicker : SkiaView
         if (IsOpen)
         {
             var screenBounds = ScreenBounds;
-            var popupRect = GetPopupRect(screenBounds);
+            var popupRect = GetPopupRect(new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)screenBounds.Right, (float)screenBounds.Bottom));
 
             var headerRect = new SKRect(popupRect.Left, popupRect.Top, popupRect.Right, popupRect.Top + HeaderHeight);
             if (headerRect.Contains(e.X, e.Y))
@@ -598,9 +599,9 @@ public class SkiaTimePicker : SkiaView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200) : 200, 40);
+        return new Size(availableSize.Width < double.MaxValue ? Math.Min(availableSize.Width, 200) : 200, 40);
     }
 
     protected override bool HitTestPopupArea(float x, float y)
@@ -611,7 +612,7 @@ public class SkiaTimePicker : SkiaView
 
         if (_isOpen)
         {
-            var popupRect = GetPopupRect(screenBounds);
+            var popupRect = GetPopupRect(new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)screenBounds.Right, (float)screenBounds.Bottom));
             return popupRect.Contains(x, y);
         }
 

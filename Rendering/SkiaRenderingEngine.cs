@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using SkiaSharp;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Window;
 using Microsoft.Maui.Platform;
 using System.Runtime.InteropServices;
@@ -167,9 +168,9 @@ public class SkiaRenderingEngine : IDisposable
             return;
 
         // Measure and arrange
-        var availableSize = new SKSize(Width, Height);
+        var availableSize = new Size(Width, Height);
         rootView.Measure(availableSize);
-        rootView.Arrange(new SKRect(0, 0, Width, Height));
+        rootView.Arrange(new Rect(0, 0, Width, Height));
 
         // Determine what to redraw
         List<SKRect> regionsToRedraw;

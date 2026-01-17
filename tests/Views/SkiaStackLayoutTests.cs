@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using FluentAssertions;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 using Xunit;
@@ -68,7 +69,7 @@ public class SkiaStackLayoutTests
         layout.AddChild(new SkiaButton { Text = "3" });
 
         // Act
-        var size = layout.Measure(new SKSize(200, 1000));
+        var size = layout.Measure(new Size(200, 1000));
 
         // Assert - Size should account for 3 children with spacing
         size.Height.Should().BeGreaterThan(0);
@@ -89,7 +90,7 @@ public class SkiaStackLayoutTests
         layout.AddChild(new SkiaButton { Text = "3" });
 
         // Act
-        var size = layout.Measure(new SKSize(1000, 200));
+        var size = layout.Measure(new Size(1000, 200));
 
         // Assert - Size should account for 3 children with spacing
         size.Width.Should().BeGreaterThan(0);
@@ -111,8 +112,8 @@ public class SkiaStackLayoutTests
         layout.AddChild(button2);
 
         // Act
-        layout.Measure(new SKSize(200, 500));
-        layout.Arrange(new SKRect(0, 0, 200, 500));
+        layout.Measure(new Size(200, 500));
+        layout.Arrange(new Rect(0, 0, 200, 500));
 
         // Assert - Button2 should be below Button1
         button2.Bounds.Top.Should().BeGreaterThan(button1.Bounds.Top);
@@ -133,8 +134,8 @@ public class SkiaStackLayoutTests
         layout.AddChild(button2);
 
         // Act
-        layout.Measure(new SKSize(500, 200));
-        layout.Arrange(new SKRect(0, 0, 500, 200));
+        layout.Measure(new Size(500, 200));
+        layout.Arrange(new Rect(0, 0, 500, 200));
 
         // Assert - Button2 should be to the right of Button1
         button2.Bounds.Left.Should().BeGreaterThan(button1.Bounds.Left);
@@ -147,14 +148,14 @@ public class SkiaStackLayoutTests
         var layout = new SkiaStackLayout
         {
             Orientation = PlatformStackOrientation.Vertical,
-            Padding = new SKRect(20, 20, 20, 20)
+            Padding = new Microsoft.Maui.Thickness(20, 20, 20, 20)
         };
         var button = new SkiaButton { Text = "Test" };
         layout.AddChild(button);
 
         // Act
-        layout.Measure(new SKSize(300, 300));
-        layout.Arrange(new SKRect(0, 0, 300, 300));
+        layout.Measure(new Size(300, 300));
+        layout.Arrange(new Rect(0, 0, 300, 300));
 
         // Assert - Padding property is set
         layout.Padding.Left.Should().Be(20);
@@ -168,7 +169,7 @@ public class SkiaStackLayoutTests
         var layout = new SkiaStackLayout();
         layout.AddChild(new SkiaButton { Text = "1" });
         layout.AddChild(new SkiaButton { Text = "2" });
-        layout.Bounds = new SKRect(0, 0, 200, 200);
+        layout.Bounds = new Rect(0, 0, 200, 200);
 
         using var surface = SKSurface.Create(new SKImageInfo(300, 300));
         var canvas = surface.Canvas;
@@ -188,8 +189,8 @@ public class SkiaStackLayoutTests
         layout.AddChild(button1);
         layout.AddChild(button2);
 
-        layout.Measure(new SKSize(200, 200));
-        layout.Arrange(new SKRect(0, 0, 200, 200));
+        layout.Measure(new Size(200, 200));
+        layout.Arrange(new Rect(0, 0, 200, 200));
 
         // Act - Hit test within layout bounds
         var hit = layout.HitTest(100, 10);

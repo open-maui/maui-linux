@@ -423,7 +423,7 @@ public class SkiaBorder : SkiaLayoutView
 
     protected override SKRect GetContentBounds()
     {
-        return GetContentBounds(Bounds);
+        return GetContentBounds(new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom));
     }
 
     protected new SKRect GetContentBounds(SKRect bounds)
@@ -437,7 +437,7 @@ public class SkiaBorder : SkiaLayoutView
             bounds.Bottom - (float)padding.Bottom - strokeThickness);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         float strokeThickness = (float)StrokeThickness;
         var padding = BorderPadding;
@@ -445,43 +445,43 @@ public class SkiaBorder : SkiaLayoutView
         float paddingHeight = (float)(padding.Top + padding.Bottom) + strokeThickness * 2f;
 
         // Respect explicit size requests
-        var requestedWidth = WidthRequest >= 0.0 ? (float)WidthRequest : availableSize.Width;
-        var requestedHeight = HeightRequest >= 0.0 ? (float)HeightRequest : availableSize.Height;
+        var requestedWidth = WidthRequest >= 0.0 ? (float)WidthRequest : (float)availableSize.Width;
+        var requestedHeight = HeightRequest >= 0.0 ? (float)HeightRequest : (float)availableSize.Height;
 
-        var childAvailable = new SKSize(
+        var childAvailable = new Size(
             Math.Max(0f, requestedWidth - paddingWidth),
             Math.Max(0f, requestedHeight - paddingHeight));
 
-        var maxChildSize = SKSize.Empty;
+        var maxChildSize = Size.Zero;
 
         foreach (var child in Children)
         {
             var childSize = child.Measure(childAvailable);
-            maxChildSize = new SKSize(
+            maxChildSize = new Size(
                 Math.Max(maxChildSize.Width, childSize.Width),
                 Math.Max(maxChildSize.Height, childSize.Height));
         }
 
         // Use requested size if set, otherwise use child size + padding
-        var width = WidthRequest >= 0.0 ? (float)WidthRequest : maxChildSize.Width + paddingWidth;
-        var height = HeightRequest >= 0.0 ? (float)HeightRequest : maxChildSize.Height + paddingHeight;
+        var width = WidthRequest >= 0.0 ? (float)WidthRequest : (float)maxChildSize.Width + paddingWidth;
+        var height = HeightRequest >= 0.0 ? (float)HeightRequest : (float)maxChildSize.Height + paddingHeight;
 
-        return new SKSize(width, height);
+        return new Size(width, height);
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
-        var contentBounds = GetContentBounds(bounds);
+        var contentBounds = GetContentBounds(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
 
         foreach (var child in Children)
         {
             // Apply child's margin
             var margin = child.Margin;
-            var marginedBounds = new SKRect(
-                contentBounds.Left + (float)margin.Left,
-                contentBounds.Top + (float)margin.Top,
-                contentBounds.Right - (float)margin.Right,
-                contentBounds.Bottom - (float)margin.Bottom);
+            var marginedBounds = new Rect(
+                contentBounds.Left + margin.Left,
+                contentBounds.Top + margin.Top,
+                contentBounds.Width - margin.Left - margin.Right,
+                contentBounds.Height - margin.Top - margin.Bottom);
             child.Arrange(marginedBounds);
         }
 
@@ -515,7 +515,7 @@ public class SkiaBorder : SkiaLayoutView
         if (IsVisible && IsEnabled)
         {
             var bounds = Bounds;
-            if (bounds.Contains(new SKPoint(x, y)))
+            if (bounds.Contains(x, y))
             {
                 if (HasTapGestureRecognizers())
                 {

@@ -187,9 +187,9 @@ public class SkiaPage : SkiaView
                 contentBounds.Bottom - (float)margin.Bottom);
 
             // Measure and arrange the content before drawing
-            var availableSize = new SKSize(adjustedBounds.Width, adjustedBounds.Height);
+            var availableSize = new Size(adjustedBounds.Width, adjustedBounds.Height);
             _content.Measure(availableSize);
-            _content.Arrange(adjustedBounds);
+            _content.Arrange(new Rect(adjustedBounds.Left, adjustedBounds.Top, adjustedBounds.Width, adjustedBounds.Height));
             Console.WriteLine($"[SkiaPage] Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
             _content.Draw(canvas);
         }
@@ -294,7 +294,7 @@ public class SkiaPage : SkiaView
         NavigatingFrom?.Invoke(this, EventArgs.Empty);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Page takes all available space
         return availableSize;

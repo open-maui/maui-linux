@@ -1075,9 +1075,9 @@ public class SkiaEditor : SkiaView, IInputContext
         {
             _scrollOffsetY = cursorY;
         }
-        else if (cursorY + lineSpacing > _scrollOffsetY + viewHeight)
+        else if (cursorY + lineSpacing > _scrollOffsetY + (float)viewHeight)
         {
-            _scrollOffsetY = cursorY + lineSpacing - viewHeight;
+            _scrollOffsetY = cursorY + lineSpacing - (float)viewHeight;
         }
     }
 
@@ -1377,7 +1377,7 @@ public class SkiaEditor : SkiaView, IInputContext
         var lineHeight = (float)LineHeight;
         var lineSpacing = fontSize * lineHeight;
         var totalHeight = _lines.Count * lineSpacing;
-        var viewHeight = Bounds.Height - (float)(Padding.Top + Padding.Bottom);
+        var viewHeight = (float)Bounds.Height - (float)(Padding.Top + Padding.Bottom);
         var maxScroll = Math.Max(0, totalHeight - viewHeight);
 
         _scrollOffsetY = Math.Clamp(_scrollOffsetY - e.DeltaY * 3, 0, maxScroll);
@@ -1578,22 +1578,22 @@ public class SkiaEditor : SkiaView, IInputContext
         _inputMethodService.SetCursorLocation(x, y, 2, height);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (AutoSize)
         {
             var fontSize = (float)FontSize;
             var lineHeight = (float)LineHeight;
             var lineSpacing = fontSize * lineHeight;
-            var verticalPadding = (float)(Padding.Top + Padding.Bottom);
+            var verticalPadding = Padding.Top + Padding.Bottom;
             var height = Math.Max(lineSpacing + verticalPadding, _lines.Count * lineSpacing + verticalPadding);
-            return new SKSize(
-                availableSize.Width < float.MaxValue ? availableSize.Width : 200,
-                (float)Math.Min(height, availableSize.Height < float.MaxValue ? availableSize.Height : 200));
+            return new Size(
+                availableSize.Width < double.MaxValue ? availableSize.Width : 200,
+                Math.Min(height, availableSize.Height < double.MaxValue ? availableSize.Height : 200));
         }
 
-        return new SKSize(
-            availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200) : 200,
-            availableSize.Height < float.MaxValue ? Math.Min(availableSize.Height, 150) : 150);
+        return new Size(
+            availableSize.Width < double.MaxValue ? Math.Min(availableSize.Width, 200) : 200,
+            availableSize.Height < double.MaxValue ? Math.Min(availableSize.Height, 150) : 150);
     }
 }

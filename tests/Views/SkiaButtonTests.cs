@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using FluentAssertions;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 using Xunit;
@@ -42,7 +43,7 @@ public class SkiaButtonTests
         var button = new SkiaButton { Text = "Test" };
 
         // Act
-        var size = button.Measure(new SKSize(1000, 1000));
+        var size = button.Measure(new Size(1000, 1000));
 
         // Assert
         size.Width.Should().BeGreaterThan(0);
@@ -61,7 +62,7 @@ public class SkiaButtonTests
         };
 
         // Act
-        var size = button.Measure(new SKSize(1000, 1000));
+        var size = button.Measure(new Size(1000, 1000));
 
         // Assert - Measure returns content-based size
         size.Width.Should().BeGreaterThan(0);
@@ -100,7 +101,7 @@ public class SkiaButtonTests
     {
         // Arrange
         var button = new SkiaButton { Text = "Test" };
-        button.Bounds = new SKRect(0, 0, 100, 40);
+        button.Bounds = new Rect(0, 0, 100, 40);
 
         using var surface = SKSurface.Create(new SKImageInfo(200, 100));
         var canvas = surface.Canvas;
@@ -129,7 +130,7 @@ public class SkiaButtonTests
     {
         // Arrange
         var button = new SkiaButton();
-        var color = new SKColor(0, 255, 0);
+        var color = Microsoft.Maui.Graphics.Color.FromRgb(0, 255, 0);
 
         // Act
         button.BackgroundColor = color;

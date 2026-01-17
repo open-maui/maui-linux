@@ -750,36 +750,36 @@ public class SkiaShell : SkiaLayoutView
         }
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Measure current content with padding accounted for (consistent with ArrangeOverride)
         if (_currentContent != null)
         {
             float contentTop = NavBarIsVisible ? NavBarHeight : 0;
             float contentBottom = TabBarIsVisible ? TabBarHeight : 0;
-            var contentSize = new SKSize(
-                availableSize.Width - (float)Padding.Left - (float)Padding.Right,
-                availableSize.Height - contentTop - contentBottom - (float)Padding.Top - (float)Padding.Bottom);
+            var contentSize = new Size(
+                availableSize.Width - Padding.Left - Padding.Right,
+                availableSize.Height - contentTop - contentBottom - Padding.Top - Padding.Bottom);
             _currentContent.Measure(contentSize);
         }
 
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         Console.WriteLine($"[SkiaShell] ArrangeOverride - bounds={bounds}");
 
         // Arrange current content with padding
         if (_currentContent != null)
         {
-            float contentTop = bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
-            float contentBottom = bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
-            var contentBounds = new SKRect(
+            float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
+            float contentBottom = (float)bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
+            var contentBounds = new Rect(
                 bounds.Left + ContentPadding,
                 contentTop,
-                bounds.Right - ContentPadding,
-                contentBottom);
+                bounds.Width - ContentPadding * 2,
+                contentBottom - contentTop);
             Console.WriteLine($"[SkiaShell] Arranging content with bounds={contentBounds}, padding={ContentPadding}");
             _currentContent.Arrange(contentBounds);
         }
@@ -1011,8 +1011,8 @@ public class SkiaShell : SkiaLayoutView
         // Check flyout area
         if (_flyoutAnimationProgress > 0)
         {
-            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
+            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
 
             if (flyoutBounds.Contains(x, y))
             {
@@ -1027,13 +1027,13 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Check nav bar
-        if (NavBarIsVisible && y < Bounds.Top + NavBarHeight)
+        if (NavBarIsVisible && y < (float)Bounds.Top + NavBarHeight)
         {
             return this;
         }
 
         // Check tab bar
-        if (TabBarIsVisible && y > Bounds.Bottom - TabBarHeight)
+        if (TabBarIsVisible && y > (float)Bounds.Bottom - TabBarHeight)
         {
             return this;
         }
@@ -1055,8 +1055,8 @@ public class SkiaShell : SkiaLayoutView
         // Check flyout tap
         if (_flyoutAnimationProgress > 0)
         {
-            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
+            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
 
             if (flyoutBounds.Contains(e.X, e.Y))
             {
@@ -1105,13 +1105,13 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Check tab bar tap
-        if (TabBarIsVisible && e.Y > Bounds.Bottom - TabBarHeight)
+        if (TabBarIsVisible && e.Y > (float)Bounds.Bottom - TabBarHeight)
         {
             if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
             {
                 var section = _sections[_selectedSectionIndex];
-                float tabWidth = Bounds.Width / section.Items.Count;
-                int tappedIndex = (int)((e.X - Bounds.Left) / tabWidth);
+                float tabWidth = (float)Bounds.Width / section.Items.Count;
+                int tappedIndex = (int)((e.X - (float)Bounds.Left) / tabWidth);
                 tappedIndex = Math.Clamp(tappedIndex, 0, section.Items.Count - 1);
 
                 if (tappedIndex != _selectedItemIndex)
@@ -1130,8 +1130,8 @@ public class SkiaShell : SkiaLayoutView
     {
         if (FlyoutIsPresented && _flyoutAnimationProgress > 0)
         {
-            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
+            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
 
             if (flyoutBounds.Contains(e.X, e.Y))
             {

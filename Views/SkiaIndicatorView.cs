@@ -145,18 +145,18 @@ public class SkiaIndicatorView : SkiaView
     /// </summary>
     public bool HideSingle { get; set; } = true;
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (_count <= 0 || (HideSingle && _count <= 1))
         {
-            return SKSize.Empty;
+            return Size.Zero;
         }
 
         int visibleCount = Math.Min(_count, MaximumVisible);
-        float totalWidth = visibleCount * (float)IndicatorSize + (visibleCount - 1) * (float)IndicatorSpacing;
-        float height = Math.Max((float)IndicatorSize, (float)SelectedIndicatorSize);
+        double totalWidth = visibleCount * IndicatorSize + (visibleCount - 1) * IndicatorSpacing;
+        double height = Math.Max(IndicatorSize, SelectedIndicatorSize);
 
-        return new SKSize(totalWidth, height);
+        return new Size(totalWidth, height);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -164,12 +164,13 @@ public class SkiaIndicatorView : SkiaView
         if (_count <= 0 || (HideSingle && _count <= 1)) return;
 
         canvas.Save();
-        canvas.ClipRect(Bounds);
+        var skBounds = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
+        canvas.ClipRect(skBounds);
 
         int visibleCount = Math.Min(_count, MaximumVisible);
         float totalWidth = visibleCount * (float)IndicatorSize + (visibleCount - 1) * (float)IndicatorSpacing;
-        float startX = Bounds.MidX - totalWidth / 2 + (float)IndicatorSize / 2;
-        float centerY = Bounds.MidY;
+        float startX = (float)(Bounds.Left + Bounds.Width / 2) - totalWidth / 2 + (float)IndicatorSize / 2;
+        float centerY = (float)(Bounds.Top + Bounds.Height / 2);
 
         // Determine visible range if count > MaximumVisible
         int startIndex = 0;
@@ -283,7 +284,7 @@ public class SkiaIndicatorView : SkiaView
         {
             int visibleCount = Math.Min(_count, MaximumVisible);
             float totalWidth = visibleCount * (float)IndicatorSize + (visibleCount - 1) * (float)IndicatorSpacing;
-            float startX = Bounds.MidX - totalWidth / 2;
+            float startX = (float)(Bounds.Left + Bounds.Width / 2) - totalWidth / 2;
 
             int startIndex = 0;
             if (_count > MaximumVisible)
@@ -316,7 +317,7 @@ public class SkiaIndicatorView : SkiaView
         // Calculate which indicator was clicked
         int visibleCount = Math.Min(_count, MaximumVisible);
         float totalWidth = visibleCount * (float)IndicatorSize + (visibleCount - 1) * (float)IndicatorSpacing;
-        float startX = Bounds.MidX - totalWidth / 2;
+        float startX = (float)(Bounds.Left + Bounds.Width / 2) - totalWidth / 2;
 
         int startIndex = 0;
         if (_count > MaximumVisible)

@@ -520,10 +520,10 @@ public class SkiaStepper : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var buttonWidth = (float)ButtonWidth;
-        return new SKSize(buttonWidth * 2 + 1, 32);
+        var buttonWidth = ButtonWidth;
+        return new Size(buttonWidth * 2 + 1, 32);
     }
 
     #endregion

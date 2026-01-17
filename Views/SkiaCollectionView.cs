@@ -420,10 +420,10 @@ public class SkiaCollectionView : SkiaItemsView
             {
                 try
                 {
-                    var availableSize = new SKSize(bounds.Width, float.MaxValue);
+                    var availableSize = new Size(bounds.Width, float.MaxValue);
                     var measuredSize = itemView.Measure(availableSize);
 
-                    var rawHeight = measuredSize.Height;
+                    var rawHeight = (float)measuredSize.Height;
                     if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000f)
                     {
                         rawHeight = ItemHeight;
@@ -437,7 +437,7 @@ public class SkiaCollectionView : SkiaItemsView
                     }
 
                     var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
-                    itemView.Arrange(actualBounds);
+                    itemView.Arrange(new Rect(actualBounds.Left, actualBounds.Top, actualBounds.Width, actualBounds.Height));
                     itemView.Draw(canvas);
 
                     if (isSelected)

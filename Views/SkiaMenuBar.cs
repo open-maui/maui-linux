@@ -104,9 +104,9 @@ public class SkiaMenuBar : SkiaView
     /// </summary>
     public float ItemPadding { get; set; } = 12f;
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(availableSize.Width, BarHeight);
+        return new Size(availableSize.Width, BarHeight);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -119,7 +119,8 @@ public class SkiaMenuBar : SkiaView
             Color = _menuBackgroundColorSK,
             Style = SKPaintStyle.Fill
         };
-        canvas.DrawRect(Bounds, bgPaint);
+        var skBounds = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
+        canvas.DrawRect(skBounds, bgPaint);
 
         // Draw bottom border
         using var borderPaint = new SKPaint
@@ -128,7 +129,7 @@ public class SkiaMenuBar : SkiaView
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
-        canvas.DrawLine(Bounds.Left, Bounds.Bottom, Bounds.Right, Bounds.Bottom, borderPaint);
+        canvas.DrawLine((float)Bounds.Left, (float)(Bounds.Top + Bounds.Height), (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height), borderPaint);
 
         // Draw menu items
         using var textPaint = new SKPaint
@@ -138,7 +139,7 @@ public class SkiaMenuBar : SkiaView
             IsAntialias = true
         };
 
-        float x = Bounds.Left;
+        float x = (float)Bounds.Left;
 
         for (int i = 0; i < _items.Count; i++)
         {
@@ -147,7 +148,7 @@ public class SkiaMenuBar : SkiaView
             textPaint.MeasureText(item.Text, ref textBounds);
 
             float itemWidth = textBounds.Width + ItemPadding * 2;
-            var itemBounds = new SKRect(x, Bounds.Top, x + itemWidth, Bounds.Bottom);
+            var itemBounds = new SKRect(x, (float)Bounds.Top, x + itemWidth, (float)(Bounds.Top + Bounds.Height));
 
             // Draw item background
             if (i == _openIndex)
@@ -161,9 +162,9 @@ public class SkiaMenuBar : SkiaView
                 canvas.DrawRect(itemBounds, hoverPaint);
             }
 
-            // Draw text
+            // Draw text (MidY = Top + Height/2)
             float textX = x + ItemPadding;
-            float textY = Bounds.MidY - textBounds.MidY;
+            float textY = (float)(Bounds.Top + Bounds.Height / 2) - textBounds.MidY;
             canvas.DrawText(item.Text, textX, textY, textPaint);
 
             item.Bounds = itemBounds;

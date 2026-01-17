@@ -125,42 +125,42 @@ public class SkiaContentPresenter : SkiaView
         Content?.Draw(canvas);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var padding = Padding;
-        var paddingLeft = (float)padding.Left;
-        var paddingTop = (float)padding.Top;
-        var paddingRight = (float)padding.Right;
-        var paddingBottom = (float)padding.Bottom;
+        var paddingLeft = padding.Left;
+        var paddingTop = padding.Top;
+        var paddingRight = padding.Right;
+        var paddingBottom = padding.Bottom;
 
         if (Content == null)
-            return new SKSize(paddingLeft + paddingRight, paddingTop + paddingBottom);
+            return new Size(paddingLeft + paddingRight, paddingTop + paddingBottom);
 
         // When alignment is not Fill, give content unlimited size in that dimension
         // so it can measure its natural size without truncation
         var measureWidth = HorizontalContentAlignment == LayoutAlignment.Fill
-            ? Math.Max(0, availableSize.Width - paddingLeft - paddingRight)
+            ? (float)Math.Max(0, availableSize.Width - paddingLeft - paddingRight)
             : float.PositiveInfinity;
         var measureHeight = VerticalContentAlignment == LayoutAlignment.Fill
-            ? Math.Max(0, availableSize.Height - paddingTop - paddingBottom)
+            ? (float)Math.Max(0, availableSize.Height - paddingTop - paddingBottom)
             : float.PositiveInfinity;
 
-        var contentSize = Content.Measure(new SKSize(measureWidth, measureHeight));
-        return new SKSize(
+        var contentSize = Content.Measure(new Size(measureWidth, measureHeight));
+        return new Size(
             contentSize.Width + paddingLeft + paddingRight,
             contentSize.Height + paddingTop + paddingBottom);
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         if (Content != null)
         {
             var padding = Padding;
-            var contentBounds = new SKRect(
-                bounds.Left + (float)padding.Left,
-                bounds.Top + (float)padding.Top,
-                bounds.Right - (float)padding.Right,
-                bounds.Bottom - (float)padding.Bottom);
+            var contentBounds = new Rect(
+                bounds.Left + padding.Left,
+                bounds.Top + padding.Top,
+                bounds.Width - padding.Left - padding.Right,
+                bounds.Height - padding.Top - padding.Bottom);
 
             // Apply alignment
             var contentSize = Content.DesiredSize;
@@ -171,12 +171,12 @@ public class SkiaContentPresenter : SkiaView
         return bounds;
     }
 
-    private static SKRect ApplyAlignment(SKRect availableBounds, SKSize contentSize, LayoutAlignment horizontal, LayoutAlignment vertical)
+    private static Rect ApplyAlignment(Rect availableBounds, Size contentSize, LayoutAlignment horizontal, LayoutAlignment vertical)
     {
-        float x = availableBounds.Left;
-        float y = availableBounds.Top;
-        float width = horizontal == LayoutAlignment.Fill ? availableBounds.Width : contentSize.Width;
-        float height = vertical == LayoutAlignment.Fill ? availableBounds.Height : contentSize.Height;
+        double x = availableBounds.Left;
+        double y = availableBounds.Top;
+        double width = horizontal == LayoutAlignment.Fill ? availableBounds.Width : contentSize.Width;
+        double height = vertical == LayoutAlignment.Fill ? availableBounds.Height : contentSize.Height;
 
         // Horizontal alignment
         switch (horizontal)
@@ -200,7 +200,7 @@ public class SkiaContentPresenter : SkiaView
                 break;
         }
 
-        return new SKRect(x, y, x + width, y + height);
+        return new Rect(x, y, width, height);
     }
 
     public override SkiaView? HitTest(float x, float y)

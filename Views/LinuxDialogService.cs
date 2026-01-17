@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -64,8 +65,8 @@ public static class LinuxDialogService
     {
         foreach (var dialog in _activeDialogs)
         {
-            dialog.Measure(new SKSize(bounds.Width, bounds.Height));
-            dialog.Arrange(bounds);
+            dialog.Measure(new Size(bounds.Width, bounds.Height));
+            dialog.Arrange(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
             dialog.Draw(canvas);
         }
     }

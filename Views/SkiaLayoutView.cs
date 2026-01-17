@@ -193,7 +193,7 @@ public abstract class SkiaLayoutView : SkiaView
     /// </summary>
     protected virtual SKRect GetContentBounds()
     {
-        return GetContentBounds(Bounds);
+        return GetContentBounds(new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height)));
     }
 
     /// <summary>
@@ -247,7 +247,7 @@ public abstract class SkiaLayoutView : SkiaView
 
     public override SkiaView? HitTest(float x, float y)
     {
-        if (!IsVisible || !IsEnabled || !Bounds.Contains(new SKPoint(x, y)))
+        if (!IsVisible || !IsEnabled || !Bounds.Contains(x, y))
         {
             if (this is SkiaBorder)
             {
@@ -357,7 +357,7 @@ public class SkiaStackLayout : SkiaLayoutView
         set => SetValue(OrientationProperty, value);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Handle NaN/Infinity in padding
         var paddingLeft = (float)(double.IsNaN(Padding.Left) ? 0 : Padding.Left);
@@ -365,8 +365,8 @@ public class SkiaStackLayout : SkiaLayoutView
         var paddingTop = (float)(double.IsNaN(Padding.Top) ? 0 : Padding.Top);
         var paddingBottom = (float)(double.IsNaN(Padding.Bottom) ? 0 : Padding.Bottom);
 
-        var contentWidth = availableSize.Width - paddingLeft - paddingRight;
-        var contentHeight = availableSize.Height - paddingTop - paddingBottom;
+        var contentWidth = (float)availableSize.Width - paddingLeft - paddingRight;
+        var contentHeight = (float)availableSize.Height - paddingTop - paddingBottom;
 
         // Clamp negative sizes to 0
         if (contentWidth < 0 || float.IsNaN(contentWidth)) contentWidth = 0;
@@ -377,7 +377,7 @@ public class SkiaStackLayout : SkiaLayoutView
         float maxWidth = 0;
         float maxHeight = 0;
 
-        var childAvailable = new SKSize(contentWidth, contentHeight);
+        var childAvailable = new Size(contentWidth, contentHeight);
 
         foreach (var child in Children)
         {
@@ -386,8 +386,8 @@ public class SkiaStackLayout : SkiaLayoutView
             var childSize = child.Measure(childAvailable);
 
             // Skip NaN sizes from child measurements
-            var childWidth = float.IsNaN(childSize.Width) ? 0 : childSize.Width;
-            var childHeight = float.IsNaN(childSize.Height) ? 0 : childSize.Height;
+            var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)childSize.Width;
+            var childHeight = double.IsNaN(childSize.Height) ? 0f : (float)childSize.Height;
 
             if (Orientation == StackOrientation.Vertical)
             {
@@ -408,22 +408,22 @@ public class SkiaStackLayout : SkiaLayoutView
         if (Orientation == StackOrientation.Vertical)
         {
             totalHeight += totalSpacing;
-            return new SKSize(
+            return new Size(
                 maxWidth + paddingLeft + paddingRight,
                 totalHeight + paddingTop + paddingBottom);
         }
         else
         {
             totalWidth += totalSpacing;
-            return new SKSize(
+            return new Size(
                 totalWidth + paddingLeft + paddingRight,
                 maxHeight + paddingTop + paddingBottom);
         }
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
-        var content = GetContentBounds(bounds);
+        var content = GetContentBounds(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
 
         // Clamp content dimensions if infinite - use reasonable defaults
         var contentWidth = float.IsInfinity(content.Width) || float.IsNaN(content.Width) ? 800f : content.Width;
@@ -438,14 +438,14 @@ public class SkiaStackLayout : SkiaLayoutView
             var childDesired = child.DesiredSize;
 
             // Handle NaN and Infinity in desired size
-            var childWidth = float.IsNaN(childDesired.Width) || float.IsInfinity(childDesired.Width)
+            var childWidth = double.IsNaN(childDesired.Width) || double.IsInfinity(childDesired.Width)
                 ? contentWidth
-                : childDesired.Width;
-            var childHeight = float.IsNaN(childDesired.Height) || float.IsInfinity(childDesired.Height)
+                : (float)childDesired.Width;
+            var childHeight = double.IsNaN(childDesired.Height) || double.IsInfinity(childDesired.Height)
                 ? contentHeight
-                : childDesired.Height;
+                : (float)childDesired.Height;
 
-            SKRect childBounds;
+            float childBoundsLeft, childBoundsTop, childBoundsWidth, childBoundsHeight;
             if (Orientation == StackOrientation.Vertical)
             {
                 // For ScrollView children, give them the remaining viewport height
@@ -455,11 +455,10 @@ public class SkiaStackLayout : SkiaLayoutView
                     ? remainingHeight
                     : Math.Min(childHeight, remainingHeight > 0 ? remainingHeight : childHeight);
 
-                childBounds = new SKRect(
-                    content.Left,
-                    content.Top + offset,
-                    content.Left + contentWidth,
-                    content.Top + offset + useHeight);
+                childBoundsLeft = content.Left;
+                childBoundsTop = content.Top + offset;
+                childBoundsWidth = contentWidth;
+                childBoundsHeight = useHeight;
                 offset += useHeight + (float)Spacing;
             }
             else
@@ -473,7 +472,7 @@ public class SkiaStackLayout : SkiaLayoutView
                 // Respect child's VerticalOptions for horizontal layouts
                 var useHeight = Math.Min(childHeight, contentHeight);
                 float childTop = content.Top;
-                float childBottom = content.Top + useHeight;
+                float childBottomCalc = content.Top + useHeight;
 
                 var verticalOptions = child.VerticalOptions;
                 var alignmentValue = (int)verticalOptions.Alignment;
@@ -482,34 +481,33 @@ public class SkiaStackLayout : SkiaLayoutView
                 if (alignmentValue == 1) // Center
                 {
                     childTop = content.Top + (contentHeight - useHeight) / 2;
-                    childBottom = childTop + useHeight;
+                    childBottomCalc = childTop + useHeight;
                 }
                 else if (alignmentValue == 2) // End
                 {
                     childTop = content.Top + contentHeight - useHeight;
-                    childBottom = content.Top + contentHeight;
+                    childBottomCalc = content.Top + contentHeight;
                 }
                 else if (alignmentValue == 3) // Fill
                 {
                     childTop = content.Top;
-                    childBottom = content.Top + contentHeight;
+                    childBottomCalc = content.Top + contentHeight;
                 }
 
-                childBounds = new SKRect(
-                    content.Left + offset,
-                    childTop,
-                    content.Left + offset + useWidth,
-                    childBottom);
+                childBoundsLeft = content.Left + offset;
+                childBoundsTop = childTop;
+                childBoundsWidth = useWidth;
+                childBoundsHeight = childBottomCalc - childTop;
                 offset += useWidth + (float)Spacing;
             }
 
             // Apply child's margin
             var margin = child.Margin;
-            var marginedBounds = new SKRect(
-                childBounds.Left + (float)margin.Left,
-                childBounds.Top + (float)margin.Top,
-                childBounds.Right - (float)margin.Right,
-                childBounds.Bottom - (float)margin.Bottom);
+            var marginedBounds = new Rect(
+                childBoundsLeft + (float)margin.Left,
+                childBoundsTop + (float)margin.Top,
+                childBoundsWidth - (float)margin.Left - (float)margin.Right,
+                childBoundsHeight - (float)margin.Top - (float)margin.Bottom);
             child.Arrange(marginedBounds);
         }
         return bounds;
@@ -626,10 +624,10 @@ public class SkiaGrid : SkiaLayoutView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var contentWidth = availableSize.Width - (float)Padding.Left - (float)Padding.Right;
-        var contentHeight = availableSize.Height - (float)Padding.Top - (float)Padding.Bottom;
+        var contentWidth = (float)(availableSize.Width - Padding.Left - Padding.Right);
+        var contentHeight = (float)(availableSize.Height - Padding.Top - Padding.Bottom);
 
         // Handle NaN/Infinity
         if (float.IsNaN(contentWidth) || float.IsInfinity(contentWidth)) contentWidth = 800;
@@ -652,8 +650,8 @@ public class SkiaGrid : SkiaLayoutView
             var def = pos.Column < _columnDefinitions.Count ? _columnDefinitions[pos.Column] : GridLength.Star;
             if (def.IsAuto && pos.ColumnSpan == 1)
             {
-                var childSize = child.Measure(new SKSize(float.PositiveInfinity, float.PositiveInfinity));
-                var childWidth = float.IsNaN(childSize.Width) ? 0 : childSize.Width;
+                var childSize = child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)childSize.Width;
                 columnNaturalWidths[pos.Column] = Math.Max(columnNaturalWidths[pos.Column], childWidth);
             }
         }
@@ -670,11 +668,11 @@ public class SkiaGrid : SkiaLayoutView
             var cellWidth = GetCellWidth(pos.Column, pos.ColumnSpan);
 
             // Give infinite height for initial measure
-            var childSize = child.Measure(new SKSize(cellWidth, float.PositiveInfinity));
+            var childSize = child.Measure(new Size(cellWidth, double.PositiveInfinity));
 
             // Track max height for each row
             // Cap infinite/very large heights - child returning infinity means it doesn't have a natural height
-            var childHeight = childSize.Height;
+            var childHeight = (float)childSize.Height;
             if (float.IsNaN(childHeight) || float.IsInfinity(childHeight) || childHeight > 100000)
             {
                 // Use a default minimum - will be expanded by Star sizing if finite height is available
@@ -706,16 +704,16 @@ public class SkiaGrid : SkiaLayoutView
             var cellWidth = GetCellWidth(pos.Column, pos.ColumnSpan);
             var cellHeight = GetCellHeight(pos.Row, pos.RowSpan);
 
-            child.Measure(new SKSize(cellWidth, cellHeight));
+            child.Measure(new Size(cellWidth, cellHeight));
         }
 
         // Calculate total size
         var totalWidth = _columnWidths.Sum() + Math.Max(0, columnCount - 1) * ColumnSpacing;
         var totalHeight = _rowHeights.Sum() + Math.Max(0, rowCount - 1) * RowSpacing;
 
-        return new SKSize(
-            totalWidth + (float)Padding.Left + (float)Padding.Right,
-            totalHeight + (float)Padding.Top + (float)Padding.Bottom);
+        return new Size(
+            totalWidth + Padding.Left + Padding.Right,
+            totalHeight + Padding.Top + Padding.Bottom);
     }
 
     private int GetMaxRow()
@@ -827,11 +825,11 @@ public class SkiaGrid : SkiaLayoutView
         return offset;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         try
         {
-            var content = GetContentBounds(bounds);
+            var content = GetContentBounds(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
 
             // Recalculate row heights for arrange bounds if they differ from measurement
             // This ensures Star rows expand to fill available space
@@ -909,11 +907,11 @@ public class SkiaGrid : SkiaLayoutView
 
             // Apply child's margin
             var margin = child.Margin;
-            var marginedBounds = new SKRect(
+            var marginedBounds = new Rect(
                 x + (float)margin.Left,
                 y + (float)margin.Top,
-                x + width - (float)margin.Right,
-                y + height - (float)margin.Bottom);
+                width - (float)margin.Left - (float)margin.Right,
+                height - (float)margin.Top - (float)margin.Bottom);
             child.Arrange(marginedBounds);
         }
         return bounds;
@@ -1024,7 +1022,7 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         float maxRight = 0;
         float maxBottom = 0;
@@ -1036,20 +1034,20 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
             var layout = GetLayoutBounds(child);
             var bounds = layout.Bounds;
 
-            child.Measure(new SKSize(bounds.Width, bounds.Height));
+            child.Measure(new Size(bounds.Width, bounds.Height));
 
             maxRight = Math.Max(maxRight, bounds.Right);
             maxBottom = Math.Max(maxBottom, bounds.Bottom);
         }
 
-        return new SKSize(
-            maxRight + (float)Padding.Left + (float)Padding.Right,
-            maxBottom + (float)Padding.Top + (float)Padding.Bottom);
+        return new Size(
+            maxRight + Padding.Left + Padding.Right,
+            maxBottom + Padding.Top + Padding.Bottom);
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
-        var content = GetContentBounds(bounds);
+        var content = GetContentBounds(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
 
         foreach (var child in Children)
         {
@@ -1077,7 +1075,7 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
             if (flags.HasFlag(AbsoluteLayoutFlags.WidthProportional))
                 width = childBounds.Width * content.Width;
             else if (childBounds.Width < 0)
-                width = child.DesiredSize.Width;
+                width = (float)child.DesiredSize.Width;
             else
                 width = childBounds.Width;
 
@@ -1085,17 +1083,17 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
             if (flags.HasFlag(AbsoluteLayoutFlags.HeightProportional))
                 height = childBounds.Height * content.Height;
             else if (childBounds.Height < 0)
-                height = child.DesiredSize.Height;
+                height = (float)child.DesiredSize.Height;
             else
                 height = childBounds.Height;
 
             // Apply child's margin
             var margin = child.Margin;
-            var marginedBounds = new SKRect(
+            var marginedBounds = new Rect(
                 x + (float)margin.Left,
                 y + (float)margin.Top,
-                x + width - (float)margin.Right,
-                y + height - (float)margin.Bottom);
+                width - (float)margin.Left - (float)margin.Right,
+                height - (float)margin.Top - (float)margin.Bottom);
             child.Arrange(marginedBounds);
         }
         return bounds;

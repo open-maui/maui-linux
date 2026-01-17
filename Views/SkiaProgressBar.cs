@@ -244,10 +244,10 @@ public class SkiaProgressBar : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var barHeight = (float)BarHeight;
-        return new SKSize(200f, barHeight + 8f);
+        var barHeight = BarHeight;
+        return new Size(200, barHeight + 8);
     }
 
     #endregion

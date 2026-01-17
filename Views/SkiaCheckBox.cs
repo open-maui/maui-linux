@@ -431,10 +431,10 @@ public class SkiaCheckBox : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var boxSize = (float)BoxSize;
-        return new SKSize(boxSize + 8f, boxSize + 8f);
+        var boxSize = BoxSize;
+        return new Size(boxSize + 8.0, boxSize + 8.0);
     }
 
     #endregion

@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Xunit;
 
@@ -87,7 +88,7 @@ public class SkiaRefreshViewTests
     {
         var refreshView = new SkiaRefreshView();
 
-        Assert.Equal(new SKColor(33, 150, 243), refreshView.RefreshColor);
+        Assert.Equal(Color.FromRgb(33, 150, 243), refreshView.RefreshColor);
     }
 
     [Fact]
@@ -95,9 +96,9 @@ public class SkiaRefreshViewTests
     {
         var refreshView = new SkiaRefreshView();
 
-        refreshView.RefreshColor = SKColors.Red;
+        refreshView.RefreshColor = Colors.Red;
 
-        Assert.Equal(SKColors.Red, refreshView.RefreshColor);
+        Assert.Equal(Colors.Red, refreshView.RefreshColor);
     }
 
     [Fact]
@@ -105,7 +106,7 @@ public class SkiaRefreshViewTests
     {
         var refreshView = new SkiaRefreshView();
 
-        Assert.Equal(SKColors.White, refreshView.RefreshBackgroundColor);
+        Assert.Equal(Colors.White, refreshView.RefreshBackgroundColor);
     }
 
     [Fact]
@@ -113,9 +114,9 @@ public class SkiaRefreshViewTests
     {
         var refreshView = new SkiaRefreshView();
 
-        refreshView.RefreshBackgroundColor = SKColors.LightGray;
+        refreshView.RefreshBackgroundColor = Colors.LightGrey;
 
-        Assert.Equal(SKColors.LightGray, refreshView.RefreshBackgroundColor);
+        Assert.Equal(Colors.LightGrey, refreshView.RefreshBackgroundColor);
     }
 
     [Fact]
@@ -135,7 +136,7 @@ public class SkiaRefreshViewTests
         var refreshView = new SkiaRefreshView();
         var content = new SkiaLabel { Text = "Test" };
         refreshView.Content = content;
-        refreshView.Arrange(new SKRect(0, 0, 200, 400));
+        refreshView.Arrange(new Rect(0, 0, 200, 400));
 
         var hit = refreshView.HitTest(100, 200);
 

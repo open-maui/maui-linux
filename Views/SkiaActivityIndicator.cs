@@ -284,11 +284,11 @@ public class SkiaActivityIndicator : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var size = (float)Size;
         var strokeWidth = (float)StrokeWidth;
-        return new SKSize(size + strokeWidth * 2, size + strokeWidth * 2);
+        return new Size(size + strokeWidth * 2, size + strokeWidth * 2);
     }
 
     #endregion

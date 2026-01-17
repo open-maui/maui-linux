@@ -419,7 +419,8 @@ public class SkiaPicker : SkiaView
     private void DrawDropdownOverlay(SKCanvas canvas)
     {
         if (_items.Count == 0 || !_isOpen) return;
-        DrawDropdown(canvas, ScreenBounds);
+        var skScreenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
+        DrawDropdown(canvas, skScreenBounds);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -808,10 +809,10 @@ public class SkiaPicker : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(
-            availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200) : 200,
+        return new Size(
+            availableSize.Width < double.MaxValue ? Math.Min(availableSize.Width, 200) : 200,
             40);
     }
 
@@ -837,10 +838,10 @@ public class SkiaPicker : SkiaView
             var dropdownMaxHeight = (float)_dropdownMaxHeight;
             var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
             var dropdownRect = new SKRect(
-                screenBounds.Left,
-                screenBounds.Bottom + 4,
-                screenBounds.Right,
-                screenBounds.Bottom + 4 + dropdownHeight);
+                (float)screenBounds.Left,
+                (float)(screenBounds.Top + screenBounds.Height) + 4,
+                (float)(screenBounds.Left + screenBounds.Width),
+                (float)(screenBounds.Top + screenBounds.Height) + 4 + dropdownHeight);
 
             return dropdownRect.Contains(x, y);
         }

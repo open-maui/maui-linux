@@ -311,7 +311,7 @@ public class SkiaAlertDialog : SkiaView
         _tcs.TrySetResult(result);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Dialog takes full screen for the overlay
         return availableSize;

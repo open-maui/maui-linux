@@ -177,8 +177,8 @@ public class SkiaWindow
         // Draw main content
         if (_content != null)
         {
-            _content.Measure(new SKSize(_width, _height));
-            _content.Arrange(new SKRect(0, 0, _width, _height));
+            _content.Measure(new Size(_width, _height));
+            _content.Arrange(new Rect(0, 0, _width, _height));
             _content.Draw(canvas);
         }
 

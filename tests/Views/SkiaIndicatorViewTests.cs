@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Xunit;
 
@@ -66,9 +67,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorColor = SKColors.Gray;
+        indicator.IndicatorColor = Colors.Grey;
 
-        Assert.Equal(SKColors.Gray, indicator.IndicatorColor);
+        Assert.Equal(Colors.Grey, indicator.IndicatorColor);
     }
 
     [Fact]
@@ -76,9 +77,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.SelectedIndicatorColor = SKColors.Blue;
+        indicator.SelectedIndicatorColor = Colors.Blue;
 
-        Assert.Equal(SKColors.Blue, indicator.SelectedIndicatorColor);
+        Assert.Equal(Colors.Blue, indicator.SelectedIndicatorColor);
     }
 
     [Fact]
@@ -86,9 +87,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorSize = 12f;
+        indicator.IndicatorSize = 12.0;
 
-        Assert.Equal(12f, indicator.IndicatorSize);
+        Assert.Equal(12.0, indicator.IndicatorSize);
     }
 
     [Fact]
@@ -96,9 +97,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.SelectedIndicatorSize = 16f;
+        indicator.SelectedIndicatorSize = 16.0;
 
-        Assert.Equal(16f, indicator.SelectedIndicatorSize);
+        Assert.Equal(16.0, indicator.SelectedIndicatorSize);
     }
 
     [Fact]
@@ -106,9 +107,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorSpacing = 10f;
+        indicator.IndicatorSpacing = 10.0;
 
-        Assert.Equal(10f, indicator.IndicatorSpacing);
+        Assert.Equal(10.0, indicator.IndicatorSpacing);
     }
 
     [Fact]
@@ -164,9 +165,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.BorderColor = SKColors.Black;
+        indicator.BorderColor = Colors.Black;
 
-        Assert.Equal(SKColors.Black, indicator.BorderColor);
+        Assert.Equal(Colors.Black, indicator.BorderColor);
     }
 
     [Fact]
@@ -174,9 +175,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.BorderWidth = 2f;
+        indicator.BorderWidth = 2.0;
 
-        Assert.Equal(2f, indicator.BorderWidth);
+        Assert.Equal(2.0, indicator.BorderWidth);
     }
 
     [Fact]
@@ -232,9 +233,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
         indicator.Count = 5;
-        indicator.IndicatorSize = 10f;
-        indicator.IndicatorSpacing = 8f;
-        indicator.Arrange(new SKRect(0, 0, 200, 20));
+        indicator.IndicatorSize = 10.0;
+        indicator.IndicatorSpacing = 8.0;
+        indicator.Arrange(new Rect(0, 0, 200, 20));
 
         var hit = indicator.HitTest(100, 10);
 

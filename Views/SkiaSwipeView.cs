@@ -137,24 +137,24 @@ public class SkiaSwipeView : SkiaLayoutView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (_content != null)
         {
-            _content.Measure(availableSize);
+            _content.Measure(new Size(availableSize.Width, availableSize.Height));
         }
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         if (_content != null)
         {
-            var contentBounds = new SKRect(
+            var contentBounds = new Rect(
                 bounds.Left + _swipeOffset,
                 bounds.Top,
-                bounds.Right + _swipeOffset,
-                bounds.Bottom);
+                bounds.Width,
+                bounds.Height);
             _content.Arrange(contentBounds);
         }
         return bounds;

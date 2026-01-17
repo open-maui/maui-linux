@@ -177,7 +177,7 @@ public class SkiaSearchBar : SkiaView
             ? bounds.Right - clearButtonSize - iconPadding * 2
             : bounds.Right - iconPadding;
 
-        var entryBounds = new SKRect(entryLeft, bounds.Top, entryRight, bounds.Bottom);
+        var entryBounds = new Rect(entryLeft, bounds.Top, entryRight - entryLeft, bounds.Height);
         _entry.Arrange(entryBounds);
         _entry.Draw(canvas);
 
@@ -306,9 +306,9 @@ public class SkiaSearchBar : SkiaView
 
     #region Measurement
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(250, 40);
+        return new Size(250, 40);
     }
 
     #endregion

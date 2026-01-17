@@ -299,7 +299,8 @@ public class SkiaDatePicker : SkiaView
     {
         if (_isOpen)
         {
-            DrawCalendar(canvas, ScreenBounds);
+            var skScreenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
+            DrawCalendar(canvas, skScreenBounds);
         }
     }
 
@@ -579,7 +580,7 @@ public class SkiaDatePicker : SkiaView
 
         if (IsOpen)
         {
-            SKRect screenBounds = ScreenBounds;
+            SKRect screenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
             SKRect calendarRect = GetCalendarRect(screenBounds);
 
             SKRect headerRect = new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + 48f);
@@ -680,14 +681,14 @@ public class SkiaDatePicker : SkiaView
         }
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200f) : 200f, 40f);
+        return new Size(availableSize.Width < double.MaxValue ? Math.Min(availableSize.Width, 200.0) : 200.0, 40.0);
     }
 
     protected override bool HitTestPopupArea(float x, float y)
     {
-        SKRect screenBounds = ScreenBounds;
+        SKRect screenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
         if (screenBounds.Contains(x, y))
         {
             return true;

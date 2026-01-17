@@ -103,19 +103,19 @@ public class SkiaBoxView : SkiaView
 
     #region Measurement
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // BoxView uses explicit size or a default size when in unbounded context
-        var width = WidthRequest >= 0 ? (float)WidthRequest :
-                    (float.IsInfinity(availableSize.Width) ? 40f : availableSize.Width);
-        var height = HeightRequest >= 0 ? (float)HeightRequest :
-                     (float.IsInfinity(availableSize.Height) ? 40f : availableSize.Height);
+        var width = WidthRequest >= 0 ? WidthRequest :
+                    (double.IsInfinity(availableSize.Width) ? 40.0 : availableSize.Width);
+        var height = HeightRequest >= 0 ? HeightRequest :
+                     (double.IsInfinity(availableSize.Height) ? 40.0 : availableSize.Height);
 
         // Ensure no NaN values
-        if (float.IsNaN(width)) width = 40f;
-        if (float.IsNaN(height)) height = 40f;
+        if (double.IsNaN(width)) width = 40.0;
+        if (double.IsNaN(height)) height = 40.0;
 
-        return new SKSize(width, height);
+        return new Size(width, height);
     }
 
     #endregion

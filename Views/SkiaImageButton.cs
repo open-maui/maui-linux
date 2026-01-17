@@ -641,7 +641,7 @@ public class SkiaImageButton : SkiaView
 
         Released?.Invoke(this, EventArgs.Empty);
 
-        if (wasPressed && Bounds.Contains(new SKPoint(e.X, e.Y)))
+        if (wasPressed && Bounds.Contains(e.X, e.Y))
         {
             Clicked?.Invoke(this, EventArgs.Empty);
             ExecuteCommand();
@@ -687,66 +687,65 @@ public class SkiaImageButton : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var padding = Padding;
-        var paddingWidth = (float)(padding.Left + padding.Right);
-        var paddingHeight = (float)(padding.Top + padding.Bottom);
+        var paddingWidth = padding.Left + padding.Right;
+        var paddingHeight = padding.Top + padding.Bottom;
 
         // Respect explicit WidthRequest/HeightRequest first (MAUI standard behavior)
         if (WidthRequest > 0 && HeightRequest > 0)
         {
-            return new SKSize((float)WidthRequest, (float)HeightRequest);
+            return new Size(WidthRequest, HeightRequest);
         }
         if (WidthRequest > 0)
         {
             // Fixed width, calculate height from aspect ratio or use width
-            float height = HeightRequest > 0 ? (float)HeightRequest
-                         : _image != null ? (float)WidthRequest * _image.Height / _image.Width
-                         : (float)WidthRequest;
-            return new SKSize((float)WidthRequest, height);
+            double height = HeightRequest > 0 ? HeightRequest
+                         : _image != null ? WidthRequest * _image.Height / _image.Width
+                         : WidthRequest;
+            return new Size(WidthRequest, height);
         }
         if (HeightRequest > 0)
         {
             // Fixed height, calculate width from aspect ratio or use height
-            float width = WidthRequest > 0 ? (float)WidthRequest
-                        : _image != null ? (float)HeightRequest * _image.Width / _image.Height
-                        : (float)HeightRequest;
-            return new SKSize(width, (float)HeightRequest);
+            double width = WidthRequest > 0 ? WidthRequest
+                        : _image != null ? HeightRequest * _image.Width / _image.Height
+                        : HeightRequest;
+            return new Size(width, HeightRequest);
         }
 
         // No explicit size - calculate from content
         if (_image == null)
-            return new SKSize(44 + paddingWidth, 44 + paddingHeight); // Default touch target size
+            return new Size(44 + paddingWidth, 44 + paddingHeight); // Default touch target size
 
         var imageWidth = _image.Width;
         var imageHeight = _image.Height;
 
-        if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
+        if (availableSize.Width < double.MaxValue && availableSize.Height < double.MaxValue)
         {
-            var availableContent = new SKSize(
-                availableSize.Width - paddingWidth,
-                availableSize.Height - paddingHeight);
-            var scale = Math.Min(availableContent.Width / imageWidth, availableContent.Height / imageHeight);
-            return new SKSize(imageWidth * scale + paddingWidth, imageHeight * scale + paddingHeight);
+            var availableContentW = availableSize.Width - paddingWidth;
+            var availableContentH = availableSize.Height - paddingHeight;
+            var scale = Math.Min(availableContentW / imageWidth, availableContentH / imageHeight);
+            return new Size(imageWidth * scale + paddingWidth, imageHeight * scale + paddingHeight);
         }
-        else if (availableSize.Width < float.MaxValue)
+        else if (availableSize.Width < double.MaxValue)
         {
             var availableWidth = availableSize.Width - paddingWidth;
             var scale = availableWidth / imageWidth;
-            return new SKSize(availableSize.Width, imageHeight * scale + paddingHeight);
+            return new Size(availableSize.Width, imageHeight * scale + paddingHeight);
         }
-        else if (availableSize.Height < float.MaxValue)
+        else if (availableSize.Height < double.MaxValue)
         {
             var availableHeight = availableSize.Height - paddingHeight;
             var scale = availableHeight / imageHeight;
-            return new SKSize(imageWidth * scale + paddingWidth, availableSize.Height);
+            return new Size(imageWidth * scale + paddingWidth, availableSize.Height);
         }
 
-        return new SKSize(imageWidth + paddingWidth, imageHeight + paddingHeight);
+        return new Size(imageWidth + paddingWidth, imageHeight + paddingHeight);
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         // If we have explicit size requests, constrain to desired size
         // This follows MAUI standard behavior - controls respect WidthRequest/HeightRequest
@@ -757,12 +756,12 @@ public class SkiaImageButton : SkiaView
         if (desiredWidth > 0 && desiredHeight > 0 &&
             (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
         {
-            float finalWidth = Math.Min(desiredWidth, bounds.Width);
-            float finalHeight = Math.Min(desiredHeight, bounds.Height);
+            double finalWidth = Math.Min(desiredWidth, bounds.Width);
+            double finalHeight = Math.Min(desiredHeight, bounds.Height);
 
             // Calculate position based on HorizontalOptions
             // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
-            float x = bounds.Left;
+            double x = bounds.Left;
             var hAlignValue = (int)HorizontalOptions.Alignment;
             if (hAlignValue == 1) // Center
             {
@@ -775,7 +774,7 @@ public class SkiaImageButton : SkiaView
             // Fill (3) and Start (0) both use x = bounds.Left
 
             // Calculate position based on VerticalOptions
-            float y = bounds.Top;
+            double y = bounds.Top;
             var vAlignValue = (int)VerticalOptions.Alignment;
             if (vAlignValue == 1) // Center
             {
@@ -787,7 +786,7 @@ public class SkiaImageButton : SkiaView
             }
             // Fill (3) and Start (0) both use y = bounds.Top
 
-            return new SKRect(x, y, x + finalWidth, y + finalHeight);
+            return new Rect(x, y, finalWidth, finalHeight);
         }
 
         return bounds;

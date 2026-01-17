@@ -176,7 +176,7 @@ public class SkiaItemsView : SkiaView
     }
 
     // Use ScreenBounds.Height for visible viewport
-    protected float MaxScrollOffset => Math.Max(0, TotalContentHeight - ScreenBounds.Height);
+    protected float MaxScrollOffset => Math.Max(0, TotalContentHeight - (float)ScreenBounds.Height);
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
@@ -284,11 +284,11 @@ public class SkiaItemsView : SkiaView
             if (itemView != null)
             {
                 // Measure with large height to get natural size
-                var availableSize = new SKSize(bounds.Width, float.MaxValue);
+                var availableSize = new Size(bounds.Width, float.MaxValue);
                 var measuredSize = itemView.Measure(availableSize);
 
                 // Store individual item height (with minimum of default height)
-                var measuredHeight = Math.Max(measuredSize.Height, _itemHeight);
+                var measuredHeight = Math.Max((float)measuredSize.Height, _itemHeight);
                 if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1)
                 {
                     _itemHeights[index] = measuredHeight;
@@ -300,7 +300,7 @@ public class SkiaItemsView : SkiaView
                 }
 
                 // Arrange with the actual measured height
-                var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
+                var actualBounds = new Rect(bounds.Left, bounds.Top, bounds.Width, measuredHeight);
                 itemView.Arrange(actualBounds);
                 itemView.Draw(canvas);
                 return;
@@ -423,8 +423,8 @@ public class SkiaItemsView : SkiaView
                 _scrollbarDragStartY = e.Y;
                 _scrollbarDragStartScrollOffset = _scrollOffset;
                 // Cache values to prevent stutter
-                var thumbHeight = Math.Max(20, Bounds.Height * (Bounds.Height / TotalContentHeight));
-                _scrollbarDragAvailableTrack = Bounds.Height - thumbHeight;
+                var thumbHeight = Math.Max(20f, (float)Bounds.Height * ((float)Bounds.Height / TotalContentHeight));
+                _scrollbarDragAvailableTrack = (float)Bounds.Height - thumbHeight;
                 _scrollbarDragMaxScroll = MaxScrollOffset;
                 return;
             }
@@ -445,15 +445,15 @@ public class SkiaItemsView : SkiaView
     {
         // Use ScreenBounds for hit testing (input events use screen coordinates)
         var screenBounds = ScreenBounds;
-        var viewportRatio = screenBounds.Height / TotalContentHeight;
-        var thumbHeight = Math.Max(20, screenBounds.Height * viewportRatio);
-        var scrollRatio = MaxScrollOffset > 0 ? _scrollOffset / MaxScrollOffset : 0;
-        var thumbY = screenBounds.Top + (screenBounds.Height - thumbHeight) * scrollRatio;
+        var viewportRatio = (float)screenBounds.Height / TotalContentHeight;
+        var thumbHeight = Math.Max(20f, (float)screenBounds.Height * viewportRatio);
+        var scrollRatio = MaxScrollOffset > 0 ? _scrollOffset / MaxScrollOffset : 0f;
+        var thumbY = (float)screenBounds.Top + ((float)screenBounds.Height - thumbHeight) * scrollRatio;
 
         return new SKRect(
-            screenBounds.Right - _scrollBarWidth,
+            (float)(screenBounds.Left + screenBounds.Width) - _scrollBarWidth,
             thumbY,
-            screenBounds.Right,
+            (float)(screenBounds.Left + screenBounds.Width),
             thumbY + thumbHeight);
     }
 
@@ -621,12 +621,12 @@ public class SkiaItemsView : SkiaView
                 break;
 
             case Key.PageUp:
-                SetScrollOffset(_scrollOffset - Bounds.Height);
+                SetScrollOffset(_scrollOffset - (float)Bounds.Height);
                 e.Handled = true;
                 break;
 
             case Key.PageDown:
-                SetScrollOffset(_scrollOffset + Bounds.Height);
+                SetScrollOffset(_scrollOffset + (float)Bounds.Height);
                 e.Handled = true;
                 break;
 
@@ -663,9 +663,9 @@ public class SkiaItemsView : SkiaView
         {
             SetScrollOffset(itemTop);
         }
-        else if (itemBottom > _scrollOffset + Bounds.Height)
+        else if (itemBottom > _scrollOffset + (float)Bounds.Height)
         {
-            SetScrollOffset(itemBottom - Bounds.Height);
+            SetScrollOffset(itemBottom - (float)Bounds.Height);
         }
     }
 
@@ -679,14 +679,14 @@ public class SkiaItemsView : SkiaView
     public override SkiaView? HitTest(float x, float y)
     {
         // HitTest uses Bounds (content space) - coordinates are transformed by parent
-        if (!IsVisible || !Bounds.Contains(new SKPoint(x, y)))
+        if (!IsVisible || !Bounds.Contains(x, y))
             return null;
 
         // Check scrollbar area FIRST before content
         // This ensures scrollbar clicks are handled by this view
-        if (_showVerticalScrollBar && TotalContentHeight > Bounds.Height)
+        if (_showVerticalScrollBar && TotalContentHeight > (float)Bounds.Height)
         {
-            var trackArea = new SKRect(Bounds.Right - _scrollBarWidth, Bounds.Top, Bounds.Right, Bounds.Bottom);
+            var trackArea = new SKRect((float)(Bounds.Left + Bounds.Width) - _scrollBarWidth, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
             if (trackArea.Contains(x, y))
                 return this;
         }
@@ -694,21 +694,21 @@ public class SkiaItemsView : SkiaView
         return this;
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var width = availableSize.Width < float.MaxValue ? availableSize.Width : 200;
-        var height = availableSize.Height < float.MaxValue ? availableSize.Height : 300;
+        var width = availableSize.Width < double.MaxValue ? availableSize.Width : 200;
+        var height = availableSize.Height < double.MaxValue ? availableSize.Height : 300;
 
         // Clear item caches when width changes significantly (items need re-measurement for text wrapping)
         if (Math.Abs(width - _lastMeasuredWidth) > 5)
         {
             _itemHeights.Clear();
             _itemViewCache.Clear();
-            _lastMeasuredWidth = width;
+            _lastMeasuredWidth = (float)width;
         }
 
         // Items view takes all available space
-        return new SKSize(width, height);
+        return new Size(width, height);
     }
 
     protected override void Dispose(bool disposing)

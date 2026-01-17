@@ -216,11 +216,11 @@ public class SkiaTabbedPage : SkiaLayoutView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Measure the content area (excluding tab bar)
         var contentHeight = availableSize.Height - TabBarHeight;
-        var contentSize = new SKSize(availableSize.Width, contentHeight);
+        var contentSize = new Size(availableSize.Width, contentHeight);
 
         foreach (var tab in _tabs)
         {
@@ -230,25 +230,25 @@ public class SkiaTabbedPage : SkiaLayoutView
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         // Calculate content bounds based on tab bar position
-        SKRect contentBounds;
+        Rect contentBounds;
         if (TabBarOnBottom)
         {
-            contentBounds = new SKRect(
+            contentBounds = new Rect(
                 bounds.Left,
                 bounds.Top,
-                bounds.Right,
-                bounds.Bottom - TabBarHeight);
+                bounds.Width,
+                bounds.Height - TabBarHeight);
         }
         else
         {
-            contentBounds = new SKRect(
+            contentBounds = new Rect(
                 bounds.Left,
                 bounds.Top + TabBarHeight,
-                bounds.Right,
-                bounds.Bottom);
+                bounds.Width,
+                bounds.Height - TabBarHeight);
         }
 
         // Arrange each tab's content to fill the content area
@@ -284,18 +284,18 @@ public class SkiaTabbedPage : SkiaLayoutView
         if (TabBarOnBottom)
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
+                (float)Bounds.Left,
+                (float)Bounds.Bottom - TabBarHeight,
+                (float)Bounds.Right,
+                (float)Bounds.Bottom);
         }
         else
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
+                (float)Bounds.Left,
+                (float)Bounds.Top,
+                (float)Bounds.Right,
+                (float)Bounds.Top + TabBarHeight);
         }
 
         // Draw background
@@ -377,18 +377,18 @@ public class SkiaTabbedPage : SkiaLayoutView
         if (TabBarOnBottom)
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
+                (float)Bounds.Left,
+                (float)(Bounds.Top + Bounds.Height) - TabBarHeight,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)(Bounds.Top + Bounds.Height));
         }
         else
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
+                (float)Bounds.Left,
+                (float)Bounds.Top,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)Bounds.Top + TabBarHeight);
         }
 
         if (tabBarBounds.Contains(x, y))
@@ -415,18 +415,18 @@ public class SkiaTabbedPage : SkiaLayoutView
         if (TabBarOnBottom)
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
+                (float)Bounds.Left,
+                (float)(Bounds.Top + Bounds.Height) - TabBarHeight,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)(Bounds.Top + Bounds.Height));
         }
         else
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
+                (float)Bounds.Left,
+                (float)Bounds.Top,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)Bounds.Top + TabBarHeight);
         }
 
         if (tabBarBounds.Contains(e.X, e.Y) && _tabs.Count > 0)

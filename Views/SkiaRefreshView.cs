@@ -130,25 +130,21 @@ public class SkiaRefreshView : SkiaLayoutView
     /// </summary>
     public event EventHandler? Refreshing;
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (_content != null)
         {
-            _content.Measure(availableSize);
+            _content.Measure(new Size(availableSize.Width, availableSize.Height));
         }
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         if (_content != null)
         {
             float offset = _isRefreshing ? _refreshThreshold : _pullDistance;
-            var contentBounds = new SKRect(
-                bounds.Left,
-                bounds.Top + offset,
-                bounds.Right,
-                bounds.Bottom + offset);
+            var contentBounds = new Rect(bounds.Left, bounds.Top + offset, bounds.Width, bounds.Height);
             _content.Arrange(contentBounds);
         }
         return bounds;

@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Rendering;
@@ -701,14 +702,14 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
     #endregion
 
     private bool _disposed;
-    private SKRect _bounds;
+    private Rect _bounds;
     private SkiaView? _parent;
     private readonly List<SkiaView> _children = new();
 
     /// <summary>
     /// Gets the absolute bounds of this view in screen coordinates.
     /// </summary>
-    public SKRect GetAbsoluteBounds()
+    public Rect GetAbsoluteBounds()
     {
         var bounds = Bounds;
         var current = Parent;
@@ -717,11 +718,11 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
             // Adjust for scroll offset if parent is a ScrollView
             if (current is SkiaScrollView scrollView)
             {
-                bounds = new SKRect(
+                bounds = new Rect(
                     bounds.Left - scrollView.ScrollX,
                     bounds.Top - scrollView.ScrollY,
-                    bounds.Right - scrollView.ScrollX,
-                    bounds.Bottom - scrollView.ScrollY);
+                    bounds.Width,
+                    bounds.Height);
             }
             current = current.Parent;
         }
@@ -730,8 +731,9 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Gets or sets the bounds of this view in parent coordinates.
+    /// Uses MAUI Rect for public API compliance.
     /// </summary>
-    public SKRect Bounds
+    public Rect Bounds
     {
         get => _bounds;
         set
@@ -743,6 +745,15 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
             }
         }
     }
+
+    /// <summary>
+    /// Gets the bounds as SKRect for internal SkiaSharp rendering.
+    /// </summary>
+    internal SKRect BoundsSK => new SKRect(
+        (float)_bounds.Left,
+        (float)_bounds.Top,
+        (float)_bounds.Right,
+        (float)_bounds.Bottom);
 
     /// <summary>
     /// Gets or sets whether this view is visible.
@@ -1115,7 +1126,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
     /// <summary>
     /// Gets the bounds of this view in screen coordinates (accounting for scroll offsets).
     /// </summary>
-    public SKRect ScreenBounds
+    public Rect ScreenBounds
     {
         get
         {
@@ -1127,11 +1138,11 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
             {
                 if (parent is SkiaScrollView scrollView)
                 {
-                    bounds = new SKRect(
+                    bounds = new Rect(
                         bounds.Left - scrollView.ScrollX,
                         bounds.Top - scrollView.ScrollY,
-                        bounds.Right - scrollView.ScrollX,
-                        bounds.Bottom - scrollView.ScrollY);
+                        bounds.Width,
+                        bounds.Height);
                 }
                 parent = parent.Parent;
             }
@@ -1142,8 +1153,14 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Gets the desired size calculated during measure.
+    /// Uses MAUI Size for public API compliance.
     /// </summary>
-    public SKSize DesiredSize { get; protected set; }
+    public Size DesiredSize { get; protected set; }
+
+    /// <summary>
+    /// Gets the desired size as SKSize for internal SkiaSharp rendering.
+    /// </summary>
+    internal SKSize DesiredSizeSK => new SKSize((float)DesiredSize.Width, (float)DesiredSize.Height);
 
     /// <summary>
     /// Gets the child views.
@@ -1262,7 +1279,9 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
         // Notify rendering engine of dirty region
         if (Bounds.Width > 0 && Bounds.Height > 0)
         {
-            SkiaRenderingEngine.Current?.InvalidateRegion(Bounds);
+            SkiaRenderingEngine.Current?.InvalidateRegion(new SKRect(
+                (float)Bounds.Left, (float)Bounds.Top,
+                (float)Bounds.Right, (float)Bounds.Bottom));
         }
 
         if (_parent != null)
@@ -1280,7 +1299,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
     /// </summary>
     public void InvalidateMeasure()
     {
-        DesiredSize = SKSize.Empty;
+        DesiredSize = Size.Zero;
         _parent?.InvalidateMeasure();
         Invalidate();
     }
@@ -1297,14 +1316,17 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
         canvas.Save();
 
+        // Get SKRect for internal rendering
+        var skBounds = BoundsSK;
+
         // Apply transforms if any are set
         if (Scale != 1.0 || ScaleX != 1.0 || ScaleY != 1.0 ||
             Rotation != 0.0 || RotationX != 0.0 || RotationY != 0.0 ||
             TranslationX != 0.0 || TranslationY != 0.0)
         {
             // Calculate anchor point in absolute coordinates
-            float anchorAbsX = Bounds.Left + (float)(Bounds.Width * AnchorX);
-            float anchorAbsY = Bounds.Top + (float)(Bounds.Height * AnchorY);
+            float anchorAbsX = skBounds.Left + (float)(Bounds.Width * AnchorX);
+            float anchorAbsY = skBounds.Top + (float)(Bounds.Height * AnchorY);
 
             // Move origin to anchor point
             canvas.Translate(anchorAbsX, anchorAbsY);
@@ -1342,20 +1364,20 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
         // Draw shadow if set
         if (Shadow != null)
         {
-            DrawShadow(canvas, Bounds);
+            DrawShadow(canvas, skBounds);
         }
 
         // Apply clip geometry if set
         if (Clip != null)
         {
-            ApplyClip(canvas, Bounds);
+            ApplyClip(canvas, skBounds);
         }
 
         // Draw background at absolute bounds
-        DrawBackground(canvas, Bounds);
+        DrawBackground(canvas, skBounds);
 
         // Draw content at absolute bounds
-        OnDraw(canvas, Bounds);
+        OnDraw(canvas, skBounds);
 
         // Draw children - they draw at their own absolute bounds
         foreach (var child in _children)
@@ -1530,8 +1552,9 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Measures the desired size of this view.
+    /// Uses MAUI Size for public API compliance.
     /// </summary>
-    public SKSize Measure(SKSize availableSize)
+    public Size Measure(Size availableSize)
     {
         DesiredSize = MeasureOverride(availableSize);
         return DesiredSize;
@@ -1539,36 +1562,40 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Override to provide custom measurement.
+    /// Uses MAUI Size for public API compliance.
     /// </summary>
-    protected virtual SKSize MeasureOverride(SKSize availableSize)
+    protected virtual Size MeasureOverride(Size availableSize)
     {
-        var width = WidthRequest >= 0 ? (float)WidthRequest : 0;
-        var height = HeightRequest >= 0 ? (float)HeightRequest : 0;
-        return new SKSize(width, height);
+        var width = WidthRequest >= 0 ? WidthRequest : 0;
+        var height = HeightRequest >= 0 ? HeightRequest : 0;
+        return new Size(width, height);
     }
 
     /// <summary>
     /// Arranges this view within the given bounds.
+    /// Uses MAUI Rect for public API compliance.
     /// </summary>
-    public virtual void Arrange(SKRect bounds)
+    public virtual void Arrange(Rect bounds)
     {
         Bounds = ArrangeOverride(bounds);
     }
 
     /// <summary>
     /// Override to customize arrangement within the given bounds.
+    /// Uses MAUI Rect for public API compliance.
     /// </summary>
-    protected virtual SKRect ArrangeOverride(SKRect bounds)
+    protected virtual Rect ArrangeOverride(Rect bounds)
     {
         return bounds;
     }
 
     /// <summary>
     /// Performs hit testing to find the view at the given point.
+    /// Uses MAUI Point for public API compliance.
     /// </summary>
-    public virtual SkiaView? HitTest(SKPoint point)
+    public virtual SkiaView? HitTest(Point point)
     {
-        return HitTest(point.X, point.Y);
+        return HitTest((float)point.X, (float)point.Y);
     }
 
     /// <summary>

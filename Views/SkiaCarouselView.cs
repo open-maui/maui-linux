@@ -204,39 +204,39 @@ public class SkiaCarouselView : SkiaLayoutView
 
     private float GetOffsetForPosition(int position)
     {
-        float itemWidth = Bounds.Width - (float)PeekAreaInsets * 2;
+        float itemWidth = (float)Bounds.Width - (float)PeekAreaInsets * 2;
         return position * (itemWidth + (float)ItemSpacing);
     }
 
     private int GetPositionForOffset(float offset)
     {
-        float itemWidth = Bounds.Width - (float)PeekAreaInsets * 2;
+        float itemWidth = (float)Bounds.Width - (float)PeekAreaInsets * 2;
         if (itemWidth <= 0) return 0;
         return Math.Clamp((int)Math.Round(offset / (itemWidth + (float)ItemSpacing)), 0, Math.Max(0, _items.Count - 1));
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        float itemWidth = availableSize.Width - (float)PeekAreaInsets * 2;
-        float itemHeight = availableSize.Height - (ShowIndicators ? 30 : 0);
+        float itemWidth = (float)availableSize.Width - (float)PeekAreaInsets * 2;
+        float itemHeight = (float)availableSize.Height - (ShowIndicators ? 30 : 0);
 
         foreach (var item in _items)
         {
-            item.Measure(new SKSize(itemWidth, itemHeight));
+            item.Measure(new Size(itemWidth, itemHeight));
         }
 
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
-        float itemWidth = bounds.Width - (float)PeekAreaInsets * 2;
-        float itemHeight = bounds.Height - (ShowIndicators ? 30 : 0);
+        float itemWidth = (float)bounds.Width - (float)PeekAreaInsets * 2;
+        float itemHeight = (float)bounds.Height - (ShowIndicators ? 30 : 0);
 
         for (int i = 0; i < _items.Count; i++)
         {
-            float x = bounds.Left + (float)PeekAreaInsets + i * (itemWidth + (float)ItemSpacing) - _scrollOffset;
-            var itemBounds = new SKRect(x, bounds.Top, x + itemWidth, bounds.Top + itemHeight);
+            float x = (float)bounds.Left + (float)PeekAreaInsets + i * (itemWidth + (float)ItemSpacing) - _scrollOffset;
+            var itemBounds = new Rect(x, bounds.Top, itemWidth, itemHeight);
             _items[i].Arrange(itemBounds);
         }
 
@@ -389,7 +389,7 @@ public class SkiaCarouselView : SkiaLayoutView
         _isDragging = false;
 
         // Determine target position based on velocity and position
-        float itemWidth = Bounds.Width - (float)PeekAreaInsets * 2;
+        float itemWidth = (float)Bounds.Width - (float)PeekAreaInsets * 2;
         int targetPosition = GetPositionForOffset(_scrollOffset);
 
         // Apply velocity influence

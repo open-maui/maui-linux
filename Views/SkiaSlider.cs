@@ -476,10 +476,10 @@ public class SkiaSlider : SkiaView
 
     #region Layout
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        var thumbRadius = (float)ThumbRadius;
-        return new SKSize(200, thumbRadius * 2 + 16);
+        var thumbRadius = ThumbRadius;
+        return new Size(200, thumbRadius * 2 + 16);
     }
 
     #endregion

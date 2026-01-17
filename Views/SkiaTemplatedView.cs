@@ -323,11 +323,12 @@ public abstract class SkiaTemplatedView : SkiaView
     /// </summary>
     protected abstract void DrawDefaultAppearance(SKCanvas canvas, SKRect bounds);
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (_templateRoot != null && _templateApplied)
         {
-            return _templateRoot.Measure(availableSize);
+            var measured = _templateRoot.Measure(new Size(availableSize.Width, availableSize.Height));
+            return new Size(measured.Width, measured.Height);
         }
 
         return MeasureDefaultAppearance(availableSize);
@@ -337,12 +338,12 @@ public abstract class SkiaTemplatedView : SkiaView
     /// Measures the default appearance when no template is applied.
     /// Override in derived classes.
     /// </summary>
-    protected virtual SKSize MeasureDefaultAppearance(SKSize availableSize)
+    protected virtual Size MeasureDefaultAppearance(Size availableSize)
     {
-        return new SKSize(100, 40);
+        return new Size(100, 40);
     }
 
-    public new void Arrange(SKRect bounds)
+    public new void Arrange(Rect bounds)
     {
         base.Arrange(bounds);
 

@@ -410,7 +410,7 @@ public class SkiaLabel : SkiaView
 
         // Calculate character position from click
         var screenBounds = ScreenBounds;
-        var clickX = e.X - screenBounds.Left - (float)Padding.Left;
+        var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left;
         var charIndex = GetCharacterIndexAtX(clickX);
 
         // Check for double-click (select word)
@@ -448,7 +448,7 @@ public class SkiaLabel : SkiaView
         if (string.IsNullOrEmpty(text)) return;
 
         var screenBounds = ScreenBounds;
-        var clickX = e.X - screenBounds.Left - (float)Padding.Left;
+        var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left;
         var charIndex = GetCharacterIndexAtX(clickX);
 
         _selectionLength = charIndex - _selectionStart;
@@ -1192,16 +1192,16 @@ public class SkiaLabel : SkiaView
 
     #region Measurement
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var padding = Padding;
-        float paddingH = (float)(padding.Left + padding.Right);
-        float paddingV = (float)(padding.Top + padding.Bottom);
+        double paddingH = padding.Left + padding.Right;
+        double paddingV = padding.Top + padding.Bottom;
 
         string displayText = GetDisplayText();
         if (string.IsNullOrEmpty(displayText) && (FormattedText == null || FormattedText.Spans.Count == 0))
         {
-            return new SKSize(paddingH, paddingV + (float)FontSize);
+            return new Size(paddingH, paddingV + FontSize);
         }
 
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
@@ -1213,7 +1213,7 @@ public class SkiaLabel : SkiaView
 
         using var paint = new SKPaint(font);
 
-        float width, height;
+        double width, height;
         // LineHeight -1 means platform default (use 1.0 multiplier)
         double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
 
@@ -1221,7 +1221,7 @@ public class SkiaLabel : SkiaView
         {
             // Measure formatted text
             width = 0;
-            height = (float)(fontSize * effectiveLineHeight);
+            height = fontSize * effectiveLineHeight;
             foreach (var span in FormattedText.Spans)
             {
                 if (!string.IsNullOrEmpty(span.Text))
@@ -1240,7 +1240,7 @@ public class SkiaLabel : SkiaView
             // Account for character spacing
             if (CharacterSpacing != 0 && displayText.Length > 1)
             {
-                width += (float)(CharacterSpacing * (displayText.Length - 1));
+                width += CharacterSpacing * (displayText.Length - 1);
             }
 
             // Account for multi-line
@@ -1248,7 +1248,7 @@ public class SkiaLabel : SkiaView
             {
                 var lines = displayText.Split('\n');
                 int lineCount = MaxLines > 0 ? Math.Min(lines.Length, MaxLines) : lines.Length;
-                height = (float)(lineCount * fontSize * effectiveLineHeight);
+                height = lineCount * fontSize * effectiveLineHeight;
             }
         }
 
@@ -1258,14 +1258,14 @@ public class SkiaLabel : SkiaView
         // Respect explicit size requests
         if (WidthRequest >= 0)
         {
-            width = (float)WidthRequest;
+            width = WidthRequest;
         }
         if (HeightRequest >= 0)
         {
-            height = (float)HeightRequest;
+            height = HeightRequest;
         }
 
-        return new SKSize(Math.Max(width, 1f), Math.Max(height, 1f));
+        return new Size(Math.Max(width, 1.0), Math.Max(height, 1.0));
     }
 
     #endregion

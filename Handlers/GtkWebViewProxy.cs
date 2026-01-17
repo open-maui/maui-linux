@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 
@@ -24,12 +25,12 @@ public class GtkWebViewProxy : SkiaView
         _platformView = platformView;
     }
 
-    public override void Arrange(SKRect bounds)
+    public override void Arrange(Rect bounds)
     {
         base.Arrange(bounds);
         // Bounds are already in absolute window coordinates - use them directly
         // The Skia layout system uses absolute coordinates throughout
-        _handler.RegisterWithHost(Bounds);
+        _handler.RegisterWithHost(new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom));
     }
 
     public override void Draw(SKCanvas canvas)
@@ -40,7 +41,7 @@ public class GtkWebViewProxy : SkiaView
             Color = new SKColor(0, 0, 0, 0),
             Style = SKPaintStyle.Fill
         };
-        canvas.DrawRect(Bounds, paint);
+        canvas.DrawRect(new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom), paint);
     }
 
     public void Navigate(string url)

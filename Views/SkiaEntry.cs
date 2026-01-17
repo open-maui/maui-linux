@@ -1367,8 +1367,8 @@ public class SkiaEntry : SkiaView, IInputContext
         {
             var clearButtonSize = 20f;
             var clearButtonMargin = 8f;
-            var clearCenterX = Bounds.Right - clearButtonMargin - clearButtonSize / 2;
-            var clearCenterY = Bounds.MidY;
+            var clearCenterX = (float)(Bounds.Left + Bounds.Width) - clearButtonMargin - clearButtonSize / 2;
+            var clearCenterY = (float)(Bounds.Top + Bounds.Height / 2);
 
             var dx = e.X - clearCenterX;
             var dy = e.Y - clearCenterY;
@@ -1385,7 +1385,7 @@ public class SkiaEntry : SkiaView, IInputContext
 
         // Calculate cursor position from click using screen coordinates
         var screenBounds = ScreenBounds;
-        var clickX = e.X - screenBounds.Left - (float)Padding.Left + _scrollOffset;
+        var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left + _scrollOffset;
         _cursorPosition = GetCharacterIndexAtX(clickX);
 
         // Check for double-click (select word)
@@ -1446,7 +1446,7 @@ public class SkiaEntry : SkiaView, IInputContext
 
         // Extend selection to current mouse position
         var screenBounds = ScreenBounds;
-        var clickX = e.X - screenBounds.Left - (float)Padding.Left + _scrollOffset;
+        var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left + _scrollOffset;
         var newPosition = GetCharacterIndexAtX(clickX);
 
         if (newPosition != _cursorPosition)
@@ -1675,7 +1675,7 @@ public class SkiaEntry : SkiaView, IInputContext
         _inputMethodService.SetCursorLocation(x, y, 2, height);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         var fontStyle = GetFontStyle();
         var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
@@ -1688,9 +1688,9 @@ public class SkiaEntry : SkiaView, IInputContext
         var metrics = font.Metrics;
         var textHeight = metrics.Descent - metrics.Ascent + metrics.Leading;
 
-        return new SKSize(
+        return new Size(
             200, // Default width, will be overridden by layout
-            textHeight + (float)Padding.Top + (float)Padding.Bottom + (float)BorderWidth * 2);
+            textHeight + Padding.Top + Padding.Bottom + BorderWidth * 2);
     }
 }
 

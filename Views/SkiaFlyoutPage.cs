@@ -154,40 +154,36 @@ public class SkiaFlyoutPage : SkiaLayoutView
     /// </summary>
     public event EventHandler? IsPresentedChanged;
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Measure flyout
         if (_flyout != null)
         {
-            _flyout.Measure(new SKSize(FlyoutWidth, availableSize.Height));
+            _flyout.Measure(new Size(FlyoutWidth, availableSize.Height));
         }
 
         // Measure detail to full size
         if (_detail != null)
         {
-            _detail.Measure(availableSize);
+            _detail.Measure(new Size(availableSize.Width, availableSize.Height));
         }
 
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         // Arrange detail to fill the entire area
         if (_detail != null)
         {
-            _detail.Arrange(bounds);
+            _detail.Arrange(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
         }
 
         // Arrange flyout (positioned based on animation progress)
         if (_flyout != null)
         {
-            float flyoutX = bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(
-                flyoutX,
-                bounds.Top,
-                flyoutX + FlyoutWidth,
-                bounds.Bottom);
+            float flyoutX = (float)bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new Rect(flyoutX, bounds.Top, FlyoutWidth, bounds.Height);
             _flyout.Arrange(flyoutBounds);
         }
 
@@ -211,7 +207,8 @@ public class SkiaFlyoutPage : SkiaLayoutView
                 Color = _scrimColorSK.WithAlpha((byte)(_scrimColorSK.Alpha * _flyoutAnimationProgress)),
                 Style = SKPaintStyle.Fill
             };
-            canvas.DrawRect(Bounds, scrimPaint);
+            var skBounds = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
+            canvas.DrawRect(skBounds, scrimPaint);
 
             // Draw flyout shadow
             if (_flyout != null && ShadowWidth > 0)
@@ -230,12 +227,12 @@ public class SkiaFlyoutPage : SkiaLayoutView
     {
         if (_flyout == null) return;
 
-        float shadowRight = _flyout.Bounds.Right;
+        float shadowRight = (float)(_flyout.Bounds.Left + _flyout.Bounds.Width);
         var shadowRect = new SKRect(
             shadowRight,
-            Bounds.Top,
+            (float)Bounds.Top,
             shadowRight + ShadowWidth,
-            Bounds.Bottom);
+            (float)(Bounds.Top + Bounds.Height));
 
         using var shadowPaint = new SKPaint
         {

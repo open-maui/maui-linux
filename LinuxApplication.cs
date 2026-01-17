@@ -156,7 +156,7 @@ public class LinuxApplication : IDisposable
             _rootView = value;
             if (_rootView != null && _mainWindow != null)
             {
-                _rootView.Arrange(new SkiaSharp.SKRect(
+                _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(
                     0, 0,
                     _mainWindow.Width,
                     _mainWindow.Height));
@@ -542,8 +542,8 @@ public class LinuxApplication : IDisposable
     {
         if (_rootView != null)
         {
-            _rootView.Measure(new SKSize(width, height));
-            _rootView.Arrange(new SKRect(0, 0, width, height));
+            _rootView.Measure(new Size(width, height));
+            _rootView.Arrange(new Rect(0, 0, width, height));
         }
     }
 
@@ -569,9 +569,9 @@ public class LinuxApplication : IDisposable
         if (_rootView != null)
         {
             // Re-measure with new available size, then arrange
-            var availableSize = new SkiaSharp.SKSize(size.Width, size.Height);
+            var availableSize = new Size(size.Width, size.Height);
             _rootView.Measure(availableSize);
-            _rootView.Arrange(new SkiaSharp.SKRect(0, 0, size.Width, size.Height));
+            _rootView.Arrange(new Rect(0, 0, size.Width, size.Height));
         }
         _renderingEngine?.InvalidateAll();
     }

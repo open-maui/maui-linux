@@ -240,9 +240,9 @@ public class SkiaScrollView : SkiaView
         get
         {
             // Handle infinite or NaN bounds - use a reasonable default viewport
-            var viewportWidth = float.IsInfinity(Bounds.Width) || float.IsNaN(Bounds.Width) || Bounds.Width <= 0
+            var viewportWidth = double.IsInfinity(Bounds.Width) || double.IsNaN(Bounds.Width) || Bounds.Width <= 0
                 ? 800f
-                : Bounds.Width;
+                : (float)Bounds.Width;
             return Math.Max(0, ContentSize.Width - viewportWidth);
         }
     }
@@ -256,9 +256,9 @@ public class SkiaScrollView : SkiaView
         {
             // Handle infinite, NaN, or unreasonably large bounds - use a reasonable default viewport
             var boundsHeight = Bounds.Height;
-            var viewportHeight = (float.IsInfinity(boundsHeight) || float.IsNaN(boundsHeight) || boundsHeight <= 0 || boundsHeight > 10000)
+            var viewportHeight = (double.IsInfinity(boundsHeight) || double.IsNaN(boundsHeight) || boundsHeight <= 0 || boundsHeight > 10000)
                 ? 544f  // Default viewport height (600 - 56 for shell header)
-                : boundsHeight;
+                : (float)boundsHeight;
             return Math.Max(0, ContentSize.Height - viewportHeight);
         }
     }
@@ -290,17 +290,18 @@ public class SkiaScrollView : SkiaView
                 // Reserve space for vertical scrollbar if content might be taller than viewport
                 effectiveWidth -= ScrollBarWidth;
             }
-            var availableSize = new SKSize(effectiveWidth, float.PositiveInfinity);
+            var availableSize = new Size(effectiveWidth, double.PositiveInfinity);
             // Update ContentSize with the properly constrained measurement
-            ContentSize = _content.Measure(availableSize);
+            var contentDesired = _content.Measure(availableSize);
+            ContentSize = new SKSize((float)contentDesired.Width, (float)contentDesired.Height);
 
             // Apply content's margin
             var margin = _content.Margin;
-            var contentBounds = new SKRect(
-                bounds.Left + (float)margin.Left,
-                bounds.Top + (float)margin.Top,
-                bounds.Left + Math.Max(bounds.Width, _content.DesiredSize.Width) - (float)margin.Right,
-                bounds.Top + Math.Max(bounds.Height, _content.DesiredSize.Height) - (float)margin.Bottom);
+            var contentLeft = bounds.Left + (float)margin.Left;
+            var contentTop = bounds.Top + (float)margin.Top;
+            var contentWidth = Math.Max(bounds.Width, (float)_content.DesiredSize.Width) - (float)margin.Left - (float)margin.Right;
+            var contentHeight = Math.Max(bounds.Height, (float)_content.DesiredSize.Height) - (float)margin.Top - (float)margin.Bottom;
+            var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
             _content.Arrange(contentBounds);
 
             canvas.Save();
@@ -358,8 +359,8 @@ public class SkiaScrollView : SkiaView
     private void DrawVerticalScrollbar(SKCanvas canvas, SKRect bounds, bool hasHorizontal)
     {
         var trackHeight = bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
-        var thumbHeight = Math.Max(20, (bounds.Height / ContentSize.Height) * trackHeight);
-        var thumbY = (ScrollY / ScrollableHeight) * (trackHeight - thumbHeight);
+        var thumbHeight = Math.Max(20f, (bounds.Height / ContentSize.Height) * trackHeight);
+        var thumbY = ScrollableHeight > 0 ? (ScrollY / ScrollableHeight) * (trackHeight - thumbHeight) : 0f;
 
         using var paint = new SKPaint
         {
@@ -381,8 +382,8 @@ public class SkiaScrollView : SkiaView
     private void DrawHorizontalScrollbar(SKCanvas canvas, SKRect bounds, bool hasVertical)
     {
         var trackWidth = bounds.Width - (hasVertical ? ScrollBarWidth : 0);
-        var thumbWidth = Math.Max(20, (bounds.Width / ContentSize.Width) * trackWidth);
-        var thumbX = (ScrollX / ScrollableWidth) * (trackWidth - thumbWidth);
+        var thumbWidth = Math.Max(20f, (bounds.Width / ContentSize.Width) * trackWidth);
+        var thumbX = ScrollableWidth > 0 ? (ScrollX / ScrollableWidth) * (trackWidth - thumbWidth) : 0f;
 
         using var paint = new SKPaint
         {
@@ -444,8 +445,8 @@ public class SkiaScrollView : SkiaView
                 _scrollbarDragStartScrollY = _scrollY;
                 // Cache values to prevent stutter from floating-point recalculations
                 var hasHorizontal = ShouldShowHorizontalScrollbar();
-                var trackHeight = Bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
-                var thumbHeight = Math.Max(20, (Bounds.Height / ContentSize.Height) * trackHeight);
+                var trackHeight = (float)Bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
+                var thumbHeight = Math.Max(20f, ((float)Bounds.Height / ContentSize.Height) * trackHeight);
                 _scrollbarDragAvailableTrack = trackHeight - thumbHeight;
                 _scrollbarDragScrollableExtent = ScrollableHeight;
                 return;
@@ -463,8 +464,8 @@ public class SkiaScrollView : SkiaView
                 _scrollbarDragStartScrollX = _scrollX;
                 // Cache values to prevent stutter from floating-point recalculations
                 var hasVertical = ShouldShowVerticalScrollbar();
-                var trackWidth = Bounds.Width - (hasVertical ? ScrollBarWidth : 0);
-                var thumbWidth = Math.Max(20, (Bounds.Width / ContentSize.Width) * trackWidth);
+                var trackWidth = (float)Bounds.Width - (hasVertical ? ScrollBarWidth : 0);
+                var thumbWidth = Math.Max(20f, ((float)Bounds.Width / ContentSize.Width) * trackWidth);
                 _scrollbarDragAvailableTrack = trackWidth - thumbWidth;
                 _scrollbarDragScrollableExtent = ScrollableWidth;
                 return;
@@ -549,34 +550,34 @@ public class SkiaScrollView : SkiaView
     private SKRect GetVerticalScrollbarThumbBounds()
     {
         var hasHorizontal = ShouldShowHorizontalScrollbar();
-        var trackHeight = Bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
-        var thumbHeight = Math.Max(20, (Bounds.Height / ContentSize.Height) * trackHeight);
-        var thumbY = ScrollableHeight > 0 ? (ScrollY / ScrollableHeight) * (trackHeight - thumbHeight) : 0;
+        var trackHeight = (float)Bounds.Height - (hasHorizontal ? ScrollBarWidth : 0);
+        var thumbHeight = Math.Max(20f, ((float)Bounds.Height / ContentSize.Height) * trackHeight);
+        var thumbY = ScrollableHeight > 0 ? (ScrollY / ScrollableHeight) * (trackHeight - thumbHeight) : 0f;
 
         return new SKRect(
-            Bounds.Right - ScrollBarWidth,
-            Bounds.Top + thumbY,
-            Bounds.Right,
-            Bounds.Top + thumbY + thumbHeight);
+            (float)(Bounds.Left + Bounds.Width) - ScrollBarWidth,
+            (float)Bounds.Top + thumbY,
+            (float)(Bounds.Left + Bounds.Width),
+            (float)Bounds.Top + thumbY + thumbHeight);
     }
 
     private SKRect GetHorizontalScrollbarThumbBounds()
     {
         var hasVertical = ShouldShowVerticalScrollbar();
-        var trackWidth = Bounds.Width - (hasVertical ? ScrollBarWidth : 0);
-        var thumbWidth = Math.Max(20, (Bounds.Width / ContentSize.Width) * trackWidth);
-        var thumbX = ScrollableWidth > 0 ? (ScrollX / ScrollableWidth) * (trackWidth - thumbWidth) : 0;
+        var trackWidth = (float)Bounds.Width - (hasVertical ? ScrollBarWidth : 0);
+        var thumbWidth = Math.Max(20f, ((float)Bounds.Width / ContentSize.Width) * trackWidth);
+        var thumbX = ScrollableWidth > 0 ? (ScrollX / ScrollableWidth) * (trackWidth - thumbWidth) : 0f;
 
         return new SKRect(
-            Bounds.Left + thumbX,
-            Bounds.Bottom - ScrollBarWidth,
-            Bounds.Left + thumbX + thumbWidth,
-            Bounds.Bottom);
+            (float)Bounds.Left + thumbX,
+            (float)(Bounds.Top + Bounds.Height) - ScrollBarWidth,
+            (float)Bounds.Left + thumbX + thumbWidth,
+            (float)(Bounds.Top + Bounds.Height));
     }
 
     public override SkiaView? HitTest(float x, float y)
     {
-        if (!IsVisible || !IsEnabled || !Bounds.Contains(new SKPoint(x, y)))
+        if (!IsVisible || !IsEnabled || !Bounds.Contains(x, y))
             return null;
 
         // Check scrollbar areas FIRST before content
@@ -585,14 +586,14 @@ public class SkiaScrollView : SkiaView
         {
             var thumbBounds = GetVerticalScrollbarThumbBounds();
             // Check if click is in the scrollbar track area (not just thumb)
-            var trackArea = new SKRect(Bounds.Right - ScrollBarWidth, Bounds.Top, Bounds.Right, Bounds.Bottom);
+            var trackArea = new SKRect((float)(Bounds.Left + Bounds.Width) - ScrollBarWidth, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
             if (trackArea.Contains(x, y))
                 return this;
         }
 
         if (ShouldShowHorizontalScrollbar() && ScrollableWidth > 0)
         {
-            var trackArea = new SKRect(Bounds.Left, Bounds.Bottom - ScrollBarWidth, Bounds.Right, Bounds.Bottom);
+            var trackArea = new SKRect((float)Bounds.Left, (float)(Bounds.Top + Bounds.Height) - ScrollBarWidth, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
             if (trackArea.Contains(x, y))
                 return this;
         }
@@ -680,38 +681,40 @@ public class SkiaScrollView : SkiaView
         float targetY = _scrollY;
 
         // Calculate viewport dimensions
-        float viewportWidth = Bounds.Width;
-        float viewportHeight = Bounds.Height;
+        float viewportWidth = (float)Bounds.Width;
+        float viewportHeight = (float)Bounds.Height;
+        float elementRight = (float)(elementBounds.Left + elementBounds.Width);
+        float elementBottom = (float)(elementBounds.Top + elementBounds.Height);
 
         switch (position)
         {
             case ScrollToPosition.Start:
-                targetX = elementBounds.Left;
-                targetY = elementBounds.Top;
+                targetX = (float)elementBounds.Left;
+                targetY = (float)elementBounds.Top;
                 break;
 
             case ScrollToPosition.Center:
-                targetX = elementBounds.Left - (viewportWidth - elementBounds.Width) / 2;
-                targetY = elementBounds.Top - (viewportHeight - elementBounds.Height) / 2;
+                targetX = (float)elementBounds.Left - (viewportWidth - (float)elementBounds.Width) / 2;
+                targetY = (float)elementBounds.Top - (viewportHeight - (float)elementBounds.Height) / 2;
                 break;
 
             case ScrollToPosition.End:
-                targetX = elementBounds.Right - viewportWidth;
-                targetY = elementBounds.Bottom - viewportHeight;
+                targetX = elementRight - viewportWidth;
+                targetY = elementBottom - viewportHeight;
                 break;
 
             case ScrollToPosition.MakeVisible:
             default:
                 // Only scroll if element is not fully visible
                 if (elementBounds.Left < _scrollX)
-                    targetX = elementBounds.Left;
-                else if (elementBounds.Right > _scrollX + viewportWidth)
-                    targetX = elementBounds.Right - viewportWidth;
+                    targetX = (float)elementBounds.Left;
+                else if (elementRight > _scrollX + viewportWidth)
+                    targetX = elementRight - viewportWidth;
 
                 if (elementBounds.Top < _scrollY)
-                    targetY = elementBounds.Top;
-                else if (elementBounds.Bottom > _scrollY + viewportHeight)
-                    targetY = elementBounds.Bottom - viewportHeight;
+                    targetY = (float)elementBounds.Top;
+                else if (elementBottom > _scrollY + viewportHeight)
+                    targetY = elementBottom - viewportHeight;
                 break;
         }
 
@@ -730,15 +733,18 @@ public class SkiaScrollView : SkiaView
         if (_content == null) return;
 
         var viewBounds = view.Bounds;
+        float viewRight = (float)(viewBounds.Left + viewBounds.Width);
+        float viewBottom = (float)(viewBounds.Top + viewBounds.Height);
 
         // Check if view is fully visible
         var visibleRect = new SKRect(
             ScrollX,
             ScrollY,
-            ScrollX + Bounds.Width,
-            ScrollY + Bounds.Height);
+            ScrollX + (float)Bounds.Width,
+            ScrollY + (float)Bounds.Height);
 
-        if (visibleRect.Contains(viewBounds))
+        var viewSKRect = new SKRect((float)viewBounds.Left, (float)viewBounds.Top, viewRight, viewBottom);
+        if (visibleRect.Contains(viewSKRect))
             return;
 
         // Calculate scroll position to bring view into view
@@ -746,14 +752,14 @@ public class SkiaScrollView : SkiaView
         float targetY = ScrollY;
 
         if (viewBounds.Left < visibleRect.Left)
-            targetX = viewBounds.Left;
-        else if (viewBounds.Right > visibleRect.Right)
-            targetX = viewBounds.Right - Bounds.Width;
+            targetX = (float)viewBounds.Left;
+        else if (viewRight > visibleRect.Right)
+            targetX = viewRight - (float)Bounds.Width;
 
         if (viewBounds.Top < visibleRect.Top)
-            targetY = viewBounds.Top;
-        else if (viewBounds.Bottom > visibleRect.Bottom)
-            targetY = viewBounds.Bottom - Bounds.Height;
+            targetY = (float)viewBounds.Top;
+        else if (viewBottom > visibleRect.Bottom)
+            targetY = viewBottom - (float)Bounds.Height;
 
         ScrollTo(targetX, targetY, animated);
     }
@@ -770,7 +776,7 @@ public class SkiaScrollView : SkiaView
         return Math.Clamp(value, 0, ScrollableHeight);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (_content != null)
         {
@@ -787,17 +793,17 @@ public class SkiaScrollView : SkiaView
             {
                 case ScrollOrientation.Horizontal:
                     contentWidth = float.PositiveInfinity;
-                    contentHeight = float.IsInfinity(availableSize.Height) ? 400f : availableSize.Height;
+                    contentHeight = double.IsInfinity(availableSize.Height) ? 400f : (float)availableSize.Height;
                     break;
                 case ScrollOrientation.Neither:
-                    contentWidth = float.IsInfinity(availableSize.Width) ? 400f : availableSize.Width;
-                    contentHeight = float.IsInfinity(availableSize.Height) ? 400f : availableSize.Height;
+                    contentWidth = double.IsInfinity(availableSize.Width) ? 400f : (float)availableSize.Width;
+                    contentHeight = double.IsInfinity(availableSize.Height) ? 400f : (float)availableSize.Height;
                     break;
                 case ScrollOrientation.Both:
                     // For Both: first measure with viewport width to get responsive layout
                     // Content can still exceed viewport if it has minimum width constraints
                     // Reserve space for vertical scrollbar to prevent horizontal scrollbar
-                    contentWidth = float.IsInfinity(availableSize.Width) ? 800f : availableSize.Width;
+                    contentWidth = double.IsInfinity(availableSize.Width) ? 800f : (float)availableSize.Width;
                     if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
                         contentWidth -= ScrollBarWidth;
                     contentHeight = float.PositiveInfinity;
@@ -805,14 +811,15 @@ public class SkiaScrollView : SkiaView
                 case ScrollOrientation.Vertical:
                 default:
                     // Reserve space for vertical scrollbar to prevent horizontal scrollbar
-                    contentWidth = float.IsInfinity(availableSize.Width) ? 800f : availableSize.Width;
+                    contentWidth = double.IsInfinity(availableSize.Width) ? 800f : (float)availableSize.Width;
                     if (VerticalScrollBarVisibility != ScrollBarVisibility.Never)
                         contentWidth -= ScrollBarWidth;
                     contentHeight = float.PositiveInfinity;
                     break;
             }
 
-            ContentSize = _content.Measure(new SKSize(contentWidth, contentHeight));
+            var contentDesiredMeasure = _content.Measure(new Size(contentWidth, contentHeight));
+            ContentSize = new SKSize((float)contentDesiredMeasure.Width, (float)contentDesiredMeasure.Height);
         }
         else
         {
@@ -823,41 +830,41 @@ public class SkiaScrollView : SkiaView
         // IMPORTANT: When available is infinite, return a reasonable viewport size, NOT content size
         // A ScrollView should NOT expand to fit its content - it should stay at a fixed viewport
         // and scroll the content. Use a default viewport size when parent gives infinity.
-        const float DefaultViewportWidth = 400f;
-        const float DefaultViewportHeight = 400f;
+        const double DefaultViewportWidth = 400.0;
+        const double DefaultViewportHeight = 400.0;
 
-        var width = float.IsInfinity(availableSize.Width) || float.IsNaN(availableSize.Width)
+        var width = double.IsInfinity(availableSize.Width) || double.IsNaN(availableSize.Width)
             ? Math.Min(ContentSize.Width, DefaultViewportWidth)
             : availableSize.Width;
-        var height = float.IsInfinity(availableSize.Height) || float.IsNaN(availableSize.Height)
+        var height = double.IsInfinity(availableSize.Height) || double.IsNaN(availableSize.Height)
             ? Math.Min(ContentSize.Height, DefaultViewportHeight)
             : availableSize.Height;
 
-        return new SKSize(width, height);
+        return new Size(width, height);
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
 
         // CRITICAL: If bounds has infinite height, use a fixed viewport size
         // NOT ContentSize.Height - that would make ScrollableHeight = 0
         const float DefaultViewportHeight = 544f; // 600 - 56 for shell header
         var actualBounds = bounds;
-        if (float.IsInfinity(bounds.Height) || float.IsNaN(bounds.Height))
+        if (double.IsInfinity(bounds.Height) || double.IsNaN(bounds.Height))
         {
             Console.WriteLine($"[SkiaScrollView] WARNING: Infinite/NaN height, using default viewport={DefaultViewportHeight}");
-            actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + DefaultViewportHeight);
+            actualBounds = new Rect(bounds.Left, bounds.Top, bounds.Width, DefaultViewportHeight);
         }
 
         if (_content != null)
         {
             // Apply content's margin and arrange content at its full size
             var margin = _content.Margin;
-            var contentBounds = new SKRect(
-                actualBounds.Left + (float)margin.Left,
-                actualBounds.Top + (float)margin.Top,
-                actualBounds.Left + Math.Max(actualBounds.Width, ContentSize.Width) - (float)margin.Right,
-                actualBounds.Top + Math.Max(actualBounds.Height, ContentSize.Height) - (float)margin.Bottom);
+            var contentLeft = (float)actualBounds.Left + (float)margin.Left;
+            var contentTop = (float)actualBounds.Top + (float)margin.Top;
+            var contentWidth = Math.Max((float)actualBounds.Width, ContentSize.Width) - (float)margin.Left - (float)margin.Right;
+            var contentHeight = Math.Max((float)actualBounds.Height, ContentSize.Height) - (float)margin.Top - (float)margin.Bottom;
+            var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
 
             _content.Arrange(contentBounds);
         }
