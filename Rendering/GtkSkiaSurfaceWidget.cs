@@ -113,7 +113,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
     public event EventHandler<(double X, double Y)>? PointerMoved;
     public event EventHandler<(uint KeyVal, uint KeyCode, uint State)>? KeyPressed;
     public event EventHandler<(uint KeyVal, uint KeyCode, uint State)>? KeyReleased;
-    public event EventHandler<(double X, double Y, double DeltaX, double DeltaY)>? Scrolled;
+    public event EventHandler<(double X, double Y, double DeltaX, double DeltaY, uint State)>? Scrolled;
     public event EventHandler<string>? TextInput;
 
     public GtkSkiaSurfaceWidget(int width, int height)
@@ -314,8 +314,8 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
 
     private bool OnScroll(IntPtr widget, IntPtr eventData, IntPtr userData)
     {
-        var (x, y, deltaX, deltaY) = ParseScrollEvent(eventData);
-        Scrolled?.Invoke(this, (x, y, deltaX, deltaY));
+        var (x, y, deltaX, deltaY, state) = ParseScrollEvent(eventData);
+        Scrolled?.Invoke(this, (x, y, deltaX, deltaY, state));
         return true;
     }
 
@@ -337,7 +337,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
         return (evt.keyval, evt.hardware_keycode, evt.state);
     }
 
-    private static (double x, double y, double deltaX, double deltaY) ParseScrollEvent(IntPtr eventData)
+    private static (double x, double y, double deltaX, double deltaY, uint state) ParseScrollEvent(IntPtr eventData)
     {
         var evt = Marshal.PtrToStructure<GdkEventScroll>(eventData);
         double deltaX = 0.0;
@@ -366,7 +366,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
                     break;
             }
         }
-        return (evt.x, evt.y, deltaX, deltaY);
+        return (evt.x, evt.y, deltaX, deltaY, evt.state);
     }
 
     public void GrabFocus()

@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Manages gesture recognition and processing for MAUI views on Linux.
-/// Handles tap, pan, swipe, and pointer gestures.
+/// Handles tap, pan, swipe, pinch, and pointer gestures.
 /// </summary>
 public static class GestureManager
 {
@@ -22,6 +22,8 @@ public static class GestureManager
         public DateTime StartTime { get; set; }
         public bool IsPanning { get; set; }
         public bool IsPressed { get; set; }
+        public bool IsPinching { get; set; }
+        public double PinchScale { get; set; } = 1.0;
     }
 
     private enum PointerEventType
@@ -34,6 +36,7 @@ public static class GestureManager
     }
 
     private static MethodInfo? _sendTappedMethod;
+    private static MethodInfo? _sendPinchMethod;
     private static readonly Dictionary<View, (DateTime lastTap, int tapCount)> _tapTracking = new Dictionary<View, (DateTime, int)>();
     private static readonly Dictionary<View, GestureTrackingState> _gestureState = new Dictionary<View, GestureTrackingState>();
 
@@ -41,6 +44,7 @@ public static class GestureManager
     private const double SwipeMaxTime = 500.0;
     private const double SwipeDirectionThreshold = 0.5;
     private const double PanMinDistance = 10.0;
+    private const double PinchScrollScale = 0.1; // Scale factor per scroll unit
 
     /// <summary>
     /// Processes a tap gesture on the specified view.
@@ -505,6 +509,142 @@ public static class GestureManager
     }
 
     /// <summary>
+    /// Processes a scroll event that may be a pinch gesture (Ctrl+Scroll).
+    /// Returns true if the scroll was consumed as a pinch gesture.
+    /// </summary>
+    public static bool ProcessScrollAsPinch(View? view, double x, double y, double deltaY, bool isCtrlPressed)
+    {
+        if (view == null || !isCtrlPressed)
+        {
+            return false;
+        }
+
+        // Check if view has a pinch gesture recognizer
+        if (!HasPinchGestureRecognizer(view))
+        {
+            return false;
+        }
+
+        // Get or create gesture state
+        if (!_gestureState.TryGetValue(view, out var state))
+        {
+            state = new GestureTrackingState
+            {
+                StartX = x,
+                StartY = y,
+                CurrentX = x,
+                CurrentY = y,
+                StartTime = DateTime.UtcNow,
+                PinchScale = 1.0
+            };
+            _gestureState[view] = state;
+        }
+
+        // Calculate new scale based on scroll delta
+        double scaleDelta = 1.0 + (deltaY * PinchScrollScale);
+        state.PinchScale *= scaleDelta;
+
+        // Clamp scale to reasonable bounds
+        state.PinchScale = Math.Clamp(state.PinchScale, 0.1, 10.0);
+
+        GestureStatus status;
+        if (!state.IsPinching)
+        {
+            state.IsPinching = true;
+            status = GestureStatus.Started;
+        }
+        else
+        {
+            status = GestureStatus.Running;
+        }
+
+        ProcessPinchGesture(view, state.PinchScale, x, y, status);
+        return true;
+    }
+
+    /// <summary>
+    /// Ends an ongoing pinch gesture.
+    /// </summary>
+    public static void EndPinchGesture(View? view)
+    {
+        if (view == null) return;
+
+        if (_gestureState.TryGetValue(view, out var state) && state.IsPinching)
+        {
+            ProcessPinchGesture(view, state.PinchScale, state.CurrentX, state.CurrentY, GestureStatus.Completed);
+            state.IsPinching = false;
+            state.PinchScale = 1.0;
+        }
+    }
+
+    private static void ProcessPinchGesture(View view, double scale, double originX, double originY, GestureStatus status)
+    {
+        var recognizers = view.GestureRecognizers;
+        if (recognizers == null)
+        {
+            return;
+        }
+
+        foreach (var item in recognizers)
+        {
+            var pinchRecognizer = item as PinchGestureRecognizer;
+            if (pinchRecognizer == null)
+            {
+                continue;
+            }
+
+            Console.WriteLine($"[GestureManager] Pinch gesture: status={status}, scale={scale:F2}, origin=({originX:F0},{originY:F0})");
+
+            try
+            {
+                // Cache the method lookup
+                if (_sendPinchMethod == null)
+                {
+                    _sendPinchMethod = typeof(PinchGestureRecognizer).GetMethod("SendPinch",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                }
+
+                if (_sendPinchMethod != null)
+                {
+                    // SendPinch(IView sender, double scale, Point scaleOrigin, GestureStatus status)
+                    var scaleOrigin = new Point(originX / view.Width, originY / view.Height);
+                    _sendPinchMethod.Invoke(pinchRecognizer, new object[]
+                    {
+                        view,
+                        scale,
+                        scaleOrigin,
+                        status
+                    });
+                    Console.WriteLine("[GestureManager] SendPinch invoked successfully");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GestureManager] SendPinch failed: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if the view has a pinch gesture recognizer.
+    /// </summary>
+    public static bool HasPinchGestureRecognizer(View? view)
+    {
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is PinchGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Checks if the view has a swipe gesture recognizer.
     /// </summary>
     public static bool HasSwipeGestureRecognizer(View? view)
@@ -559,5 +699,147 @@ public static class GestureManager
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Checks if the view has a drag gesture recognizer.
+    /// </summary>
+    public static bool HasDragGestureRecognizer(View? view)
+    {
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is DragGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if the view has a drop gesture recognizer.
+    /// </summary>
+    public static bool HasDropGestureRecognizer(View? view)
+    {
+        if (view?.GestureRecognizers == null)
+        {
+            return false;
+        }
+        foreach (var recognizer in view.GestureRecognizers)
+        {
+            if (recognizer is DropGestureRecognizer)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Initiates a drag operation from the specified view.
+    /// </summary>
+    public static void StartDrag(View? view, double x, double y)
+    {
+        if (view == null) return;
+
+        var recognizers = view.GestureRecognizers;
+        if (recognizers == null) return;
+
+        foreach (var item in recognizers)
+        {
+            var dragRecognizer = item as DragGestureRecognizer;
+            if (dragRecognizer == null) continue;
+
+            Console.WriteLine($"[GestureManager] Starting drag from {view.GetType().Name}");
+
+            try
+            {
+                // Create DragStartingEventArgs and invoke SendDragStarting
+                var method = typeof(DragGestureRecognizer).GetMethod("SendDragStarting",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                if (method != null)
+                {
+                    method.Invoke(dragRecognizer, new object[] { view });
+                    Console.WriteLine("[GestureManager] SendDragStarting invoked successfully");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GestureManager] SendDragStarting failed: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes a drag enter event on the specified view.
+    /// </summary>
+    public static void ProcessDragEnter(View? view, double x, double y, object? data)
+    {
+        if (view == null) return;
+
+        var recognizers = view.GestureRecognizers;
+        if (recognizers == null) return;
+
+        foreach (var item in recognizers)
+        {
+            var dropRecognizer = item as DropGestureRecognizer;
+            if (dropRecognizer == null) continue;
+
+            Console.WriteLine($"[GestureManager] Drag enter on {view.GetType().Name}");
+
+            try
+            {
+                var method = typeof(DropGestureRecognizer).GetMethod("SendDragOver",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                if (method != null)
+                {
+                    method.Invoke(dropRecognizer, new object[] { view });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GestureManager] SendDragOver failed: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes a drop event on the specified view.
+    /// </summary>
+    public static void ProcessDrop(View? view, double x, double y, object? data)
+    {
+        if (view == null) return;
+
+        var recognizers = view.GestureRecognizers;
+        if (recognizers == null) return;
+
+        foreach (var item in recognizers)
+        {
+            var dropRecognizer = item as DropGestureRecognizer;
+            if (dropRecognizer == null) continue;
+
+            Console.WriteLine($"[GestureManager] Drop on {view.GetType().Name}");
+
+            try
+            {
+                var method = typeof(DropGestureRecognizer).GetMethod("SendDrop",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                if (method != null)
+                {
+                    method.Invoke(dropRecognizer, new object[] { view });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GestureManager] SendDrop failed: {ex.Message}");
+            }
+        }
     }
 }

@@ -929,22 +929,56 @@ public class LinuxApplication : IDisposable
         }
     }
 
-    private void OnGtkScrolled(object? sender, (double X, double Y, double DeltaX, double DeltaY) e)
+    private void OnGtkScrolled(object? sender, (double X, double Y, double DeltaX, double DeltaY, uint State) e)
     {
         if (_rootView == null) return;
 
+        // Convert GDK state to KeyModifiers
+        var modifiers = ConvertGdkStateToModifiers(e.State);
+        bool isCtrlPressed = (modifiers & KeyModifiers.Control) != 0;
+
         var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+
+        // Check for pinch gesture (Ctrl+Scroll) first
+        if (isCtrlPressed && hitView?.MauiView != null)
+        {
+            if (Handlers.GestureManager.ProcessScrollAsPinch(hitView.MauiView, e.X, e.Y, e.DeltaY, true))
+            {
+                _gtkWindow?.RequestRedraw();
+                return;
+            }
+        }
+
         while (hitView != null)
         {
             if (hitView is SkiaScrollView scrollView)
             {
-                var args = new ScrollEventArgs((float)e.X, (float)e.Y, (float)e.DeltaX, (float)e.DeltaY);
+                var args = new ScrollEventArgs((float)e.X, (float)e.Y, (float)e.DeltaX, (float)e.DeltaY, modifiers);
                 scrollView.OnScroll(args);
                 _gtkWindow?.RequestRedraw();
                 break;
             }
             hitView = hitView.Parent;
         }
+    }
+
+    private static KeyModifiers ConvertGdkStateToModifiers(uint state)
+    {
+        var modifiers = KeyModifiers.None;
+        // GDK modifier masks
+        const uint GDK_SHIFT_MASK = 1 << 0;
+        const uint GDK_CONTROL_MASK = 1 << 2;
+        const uint GDK_MOD1_MASK = 1 << 3;  // Alt
+        const uint GDK_SUPER_MASK = 1 << 26;
+        const uint GDK_LOCK_MASK = 1 << 1;  // Caps Lock
+
+        if ((state & GDK_SHIFT_MASK) != 0) modifiers |= KeyModifiers.Shift;
+        if ((state & GDK_CONTROL_MASK) != 0) modifiers |= KeyModifiers.Control;
+        if ((state & GDK_MOD1_MASK) != 0) modifiers |= KeyModifiers.Alt;
+        if ((state & GDK_SUPER_MASK) != 0) modifiers |= KeyModifiers.Super;
+        if ((state & GDK_LOCK_MASK) != 0) modifiers |= KeyModifiers.CapsLock;
+
+        return modifiers;
     }
 
     private void OnGtkTextInput(object? sender, string text)

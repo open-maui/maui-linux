@@ -72,6 +72,7 @@ public static class LinuxMauiAppBuilderExtensions
         builder.Services.TryAddSingleton<NotificationService>();
         builder.Services.TryAddSingleton<SystemTrayService>();
         builder.Services.TryAddSingleton(_ => MonitorService.Instance);
+        builder.Services.TryAddSingleton<DragDropService>();
 
         // Register GTK host service
         builder.Services.TryAddSingleton(_ => GtkHostService.Instance);

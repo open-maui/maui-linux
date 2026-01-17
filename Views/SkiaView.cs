@@ -1738,14 +1738,21 @@ public class ScrollEventArgs : EventArgs
     public float Y { get; }
     public float DeltaX { get; }
     public float DeltaY { get; }
+    public KeyModifiers Modifiers { get; }
     public bool Handled { get; set; }
 
-    public ScrollEventArgs(float x, float y, float deltaX, float deltaY)
+    /// <summary>
+    /// Gets whether the Control key is pressed during this scroll event.
+    /// </summary>
+    public bool IsControlPressed => (Modifiers & KeyModifiers.Control) != 0;
+
+    public ScrollEventArgs(float x, float y, float deltaX, float deltaY, KeyModifiers modifiers = KeyModifiers.None)
     {
         X = x;
         Y = y;
         DeltaX = deltaX;
         DeltaY = deltaY;
+        Modifiers = modifiers;
     }
 }
 
