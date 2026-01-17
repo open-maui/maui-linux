@@ -39,23 +39,13 @@ public class AppInfoService : IAppInfo
     {
         get
         {
-            try
+            // Use SystemThemeService for consistent theme detection across the platform
+            return SystemThemeService.Instance.CurrentTheme switch
             {
-                var environmentVariable = Environment.GetEnvironmentVariable("GTK_THEME");
-                if (!string.IsNullOrEmpty(environmentVariable) && environmentVariable.Contains("dark", StringComparison.OrdinalIgnoreCase))
-                {
-                    return AppTheme.Dark;
-                }
-                if (GetGnomeColorScheme().Contains("dark", StringComparison.OrdinalIgnoreCase))
-                {
-                    return AppTheme.Dark;
-                }
-                return AppTheme.Light;
-            }
-            catch
-            {
-                return AppTheme.Light;
-            }
+                SystemTheme.Dark => AppTheme.Dark,
+                SystemTheme.Light => AppTheme.Light,
+                _ => AppTheme.Unspecified
+            };
         }
     }
 
@@ -86,31 +76,6 @@ public class AppInfoService : IAppInfo
         _name = _entryAssembly.GetCustomAttribute<AssemblyTitleAttribute>()?.Title ?? _packageName;
         _versionString = (_version = _entryAssembly.GetName().Version ?? new Version(1, 0)).ToString();
         _buildString = _entryAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? _versionString;
-    }
-
-    private string GetGnomeColorScheme()
-    {
-        try
-        {
-            using Process? process = Process.Start(new ProcessStartInfo
-            {
-                FileName = "gsettings",
-                Arguments = "get org.gnome.desktop.interface color-scheme",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            });
-            if (process != null)
-            {
-                string text = process.StandardOutput.ReadToEnd();
-                process.WaitForExit(1000);
-                return text.Trim().Trim('\'');
-            }
-        }
-        catch
-        {
-        }
-        return "";
     }
 
     public void ShowSettingsUI()

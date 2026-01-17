@@ -6,14 +6,16 @@ using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered multiline text editor control with full XAML styling support.
+/// Implements IInputContext for IME (Input Method Editor) support.
 /// </summary>
-public class SkiaEditor : SkiaView
+public class SkiaEditor : SkiaView, IInputContext
 {
     #region BindableProperties
 
@@ -344,6 +346,30 @@ public class SkiaEditor : SkiaView
         return string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
     }
 
+    /// <summary>
+    /// Determines if text should be rendered right-to-left based on FlowDirection.
+    /// </summary>
+    private bool IsRightToLeft()
+    {
+        return FlowDirection == FlowDirection.RightToLeft;
+    }
+
+    /// <summary>
+    /// Gets the horizontal alignment accounting for FlowDirection.
+    /// </summary>
+    private float GetEffectiveTextX(SKRect contentBounds, float textWidth)
+    {
+        bool isRtl = IsRightToLeft();
+
+        return HorizontalTextAlignment switch
+        {
+            TextAlignment.Start => isRtl ? contentBounds.Right - textWidth : contentBounds.Left,
+            TextAlignment.Center => contentBounds.MidX - textWidth / 2,
+            TextAlignment.End => isRtl ? contentBounds.Left : contentBounds.Right - textWidth,
+            _ => isRtl ? contentBounds.Right - textWidth : contentBounds.Left
+        };
+    }
+
     #endregion
 
     #region Properties
@@ -609,6 +635,96 @@ public class SkiaEditor : SkiaView
     private float _lastClickY;
     private const double DoubleClickThresholdMs = 400;
 
+    // IME (Input Method Editor) support
+    private string _preEditText = string.Empty;
+    private int _preEditCursorPosition;
+    private IInputMethodService? _inputMethodService;
+
+    #region IInputContext Implementation
+
+    /// <summary>
+    /// Gets or sets the text for IME context.
+    /// </summary>
+    string IInputContext.Text
+    {
+        get => Text;
+        set => Text = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor position for IME context.
+    /// </summary>
+    int IInputContext.CursorPosition
+    {
+        get => _cursorPosition;
+        set => CursorPosition = value;
+    }
+
+    /// <summary>
+    /// Gets the selection start for IME context.
+    /// </summary>
+    int IInputContext.SelectionStart => _selectionStart;
+
+    /// <summary>
+    /// Gets the selection length for IME context.
+    /// </summary>
+    int IInputContext.SelectionLength => _selectionLength;
+
+    /// <summary>
+    /// Called when IME commits text.
+    /// </summary>
+    public void OnTextCommitted(string text)
+    {
+        if (IsReadOnly) return;
+
+        // Delete selection if any
+        if (_selectionLength != 0)
+        {
+            DeleteSelection();
+        }
+
+        // Clear pre-edit text
+        _preEditText = string.Empty;
+        _preEditCursorPosition = 0;
+
+        // Check max length
+        if (MaxLength > 0 && Text.Length + text.Length > MaxLength)
+        {
+            text = text.Substring(0, MaxLength - Text.Length);
+        }
+
+        // Insert committed text at cursor
+        var newText = Text.Insert(_cursorPosition, text);
+        var newPos = _cursorPosition + text.Length;
+        Text = newText;
+        _cursorPosition = newPos;
+
+        EnsureCursorVisible();
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Called when IME pre-edit (composition) text changes.
+    /// </summary>
+    public void OnPreEditChanged(string preEditText, int cursorPosition)
+    {
+        _preEditText = preEditText ?? string.Empty;
+        _preEditCursorPosition = cursorPosition;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Called when IME pre-edit ends (cancelled or committed).
+    /// </summary>
+    public void OnPreEditEnded()
+    {
+        _preEditText = string.Empty;
+        _preEditCursorPosition = 0;
+        Invalidate();
+    }
+
+    #endregion
+
     /// <summary>
     /// Event raised when text changes.
     /// </summary>
@@ -622,6 +738,8 @@ public class SkiaEditor : SkiaView
     public SkiaEditor()
     {
         IsFocusable = true;
+        // Get IME service from factory
+        _inputMethodService = InputMethodServiceFactory.Instance;
     }
 
     private void OnTextPropertyChanged(string oldText, string newText)
@@ -855,15 +973,42 @@ public class SkiaEditor : SkiaView
                     }
                 }
 
-                canvas.DrawText(line, x, y, textPaint);
+                // Determine if pre-edit text should be displayed on this line
+                var (cursorLine, cursorCol) = GetLineColumn(_cursorPosition);
+                var displayLine = line;
+                var hasPreEditOnThisLine = !string.IsNullOrEmpty(_preEditText) && cursorLine == lineIndex;
+
+                if (hasPreEditOnThisLine)
+                {
+                    // Insert pre-edit text at cursor position within this line
+                    var insertPos = Math.Min(cursorCol, line.Length);
+                    displayLine = line.Insert(insertPos, _preEditText);
+                }
+
+                // Draw the text with font fallback for emoji/CJK support
+                DrawTextWithFallback(canvas, displayLine, x, y, textPaint, SKTypeface.Default);
+
+                // Draw underline for pre-edit (composition) text
+                if (hasPreEditOnThisLine)
+                {
+                    DrawPreEditUnderline(canvas, textPaint, line, x, y, contentRect);
+                }
 
                 // Draw cursor if on this line
                 if (IsFocused && _cursorVisible)
                 {
-                    var (cursorLine, cursorCol) = GetLineColumn(_cursorPosition);
                     if (cursorLine == lineIndex)
                     {
-                        var cursorX = x + MeasureText(line.Substring(0, Math.Min(cursorCol, line.Length)), font);
+                        // Account for pre-edit text when calculating cursor position
+                        var textToCursor = line.Substring(0, Math.Min(cursorCol, line.Length));
+                        var cursorX = x + MeasureText(textToCursor, font);
+
+                        // If there's pre-edit text, cursor goes after it
+                        if (hasPreEditOnThisLine && _preEditText.Length > 0)
+                        {
+                            cursorX += MeasureText(_preEditText, font);
+                        }
+
                         using var cursorPaint = new SKPaint
                         {
                             Color = ToSKColor(CursorColor),
@@ -1247,12 +1392,24 @@ public class SkiaEditor : SkiaView
     {
         base.OnFocusGained();
         SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Focused);
+
+        // Connect to IME service
+        _inputMethodService?.SetFocus(this);
+
+        // Update cursor location for IME candidate window positioning
+        UpdateImeCursorLocation();
     }
 
     public override void OnFocusLost()
     {
         base.OnFocusLost();
         SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Normal);
+
+        // Disconnect from IME service and reset any composition
+        _inputMethodService?.SetFocus(null);
+        _preEditText = string.Empty;
+        _preEditCursorPosition = 0;
+
         Completed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -1339,6 +1496,91 @@ public class SkiaEditor : SkiaView
     }
 
     #endregion
+
+    /// <summary>
+    /// Draws text with font fallback for emoji, CJK, and other scripts.
+    /// </summary>
+    private void DrawTextWithFallback(SKCanvas canvas, string text, float x, float y, SKPaint paint, SKTypeface preferredTypeface)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        // Use FontFallbackManager for mixed-script text
+        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, preferredTypeface);
+
+        if (runs.Count <= 1)
+        {
+            // Single run or no fallback needed - draw directly
+            canvas.DrawText(text, x, y, paint);
+            return;
+        }
+
+        // Multiple runs with different fonts
+        float currentX = x;
+        foreach (var run in runs)
+        {
+            using var runFont = new SKFont(run.Typeface, (float)FontSize);
+            using var runPaint = new SKPaint(runFont)
+            {
+                Color = paint.Color,
+                IsAntialias = true
+            };
+
+            canvas.DrawText(run.Text, currentX, y, runPaint);
+            currentX += runPaint.MeasureText(run.Text);
+        }
+    }
+
+    /// <summary>
+    /// Draws underline for IME pre-edit (composition) text.
+    /// </summary>
+    private void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, string displayText, float x, float y, SKRect bounds)
+    {
+        // Calculate pre-edit text position
+        var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));
+        var preEditStartX = x + paint.MeasureText(textToCursor);
+        var preEditEndX = preEditStartX + paint.MeasureText(_preEditText);
+
+        // Draw dotted underline to indicate composition
+        using var underlinePaint = new SKPaint
+        {
+            Color = paint.Color,
+            StrokeWidth = 1,
+            IsAntialias = true,
+            PathEffect = SKPathEffect.CreateDash(new float[] { 3, 2 }, 0)
+        };
+
+        var underlineY = y + 2;
+        canvas.DrawLine(preEditStartX, underlineY, preEditEndX, underlineY, underlinePaint);
+    }
+
+    /// <summary>
+    /// Updates the IME cursor location for candidate window positioning.
+    /// </summary>
+    private void UpdateImeCursorLocation()
+    {
+        if (_inputMethodService == null) return;
+
+        var screenBounds = ScreenBounds;
+        var (line, col) = GetLineColumn(_cursorPosition);
+        var fontSize = (float)FontSize;
+        var lineSpacing = fontSize * (float)LineHeight;
+
+        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var paint = new SKPaint(font);
+
+        var lineText = line < _lines.Count ? _lines[line] : "";
+        var textToCursor = lineText.Substring(0, Math.Min(col, lineText.Length));
+        var cursorX = paint.MeasureText(textToCursor);
+
+        int x = (int)(screenBounds.Left + Padding.Left + cursorX);
+        int y = (int)(screenBounds.Top + Padding.Top + line * lineSpacing - _scrollOffsetY);
+        int height = (int)fontSize;
+
+        _inputMethodService.SetCursorLocation(x, y, 2, height);
+    }
 
     protected override SKSize MeasureOverride(SKSize availableSize)
     {

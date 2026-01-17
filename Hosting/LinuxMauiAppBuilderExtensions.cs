@@ -54,6 +54,24 @@ public static class LinuxMauiAppBuilderExtensions
         builder.Services.TryAddSingleton<IBrowser, BrowserService>();
         builder.Services.TryAddSingleton<IEmail, EmailService>();
 
+        // Register theming and accessibility services
+        builder.Services.TryAddSingleton<SystemThemeService>();
+        builder.Services.TryAddSingleton<HighContrastService>();
+
+        // Register accessibility service
+        builder.Services.TryAddSingleton<IAccessibilityService>(_ => AccessibilityServiceFactory.Instance);
+
+        // Register input method service
+        builder.Services.TryAddSingleton<IInputMethodService>(_ => InputMethodServiceFactory.Instance);
+
+        // Register font fallback manager
+        builder.Services.TryAddSingleton(_ => FontFallbackManager.Instance);
+
+        // Register additional Linux-specific services
+        builder.Services.TryAddSingleton<FolderPickerService>();
+        builder.Services.TryAddSingleton<NotificationService>();
+        builder.Services.TryAddSingleton<SystemTrayService>();
+
         // Register GTK host service
         builder.Services.TryAddSingleton(_ => GtkHostService.Instance);
 

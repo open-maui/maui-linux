@@ -6,6 +6,7 @@ using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Window;
 using SkiaSharp;
 
@@ -14,8 +15,9 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Base class for all Skia-rendered views on Linux.
 /// Inherits from BindableObject to enable XAML styling, data binding, and Visual State Manager.
+/// Implements IAccessible for screen reader support.
 /// </summary>
-public abstract class SkiaView : BindableObject, IDisposable
+public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 {
     // Popup overlay system for dropdowns, calendars, etc.
     private static readonly List<(SkiaView Owner, Action<SKCanvas> Draw)> _popupOverlays = new();
@@ -79,6 +81,243 @@ public abstract class SkiaView : BindableObject, IDisposable
         // Default: no popup area beyond normal bounds
         return Bounds.Contains(x, y);
     }
+
+    #region High Contrast Support
+
+    private static HighContrastService? _highContrastService;
+    private static bool _highContrastInitialized;
+
+    /// <summary>
+    /// Gets whether high contrast mode is enabled.
+    /// </summary>
+    public static bool IsHighContrastEnabled => _highContrastService?.IsHighContrastEnabled ?? false;
+
+    /// <summary>
+    /// Gets the current high contrast colors, or default colors if not in high contrast mode.
+    /// </summary>
+    public static HighContrastColors GetHighContrastColors()
+    {
+        InitializeHighContrastService();
+        return _highContrastService?.GetColors() ?? new HighContrastColors
+        {
+            Background = SKColors.White,
+            Foreground = new SKColor(33, 33, 33),
+            Accent = new SKColor(33, 150, 243),
+            Border = new SKColor(200, 200, 200),
+            Error = new SKColor(244, 67, 54),
+            Success = new SKColor(76, 175, 80),
+            Warning = new SKColor(255, 152, 0),
+            Link = new SKColor(33, 150, 243),
+            LinkVisited = new SKColor(156, 39, 176),
+            Selection = new SKColor(33, 150, 243),
+            SelectionText = SKColors.White,
+            DisabledText = new SKColor(158, 158, 158),
+            DisabledBackground = new SKColor(238, 238, 238)
+        };
+    }
+
+    private static void InitializeHighContrastService()
+    {
+        if (_highContrastInitialized) return;
+        _highContrastInitialized = true;
+
+        try
+        {
+            _highContrastService = new HighContrastService();
+            _highContrastService.HighContrastChanged += OnHighContrastChanged;
+            _highContrastService.Initialize();
+        }
+        catch
+        {
+            // Ignore errors - high contrast is optional
+        }
+    }
+
+    private static void OnHighContrastChanged(object? sender, HighContrastChangedEventArgs e)
+    {
+        // Request a full repaint of the UI
+        SkiaRenderingEngine.Current?.InvalidateAll();
+    }
+
+    #endregion
+
+    #region Accessibility Support (IAccessible)
+
+    private static IAccessibilityService? _accessibilityService;
+    private static bool _accessibilityInitialized;
+    private string _accessibleId = Guid.NewGuid().ToString();
+    private List<IAccessible>? _accessibleChildren;
+
+    /// <summary>
+    /// Gets or sets the accessibility name for screen readers.
+    /// </summary>
+    public string? SemanticName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the accessibility description for screen readers.
+    /// </summary>
+    public string? SemanticDescription { get; set; }
+
+    /// <summary>
+    /// Gets or sets the accessibility hint for screen readers.
+    /// </summary>
+    public string? SemanticHint { get; set; }
+
+    /// <summary>
+    /// Gets the accessibility service instance.
+    /// </summary>
+    protected static IAccessibilityService? AccessibilityService
+    {
+        get
+        {
+            InitializeAccessibilityService();
+            return _accessibilityService;
+        }
+    }
+
+    private static void InitializeAccessibilityService()
+    {
+        if (_accessibilityInitialized) return;
+        _accessibilityInitialized = true;
+
+        try
+        {
+            _accessibilityService = AccessibilityServiceFactory.Instance;
+            _accessibilityService?.Initialize();
+        }
+        catch
+        {
+            // Ignore errors - accessibility is optional
+        }
+    }
+
+    /// <summary>
+    /// Registers this view with the accessibility service.
+    /// </summary>
+    protected void RegisterAccessibility()
+    {
+        AccessibilityService?.Register(this);
+    }
+
+    /// <summary>
+    /// Unregisters this view from the accessibility service.
+    /// </summary>
+    protected void UnregisterAccessibility()
+    {
+        AccessibilityService?.Unregister(this);
+    }
+
+    /// <summary>
+    /// Announces text to screen readers.
+    /// </summary>
+    protected void AnnounceToScreenReader(string text, AnnouncementPriority priority = AnnouncementPriority.Polite)
+    {
+        AccessibilityService?.Announce(text, priority);
+    }
+
+    // IAccessible implementation
+    string IAccessible.AccessibleId => _accessibleId;
+
+    string IAccessible.AccessibleName => SemanticName ?? GetDefaultAccessibleName();
+
+    string IAccessible.AccessibleDescription => SemanticDescription ?? SemanticHint ?? string.Empty;
+
+    AccessibleRole IAccessible.Role => GetAccessibleRole();
+
+    AccessibleStates IAccessible.States => GetAccessibleStates();
+
+    IAccessible? IAccessible.Parent => Parent as IAccessible;
+
+    IReadOnlyList<IAccessible> IAccessible.Children => _accessibleChildren ??= GetAccessibleChildren();
+
+    AccessibleRect IAccessible.Bounds => new AccessibleRect(
+        (int)ScreenBounds.Left,
+        (int)ScreenBounds.Top,
+        (int)ScreenBounds.Width,
+        (int)ScreenBounds.Height);
+
+    IReadOnlyList<AccessibleAction> IAccessible.Actions => GetAccessibleActions();
+
+    double? IAccessible.Value => GetAccessibleValue();
+    double? IAccessible.MinValue => GetAccessibleMinValue();
+    double? IAccessible.MaxValue => GetAccessibleMaxValue();
+
+    bool IAccessible.DoAction(string actionName) => DoAccessibleAction(actionName);
+    bool IAccessible.SetValue(double value) => SetAccessibleValue(value);
+
+    /// <summary>
+    /// Gets the default accessible name based on view content.
+    /// </summary>
+    protected virtual string GetDefaultAccessibleName() => string.Empty;
+
+    /// <summary>
+    /// Gets the accessible role for this view.
+    /// </summary>
+    protected virtual AccessibleRole GetAccessibleRole() => AccessibleRole.Unknown;
+
+    /// <summary>
+    /// Gets the current accessible states.
+    /// </summary>
+    protected virtual AccessibleStates GetAccessibleStates()
+    {
+        var states = AccessibleStates.None;
+        if (IsVisible) states |= AccessibleStates.Visible;
+        if (IsEnabled) states |= AccessibleStates.Enabled;
+        if (IsFocused) states |= AccessibleStates.Focused;
+        if (IsFocusable) states |= AccessibleStates.Focusable;
+        return states;
+    }
+
+    /// <summary>
+    /// Gets the accessible children of this view.
+    /// </summary>
+    protected virtual List<IAccessible> GetAccessibleChildren()
+    {
+        var children = new List<IAccessible>();
+        foreach (var child in Children)
+        {
+            if (child is IAccessible accessible)
+            {
+                children.Add(accessible);
+            }
+        }
+        return children;
+    }
+
+    /// <summary>
+    /// Gets the available accessible actions.
+    /// </summary>
+    protected virtual IReadOnlyList<AccessibleAction> GetAccessibleActions()
+    {
+        return Array.Empty<AccessibleAction>();
+    }
+
+    /// <summary>
+    /// Performs an accessible action.
+    /// </summary>
+    protected virtual bool DoAccessibleAction(string actionName) => false;
+
+    /// <summary>
+    /// Gets the accessible value (for sliders, progress bars, etc.).
+    /// </summary>
+    protected virtual double? GetAccessibleValue() => null;
+
+    /// <summary>
+    /// Gets the minimum accessible value.
+    /// </summary>
+    protected virtual double? GetAccessibleMinValue() => null;
+
+    /// <summary>
+    /// Gets the maximum accessible value.
+    /// </summary>
+    protected virtual double? GetAccessibleMaxValue() => null;
+
+    /// <summary>
+    /// Sets the accessible value.
+    /// </summary>
+    protected virtual bool SetAccessibleValue(double value) => false;
+
+    #endregion
 
     #region BindableProperties
 

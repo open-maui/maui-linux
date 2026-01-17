@@ -7,6 +7,7 @@ using System.Linq;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -645,6 +646,31 @@ public class SkiaLabel : SkiaView
             isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
     }
 
+    /// <summary>
+    /// Determines if text should be rendered right-to-left based on FlowDirection.
+    /// </summary>
+    private bool IsRightToLeft()
+    {
+        return FlowDirection == FlowDirection.RightToLeft;
+    }
+
+    /// <summary>
+    /// Gets the effective horizontal alignment for the given alignment,
+    /// accounting for FlowDirection (RTL flips Start/End).
+    /// </summary>
+    private float GetHorizontalPosition(TextAlignment alignment, float boundsLeft, float boundsRight, float textWidth)
+    {
+        bool isRtl = IsRightToLeft();
+
+        return alignment switch
+        {
+            TextAlignment.Start => isRtl ? boundsRight - textWidth : boundsLeft,
+            TextAlignment.Center => (boundsLeft + boundsRight) / 2 - textWidth / 2,
+            TextAlignment.End => isRtl ? boundsLeft : boundsRight - textWidth,
+            _ => isRtl ? boundsRight - textWidth : boundsLeft
+        };
+    }
+
     #endregion
 
     #region Drawing
@@ -719,14 +745,8 @@ public class SkiaLabel : SkiaView
             textWidth += (float)(CharacterSpacing * (displayText.Length - 1));
         }
 
-        // Calculate position based on alignment
-        float x = HorizontalTextAlignment switch
-        {
-            TextAlignment.Start => bounds.Left,
-            TextAlignment.Center => bounds.MidX - textWidth / 2,
-            TextAlignment.End => bounds.Right - textWidth,
-            _ => bounds.Left
-        };
+        // Calculate position based on alignment and FlowDirection
+        float x = GetHorizontalPosition(HorizontalTextAlignment, bounds.Left, bounds.Right, textWidth);
 
         float y = VerticalTextAlignment switch
         {
@@ -804,13 +824,8 @@ public class SkiaLabel : SkiaView
                 textWidth += (float)(CharacterSpacing * (line.Length - 1));
             }
 
-            float x = HorizontalTextAlignment switch
-            {
-                TextAlignment.Start => bounds.Left,
-                TextAlignment.Center => bounds.MidX - textWidth / 2,
-                TextAlignment.End => bounds.Right - textWidth,
-                _ => bounds.Left
-            };
+            // Use FlowDirection-aware positioning
+            float x = GetHorizontalPosition(HorizontalTextAlignment, bounds.Left, bounds.Right, textWidth);
 
             float textY = y - textBounds.Top;
             DrawTextWithSpacing(canvas, line, x, textY, paint);
@@ -823,18 +838,118 @@ public class SkiaLabel : SkiaView
 
     private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKPaint paint)
     {
-        if (CharacterSpacing == 0 || string.IsNullOrEmpty(text) || text.Length <= 1)
+        if (string.IsNullOrEmpty(text)) return;
+
+        // Get the preferred typeface from the current paint
+        var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
+        var preferredTypeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle())
+                               ?? SKTypeface.Default;
+
+        if (CharacterSpacing == 0 || text.Length <= 1)
         {
+            // No character spacing - use font fallback for the whole string
+            DrawTextWithFallback(canvas, text, x, y, paint, preferredTypeface);
+            return;
+        }
+
+        // With character spacing, we need to draw character by character with fallback
+        float currentX = x;
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+
+        // Use font fallback to get runs for proper glyph coverage
+        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, preferredTypeface);
+
+        foreach (var run in runs)
+        {
+            // Draw each character in the run with spacing
+            foreach (char c in run.Text)
+            {
+                string charStr = c.ToString();
+                using var charFont = new SKFont(run.Typeface, fontSize);
+                using var charPaint = new SKPaint(charFont)
+                {
+                    Color = paint.Color,
+                    IsAntialias = true
+                };
+
+                canvas.DrawText(charStr, currentX, y, charPaint);
+                currentX += charPaint.MeasureText(charStr) + (float)CharacterSpacing;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws text with font fallback for emoji, CJK, and other scripts.
+    /// </summary>
+    private void DrawTextWithFallback(SKCanvas canvas, string text, float x, float y, SKPaint paint, SKTypeface preferredTypeface)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        // Use FontFallbackManager for mixed-script text
+        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, preferredTypeface);
+
+        if (runs.Count <= 1)
+        {
+            // Single run or no fallback needed - draw directly
             canvas.DrawText(text, x, y, paint);
             return;
         }
 
+        // Multiple runs with different fonts
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
         float currentX = x;
-        foreach (char c in text)
+
+        foreach (var run in runs)
         {
-            string charStr = c.ToString();
-            canvas.DrawText(charStr, currentX, y, paint);
-            currentX += paint.MeasureText(charStr) + (float)CharacterSpacing;
+            using var runFont = new SKFont(run.Typeface, fontSize);
+            using var runPaint = new SKPaint(runFont)
+            {
+                Color = paint.Color,
+                IsAntialias = true
+            };
+
+            canvas.DrawText(run.Text, currentX, y, runPaint);
+            currentX += runPaint.MeasureText(run.Text);
+        }
+    }
+
+    /// <summary>
+    /// Draws formatted span text with font fallback for emoji, CJK, and other scripts.
+    /// </summary>
+    private void DrawFormattedSpanWithFallback(SKCanvas canvas, string text, float x, float y, SKPaint paint, SKTypeface preferredTypeface, float fontSize)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        // Use FontFallbackManager for mixed-script text
+        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, preferredTypeface);
+
+        if (runs.Count <= 1)
+        {
+            // Single run or no fallback needed - draw directly
+            canvas.DrawText(text, x, y, paint);
+            return;
+        }
+
+        // Multiple runs with different fonts
+        float currentX = x;
+
+        foreach (var run in runs)
+        {
+            using var runFont = new SKFont(run.Typeface, fontSize);
+            using var runPaint = new SKPaint(runFont)
+            {
+                Color = paint.Color,
+                IsAntialias = true
+            };
+
+            canvas.DrawText(run.Text, currentX, y, runPaint);
+            currentX += runPaint.MeasureText(run.Text);
         }
     }
 
@@ -926,7 +1041,10 @@ public class SkiaLabel : SkiaView
                 y += lineHeight;
             }
 
-            canvas.DrawText(span.Text, x, y, paint);
+            // Use font fallback for this span
+            var preferredTypeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(spanFontFamily, fontStyle)
+                                   ?? SKTypeface.Default;
+            DrawFormattedSpanWithFallback(canvas, span.Text, x, y, paint, preferredTypeface, spanFontSize);
 
             // Draw span decorations
             if (span.TextDecorations != TextDecorations.None)

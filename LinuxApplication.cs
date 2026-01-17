@@ -265,15 +265,25 @@ public class LinuxApplication : IDisposable
                     currentProperty.SetValue(null, mauiApplication);
                 }
 
-                // Handle theme changes
+                // Handle user-initiated theme changes
                 ((BindableObject)mauiApplication).PropertyChanged += (s, e) =>
                 {
                     if (e.PropertyName == "UserAppTheme")
                     {
-                        Console.WriteLine($"[LinuxApplication] Theme changed to: {mauiApplication.UserAppTheme}");
+                        Console.WriteLine($"[LinuxApplication] User theme changed to: {mauiApplication.UserAppTheme}");
                         LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
                         linuxApp._renderingEngine?.InvalidateAll();
                     }
+                };
+
+                // Handle system theme changes (e.g., GNOME/KDE dark mode toggle)
+                SystemThemeService.Instance.ThemeChanged += (s, e) =>
+                {
+                    Console.WriteLine($"[LinuxApplication] System theme changed to: {e.NewTheme}");
+                    // Notify MAUI framework that system theme changed
+                    // This will cause AppThemeBinding to re-evaluate
+                    LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
+                    linuxApp._renderingEngine?.InvalidateAll();
                 };
 
                 if (mauiApplication.MainPage != null)
