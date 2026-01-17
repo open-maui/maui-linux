@@ -1,5 +1,9 @@
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// Specifies how flex lines are aligned within the flex container.
+/// Matches Microsoft.Maui.Layouts.FlexAlignContent enum.
+/// </summary>
 public enum FlexAlignContent
 {
     Start,
@@ -7,5 +11,6 @@ public enum FlexAlignContent
     End,
     Stretch,
     SpaceBetween,
-    SpaceAround
+    SpaceAround,
+    SpaceEvenly
 }

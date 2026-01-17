@@ -603,9 +603,113 @@ public class SkiaScrollView : SkiaView
     /// </summary>
     public void ScrollTo(float x, float y, bool animated = false)
     {
-        // TODO: Implement animation
-        ScrollX = x;
-        ScrollY = y;
+        if (animated)
+        {
+            // Animated scroll - use async version
+            _ = ScrollToAsync(x, y, animated);
+        }
+        else
+        {
+            ScrollX = x;
+            ScrollY = y;
+        }
+    }
+
+    /// <summary>
+    /// Scrolls to the specified position asynchronously with optional animation.
+    /// Matches MAUI's ScrollView.ScrollToAsync signature.
+    /// </summary>
+    public async Task ScrollToAsync(double x, double y, bool animated)
+    {
+        if (!animated)
+        {
+            ScrollX = (float)x;
+            ScrollY = (float)y;
+            return;
+        }
+
+        // Animate scroll over 250ms (standard MAUI animation duration)
+        const int animationDurationMs = 250;
+        const int frameIntervalMs = 16; // ~60fps
+        int steps = animationDurationMs / frameIntervalMs;
+
+        float startX = _scrollX;
+        float startY = _scrollY;
+        float targetX = (float)x;
+        float targetY = (float)y;
+
+        for (int i = 1; i <= steps; i++)
+        {
+            float progress = (float)i / steps;
+            // Use ease-out cubic for smooth deceleration
+            float easedProgress = 1f - (1f - progress) * (1f - progress) * (1f - progress);
+
+            _scrollX = startX + (targetX - startX) * easedProgress;
+            _scrollY = startY + (targetY - startY) * easedProgress;
+
+            Invalidate();
+            await Task.Delay(frameIntervalMs);
+        }
+
+        // Ensure we end at exact target position
+        ScrollX = targetX;
+        ScrollY = targetY;
+    }
+
+    /// <summary>
+    /// Scrolls to make the specified element visible.
+    /// Matches MAUI's ScrollView.ScrollToAsync signature for elements.
+    /// </summary>
+    public Task ScrollToAsync(SkiaView element, ScrollToPosition position, bool animated)
+    {
+        if (element == null || _content == null)
+            return Task.CompletedTask;
+
+        var elementBounds = element.Bounds;
+        float targetX = _scrollX;
+        float targetY = _scrollY;
+
+        // Calculate viewport dimensions
+        float viewportWidth = Bounds.Width;
+        float viewportHeight = Bounds.Height;
+
+        switch (position)
+        {
+            case ScrollToPosition.Start:
+                targetX = elementBounds.Left;
+                targetY = elementBounds.Top;
+                break;
+
+            case ScrollToPosition.Center:
+                targetX = elementBounds.Left - (viewportWidth - elementBounds.Width) / 2;
+                targetY = elementBounds.Top - (viewportHeight - elementBounds.Height) / 2;
+                break;
+
+            case ScrollToPosition.End:
+                targetX = elementBounds.Right - viewportWidth;
+                targetY = elementBounds.Bottom - viewportHeight;
+                break;
+
+            case ScrollToPosition.MakeVisible:
+            default:
+                // Only scroll if element is not fully visible
+                if (elementBounds.Left < _scrollX)
+                    targetX = elementBounds.Left;
+                else if (elementBounds.Right > _scrollX + viewportWidth)
+                    targetX = elementBounds.Right - viewportWidth;
+
+                if (elementBounds.Top < _scrollY)
+                    targetY = elementBounds.Top;
+                else if (elementBounds.Bottom > _scrollY + viewportHeight)
+                    targetY = elementBounds.Bottom - viewportHeight;
+                break;
+        }
+
+        // Clamp to valid scroll range
+        targetX = Math.Clamp(targetX, 0, ScrollableWidth);
+        targetY = Math.Clamp(targetY, 0, ScrollableHeight);
+
+        return ScrollToAsync(targetX, targetY, animated);
     }
 
     /// <summary>
@@ -771,6 +875,33 @@ public enum ScrollBarVisibility
     Always,
     Never,
     Auto
+}
+
+/// <summary>
+/// Specifies the position within the ScrollView to scroll an element to.
+/// Matches Microsoft.Maui.ScrollToPosition enum.
+/// </summary>
+public enum ScrollToPosition
+{
+    /// <summary>
+    /// Scroll so the element is just visible (minimal scroll).
+    /// </summary>
+    MakeVisible,
+
+    /// <summary>
+    /// Scroll so the element is at the start of the viewport.
+    /// </summary>
+    Start,
+
+    /// <summary>
+    /// Scroll so the element is at the center of the viewport.
+    /// </summary>
+    Center,
+
+    /// <summary>
+    /// Scroll so the element is at the end of the viewport.
+    /// </summary>
+    End
 }
 
 /// <summary>

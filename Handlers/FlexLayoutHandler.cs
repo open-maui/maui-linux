@@ -97,7 +97,7 @@ public class FlexLayoutHandler : LayoutHandler
                 Microsoft.Maui.Layouts.FlexAlignContent.Stretch => FlexAlignContent.Stretch,
                 Microsoft.Maui.Layouts.FlexAlignContent.SpaceBetween => FlexAlignContent.SpaceBetween,
                 Microsoft.Maui.Layouts.FlexAlignContent.SpaceAround => FlexAlignContent.SpaceAround,
-                Microsoft.Maui.Layouts.FlexAlignContent.SpaceEvenly => FlexAlignContent.SpaceAround,
+                Microsoft.Maui.Layouts.FlexAlignContent.SpaceEvenly => FlexAlignContent.SpaceEvenly,
                 _ => FlexAlignContent.Stretch,
             };
         }
