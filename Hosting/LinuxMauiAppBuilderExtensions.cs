@@ -84,11 +84,12 @@ public static class LinuxMauiAppBuilderExtensions
             handlers.AddHandler<VerticalStackLayout, StackLayoutHandler>();
             handlers.AddHandler<HorizontalStackLayout, StackLayoutHandler>();
             handlers.AddHandler<AbsoluteLayout, LayoutHandler>();
-            handlers.AddHandler<FlexLayout, LayoutHandler>();
+            handlers.AddHandler<FlexLayout, FlexLayoutHandler>();
             handlers.AddHandler<ScrollView, ScrollViewHandler>();
             handlers.AddHandler<Frame, FrameHandler>();
             handlers.AddHandler<Border, BorderHandler>();
             handlers.AddHandler<ContentView, BorderHandler>();
+            handlers.AddHandler<RefreshView, RefreshViewHandler>();
 
             // Picker controls
             handlers.AddHandler<Picker, PickerHandler>();
@@ -111,6 +112,9 @@ public static class LinuxMauiAppBuilderExtensions
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
             handlers.AddHandler<ListView, CollectionViewHandler>();
+            handlers.AddHandler<CarouselView, CarouselViewHandler>();
+            handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
+            handlers.AddHandler<SwipeView, SwipeViewHandler>();
 
             // Pages & Navigation
             handlers.AddHandler<Page, PageHandler>();
