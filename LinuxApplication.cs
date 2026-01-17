@@ -900,7 +900,7 @@ public class LinuxApplication : IDisposable
 
     private void OnPointerPressed(object? sender, PointerEventArgs e)
     {
-        Console.WriteLine($"[LinuxApplication] OnPointerPressed at ({e.X}, {e.Y})");
+        Console.WriteLine($"[LinuxApplication] OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
 
         // Route to context menu if one is active
         if (LinuxDialogService.HasContextMenu)

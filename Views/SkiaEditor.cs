@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
@@ -1086,11 +1087,13 @@ public class SkiaEditor : SkiaView, IInputContext
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
+        Console.WriteLine($"[SkiaEditor] OnPointerPressed: Button={e.Button}, IsEnabled={IsEnabled}");
         if (!IsEnabled) return;
 
         // Handle right-click context menu
         if (e.Button == PointerButton.Right)
         {
+            Console.WriteLine("[SkiaEditor] Right-click detected, showing context menu");
             ShowContextMenu(e.X, e.Y);
             return;
         }
@@ -1503,35 +1506,69 @@ public class SkiaEditor : SkiaView, IInputContext
 
     private void ShowContextMenu(float x, float y)
     {
-        Console.WriteLine($"[SkiaEditor] ShowContextMenu at ({x}, {y})");
+        Console.WriteLine($"[SkiaEditor] ShowContextMenu at ({x}, {y}), IsGtkMode={LinuxApplication.IsGtkMode}");
         bool hasSelection = _selectionLength != 0;
         bool hasText = !string.IsNullOrEmpty(Text);
         bool hasClipboard = !string.IsNullOrEmpty(SystemClipboard.GetText());
         bool isEditable = !IsReadOnly;
 
-        GtkContextMenuService.ShowContextMenu(new List<GtkMenuItem>
+        if (LinuxApplication.IsGtkMode)
         {
-            new GtkMenuItem("Cut", () =>
+            // Use GTK context menu when running in GTK mode (e.g., with WebView)
+            GtkContextMenuService.ShowContextMenu(new List<GtkMenuItem>
             {
-                CutToClipboard();
-                Invalidate();
-            }, hasSelection && isEditable),
-            new GtkMenuItem("Copy", () =>
+                new GtkMenuItem("Cut", () =>
+                {
+                    CutToClipboard();
+                    Invalidate();
+                }, hasSelection && isEditable),
+                new GtkMenuItem("Copy", () =>
+                {
+                    CopyToClipboard();
+                }, hasSelection),
+                new GtkMenuItem("Paste", () =>
+                {
+                    PasteFromClipboard();
+                    Invalidate();
+                }, hasClipboard && isEditable),
+                GtkMenuItem.Separator,
+                new GtkMenuItem("Select All", () =>
+                {
+                    SelectAll();
+                    Invalidate();
+                }, hasText)
+            });
+        }
+        else
+        {
+            // Use Skia-rendered context menu for pure Skia mode (Wayland/X11)
+            bool isDarkTheme = Application.Current?.RequestedTheme == AppTheme.Dark;
+            var items = new List<ContextMenuItem>
             {
-                CopyToClipboard();
-            }, hasSelection),
-            new GtkMenuItem("Paste", () =>
-            {
-                PasteFromClipboard();
-                Invalidate();
-            }, hasClipboard && isEditable),
-            GtkMenuItem.Separator,
-            new GtkMenuItem("Select All", () =>
-            {
-                SelectAll();
-                Invalidate();
-            }, hasText)
-        });
+                new ContextMenuItem("Cut", () =>
+                {
+                    CutToClipboard();
+                    Invalidate();
+                }, hasSelection && isEditable),
+                new ContextMenuItem("Copy", () =>
+                {
+                    CopyToClipboard();
+                }, hasSelection),
+                new ContextMenuItem("Paste", () =>
+                {
+                    PasteFromClipboard();
+                    Invalidate();
+                }, hasClipboard && isEditable),
+                ContextMenuItem.Separator,
+                new ContextMenuItem("Select All", () =>
+                {
+                    SelectAll();
+                    Invalidate();
+                }, hasText)
+            };
+            var menu = new SkiaContextMenu(x, y, items, isDarkTheme);
+            LinuxDialogService.ShowContextMenu(menu);
+        }
     }
 
     #endregion

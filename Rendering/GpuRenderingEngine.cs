@@ -253,8 +253,8 @@ public class GpuRenderingEngine : IDisposable
         // Draw popup overlays
         SkiaView.DrawPopupOverlays(_canvas);
 
-        // Draw modal dialogs
-        if (LinuxDialogService.HasActiveDialog)
+        // Draw modal dialogs and context menus
+        if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
         {
             LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
         }

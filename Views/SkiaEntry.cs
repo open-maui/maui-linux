@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
@@ -1643,34 +1644,68 @@ public class SkiaEntry : SkiaView, IInputContext
 
     private void ShowContextMenu(float x, float y)
     {
-        Console.WriteLine($"[SkiaEntry] ShowContextMenu at ({x}, {y})");
+        Console.WriteLine($"[SkiaEntry] ShowContextMenu at ({x}, {y}), IsGtkMode={LinuxApplication.IsGtkMode}");
         bool hasSelection = _selectionLength != 0;
         bool hasText = !string.IsNullOrEmpty(Text);
         bool hasClipboard = !string.IsNullOrEmpty(SystemClipboard.GetText());
 
-        GtkContextMenuService.ShowContextMenu(new List<GtkMenuItem>
+        if (LinuxApplication.IsGtkMode)
         {
-            new GtkMenuItem("Cut", () =>
+            // Use GTK context menu when running in GTK mode (e.g., with WebView)
+            GtkContextMenuService.ShowContextMenu(new List<GtkMenuItem>
             {
-                CutToClipboard();
-                Invalidate();
-            }, hasSelection),
-            new GtkMenuItem("Copy", () =>
+                new GtkMenuItem("Cut", () =>
+                {
+                    CutToClipboard();
+                    Invalidate();
+                }, hasSelection),
+                new GtkMenuItem("Copy", () =>
+                {
+                    CopyToClipboard();
+                }, hasSelection),
+                new GtkMenuItem("Paste", () =>
+                {
+                    PasteFromClipboard();
+                    Invalidate();
+                }, hasClipboard),
+                GtkMenuItem.Separator,
+                new GtkMenuItem("Select All", () =>
+                {
+                    SelectAll();
+                    Invalidate();
+                }, hasText)
+            });
+        }
+        else
+        {
+            // Use Skia-rendered context menu for pure Skia mode (Wayland/X11)
+            bool isDarkTheme = Application.Current?.RequestedTheme == AppTheme.Dark;
+            var items = new List<ContextMenuItem>
             {
-                CopyToClipboard();
-            }, hasSelection),
-            new GtkMenuItem("Paste", () =>
-            {
-                PasteFromClipboard();
-                Invalidate();
-            }, hasClipboard),
-            GtkMenuItem.Separator,
-            new GtkMenuItem("Select All", () =>
-            {
-                SelectAll();
-                Invalidate();
-            }, hasText)
-        });
+                new ContextMenuItem("Cut", () =>
+                {
+                    CutToClipboard();
+                    Invalidate();
+                }, hasSelection),
+                new ContextMenuItem("Copy", () =>
+                {
+                    CopyToClipboard();
+                }, hasSelection),
+                new ContextMenuItem("Paste", () =>
+                {
+                    PasteFromClipboard();
+                    Invalidate();
+                }, hasClipboard),
+                ContextMenuItem.Separator,
+                new ContextMenuItem("Select All", () =>
+                {
+                    SelectAll();
+                    Invalidate();
+                }, hasText)
+            };
+            var menu = new SkiaContextMenu(x, y, items, isDarkTheme);
+            LinuxDialogService.ShowContextMenu(menu);
+        }
     }
 
     public override void OnFocusGained()

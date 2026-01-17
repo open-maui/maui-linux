@@ -205,8 +205,8 @@ public class SkiaRenderingEngine : IDisposable
         // Draw popup overlays (always on top, full redraw)
         SkiaView.DrawPopupOverlays(_canvas);
 
-        // Draw modal dialogs on top of everything
-        if (LinuxDialogService.HasActiveDialog)
+        // Draw modal dialogs and context menus on top of everything
+        if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
         {
             LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
         }
