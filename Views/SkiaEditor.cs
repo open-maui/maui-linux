@@ -874,13 +874,6 @@ public class SkiaEditor : SkiaView, IInputContext
             UpdateLines();
         }
 
-        // Handle cursor blinking
-        if (IsFocused && (DateTime.Now - _lastCursorBlink).TotalMilliseconds > 500)
-        {
-            _cursorVisible = !_cursorVisible;
-            _lastCursorBlink = DateTime.Now;
-        }
-
         // Draw background
         var bgColor = EditorBackgroundColor != null ? ToSKColor(EditorBackgroundColor) :
             (IsEnabled ? SkiaTheme.BackgroundWhiteSK : SkiaTheme.Gray100SK);
@@ -1420,6 +1413,32 @@ public class SkiaEditor : SkiaView, IInputContext
         _preEditCursorPosition = 0;
 
         Completed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Resets the cursor blink timer (shows cursor immediately).
+    /// </summary>
+    private void ResetCursorBlink()
+    {
+        _lastCursorBlink = DateTime.Now;
+        _cursorVisible = true;
+    }
+
+    /// <summary>
+    /// Updates cursor blink animation. Called by the application's animation loop.
+    /// </summary>
+    public void UpdateCursorBlink()
+    {
+        if (!IsFocused) return;
+
+        var elapsed = (DateTime.Now - _lastCursorBlink).TotalMilliseconds;
+        var newVisible = ((int)(elapsed / 500) % 2) == 0;
+
+        if (newVisible != _cursorVisible)
+        {
+            _cursorVisible = newVisible;
+            Invalidate();
+        }
     }
 
     #region Selection and Clipboard

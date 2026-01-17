@@ -197,17 +197,14 @@ public class LinuxApplication : IDisposable
         {
             if (_focusedView != value)
             {
-                if (_focusedView != null)
-                {
-                    _focusedView.IsFocused = false;
-                }
-
+                var oldFocus = _focusedView;
                 _focusedView = value;
 
-                if (_focusedView != null)
-                {
-                    _focusedView.IsFocused = true;
-                }
+                // Call OnFocusLost on the old view (this sets IsFocused = false and invalidates)
+                oldFocus?.OnFocusLost();
+
+                // Call OnFocusGained on the new view (this sets IsFocused = true and invalidates)
+                _focusedView?.OnFocusGained();
             }
         }
     }
@@ -783,10 +780,14 @@ public class LinuxApplication : IDisposable
 
     private void UpdateAnimations()
     {
-        // Update cursor blink for entry controls
+        // Update cursor blink for text input controls
         if (_focusedView is SkiaEntry entry)
         {
             entry.UpdateCursorBlink();
+        }
+        else if (_focusedView is SkiaEditor editor)
+        {
+            editor.UpdateCursorBlink();
         }
     }
 
