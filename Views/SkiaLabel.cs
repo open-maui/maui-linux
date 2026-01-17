@@ -30,12 +30,13 @@ public class SkiaLabel : SkiaView
 
     /// <summary>
     /// Bindable property for TextColor.
+    /// Default is null to match MAUI Label.TextColor (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty TextColorProperty = BindableProperty.Create(
         nameof(TextColor),
         typeof(Color),
         typeof(SkiaLabel),
-        Colors.Black,
+        null,
         propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -110,12 +111,13 @@ public class SkiaLabel : SkiaView
 
     /// <summary>
     /// Bindable property for VerticalTextAlignment.
+    /// Default is Start to match MAUI Label.VerticalTextAlignment.
     /// </summary>
     public static readonly BindableProperty VerticalTextAlignmentProperty = BindableProperty.Create(
         nameof(VerticalTextAlignment),
         typeof(TextAlignment),
         typeof(SkiaLabel),
-        TextAlignment.Center,
+        TextAlignment.Start,
         propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
 
     /// <summary>
@@ -140,12 +142,13 @@ public class SkiaLabel : SkiaView
 
     /// <summary>
     /// Bindable property for LineHeight.
+    /// Default is -1 to match MAUI Label.LineHeight (platform default).
     /// </summary>
     public static readonly BindableProperty LineHeightProperty = BindableProperty.Create(
         nameof(LineHeight),
         typeof(double),
         typeof(SkiaLabel),
-        1.2,
+        -1.0,
         propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
@@ -203,10 +206,11 @@ public class SkiaLabel : SkiaView
 
     /// <summary>
     /// Gets or sets the text color.
+    /// Null means use platform default (black on Linux).
     /// </summary>
-    public Color TextColor
+    public Color? TextColor
     {
-        get => (Color)GetValue(TextColorProperty);
+        get => (Color?)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
@@ -778,7 +782,9 @@ public class SkiaLabel : SkiaView
 
     private void DrawMultiLineText(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds, string text)
     {
-        float lineHeight = (float)(FontSize * LineHeight);
+        // LineHeight -1 means platform default (use 1.0 multiplier)
+        double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
+        float lineHeight = (float)(FontSize * effectiveLineHeight);
         float y = bounds.Top;
         int lineCount = 0;
 
@@ -869,7 +875,9 @@ public class SkiaLabel : SkiaView
 
         float x = bounds.Left;
         float y = bounds.Top;
-        float lineHeight = (float)(FontSize * LineHeight);
+        // LineHeight -1 means platform default (use 1.0 multiplier)
+        double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
+        float lineHeight = (float)(FontSize * effectiveLineHeight);
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
         // Calculate baseline for first line
@@ -1092,12 +1100,14 @@ public class SkiaLabel : SkiaView
         using var paint = new SKPaint(font);
 
         float width, height;
+        // LineHeight -1 means platform default (use 1.0 multiplier)
+        double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
 
         if (FormattedText != null && FormattedText.Spans.Count > 0)
         {
             // Measure formatted text
             width = 0;
-            height = (float)(fontSize * LineHeight);
+            height = (float)(fontSize * effectiveLineHeight);
             foreach (var span in FormattedText.Spans)
             {
                 if (!string.IsNullOrEmpty(span.Text))
@@ -1124,7 +1134,7 @@ public class SkiaLabel : SkiaView
             {
                 var lines = displayText.Split('\n');
                 int lineCount = MaxLines > 0 ? Math.Min(lines.Length, MaxLines) : lines.Length;
-                height = (float)(lineCount * fontSize * LineHeight);
+                height = (float)(lineCount * fontSize * effectiveLineHeight);
             }
         }
 

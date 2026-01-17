@@ -29,12 +29,13 @@ public class SkiaButton : SkiaView, IButtonController
 
     /// <summary>
     /// Bindable property for TextColor.
+    /// Default is null to match MAUI Button.TextColor (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty TextColorProperty = BindableProperty.Create(
         nameof(TextColor),
         typeof(Color),
         typeof(SkiaButton),
-        Colors.White,
+        null,
         propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
     /// <summary>
@@ -109,12 +110,13 @@ public class SkiaButton : SkiaView, IButtonController
 
     /// <summary>
     /// Bindable property for BorderWidth.
+    /// Default is -1 to match MAUI Button.BorderWidth (unset/platform default).
     /// </summary>
     public static readonly BindableProperty BorderWidthProperty = BindableProperty.Create(
         nameof(BorderWidth),
         typeof(double),
         typeof(SkiaButton),
-        0.0,
+        -1.0,
         propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
 
     /// <summary>
@@ -208,10 +210,11 @@ public class SkiaButton : SkiaView, IButtonController
 
     /// <summary>
     /// Gets or sets the color of the text.
+    /// Null means use platform default (white on buttons for Linux).
     /// </summary>
-    public Color TextColor
+    public Color? TextColor
     {
-        get => (Color)GetValue(TextColorProperty);
+        get => (Color?)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
@@ -641,8 +644,8 @@ public class SkiaButton : SkiaView, IButtonController
             SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 
-        // Prepare text color
-        var textColor = ToSKColor(TextColor);
+        // Prepare text color (null means use platform default: white for buttons)
+        var textColor = TextColor != null ? ToSKColor(TextColor) : SKColors.White;
         if (!IsEnabled)
         {
             textColor = textColor.WithAlpha(128);

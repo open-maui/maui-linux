@@ -151,24 +151,26 @@ public abstract class SkiaView : BindableObject, IDisposable
 
     /// <summary>
     /// Bindable property for MinimumWidthRequest.
+    /// Default is -1 (unset) to match MAUI View.MinimumWidthRequest.
     /// </summary>
     public static readonly BindableProperty MinimumWidthRequestProperty =
         BindableProperty.Create(
             nameof(MinimumWidthRequest),
             typeof(double),
             typeof(SkiaView),
-            0.0,
+            -1.0,
             propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
 
     /// <summary>
     /// Bindable property for MinimumHeightRequest.
+    /// Default is -1 (unset) to match MAUI View.MinimumHeightRequest.
     /// </summary>
     public static readonly BindableProperty MinimumHeightRequestProperty =
         BindableProperty.Create(
             nameof(MinimumHeightRequest),
             typeof(double),
             typeof(SkiaView),
-            0.0,
+            -1.0,
             propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
 
     /// <summary>

@@ -43,25 +43,27 @@ public class SkiaEditor : SkiaView
 
     /// <summary>
     /// Bindable property for TextColor.
+    /// Default is null to match MAUI Editor.TextColor (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty TextColorProperty =
         BindableProperty.Create(
             nameof(TextColor),
             typeof(Color),
             typeof(SkiaEditor),
-            Colors.Black,
+            null,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
     /// <summary>
     /// Bindable property for PlaceholderColor.
+    /// Default is null to match MAUI Editor.PlaceholderColor (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty PlaceholderColorProperty =
         BindableProperty.Create(
             nameof(PlaceholderColor),
             typeof(Color),
             typeof(SkiaEditor),
-            Color.FromRgb(0x80, 0x80, 0x80),
+            null,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -103,13 +105,14 @@ public class SkiaEditor : SkiaView
 
     /// <summary>
     /// Bindable property for FontFamily.
+    /// Default is empty string to match MAUI Editor.FontFamily (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty FontFamilyProperty =
         BindableProperty.Create(
             nameof(FontFamily),
             typeof(string),
             typeof(SkiaEditor),
-            "Sans",
+            string.Empty,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).InvalidateMeasure());
 
@@ -307,7 +310,7 @@ public class SkiaEditor : SkiaView
     /// <summary>
     /// Converts a MAUI Color to SkiaSharp SKColor.
     /// </summary>
-    private static SKColor ToSKColor(Color color)
+    private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
         return new SKColor(
@@ -315,6 +318,30 @@ public class SkiaEditor : SkiaView
             (byte)(color.Green * 255),
             (byte)(color.Blue * 255),
             (byte)(color.Alpha * 255));
+    }
+
+    /// <summary>
+    /// Gets the effective text color (platform default black if null).
+    /// </summary>
+    private SKColor GetEffectiveTextColor()
+    {
+        return TextColor != null ? ToSKColor(TextColor) : SKColors.Black;
+    }
+
+    /// <summary>
+    /// Gets the effective placeholder color (platform default gray if null).
+    /// </summary>
+    private SKColor GetEffectivePlaceholderColor()
+    {
+        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : new SKColor(0x80, 0x80, 0x80);
+    }
+
+    /// <summary>
+    /// Gets the effective font family (platform default "Sans" if empty).
+    /// </summary>
+    private string GetEffectiveFontFamily()
+    {
+        return string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
     }
 
     #endregion
@@ -340,20 +367,20 @@ public class SkiaEditor : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the text color.
+    /// Gets or sets the text color. Null means platform default (black).
     /// </summary>
-    public Color TextColor
+    public Color? TextColor
     {
-        get => (Color)GetValue(TextColorProperty);
+        get => (Color?)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the placeholder color.
+    /// Gets or sets the placeholder color. Null means platform default (gray).
     /// </summary>
-    public Color PlaceholderColor
+    public Color? PlaceholderColor
     {
-        get => (Color)GetValue(PlaceholderColorProperty);
+        get => (Color?)GetValue(PlaceholderColorProperty);
         set => SetValue(PlaceholderColorProperty, value);
     }
 
@@ -780,14 +807,14 @@ public class SkiaEditor : SkiaView
         {
             using var placeholderPaint = new SKPaint(font)
             {
-                Color = ToSKColor(PlaceholderColor),
+                Color = GetEffectivePlaceholderColor(),
                 IsAntialias = true
             };
             canvas.DrawText(Placeholder, contentRect.Left, contentRect.Top + fontSize, placeholderPaint);
         }
         else
         {
-            var textColor = ToSKColor(TextColor);
+            var textColor = GetEffectiveTextColor();
             using var textPaint = new SKPaint(font)
             {
                 Color = IsEnabled ? textColor : textColor.WithAlpha(128),

@@ -55,10 +55,34 @@ public static class SkiaVisualStateManager
 
     private static void OnVisualStateGroupsChanged(BindableObject bindable, object? oldValue, object? newValue)
     {
-        if (bindable is SkiaView view && newValue is SkiaVisualStateGroupList groups)
+        if (bindable is SkiaView view)
         {
-            // Initialize to default state
-            GoToState(view, CommonStates.Normal);
+            // Detach old triggers
+            if (oldValue is SkiaVisualStateGroupList oldGroups)
+            {
+                foreach (var group in oldGroups)
+                {
+                    foreach (var state in group.States)
+                    {
+                        state.DetachTriggers();
+                    }
+                }
+            }
+
+            // Attach new triggers
+            if (newValue is SkiaVisualStateGroupList groups)
+            {
+                foreach (var group in groups)
+                {
+                    foreach (var state in group.States)
+                    {
+                        state.AttachTriggers(view);
+                    }
+                }
+
+                // Initialize to default state
+                GoToState(view, CommonStates.Normal);
+            }
         }
     }
 

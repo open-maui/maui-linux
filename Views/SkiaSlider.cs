@@ -42,12 +42,15 @@ public class SkiaSlider : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).OnRangeChanged());
 
+    /// <summary>
+    /// Maximum property - default is 1.0 to match MAUI Slider.Maximum.
+    /// </summary>
     public static readonly BindableProperty MaximumProperty =
         BindableProperty.Create(
             nameof(Maximum),
             typeof(double),
             typeof(SkiaSlider),
-            100.0,
+            1.0, // MAUI default is 1.0, not 100.0
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).OnRangeChanged());
 
@@ -60,30 +63,39 @@ public class SkiaSlider : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).OnValuePropertyChanged((double)o, (double)n));
 
+    /// <summary>
+    /// MinimumTrackColor - default is null to match MAUI (platform default).
+    /// </summary>
     public static readonly BindableProperty MinimumTrackColorProperty =
         BindableProperty.Create(
             nameof(MinimumTrackColor),
             typeof(Color),
             typeof(SkiaSlider),
-            Color.FromRgb(0x21, 0x96, 0xF3), // Material Blue - active track
+            null, // MAUI default is null (platform default)
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
+    /// <summary>
+    /// MaximumTrackColor - default is null to match MAUI (platform default).
+    /// </summary>
     public static readonly BindableProperty MaximumTrackColorProperty =
         BindableProperty.Create(
             nameof(MaximumTrackColor),
             typeof(Color),
             typeof(SkiaSlider),
-            Color.FromRgb(0xE0, 0xE0, 0xE0), // Gray - inactive track
+            null, // MAUI default is null (platform default)
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
+    /// <summary>
+    /// ThumbColor - default is null to match MAUI (platform default).
+    /// </summary>
     public static readonly BindableProperty ThumbColorProperty =
         BindableProperty.Create(
             nameof(ThumbColor),
             typeof(Color),
             typeof(SkiaSlider),
-            Color.FromRgb(0x21, 0x96, 0xF3), // Material Blue
+            null, // MAUI default is null (platform default)
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaSlider)b).Invalidate());
 
@@ -147,32 +159,42 @@ public class SkiaSlider : SkiaView
 
     /// <summary>
     /// Gets or sets the color of the track from minimum to current value.
-    /// This is the "active" or "filled" portion of the track.
+    /// Null means platform default (Material Blue on Linux).
     /// </summary>
-    public Color MinimumTrackColor
+    public Color? MinimumTrackColor
     {
-        get => (Color)GetValue(MinimumTrackColorProperty);
+        get => (Color?)GetValue(MinimumTrackColorProperty);
         set => SetValue(MinimumTrackColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the color of the track from current value to maximum.
-    /// This is the "inactive" or "unfilled" portion of the track.
+    /// Null means platform default (gray on Linux).
     /// </summary>
-    public Color MaximumTrackColor
+    public Color? MaximumTrackColor
     {
-        get => (Color)GetValue(MaximumTrackColorProperty);
+        get => (Color?)GetValue(MaximumTrackColorProperty);
         set => SetValue(MaximumTrackColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the thumb color.
+    /// Null means platform default (Material Blue on Linux).
     /// </summary>
-    public Color ThumbColor
+    public Color? ThumbColor
     {
-        get => (Color)GetValue(ThumbColorProperty);
+        get => (Color?)GetValue(ThumbColorProperty);
         set => SetValue(ThumbColorProperty, value);
     }
+
+    // Platform defaults for colors when null
+    private static readonly SKColor DefaultMinimumTrackColor = new SKColor(0x21, 0x96, 0xF3); // Material Blue
+    private static readonly SKColor DefaultMaximumTrackColor = new SKColor(0xE0, 0xE0, 0xE0); // Gray
+    private static readonly SKColor DefaultThumbColor = new SKColor(0x21, 0x96, 0xF3); // Material Blue
+
+    private SKColor GetEffectiveMinimumTrackColor() => MinimumTrackColor != null ? ToSKColor(MinimumTrackColor) : DefaultMinimumTrackColor;
+    private SKColor GetEffectiveMaximumTrackColor() => MaximumTrackColor != null ? ToSKColor(MaximumTrackColor) : DefaultMaximumTrackColor;
+    private SKColor GetEffectiveThumbColor() => ThumbColor != null ? ToSKColor(ThumbColor) : DefaultThumbColor;
 
     /// <summary>
     /// Gets or sets the color used when disabled.
@@ -272,10 +294,10 @@ public class SkiaSlider : SkiaView
         var percentage = Maximum > Minimum ? (Value - Minimum) / (Maximum - Minimum) : 0;
         var thumbX = trackLeft + (float)(percentage * trackWidth);
 
-        // Get colors
-        var minTrackColorSK = ToSKColor(MinimumTrackColor);
-        var maxTrackColorSK = ToSKColor(MaximumTrackColor);
-        var thumbColorSK = ToSKColor(ThumbColor);
+        // Get colors (using helper methods for platform defaults when null)
+        var minTrackColorSK = GetEffectiveMinimumTrackColor();
+        var maxTrackColorSK = GetEffectiveMaximumTrackColor();
+        var thumbColorSK = GetEffectiveThumbColor();
         var disabledColorSK = ToSKColor(DisabledColor);
 
         // Draw inactive (maximum) track

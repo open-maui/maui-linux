@@ -43,24 +43,26 @@ public class SkiaEntry : SkiaView
 
     /// <summary>
     /// Bindable property for PlaceholderColor.
+    /// Default is null to match MAUI Entry.PlaceholderColor (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty PlaceholderColorProperty =
         BindableProperty.Create(
             nameof(PlaceholderColor),
             typeof(Color),
             typeof(SkiaEntry),
-            Color.FromRgb(0x9E, 0x9E, 0x9E),
+            null,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
     /// Bindable property for TextColor.
+    /// Default is null to match MAUI Entry.TextColor (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty TextColorProperty =
         BindableProperty.Create(
             nameof(TextColor),
             typeof(Color),
             typeof(SkiaEntry),
-            Colors.Black,
+            null,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -120,13 +122,14 @@ public class SkiaEntry : SkiaView
 
     /// <summary>
     /// Bindable property for FontFamily.
+    /// Default is empty string to match MAUI Entry.FontFamily (falls back to platform default).
     /// </summary>
     public static readonly BindableProperty FontFamilyProperty =
         BindableProperty.Create(
             nameof(FontFamily),
             typeof(string),
             typeof(SkiaEntry),
-            "Sans",
+            string.Empty,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).InvalidateMeasure());
 
     /// <summary>
@@ -229,13 +232,14 @@ public class SkiaEntry : SkiaView
 
     /// <summary>
     /// Bindable property for VerticalTextAlignment.
+    /// Default is Start to match MAUI Entry.VerticalTextAlignment.
     /// </summary>
     public static readonly BindableProperty VerticalTextAlignmentProperty =
         BindableProperty.Create(
             nameof(VerticalTextAlignment),
             typeof(TextAlignment),
             typeof(SkiaEntry),
-            TextAlignment.Center,
+            TextAlignment.Start,
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
@@ -365,20 +369,20 @@ public class SkiaEntry : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the placeholder color.
+    /// Gets or sets the placeholder color. Null means platform default (gray).
     /// </summary>
-    public Color PlaceholderColor
+    public Color? PlaceholderColor
     {
-        get => (Color)GetValue(PlaceholderColorProperty);
+        get => (Color?)GetValue(PlaceholderColorProperty);
         set => SetValue(PlaceholderColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the text color.
+    /// Gets or sets the text color. Null means platform default (black).
     /// </summary>
-    public Color TextColor
+    public Color? TextColor
     {
-        get => (Color)GetValue(TextColorProperty);
+        get => (Color?)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
@@ -676,7 +680,7 @@ public class SkiaEntry : SkiaView
     /// <summary>
     /// Converts a MAUI Color to SkiaSharp SKColor for rendering.
     /// </summary>
-    private static SKColor ToSKColor(Color color)
+    private static SKColor ToSKColor(Color? color)
     {
         if (color == null) return SKColors.Transparent;
         return new SKColor(
@@ -684,6 +688,30 @@ public class SkiaEntry : SkiaView
             (byte)(color.Green * 255),
             (byte)(color.Blue * 255),
             (byte)(color.Alpha * 255));
+    }
+
+    /// <summary>
+    /// Gets the effective text color (platform default black if null).
+    /// </summary>
+    private SKColor GetEffectiveTextColor()
+    {
+        return TextColor != null ? ToSKColor(TextColor) : SKColors.Black;
+    }
+
+    /// <summary>
+    /// Gets the effective placeholder color (platform default gray if null).
+    /// </summary>
+    private SKColor GetEffectivePlaceholderColor()
+    {
+        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : new SKColor(0x9E, 0x9E, 0x9E);
+    }
+
+    /// <summary>
+    /// Gets the effective font family (platform default "Sans" if empty).
+    /// </summary>
+    private string GetEffectiveFontFamily()
+    {
+        return string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
     }
 
     private void OnTextPropertyChanged(string oldText, string newText)
@@ -742,7 +770,7 @@ public class SkiaEntry : SkiaView
         canvas.ClipRect(contentBounds);
 
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
+        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
@@ -753,7 +781,7 @@ public class SkiaEntry : SkiaView
 
         if (hasText)
         {
-            paint.Color = ToSKColor(TextColor);
+            paint.Color = GetEffectiveTextColor();
 
             // Measure text to cursor position for scrolling
             var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));
@@ -798,7 +826,7 @@ public class SkiaEntry : SkiaView
         else if (!string.IsNullOrEmpty(Placeholder))
         {
             // Draw placeholder
-            paint.Color = ToSKColor(PlaceholderColor);
+            paint.Color = GetEffectivePlaceholderColor();
 
             var textBounds = new SKRect();
             paint.MeasureText(Placeholder, ref textBounds);
@@ -1255,7 +1283,7 @@ public class SkiaEntry : SkiaView
         if (string.IsNullOrEmpty(Text)) return 0;
 
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
+        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
@@ -1428,7 +1456,7 @@ public class SkiaEntry : SkiaView
     protected override SKSize MeasureOverride(SKSize availableSize)
     {
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(FontFamily, fontStyle)
+        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
