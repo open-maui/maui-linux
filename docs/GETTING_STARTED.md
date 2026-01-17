@@ -97,51 +97,56 @@ MyApp/
 
 ## Basic Controls
 
+All controls use standard .NET MAUI types (Color, Rect, Size, Thickness) for full API compliance.
+
 ### Labels
 ```csharp
-var label = new SkiaLabel
+using Microsoft.Maui.Graphics;
+
+var label = new Label
 {
     Text = "Hello World",
-    TextColor = new SKColor(33, 33, 33),
-    FontSize = 16f
+    TextColor = Color.FromRgb(33, 33, 33),  // MAUI Color
+    FontSize = 16
 };
 ```
 
 ### Buttons
 ```csharp
-var button = new SkiaButton
+var button = new Button
 {
     Text = "Click Me",
-    BackgroundColor = new SKColor(33, 150, 243)
+    BackgroundColor = Color.FromRgb(33, 150, 243)  // MAUI Color
 };
 button.Clicked += (s, e) => Console.WriteLine("Clicked!");
 ```
 
 ### Text Input
 ```csharp
-var entry = new SkiaEntry
+var entry = new Entry
 {
     Placeholder = "Enter text...",
     MaxLength = 100
 };
-entry.TextChanged += (s, e) => Console.WriteLine($"Text: {e.NewValue}");
+entry.TextChanged += (s, e) => Console.WriteLine($"Text: {e.NewTextValue}");
 ```
 
 ### Layouts
 ```csharp
 // Vertical stack
-var vstack = new SkiaStackLayout
+var vstack = new VerticalStackLayout
 {
-    Orientation = StackOrientation.Vertical,
-    Spacing = 10
+    Spacing = 10,
+    Children =
+    {
+        new Label { Text = "Item 1" },
+        new Label { Text = "Item 2" }
+    }
 };
-vstack.AddChild(new SkiaLabel { Text = "Item 1" });
-vstack.AddChild(new SkiaLabel { Text = "Item 2" });
 
 // Horizontal stack
-var hstack = new SkiaStackLayout
+var hstack = new HorizontalStackLayout
 {
-    Orientation = StackOrientation.Horizontal,
     Spacing = 8
 };
 ```
@@ -150,24 +155,28 @@ var hstack = new SkiaStackLayout
 
 ### CarouselView
 ```csharp
-var carousel = new SkiaCarouselView
+var carousel = new CarouselView
 {
     Loop = true,
-    PeekAreaInsets = 20f,
-    ShowIndicators = true
+    PeekAreaInsets = new Thickness(20),
+    ItemsSource = new[] { "Page 1", "Page 2", "Page 3" },
+    ItemTemplate = new DataTemplate(() =>
+    {
+        var label = new Label();
+        label.SetBinding(Label.TextProperty, ".");
+        return label;
+    })
 };
-carousel.AddItem(new SkiaLabel { Text = "Page 1" });
-carousel.AddItem(new SkiaLabel { Text = "Page 2" });
 carousel.PositionChanged += (s, e) =>
     Console.WriteLine($"Position: {e.CurrentPosition}");
 ```
 
 ### RefreshView
 ```csharp
-var refreshView = new SkiaRefreshView
+var refreshView = new RefreshView
 {
     Content = myScrollableContent,
-    RefreshColor = SKColors.Blue
+    RefreshColor = Colors.Blue  // MAUI Color
 };
 refreshView.Refreshing += async (s, e) =>
 {
@@ -178,26 +187,29 @@ refreshView.Refreshing += async (s, e) =>
 
 ### SwipeView
 ```csharp
-var swipeView = new SkiaSwipeView
+var swipeView = new SwipeView
 {
-    Content = new SkiaLabel { Text = "Swipe me" }
+    Content = new Label { Text = "Swipe me" }
 };
-swipeView.RightItems.Add(new SwipeItem
+swipeView.RightItems = new SwipeItems
 {
-    Text = "Delete",
-    BackgroundColor = SKColors.Red
-});
+    new SwipeItem
+    {
+        Text = "Delete",
+        BackgroundColor = Colors.Red  // MAUI Color
+    }
+};
 ```
 
 ### MenuBar
 ```csharp
-var menuBar = new SkiaMenuBar();
+var menuBar = new MenuBar();
 var fileMenu = new MenuBarItem { Text = "File" };
-fileMenu.Items.Add(new MenuItem { Text = "New", Shortcut = "Ctrl+N" });
-fileMenu.Items.Add(new MenuItem { Text = "Open", Shortcut = "Ctrl+O" });
-fileMenu.Items.Add(new MenuItem { IsSeparator = true });
-fileMenu.Items.Add(new MenuItem { Text = "Exit" });
-menuBar.Items.Add(fileMenu);
+fileMenu.Add(new MenuFlyoutItem { Text = "New", KeyboardAccelerators = { new KeyboardAccelerator { Modifiers = KeyboardAcceleratorModifiers.Ctrl, Key = "N" } } });
+fileMenu.Add(new MenuFlyoutItem { Text = "Open" });
+fileMenu.Add(new MenuFlyoutSeparator());
+fileMenu.Add(new MenuFlyoutItem { Text = "Exit" });
+menuBar.Add(fileMenu);
 ```
 
 ## Platform Services
