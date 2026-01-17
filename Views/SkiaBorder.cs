@@ -341,6 +341,14 @@ public class SkiaBorder : SkiaLayoutView
         return path;
     }
 
+    /// <summary>
+    /// Override to skip rectangular background - OnDraw handles it with the correct shape.
+    /// </summary>
+    protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
+    {
+        // Don't draw rectangular background - OnDraw draws background with shape path
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         float strokeThickness = (float)StrokeThickness;

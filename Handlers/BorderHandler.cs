@@ -30,6 +30,8 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
             [nameof(IPadding.Padding)] = MapPadding,
+            ["WidthRequest"] = MapWidthRequest,
+            ["HeightRequest"] = MapHeightRequest,
         };
 
     public static CommandMapper<IBorderView, BorderHandler> CommandMapper =
@@ -59,6 +61,27 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             platformView.MauiView = view;
         }
         platformView.Tapped += OnPlatformViewTapped;
+
+        // Explicitly map properties since they may be set before handler creation
+        if (VirtualView is VisualElement ve)
+        {
+            if (ve.BackgroundColor != null)
+            {
+                platformView.BackgroundColor = ve.BackgroundColor;
+            }
+            else if (ve.Background is SolidColorBrush brush && brush.Color != null)
+            {
+                platformView.BackgroundColor = brush.Color;
+            }
+            if (ve.WidthRequest >= 0)
+            {
+                platformView.WidthRequest = ve.WidthRequest;
+            }
+            if (ve.HeightRequest >= 0)
+            {
+                platformView.HeightRequest = ve.HeightRequest;
+            }
+        }
     }
 
     protected override void DisconnectHandler(SkiaBorder platformView)
@@ -130,10 +153,15 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
     {
         if (handler.PlatformView is null) return;
 
-        if (border is VisualElement ve && ve.BackgroundColor != null)
+        if (border is VisualElement ve)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
-            handler.PlatformView.Invalidate();
+            var bgColor = ve.BackgroundColor;
+            Console.WriteLine($"[BorderHandler] MapBackgroundColor: {bgColor}");
+            if (bgColor != null)
+            {
+                handler.PlatformView.BackgroundColor = bgColor;
+                handler.PlatformView.Invalidate();
+            }
         }
     }
 
@@ -238,5 +266,27 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             handler.PlatformView.StrokeMiterLimit = borderStroke.StrokeMiterLimit;
         }
         handler.PlatformView.Invalidate();
+    }
+
+    public static void MapWidthRequest(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is VisualElement ve && ve.WidthRequest >= 0)
+        {
+            handler.PlatformView.WidthRequest = ve.WidthRequest;
+            handler.PlatformView.InvalidateMeasure();
+        }
+    }
+
+    public static void MapHeightRequest(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is VisualElement ve && ve.HeightRequest >= 0)
+        {
+            handler.PlatformView.HeightRequest = ve.HeightRequest;
+            handler.PlatformView.InvalidateMeasure();
+        }
     }
 }

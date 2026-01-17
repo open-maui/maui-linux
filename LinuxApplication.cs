@@ -688,53 +688,17 @@ public class LinuxApplication : IDisposable
     }
 
     /// <summary>
-    /// Triggers MAUI's internal RequestedThemeChanged event to force AppThemeBinding updates.
+    /// Called after theme change to refresh views.
+    /// Note: MAUI's Application.UserAppTheme setter automatically triggers RequestedThemeChanged
+    /// via WeakEventManager, which AppThemeBinding subscribes to. This method handles
+    /// any additional platform-specific refresh needed.
     /// </summary>
     private void TriggerMauiThemeChanged()
     {
-        try
-        {
-            var app = Application.Current;
-            if (app == null) return;
+        var app = Application.Current;
+        if (app == null) return;
 
-            var currentTheme = app.UserAppTheme;
-            Console.WriteLine($"[LinuxApplication] Triggering theme changed event for: {currentTheme}");
-
-            // Try to find and invoke the RequestedThemeChanged event
-            var eventField = typeof(Application).GetField("RequestedThemeChanged",
-                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-
-            if (eventField != null)
-            {
-                var eventDelegate = eventField.GetValue(app) as MulticastDelegate;
-                if (eventDelegate != null)
-                {
-                    var args = new AppThemeChangedEventArgs(currentTheme);
-                    foreach (var handler in eventDelegate.GetInvocationList())
-                    {
-                        handler.DynamicInvoke(app, args);
-                    }
-                    Console.WriteLine("[LinuxApplication] Successfully invoked RequestedThemeChanged handlers");
-                }
-            }
-            else
-            {
-                // Try alternative approach - trigger OnPropertyChanged for RequestedTheme
-                var onPropertyChangedMethod = typeof(BindableObject).GetMethod("OnPropertyChanged",
-                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-                    null, new[] { typeof(string) }, null);
-
-                if (onPropertyChangedMethod != null)
-                {
-                    onPropertyChangedMethod.Invoke(app, new object[] { "RequestedTheme" });
-                    Console.WriteLine("[LinuxApplication] Triggered OnPropertyChanged for RequestedTheme");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[LinuxApplication] Error triggering theme changed: {ex.Message}");
-        }
+        Console.WriteLine($"[LinuxApplication] Theme is now: {app.UserAppTheme}, RequestedTheme: {app.RequestedTheme}");
     }
 
     private void RefreshViewTheme(SkiaView view)
@@ -749,8 +713,9 @@ public class LinuxApplication : IDisposable
             // This ensures theme-dependent bindings are re-evaluated
             try
             {
-                // Background/BackgroundColor
+                // Background/BackgroundColor - both need updating for AppThemeBinding
                 handler.UpdateValue(nameof(IView.Background));
+                handler.UpdateValue("BackgroundColor");
 
                 // For ImageButton, force Source to be re-mapped
                 if (mauiView is Microsoft.Maui.Controls.ImageButton)
@@ -788,8 +753,29 @@ public class LinuxApplication : IDisposable
             }
         }
 
+        // Special handling for ItemsViews (CollectionView, ListView)
+        // Their item views are cached separately and need to be refreshed
+        if (view is SkiaItemsView itemsView)
+        {
+            itemsView.RefreshTheme();
+        }
+
+        // Special handling for NavigationPage - it stores content in _currentPage
+        if (view is SkiaNavigationPage navPage && navPage.CurrentPage != null)
+        {
+            RefreshViewTheme(navPage.CurrentPage);
+        }
+
+        // Special handling for ContentPage - it stores content in Content property
+        if (view is SkiaPage page && page.Content != null)
+        {
+            RefreshViewTheme(page.Content);
+        }
+
         // Recursively process children
-        foreach (var child in view.Children)
+        // Note: SkiaLayoutView hides SkiaView.Children with 'new', so we need to cast
+        IReadOnlyList<SkiaView> children = view is SkiaLayoutView layout ? layout.Children : view.Children;
+        foreach (var child in children)
         {
             RefreshViewTheme(child);
         }

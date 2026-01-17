@@ -77,7 +77,7 @@ public class SkiaEditor : SkiaView, IInputContext
             nameof(BorderColor),
             typeof(Color),
             typeof(SkiaEditor),
-            Color.FromRgb(0xBD, 0xBD, 0xBD),
+            Colors.Transparent,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -301,7 +301,7 @@ public class SkiaEditor : SkiaView, IInputContext
             nameof(EditorBackgroundColor),
             typeof(Color),
             typeof(SkiaEditor),
-            Colors.White,
+            Colors.Transparent,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaEditor)b).Invalidate());
 
@@ -891,15 +891,18 @@ public class SkiaEditor : SkiaView, IInputContext
         };
         canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
 
-        // Draw border
-        using var borderPaint = new SKPaint
+        // Draw border only if BorderColor is not transparent
+        if (BorderColor != null && BorderColor != Colors.Transparent && BorderColor.Alpha > 0)
         {
-            Color = IsFocused ? ToSKColor(CursorColor) : ToSKColor(BorderColor),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = IsFocused ? 2 : 1,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
+            using var borderPaint = new SKPaint
+            {
+                Color = IsFocused ? ToSKColor(CursorColor) : ToSKColor(BorderColor),
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = IsFocused ? 2 : 1,
+                IsAntialias = true
+            };
+            canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
+        }
 
         // Setup text rendering
         using var font = new SKFont(SKTypeface.Default, fontSize);
@@ -1084,6 +1087,13 @@ public class SkiaEditor : SkiaView, IInputContext
     public override void OnPointerPressed(PointerEventArgs e)
     {
         if (!IsEnabled) return;
+
+        // Handle right-click context menu
+        if (e.Button == PointerButton.Right)
+        {
+            ShowContextMenu(e.X, e.Y);
+            return;
+        }
 
         IsFocused = true;
 
@@ -1489,6 +1499,39 @@ public class SkiaEditor : SkiaView, IInputContext
         _cursorPosition = start;
         _selectionStart = -1;
         _selectionLength = 0;
+    }
+
+    private void ShowContextMenu(float x, float y)
+    {
+        Console.WriteLine($"[SkiaEditor] ShowContextMenu at ({x}, {y})");
+        bool hasSelection = _selectionLength != 0;
+        bool hasText = !string.IsNullOrEmpty(Text);
+        bool hasClipboard = !string.IsNullOrEmpty(SystemClipboard.GetText());
+        bool isEditable = !IsReadOnly;
+
+        GtkContextMenuService.ShowContextMenu(new List<GtkMenuItem>
+        {
+            new GtkMenuItem("Cut", () =>
+            {
+                CutToClipboard();
+                Invalidate();
+            }, hasSelection && isEditable),
+            new GtkMenuItem("Copy", () =>
+            {
+                CopyToClipboard();
+            }, hasSelection),
+            new GtkMenuItem("Paste", () =>
+            {
+                PasteFromClipboard();
+                Invalidate();
+            }, hasClipboard && isEditable),
+            GtkMenuItem.Separator,
+            new GtkMenuItem("Select All", () =>
+            {
+                SelectAll();
+                Invalidate();
+            }, hasText)
+        });
     }
 
     #endregion

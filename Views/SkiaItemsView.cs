@@ -129,6 +129,18 @@ public class SkiaItemsView : SkiaView
         _scrollOffset = 0;
     }
 
+    /// <summary>
+    /// Called when theme changes to refresh all cached item views.
+    /// Clears the item view cache so items are recreated with new theme colors.
+    /// </summary>
+    public virtual void RefreshTheme()
+    {
+        // Clear cached views to force recreation with new AppThemeBinding values
+        _itemViewCache.Clear();
+        _itemHeights.Clear();
+        Invalidate();
+    }
+
     private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RefreshItems();

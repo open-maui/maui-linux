@@ -433,24 +433,50 @@ public class SkiaContentPage : SkiaPage
         };
 
         float rightEdge = navBarBounds.Right - 16;
+        const float iconSize = 24f;
+        const float itemPadding = 12f;
 
         foreach (var item in primaryItems.AsEnumerable().Reverse())
         {
-            var textBounds = new SKRect();
-            textPaint.MeasureText(item.Text, ref textBounds);
+            float itemWidth;
+            float itemLeft;
 
-            var itemWidth = textBounds.Width + 24; // Padding
-            var itemLeft = rightEdge - itemWidth;
+            if (item.Icon != null)
+            {
+                // Icon-based toolbar item
+                itemWidth = iconSize + itemPadding * 2;
+                itemLeft = rightEdge - itemWidth;
 
-            // Store hit area for click handling
-            item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
+                // Store hit area for click handling
+                item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
+
+                // Draw icon centered in the hit area
+                var iconX = itemLeft + itemPadding;
+                var iconY = navBarBounds.MidY - iconSize / 2;
+                var destRect = new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize);
+                canvas.DrawBitmap(item.Icon, destRect);
+
+                Console.WriteLine($"[SkiaContentPage] Drew toolbar icon '{item.Text}' at ({iconX}, {iconY})");
+            }
+            else
+            {
+                // Text-based toolbar item (fallback)
+                var textBounds = new SKRect();
+                textPaint.MeasureText(item.Text, ref textBounds);
+
+                itemWidth = textBounds.Width + 24;
+                itemLeft = rightEdge - itemWidth;
+
+                // Store hit area for click handling
+                item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
+
+                // Draw text
+                var x = itemLeft + 12;
+                var y = navBarBounds.MidY - textBounds.MidY;
+                canvas.DrawText(item.Text, x, y, textPaint);
+            }
+
             Console.WriteLine($"[SkiaContentPage] Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
-
-            // Draw text
-            var x = itemLeft + 12;
-            var y = navBarBounds.MidY - textBounds.MidY;
-            canvas.DrawText(item.Text, x, y, textPaint);
-
             rightEdge = itemLeft - 8; // Gap between items
         }
     }
