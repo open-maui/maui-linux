@@ -361,7 +361,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
         if (collectionView.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 
@@ -371,7 +371,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
         if (collectionView.BackgroundColor is not null)
         {
-            handler.PlatformView.BackgroundColor = collectionView.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = collectionView.BackgroundColor;
         }
     }
 

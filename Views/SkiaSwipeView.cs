@@ -202,7 +202,7 @@ public class SkiaSwipeView : SkiaLayoutView
             // Draw background
             using var bgPaint = new SKPaint
             {
-                Color = item.BackgroundColor,
+                Color = item.GetBackgroundColorSK(),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(itemBounds, bgPaint);
@@ -212,7 +212,7 @@ public class SkiaSwipeView : SkiaLayoutView
             {
                 using var textPaint = new SKPaint
                 {
-                    Color = item.TextColor,
+                    Color = item.GetTextColorSK(),
                     TextSize = 14f,
                     IsAntialias = true,
                     TextAlign = SKTextAlign.Center

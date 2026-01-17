@@ -56,7 +56,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
             platformView.ClockFaceColor = Color.FromRgb(45, 45, 45);
             platformView.TextColor = Color.FromRgb(224, 224, 224);
             platformView.BorderColor = Color.FromRgb(97, 97, 97);
-            platformView.BackgroundColor = Color.FromRgb(45, 45, 45).ToSKColor();
+            platformView.BackgroundColor = Color.FromRgb(45, 45, 45);
         }
     }
 
@@ -124,7 +124,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
 
         if (timePicker.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 }

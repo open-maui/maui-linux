@@ -122,7 +122,7 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
 
         if (border.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 
@@ -132,7 +132,7 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
 
         if (border is VisualElement ve && ve.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }

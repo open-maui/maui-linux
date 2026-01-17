@@ -377,7 +377,7 @@ public class SkiaBorder : SkiaLayoutView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = BackgroundColor,
+            Color = GetEffectiveBackgroundColor(),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

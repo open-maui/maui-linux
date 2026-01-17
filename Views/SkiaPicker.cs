@@ -445,7 +445,7 @@ public class SkiaPicker : SkiaView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? BackgroundColor : ToSKColor(Color.FromRgb(0xF5, 0xF5, 0xF5)),
+            Color = IsEnabled ? GetEffectiveBackgroundColor() : ToSKColor(Color.FromRgb(0xF5, 0xF5, 0xF5)),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

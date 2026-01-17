@@ -194,7 +194,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
 
         if (picker.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

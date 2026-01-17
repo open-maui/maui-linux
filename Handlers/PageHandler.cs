@@ -101,7 +101,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
 
         if (page.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 
@@ -112,7 +112,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
         var backgroundColor = page.BackgroundColor;
         if (backgroundColor != null && backgroundColor != Colors.Transparent)
         {
-            handler.PlatformView.BackgroundColor = backgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = backgroundColor;
             Console.WriteLine($"[PageHandler] MapBackgroundColor: {backgroundColor}");
         }
     }

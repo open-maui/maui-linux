@@ -205,11 +205,7 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
 
         if (label.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = new SKColor(
-                (byte)(solidPaint.Color.Red * 255),
-                (byte)(solidPaint.Color.Green * 255),
-                (byte)(solidPaint.Color.Blue * 255),
-                (byte)(solidPaint.Color.Alpha * 255));
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

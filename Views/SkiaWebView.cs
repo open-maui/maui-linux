@@ -626,7 +626,7 @@ public class SkiaWebView : SkiaView
     {
         RequestedWidth = 400.0;
         RequestedHeight = 300.0;
-        BackgroundColor = SKColors.White;
+        BackgroundColor = Colors.White;
     }
 
     #endregion
@@ -1372,7 +1372,7 @@ public class SkiaWebView : SkiaView
         if (_isInitialized && _gtkWindow != IntPtr.Zero) return;
 
         // Draw placeholder when not initialized
-        using var bgPaint = new SKPaint { Color = BackgroundColor, Style = SKPaintStyle.Fill };
+        using var bgPaint = new SKPaint { Color = GetEffectiveBackgroundColor(), Style = SKPaintStyle.Fill };
         canvas.DrawRect(bounds, bgPaint);
 
         using var borderPaint = new SKPaint

@@ -149,7 +149,7 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
 
         if (searchBar.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 }

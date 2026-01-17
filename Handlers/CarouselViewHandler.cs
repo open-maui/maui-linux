@@ -239,7 +239,7 @@ public partial class CarouselViewHandler : ViewHandler<CarouselView, SkiaCarouse
 
         if (carouselView.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 

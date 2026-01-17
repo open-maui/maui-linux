@@ -18,7 +18,7 @@ public class SkiaFrame : SkiaBorder
         HasShadow = true;
         CornerRadius = 4.0;
         SetPadding(10.0);
-        BackgroundColor = SKColors.White;
+        BackgroundColor = Colors.White;
         Stroke = Colors.Transparent;
         StrokeThickness = 0.0;
     }

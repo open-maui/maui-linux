@@ -116,7 +116,7 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
 
         if (progress.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
             handler.PlatformView.Invalidate();
         }
     }

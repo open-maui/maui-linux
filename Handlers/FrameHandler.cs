@@ -85,11 +85,7 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
     {
         if (frame.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = new SKColor(
-                (byte)(frame.BackgroundColor.Red * 255),
-                (byte)(frame.BackgroundColor.Green * 255),
-                (byte)(frame.BackgroundColor.Blue * 255),
-                (byte)(frame.BackgroundColor.Alpha * 255));
+            handler.PlatformView.BackgroundColor = frame.BackgroundColor;
         }
     }
 

@@ -298,7 +298,7 @@ public class SkiaTimePicker : SkiaView
 
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? BackgroundColor : new SKColor(245, 245, 245),
+            Color = IsEnabled ? GetEffectiveBackgroundColor() : new SKColor(245, 245, 245),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };

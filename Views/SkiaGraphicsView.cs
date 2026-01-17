@@ -27,11 +27,11 @@ public class SkiaGraphicsView : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background
-        if (BackgroundColor != SKColors.Transparent)
+        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = BackgroundColor,
+                Color = GetEffectiveBackgroundColor(),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);

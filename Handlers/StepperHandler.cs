@@ -112,7 +112,7 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
 
         if (stepper.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

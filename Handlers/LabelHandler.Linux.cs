@@ -221,7 +221,7 @@ public class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         {
             if (label.Background is SolidPaint solidPaint && solidPaint.Color != null)
             {
-                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+                handler.PlatformView.BackgroundColor = solidPaint.Color;
             }
         }
     }

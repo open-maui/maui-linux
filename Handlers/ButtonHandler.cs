@@ -102,12 +102,8 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
 
         if (button.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            // Set BackgroundColor (used for rendering)
-            handler.PlatformView.BackgroundColor = new SKColor(
-                (byte)(solidPaint.Color.Red * 255),
-                (byte)(solidPaint.Color.Green * 255),
-                (byte)(solidPaint.Color.Blue * 255),
-                (byte)(solidPaint.Color.Alpha * 255));
+            // Set BackgroundColor (MAUI Color type)
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

@@ -96,7 +96,7 @@ public class EditorHandler : ViewHandler<IEditor, SkiaEditor>
     {
         if (handler.PlatformView != null && editor.PlaceholderColor != null)
         {
-            handler.PlatformView.PlaceholderColor = editor.PlaceholderColor.ToSKColor();
+            handler.PlatformView.PlaceholderColor = editor.PlaceholderColor;
         }
     }
 
@@ -104,7 +104,7 @@ public class EditorHandler : ViewHandler<IEditor, SkiaEditor>
     {
         if (handler.PlatformView != null && editor.TextColor != null)
         {
-            handler.PlatformView.TextColor = editor.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = editor.TextColor;
         }
     }
 
@@ -168,7 +168,7 @@ public class EditorHandler : ViewHandler<IEditor, SkiaEditor>
         {
             if (editor.Background is SolidPaint solidPaint && solidPaint.Color != null)
             {
-                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+                handler.PlatformView.BackgroundColor = solidPaint.Color;
             }
         }
     }
@@ -179,7 +179,7 @@ public class EditorHandler : ViewHandler<IEditor, SkiaEditor>
         {
             if (editor is VisualElement ve && ve.BackgroundColor != null)
             {
-                handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+                handler.PlatformView.BackgroundColor = ve.BackgroundColor;
                 handler.PlatformView.Invalidate();
             }
         }

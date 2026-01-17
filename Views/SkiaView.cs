@@ -357,14 +357,15 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Bindable property for BackgroundColor.
+    /// Uses Microsoft.Maui.Graphics.Color for MAUI compliance.
     /// </summary>
     public static readonly BindableProperty BackgroundColorProperty =
         BindableProperty.Create(
             nameof(BackgroundColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaView),
-            SKColors.Transparent,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
+            null,
+            propertyChanged: (b, o, n) => ((SkiaView)b).OnBackgroundColorChanged());
 
     /// <summary>
     /// Bindable property for WidthRequest.
@@ -772,21 +773,29 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     /// <summary>
     /// Gets or sets the background color.
+    /// Uses Microsoft.Maui.Graphics.Color for MAUI compliance.
     /// </summary>
-    private SKColor _backgroundColor = SKColors.Transparent;
-    public SKColor BackgroundColor
+    private SKColor _backgroundColorSK = SKColors.Transparent;
+    public Color? BackgroundColor
     {
-        get => _backgroundColor;
-        set
-        {
-            if (_backgroundColor != value)
-            {
-                _backgroundColor = value;
-                SetValue(BackgroundColorProperty, value); // Keep BindableProperty in sync for bindings
-                Invalidate();
-            }
-        }
+        get => (Color?)GetValue(BackgroundColorProperty);
+        set => SetValue(BackgroundColorProperty, value);
     }
+
+    /// <summary>
+    /// Called when BackgroundColor changes.
+    /// </summary>
+    private void OnBackgroundColorChanged()
+    {
+        var color = BackgroundColor;
+        _backgroundColorSK = color != null ? color.ToSKColor() : SKColors.Transparent;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Gets the effective background color as SKColor for rendering.
+    /// </summary>
+    protected SKColor GetEffectiveBackgroundColor() => _backgroundColorSK;
 
     /// <summary>
     /// Gets or sets the requested width.
@@ -1522,9 +1531,9 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
             }
         }
         // Fall back to BackgroundColor
-        else if (BackgroundColor != SKColors.Transparent)
+        else if (_backgroundColorSK != SKColors.Transparent)
         {
-            using var paint = new SKPaint { Color = BackgroundColor };
+            using var paint = new SKPaint { Color = _backgroundColorSK };
             canvas.DrawRect(bounds, paint);
         }
     }

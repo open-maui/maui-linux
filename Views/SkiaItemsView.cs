@@ -183,11 +183,11 @@ public class SkiaItemsView : SkiaView
         Console.WriteLine($"[SkiaItemsView] OnDraw - bounds={bounds}, items={_items.Count}, ItemViewCreator={(ItemViewCreator != null ? "set" : "null")}");
 
         // Draw background
-        if (BackgroundColor != SKColors.Transparent)
+        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = BackgroundColor,
+                Color = GetEffectiveBackgroundColor(),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);

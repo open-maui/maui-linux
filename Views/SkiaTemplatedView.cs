@@ -274,7 +274,7 @@ public abstract class SkiaTemplatedView : SkiaView
 
         if (border.Background is SolidColorBrush bgBrush)
         {
-            skiaBorder.BackgroundColor = bgBrush.Color.ToSKColor();
+            skiaBorder.BackgroundColor = bgBrush.Color;
         }
 
         if (border.Content is Element content)

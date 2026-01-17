@@ -542,8 +542,8 @@ public class SkiaButton : SkiaView, IButtonController
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // BackgroundColor is inherited from SkiaView as SKColor
-        var bgColor = BackgroundColor;
+        // BackgroundColor is inherited from SkiaView as MAUI Color - convert to SKColor for rendering
+        var bgColor = GetEffectiveBackgroundColor();
         bool hasBackground = bgColor.Alpha > 0;
 
         // Determine current state color

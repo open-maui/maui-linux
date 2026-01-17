@@ -486,23 +486,18 @@ public class LinuxViewRenderer
                 if (contentView != null)
                 {
                     // Get page background color if set
-                    SKColor? bgColor = null;
+                    Color? bgColor = null;
                     if (cp.BackgroundColor != null && cp.BackgroundColor != Colors.Transparent)
                     {
-                        var color = cp.BackgroundColor;
-                        bgColor = new SKColor(
-                            (byte)(color.Red * 255f),
-                            (byte)(color.Green * 255f),
-                            (byte)(color.Blue * 255f),
-                            (byte)(color.Alpha * 255f));
+                        bgColor = cp.BackgroundColor;
                         Console.WriteLine($"[CreateShellContentPage] Page BackgroundColor: {bgColor}");
                     }
 
                     if (contentView is SkiaScrollView scrollView)
                     {
-                        if (bgColor.HasValue)
+                        if (bgColor != null)
                         {
-                            scrollView.BackgroundColor = bgColor.Value;
+                            scrollView.BackgroundColor = bgColor;
                         }
                         return scrollView;
                     }
@@ -512,9 +507,9 @@ public class LinuxViewRenderer
                         {
                             Content = contentView
                         };
-                        if (bgColor.HasValue)
+                        if (bgColor != null)
                         {
-                            newScrollView.BackgroundColor = bgColor.Value;
+                            newScrollView.BackgroundColor = bgColor;
                         }
                         return newScrollView;
                     }

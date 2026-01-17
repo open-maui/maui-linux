@@ -94,7 +94,7 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         if (@switch.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             // Background color for the switch container (not the track)
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

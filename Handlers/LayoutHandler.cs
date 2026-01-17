@@ -54,7 +54,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         // Explicitly map BackgroundColor since it may be set before handler creation
         if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
         {
-            platformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            platformView.BackgroundColor = ve.BackgroundColor;
         }
 
         for (int i = 0; i < VirtualView.Count; i++)
@@ -88,7 +88,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
         if (layout.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 
@@ -255,7 +255,7 @@ public partial class GridHandler : LayoutHandler
             // Explicitly map BackgroundColor since it may be set before handler creation
             if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
             {
-                platformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+                platformView.BackgroundColor = ve.BackgroundColor;
             }
 
             // Explicitly map Padding since it may be set before handler creation

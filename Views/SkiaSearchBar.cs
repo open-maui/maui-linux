@@ -106,7 +106,7 @@ public class SkiaSearchBar : SkiaView
         {
             Placeholder = "Search...",
             EntryBackgroundColor = Colors.Transparent,
-            BackgroundColor = SKColors.Transparent,
+            BackgroundColor = Colors.Transparent,
             BorderColor = Colors.Transparent,
             FocusedBorderColor = Colors.Transparent,
             BorderWidth = 0

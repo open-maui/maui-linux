@@ -64,7 +64,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         // (e.g., in ItemTemplates for CollectionView)
         if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
         {
-            platformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            platformView.BackgroundColor = ve.BackgroundColor;
             platformView.Invalidate();
         }
 
@@ -99,7 +99,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         var background = layout.Background;
         if (background is SolidColorBrush solidBrush && solidBrush.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
         handler.PlatformView.Invalidate();
     }
@@ -108,7 +108,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     {
         if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }

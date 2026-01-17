@@ -480,11 +480,11 @@ public class SkiaCollectionView : SkiaItemsView
     {
         _heightsChangedDuringDraw = false;
 
-        if (BackgroundColor != SKColors.Transparent)
+        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = BackgroundColor,
+                Color = GetEffectiveBackgroundColor(),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);

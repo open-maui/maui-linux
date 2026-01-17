@@ -115,7 +115,7 @@ public class SkiaButtonTests
     {
         // Arrange
         var button = new SkiaButton();
-        var color = new SKColor(255, 0, 0);
+        var color = Microsoft.Maui.Graphics.Colors.Red;
 
         // Act
         button.TextColor = color;

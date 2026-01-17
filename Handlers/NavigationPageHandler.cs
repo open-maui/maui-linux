@@ -394,7 +394,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 

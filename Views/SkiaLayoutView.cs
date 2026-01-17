@@ -210,9 +210,9 @@ public abstract class SkiaLayoutView : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background if set (for layouts inside CollectionView items)
-        if (BackgroundColor != SKColors.Transparent)
+        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
-            using var bgPaint = new SKPaint { Color = BackgroundColor, Style = SKPaintStyle.Fill };
+            using var bgPaint = new SKPaint { Color = GetEffectiveBackgroundColor(), Style = SKPaintStyle.Fill };
             canvas.DrawRect(bounds, bgPaint);
         }
 

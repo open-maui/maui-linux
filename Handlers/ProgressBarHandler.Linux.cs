@@ -76,7 +76,7 @@ public class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
     {
         if (progress.ProgressColor != null)
         {
-            handler.PlatformView.ProgressColor = progress.ProgressColor.ToSKColor();
+            handler.PlatformView.ProgressColor = progress.ProgressColor;
         }
         handler.PlatformView.Invalidate();
     }
@@ -91,7 +91,7 @@ public class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
     {
         if (progress.Background is SolidPaint solidPaint && solidPaint.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
             handler.PlatformView.Invalidate();
         }
     }
@@ -100,7 +100,7 @@ public class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
     {
         if (progress is VisualElement ve && ve.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }

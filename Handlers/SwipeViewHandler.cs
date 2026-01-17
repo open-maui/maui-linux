@@ -170,7 +170,7 @@ public partial class SwipeViewHandler : ViewHandler<SwipeView, SkiaSwipeView>
 
         if (swipeView.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 
@@ -211,14 +211,14 @@ public partial class SwipeViewHandler : ViewHandler<SwipeView, SkiaSwipeView>
             var bgColor = swipeItem.BackgroundColor;
             if (bgColor is not null)
             {
-                platformItem.BackgroundColor = bgColor.ToSKColor();
+                platformItem.BackgroundColor = bgColor;
             }
         }
         else if (item is Controls.SwipeItemView swipeItemView)
         {
             // SwipeItemView uses custom content - use a simple representation
             platformItem.Text = "Action";
-            platformItem.BackgroundColor = new SKColor(100, 100, 100);
+            platformItem.BackgroundColor = Color.FromRgb(100, 100, 100);
         }
 
         return platformItem;

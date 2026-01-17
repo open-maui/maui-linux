@@ -230,7 +230,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
         if (entry.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

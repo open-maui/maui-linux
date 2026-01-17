@@ -138,7 +138,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
 
         if (slider.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

@@ -226,7 +226,7 @@ public class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         {
             if (entry.Background is SolidPaint solidPaint && solidPaint.Color != null)
             {
-                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+                handler.PlatformView.BackgroundColor = solidPaint.Color;
             }
         }
     }

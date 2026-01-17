@@ -192,7 +192,7 @@ public static class LinuxProgramHost
         {
             Orientation = StackOrientation.Vertical,
             Spacing = 15,
-            BackgroundColor = new SKColor(0xF5, 0xF5, 0xF5)
+            BackgroundColor = Color.FromRgb(0xF5, 0xF5, 0xF5)
         };
         root.Padding = new SKRect(20, 20, 20, 20);
 
@@ -227,19 +227,19 @@ public static class LinuxProgramHost
         var buttonSection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
 
         var btnPrimary = new SkiaButton { Text = "Primary", FontSize = 14 };
-        btnPrimary.BackgroundColor = new SKColor(0x21, 0x96, 0xF3); // Uses base SkiaView's SKColor BackgroundColor
+        btnPrimary.BackgroundColor = Color.FromRgb(0x21, 0x96, 0xF3);
         btnPrimary.TextColor = Colors.White;
         var clickCount = 0;
         btnPrimary.Clicked += (s, e) => { clickCount++; btnPrimary.Text = $"Clicked {clickCount}x"; };
         buttonSection.AddChild(btnPrimary);
 
         var btnSuccess = new SkiaButton { Text = "Success", FontSize = 14 };
-        btnSuccess.BackgroundColor = new SKColor(0x4C, 0xAF, 0x50);
+        btnSuccess.BackgroundColor = Color.FromRgb(0x4C, 0xAF, 0x50);
         btnSuccess.TextColor = Colors.White;
         buttonSection.AddChild(btnSuccess);
 
         var btnDanger = new SkiaButton { Text = "Danger", FontSize = 14 };
-        btnDanger.BackgroundColor = new SKColor(0xF4, 0x43, 0x36);
+        btnDanger.BackgroundColor = Color.FromRgb(0xF4, 0x43, 0x36);
         btnDanger.TextColor = Colors.White;
         buttonSection.AddChild(btnDanger);
 
@@ -268,7 +268,7 @@ public static class LinuxProgramHost
         {
             Placeholder = "Enter multiple lines of text...",
             FontSize = 14,
-            BackgroundColor = SKColors.White
+            BackgroundColor = Colors.White
         };
         root.AddChild(editor);
 
@@ -377,7 +377,7 @@ public static class LinuxProgramHost
             CornerRadius = 8,
             StrokeThickness = 2,
             Stroke = Color.FromRgb(0x21, 0x96, 0xF3),
-            BackgroundColor = Color.FromRgb(0xE3, 0xF2, 0xFD).ToSKColor()
+            BackgroundColor = Color.FromRgb(0xE3, 0xF2, 0xFD)
         };
         border.SetPadding(15);
         border.AddChild(new SkiaLabel { Text = "Content inside a styled Border", FontSize = 14, TextColor = Color.FromRgb(0x1A, 0x23, 0x7E) });
@@ -387,7 +387,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Frame (with shadow)"));
         var frame = new SkiaFrame();
-        frame.BackgroundColor = SKColors.White;
+        frame.BackgroundColor = Colors.White;
         frame.AddChild(new SkiaLabel { Text = "Content inside a Frame with shadow effect", FontSize = 14 });
         root.AddChild(frame);
 
@@ -479,7 +479,7 @@ public static class LinuxProgramHost
 
     private static SkiaView CreateSeparator()
     {
-        var sep = new SkiaLabel { Text = "", BackgroundColor = new SKColor(0xE0, 0xE0, 0xE0), RequestedHeight = 1 };
+        var sep = new SkiaLabel { Text = "", BackgroundColor = Color.FromRgb(0xE0, 0xE0, 0xE0), RequestedHeight = 1 };
         return sep;
     }
 

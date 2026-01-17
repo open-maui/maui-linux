@@ -72,7 +72,7 @@ public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, 
 
         if (activityIndicator.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 

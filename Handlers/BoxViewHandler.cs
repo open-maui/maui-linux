@@ -47,7 +47,7 @@ public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
     {
         if (boxView.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
             handler.PlatformView.Invalidate();
         }
     }
@@ -56,7 +56,7 @@ public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
     {
         if (boxView.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = boxView.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = boxView.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }

@@ -56,7 +56,7 @@ public class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, SkiaActi
         {
             if (activityIndicator.Background is SolidPaint solidPaint && solidPaint.Color != null)
             {
-                handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+                handler.PlatformView.BackgroundColor = solidPaint.Color;
             }
         }
     }

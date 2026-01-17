@@ -264,7 +264,7 @@ public class SkiaImageButton : SkiaView
         }
         else
         {
-            bgColor = BackgroundColor;
+            bgColor = GetEffectiveBackgroundColor();
         }
 
         // Draw background
