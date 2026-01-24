@@ -151,7 +151,14 @@ public class X11Window : IDisposable
         X11.XStoreName(_display, _window, title);
 
         // Set WM_CLASS for desktop integration (taskbar icon matching)
-        SetWMClass(title.Replace(" ", ""), title.Replace(" ", ""));
+        // Use application name from environment or process path for proper desktop matching
+        string? appName = Environment.GetEnvironmentVariable("APPIMAGE_NAME");
+        if (string.IsNullOrEmpty(appName))
+        {
+            appName = System.IO.Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MauiApp");
+        }
+        string wmClass = appName.Replace(" ", "").Replace("_", "");
+        SetWMClass(wmClass, wmClass);
 
         // Select input events
         X11.XSelectInput(_display, _window,
