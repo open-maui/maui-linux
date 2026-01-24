@@ -454,6 +454,8 @@ public class SkiaStackLayout : SkiaLayoutView
                 // Horizontal stack: give each child its measured width
                 // Don't constrain - let content overflow if needed (parent clips)
                 var useWidth = childWidth;
+                if (child is SkiaLabel lbl)
+                    Console.WriteLine($"[HStack Arrange] Label '{lbl.Text?.Substring(0, Math.Min(15, lbl.Text?.Length ?? 0))}' childWidth={childWidth:F0} contentWidth={contentWidth:F0} offset={offset:F0}");
 
                 // Respect child's VerticalOptions for horizontal layouts
                 var useHeight = Math.Min(childHeight, contentHeight);

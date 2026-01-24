@@ -711,6 +711,10 @@ public class SkiaLabel : SkiaView
 
         if (needsMultiLine)
         {
+            var textBoundsDbg = new SKRect();
+            paint.MeasureText(displayText, ref textBoundsDbg);
+            if (displayText.StartsWith("Full XAML") || displayText.StartsWith("Shell nav"))
+                Console.WriteLine($"[Label OnDraw] '{displayText.Substring(0, Math.Min(15, displayText.Length))}' textW={textBoundsDbg.Width:F0} boundsW={contentBounds.Width:F0} LineBreakMode={LineBreakMode}");
             DrawMultiLineText(canvas, paint, font, contentBounds, displayText);
         }
         else

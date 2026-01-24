@@ -30,6 +30,20 @@ public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
         return new SkiaBoxView();
     }
 
+    protected override void ConnectHandler(SkiaBoxView platformView)
+    {
+        base.ConnectHandler(platformView);
+
+        // Map size requests from MAUI BoxView
+        if (VirtualView is BoxView boxView)
+        {
+            if (boxView.WidthRequest >= 0)
+                platformView.WidthRequest = boxView.WidthRequest;
+            if (boxView.HeightRequest >= 0)
+                platformView.HeightRequest = boxView.HeightRequest;
+        }
+    }
+
     public static void MapColor(BoxViewHandler handler, BoxView boxView)
     {
         if (boxView.Color != null)

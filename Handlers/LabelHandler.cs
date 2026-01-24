@@ -71,7 +71,6 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         // Explicitly map LineBreakMode on connect - MAUI may not trigger property change for defaults
         if (VirtualView is Microsoft.Maui.Controls.Label mauiLabel)
         {
-            Console.WriteLine($"[LabelHandler] ConnectHandler Text='{mauiLabel.Text?.Substring(0, Math.Min(20, mauiLabel.Text?.Length ?? 0))}...' LineBreakMode={mauiLabel.LineBreakMode} ({(int)mauiLabel.LineBreakMode})");
             platformView.LineBreakMode = mauiLabel.LineBreakMode;
         }
 
