@@ -12,15 +12,13 @@ public class SkiaContextMenu : SkiaView
     private int _hoveredIndex = -1;
     private SKRect[] _itemBounds = Array.Empty<SKRect>();
 
-    private static readonly SKColor MenuBackground = SkiaTheme.BackgroundWhiteSK;
-    private static readonly SKColor MenuBackgroundDark = SkiaTheme.DarkBackgroundSK;
-    private static readonly SKColor ItemHoverBackground = SkiaTheme.PrimarySelectionSK;
-    private static readonly SKColor ItemHoverBackgroundDark = SkiaTheme.DarkHoverSK;
-    private static readonly SKColor ItemTextColor = SkiaTheme.TextPrimarySK;
-    private static readonly SKColor ItemTextColorDark = SkiaTheme.DarkTextSK;
-    private static readonly SKColor DisabledTextColor = SkiaTheme.TextDisabledSK;
-    private static readonly SKColor SeparatorColor = SkiaTheme.Gray300SK;
-    private static readonly SKColor ShadowColor = SkiaTheme.Shadow25SK;
+    // Theme-aware colors (evaluated at draw time)
+    private static SKColor MenuBackground => SkiaTheme.CurrentSurfaceSK;
+    private static SKColor ItemHoverBackground => SkiaTheme.IsDarkMode ? SkiaTheme.DarkHoverSK : SkiaTheme.PrimarySelectionSK;
+    private static SKColor ItemTextColor => SkiaTheme.CurrentTextSK;
+    private static SKColor DisabledTextColor => SkiaTheme.TextDisabledSK;
+    private static SKColor SeparatorColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray600SK : SkiaTheme.Gray300SK;
+    private static SKColor ShadowColor => SkiaTheme.Shadow25SK;
 
     private const float MenuPadding = 4f;
     private const float ItemHeight = 32f;
@@ -29,14 +27,12 @@ public class SkiaContextMenu : SkiaView
     private const float CornerRadius = 4f;
     private const float MinWidth = 120f;
 
-    private bool _isDarkTheme;
-
     public SkiaContextMenu(float x, float y, List<ContextMenuItem> items, bool isDarkTheme = false)
     {
         _x = x;
         _y = y;
         _items = items;
-        _isDarkTheme = isDarkTheme;
+        // isDarkTheme parameter kept for API compatibility but ignored - we use SkiaTheme.IsDarkMode instead
         IsFocusable = true;
     }
 
@@ -73,7 +69,7 @@ public class SkiaContextMenu : SkiaView
         // Draw background
         using (var bgPaint = new SKPaint
         {
-            Color = _isDarkTheme ? MenuBackgroundDark : MenuBackground,
+            Color = MenuBackground,
             IsAntialias = true
         })
         {
@@ -120,7 +116,7 @@ public class SkiaContextMenu : SkiaView
             {
                 using (var hoverPaint = new SKPaint
                 {
-                    Color = _isDarkTheme ? ItemHoverBackgroundDark : ItemHoverBackground,
+                    Color = ItemHoverBackground,
                     IsAntialias = true
                 })
                 {
@@ -131,7 +127,7 @@ public class SkiaContextMenu : SkiaView
             // Draw text
             using (var textPaint = new SKPaint
             {
-                Color = !item.IsEnabled ? DisabledTextColor : (_isDarkTheme ? ItemTextColorDark : ItemTextColor),
+                Color = !item.IsEnabled ? DisabledTextColor : ItemTextColor,
                 TextSize = 14f,
                 IsAntialias = true,
                 Typeface = SKTypeface.Default

@@ -1,28 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <!-- 
+  <!--
     OpenMaui Linux Build Targets
     Handles MauiImage items for Linux platform since we don't use the full MAUI SDK targets.
   -->
 
-  <!-- Copy MauiImage items to output directory -->
+  <!-- Copy MauiImage items to output directory after Build -->
   <Target Name="CopyMauiImagesToOutput" AfterTargets="Build" Condition="@(MauiImage) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to output..." />
-    
-    <Copy SourceFiles="@(MauiImage)" 
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true" />
-    
-    <!-- Also copy to Resources/Images subfolder for alternate lookup -->
-    <Copy SourceFiles="@(MauiImage)" 
-          DestinationFolder="$(OutputPath)Resources/Images"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(MauiImage)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
   </Target>
 
-  <!-- Ensure the Resources/Images directory exists -->
-  <Target Name="EnsureResourcesImagesDirectory" BeforeTargets="CopyMauiImagesToOutput">
-    <MakeDir Directories="$(OutputPath)Resources/Images" Condition="!Exists('$(OutputPath)Resources/Images')" />
+  <!-- Copy MauiImage items to publish directory after Publish -->
+  <Target Name="CopyMauiImagesToPublish" AfterTargets="Publish" Condition="@(MauiImage) != ''">
+    <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to publish folder..." />
+    <Copy SourceFiles="@(MauiImage)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

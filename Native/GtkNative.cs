@@ -235,6 +235,31 @@ internal static class GtkNative
     [DllImport("libgtk-3.so.0")]
     public static extern void gtk_window_set_modal(IntPtr window, bool modal);
 
+    // CSS styling for dialogs
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_css_provider_new();
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern bool gtk_css_provider_load_from_data(IntPtr provider, string data, int length, IntPtr error);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_widget_get_style_context(IntPtr widget);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_style_context_add_provider(IntPtr context, IntPtr provider, uint priority);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern void gtk_style_context_add_provider_for_screen(IntPtr screen, IntPtr provider, uint priority);
+
+    [DllImport("libgtk-3.so.0")]
+    public static extern IntPtr gtk_widget_get_screen(IntPtr widget);
+
+    [DllImport("libgdk-3.so.0")]
+    public static extern IntPtr gdk_screen_get_default();
+
+    public const uint GTK_STYLE_PROVIDER_PRIORITY_APPLICATION = 600;
+    public const uint GTK_STYLE_PROVIDER_PRIORITY_USER = 800;
+
     // Dialog with custom content (for prompt dialogs)
     [DllImport("libgtk-3.so.0")]
     public static extern IntPtr gtk_dialog_new_with_buttons(

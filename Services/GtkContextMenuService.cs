@@ -75,6 +75,9 @@ public static class GtkContextMenuService
             GtkNative.gtk_widget_show(menuItem);
         }
 
+        // Apply theme-aware CSS styling
+        ApplyMenuTheme(menu);
+
         GtkNative.gtk_widget_show(menu);
 
         IntPtr currentEvent = GtkNative.gtk_get_current_event();
@@ -86,5 +89,82 @@ public static class GtkContextMenuService
         }
 
         Console.WriteLine($"[GtkContextMenuService] Showed GTK menu with {items.Count} items");
+    }
+
+    /// <summary>
+    /// Applies theme-aware CSS styling to a GTK menu based on the app's current theme.
+    /// </summary>
+    private static void ApplyMenuTheme(IntPtr menu)
+    {
+        try
+        {
+            // Check the app's current theme (not the system theme)
+            bool isDark = Microsoft.Maui.Controls.Application.Current?.UserAppTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
+
+            // If UserAppTheme is Unspecified, fall back to RequestedTheme
+            if (Microsoft.Maui.Controls.Application.Current?.UserAppTheme == Microsoft.Maui.ApplicationModel.AppTheme.Unspecified)
+            {
+                isDark = Microsoft.Maui.Controls.Application.Current?.RequestedTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
+            }
+
+            Console.WriteLine($"[GtkContextMenuService] ApplyMenuTheme: isDark={isDark}");
+
+            // Create comprehensive CSS based on the theme
+            string css = isDark
+                ? @"
+                    * {
+                        background-color: #303030;
+                        color: #E0E0E0;
+                    }
+                    menu, menuitem, .menu, .menuitem {
+                        background-color: #303030;
+                        color: #E0E0E0;
+                    }
+                    menuitem:hover, .menuitem:hover {
+                        background-color: #505050;
+                    }
+                    separator {
+                        background-color: #505050;
+                    }
+                "
+                : @"
+                    * {
+                        background-color: #FFFFFF;
+                        color: #212121;
+                    }
+                    menu, menuitem, .menu, .menuitem {
+                        background-color: #FFFFFF;
+                        color: #212121;
+                    }
+                    menuitem:hover, .menuitem:hover {
+                        background-color: #E0E0E0;
+                    }
+                    separator {
+                        background-color: #E0E0E0;
+                    }
+                ";
+
+            // Create CSS provider and apply to the screen
+            IntPtr cssProvider = GtkNative.gtk_css_provider_new();
+            if (cssProvider != IntPtr.Zero)
+            {
+                GtkNative.gtk_css_provider_load_from_data(cssProvider, css, -1, IntPtr.Zero);
+
+                IntPtr screen = GtkNative.gtk_widget_get_screen(menu);
+                if (screen == IntPtr.Zero)
+                {
+                    screen = GtkNative.gdk_screen_get_default();
+                }
+
+                if (screen != IntPtr.Zero)
+                {
+                    GtkNative.gtk_style_context_add_provider_for_screen(screen, cssProvider, GtkNative.GTK_STYLE_PROVIDER_PRIORITY_USER);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GtkContextMenuService] Error applying menu theme: {ex.Message}");
+        }
     }
 }

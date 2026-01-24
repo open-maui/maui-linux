@@ -310,12 +310,19 @@ public class LinuxApplication : IDisposable
                     Console.WriteLine("[LinuxApplication] Set initial UserAppTheme to Light based on system theme");
                 }
 
+                // Initialize GTK theme service and apply initial CSS
+                GtkThemeService.ApplyTheme();
+
                 // Handle user-initiated theme changes
                 ((BindableObject)mauiApplication).PropertyChanged += (s, e) =>
                 {
                     if (e.PropertyName == "UserAppTheme")
                     {
                         Console.WriteLine($"[LinuxApplication] User theme changed to: {mauiApplication.UserAppTheme}");
+
+                        // Apply GTK CSS for dialogs, menus, and window decorations
+                        GtkThemeService.ApplyTheme();
+
                         LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
 
                         // Force re-render the entire page to pick up theme changes

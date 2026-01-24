@@ -63,8 +63,10 @@ public static class LinuxDialogService
 
     public static void DrawDialogsOnly(SKCanvas canvas, SKRect bounds)
     {
+        Console.WriteLine($"[LinuxDialogService] DrawDialogsOnly: {_activeDialogs.Count} dialogs, IsDarkMode={SkiaTheme.IsDarkMode}");
         foreach (var dialog in _activeDialogs)
         {
+            Console.WriteLine($"[LinuxDialogService] Drawing dialog: IsVisible={dialog.IsVisible}, Opacity={dialog.Opacity}");
             dialog.Measure(new Size(bounds.Width, bounds.Height));
             dialog.Arrange(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
             dialog.Draw(canvas);

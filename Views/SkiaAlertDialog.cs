@@ -22,17 +22,17 @@ public class SkiaAlertDialog : SkiaView
     private bool _cancelHovered;
     private bool _acceptHovered;
 
-    // Dialog styling - using SkiaTheme for MAUI-compliant theming
-    private static readonly SKColor OverlayColor = SkiaTheme.Overlay50SK;
-    private static readonly SKColor DialogBackground = SkiaTheme.BackgroundWhiteSK;
-    private static readonly SKColor TitleColor = SkiaTheme.TextPrimarySK;
-    private static readonly SKColor MessageColor = SkiaTheme.TextSecondarySK;
-    private static readonly SKColor ButtonColor = SkiaTheme.PrimarySK;
-    private static readonly SKColor ButtonHoverColor = SkiaTheme.PrimaryDarkSK;
-    private static readonly SKColor ButtonTextColor = SkiaTheme.BackgroundWhiteSK;
-    private static readonly SKColor CancelButtonColor = SkiaTheme.ButtonCancelSK;
-    private static readonly SKColor CancelButtonHoverColor = SkiaTheme.ButtonCancelHoverSK;
-    private static readonly SKColor BorderColor = SkiaTheme.BorderLightSK;
+    // Dialog styling - theme-aware colors (evaluated at draw time)
+    private static SKColor OverlayColor => SkiaTheme.Overlay50SK;
+    private static SKColor DialogBackground => SkiaTheme.CurrentSurfaceSK;
+    private static SKColor TitleColor => SkiaTheme.CurrentTextSK;
+    private static SKColor MessageColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray400SK : SkiaTheme.TextSecondarySK;
+    private static SKColor ButtonColor => SkiaTheme.PrimarySK;
+    private static SKColor ButtonHoverColor => SkiaTheme.PrimaryDarkSK;
+    private static SKColor ButtonTextColor => SKColors.White;
+    private static SKColor CancelButtonColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray600SK : SkiaTheme.ButtonCancelSK;
+    private static SKColor CancelButtonHoverColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray700SK : SkiaTheme.ButtonCancelHoverSK;
+    private static SKColor BorderColor => SkiaTheme.CurrentBorderSK;
 
     private const float DialogWidth = 400;
     private const float DialogPadding = 24;
@@ -61,6 +61,9 @@ public class SkiaAlertDialog : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        var app = Application.Current;
+        Console.WriteLine($"[SkiaAlertDialog] OnDraw: app={app != null}, UserAppTheme={app?.UserAppTheme}, RequestedTheme={app?.RequestedTheme}, IsDarkMode={SkiaTheme.IsDarkMode}, DialogBg={DialogBackground}");
+
         // Draw semi-transparent overlay covering entire screen
         using var overlayPaint = new SKPaint
         {

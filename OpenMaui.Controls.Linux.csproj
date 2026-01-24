@@ -55,6 +55,11 @@
     <None Include="assets/icon.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
+  <!-- Include build targets in package - auto-imports when package is referenced -->
+  <ItemGroup>
+    <None Include="build\OpenMaui.Controls.Linux.targets" Pack="true" PackagePath="build\OpenMaui.Controls.Linux.targets" />
+  </ItemGroup>
+
   <!-- Exclude old handler files, samples, templates, and VSIX -->
   <ItemGroup>
     <Compile Remove="Handlers/*.Linux.cs" />

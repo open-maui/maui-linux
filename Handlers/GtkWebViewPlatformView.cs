@@ -154,6 +154,9 @@ public sealed class GtkWebViewPlatformView : IDisposable
                 };
                 GtkNative.gtk_window_set_title(gtkDialog, title);
 
+                // Apply theme-aware CSS styling based on app's current theme
+                ApplyDialogTheme(gtkDialog);
+
                 // Make dialog modal to parent if we have a parent
                 if (parentWindow != IntPtr.Zero)
                 {
@@ -210,6 +213,9 @@ public sealed class GtkWebViewPlatformView : IDisposable
                 Console.WriteLine("[GtkWebViewPlatformView] Failed to create prompt dialog");
                 return false;
             }
+
+            // Apply theme-aware CSS styling
+            ApplyDialogTheme(gtkDialog);
 
             // Get the content area
             IntPtr contentArea = GtkNative.gtk_dialog_get_content_area(gtkDialog);
@@ -274,6 +280,134 @@ public sealed class GtkWebViewPlatformView : IDisposable
         {
             Console.WriteLine($"[GtkWebViewPlatformView] Error in HandlePromptDialog: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Applies theme-aware CSS styling to a GTK dialog based on the app's current theme.
+    /// </summary>
+    private void ApplyDialogTheme(IntPtr gtkDialog)
+    {
+        try
+        {
+            // Check the app's current theme (not the system theme)
+            bool isDark = Microsoft.Maui.Controls.Application.Current?.UserAppTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
+
+            // If UserAppTheme is Unspecified, fall back to RequestedTheme
+            if (Microsoft.Maui.Controls.Application.Current?.UserAppTheme == Microsoft.Maui.ApplicationModel.AppTheme.Unspecified)
+            {
+                isDark = Microsoft.Maui.Controls.Application.Current?.RequestedTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
+            }
+
+            Console.WriteLine($"[GtkWebViewPlatformView] ApplyDialogTheme: isDark={isDark}, UserAppTheme={Microsoft.Maui.Controls.Application.Current?.UserAppTheme}");
+
+            // Create comprehensive CSS based on the theme - targeting all dialog elements
+            string css = isDark
+                ? @"
+                    * {
+                        background-color: #303030;
+                        color: #E0E0E0;
+                    }
+                    window, dialog, messagedialog, .background {
+                        background-color: #303030;
+                        color: #E0E0E0;
+                    }
+                    headerbar, headerbar *, .titlebar, .titlebar * {
+                        background-color: #252525;
+                        background-image: none;
+                        color: #E0E0E0;
+                        border-color: #404040;
+                        box-shadow: none;
+                    }
+                    headerbar button, .titlebar button {
+                        background-color: #353535;
+                        background-image: none;
+                        color: #E0E0E0;
+                    }
+                    .dialog-action-area, .dialog-action-box, actionbar {
+                        background-color: #303030;
+                    }
+                    label, .message-dialog-message, .message-dialog-secondary-message {
+                        color: #E0E0E0;
+                    }
+                    button {
+                        background-image: none;
+                        background-color: #505050;
+                        color: #E0E0E0;
+                        border-color: #606060;
+                    }
+                    button:hover {
+                        background-color: #606060;
+                    }
+                    entry {
+                        background-color: #404040;
+                        color: #E0E0E0;
+                    }
+                "
+                : @"
+                    * {
+                        background-color: #FFFFFF;
+                        color: #212121;
+                    }
+                    window, dialog, messagedialog, .background {
+                        background-color: #FFFFFF;
+                        color: #212121;
+                    }
+                    headerbar, headerbar *, .titlebar, .titlebar * {
+                        background-color: #F5F5F5;
+                        background-image: none;
+                        color: #212121;
+                        border-color: #E0E0E0;
+                        box-shadow: none;
+                    }
+                    headerbar button, .titlebar button {
+                        background-color: #EBEBEB;
+                        background-image: none;
+                        color: #212121;
+                    }
+                    .dialog-action-area, .dialog-action-box, actionbar {
+                        background-color: #FFFFFF;
+                    }
+                    label, .message-dialog-message, .message-dialog-secondary-message {
+                        color: #212121;
+                    }
+                    button {
+                        background-image: none;
+                        background-color: #F5F5F5;
+                        color: #212121;
+                        border-color: #E0E0E0;
+                    }
+                    button:hover {
+                        background-color: #E0E0E0;
+                    }
+                    entry {
+                        background-color: #FFFFFF;
+                        color: #212121;
+                    }
+                ";
+
+            // Create CSS provider and apply to the screen so all child widgets inherit it
+            IntPtr cssProvider = GtkNative.gtk_css_provider_new();
+            if (cssProvider != IntPtr.Zero)
+            {
+                GtkNative.gtk_css_provider_load_from_data(cssProvider, css, -1, IntPtr.Zero);
+
+                // Get the screen from the dialog and apply CSS to entire screen for this dialog
+                IntPtr screen = GtkNative.gtk_widget_get_screen(gtkDialog);
+                if (screen == IntPtr.Zero)
+                {
+                    screen = GtkNative.gdk_screen_get_default();
+                }
+
+                if (screen != IntPtr.Zero)
+                {
+                    GtkNative.gtk_style_context_add_provider_for_screen(screen, cssProvider, GtkNative.GTK_STYLE_PROVIDER_PRIORITY_USER);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GtkWebViewPlatformView] Error applying dialog theme: {ex.Message}");
         }
     }
 

@@ -322,8 +322,23 @@ public static class SkiaTheme
 
     /// <summary>
     /// Returns true if dark mode is currently active.
+    /// Checks UserAppTheme first, falls back to system RequestedTheme.
     /// </summary>
-    public static bool IsDarkMode => Application.Current?.UserAppTheme == AppTheme.Dark;
+    public static bool IsDarkMode
+    {
+        get
+        {
+            var app = Application.Current;
+            if (app == null) return false;
+
+            // If user explicitly set a theme, use that
+            if (app.UserAppTheme != AppTheme.Unspecified)
+                return app.UserAppTheme == AppTheme.Dark;
+
+            // Otherwise use system theme
+            return app.RequestedTheme == AppTheme.Dark;
+        }
+    }
 
     /// <summary>
     /// Gets the appropriate button background color for the current theme.
