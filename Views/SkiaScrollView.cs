@@ -295,12 +295,36 @@ public class SkiaScrollView : SkiaView
             var contentDesired = _content.Measure(availableSize);
             ContentSize = new SKSize((float)contentDesired.Width, (float)contentDesired.Height);
 
-            // Apply content's margin
+            // Apply content's margin and arrange based on scroll orientation
             var margin = _content.Margin;
             var contentLeft = bounds.Left + (float)margin.Left;
             var contentTop = bounds.Top + (float)margin.Top;
-            var contentWidth = Math.Max(bounds.Width, (float)_content.DesiredSize.Width) - (float)margin.Left - (float)margin.Right;
-            var contentHeight = Math.Max(bounds.Height, (float)_content.DesiredSize.Height) - (float)margin.Top - (float)margin.Bottom;
+
+            // Content dimensions depend on scroll orientation
+            float contentWidth, contentHeight;
+            switch (Orientation)
+            {
+                case ScrollOrientation.Horizontal:
+                    contentWidth = Math.Max(bounds.Width, (float)_content.DesiredSize.Width);
+                    contentHeight = bounds.Height;
+                    break;
+                case ScrollOrientation.Neither:
+                    contentWidth = bounds.Width;
+                    contentHeight = bounds.Height;
+                    break;
+                case ScrollOrientation.Both:
+                    contentWidth = Math.Max(bounds.Width, (float)_content.DesiredSize.Width);
+                    contentHeight = Math.Max(bounds.Height, (float)_content.DesiredSize.Height);
+                    break;
+                case ScrollOrientation.Vertical:
+                default:
+                    contentWidth = bounds.Width;
+                    contentHeight = Math.Max(bounds.Height, (float)_content.DesiredSize.Height);
+                    break;
+            }
+
+            contentWidth -= (float)margin.Left + (float)margin.Right;
+            contentHeight -= (float)margin.Top + (float)margin.Bottom;
             var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
             _content.Arrange(contentBounds);
 
@@ -858,12 +882,41 @@ public class SkiaScrollView : SkiaView
 
         if (_content != null)
         {
-            // Apply content's margin and arrange content at its full size
+            // Apply content's margin and arrange content based on scroll orientation
             var margin = _content.Margin;
             var contentLeft = (float)actualBounds.Left + (float)margin.Left;
             var contentTop = (float)actualBounds.Top + (float)margin.Top;
-            var contentWidth = Math.Max((float)actualBounds.Width, ContentSize.Width) - (float)margin.Left - (float)margin.Right;
-            var contentHeight = Math.Max((float)actualBounds.Height, ContentSize.Height) - (float)margin.Top - (float)margin.Bottom;
+
+            // Content dimensions depend on scroll orientation:
+            // - Vertical: width constrained to viewport, height can expand
+            // - Horizontal: width can expand, height constrained to viewport
+            // - Both: both can expand
+            // - Neither: both constrained to viewport
+            float contentWidth, contentHeight;
+            switch (Orientation)
+            {
+                case ScrollOrientation.Horizontal:
+                    contentWidth = Math.Max((float)actualBounds.Width, ContentSize.Width);
+                    contentHeight = (float)actualBounds.Height;
+                    break;
+                case ScrollOrientation.Neither:
+                    contentWidth = (float)actualBounds.Width;
+                    contentHeight = (float)actualBounds.Height;
+                    break;
+                case ScrollOrientation.Both:
+                    contentWidth = Math.Max((float)actualBounds.Width, ContentSize.Width);
+                    contentHeight = Math.Max((float)actualBounds.Height, ContentSize.Height);
+                    break;
+                case ScrollOrientation.Vertical:
+                default:
+                    // Vertical scroll: constrain width to viewport, allow height to expand
+                    contentWidth = (float)actualBounds.Width;
+                    contentHeight = Math.Max((float)actualBounds.Height, ContentSize.Height);
+                    break;
+            }
+
+            contentWidth -= (float)margin.Left + (float)margin.Right;
+            contentHeight -= (float)margin.Top + (float)margin.Bottom;
             var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
 
             _content.Arrange(contentBounds);

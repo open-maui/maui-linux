@@ -361,7 +361,11 @@ public class SkiaStackLayout : SkiaLayoutView
         float maxWidth = 0;
         float maxHeight = 0;
 
-        var childAvailable = new Size(contentWidth, contentHeight);
+        // For stack layouts, give children infinite size in the stacking direction
+        // so they can measure to their natural size
+        var childAvailable = Orientation == StackOrientation.Horizontal
+            ? new Size(double.PositiveInfinity, contentHeight)  // Horizontal: infinite width, constrained height
+            : new Size(contentWidth, double.PositiveInfinity);  // Vertical: constrained width, infinite height
 
         foreach (var child in Children)
         {
@@ -447,11 +451,9 @@ public class SkiaStackLayout : SkiaLayoutView
             }
             else
             {
-                // For ScrollView children, give them the remaining viewport width
-                var remainingWidth = Math.Max(0, contentWidth - offset);
-                var useWidth = child is SkiaScrollView
-                    ? remainingWidth
-                    : Math.Min(childWidth, remainingWidth > 0 ? remainingWidth : childWidth);
+                // Horizontal stack: give each child its measured width
+                // Don't constrain - let content overflow if needed (parent clips)
+                var useWidth = childWidth;
 
                 // Respect child's VerticalOptions for horizontal layouts
                 var useHeight = Math.Min(childHeight, contentHeight);

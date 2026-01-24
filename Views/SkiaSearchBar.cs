@@ -109,7 +109,8 @@ public class SkiaSearchBar : SkiaView
             BackgroundColor = Colors.Transparent,
             BorderColor = Colors.Transparent,
             FocusedBorderColor = Colors.Transparent,
-            BorderWidth = 0
+            BorderWidth = 0,
+            VerticalTextAlignment = TextAlignment.Center
         };
 
         _entry.TextChanged += (s, e) =>

@@ -921,7 +921,14 @@ public class SkiaEditor : SkiaView, IInputContext
                 Color = GetEffectivePlaceholderColor(),
                 IsAntialias = true
             };
-            canvas.DrawText(Placeholder, contentRect.Left, contentRect.Top + fontSize, placeholderPaint);
+            // Handle multiline placeholder text by splitting on newlines
+            var placeholderLines = Placeholder.Split('\n');
+            var y = contentRect.Top + fontSize;
+            foreach (var line in placeholderLines)
+            {
+                canvas.DrawText(line, contentRect.Left, y, placeholderPaint);
+                y += lineSpacing;
+            }
         }
         else
         {

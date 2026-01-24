@@ -536,11 +536,32 @@ public class SkiaButton : SkiaView, IButtonController
 
     #region Drawing
 
+    /// <summary>
+    /// Override to prevent base class from drawing rectangular background.
+    /// Button draws its own rounded background in OnDraw.
+    /// </summary>
+    protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
+    {
+        // Don't draw anything - OnDraw handles the rounded background
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // BackgroundColor is inherited from SkiaView as MAUI Color - convert to SKColor for rendering
         var bgColor = GetEffectiveBackgroundColor();
-        bool hasBackground = bgColor.Alpha > 0;
+
+        // Check if BackgroundColor was explicitly set (even if set to transparent)
+        // This distinguishes "no background specified" from "explicitly transparent"
+        bool hasExplicitBackground = BackgroundColor != null;
+
+        // If no background color is set, use a default button background (like other MAUI platforms)
+        // This ensures buttons are visible even without explicit styling
+        if (!hasExplicitBackground)
+        {
+            bgColor = SkiaTheme.Gray200SK; // Default button background
+        }
+
+        bool hasBackground = hasExplicitBackground ? bgColor.Alpha > 0 : true;
 
         // Determine current state color
         SKColor currentBgColor;
@@ -570,6 +591,10 @@ public class SkiaButton : SkiaView, IButtonController
         }
 
         var roundRect = new SKRoundRect(bounds, cornerRadius);
+
+        // Clip to rounded rectangle to prevent background bleeding in corners
+        canvas.Save();
+        canvas.ClipRoundRect(roundRect, antialias: true);
 
         // Draw background
         if (currentBgColor.Alpha > 0)
@@ -612,17 +637,26 @@ public class SkiaButton : SkiaView, IButtonController
         }
 
         // Draw content (text and/or image)
-        DrawContent(canvas, bounds);
+        DrawContent(canvas, bounds, hasExplicitBackground);
+
+        // Restore canvas state (undo clipping)
+        canvas.Restore();
     }
 
-    private void DrawContent(SKCanvas canvas, SKRect bounds)
+    private void DrawContent(SKCanvas canvas, SKRect bounds, bool hasExplicitBackground)
     {
         var padding = Padding;
+        // Handle NaN padding (default to 14, 10)
+        float padLeft = float.IsNaN((float)padding.Left) ? 14f : (float)padding.Left;
+        float padTop = float.IsNaN((float)padding.Top) ? 10f : (float)padding.Top;
+        float padRight = float.IsNaN((float)padding.Right) ? 14f : (float)padding.Right;
+        float padBottom = float.IsNaN((float)padding.Bottom) ? 10f : (float)padding.Bottom;
+
         var contentBounds = new SKRect(
-            bounds.Left + (float)padding.Left,
-            bounds.Top + (float)padding.Top,
-            bounds.Right - (float)padding.Right,
-            bounds.Bottom - (float)padding.Bottom);
+            bounds.Left + padLeft,
+            bounds.Top + padTop,
+            bounds.Right - padRight,
+            bounds.Bottom - padBottom);
 
         // Prepare font
         bool isBold = FontAttributes.HasFlag(FontAttributes.Bold);
@@ -640,8 +674,24 @@ public class SkiaButton : SkiaView, IButtonController
             SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 
-        // Prepare text color (null means use platform default: white for buttons)
-        var textColor = TextColor != null ? ToSKColor(TextColor) : SkiaTheme.BackgroundWhiteSK;
+        // Prepare text color
+        // If TextColor is set, use it; otherwise use a sensible default based on background
+        SKColor textColor;
+        if (TextColor != null)
+        {
+            textColor = ToSKColor(TextColor);
+        }
+        else if (hasExplicitBackground)
+        {
+            // Explicit background but no text color - use white (common for colored buttons)
+            textColor = SkiaTheme.BackgroundWhiteSK;
+        }
+        else
+        {
+            // Default button (gray background) - use dark text for contrast
+            textColor = SkiaTheme.Gray800SK;
+        }
+
         if (!IsEnabled)
         {
             textColor = textColor.WithAlpha(128);
@@ -945,6 +995,11 @@ public class SkiaButton : SkiaView, IButtonController
         var padding = Padding;
         float paddingH = (float)(padding.Left + padding.Right);
         float paddingV = (float)(padding.Top + padding.Bottom);
+
+        // Handle NaN padding (can happen with style resolution issues)
+        if (float.IsNaN(paddingH)) paddingH = 28f; // Default: 14 + 14
+        if (float.IsNaN(paddingV)) paddingV = 20f; // Default: 10 + 10
+
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
         // Prepare font for measurement
@@ -978,7 +1033,9 @@ public class SkiaButton : SkiaView, IButtonController
             {
                 textWidth += (float)(CharacterSpacing * (displayText.Length - 1));
             }
-            textHeight = textBounds.Height;
+            // Use font metrics for proper line height (ascent is negative)
+            var metrics = font.Metrics;
+            textHeight = metrics.Descent - metrics.Ascent;
         }
 
         float imageWidth = 0, imageHeight = 0;
@@ -1037,7 +1094,10 @@ public class SkiaButton : SkiaView, IButtonController
             height = (float)HeightRequest;
         }
 
-        return new Size(Math.Max(width, 44f), Math.Max(height, 30f));
+        var result = new Size(Math.Max(width, 44f), Math.Max(height, 36f));
+        if (Text == "Round")
+            Console.WriteLine($"[SkiaButton.Measure] Text='Round' WReq={WidthRequest} HReq={HeightRequest} width={width:F1} height={height:F1} result={result.Width:F0}x{result.Height:F0}");
+        return result;
     }
 
     #endregion
