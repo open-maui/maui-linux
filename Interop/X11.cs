@@ -89,6 +89,9 @@ internal static partial class X11
     public static partial int XStoreName(IntPtr display, IntPtr window, string windowName);
 
     [LibraryImport(LibX11)]
+    public static partial int XSetClassHint(IntPtr display, IntPtr window, ref XClassHint classHint);
+
+    [LibraryImport(LibX11)]
     public static partial int XRaiseWindow(IntPtr display, IntPtr window);
 
     [LibraryImport(LibX11)]

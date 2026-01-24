@@ -265,6 +265,18 @@ public class LinuxApplication : IDisposable
             Console.WriteLine("[LinuxApplication] GTK pre-initialized for WebView support");
         }
 
+        // Set application name for desktop integration (taskbar, etc.)
+        // Try to get the name from environment or use executable name
+        string? appName = Environment.GetEnvironmentVariable("APPIMAGE_NAME");
+        if (string.IsNullOrEmpty(appName))
+        {
+            appName = Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MauiApp");
+        }
+        string prgName = appName.Replace(" ", "");
+        GtkNative.g_set_prgname(prgName);
+        GtkNative.g_set_application_name(appName);
+        Console.WriteLine($"[LinuxApplication] Set application name: {appName} (prgname: {prgName})");
+
         // Initialize dispatcher
         LinuxDispatcher.Initialize();
         DispatcherProvider.SetCurrent(LinuxDispatcherProvider.Instance);

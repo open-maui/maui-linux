@@ -150,6 +150,9 @@ public class X11Window : IDisposable
         // Set window title
         X11.XStoreName(_display, _window, title);
 
+        // Set WM_CLASS for desktop integration (taskbar icon matching)
+        SetWMClass(title.Replace(" ", ""), title.Replace(" ", ""));
+
         // Select input events
         X11.XSelectInput(_display, _window,
             XEventMask.KeyPressMask |
@@ -193,6 +196,37 @@ public class X11Window : IDisposable
                 X11.XDefineCursor(_display, _window, _currentCursor);
                 X11.XFlush(_display);
             }
+        }
+    }
+
+    /// <summary>
+    /// Sets the WM_CLASS property for desktop integration.
+    /// This allows the desktop to match the window to its .desktop file.
+    /// </summary>
+    public void SetWMClass(string resName, string resClass)
+    {
+        IntPtr namePtr = IntPtr.Zero;
+        IntPtr classPtr = IntPtr.Zero;
+        try
+        {
+            namePtr = System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(resName);
+            classPtr = System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(resClass);
+
+            var classHint = new XClassHint
+            {
+                res_name = namePtr,
+                res_class = classPtr
+            };
+
+            X11.XSetClassHint(_display, _window, ref classHint);
+            Console.WriteLine($"[X11Window] Set WM_CLASS: {resName}, {resClass}");
+        }
+        finally
+        {
+            if (namePtr != IntPtr.Zero)
+                System.Runtime.InteropServices.Marshal.FreeHGlobal(namePtr);
+            if (classPtr != IntPtr.Zero)
+                System.Runtime.InteropServices.Marshal.FreeHGlobal(classPtr);
         }
     }
 

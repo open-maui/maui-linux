@@ -42,6 +42,12 @@ internal static class GtkNative
     [DllImport("libgtk-3.so.0")]
     public static extern void gtk_window_set_title(IntPtr window, string title);
 
+    [DllImport("libglib-2.0.so.0")]
+    public static extern void g_set_prgname(string name);
+
+    [DllImport("libglib-2.0.so.0")]
+    public static extern void g_set_application_name(string name);
+
     [DllImport("libgtk-3.so.0")]
     public static extern void gtk_window_set_default_size(IntPtr window, int width, int height);
 
