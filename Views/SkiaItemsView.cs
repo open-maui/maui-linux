@@ -149,10 +149,12 @@ public class SkiaItemsView : SkiaView
 
     /// <summary>
     /// Gets the height for a specific item, using cached height or default.
+    /// Always returns at least ItemHeight to allow vertical centering of smaller content.
     /// </summary>
     protected float GetItemHeight(int index)
     {
-        return _itemHeights.TryGetValue(index, out var height) ? height : _itemHeight;
+        var cached = _itemHeights.TryGetValue(index, out var height) ? height : _itemHeight;
+        return Math.Max(cached, _itemHeight);
     }
 
     /// <summary>

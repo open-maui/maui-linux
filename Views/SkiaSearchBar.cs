@@ -143,10 +143,16 @@ public class SkiaSearchBar : SkiaView
         float cornerRadius = (float)CornerRadius;
         float iconSize = (float)IconSize;
 
-        // Draw background
+        // Draw background - use theme-aware color if not explicitly set
+        var bgColor = SearchBarBackgroundColor.ToSKColor();
+        // If using default light color, check for dark mode
+        if (SearchBarBackgroundColor.Red > 0.9f && SearchBarBackgroundColor.Green > 0.9f && SearchBarBackgroundColor.Blue > 0.9f)
+        {
+            bgColor = SkiaTheme.InputBackgroundSK;
+        }
         using var bgPaint = new SKPaint
         {
-            Color = SearchBarBackgroundColor.ToSKColor(),
+            Color = bgColor,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };

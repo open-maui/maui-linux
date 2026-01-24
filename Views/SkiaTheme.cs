@@ -317,4 +317,43 @@ public static class SkiaTheme
     internal static readonly SKColor DarkHoverSK = DarkHover.ToSKColor();
 
     #endregion
+
+    #region Theme-Aware Helpers
+
+    /// <summary>
+    /// Returns true if dark mode is currently active.
+    /// </summary>
+    public static bool IsDarkMode => Application.Current?.UserAppTheme == AppTheme.Dark;
+
+    /// <summary>
+    /// Gets the appropriate button background color for the current theme.
+    /// </summary>
+    public static SKColor ButtonBackgroundSK => IsDarkMode ? DarkSurfaceSK : Gray200SK;
+
+    /// <summary>
+    /// Gets the appropriate text color for the current theme.
+    /// </summary>
+    public static SKColor CurrentTextSK => IsDarkMode ? DarkTextSK : TextPrimarySK;
+
+    /// <summary>
+    /// Gets the appropriate background color for input controls in the current theme.
+    /// </summary>
+    public static SKColor InputBackgroundSK => IsDarkMode ? DarkBackgroundSK : BackgroundWhiteSK;
+
+    /// <summary>
+    /// Gets the appropriate border color for the current theme.
+    /// </summary>
+    public static SKColor CurrentBorderSK => IsDarkMode ? Gray600SK : BorderLightSK;
+
+    /// <summary>
+    /// Gets the appropriate surface background for the current theme.
+    /// </summary>
+    public static SKColor CurrentSurfaceSK => IsDarkMode ? DarkSurfaceSK : BackgroundWhiteSK;
+
+    /// <summary>
+    /// Gets the appropriate page background for the current theme.
+    /// </summary>
+    public static SKColor CurrentPageBackgroundSK => IsDarkMode ? DarkBackgroundSK : BackgroundWhiteSK;
+
+    #endregion
 }

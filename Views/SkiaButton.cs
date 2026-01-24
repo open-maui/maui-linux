@@ -558,7 +558,7 @@ public class SkiaButton : SkiaView, IButtonController
         // This ensures buttons are visible even without explicit styling
         if (!hasExplicitBackground)
         {
-            bgColor = SkiaTheme.Gray200SK; // Default button background
+            bgColor = SkiaTheme.ButtonBackgroundSK; // Theme-aware default button background
         }
 
         bool hasBackground = hasExplicitBackground ? bgColor.Alpha > 0 : true;
@@ -688,8 +688,8 @@ public class SkiaButton : SkiaView, IButtonController
         }
         else
         {
-            // Default button (gray background) - use dark text for contrast
-            textColor = SkiaTheme.Gray800SK;
+            // Default button - use theme-appropriate text color for contrast
+            textColor = SkiaTheme.CurrentTextSK;
         }
 
         if (!IsEnabled)

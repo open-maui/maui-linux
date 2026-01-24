@@ -711,10 +711,6 @@ public class SkiaLabel : SkiaView
 
         if (needsMultiLine)
         {
-            var textBoundsDbg = new SKRect();
-            paint.MeasureText(displayText, ref textBoundsDbg);
-            if (displayText.StartsWith("Full XAML") || displayText.StartsWith("Shell nav"))
-                Console.WriteLine($"[Label OnDraw] '{displayText.Substring(0, Math.Min(15, displayText.Length))}' textW={textBoundsDbg.Width:F0} boundsW={contentBounds.Width:F0} LineBreakMode={LineBreakMode}");
             DrawMultiLineText(canvas, paint, font, contentBounds, displayText);
         }
         else
@@ -1126,6 +1122,15 @@ public class SkiaLabel : SkiaView
                 continue;
             }
 
+            // Check if the entire paragraph fits on one line - no need to wrap
+            // Use small tolerance to account for floating point precision
+            float paragraphWidth = paint.MeasureText(paragraph);
+            if (paragraphWidth <= maxWidth + 1.0f)
+            {
+                lines.Add(paragraph);
+                continue;
+            }
+
             if (LineBreakMode == LineBreakMode.CharacterWrap)
             {
                 WrapByCharacter(paragraph, paint, maxWidth, lines);
@@ -1236,9 +1241,11 @@ public class SkiaLabel : SkiaView
         }
         else
         {
+            // Use advance width (paint.MeasureText return value) not bounding box width
+            // This must match what WrapText uses for consistency
             var textBounds = new SKRect();
             paint.MeasureText(displayText, ref textBounds);
-            width = textBounds.Width;
+            width = paint.MeasureText(displayText);  // Advance width, not textBounds.Width
             height = textBounds.Height;
 
             // Account for character spacing

@@ -429,14 +429,19 @@ public class SkiaCollectionView : SkiaItemsView
                         rawHeight = ItemHeight;
                     }
 
-                    var measuredHeight = Math.Max(rawHeight, ItemHeight);
-                    if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1f)
+                    // Store the actual measured height for row sizing
+                    var cellHeight = Math.Max(rawHeight, ItemHeight);
+                    if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - cellHeight) > 1f)
                     {
-                        _itemHeights[index] = measuredHeight;
+                        _itemHeights[index] = cellHeight;
                         _heightsChangedDuringDraw = true;
                     }
 
-                    var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
+                    // Vertically center the content within the cell bounds
+                    // Use rawHeight (actual content height) for centering, not cellHeight
+                    var contentHeight = Math.Min(rawHeight, bounds.Height);
+                    var verticalOffset = Math.Max(0, (bounds.Height - contentHeight) / 2);
+                    var actualBounds = new SKRect(bounds.Left, bounds.Top + verticalOffset, bounds.Right, bounds.Top + verticalOffset + contentHeight);
                     itemView.Arrange(new Rect(actualBounds.Left, actualBounds.Top, actualBounds.Width, actualBounds.Height));
                     itemView.Draw(canvas);
 

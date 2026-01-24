@@ -141,16 +141,24 @@ public class SkiaPage : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Draw background color
+        // Draw background color - use theme-aware default if not set
+        SKColor bgColor;
         if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
-            using var bgPaint = new SKPaint
-            {
-                Color = GetEffectiveBackgroundColor(),
-                Style = SKPaintStyle.Fill
-            };
-            canvas.DrawRect(bounds, bgPaint);
+            bgColor = GetEffectiveBackgroundColor();
         }
+        else
+        {
+            // Use theme-aware page background when no explicit color is set
+            bgColor = SkiaTheme.CurrentPageBackgroundSK;
+        }
+
+        using var bgPaint = new SKPaint
+        {
+            Color = bgColor,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(bounds, bgPaint);
 
         // Draw background image if set
         if (BackgroundImage != null)

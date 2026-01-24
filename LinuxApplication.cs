@@ -761,12 +761,17 @@ public class LinuxApplication : IDisposable
         if (view is SkiaNavigationPage navPage && navPage.CurrentPage != null)
         {
             RefreshViewTheme(navPage.CurrentPage);
+            navPage.Invalidate(); // Force redraw of navigation page
         }
 
         // Special handling for ContentPage - it stores content in Content property
-        if (view is SkiaPage page && page.Content != null)
+        if (view is SkiaPage page)
         {
-            RefreshViewTheme(page.Content);
+            page.Invalidate(); // Force redraw to pick up theme-aware background
+            if (page.Content != null)
+            {
+                RefreshViewTheme(page.Content);
+            }
         }
 
         // Recursively process children

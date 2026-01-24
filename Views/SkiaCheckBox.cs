@@ -289,7 +289,10 @@ public class SkiaCheckBox : SkiaView
         // Get colors as SKColor
         var colorSK = ToSKColor(Color);
         var checkColorSK = ToSKColor(CheckColor);
-        var uncheckedBoxColorSK = ToSKColor(UncheckedBoxColor);
+        // Use theme-aware color for unchecked box if default white
+        var uncheckedBoxColorSK = UncheckedBoxColor == Colors.White
+            ? SkiaTheme.CurrentSurfaceSK
+            : ToSKColor(UncheckedBoxColor);
         var borderColorSK = ToSKColor(BorderColor);
         var disabledColorSK = ToSKColor(DisabledColor);
         var hoveredBorderColorSK = ToSKColor(HoveredBorderColor);
