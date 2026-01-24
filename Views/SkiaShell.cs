@@ -298,9 +298,14 @@ public class SkiaShell : SkiaLayoutView
     public float FlyoutHeaderHeight { get; set; } = 140f;
 
     /// <summary>
-    /// Optional footer text in the flyout.
+    /// Optional footer text in the flyout (fallback if no FlyoutFooterView).
     /// </summary>
     public string? FlyoutFooterText { get; set; }
+
+    /// <summary>
+    /// Optional footer view in the flyout.
+    /// </summary>
+    public SkiaView? FlyoutFooterView { get; set; }
 
     /// <summary>
     /// Height of the flyout footer.
@@ -972,9 +977,31 @@ public class SkiaShell : SkiaLayoutView
         };
         canvas.DrawRect(flyoutBounds, flyoutPaint);
 
-        // Draw flyout items
-        float itemY = flyoutBounds.Top + 80;
+        // Calculate header and footer heights
+        float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
+        float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
+                            (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
+
+        // Draw flyout header if present
+        if (FlyoutHeaderView != null)
+        {
+            var headerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Top, flyoutBounds.Right, flyoutBounds.Top + headerHeight);
+            FlyoutHeaderView.Measure(new Size(headerBounds.Width, headerBounds.Height));
+            FlyoutHeaderView.Arrange(new Rect(headerBounds.Left, headerBounds.Top, headerBounds.Width, headerBounds.Height));
+            FlyoutHeaderView.Draw(canvas);
+        }
+
+        // Draw flyout items with scrolling support
         float itemHeight = 48f;
+        float itemsAreaTop = flyoutBounds.Top + headerHeight;
+        float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
+
+        // Clip to items area (between header and footer)
+        canvas.Save();
+        canvas.ClipRect(new SKRect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Right, itemsAreaBottom));
+
+        // Apply scroll offset
+        float itemY = itemsAreaTop - _flyoutScrollOffset;
 
         using var itemTextPaint = new SKPaint
         {
@@ -986,6 +1013,17 @@ public class SkiaShell : SkiaLayoutView
         {
             var section = _sections[i];
             bool isSelected = i == _selectedSectionIndex;
+
+            // Skip items that are scrolled above the visible area
+            if (itemY + itemHeight < itemsAreaTop)
+            {
+                itemY += itemHeight;
+                continue;
+            }
+
+            // Stop if we're below the visible area
+            if (itemY > itemsAreaBottom)
+                break;
 
             // Draw selection background
             if (isSelected)
@@ -1003,6 +1041,29 @@ public class SkiaShell : SkiaLayoutView
             canvas.DrawText(section.Title, flyoutBounds.Left + 16, itemY + 30, itemTextPaint);
 
             itemY += itemHeight;
+        }
+
+        canvas.Restore();
+
+        // Draw flyout footer
+        if (FlyoutFooterView != null)
+        {
+            var footerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Bottom - footerHeight, flyoutBounds.Right, flyoutBounds.Bottom);
+            FlyoutFooterView.Measure(new Size(footerBounds.Width, footerBounds.Height));
+            FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerBounds.Height));
+            FlyoutFooterView.Draw(canvas);
+        }
+        else if (!string.IsNullOrEmpty(FlyoutFooterText))
+        {
+            // Fallback: draw simple text footer
+            using var footerPaint = new SKPaint
+            {
+                TextSize = 12f,
+                Color = _flyoutTextColorSK.WithAlpha(180),
+                IsAntialias = true
+            };
+            var footerY = flyoutBounds.Bottom - footerHeight / 2 + 4;
+            canvas.DrawText(FlyoutFooterText, flyoutBounds.Left + 16, footerY, footerPaint);
         }
     }
 
@@ -1062,20 +1123,33 @@ public class SkiaShell : SkiaLayoutView
 
             if (flyoutBounds.Contains(e.X, e.Y))
             {
-                // Check which section was tapped
-                float itemY = flyoutBounds.Top + 80;
-                float itemHeight = 48f;
+                // Calculate header and footer heights
+                float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
+                float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
+                                    (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
 
-                for (int i = 0; i < _sections.Count; i++)
+                float itemsAreaTop = flyoutBounds.Top + headerHeight;
+                float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
+
+                // Only check items if tap is in items area
+                if (e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)
                 {
-                    if (e.Y >= itemY && e.Y < itemY + itemHeight)
+                    // Apply scroll offset to find which item was tapped
+                    float itemY = itemsAreaTop - _flyoutScrollOffset;
+                    float itemHeight = 48f;
+
+                    for (int i = 0; i < _sections.Count; i++)
                     {
-                        NavigateToSection(i, 0);
-                        FlyoutIsPresented = false;
-                        e.Handled = true;
-                        return;
+                        if (e.Y >= itemY && e.Y < itemY + itemHeight)
+                        {
+                            NavigateToSection(i, 0);
+                            FlyoutIsPresented = false;
+                            _flyoutScrollOffset = 0; // Reset scroll when closing
+                            e.Handled = true;
+                            return;
+                        }
+                        itemY += itemHeight;
                     }
-                    itemY += itemHeight;
                 }
             }
             else if (FlyoutIsPresented)
@@ -1138,13 +1212,14 @@ public class SkiaShell : SkiaLayoutView
             if (flyoutBounds.Contains(e.X, e.Y))
             {
                 float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-                float footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f;
+                float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
+                                    (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
                 float itemHeight = 48f;
                 float totalItemsHeight = _sections.Count * itemHeight;
                 float viewableHeight = flyoutBounds.Height - headerHeight - footerHeight;
                 float maxScroll = Math.Max(0f, totalItemsHeight - viewableHeight);
 
-                _flyoutScrollOffset -= e.DeltaY * 30f;
+                _flyoutScrollOffset += e.DeltaY * 30f;
                 _flyoutScrollOffset = Math.Max(0f, Math.Min(_flyoutScrollOffset, maxScroll));
                 Invalidate();
                 e.Handled = true;

@@ -443,9 +443,30 @@ public class SkiaStackLayout : SkiaLayoutView
                     ? remainingHeight
                     : Math.Min(childHeight, remainingHeight > 0 ? remainingHeight : childHeight);
 
-                childBoundsLeft = content.Left;
+                // Respect child's HorizontalOptions for vertical layouts
+                var useWidth = Math.Min(childWidth, contentWidth);
+                float childLeft = content.Left;
+
+                var horizontalOptions = child.HorizontalOptions;
+                var alignmentValue = (int)horizontalOptions.Alignment;
+
+                // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
+                if (alignmentValue == 1) // Center
+                {
+                    childLeft = content.Left + (contentWidth - useWidth) / 2;
+                }
+                else if (alignmentValue == 2) // End
+                {
+                    childLeft = content.Left + contentWidth - useWidth;
+                }
+                else if (alignmentValue == 3) // Fill
+                {
+                    useWidth = contentWidth;
+                }
+
+                childBoundsLeft = childLeft;
                 childBoundsTop = content.Top + offset;
-                childBoundsWidth = contentWidth;
+                childBoundsWidth = useWidth;
                 childBoundsHeight = useHeight;
                 offset += useHeight + (float)Spacing;
             }

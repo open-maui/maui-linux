@@ -24,6 +24,8 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
         [nameof(IView.Background)] = MapBackground,
         ["Width"] = MapWidth,
         ["Height"] = MapHeight,
+        ["HorizontalOptions"] = MapHorizontalOptions,
+        ["VerticalOptions"] = MapVerticalOptions,
     };
 
     public static CommandMapper<IImage, ImageHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -145,6 +147,26 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
         else if (image.Height > 0)
         {
             handler.PlatformView.HeightRequest = image.Height;
+        }
+    }
+
+    public static void MapHorizontalOptions(ImageHandler handler, IImage image)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (image is Image img)
+        {
+            handler.PlatformView.HorizontalOptions = img.HorizontalOptions;
+        }
+    }
+
+    public static void MapVerticalOptions(ImageHandler handler, IImage image)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (image is Image img)
+        {
+            handler.PlatformView.VerticalOptions = img.VerticalOptions;
         }
     }
 

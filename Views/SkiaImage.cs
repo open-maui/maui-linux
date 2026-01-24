@@ -461,6 +461,23 @@ public class SkiaImage : SkiaView
 
         try
         {
+            // First try to load from embedded resources (MAUI standard pattern)
+            // MAUI converts SVG to PNG at build time, referenced as .png in XAML
+            var (stream, actualExtension) = TryLoadFromEmbeddedResource(filePath);
+            if (stream != null)
+            {
+                _isSvg = actualExtension.Equals(".svg", StringComparison.OrdinalIgnoreCase);
+                _currentFilePath = filePath;
+                _cacheKey = $"embedded:{filePath}";
+
+                using (stream)
+                {
+                    await LoadFromStreamWithCacheAsync(stream, _cacheKey);
+                }
+                return;
+            }
+
+            // Fall back to file system
             List<string> searchPaths = new List<string>
             {
                 filePath,
@@ -469,7 +486,8 @@ public class SkiaImage : SkiaView
                 Path.Combine(AppContext.BaseDirectory, "Resources", filePath)
             };
 
-            // Also try SVG if looking for PNG
+            // Also try SVG if looking for PNG (MAUI converts SVG to PNG at build time,
+            // but on Linux we load SVG directly)
             if (filePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
             {
                 string svgPath = Path.ChangeExtension(filePath, ".svg");
@@ -495,6 +513,7 @@ public class SkiaImage : SkiaView
                 _isSvg = false;
                 _currentFilePath = null;
                 _cacheKey = null;
+                Console.WriteLine($"[SkiaImage] File not found: {filePath}");
                 ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
                 return;
             }
@@ -1152,6 +1171,174 @@ public class SkiaImage : SkiaView
             _image?.Dispose();
         }
         base.Dispose(disposing);
+    }
+
+    /// <summary>
+    /// Tries to load an image from embedded resources.
+    /// Follows MAUI convention: XAML references .png, but source can be .svg
+    /// </summary>
+    private static (Stream? stream, string extension) TryLoadFromEmbeddedResource(string filePath)
+    {
+        // Get the file name without path
+        string fileName = Path.GetFileName(filePath);
+        string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+        string requestedExt = Path.GetExtension(fileName);
+
+        // Search all loaded assemblies for the resource
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
+            .ToList();
+
+        // Also include entry assembly
+        var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+        if (entryAssembly != null && !assemblies.Contains(entryAssembly))
+        {
+            assemblies.Insert(0, entryAssembly);
+        }
+
+        foreach (var assembly in assemblies)
+        {
+            try
+            {
+                var resourceNames = assembly.GetManifestResourceNames();
+
+                // Try exact match first
+                foreach (var resourceName in resourceNames)
+                {
+                    if (resourceName.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var stream = assembly.GetManifestResourceStream(resourceName);
+                        if (stream != null)
+                        {
+                            Console.WriteLine($"[SkiaImage] Loaded embedded resource: {resourceName}");
+                            return (stream, requestedExt);
+                        }
+                    }
+                }
+
+                // If looking for .png, also try .svg (MAUI pattern)
+                if (requestedExt.Equals(".png", StringComparison.OrdinalIgnoreCase))
+                {
+                    string svgFileName = fileNameWithoutExt + ".svg";
+                    foreach (var resourceName in resourceNames)
+                    {
+                        if (resourceName.EndsWith(svgFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var stream = assembly.GetManifestResourceStream(resourceName);
+                            if (stream != null)
+                            {
+                                Console.WriteLine($"[SkiaImage] Loaded SVG as PNG substitute: {resourceName}");
+                                return (stream, ".svg");
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Skip assemblies that can't be inspected
+            }
+        }
+
+        return (null, string.Empty);
+    }
+
+    /// <summary>
+    /// Loads image from stream with caching support.
+    /// </summary>
+    private async Task LoadFromStreamWithCacheAsync(Stream stream, string cacheKey)
+    {
+        // Check cache first
+        if (_imageCache.TryGetValue(cacheKey, out var cached))
+        {
+            cached.LastAccessed = DateTime.UtcNow;
+            if (cached.IsAnimated && cached.Frames != null)
+            {
+                _isAnimatedImage = true;
+                _animationFrames = cached.Frames;
+                _currentFrameIndex = 0;
+                if (cached.Frames.Count > 0 && cached.Frames[0].Bitmap != null)
+                {
+                    _image?.Dispose();
+                    _image = SKImage.FromBitmap(cached.Frames[0].Bitmap);
+                }
+                if (IsAnimationPlaying)
+                {
+                    StartAnimation();
+                }
+            }
+            else if (cached.Bitmap != null)
+            {
+                _isAnimatedImage = false;
+                _bitmap = cached.Bitmap;
+                _image?.Dispose();
+                _image = SKImage.FromBitmap(cached.Bitmap);
+            }
+            _isLoading = false;
+            ImageLoaded?.Invoke(this, EventArgs.Empty);
+            Invalidate();
+            return;
+        }
+
+        // Load from stream
+        using var memoryStream = new MemoryStream();
+        await stream.CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+
+        if (_isSvg)
+        {
+            // Load SVG using Svg.Skia
+            await Task.Run(() =>
+            {
+                using var svg = new SKSvg();
+                svg.Load(memoryStream);
+
+                if (svg.Picture != null)
+                {
+                    var cullRect = svg.Picture.CullRect;
+                    int width = (int)(WidthRequest > 0 ? WidthRequest : cullRect.Width);
+                    int height = (int)(HeightRequest > 0 ? HeightRequest : cullRect.Height);
+
+                    if (width <= 0) width = 64;
+                    if (height <= 0) height = 64;
+
+                    float scale = Math.Min(width / cullRect.Width, height / cullRect.Height);
+                    int bitmapWidth = Math.Max(1, (int)(cullRect.Width * scale));
+                    int bitmapHeight = Math.Max(1, (int)(cullRect.Height * scale));
+
+                    var bitmap = new SKBitmap(bitmapWidth, bitmapHeight, false);
+                    using var canvas = new SKCanvas(bitmap);
+                    canvas.Clear(SKColors.Transparent);
+                    canvas.Scale(scale);
+                    // Translate to handle negative viewBox coordinates
+                    canvas.Translate(-cullRect.Left, -cullRect.Top);
+                    canvas.DrawPicture(svg.Picture, null);
+
+                    CacheAndSetBitmap(cacheKey, bitmap, false);
+                }
+            });
+        }
+        else
+        {
+            // Load raster image
+            memoryStream.Position = 0;
+            await Task.Run(() =>
+            {
+                using var codec = SKCodec.Create(memoryStream);
+                if (codec != null)
+                {
+                    var bitmap = SKBitmap.Decode(codec, codec.Info);
+                    if (bitmap != null)
+                    {
+                        CacheAndSetBitmap(cacheKey, bitmap, false);
+                    }
+                }
+            });
+        }
+
+        _isLoading = false;
+        ImageLoaded?.Invoke(this, EventArgs.Empty);
+        Invalidate();
     }
 }
 

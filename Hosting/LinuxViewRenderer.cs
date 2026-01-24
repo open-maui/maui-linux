@@ -201,9 +201,22 @@ public class LinuxViewRenderer
             }
         }
 
-        // Set flyout footer with version info
-        var version = Assembly.GetEntryAssembly()?.GetName().Version;
-        skiaShell.FlyoutFooterText = $"Version {version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
+        // Render flyout footer if present, otherwise use version text
+        if (shell.FlyoutFooter is View footerView)
+        {
+            var skiaFooter = RenderView(footerView);
+            if (skiaFooter != null)
+            {
+                skiaShell.FlyoutFooterView = skiaFooter;
+                skiaShell.FlyoutFooterHeight = (float)(footerView.HeightRequest > 0 ? footerView.HeightRequest : 40.0);
+            }
+        }
+        else
+        {
+            // Fallback: use assembly version as footer text
+            var version = Assembly.GetEntryAssembly()?.GetName().Version;
+            skiaShell.FlyoutFooterText = $"Version {version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
+        }
 
         // Process shell items into sections
         foreach (var item in shell.Items)
