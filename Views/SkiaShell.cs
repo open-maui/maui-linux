@@ -500,7 +500,9 @@ public class SkiaShell : SkiaLayoutView
                 }
             }
         }
-        if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
+        // Only update current content if there are no pushed pages on the navigation stack
+        // Pushed pages are handled separately by LinuxApplication.RefreshViewTheme
+        if (_navigationStack.Count == 0 && _selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
         {
             var section = _sections[_selectedSectionIndex];
             if (_selectedItemIndex >= 0 && _selectedItemIndex < section.Items.Count)

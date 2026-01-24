@@ -49,6 +49,10 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
     protected override void ConnectHandler(SkiaPage platformView)
     {
         base.ConnectHandler(platformView);
+
+        // Set MauiPage reference for theme refresh support
+        platformView.MauiPage = VirtualView;
+
         platformView.Appearing += OnAppearing;
         platformView.Disappearing += OnDisappearing;
     }
@@ -57,6 +61,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
     {
         platformView.Appearing -= OnAppearing;
         platformView.Disappearing -= OnDisappearing;
+        platformView.MauiPage = null;
         base.DisconnectHandler(platformView);
     }
 

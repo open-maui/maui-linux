@@ -90,29 +90,19 @@ public class LinuxViewRenderer
 
         try
         {
-            // Render the page content
-            SkiaView? pageContent = null;
-            if (page is ContentPage contentPage && contentPage.Content != null)
-            {
-                pageContent = CurrentRenderer.RenderView(contentPage.Content);
-            }
+            // Render the page through the proper handler system
+            // This ensures all properties (including BackgroundColor via AppThemeBinding) are mapped
+            var skiaPage = CurrentRenderer.RenderPage(page);
 
-            if (pageContent == null)
+            if (skiaPage == null)
             {
-                Console.WriteLine($"[PushPage] Failed to render page content");
+                Console.WriteLine($"[PushPage] Failed to render page through handler");
                 return false;
             }
 
-            // Wrap in ScrollView if needed
-            if (pageContent is not SkiaScrollView)
-            {
-                var scrollView = new SkiaScrollView { Content = pageContent };
-                pageContent = scrollView;
-            }
-
             // Push onto SkiaShell's navigation stack
-            CurrentSkiaShell.PushAsync(pageContent, page.Title ?? "Detail");
-            Console.WriteLine($"[PushPage] Successfully pushed page");
+            CurrentSkiaShell.PushAsync(skiaPage, page.Title ?? "Detail");
+            Console.WriteLine($"[PushPage] Successfully pushed page via handler system");
             return true;
         }
         catch (Exception ex)

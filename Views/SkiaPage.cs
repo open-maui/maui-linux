@@ -26,6 +26,11 @@ public class SkiaPage : SkiaView
     private float _paddingRight;
     private float _paddingBottom;
 
+    /// <summary>
+    /// Reference to the MAUI Page for handler access during theme refresh.
+    /// </summary>
+    public Microsoft.Maui.Controls.Page? MauiPage { get; set; }
+
     public SkiaView? Content
     {
         get => _content;
@@ -141,7 +146,8 @@ public class SkiaPage : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Draw background color - use theme-aware default if not set
+        // Use BackgroundColor if explicitly set (including via AppThemeBinding),
+        // otherwise fall back to theme-aware default
         SKColor bgColor;
         if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
@@ -149,7 +155,7 @@ public class SkiaPage : SkiaView
         }
         else
         {
-            // Use theme-aware page background when no explicit color is set
+            // No explicit background - use theme-aware default
             bgColor = SkiaTheme.CurrentPageBackgroundSK;
         }
 

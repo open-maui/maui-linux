@@ -764,9 +764,25 @@ public class LinuxApplication : IDisposable
             navPage.Invalidate(); // Force redraw of navigation page
         }
 
-        // Special handling for ContentPage - it stores content in Content property
+        // Special handling for SkiaPage - refresh via MauiPage handler and process Content
         if (view is SkiaPage page)
         {
+            // Refresh page properties via handler if MauiPage is set
+            var pageHandler = page.MauiPage?.Handler;
+            if (pageHandler != null)
+            {
+                try
+                {
+                    Console.WriteLine($"[LinuxApplication] Refreshing page theme: {page.MauiPage?.GetType().Name}");
+                    pageHandler.UpdateValue(nameof(IView.Background));
+                    pageHandler.UpdateValue("BackgroundColor");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[LinuxApplication] Error refreshing page theme: {ex.Message}");
+                }
+            }
+
             page.Invalidate(); // Force redraw to pick up theme-aware background
             if (page.Content != null)
             {
