@@ -23,7 +23,7 @@ jobs:
       - name: Get version from tag
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${GITEA_REF#refs/tags/v}
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
@@ -50,8 +50,8 @@ jobs:
         run: |
           for pkg in ./nupkg/*.nupkg; do
             dotnet nuget push "$pkg" \
-              --api-key ${{ secrets.GITHUB_TOKEN }} \
-              --source https://git.marketally.com/api/packages/${{ github.repository_owner }}/nuget/index.json \
+              --api-key ${{ secrets.GITEATOKEN }} \
+              --source https://git.marketally.com/api/packages/${{ gitea.repository_owner }}/nuget/index.json \
               --skip-duplicate
           done
 
