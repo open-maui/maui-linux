@@ -2,8 +2,6 @@
 name: Release
 
 on:
-  release:
-    types: [published]
   push:
     tags:
       - 'v*'
@@ -23,7 +21,8 @@ jobs:
       - name: Get version from tag
         id: version
         run: |
-          VERSION=${GITEA_REF#refs/tags/v}
+          TAG="${{ gitea.ref_name }}"
+          VERSION="${TAG#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
