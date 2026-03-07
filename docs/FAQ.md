@@ -304,4 +304,4 @@ jobs:
 
 ---
 
-*Developed by [MarketAlly LLC](https://marketally.com) • Lead Architect: David H. Friedel Jr.*
+*Developed by [MarketAlly Pte Ltd](https://marketally.com) • Lead Architect: David H. Friedel Jr.*
