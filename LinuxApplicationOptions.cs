@@ -20,4 +20,15 @@ public class LinuxApplicationOptions
     public string? IconPath { get; set; }
 
     public bool UseGtk { get; set; }
+
+    // Gesture configuration
+    public double SwipeMinDistance { get; set; } = 50.0;
+    public double SwipeMaxTime { get; set; } = 500.0;
+    public double SwipeDirectionThreshold { get; set; } = 0.5;
+    public double PanMinDistance { get; set; } = 10.0;
+    public double PinchScrollScale { get; set; } = 0.1;
+
+    // Rendering configuration
+    public int MaxDirtyRegions { get; set; } = 32;
+    public float RegionMergeThreshold { get; set; } = 0.3f;
 }

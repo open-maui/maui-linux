@@ -238,6 +238,17 @@ public partial class LinuxApplication : IDisposable
     /// </summary>
     public void Initialize(LinuxApplicationOptions options)
     {
+        // Apply gesture configuration
+        Handlers.GestureManager.SwipeMinDistance = options.SwipeMinDistance;
+        Handlers.GestureManager.SwipeMaxTime = options.SwipeMaxTime;
+        Handlers.GestureManager.SwipeDirectionThreshold = options.SwipeDirectionThreshold;
+        Handlers.GestureManager.PanMinDistance = options.PanMinDistance;
+        Handlers.GestureManager.PinchScrollScale = options.PinchScrollScale;
+
+        // Apply rendering configuration
+        SkiaRenderingEngine.MaxDirtyRegions = options.MaxDirtyRegions;
+        SkiaRenderingEngine.RegionMergeThreshold = options.RegionMergeThreshold;
+
         _useGtk = options.UseGtk;
         if (_useGtk)
         {
