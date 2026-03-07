@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0] - 2026-03-06
+Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 9.0.x targets .NET 9 / MAUI 9).
+
+## [9.0.0] - 2026-03-06
+
+> Version realigned from 1.0.0 to match .NET 9 / MAUI 9.0.x versioning.
 
 ### Added
 - 35+ Skia-rendered controls: Button, Label, Entry, Editor, CheckBox, Switch, RadioButton, Slider, Stepper, Picker, DatePicker, TimePicker, SearchBar, Image, ImageButton, ProgressBar, ActivityIndicator, BoxView, Border, Frame, ScrollView, CollectionView, CarouselView, IndicatorView, SwipeView, RefreshView, GraphicsView, WebView, MenuBar
@@ -25,11 +29,20 @@ All notable changes to this project will be documented in this file.
 - DiagnosticLog centralized logging infrastructure (conditional on DEBUG builds)
 - Configurable gesture thresholds (SwipeMinDistance, SwipeMaxTime, etc.)
 - Exception-safe rendering pipeline
+- SafeHandle wrappers for native interop (GTK, X11, GObject)
+- Performance benchmarks for rendering pipeline (541 passing tests)
+- Threading model and DI migration documentation
 
 ### Fixed
+- Native resource leaks: GTK signal disconnection, X11 cursor freeing, CSS provider unref, WebKit dlclose
+- 27 empty catch blocks replaced with DiagnosticLog for debuggability
 - GestureManager memory leak (view tracking dictionaries now cleaned up on dispose)
 - Text binding recursion guard in EntryHandler
 - Rendering pipeline crash protection (exceptions in view Draw no longer crash the app)
+
+## [1.0.0] - 2026-03-06 [DEPRECATED]
+
+> Superseded by 9.0.0. Identical codebase, version renumbered to align with .NET/MAUI versioning.
 
 ## [1.0.0-rc.1] - 2026-02-01
 

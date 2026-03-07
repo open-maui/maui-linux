@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>9.0.0</PackageVersion>
     <PackageId>OpenMaui.Linux.Templates</PackageId>
     <Title>OpenMaui Linux Project Templates</Title>
-    <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
-    <Company>MarketAlly LLC</Company>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
     <Description>Project templates for building .NET MAUI applications on Linux desktop using OpenMaui.
 
 Templates included:
@@ -15,7 +15,7 @@ Templates included:
     <PackageTags>dotnet-new;templates;maui;linux;desktop;openmaui;xaml</PackageTags>
     <PackageProjectUrl>https://git.marketally.com/open-maui/maui-linux</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Copyright 2025-2026 MarketAlly LLC</Copyright>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
 
     <TargetFramework>netstandard2.0</TargetFramework>
 
