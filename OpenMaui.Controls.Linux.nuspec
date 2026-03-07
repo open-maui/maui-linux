@@ -2,10 +2,10 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>OpenMaui.Controls.Linux</id>
-    <version>1.0.0</version>
+    <version>9.0.0</version>
     <title>OpenMaui Linux Controls</title>
-    <authors>MarketAlly LLC, David H. Friedel Jr.</authors>
-    <owners>MarketAlly LLC</owners>
+    <authors>MarketAlly Pte Ltd, David H. Friedel Jr.</authors>
+    <owners>MarketAlly Pte Ltd</owners>
     <license type="expression">MIT</license>
     <projectUrl>https://git.marketally.com/open-maui/maui-linux</projectUrl>
     <iconUrl>https://git.marketally.com/open-maui/maui-linux/raw/branch/main/assets/icon.png</iconUrl>
@@ -21,12 +21,12 @@ Features:
 - Accessibility support (AT-SPI2, High Contrast)
 - HiDPI and Input Method support
 
-Developed by MarketAlly LLC. Lead Architect: David H. Friedel Jr.
+Developed by MarketAlly Pte Ltd. Lead Architect: David H. Friedel Jr.
     </description>
     <releaseNotes>
-1.0: 100% .NET MAUI API compliance - all public APIs use MAUI types (Color, Rect, Size, Thickness, double). Full XAML support with BindableProperty for all controls, Visual State Manager integration, data binding, and XAML styles. Core SkiaSharp-based rendering engine, X11 window management with full input handling, 35+ control implementations, 18 platform services, accessibility support. 217 passing tests.
+9.0: Version aligned with .NET 9 / MAUI 9. 100% .NET MAUI API compliance - all public APIs use MAUI types. Full XAML support, SkiaSharp rendering, X11 window management, 35+ controls, 18 platform services, accessibility support. 541 passing tests. Previously released as 1.0.0.
     </releaseNotes>
-    <copyright>Copyright 2025-2026 MarketAlly LLC</copyright>
+    <copyright>Copyright 2025-2026 MarketAlly Pte Ltd</copyright>
     <tags>maui linux desktop skia gui cross-platform dotnet openmaui</tags>
     <repository type="git" url="https://git.marketally.com/open-maui/maui-linux.git" />
     <dependencies>

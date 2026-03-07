@@ -136,8 +136,8 @@ Ensure WSLg is enabled (Windows 11) or configure X server (Windows 10)
 
 ## License
 
-MIT License - Copyright (c) 2025 MarketAlly LLC
+MIT License - Copyright (c) 2025 MarketAlly Pte Ltd
 
 ---
 
-*Developed by MarketAlly LLC • Lead Architect: David H. Friedel Jr.*
+*Developed by MarketAlly Pte Ltd • Lead Architect: David H. Friedel Jr.*

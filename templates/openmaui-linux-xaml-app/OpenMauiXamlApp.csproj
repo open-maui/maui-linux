@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <!-- OpenMaui Linux Platform -->
-    <PackageReference Include="OpenMaui.Controls.Linux" Version="1.0.*" />
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="9.0.*" />
 
     <!-- Core MAUI packages (includes XAML support) -->
     <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.*" />
