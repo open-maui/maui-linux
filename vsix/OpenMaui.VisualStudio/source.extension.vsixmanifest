@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="OpenMaui.VisualStudio.a1b2c3d4-e5f6-7890-abcd-ef1234567890" Version="1.0.0" Language="en-US" Publisher="MarketAlly LLC" />
+    <Identity Id="OpenMaui.VisualStudio.a1b2c3d4-e5f6-7890-abcd-ef1234567890" Version="1.0.0" Language="en-US" Publisher="MarketAlly Pte Ltd" />
     <DisplayName>OpenMaui - Linux Platform for .NET MAUI</DisplayName>
     <Description xml:space="preserve">Adds Linux platform support to .NET MAUI projects in Visual Studio. Build and deploy MAUI applications to Linux desktops with full SkiaSharp rendering support.
 
@@ -12,7 +12,7 @@ Features:
 • Remote Linux debugging
 • Linux-specific launch profiles
 
-Developed by MarketAlly LLC
+Developed by MarketAlly Pte Ltd
 Lead Architect: David H. Friedel Jr.</Description>
     <MoreInfo>https://github.com/open-maui/maui-linux</MoreInfo>
     <License>LICENSE.txt</License>

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "MarketAlly LLC",
+  "author": "MarketAlly Pte Ltd",
   "classifications": ["MAUI", "Linux", "Desktop", "App", "OpenMaui", "XAML"],
   "identity": "OpenMaui.Linux.XamlApp",
   "name": "OpenMaui Linux XAML Application",
