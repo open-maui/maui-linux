@@ -3,7 +3,7 @@
 ## Goal
 Achieve Release Candidate 1 with full XAML support, data binding, and stable controls.
 
-> **Status: All phases completed. Released as v1.0.0.**
+> **Status: All phases completed. Released as v1.0.0 (now v9.0.0, aligned with .NET 9/MAUI 9).**
 
 ---
 
