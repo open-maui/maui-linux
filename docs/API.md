@@ -9,7 +9,7 @@ The OpenMaui Linux Platform provides native Linux desktop support for .NET MAUI 
 ### Installation
 
 ```bash
-dotnet add package OpenMaui.Controls.Linux --prerelease
+dotnet add package OpenMaui.Controls.Linux
 ```
 
 Or using the project template:

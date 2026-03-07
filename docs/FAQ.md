@@ -9,7 +9,7 @@ Unlike Android, iOS, and Windows which appear in Visual Studio's platform dropdo
 **Step 1: Add the NuGet Package**
 
 ```bash
-dotnet add package OpenMaui.Controls.Linux --prerelease
+dotnet add package OpenMaui.Controls.Linux
 ```
 
 Or in Visual Studio: Right-click project → Manage NuGet Packages → Search "OpenMaui.Controls.Linux"

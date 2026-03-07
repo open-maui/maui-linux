@@ -55,7 +55,7 @@ cd MyMauiLinuxApp
 
 2. Add the NuGet package:
 ```bash
-dotnet add package OpenMaui.Controls.Linux --prerelease
+dotnet add package OpenMaui.Controls.Linux
 ```
 
 3. Update your `Program.cs`:
