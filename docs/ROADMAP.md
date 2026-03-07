@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Version 1.0 (Current - Preview)
+## Version 1.0 (Released)
 
 ### Completed Features ✅
 
@@ -81,16 +81,15 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 |-----------|--------|--------|
 | v1.0.0-preview.1 | Q1 2025 | ✅ Released |
 | v1.0.0-preview.2 | Q1 2025 | ✅ Released |
-| v1.0.0 | Q2 2025 | 🚧 In Progress |
+| v1.0.0 | Q1 2026 | ✅ Released |
 | v1.1.0 | Q3 2025 | 📋 Planned |
 | v1.2.0 | Q4 2025 | 📋 Planned |
 
 ## Feedback
 
-- GitHub Issues: https://github.com/open-maui/maui-linux/issues
-- Discussions: https://github.com/open-maui/maui-linux/discussions
+- Issues: https://git.marketally.com/open-maui/maui-linux/issues
 
 ---
 
-*Last updated: January 2025*
-*Copyright 2025 MarketAlly LLC*
+*Last updated: March 2026*
+*Copyright 2025-2026 MarketAlly LLC*

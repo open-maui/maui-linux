@@ -40,7 +40,7 @@ dotnet run
 ### Manual Installation
 
 ```bash
-dotnet add package OpenMaui.Controls.Linux --prerelease
+dotnet add package OpenMaui.Controls.Linux
 ```
 
 ## XAML Support
@@ -275,7 +275,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 ## License
 
-Copyright (c) 2025 MarketAlly LLC. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2025-2026 MarketAlly LLC. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

@@ -1716,6 +1716,12 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
         {
             if (disposing)
             {
+                // Clean up gesture tracking to prevent memory leaks
+                if (MauiView != null)
+                {
+                    GestureManager.CleanupView(MauiView);
+                }
+
                 foreach (var child in _children)
                 {
                     child.Dispose();

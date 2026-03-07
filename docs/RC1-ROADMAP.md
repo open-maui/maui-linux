@@ -1,7 +1,9 @@
-# OpenMaui Linux - RC1 Roadmap
+# OpenMaui Linux - RC1 Roadmap (Completed)
 
 ## Goal
 Achieve Release Candidate 1 with full XAML support, data binding, and stable controls.
+
+> **Status: All phases completed. Released as v1.0.0.**
 
 ---
 
@@ -228,7 +230,8 @@ Achieve Release Candidate 1 with full XAML support, data binding, and stable con
 
 ## Version Target
 
-- Current: v1.0.0-preview.4
-- After Phase 1-2: v1.0.0-preview.5
-- After Phase 3-4: v1.0.0-preview.6
-- After Phase 5-6: v1.0.0-rc.1
+- ~~Current: v1.0.0-preview.4~~
+- ~~After Phase 1-2: v1.0.0-preview.5~~
+- ~~After Phase 3-4: v1.0.0-preview.6~~
+- ~~After Phase 5-6: v1.0.0-rc.1~~
+- **Released: v1.0.0**
