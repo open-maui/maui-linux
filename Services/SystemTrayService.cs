@@ -134,7 +134,7 @@ public class SystemTrayService : IDisposable
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { DiagnosticLog.Debug("SystemTrayService", "Tray output reading failed", ex); }
             });
 
             return Task.FromResult(true);

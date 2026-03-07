@@ -37,8 +37,9 @@ public class DeviceInfoService : IDeviceInfo
                     return result;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                DiagnosticLog.Debug("DeviceInfoService", "OS version parsing failed", ex);
             }
             return new Version(1, 0);
         }

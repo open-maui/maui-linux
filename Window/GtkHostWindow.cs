@@ -92,6 +92,11 @@ public sealed class GtkHostWindow : IDisposable
     private readonly ButtonEventDelegate _buttonPressHandler;
     private readonly ButtonEventDelegate _buttonReleaseHandler;
     private readonly MotionEventDelegate _motionHandler;
+    private ulong _deleteSignalId;
+    private ulong _configureSignalId;
+    private ulong _buttonPressSignalId;
+    private ulong _buttonReleaseSignalId;
+    private ulong _motionSignalId;
 
     public IntPtr Window => _window;
     public IntPtr Overlay => _overlay;
@@ -155,21 +160,16 @@ public sealed class GtkHostWindow : IDisposable
         _motionHandler = OnMotion;
 
         // Connect event handlers
-        ConnectSignal(_window, "delete-event", Marshal.GetFunctionPointerForDelegate(_deleteEventHandler));
-        ConnectSignal(_window, "configure-event", Marshal.GetFunctionPointerForDelegate(_configureEventHandler));
+        _deleteSignalId = GtkNative.g_signal_connect_data(_window, "delete-event", Marshal.GetFunctionPointerForDelegate(_deleteEventHandler), IntPtr.Zero, IntPtr.Zero, 0);
+        _configureSignalId = GtkNative.g_signal_connect_data(_window, "configure-event", Marshal.GetFunctionPointerForDelegate(_configureEventHandler), IntPtr.Zero, IntPtr.Zero, 0);
 
         // Add pointer event masks
         GtkNative.gtk_widget_add_events(_window, 772);
-        ConnectSignal(_window, "button-press-event", Marshal.GetFunctionPointerForDelegate(_buttonPressHandler));
-        ConnectSignal(_window, "button-release-event", Marshal.GetFunctionPointerForDelegate(_buttonReleaseHandler));
-        ConnectSignal(_window, "motion-notify-event", Marshal.GetFunctionPointerForDelegate(_motionHandler));
+        _buttonPressSignalId = GtkNative.g_signal_connect_data(_window, "button-press-event", Marshal.GetFunctionPointerForDelegate(_buttonPressHandler), IntPtr.Zero, IntPtr.Zero, 0);
+        _buttonReleaseSignalId = GtkNative.g_signal_connect_data(_window, "button-release-event", Marshal.GetFunctionPointerForDelegate(_buttonReleaseHandler), IntPtr.Zero, IntPtr.Zero, 0);
+        _motionSignalId = GtkNative.g_signal_connect_data(_window, "motion-notify-event", Marshal.GetFunctionPointerForDelegate(_motionHandler), IntPtr.Zero, IntPtr.Zero, 0);
 
         DiagnosticLog.Debug("GtkHostWindow", $"Created GTK window on X11: {width}x{height}");
-    }
-
-    private void ConnectSignal(IntPtr widget, string signal, IntPtr handler)
-    {
-        GtkNative.g_signal_connect_data(widget, signal, handler, IntPtr.Zero, IntPtr.Zero, 0);
     }
 
     private bool OnDeleteEvent(IntPtr widget, IntPtr eventData, IntPtr userData)
@@ -333,6 +333,17 @@ public sealed class GtkHostWindow : IDisposable
         if (!_disposed)
         {
             _disposed = true;
+
+            // Disconnect signal handlers before destroying the widget
+            if (_window != IntPtr.Zero)
+            {
+                if (_deleteSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _deleteSignalId);
+                if (_configureSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _configureSignalId);
+                if (_buttonPressSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _buttonPressSignalId);
+                if (_buttonReleaseSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _buttonReleaseSignalId);
+                if (_motionSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _motionSignalId);
+            }
+
             _skiaSurface?.Dispose();
             if (_window != IntPtr.Zero)
             {

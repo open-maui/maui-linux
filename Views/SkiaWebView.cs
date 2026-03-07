@@ -1083,7 +1083,7 @@ public class SkiaWebView : SkiaView
             var root = XDefaultRootWindow(_mainDisplay);
             XTranslateCoordinates(_mainDisplay, _mainWindow, root, 0, 0, out destX, out destY, out _);
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "X11 coordinate translation failed", ex); }
 
         int x = destX + (int)Bounds.Left;
         int y = destY + (int)Bounds.Top;
@@ -1113,7 +1113,7 @@ public class SkiaWebView : SkiaView
             IntPtr[] data = { wmStateAbove };
             XChangeProperty(_mainDisplay, window, wmState, atomType, 32, 0, data, 1);
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "Window state change failed", ex); }
     }
 
     private void EnableOverlayMode()
@@ -1174,7 +1174,7 @@ public class SkiaWebView : SkiaView
             var root = XDefaultRootWindow(_mainDisplay);
             XTranslateCoordinates(_mainDisplay, _mainWindow, root, 0, 0, out destX, out destY, out _);
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "X11 coordinate translation failed", ex); }
 
         // Track main window position changes
         bool mainWindowMoved = destX != _lastMainX || destY != _lastMainY;
@@ -1242,7 +1242,7 @@ public class SkiaWebView : SkiaView
             if (surface != IntPtr.Zero)
             {
                 try { return gdk4_x11_surface_get_xid(surface); }
-                catch { }
+                catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "GTK4 XID lookup failed", ex); }
             }
         }
         else
@@ -1251,7 +1251,7 @@ public class SkiaWebView : SkiaView
             if (gdkWindow != IntPtr.Zero)
             {
                 try { return gdk3_x11_window_get_xid(gdkWindow); }
-                catch { }
+                catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "GTK3 XID lookup failed", ex); }
             }
         }
 

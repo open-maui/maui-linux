@@ -646,7 +646,7 @@ public class SkiaShell : SkiaLayoutView
                     var value = Convert.ChangeType(param.Value, prop.PropertyType);
                     prop.SetValue(content, value);
                 }
-                catch { }
+                catch (Exception ex) { DiagnosticLog.Debug("SkiaShell", "Parameter type conversion failed", ex); }
             }
         }
     }

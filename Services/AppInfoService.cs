@@ -99,8 +99,9 @@ public class AppInfoService : IAppInfo
                     UseShellExecute = true
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                DiagnosticLog.Debug("AppInfoService", "Settings launch fallback failed", ex);
             }
         }
     }

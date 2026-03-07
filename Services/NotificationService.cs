@@ -61,7 +61,7 @@ public class NotificationService
             _dBusMonitor?.Dispose();
             _dBusMonitor = null;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "D-Bus monitor cleanup failed", ex); }
     }
 
     private async Task MonitorNotificationSignals()
@@ -155,7 +155,7 @@ public class NotificationService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "Action invoked processing failed", ex); }
     }
 
     private async Task ProcessNotificationClosed(StreamReader reader)
@@ -192,7 +192,7 @@ public class NotificationService
                     context?.Tag));
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "Notification closed processing failed", ex); }
     }
 
     /// <summary>
@@ -270,7 +270,7 @@ public class NotificationService
 
             _activeNotifications.TryRemove(notificationId, out _);
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "Notification cancel failed", ex); }
     }
 
     /// <summary>

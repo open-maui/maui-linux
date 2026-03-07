@@ -137,8 +137,9 @@ public class DeviceDisplayService : IDeviceDisplay
                 });
             }
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLog.Debug("DeviceDisplayService", "Display info refresh failed", ex);
         }
     }
 

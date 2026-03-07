@@ -92,6 +92,12 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
     private readonly ConfigureCallback _configureCallback;
     private ulong _drawSignalId;
     private ulong _configureSignalId;
+    private ulong _buttonPressSignalId;
+    private ulong _buttonReleaseSignalId;
+    private ulong _motionSignalId;
+    private ulong _keyPressSignalId;
+    private ulong _keyReleaseSignalId;
+    private ulong _scrollSignalId;
     private bool _isTransparent;
     private readonly ButtonEventCallback _buttonPressCallback;
     private readonly ButtonEventCallback _buttonReleaseCallback;
@@ -144,12 +150,12 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
         // Connect signals
         _drawSignalId = GtkNative.g_signal_connect_data(_widget, "draw", Marshal.GetFunctionPointerForDelegate(_drawCallback), IntPtr.Zero, IntPtr.Zero, 0);
         _configureSignalId = GtkNative.g_signal_connect_data(_widget, "configure-event", Marshal.GetFunctionPointerForDelegate(_configureCallback), IntPtr.Zero, IntPtr.Zero, 0);
-        GtkNative.g_signal_connect_data(_widget, "button-press-event", Marshal.GetFunctionPointerForDelegate(_buttonPressCallback), IntPtr.Zero, IntPtr.Zero, 0);
-        GtkNative.g_signal_connect_data(_widget, "button-release-event", Marshal.GetFunctionPointerForDelegate(_buttonReleaseCallback), IntPtr.Zero, IntPtr.Zero, 0);
-        GtkNative.g_signal_connect_data(_widget, "motion-notify-event", Marshal.GetFunctionPointerForDelegate(_motionCallback), IntPtr.Zero, IntPtr.Zero, 0);
-        GtkNative.g_signal_connect_data(_widget, "key-press-event", Marshal.GetFunctionPointerForDelegate(_keyPressCallback), IntPtr.Zero, IntPtr.Zero, 0);
-        GtkNative.g_signal_connect_data(_widget, "key-release-event", Marshal.GetFunctionPointerForDelegate(_keyReleaseCallback), IntPtr.Zero, IntPtr.Zero, 0);
-        GtkNative.g_signal_connect_data(_widget, "scroll-event", Marshal.GetFunctionPointerForDelegate(_scrollCallback), IntPtr.Zero, IntPtr.Zero, 0);
+        _buttonPressSignalId = GtkNative.g_signal_connect_data(_widget, "button-press-event", Marshal.GetFunctionPointerForDelegate(_buttonPressCallback), IntPtr.Zero, IntPtr.Zero, 0);
+        _buttonReleaseSignalId = GtkNative.g_signal_connect_data(_widget, "button-release-event", Marshal.GetFunctionPointerForDelegate(_buttonReleaseCallback), IntPtr.Zero, IntPtr.Zero, 0);
+        _motionSignalId = GtkNative.g_signal_connect_data(_widget, "motion-notify-event", Marshal.GetFunctionPointerForDelegate(_motionCallback), IntPtr.Zero, IntPtr.Zero, 0);
+        _keyPressSignalId = GtkNative.g_signal_connect_data(_widget, "key-press-event", Marshal.GetFunctionPointerForDelegate(_keyPressCallback), IntPtr.Zero, IntPtr.Zero, 0);
+        _keyReleaseSignalId = GtkNative.g_signal_connect_data(_widget, "key-release-event", Marshal.GetFunctionPointerForDelegate(_keyReleaseCallback), IntPtr.Zero, IntPtr.Zero, 0);
+        _scrollSignalId = GtkNative.g_signal_connect_data(_widget, "scroll-event", Marshal.GetFunctionPointerForDelegate(_scrollCallback), IntPtr.Zero, IntPtr.Zero, 0);
 
         DiagnosticLog.Debug("GtkSkiaSurfaceWidget", $"Created with size {width}x{height}");
     }
@@ -382,6 +388,19 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
 
     public void Dispose()
     {
+        // Disconnect all signal handlers before disposing
+        if (_widget != IntPtr.Zero)
+        {
+            if (_drawSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _drawSignalId);
+            if (_configureSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _configureSignalId);
+            if (_buttonPressSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _buttonPressSignalId);
+            if (_buttonReleaseSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _buttonReleaseSignalId);
+            if (_motionSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _motionSignalId);
+            if (_keyPressSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _keyPressSignalId);
+            if (_keyReleaseSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _keyReleaseSignalId);
+            if (_scrollSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _scrollSignalId);
+        }
+
         _canvas?.Dispose();
         _canvas = null;
 

@@ -129,8 +129,9 @@ public class ConnectivityService : IConnectivity, IDisposable
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                DiagnosticLog.Debug("ConnectivityService", "Gateway check failed", ex);
             }
             return false;
         }

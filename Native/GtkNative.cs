@@ -167,9 +167,23 @@ internal static class GtkNative
 
     public static uint IdleAdd(Func<bool> callback)
     {
-        GSourceFunc gSourceFunc = (IntPtr _) => callback();
-        _idleCallbacks.Add(gSourceFunc);
-        return IdleAdd(gSourceFunc, IntPtr.Zero);
+        GSourceFunc wrapper = null!;
+        wrapper = (IntPtr _) =>
+        {
+            bool result = callback();
+            if (!result)
+            {
+                _idleCallbacks.Remove(wrapper);
+            }
+            return result;
+        };
+        _idleCallbacks.Add(wrapper);
+        return IdleAdd(wrapper, IntPtr.Zero);
+    }
+
+    public static void ClearCallbacks()
+    {
+        _idleCallbacks.Clear();
     }
 
     [DllImport("libgtk-3.so.0")]

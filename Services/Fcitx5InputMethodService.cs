@@ -133,7 +133,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "Commit signal processing failed", ex); }
     }
 
     private async Task ProcessPreeditSignal(StreamReader reader)
@@ -160,7 +160,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "Preedit signal processing failed", ex); }
     }
 
     public void SetFocus(IInputContext? context)
@@ -284,7 +284,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
             _dBusMonitor?.Kill();
             _dBusMonitor?.Dispose();
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "D-Bus monitor cleanup failed", ex); }
 
         if (!string.IsNullOrEmpty(_inputContextPath))
         {

@@ -510,8 +510,9 @@ public static class GestureManager
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticLog.Debug("GestureManager", "PointerEventArgs creation failed", ex);
         }
         return null!;
     }

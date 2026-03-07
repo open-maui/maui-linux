@@ -51,6 +51,13 @@ public static class GtkThemeService
                 return;
             }
 
+            // Unreference previous CSS provider to prevent leak
+            if (_currentCssProvider != IntPtr.Zero)
+            {
+                GtkNative.g_object_unref(_currentCssProvider);
+                _currentCssProvider = IntPtr.Zero;
+            }
+
             // Create new CSS provider
             IntPtr newProvider = GtkNative.gtk_css_provider_new();
             if (newProvider == IntPtr.Zero)
@@ -63,6 +70,7 @@ public static class GtkThemeService
             if (!GtkNative.gtk_css_provider_load_from_data(newProvider, css, -1, IntPtr.Zero))
             {
                 DiagnosticLog.Error("GtkThemeService", "Failed to load CSS data");
+                GtkNative.g_object_unref(newProvider);
                 return;
             }
 

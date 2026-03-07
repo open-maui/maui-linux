@@ -631,6 +631,17 @@ public class X11Window : IDisposable
     {
         if (!_disposed)
         {
+            // Free cursor resources before closing the display
+            if (_display != IntPtr.Zero)
+            {
+                if (_arrowCursor != IntPtr.Zero) X11.XFreeCursor(_display, _arrowCursor);
+                if (_handCursor != IntPtr.Zero) X11.XFreeCursor(_display, _handCursor);
+                if (_textCursor != IntPtr.Zero) X11.XFreeCursor(_display, _textCursor);
+                _arrowCursor = IntPtr.Zero;
+                _handCursor = IntPtr.Zero;
+                _textCursor = IntPtr.Zero;
+            }
+
             if (_window != IntPtr.Zero)
             {
                 X11.XDestroyWindow(_display, _window);

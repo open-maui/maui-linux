@@ -464,7 +464,7 @@ public class HiDpiService
                 return textScale;
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("HiDpiService", "Font scale factor detection failed", ex); }
 
         return _scaleFactor;
     }

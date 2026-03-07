@@ -160,7 +160,7 @@ public class SystemThemeService
             if (output.ToLowerInvariant().Contains("dark"))
                 return SystemTheme.Dark;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "GNOME theme detection failed", ex); }
 
         return null;
     }
@@ -186,7 +186,7 @@ public class SystemThemeService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "KDE theme detection failed", ex); }
 
         return null;
     }
@@ -199,7 +199,7 @@ public class SystemThemeService
             if (output.ToLowerInvariant().Contains("dark"))
                 return SystemTheme.Dark;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "XFCE theme detection failed", ex); }
 
         return DetectGtkTheme();
     }
@@ -212,7 +212,7 @@ public class SystemThemeService
             if (output.ToLowerInvariant().Contains("dark"))
                 return SystemTheme.Dark;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "Cinnamon theme detection failed", ex); }
 
         return null;
     }
@@ -247,7 +247,7 @@ public class SystemThemeService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "GTK theme file read failed", ex); }
 
         return null;
     }
@@ -317,7 +317,7 @@ public class SystemThemeService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "KDE accent color parsing failed", ex); }
 
         return new SKColor(0x21, 0x96, 0xF3);
     }
@@ -373,7 +373,7 @@ public class SystemThemeService
                 _settingsWatcher.Changed += OnSettingsChanged;
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "Settings watcher setup failed", ex); }
     }
 
     private void SetupPolling()

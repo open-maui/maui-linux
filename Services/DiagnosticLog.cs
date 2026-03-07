@@ -44,6 +44,17 @@ public static class DiagnosticLog
     }
 
     /// <summary>
+    /// Logs a debug diagnostic message with exception details.
+    /// Only compiled in DEBUG builds.
+    /// </summary>
+    [Conditional("DEBUG")]
+    public static void Debug(string tag, string message, Exception ex)
+    {
+        if (IsEnabled)
+            System.Console.WriteLine($"[{tag}] {message}: {ex.Message}");
+    }
+
+    /// <summary>
     /// Logs an informational diagnostic message (always writes when enabled, not conditional on DEBUG).
     /// Use for important operational messages that should appear in release builds when logging is enabled.
     /// </summary>

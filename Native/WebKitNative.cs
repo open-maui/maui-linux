@@ -98,6 +98,8 @@ internal static class WebKitNative
 
     private static readonly Dictionary<IntPtr, LoadChangedCallback> _loadChangedCallbacks = new Dictionary<IntPtr, LoadChangedCallback>();
     private static readonly Dictionary<IntPtr, ScriptDialogCallback> _scriptDialogCallbacks = new Dictionary<IntPtr, ScriptDialogCallback>();
+    private static readonly Dictionary<IntPtr, ulong> _loadChangedSignalIds = new Dictionary<IntPtr, ulong>();
+    private static readonly Dictionary<IntPtr, ulong> _scriptDialogSignalIds = new Dictionary<IntPtr, ulong>();
 
     /// <summary>
     /// Event raised when a JavaScript dialog (alert, confirm, prompt) is requested.
@@ -116,7 +118,13 @@ internal static class WebKitNative
     private static extern IntPtr dlsym(IntPtr handle, string symbol);
 
     [DllImport("libdl.so.2")]
+    private static extern int dlclose(IntPtr handle);
+
+    [DllImport("libdl.so.2")]
     private static extern IntPtr dlerror();
+
+    [DllImport("libgobject-2.0.so.0")]
+    private static extern void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
 
     public static bool Initialize()
     {
@@ -302,11 +310,18 @@ internal static class WebKitNative
             return 0uL;
         }
         _loadChangedCallbacks[webView] = callback;
-        return _gSignalConnectData(webView, "load-changed", callback, IntPtr.Zero, IntPtr.Zero, 0);
+        ulong signalId = _gSignalConnectData(webView, "load-changed", callback, IntPtr.Zero, IntPtr.Zero, 0);
+        _loadChangedSignalIds[webView] = signalId;
+        return signalId;
     }
 
     public static void DisconnectLoadChanged(IntPtr webView)
     {
+        if (_loadChangedSignalIds.TryGetValue(webView, out ulong signalId) && signalId != 0)
+        {
+            g_signal_handler_disconnect(webView, signalId);
+            _loadChangedSignalIds.Remove(webView);
+        }
         _loadChangedCallbacks.Remove(webView);
     }
 
@@ -322,11 +337,18 @@ internal static class WebKitNative
             return 0uL;
         }
         _scriptDialogCallbacks[webView] = callback;
-        return _gSignalConnectData(webView, "script-dialog", callback, IntPtr.Zero, IntPtr.Zero, 0);
+        ulong signalId = _gSignalConnectData(webView, "script-dialog", callback, IntPtr.Zero, IntPtr.Zero, 0);
+        _scriptDialogSignalIds[webView] = signalId;
+        return signalId;
     }
 
     public static void DisconnectScriptDialog(IntPtr webView)
     {
+        if (_scriptDialogSignalIds.TryGetValue(webView, out ulong signalId) && signalId != 0)
+        {
+            g_signal_handler_disconnect(webView, signalId);
+            _scriptDialogSignalIds.Remove(webView);
+        }
         _scriptDialogCallbacks.Remove(webView);
     }
 
@@ -376,5 +398,30 @@ internal static class WebKitNative
     public static void SetScriptDialogPromptText(IntPtr dialog, string text)
     {
         _webkitScriptDialogPromptSetText?.Invoke(dialog, text);
+    }
+
+    /// <summary>
+    /// Cleans up native library handles. Call on application shutdown.
+    /// </summary>
+    public static void Cleanup()
+    {
+        _loadChangedCallbacks.Clear();
+        _scriptDialogCallbacks.Clear();
+        _loadChangedSignalIds.Clear();
+        _scriptDialogSignalIds.Clear();
+
+        if (_gobjectHandle != IntPtr.Zero)
+        {
+            dlclose(_gobjectHandle);
+            _gobjectHandle = IntPtr.Zero;
+        }
+
+        if (_handle != IntPtr.Zero)
+        {
+            dlclose(_handle);
+            _handle = IntPtr.Zero;
+        }
+
+        _initialized = false;
     }
 }
