@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Platform.Linux.Native;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Dispatching;
 
@@ -95,7 +96,7 @@ public class LinuxDispatcherTimer : IDispatcherTimer
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[LinuxDispatcherTimer] Error in Tick handler: " + ex.Message);
+                DiagnosticLog.Error("LinuxDispatcherTimer", "Error in Tick handler", ex);
             }
             if (_isRepeating && _isRunning)
             {

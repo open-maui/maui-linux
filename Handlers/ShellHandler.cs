@@ -5,6 +5,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -48,13 +49,13 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
     protected override SkiaShell CreatePlatformView()
     {
-        Console.WriteLine("[ShellHandler] CreatePlatformView - creating SkiaShell");
+        DiagnosticLog.Debug("ShellHandler", "CreatePlatformView - creating SkiaShell");
         return new SkiaShell();
     }
 
     protected override void ConnectHandler(SkiaShell platformView)
     {
-        Console.WriteLine("[ShellHandler] ConnectHandler - connecting to SkiaShell");
+        DiagnosticLog.Debug("ShellHandler", "ConnectHandler - connecting to SkiaShell");
         base.ConnectHandler(platformView);
         platformView.FlyoutIsPresentedChanged += OnFlyoutIsPresentedChanged;
         platformView.Navigated += OnNavigated;
@@ -116,20 +117,20 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
     private void OnShellNavigating(object? sender, ShellNavigatingEventArgs e)
     {
-        Console.WriteLine($"[ShellHandler] Shell Navigating to: {e.Target?.Location}");
+        DiagnosticLog.Debug("ShellHandler", $"Shell Navigating to: {e.Target?.Location}");
 
         // Route to platform view
         if (PlatformView != null && e.Target?.Location != null)
         {
             var route = e.Target.Location.ToString().TrimStart('/');
-            Console.WriteLine($"[ShellHandler] Routing to: {route}");
+            DiagnosticLog.Debug("ShellHandler", $"Routing to: {route}");
             PlatformView.GoToAsync(route);
         }
     }
 
     private void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
     {
-        Console.WriteLine($"[ShellHandler] Shell Navigated to: {e.Current?.Location}");
+        DiagnosticLog.Debug("ShellHandler", $"Shell Navigated to: {e.Current?.Location}");
     }
 
     private void SyncShellItems()
@@ -230,7 +231,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ShellHandler] Error rendering content: {ex.Message}");
+            DiagnosticLog.Error("ShellHandler", $"Error rendering content: {ex.Message}", ex);
         }
 
         return null;

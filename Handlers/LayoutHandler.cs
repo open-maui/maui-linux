@@ -4,6 +4,7 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -245,7 +246,7 @@ public partial class GridHandler : LayoutHandler
             // Don't call base - we handle children specially for Grid
             if (VirtualView is not IGridLayout gridLayout || MauiContext == null || platformView is not SkiaGrid grid) return;
 
-            Console.WriteLine($"[GridHandler] ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols");
+            DiagnosticLog.Debug("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols");
 
             // Explicitly map BackgroundColor since it may be set before handler creation
             if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
@@ -258,7 +259,7 @@ public partial class GridHandler : LayoutHandler
             {
                 var padding = paddable.Padding;
                 platformView.Padding = padding;
-                Console.WriteLine($"[GridHandler] Applied Padding: L={padding.Left}, T={padding.Top}, R={padding.Right}, B={padding.Bottom}");
+                DiagnosticLog.Debug("GridHandler", $"Applied Padding: L={padding.Left}, T={padding.Top}, R={padding.Right}, B={padding.Bottom}");
             }
 
             // Map row/column definitions first
@@ -271,7 +272,7 @@ public partial class GridHandler : LayoutHandler
                 var child = gridLayout[i];
                 if (child == null) continue;
 
-                Console.WriteLine($"[GridHandler] Processing child {i}: {child.GetType().Name}");
+                DiagnosticLog.Debug("GridHandler", $"Processing child {i}: {child.GetType().Name}");
 
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
@@ -289,21 +290,20 @@ public partial class GridHandler : LayoutHandler
                     columnSpan = Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiView);
                 }
 
-                Console.WriteLine($"[GridHandler] Child {i} at row={row}, col={column}, handler={child.Handler?.GetType().Name}");
+                DiagnosticLog.Debug("GridHandler", $"Child {i} at row={row}, col={column}, handler={child.Handler?.GetType().Name}");
 
                 // Add child's platform view to our grid
                 if (child.Handler?.PlatformView is SkiaView skiaChild)
                 {
                     grid.AddChild(skiaChild, row, column, rowSpan, columnSpan);
-                    Console.WriteLine($"[GridHandler] Added child {i} to grid");
+                    DiagnosticLog.Debug("GridHandler", $"Added child {i} to grid");
                 }
             }
-            Console.WriteLine($"[GridHandler] ConnectHandler complete");
+            DiagnosticLog.Debug("GridHandler", "ConnectHandler complete");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GridHandler] EXCEPTION in ConnectHandler: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"[GridHandler] Stack trace: {ex.StackTrace}");
+            DiagnosticLog.Error("GridHandler", $"EXCEPTION in ConnectHandler: {ex.GetType().Name}: {ex.Message}", ex);
             throw;
         }
     }

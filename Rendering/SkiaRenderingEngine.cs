@@ -5,6 +5,7 @@ using SkiaSharp;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Window;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.Maui.Platform.Linux.Rendering;
@@ -169,8 +170,16 @@ public class SkiaRenderingEngine : IDisposable
 
         // Measure and arrange
         var availableSize = new Size(Width, Height);
-        rootView.Measure(availableSize);
-        rootView.Arrange(new Rect(0, 0, Width, Height));
+        try
+        {
+            rootView.Measure(availableSize);
+            rootView.Arrange(new Rect(0, 0, Width, Height));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception during Measure/Arrange", ex);
+            return;
+        }
 
         // Determine what to redraw
         List<SKRect> regionsToRedraw;
@@ -199,16 +208,37 @@ public class SkiaRenderingEngine : IDisposable
         // Render dirty regions
         foreach (var region in regionsToRedraw)
         {
-            RenderRegion(rootView, region, isFullRedraw);
+            try
+            {
+                RenderRegion(rootView, region, isFullRedraw);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaRenderingEngine", $"Exception rendering region {region}", ex);
+            }
         }
 
         // Draw popup overlays (always on top, full redraw)
-        SkiaView.DrawPopupOverlays(_canvas);
+        try
+        {
+            SkiaView.DrawPopupOverlays(_canvas);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing popup overlays", ex);
+        }
 
         // Draw modal dialogs and context menus on top of everything
-        if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
+        try
         {
-            LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
+            if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
+            {
+                LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing dialogs", ex);
         }
 
         _canvas.Flush();
@@ -234,7 +264,14 @@ public class SkiaRenderingEngine : IDisposable
         _canvas.DrawRect(region, clearPaint);
 
         // Draw the view tree (views will naturally clip to their bounds)
-        rootView.Draw(_canvas);
+        try
+        {
+            rootView.Draw(_canvas);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception during view Draw", ex);
+        }
 
         _canvas.Restore();
     }

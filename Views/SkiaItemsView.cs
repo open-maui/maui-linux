@@ -5,6 +5,7 @@ using SkiaSharp;
 using System.Collections;
 using System.Collections.Specialized;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform;
 
@@ -114,7 +115,7 @@ public class SkiaItemsView : SkiaView
 
     protected virtual void RefreshItems()
     {
-        Console.WriteLine($"[SkiaItemsView] RefreshItems called, clearing {_items.Count} items and {_itemViewCache.Count} cached views");
+        DiagnosticLog.Debug("SkiaItemsView", $"RefreshItems called, clearing {_items.Count} items and {_itemViewCache.Count} cached views");
         _items.Clear();
         _itemViewCache.Clear(); // Clear cached views when items change
         _itemHeights.Clear(); // Clear cached heights
@@ -125,7 +126,7 @@ public class SkiaItemsView : SkiaView
                 _items.Add(item);
             }
         }
-        Console.WriteLine($"[SkiaItemsView] RefreshItems done, now have {_items.Count} items");
+        DiagnosticLog.Debug("SkiaItemsView", $"RefreshItems done, now have {_items.Count} items");
         _scrollOffset = 0;
     }
 
@@ -194,7 +195,7 @@ public class SkiaItemsView : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        Console.WriteLine($"[SkiaItemsView] OnDraw - bounds={bounds}, items={_items.Count}, ItemViewCreator={(ItemViewCreator != null ? "set" : "null")}");
+        DiagnosticLog.Debug("SkiaItemsView", $"OnDraw - bounds={bounds}, items={_items.Count}, ItemViewCreator={(ItemViewCreator != null ? "set" : "null")}");
 
         // Draw background
         if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
@@ -283,7 +284,7 @@ public class SkiaItemsView : SkiaView
         // Try to use ItemViewCreator for templated rendering
         if (ItemViewCreator != null)
         {
-            Console.WriteLine($"[SkiaItemsView] DrawItem {index} - ItemViewCreator exists, item: {item}");
+            DiagnosticLog.Debug("SkiaItemsView", $"DrawItem {index} - ItemViewCreator exists, item: {item}");
             // Get or create cached view for this index
             if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
             {
@@ -322,7 +323,7 @@ public class SkiaItemsView : SkiaView
         }
         else
         {
-            Console.WriteLine($"[SkiaItemsView] DrawItem {index} - ItemViewCreator is NULL, falling back to ToString");
+            DiagnosticLog.Debug("SkiaItemsView", $"DrawItem {index} - ItemViewCreator is NULL, falling back to ToString");
         }
 
         // Draw separator
@@ -424,7 +425,7 @@ public class SkiaItemsView : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaItemsView] OnPointerPressed - x={e.X}, y={e.Y}, Bounds={Bounds}, ScreenBounds={ScreenBounds}, ItemCount={_items.Count}");
+        DiagnosticLog.Debug("SkiaItemsView", $"OnPointerPressed - x={e.X}, y={e.Y}, Bounds={Bounds}, ScreenBounds={ScreenBounds}, ItemCount={_items.Count}");
         if (!IsEnabled) return;
 
         // Check if clicking on scrollbar thumb
@@ -537,7 +538,7 @@ public class SkiaItemsView : SkiaView
                     cumulativeY += itemH + _itemSpacing;
                 }
 
-                Console.WriteLine($"[SkiaItemsView] Tap at Y={e.Y}, screenBounds.Top={screenBounds.Top}, scrollOffset={_scrollOffset}, localY={localY}, index={tappedIndex}");
+                DiagnosticLog.Debug("SkiaItemsView", $"Tap at Y={e.Y}, screenBounds.Top={screenBounds.Top}, scrollOffset={_scrollOffset}, localY={localY}, index={tappedIndex}");
 
                 if (tappedIndex >= 0 && tappedIndex < _items.Count)
                 {

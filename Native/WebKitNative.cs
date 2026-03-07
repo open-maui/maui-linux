@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Native;
 
@@ -131,14 +132,14 @@ internal static class WebKitNative
             _handle = dlopen(text, 258);
             if (_handle != IntPtr.Zero)
             {
-                Console.WriteLine("[WebKitNative] Loaded " + text);
+                DiagnosticLog.Debug("WebKitNative", "Loaded " + text);
                 break;
             }
         }
 
         if (_handle == IntPtr.Zero)
         {
-            Console.WriteLine("[WebKitNative] Failed to load WebKitGTK library");
+            DiagnosticLog.Warn("WebKitNative", "Failed to load WebKitGTK library");
             return false;
         }
 
@@ -170,7 +171,7 @@ internal static class WebKitNative
             if (intPtr != IntPtr.Zero)
             {
                 _gSignalConnectData = Marshal.GetDelegateForFunctionPointer<GSignalConnectDataDelegate>(intPtr);
-                Console.WriteLine("[WebKitNative] Loaded g_signal_connect_data");
+                DiagnosticLog.Debug("WebKitNative", "Loaded g_signal_connect_data");
             }
         }
 
@@ -297,7 +298,7 @@ internal static class WebKitNative
     {
         if (_gSignalConnectData == null || webView == IntPtr.Zero)
         {
-            Console.WriteLine("[WebKitNative] Cannot connect load-changed: signal connect not available");
+            DiagnosticLog.Warn("WebKitNative", "Cannot connect load-changed: signal connect not available");
             return 0uL;
         }
         _loadChangedCallbacks[webView] = callback;
@@ -317,7 +318,7 @@ internal static class WebKitNative
     {
         if (_gSignalConnectData == null || webView == IntPtr.Zero)
         {
-            Console.WriteLine("[WebKitNative] Cannot connect script-dialog: signal connect not available");
+            DiagnosticLog.Warn("WebKitNative", "Cannot connect script-dialog: signal connect not available");
             return 0uL;
         }
         _scriptDialogCallbacks[webView] = callback;

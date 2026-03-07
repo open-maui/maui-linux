@@ -36,7 +36,7 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
             int result = atspi_init();
             if (result != 0)
             {
-                Console.WriteLine("AtSpi2AccessibilityService: Failed to initialize AT-SPI2");
+                DiagnosticLog.Error("AtSpi2AccessibilityService", "Failed to initialize AT-SPI2");
                 return;
             }
 
@@ -51,16 +51,16 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
                 // Register our application
                 RegisterApplication();
 
-                Console.WriteLine("AtSpi2AccessibilityService: Initialized successfully");
+                DiagnosticLog.Debug("AtSpi2AccessibilityService", "Initialized successfully");
             }
             else
             {
-                Console.WriteLine("AtSpi2AccessibilityService: Accessibility is not enabled");
+                DiagnosticLog.Warn("AtSpi2AccessibilityService", "Accessibility is not enabled");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"AtSpi2AccessibilityService: Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Initialization failed - {ex.Message}");
         }
     }
 
@@ -168,11 +168,11 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
             // or by emitting "object:announcement" events
 
             // For now, use a simpler approach with the event system
-            Console.WriteLine($"[Accessibility Announcement ({priority})]: {text}");
+            DiagnosticLog.Debug("AtSpi2AccessibilityService", $"Announcement ({priority}): {text}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"AtSpi2AccessibilityService: Announcement failed - {ex.Message}");
+            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Announcement failed - {ex.Message}");
         }
     }
 
@@ -182,7 +182,7 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
         // using the org.a11y.atspi.Event interface
 
         // For now, log the event for debugging
-        Console.WriteLine($"[AT-SPI2 Event] {eventName}: {accessible.AccessibleName} ({accessible.Role})");
+        DiagnosticLog.Debug("AtSpi2AccessibilityService", $"Event {eventName}: {accessible.AccessibleName} ({accessible.Role})");
     }
 
     /// <summary>

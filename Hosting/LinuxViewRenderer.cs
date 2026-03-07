@@ -5,6 +5,7 @@ using System.Reflection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
@@ -38,13 +39,13 @@ public class LinuxViewRenderer
     {
         if (CurrentSkiaShell == null)
         {
-            Console.WriteLine($"[NavigateToRoute] CurrentSkiaShell is null");
+            DiagnosticLog.Warn("LinuxViewRenderer", "CurrentSkiaShell is null");
             return false;
         }
 
         // Clean up the route - remove leading // or /
         var cleanRoute = route.TrimStart('/');
-        Console.WriteLine($"[NavigateToRoute] Navigating to: {cleanRoute}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"NavigateToRoute: Navigating to: {cleanRoute}");
 
         for (int i = 0; i < CurrentSkiaShell.Sections.Count; i++)
         {
@@ -52,13 +53,13 @@ public class LinuxViewRenderer
             if (section.Route.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase) ||
                 section.Title.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"[NavigateToRoute] Found section {i}: {section.Title}");
+                DiagnosticLog.Debug("LinuxViewRenderer", $"NavigateToRoute: Found section {i}: {section.Title}");
                 CurrentSkiaShell.NavigateToSection(i);
                 return true;
             }
         }
 
-        Console.WriteLine($"[NavigateToRoute] Route not found: {cleanRoute}");
+        DiagnosticLog.Warn("LinuxViewRenderer", $"NavigateToRoute: Route not found: {cleanRoute}");
         return false;
     }
 
@@ -74,17 +75,17 @@ public class LinuxViewRenderer
     /// <returns>True if successful</returns>
     public static bool PushPage(Page page)
     {
-        Console.WriteLine($"[PushPage] Pushing page: {page.GetType().Name}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"PushPage: Pushing page: {page.GetType().Name}");
 
         if (CurrentSkiaShell == null)
         {
-            Console.WriteLine($"[PushPage] CurrentSkiaShell is null");
+            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: CurrentSkiaShell is null");
             return false;
         }
 
         if (CurrentRenderer == null)
         {
-            Console.WriteLine($"[PushPage] CurrentRenderer is null");
+            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: CurrentRenderer is null");
             return false;
         }
 
@@ -96,18 +97,18 @@ public class LinuxViewRenderer
 
             if (skiaPage == null)
             {
-                Console.WriteLine($"[PushPage] Failed to render page through handler");
+                DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: Failed to render page through handler");
                 return false;
             }
 
             // Push onto SkiaShell's navigation stack
             CurrentSkiaShell.PushAsync(skiaPage, page.Title ?? "Detail");
-            Console.WriteLine($"[PushPage] Successfully pushed page via handler system");
+            DiagnosticLog.Debug("LinuxViewRenderer", "PushPage: Successfully pushed page via handler system");
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PushPage] Error: {ex.Message}");
+            DiagnosticLog.Error("LinuxViewRenderer", "PushPage failed", ex);
             return false;
         }
     }
@@ -118,11 +119,11 @@ public class LinuxViewRenderer
     /// <returns>True if successful</returns>
     public static bool PopPage()
     {
-        Console.WriteLine($"[PopPage] Popping page");
+        DiagnosticLog.Debug("LinuxViewRenderer", "PopPage: Popping page");
 
         if (CurrentSkiaShell == null)
         {
-            Console.WriteLine($"[PopPage] CurrentSkiaShell is null");
+            DiagnosticLog.Warn("LinuxViewRenderer", "PopPage: CurrentSkiaShell is null");
             return false;
         }
 
@@ -233,12 +234,12 @@ public class LinuxViewRenderer
 
         // Subscribe to MAUI Shell navigation events to update SkiaShell
         shell.Navigated += OnShellNavigated;
-        shell.Navigating += (s, e) => Console.WriteLine($"[Navigation] Navigating: {e.Target}");
+        shell.Navigating += (s, e) => DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Navigating: {e.Target}");
 
-        Console.WriteLine($"[Navigation] Shell navigation events subscribed. Sections: {skiaShell.Sections.Count}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"Shell navigation events subscribed. Sections: {skiaShell.Sections.Count}");
         for (int i = 0; i < skiaShell.Sections.Count; i++)
         {
-            Console.WriteLine($"[Navigation] Section {i}: Route='{skiaShell.Sections[i].Route}', Title='{skiaShell.Sections[i].Title}'");
+            DiagnosticLog.Debug("LinuxViewRenderer", $"Section {i}: Route='{skiaShell.Sections[i].Route}', Title='{skiaShell.Sections[i].Title}'");
         }
 
         return skiaShell;
@@ -250,33 +251,33 @@ public class LinuxViewRenderer
     private static void ApplyShellColors(SkiaShell skiaShell, Shell shell)
     {
         bool isDark = Application.Current?.UserAppTheme == AppTheme.Dark;
-        Console.WriteLine($"[ApplyShellColors] Theme is: {(isDark ? "Dark" : "Light")}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: Theme is: {(isDark ? "Dark" : "Light")}");
 
         // Flyout background color
         if (shell.FlyoutBackgroundColor != null && shell.FlyoutBackgroundColor != Colors.Transparent)
         {
             skiaShell.FlyoutBackgroundColor = shell.FlyoutBackgroundColor;
-            Console.WriteLine($"[ApplyShellColors] FlyoutBackgroundColor from MAUI: {skiaShell.FlyoutBackgroundColor}");
+            DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutBackgroundColor from MAUI: {skiaShell.FlyoutBackgroundColor}");
         }
         else
         {
             skiaShell.FlyoutBackgroundColor = isDark
                 ? Color.FromRgb(30, 30, 30)
                 : Color.FromRgb(255, 255, 255);
-            Console.WriteLine($"[ApplyShellColors] Using default FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
+            DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: Using default FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
         }
 
         // Flyout text color
         skiaShell.FlyoutTextColor = isDark
             ? Color.FromRgb(224, 224, 224)
             : Color.FromRgb(33, 33, 33);
-        Console.WriteLine($"[ApplyShellColors] FlyoutTextColor: {skiaShell.FlyoutTextColor}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutTextColor: {skiaShell.FlyoutTextColor}");
 
         // Content background color
         skiaShell.ContentBackgroundColor = isDark
             ? Color.FromRgb(18, 18, 18)
             : Color.FromRgb(250, 250, 250);
-        Console.WriteLine($"[ApplyShellColors] ContentBackgroundColor: {skiaShell.ContentBackgroundColor}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: ContentBackgroundColor: {skiaShell.ContentBackgroundColor}");
 
         // NavBar background color
         if (shell.BackgroundColor != null && shell.BackgroundColor != Colors.Transparent)
@@ -294,27 +295,27 @@ public class LinuxViewRenderer
     /// </summary>
     private static void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
     {
-        Console.WriteLine($"[Navigation] OnShellNavigated called - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"OnShellNavigated called - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
 
         if (CurrentSkiaShell == null || CurrentMauiShell == null)
         {
-            Console.WriteLine($"[Navigation] CurrentSkiaShell or CurrentMauiShell is null");
+            DiagnosticLog.Warn("LinuxViewRenderer", "CurrentSkiaShell or CurrentMauiShell is null");
             return;
         }
 
         // Get the current route from the Shell
         var currentState = CurrentMauiShell.CurrentState;
         var location = currentState?.Location?.OriginalString ?? "";
-        Console.WriteLine($"[Navigation] Location: {location}, Sections: {CurrentSkiaShell.Sections.Count}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Location: {location}, Sections: {CurrentSkiaShell.Sections.Count}");
 
         // Find the matching section in SkiaShell by route
         for (int i = 0; i < CurrentSkiaShell.Sections.Count; i++)
         {
             var section = CurrentSkiaShell.Sections[i];
-            Console.WriteLine($"[Navigation] Checking section {i}: Route='{section.Route}', Title='{section.Title}'");
+            DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Checking section {i}: Route='{section.Route}', Title='{section.Title}'");
             if (!string.IsNullOrEmpty(section.Route) && location.Contains(section.Route, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"[Navigation] Match found by route! Navigating to section {i}");
+                DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Match found by route! Navigating to section {i}");
                 if (i != CurrentSkiaShell.CurrentSectionIndex)
                 {
                     CurrentSkiaShell.NavigateToSection(i);
@@ -323,7 +324,7 @@ public class LinuxViewRenderer
             }
             if (!string.IsNullOrEmpty(section.Title) && location.Contains(section.Title, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"[Navigation] Match found by title! Navigating to section {i}");
+                DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Match found by title! Navigating to section {i}");
                 if (i != CurrentSkiaShell.CurrentSectionIndex)
                 {
                     CurrentSkiaShell.NavigateToSection(i);
@@ -331,7 +332,7 @@ public class LinuxViewRenderer
                 return;
             }
         }
-        Console.WriteLine($"[Navigation] No matching section found for location: {location}");
+        DiagnosticLog.Warn("LinuxViewRenderer", $"Navigation: No matching section found for location: {location}");
     }
 
     /// <summary>
@@ -476,7 +477,7 @@ public class LinuxViewRenderer
                     if (cp.BackgroundColor != null && cp.BackgroundColor != Colors.Transparent)
                     {
                         bgColor = cp.BackgroundColor;
-                        Console.WriteLine($"[CreateShellContentPage] Page BackgroundColor: {bgColor}");
+                        DiagnosticLog.Debug("LinuxViewRenderer", $"CreateShellContentPage: Page BackgroundColor: {bgColor}");
                     }
 
                     if (contentView is SkiaScrollView scrollView)

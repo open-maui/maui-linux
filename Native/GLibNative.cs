@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Native;
 
@@ -38,7 +39,7 @@ public static class GLibNative
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[GLibNative] Error in idle callback: " + ex.Message);
+                DiagnosticLog.Error("GLibNative", "Error in idle callback", ex);
             }
             if (!flag)
             {
@@ -68,7 +69,7 @@ public static class GLibNative
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[GLibNative] Error in timeout callback: " + ex.Message);
+                DiagnosticLog.Error("GLibNative", "Error in timeout callback", ex);
             }
             if (!flag)
             {

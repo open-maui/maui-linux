@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Platform.Linux.Native;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Dispatching;
 
@@ -24,7 +25,7 @@ public class LinuxDispatcher : IDispatcher
         {
             _mainThreadId = Environment.CurrentManagedThreadId;
             _mainDispatcher = new LinuxDispatcher();
-            Console.WriteLine($"[LinuxDispatcher] Initialized on thread {_mainThreadId}");
+            DiagnosticLog.Debug("LinuxDispatcher", $"Initialized on thread {_mainThreadId}");
         }
     }
 
@@ -44,7 +45,7 @@ public class LinuxDispatcher : IDispatcher
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[LinuxDispatcher] Error in dispatched action: " + ex.Message);
+                DiagnosticLog.Error("LinuxDispatcher", "Error in dispatched action", ex);
             }
             return false;
         });
@@ -62,7 +63,7 @@ public class LinuxDispatcher : IDispatcher
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[LinuxDispatcher] Error in delayed action: " + ex.Message);
+                DiagnosticLog.Error("LinuxDispatcher", "Error in delayed action", ex);
             }
             return false;
         });

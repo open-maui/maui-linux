@@ -44,7 +44,7 @@ public class X11InputMethodService : IInputMethodService, IDisposable
         _display = XOpenDisplay(IntPtr.Zero);
         if (_display == IntPtr.Zero)
         {
-            Console.WriteLine("X11InputMethodService: Failed to open display");
+            DiagnosticLog.Error("X11InputMethodService", "Failed to open display");
             return;
         }
 
@@ -58,7 +58,7 @@ public class X11InputMethodService : IInputMethodService, IDisposable
         _xim = XOpenIM(_display, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
         if (_xim == IntPtr.Zero)
         {
-            Console.WriteLine("X11InputMethodService: No input method available, trying IBus...");
+            DiagnosticLog.Warn("X11InputMethodService", "No input method available, trying IBus...");
             TryIBusFallback();
             return;
         }
@@ -97,7 +97,7 @@ public class X11InputMethodService : IInputMethodService, IDisposable
 
         if (_xic != IntPtr.Zero)
         {
-            Console.WriteLine("X11InputMethodService: Input context created successfully");
+            DiagnosticLog.Debug("X11InputMethodService", "Input context created successfully");
         }
     }
 
@@ -153,7 +153,7 @@ public class X11InputMethodService : IInputMethodService, IDisposable
     {
         // Try to connect to IBus via D-Bus
         // This provides a more modern IME interface
-        Console.WriteLine("X11InputMethodService: IBus fallback not yet implemented");
+        DiagnosticLog.Warn("X11InputMethodService", "IBus fallback not yet implemented");
     }
 
     public void SetFocus(IInputContext? context)

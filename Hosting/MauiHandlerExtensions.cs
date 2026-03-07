@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
@@ -81,7 +82,7 @@ public static class MauiHandlerExtensions
         if (LinuxHandlerMap.TryGetValue(type, out Func<IElementHandler>? factory))
         {
             handler = factory();
-            Console.WriteLine($"[ToHandler] Using Linux handler for {type.Name}: {handler.GetType().Name}");
+            DiagnosticLog.Debug("MauiHandlerExtensions", $"Using Linux handler for {type.Name}: {handler.GetType().Name}");
         }
         else
         {
@@ -101,7 +102,7 @@ public static class MauiHandlerExtensions
             if (bestFactory != null)
             {
                 handler = bestFactory();
-                Console.WriteLine($"[ToHandler] Using Linux handler (via base {bestMatch!.Name}) for {type.Name}: {handler.GetType().Name}");
+                DiagnosticLog.Debug("MauiHandlerExtensions", $"Using Linux handler (via base {bestMatch!.Name}) for {type.Name}: {handler.GetType().Name}");
             }
         }
 
@@ -109,7 +110,7 @@ public static class MauiHandlerExtensions
         if (handler == null)
         {
             handler = mauiContext.Handlers.GetHandler(type);
-            Console.WriteLine($"[ToHandler] Using MAUI handler for {type.Name}: {handler?.GetType().Name ?? "null"}");
+            DiagnosticLog.Debug("MauiHandlerExtensions", $"Using MAUI handler for {type.Name}: {handler?.GetType().Name ?? "null"}");
         }
 
         if (handler != null)

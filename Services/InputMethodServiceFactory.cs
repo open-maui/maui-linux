@@ -63,33 +63,33 @@ public static class InputMethodServiceFactory
         // Try Fcitx5 first if it's the configured IM
         if (imModule?.Contains("fcitx") == true && Fcitx5InputMethodService.IsAvailable())
         {
-            Console.WriteLine("InputMethodServiceFactory: Using Fcitx5");
+            DiagnosticLog.Debug("InputMethodServiceFactory", "Using Fcitx5");
             return CreateFcitx5Service();
         }
 
         // Try IBus (most common on modern Linux)
         if (IsIBusAvailable())
         {
-            Console.WriteLine("InputMethodServiceFactory: Using IBus");
+            DiagnosticLog.Debug("InputMethodServiceFactory", "Using IBus");
             return CreateIBusService();
         }
 
         // Try Fcitx5 as fallback
         if (Fcitx5InputMethodService.IsAvailable())
         {
-            Console.WriteLine("InputMethodServiceFactory: Using Fcitx5");
+            DiagnosticLog.Debug("InputMethodServiceFactory", "Using Fcitx5");
             return CreateFcitx5Service();
         }
 
         // Fall back to XIM
         if (IsXIMAvailable())
         {
-            Console.WriteLine("InputMethodServiceFactory: Using XIM");
+            DiagnosticLog.Debug("InputMethodServiceFactory", "Using XIM");
             return CreateXIMService();
         }
 
         // No IME available
-        Console.WriteLine("InputMethodServiceFactory: No IME available, using null service");
+        DiagnosticLog.Warn("InputMethodServiceFactory", "No IME available, using null service");
         return new NullInputMethodService();
     }
 
@@ -101,7 +101,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"InputMethodServiceFactory: Failed to create IBus service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create IBus service - {ex.Message}");
             return new NullInputMethodService();
         }
     }
@@ -114,7 +114,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"InputMethodServiceFactory: Failed to create Fcitx5 service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create Fcitx5 service - {ex.Message}");
             return new NullInputMethodService();
         }
     }
@@ -127,7 +127,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"InputMethodServiceFactory: Failed to create XIM service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create XIM service - {ex.Message}");
             return new NullInputMethodService();
         }
     }

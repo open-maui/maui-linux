@@ -19,7 +19,7 @@ public static class MauiIconGenerator
     {
         if (!File.Exists(metaFilePath))
         {
-            Console.WriteLine("[MauiIconGenerator] Metadata file not found: " + metaFilePath);
+            DiagnosticLog.Error("MauiIconGenerator", "Metadata file not found: " + metaFilePath);
             return null;
         }
 
@@ -48,9 +48,9 @@ public static class MauiIconGenerator
                 ? scaleVal
                 : 0.65f;
 
-            Console.WriteLine($"[MauiIconGenerator] Generating {size}x{size} icon");
-            Console.WriteLine($"[MauiIconGenerator]   Color: {color}");
-            Console.WriteLine($"[MauiIconGenerator]   Scale: {scale}");
+            DiagnosticLog.Debug("MauiIconGenerator", $"Generating {size}x{size} icon");
+            DiagnosticLog.Debug("MauiIconGenerator", $"  Color: {color}");
+            DiagnosticLog.Debug("MauiIconGenerator", $"  Scale: {scale}");
 
             using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
@@ -82,12 +82,12 @@ public static class MauiIconGenerator
             using var fileStream = File.OpenWrite(outputPath);
             data.SaveTo(fileStream);
 
-            Console.WriteLine("[MauiIconGenerator] Generated: " + outputPath);
+            DiagnosticLog.Debug("MauiIconGenerator", "Generated: " + outputPath);
             return outputPath;
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[MauiIconGenerator] Error: " + ex.Message);
+            DiagnosticLog.Error("MauiIconGenerator", "Error: " + ex.Message);
             return null;
         }
     }

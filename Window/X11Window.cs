@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Platform.Linux.Interop;
 using Microsoft.Maui.Platform.Linux.Input;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -226,7 +227,7 @@ public class X11Window : IDisposable
             };
 
             X11.XSetClassHint(_display, _window, ref classHint);
-            Console.WriteLine($"[X11Window] Set WM_CLASS: {resName}, {resClass}");
+            DiagnosticLog.Debug("X11Window", $"Set WM_CLASS: {resName}, {resClass}");
         }
         finally
         {
@@ -244,10 +245,10 @@ public class X11Window : IDisposable
     {
         if (string.IsNullOrEmpty(iconPath) || !System.IO.File.Exists(iconPath))
         {
-            Console.WriteLine("[X11Window] Icon file not found: " + iconPath);
+            DiagnosticLog.Warn("X11Window", "Icon file not found: " + iconPath);
             return;
         }
-        Console.WriteLine("[X11Window] SetIcon called: " + iconPath);
+        DiagnosticLog.Debug("X11Window", "SetIcon called: " + iconPath);
         try
         {
             SKBitmap? bitmap = null;
@@ -255,7 +256,7 @@ public class X11Window : IDisposable
             // Handle SVG icons
             if (iconPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("[X11Window] Loading SVG icon");
+                DiagnosticLog.Debug("X11Window", "Loading SVG icon");
                 using var svg = new SKSvg();
                 svg.Load(iconPath);
                 if (svg.Picture != null)
@@ -273,16 +274,16 @@ public class X11Window : IDisposable
             }
             else
             {
-                Console.WriteLine("[X11Window] Loading raster icon");
+                DiagnosticLog.Debug("X11Window", "Loading raster icon");
                 bitmap = SKBitmap.Decode(iconPath);
             }
 
             if (bitmap == null)
             {
-                Console.WriteLine("[X11Window] Failed to load icon: " + iconPath);
+                DiagnosticLog.Warn("X11Window", "Failed to load icon: " + iconPath);
                 return;
             }
-            Console.WriteLine($"[X11Window] Loaded bitmap: {bitmap.Width}x{bitmap.Height}");
+            DiagnosticLog.Debug("X11Window", $"Loaded bitmap: {bitmap.Width}x{bitmap.Height}");
 
             // Scale to 64x64 if needed
             int targetSize = 64;
@@ -318,11 +319,11 @@ public class X11Window : IDisposable
                 X11.XChangeProperty(_display, _window, property, type, 32, 0, (nint)data, dataSize);
             }
             X11.XFlush(_display);
-            Console.WriteLine($"[X11Window] Set window icon: {width}x{height}");
+            DiagnosticLog.Debug("X11Window", $"Set window icon: {width}x{height}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[X11Window] Failed to set icon: " + ex.Message);
+            DiagnosticLog.Error("X11Window", "Failed to set icon", ex);
         }
     }
 
@@ -450,7 +451,7 @@ public class X11Window : IDisposable
         {
             if (_eventCounter % 100 == 0)
             {
-                Console.WriteLine($"[X11Window] ProcessEvents: {pending} pending events");
+                DiagnosticLog.Debug("X11Window", $"ProcessEvents: {pending} pending events");
             }
             _eventCounter++;
             while (X11.XPending(_display) > 0)

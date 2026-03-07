@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -279,13 +280,13 @@ public partial class GridHandler : LayoutHandler
 
     protected override void ConnectHandler(SkiaLayoutView platformView)
     {
-        Console.WriteLine($"[GridHandler.ConnectHandler] Called! VirtualView={VirtualView?.GetType().Name}, PlatformView={platformView?.GetType().Name}, MauiContext={(MauiContext != null ? "set" : "null")}");
+        DiagnosticLog.Debug("GridHandler", $"ConnectHandler Called! VirtualView={VirtualView?.GetType().Name}, PlatformView={platformView?.GetType().Name}, MauiContext={(MauiContext != null ? "set" : "null")}");
         base.ConnectHandler(platformView);
 
         // Map definitions on connect
         if (VirtualView is IGridLayout gridLayout && platformView is SkiaGrid grid && MauiContext != null)
         {
-            Console.WriteLine($"[GridHandler.ConnectHandler] Grid has {gridLayout.Count} children, RowDefs={gridLayout.RowDefinitions?.Count ?? 0}");
+            DiagnosticLog.Debug("GridHandler", $"ConnectHandler Grid has {gridLayout.Count} children, RowDefs={gridLayout.RowDefinitions?.Count ?? 0}");
             UpdateRowDefinitions(grid, gridLayout);
             UpdateColumnDefinitions(grid, gridLayout);
 
@@ -295,13 +296,13 @@ public partial class GridHandler : LayoutHandler
                 var child = gridLayout[i];
                 if (child == null) continue;
 
-                Console.WriteLine($"[GridHandler.ConnectHandler] Child[{i}]: {child.GetType().Name}, Handler={child.Handler?.GetType().Name ?? "null"}");
+                DiagnosticLog.Debug("GridHandler", $"ConnectHandler Child[{i}]: {child.GetType().Name}, Handler={child.Handler?.GetType().Name ?? "null"}");
 
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
                 {
                     child.Handler = child.ToViewHandler(MauiContext);
-                    Console.WriteLine($"[GridHandler.ConnectHandler] Created handler for child[{i}]: {child.Handler?.GetType().Name ?? "failed"}");
+                    DiagnosticLog.Debug("GridHandler", $"ConnectHandler Created handler for child[{i}]: {child.Handler?.GetType().Name ?? "failed"}");
                 }
 
                 if (child.Handler?.PlatformView is SkiaView skiaChild)
@@ -315,11 +316,11 @@ public partial class GridHandler : LayoutHandler
                         rowSpan = Microsoft.Maui.Controls.Grid.GetRowSpan(mauiView);
                         columnSpan = Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiView);
                     }
-                    Console.WriteLine($"[GridHandler.ConnectHandler] Adding child[{i}] at row={row}, col={column}");
+                    DiagnosticLog.Debug("GridHandler", $"ConnectHandler Adding child[{i}] at row={row}, col={column}");
                     grid.AddChild(skiaChild, row, column, rowSpan, columnSpan);
                 }
             }
-            Console.WriteLine($"[GridHandler.ConnectHandler] Grid now has {grid.Children.Count} SkiaView children");
+            DiagnosticLog.Debug("GridHandler", $"ConnectHandler Grid now has {grid.Children.Count} SkiaView children");
         }
     }
 

@@ -48,7 +48,7 @@ public static class LinuxProgramHost
 
         // Initialize GTK for WebView support
         GtkHostService.Instance.Initialize(options.Title ?? "MAUI Application", options.Width, options.Height);
-        Console.WriteLine("[LinuxProgramHost] GTK initialized for WebView support");
+        DiagnosticLog.Debug("LinuxProgramHost", "GTK initialized for WebView support");
 
         // Create Linux application
         using var linuxApp = new LinuxApplication();
@@ -79,7 +79,7 @@ public static class LinuxProgramHost
         // Fallback to demo if no application view is available
         if (rootView == null)
         {
-            Console.WriteLine("No application page found. Showing demo UI.");
+            DiagnosticLog.Warn("LinuxProgramHost", "No application page found. Showing demo UI.");
             rootView = CreateDemoView();
         }
 
@@ -140,8 +140,8 @@ public static class LinuxProgramHost
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error rendering application: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
+            DiagnosticLog.Error("LinuxProgramHost", $"Error rendering application: {ex.Message}");
+            DiagnosticLog.Error("LinuxProgramHost", ex.StackTrace ?? "");
             return null;
         }
     }

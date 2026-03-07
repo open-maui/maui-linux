@@ -38,7 +38,7 @@ public static class GtkThemeService
                 isDark = Microsoft.Maui.Controls.Application.Current?.RequestedTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
             }
 
-            Console.WriteLine($"[GtkThemeService] ApplyTheme: isDark={isDark}");
+            DiagnosticLog.Debug("GtkThemeService", $"ApplyTheme: isDark={isDark}");
 
             // Create comprehensive CSS based on the theme
             string css = isDark ? GetDarkCss() : GetLightCss();
@@ -47,7 +47,7 @@ public static class GtkThemeService
             IntPtr screen = GtkNative.gdk_screen_get_default();
             if (screen == IntPtr.Zero)
             {
-                Console.WriteLine("[GtkThemeService] Failed to get default screen");
+                DiagnosticLog.Error("GtkThemeService", "Failed to get default screen");
                 return;
             }
 
@@ -55,14 +55,14 @@ public static class GtkThemeService
             IntPtr newProvider = GtkNative.gtk_css_provider_new();
             if (newProvider == IntPtr.Zero)
             {
-                Console.WriteLine("[GtkThemeService] Failed to create CSS provider");
+                DiagnosticLog.Error("GtkThemeService", "Failed to create CSS provider");
                 return;
             }
 
             // Load CSS data
             if (!GtkNative.gtk_css_provider_load_from_data(newProvider, css, -1, IntPtr.Zero))
             {
-                Console.WriteLine("[GtkThemeService] Failed to load CSS data");
+                DiagnosticLog.Error("GtkThemeService", "Failed to load CSS data");
                 return;
             }
 
@@ -72,11 +72,11 @@ public static class GtkThemeService
             // Store reference to current provider
             _currentCssProvider = newProvider;
 
-            Console.WriteLine("[GtkThemeService] CSS applied successfully");
+            DiagnosticLog.Debug("GtkThemeService", "CSS applied successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkThemeService] Error applying theme: {ex.Message}");
+            DiagnosticLog.Error("GtkThemeService", $"Error applying theme: {ex.Message}");
         }
     }
 

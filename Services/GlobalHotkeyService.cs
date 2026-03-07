@@ -76,7 +76,7 @@ public class GlobalHotkeyService : IDisposable
             int result = XGrabKey(_display, keyCode, mask, _rootWindow, true, GrabModeAsync, GrabModeAsync);
             if (result == 0)
             {
-                Console.WriteLine($"Failed to grab key {key} with modifiers {modifiers}");
+                DiagnosticLog.Warn("GlobalHotkeyService", $"Failed to grab key {key} with modifiers {modifiers}");
             }
         }
 
@@ -148,7 +148,7 @@ public class GlobalHotkeyService : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GlobalHotkeyService error: {ex.Message}");
+                DiagnosticLog.Error("GlobalHotkeyService", $"Error: {ex.Message}");
             }
         }
     }

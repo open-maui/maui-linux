@@ -70,13 +70,23 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
         base.DisconnectHandler(platformView);
     }
 
+    private bool _isUpdatingText;
+
     private void OnTextChanged(object? sender, Platform.TextChangedEventArgs e)
     {
-        if (VirtualView is null || PlatformView is null) return;
+        if (VirtualView is null || PlatformView is null || _isUpdatingText) return;
 
         if (VirtualView.Text != e.NewTextValue)
         {
-            VirtualView.Text = e.NewTextValue ?? string.Empty;
+            _isUpdatingText = true;
+            try
+            {
+                VirtualView.Text = e.NewTextValue ?? string.Empty;
+            }
+            finally
+            {
+                _isUpdatingText = false;
+            }
         }
     }
 
@@ -87,7 +97,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
 
     public static void MapText(EntryHandler handler, IEntry entry)
     {
-        if (handler.PlatformView is null) return;
+        if (handler.PlatformView is null || handler._isUpdatingText) return;
 
         if (handler.PlatformView.Text != entry.Text)
         {

@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -48,7 +49,7 @@ public partial class ScrollViewHandler : ViewHandler<IScrollView, SkiaScrollView
         var content = scrollView.PresentedContent;
         if (content != null)
         {
-            Console.WriteLine($"[ScrollViewHandler] MapContent: {content.GetType().Name}");
+            DiagnosticLog.Debug("ScrollViewHandler", $"MapContent: {content.GetType().Name}");
 
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
@@ -58,7 +59,7 @@ public partial class ScrollViewHandler : ViewHandler<IScrollView, SkiaScrollView
 
             if (content.Handler?.PlatformView is SkiaView skiaContent)
             {
-                Console.WriteLine($"[ScrollViewHandler] Setting content: {skiaContent.GetType().Name}");
+                DiagnosticLog.Debug("ScrollViewHandler", $"Setting content: {skiaContent.GetType().Name}");
                 handler.PlatformView.Content = skiaContent;
             }
         }

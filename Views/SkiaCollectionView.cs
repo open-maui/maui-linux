@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -460,7 +461,7 @@ public class SkiaCollectionView : SkiaItemsView
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("[SkiaCollectionView.DrawItem] EXCEPTION: " + ex.Message + "\n" + ex.StackTrace);
+                    DiagnosticLog.Error("SkiaCollectionView", "DrawItem EXCEPTION: " + ex.Message + "\n" + ex.StackTrace, ex);
                     return;
                 }
             }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -63,10 +64,10 @@ public static class LinuxDialogService
 
     public static void DrawDialogsOnly(SKCanvas canvas, SKRect bounds)
     {
-        Console.WriteLine($"[LinuxDialogService] DrawDialogsOnly: {_activeDialogs.Count} dialogs, IsDarkMode={SkiaTheme.IsDarkMode}");
+        DiagnosticLog.Debug("LinuxDialogService", $"DrawDialogsOnly: {_activeDialogs.Count} dialogs, IsDarkMode={SkiaTheme.IsDarkMode}");
         foreach (var dialog in _activeDialogs)
         {
-            Console.WriteLine($"[LinuxDialogService] Drawing dialog: IsVisible={dialog.IsVisible}, Opacity={dialog.Opacity}");
+            DiagnosticLog.Debug("LinuxDialogService", $"Drawing dialog: IsVisible={dialog.IsVisible}, Opacity={dialog.Opacity}");
             dialog.Measure(new Size(bounds.Width, bounds.Height));
             dialog.Arrange(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
             dialog.Draw(canvas);
@@ -89,7 +90,7 @@ public static class LinuxDialogService
 
     public static void ShowContextMenu(SkiaContextMenu menu)
     {
-        Console.WriteLine("[LinuxDialogService] ShowContextMenu called");
+        DiagnosticLog.Debug("LinuxDialogService", "ShowContextMenu called");
         _activeContextMenu = menu;
         _showPopupCallback?.Invoke();
         _invalidateCallback?.Invoke();

@@ -55,7 +55,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
             _platformWebView.NavigationCompleted += OnNavigationCompleted;
             _platformWebView.ScriptDialogRequested += OnScriptDialogRequested;
         }
-        Console.WriteLine("[GtkWebViewHandler] ConnectHandler - WebView ready");
+        DiagnosticLog.Debug("GtkWebViewHandler", "ConnectHandler - WebView ready");
     }
 
     protected override void DisconnectHandler(GtkWebViewProxy platformView)
@@ -75,7 +75,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
     private async void OnScriptDialogRequested(object? sender,
         (ScriptDialogType Type, string Message, Action<bool> Callback) e)
     {
-        Console.WriteLine($"[GtkWebViewHandler] Script dialog requested: type={e.Type}, message={e.Message}");
+        DiagnosticLog.Debug("GtkWebViewHandler", $"Script dialog requested: type={e.Type}, message={e.Message}");
 
         string title = e.Type switch
         {
@@ -92,18 +92,18 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         {
             bool result = await LinuxDialogService.ShowAlertAsync(title, e.Message, acceptButton, cancelButton);
             e.Callback(result);
-            Console.WriteLine($"[GtkWebViewHandler] Dialog result: {result}");
+            DiagnosticLog.Debug("GtkWebViewHandler", $"Dialog result: {result}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkWebViewHandler] Error showing dialog: {ex.Message}");
+            DiagnosticLog.Error("GtkWebViewHandler", $"Error showing dialog: {ex.Message}", ex);
             e.Callback(false);
         }
     }
 
     private void OnNavigationStarted(object? sender, string uri)
     {
-        Console.WriteLine($"[GtkWebViewHandler] Navigation started: {uri}");
+        DiagnosticLog.Debug("GtkWebViewHandler", $"Navigation started: {uri}");
         try
         {
             GLibNative.IdleAdd(() =>
@@ -115,25 +115,25 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
                         var args = new Microsoft.Maui.Controls.WebNavigatingEventArgs(
                             WebNavigationEvent.NewPage, null, uri);
                         controller.SendNavigating(args);
-                        Console.WriteLine("[GtkWebViewHandler] Sent Navigating event to VirtualView");
+                        DiagnosticLog.Debug("GtkWebViewHandler", "Sent Navigating event to VirtualView");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GtkWebViewHandler] Error in SendNavigating: {ex.Message}");
+                    DiagnosticLog.Error("GtkWebViewHandler", $"Error in SendNavigating: {ex.Message}", ex);
                 }
                 return false;
             });
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkWebViewHandler] Error dispatching navigation started: {ex.Message}");
+            DiagnosticLog.Error("GtkWebViewHandler", $"Error dispatching navigation started: {ex.Message}", ex);
         }
     }
 
     private void OnNavigationCompleted(object? sender, (string Url, bool Success) e)
     {
-        Console.WriteLine($"[GtkWebViewHandler] Navigation completed: {e.Url} (Success: {e.Success})");
+        DiagnosticLog.Debug("GtkWebViewHandler", $"Navigation completed: {e.Url} (Success: {e.Success})");
         try
         {
             GLibNative.IdleAdd(() =>
@@ -151,19 +151,19 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
                         bool canGoForward = _platformWebView?.CanGoForward() ?? false;
                         controller.CanGoBack = canGoBack;
                         controller.CanGoForward = canGoForward;
-                        Console.WriteLine($"[GtkWebViewHandler] Sent Navigated, CanGoBack={canGoBack}, CanGoForward={canGoForward}");
+                        DiagnosticLog.Debug("GtkWebViewHandler", $"Sent Navigated, CanGoBack={canGoBack}, CanGoForward={canGoForward}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[GtkWebViewHandler] Error in SendNavigated: {ex.Message}");
+                    DiagnosticLog.Error("GtkWebViewHandler", $"Error in SendNavigated: {ex.Message}", ex);
                 }
                 return false;
             });
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkWebViewHandler] Error dispatching navigation completed: {ex.Message}");
+            DiagnosticLog.Error("GtkWebViewHandler", $"Error dispatching navigation completed: {ex.Message}", ex);
         }
     }
 
@@ -175,7 +175,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         var hostService = GtkHostService.Instance;
         if (hostService.HostWindow == null || hostService.WebViewManager == null)
         {
-            Console.WriteLine("[GtkWebViewHandler] Warning: GTK host not initialized, cannot register WebView");
+            DiagnosticLog.Warn("GtkWebViewHandler", "GTK host not initialized, cannot register WebView");
             return;
         }
 
@@ -186,7 +186,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
 
         if (width <= 0 || height <= 0)
         {
-            Console.WriteLine($"[GtkWebViewHandler] Skipping invalid bounds: {bounds}");
+            DiagnosticLog.Warn("GtkWebViewHandler", $"Skipping invalid bounds: {bounds}");
             return;
         }
 
@@ -194,12 +194,12 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         {
             hostService.HostWindow.AddWebView(_platformWebView.Widget, x, y, width, height);
             _isRegisteredWithHost = true;
-            Console.WriteLine($"[GtkWebViewHandler] Registered WebView at ({x}, {y}) size {width}x{height}");
+            DiagnosticLog.Debug("GtkWebViewHandler", $"Registered WebView at ({x}, {y}) size {width}x{height}");
         }
         else if (bounds != _lastBounds)
         {
             hostService.HostWindow.MoveResizeWebView(_platformWebView.Widget, x, y, width, height);
-            Console.WriteLine($"[GtkWebViewHandler] Updated WebView to ({x}, {y}) size {width}x{height}");
+            DiagnosticLog.Debug("GtkWebViewHandler", $"Updated WebView to ({x}, {y}) size {width}x{height}");
         }
 
         _lastBounds = bounds;
@@ -213,7 +213,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
             if (hostService.HostWindow != null)
             {
                 hostService.HostWindow.RemoveWebView(_platformWebView.Widget);
-                Console.WriteLine("[GtkWebViewHandler] Unregistered WebView from host");
+                DiagnosticLog.Debug("GtkWebViewHandler", "Unregistered WebView from host");
             }
             _isRegisteredWithHost = false;
         }
@@ -225,7 +225,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
             return;
 
         var source = webView.Source;
-        Console.WriteLine($"[GtkWebViewHandler] MapSource: {source?.GetType().Name ?? "null"}");
+        DiagnosticLog.Debug("GtkWebViewHandler", $"MapSource: {source?.GetType().Name ?? "null"}");
 
         if (source is UrlWebViewSource urlSource)
         {
@@ -247,19 +247,19 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
 
     public static void MapGoBack(GtkWebViewHandler handler, IWebView webView, object? args)
     {
-        Console.WriteLine($"[GtkWebViewHandler] MapGoBack called, CanGoBack={handler._platformWebView?.CanGoBack()}");
+        DiagnosticLog.Debug("GtkWebViewHandler", $"MapGoBack called, CanGoBack={handler._platformWebView?.CanGoBack()}");
         handler._platformWebView?.GoBack();
     }
 
     public static void MapGoForward(GtkWebViewHandler handler, IWebView webView, object? args)
     {
-        Console.WriteLine($"[GtkWebViewHandler] MapGoForward called, CanGoForward={handler._platformWebView?.CanGoForward()}");
+        DiagnosticLog.Debug("GtkWebViewHandler", $"MapGoForward called, CanGoForward={handler._platformWebView?.CanGoForward()}");
         handler._platformWebView?.GoForward();
     }
 
     public static void MapReload(GtkWebViewHandler handler, IWebView webView, object? args)
     {
-        Console.WriteLine("[GtkWebViewHandler] MapReload called");
+        DiagnosticLog.Debug("GtkWebViewHandler", "MapReload called");
         handler._platformWebView?.Reload();
     }
 }

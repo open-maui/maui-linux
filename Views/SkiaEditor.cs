@@ -1087,13 +1087,13 @@ public class SkiaEditor : SkiaView, IInputContext
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaEditor] OnPointerPressed: Button={e.Button}, IsEnabled={IsEnabled}");
+        DiagnosticLog.Debug("SkiaEditor", $"OnPointerPressed: Button={e.Button}, IsEnabled={IsEnabled}");
         if (!IsEnabled) return;
 
         // Handle right-click context menu
         if (e.Button == PointerButton.Right)
         {
-            Console.WriteLine("[SkiaEditor] Right-click detected, showing context menu");
+            DiagnosticLog.Debug("SkiaEditor", "Right-click detected, showing context menu");
             ShowContextMenu(e.X, e.Y);
             return;
         }
@@ -1532,7 +1532,7 @@ public class SkiaEditor : SkiaView, IInputContext
 
     private void ShowContextMenu(float x, float y)
     {
-        Console.WriteLine($"[SkiaEditor] ShowContextMenu at ({x}, {y}), IsGtkMode={LinuxApplication.IsGtkMode}");
+        DiagnosticLog.Debug("SkiaEditor", $"ShowContextMenu at ({x}, {y}), IsGtkMode={LinuxApplication.IsGtkMode}");
         bool hasSelection = _selectionLength != 0;
         bool hasText = !string.IsNullOrEmpty(Text);
         bool hasClipboard = !string.IsNullOrEmpty(SystemClipboard.GetText());

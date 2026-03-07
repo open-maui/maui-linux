@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -513,7 +514,7 @@ public class SkiaImage : SkiaView
                 _isSvg = false;
                 _currentFilePath = null;
                 _cacheKey = null;
-                Console.WriteLine($"[SkiaImage] File not found: {filePath}");
+                DiagnosticLog.Warn("SkiaImage", $"File not found: {filePath}");
                 ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
                 return;
             }
@@ -1210,7 +1211,7 @@ public class SkiaImage : SkiaView
                         var stream = assembly.GetManifestResourceStream(resourceName);
                         if (stream != null)
                         {
-                            Console.WriteLine($"[SkiaImage] Loaded embedded resource: {resourceName}");
+                            DiagnosticLog.Debug("SkiaImage", $"Loaded embedded resource: {resourceName}");
                             return (stream, requestedExt);
                         }
                     }
@@ -1227,7 +1228,7 @@ public class SkiaImage : SkiaView
                             var stream = assembly.GetManifestResourceStream(resourceName);
                             if (stream != null)
                             {
-                                Console.WriteLine($"[SkiaImage] Loaded SVG as PNG substitute: {resourceName}");
+                                DiagnosticLog.Debug("SkiaImage", $"Loaded SVG as PNG substitute: {resourceName}");
                                 return (stream, ".svg");
                             }
                         }

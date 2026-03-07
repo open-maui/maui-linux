@@ -3,6 +3,7 @@
 
 using SkiaSharp;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform;
 
@@ -204,7 +205,7 @@ public class SkiaPage : SkiaView
             var availableSize = new Size(adjustedBounds.Width, adjustedBounds.Height);
             _content.Measure(availableSize);
             _content.Arrange(new Rect(adjustedBounds.Left, adjustedBounds.Top, adjustedBounds.Width, adjustedBounds.Height));
-            Console.WriteLine($"[SkiaPage] Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
+            DiagnosticLog.Debug("SkiaPage", $"Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
             _content.Draw(canvas);
         }
 
@@ -284,7 +285,7 @@ public class SkiaPage : SkiaView
 
     public void OnAppearing()
     {
-        Console.WriteLine($"[SkiaPage] OnAppearing called for: {Title}, HasListeners={Appearing != null}");
+        DiagnosticLog.Debug("SkiaPage", $"OnAppearing called for: {Title}, HasListeners={Appearing != null}");
         Appearing?.Invoke(this, EventArgs.Empty);
     }
 
@@ -436,7 +437,7 @@ public class SkiaContentPage : SkiaPage
     private void DrawToolbarItems(SKCanvas canvas, SKRect navBarBounds)
     {
         var primaryItems = _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary).ToList();
-        Console.WriteLine($"[SkiaContentPage] DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
+        DiagnosticLog.Debug("SkiaContentPage", $"DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
         if (primaryItems.Count == 0) return;
 
         using var font = new SKFont(SKTypeface.Default, 14);
@@ -470,7 +471,7 @@ public class SkiaContentPage : SkiaPage
                 var destRect = new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize);
                 canvas.DrawBitmap(item.Icon, destRect);
 
-                Console.WriteLine($"[SkiaContentPage] Drew toolbar icon '{item.Text}' at ({iconX}, {iconY})");
+                DiagnosticLog.Debug("SkiaContentPage", $"Drew toolbar icon '{item.Text}' at ({iconX}, {iconY})");
             }
             else
             {
@@ -490,33 +491,33 @@ public class SkiaContentPage : SkiaPage
                 canvas.DrawText(item.Text, x, y, textPaint);
             }
 
-            Console.WriteLine($"[SkiaContentPage] Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
+            DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
             rightEdge = itemLeft - 8; // Gap between items
         }
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaContentPage] OnPointerPressed at ({e.X}, {e.Y}), ShowNavigationBar={ShowNavigationBar}, NavigationBarHeight={NavigationBarHeight}");
-        Console.WriteLine($"[SkiaContentPage] ToolbarItems count: {_toolbarItems.Count}");
+        DiagnosticLog.Debug("SkiaContentPage", $"OnPointerPressed at ({e.X}, {e.Y}), ShowNavigationBar={ShowNavigationBar}, NavigationBarHeight={NavigationBarHeight}");
+        DiagnosticLog.Debug("SkiaContentPage", $"ToolbarItems count: {_toolbarItems.Count}");
 
         // Check toolbar item clicks
         if (ShowNavigationBar && e.Y < NavigationBarHeight)
         {
-            Console.WriteLine($"[SkiaContentPage] In navigation bar area, checking toolbar items");
+            DiagnosticLog.Debug("SkiaContentPage", "In navigation bar area, checking toolbar items");
             foreach (var item in _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary))
             {
                 var bounds = item.HitBounds;
                 var contains = bounds.Contains(e.X, e.Y);
-                Console.WriteLine($"[SkiaContentPage] Checking item '{item.Text}', HitBounds=({bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}), Click=({e.X},{e.Y}), Contains={contains}, Command={item.Command != null}");
+                DiagnosticLog.Debug("SkiaContentPage", $"Checking item '{item.Text}', HitBounds=({bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}), Click=({e.X},{e.Y}), Contains={contains}, Command={item.Command != null}");
                 if (contains)
                 {
-                    Console.WriteLine($"[SkiaContentPage] Toolbar item clicked: {item.Text}");
+                    DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item clicked: {item.Text}");
                     item.Command?.Execute(null);
                     return;
                 }
             }
-            Console.WriteLine($"[SkiaContentPage] No toolbar item hit");
+            DiagnosticLog.Debug("SkiaContentPage", "No toolbar item hit");
         }
 
         base.OnPointerPressed(e);

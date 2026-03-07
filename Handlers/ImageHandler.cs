@@ -5,6 +5,7 @@ using System.IO;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -127,7 +128,7 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
         if (image is Image img && img.WidthRequest > 0)
         {
             handler.PlatformView.WidthRequest = img.WidthRequest;
-            Console.WriteLine($"[ImageHandler] MapWidth: {img.WidthRequest}");
+            DiagnosticLog.Debug("ImageHandler", $"MapWidth: {img.WidthRequest}");
         }
         else if (image.Width > 0)
         {
@@ -142,7 +143,7 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
         if (image is Image img && img.HeightRequest > 0)
         {
             handler.PlatformView.HeightRequest = img.HeightRequest;
-            Console.WriteLine($"[ImageHandler] MapHeight: {img.HeightRequest}");
+            DiagnosticLog.Debug("ImageHandler", $"MapHeight: {img.HeightRequest}");
         }
         else if (image.Height > 0)
         {

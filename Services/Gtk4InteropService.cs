@@ -295,17 +295,17 @@ public class Gtk4InteropService : IDisposable
                 {
                     _useGtk4 = true;
                     _initialized = true;
-                    Console.WriteLine("[GTK4] Initialized GTK4");
+                    DiagnosticLog.Debug("Gtk4InteropService", "Initialized GTK4");
                     return true;
                 }
             }
             catch (DllNotFoundException)
             {
-                Console.WriteLine("[GTK4] GTK4 not found, trying GTK3");
+                DiagnosticLog.Warn("Gtk4InteropService", "GTK4 not found, trying GTK3");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GTK4] GTK4 init failed: {ex.Message}");
+                DiagnosticLog.Error("Gtk4InteropService", $"GTK4 init failed: {ex.Message}");
             }
 
             // Fall back to GTK3
@@ -317,17 +317,17 @@ public class Gtk4InteropService : IDisposable
                 {
                     _useGtk4 = false;
                     _initialized = true;
-                    Console.WriteLine("[GTK4] Initialized GTK3 (fallback)");
+                    DiagnosticLog.Debug("Gtk4InteropService", "Initialized GTK3 (fallback)");
                     return true;
                 }
             }
             catch (DllNotFoundException)
             {
-                Console.WriteLine("[GTK4] GTK3 not found");
+                DiagnosticLog.Warn("Gtk4InteropService", "GTK3 not found");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GTK4] GTK3 init failed: {ex.Message}");
+                DiagnosticLog.Error("Gtk4InteropService", $"GTK3 init failed: {ex.Message}");
             }
 
             return false;

@@ -65,7 +65,7 @@ public class LinuxApplication : IDisposable
         Interlocked.Increment(ref _invalidateCount);
         if (currentThread != _gtkThreadId && _gtkThreadId != 0)
         {
-            Console.WriteLine($"[DIAG] ⚠️ Invalidate from WRONG THREAD! GTK={_gtkThreadId}, Current={currentThread}, Source={source}");
+            DiagnosticLog.Warn("LinuxApplication", $"Invalidate from WRONG THREAD! GTK={_gtkThreadId}, Current={currentThread}, Source={source}");
         }
     }
 
@@ -78,23 +78,25 @@ public class LinuxApplication : IDisposable
         Interlocked.Increment(ref _requestRedrawCount);
         if (currentThread != _gtkThreadId && _gtkThreadId != 0)
         {
-            Console.WriteLine($"[DIAG] ⚠️ RequestRedraw from WRONG THREAD! GTK={_gtkThreadId}, Current={currentThread}");
+            DiagnosticLog.Warn("LinuxApplication", $"RequestRedraw from WRONG THREAD! GTK={_gtkThreadId}, Current={currentThread}");
         }
     }
 
     private static void StartHeartbeat()
     {
         _gtkThreadId = Environment.CurrentManagedThreadId;
-        Console.WriteLine($"[DIAG] GTK thread ID: {_gtkThreadId}");
+        DiagnosticLog.Info("LinuxApplication", $"GTK thread ID: {_gtkThreadId}");
         GLibNative.TimeoutAdd(250, () =>
         {
+            if (!DiagnosticLog.IsEnabled)
+                return true;
             DateTime now = DateTime.Now;
             if ((now - _lastCounterReset).TotalSeconds >= 1.0)
             {
                 int invalidates = Interlocked.Exchange(ref _invalidateCount, 0);
                 int redraws = Interlocked.Exchange(ref _requestRedrawCount, 0);
                 int draws = Interlocked.Exchange(ref _drawCount, 0);
-                Console.WriteLine($"[DIAG] ❤️ Heartbeat | Invalidate={invalidates}/s, RequestRedraw={redraws}/s, Draw={draws}/s");
+                DiagnosticLog.Debug("LinuxApplication", $"Heartbeat | Invalidate={invalidates}/s, RequestRedraw={redraws}/s, Draw={draws}/s");
                 _lastCounterReset = now;
             }
             return true;
@@ -258,11 +260,11 @@ public class LinuxApplication : IDisposable
         IntPtr argv = IntPtr.Zero;
         if (!GtkNative.gtk_init_check(ref argc, ref argv))
         {
-            Console.WriteLine("[LinuxApplication] Warning: GTK initialization failed - WebView may not work");
+            DiagnosticLog.Warn("LinuxApplication", "GTK initialization failed - WebView may not work");
         }
         else
         {
-            Console.WriteLine("[LinuxApplication] GTK pre-initialized for WebView support");
+            DiagnosticLog.Debug("LinuxApplication", "GTK pre-initialized for WebView support");
         }
 
         // Set application name for desktop integration (taskbar, etc.)
@@ -275,12 +277,12 @@ public class LinuxApplication : IDisposable
         string prgName = appName.Replace(" ", "");
         GtkNative.g_set_prgname(prgName);
         GtkNative.g_set_application_name(appName);
-        Console.WriteLine($"[LinuxApplication] Set application name: {appName} (prgname: {prgName})");
+        DiagnosticLog.Debug("LinuxApplication", $"Set application name: {appName} (prgname: {prgName})");
 
         // Initialize dispatcher
         LinuxDispatcher.Initialize();
         DispatcherProvider.SetCurrent(LinuxDispatcherProvider.Instance);
-        Console.WriteLine("[LinuxApplication] Dispatcher initialized");
+        DiagnosticLog.Debug("LinuxApplication", "Dispatcher initialized");
 
         var options = app.Services.GetService<LinuxApplicationOptions>()
                       ?? new LinuxApplicationOptions();
@@ -310,16 +312,16 @@ public class LinuxApplication : IDisposable
 
                 // Set initial theme based on system theme
                 var systemTheme = SystemThemeService.Instance.CurrentTheme;
-                Console.WriteLine($"[LinuxApplication] System theme detected at startup: {systemTheme}");
+                DiagnosticLog.Debug("LinuxApplication", $"System theme detected at startup: {systemTheme}");
                 if (systemTheme == SystemTheme.Dark)
                 {
                     mauiApplication.UserAppTheme = AppTheme.Dark;
-                    Console.WriteLine("[LinuxApplication] Set initial UserAppTheme to Dark based on system theme");
+                    DiagnosticLog.Debug("LinuxApplication", "Set initial UserAppTheme to Dark based on system theme");
                 }
                 else
                 {
                     mauiApplication.UserAppTheme = AppTheme.Light;
-                    Console.WriteLine("[LinuxApplication] Set initial UserAppTheme to Light based on system theme");
+                    DiagnosticLog.Debug("LinuxApplication", "Set initial UserAppTheme to Light based on system theme");
                 }
 
                 // Initialize GTK theme service and apply initial CSS
@@ -330,7 +332,7 @@ public class LinuxApplication : IDisposable
                 {
                     if (e.PropertyName == "UserAppTheme")
                     {
-                        Console.WriteLine($"[LinuxApplication] User theme changed to: {mauiApplication.UserAppTheme}");
+                        DiagnosticLog.Debug("LinuxApplication", $"User theme changed to: {mauiApplication.UserAppTheme}");
 
                         // Apply GTK CSS for dialogs, menus, and window decorations
                         GtkThemeService.ApplyTheme();
@@ -355,14 +357,14 @@ public class LinuxApplication : IDisposable
                 // Handle system theme changes (e.g., GNOME/KDE dark mode toggle)
                 SystemThemeService.Instance.ThemeChanged += (s, e) =>
                 {
-                    Console.WriteLine($"[LinuxApplication] System theme changed to: {e.NewTheme}");
+                    DiagnosticLog.Debug("LinuxApplication", $"System theme changed to: {e.NewTheme}");
 
                     // Update MAUI's UserAppTheme to match system theme
                     // This will trigger the PropertyChanged handler which does the refresh
                     var newAppTheme = e.NewTheme == SystemTheme.Dark ? AppTheme.Dark : AppTheme.Light;
                     if (mauiApplication.UserAppTheme != newAppTheme)
                     {
-                        Console.WriteLine($"[LinuxApplication] Setting UserAppTheme to {newAppTheme} to match system");
+                        DiagnosticLog.Debug("LinuxApplication", $"Setting UserAppTheme to {newAppTheme} to match system");
                         mauiApplication.UserAppTheme = newAppTheme;
                     }
                     else
@@ -397,9 +399,9 @@ public class LinuxApplication : IDisposable
                         var mauiWindow = createWindowMethod.Invoke(mauiApplication, new object?[] { null }) as Microsoft.Maui.Controls.Window;
                         if (mauiWindow != null)
                         {
-                            Console.WriteLine($"[LinuxApplication] Got Window from CreateWindow: {mauiWindow.GetType().Name}");
+                            DiagnosticLog.Debug("LinuxApplication", $"Got Window from CreateWindow: {mauiWindow.GetType().Name}");
                             mainPage = mauiWindow.Page;
-                            Console.WriteLine($"[LinuxApplication] Window.Page: {mainPage?.GetType().Name}");
+                            DiagnosticLog.Debug("LinuxApplication", $"Window.Page: {mainPage?.GetType().Name}");
 
                             // Add to windows list
                             var windowsField = typeof(Application).GetField("_windows",
@@ -415,13 +417,13 @@ public class LinuxApplication : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[LinuxApplication] CreateWindow failed: {ex.Message}");
+                    DiagnosticLog.Error("LinuxApplication", $"CreateWindow failed: {ex.Message}");
                 }
 
                 // Fall back to deprecated MainPage if CreateWindow didn't work
                 if (mainPage == null && mauiApplication.MainPage != null)
                 {
-                    Console.WriteLine($"[LinuxApplication] Falling back to MainPage: {mauiApplication.MainPage.GetType().Name}");
+                    DiagnosticLog.Debug("LinuxApplication", $"Falling back to MainPage: {mauiApplication.MainPage.GetType().Name}");
                     mainPage = mauiApplication.MainPage;
 
                     var windowsField = typeof(Application).GetField("_windows",
@@ -645,13 +647,13 @@ public class LinuxApplication : IDisposable
         _mainWindow.Show();
         Render();
 
-        Console.WriteLine("[LinuxApplication] Starting event loop");
+        DiagnosticLog.Debug("LinuxApplication", "Starting event loop");
         while (_mainWindow.IsRunning)
         {
             _loopCounter++;
             if (_loopCounter % 1000 == 0)
             {
-                Console.WriteLine($"[LinuxApplication] Loop iteration {_loopCounter}");
+                DiagnosticLog.Debug("LinuxApplication", $"Loop iteration {_loopCounter}");
             }
 
             _mainWindow.ProcessEvents();
@@ -660,7 +662,7 @@ public class LinuxApplication : IDisposable
             Render();
             Thread.Sleep(1);
         }
-        Console.WriteLine("[LinuxApplication] Event loop ended");
+        DiagnosticLog.Debug("LinuxApplication", "Event loop ended");
     }
 
     private void RunGtk()
@@ -691,7 +693,7 @@ public class LinuxApplication : IDisposable
     /// </summary>
     private void RefreshPageForThemeChange()
     {
-        Console.WriteLine("[LinuxApplication] RefreshPageForThemeChange - forcing property updates");
+        DiagnosticLog.Debug("LinuxApplication", "RefreshPageForThemeChange - forcing property updates");
 
         // First, try to trigger MAUI's RequestedThemeChanged event using reflection
         // This ensures AppThemeBinding bindings re-evaluate
@@ -714,7 +716,7 @@ public class LinuxApplication : IDisposable
         var app = Application.Current;
         if (app == null) return;
 
-        Console.WriteLine($"[LinuxApplication] Theme is now: {app.UserAppTheme}, RequestedTheme: {app.RequestedTheme}");
+        DiagnosticLog.Debug("LinuxApplication", $"Theme is now: {app.UserAppTheme}, RequestedTheme: {app.RequestedTheme}");
     }
 
     private void RefreshViewTheme(SkiaView view)
@@ -765,7 +767,7 @@ public class LinuxApplication : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[LinuxApplication] Error refreshing theme for {mauiView.GetType().Name}: {ex.Message}");
+                DiagnosticLog.Error("LinuxApplication", $"Error refreshing theme for {mauiView.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -792,13 +794,13 @@ public class LinuxApplication : IDisposable
             {
                 try
                 {
-                    Console.WriteLine($"[LinuxApplication] Refreshing page theme: {page.MauiPage?.GetType().Name}");
+                    DiagnosticLog.Debug("LinuxApplication", $"Refreshing page theme: {page.MauiPage?.GetType().Name}");
                     pageHandler.UpdateValue(nameof(IView.Background));
                     pageHandler.UpdateValue("BackgroundColor");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[LinuxApplication] Error refreshing page theme: {ex.Message}");
+                    DiagnosticLog.Error("LinuxApplication", $"Error refreshing page theme: {ex.Message}");
                 }
             }
 
@@ -941,7 +943,7 @@ public class LinuxApplication : IDisposable
 
     private void OnPointerPressed(object? sender, PointerEventArgs e)
     {
-        Console.WriteLine($"[LinuxApplication] OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
+        DiagnosticLog.Debug("LinuxApplication", $"OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
 
         // Route to context menu if one is active
         if (LinuxDialogService.HasContextMenu)
@@ -962,7 +964,7 @@ public class LinuxApplication : IDisposable
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y);
             var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
-            Console.WriteLine($"[LinuxApplication] HitView: {hitView?.GetType().Name ?? "null"}, rootView: {_rootView.GetType().Name}");
+            DiagnosticLog.Debug("LinuxApplication", $"HitView: {hitView?.GetType().Name ?? "null"}, rootView: {_rootView.GetType().Name}");
 
             if (hitView != null)
             {
@@ -975,7 +977,7 @@ public class LinuxApplication : IDisposable
                     FocusedView = hitView;
                 }
 
-                Console.WriteLine($"[LinuxApplication] Calling OnPointerPressed on {hitView.GetType().Name}");
+                DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerPressed on {hitView.GetType().Name}");
                 hitView.OnPointerPressed(e);
             }
             else
@@ -1018,16 +1020,16 @@ public class LinuxApplication : IDisposable
 
     private void OnScroll(object? sender, ScrollEventArgs e)
     {
-        Console.WriteLine($"[LinuxApplication] OnScroll - X={e.X}, Y={e.Y}, DeltaX={e.DeltaX}, DeltaY={e.DeltaY}");
+        DiagnosticLog.Debug("LinuxApplication", $"OnScroll - X={e.X}, Y={e.Y}, DeltaX={e.DeltaX}, DeltaY={e.DeltaY}");
         if (_rootView != null)
         {
             var hitView = _rootView.HitTest(e.X, e.Y);
-            Console.WriteLine($"[LinuxApplication] HitView: {hitView?.GetType().Name ?? "null"}");
+            DiagnosticLog.Debug("LinuxApplication", $"HitView: {hitView?.GetType().Name ?? "null"}");
             // Bubble scroll events up to find a ScrollView
             var view = hitView;
             while (view != null)
             {
-                Console.WriteLine($"[LinuxApplication] Bubbling to: {view.GetType().Name}");
+                DiagnosticLog.Debug("LinuxApplication", $"Bubbling to: {view.GetType().Name}");
                 if (view is SkiaScrollView scrollView)
                 {
                     scrollView.OnScroll(e);
@@ -1048,7 +1050,7 @@ public class LinuxApplication : IDisposable
     // GTK Event Handlers
     private void OnGtkDrawRequested(object? sender, EventArgs e)
     {
-        Console.WriteLine("[DIAG] >>> OnGtkDrawRequested ENTER");
+        DiagnosticLog.Debug("LinuxApplication", ">>> OnGtkDrawRequested ENTER");
         LogDraw();
         var surface = _gtkWindow?.SkiaSurface;
         if (surface?.Canvas != null && _rootView != null)
@@ -1057,12 +1059,12 @@ public class LinuxApplication : IDisposable
                 ? new SKColor(32, 33, 36)
                 : SKColors.White;
             surface.Canvas.Clear(bgColor);
-            Console.WriteLine("[DIAG] Drawing rootView...");
+            DiagnosticLog.Debug("LinuxApplication", "Drawing rootView...");
             _rootView.Draw(surface.Canvas);
-            Console.WriteLine("[DIAG] Drawing dialogs...");
+            DiagnosticLog.Debug("LinuxApplication", "Drawing dialogs...");
             var bounds = new SKRect(0, 0, surface.Width, surface.Height);
             LinuxDialogService.DrawDialogs(surface.Canvas, bounds);
-            Console.WriteLine("[DIAG] <<< OnGtkDrawRequested EXIT");
+            DiagnosticLog.Debug("LinuxApplication", "<<< OnGtkDrawRequested EXIT");
         }
     }
 
@@ -1075,7 +1077,7 @@ public class LinuxApplication : IDisposable
     private void OnGtkPointerPressed(object? sender, (double X, double Y, int Button) e)
     {
         string buttonName = e.Button == 1 ? "Left" : e.Button == 2 ? "Middle" : e.Button == 3 ? "Right" : $"Unknown({e.Button})";
-        Console.WriteLine($"[LinuxApplication.GTK] PointerPressed at ({e.X:F1}, {e.Y:F1}), Button={e.Button} ({buttonName})");
+        DiagnosticLog.Debug("LinuxApplication", $"GTK PointerPressed at ({e.X:F1}, {e.Y:F1}), Button={e.Button} ({buttonName})");
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
@@ -1098,12 +1100,12 @@ public class LinuxApplication : IDisposable
 
         if (_rootView == null)
         {
-            Console.WriteLine("[LinuxApplication.GTK] _rootView is null!");
+            DiagnosticLog.Warn("LinuxApplication", "GTK _rootView is null!");
             return;
         }
 
         var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
-        Console.WriteLine($"[LinuxApplication.GTK] HitView: {hitView?.GetType().Name ?? "null"}");
+        DiagnosticLog.Debug("LinuxApplication", $"GTK HitView: {hitView?.GetType().Name ?? "null"}");
 
         if (hitView != null)
         {
@@ -1116,17 +1118,17 @@ public class LinuxApplication : IDisposable
             _capturedView = hitView;
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
             var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
-            Console.WriteLine("[DIAG] >>> Before OnPointerPressed");
+            DiagnosticLog.Debug("LinuxApplication", ">>> Before OnPointerPressed");
             hitView.OnPointerPressed(args);
-            Console.WriteLine("[DIAG] <<< After OnPointerPressed, calling RequestRedraw");
+            DiagnosticLog.Debug("LinuxApplication", "<<< After OnPointerPressed, calling RequestRedraw");
             _gtkWindow?.RequestRedraw();
-            Console.WriteLine("[DIAG] <<< After RequestRedraw, returning from handler");
+            DiagnosticLog.Debug("LinuxApplication", "<<< After RequestRedraw, returning from handler");
         }
     }
 
     private void OnGtkPointerReleased(object? sender, (double X, double Y, int Button) e)
     {
-        Console.WriteLine("[DIAG] >>> OnGtkPointerReleased ENTER");
+        DiagnosticLog.Debug("LinuxApplication", ">>> OnGtkPointerReleased ENTER");
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
@@ -1144,12 +1146,12 @@ public class LinuxApplication : IDisposable
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
             var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
-            Console.WriteLine($"[DIAG] Calling OnPointerReleased on {_capturedView.GetType().Name}");
+            DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerReleased on {_capturedView.GetType().Name}");
             _capturedView.OnPointerReleased(args);
-            Console.WriteLine("[DIAG] OnPointerReleased returned");
+            DiagnosticLog.Debug("LinuxApplication", "OnPointerReleased returned");
             _capturedView = null;
             _gtkWindow?.RequestRedraw();
-            Console.WriteLine("[DIAG] <<< OnGtkPointerReleased EXIT (captured path)");
+            DiagnosticLog.Debug("LinuxApplication", "<<< OnGtkPointerReleased EXIT (captured path)");
         }
         else
         {

@@ -29,12 +29,12 @@ public static class DisplayServerFactory
             
             if (!string.IsNullOrEmpty(xDisplay) && !string.IsNullOrEmpty(preferX11))
             {
-                Console.WriteLine("[DisplayServer] XWayland detected, using X11 backend (MAUI_PREFER_X11 set)");
+                DiagnosticLog.Debug("DisplayServerFactory", "XWayland detected, using X11 backend (MAUI_PREFER_X11 set)");
                 _cachedServerType = DisplayServerType.X11;
                 return DisplayServerType.X11;
             }
 
-            Console.WriteLine("[DisplayServer] Wayland display detected");
+            DiagnosticLog.Debug("DisplayServerFactory", "Wayland display detected");
             _cachedServerType = DisplayServerType.Wayland;
             return DisplayServerType.Wayland;
         }
@@ -43,13 +43,13 @@ public static class DisplayServerFactory
         var x11Display = Environment.GetEnvironmentVariable("DISPLAY");
         if (!string.IsNullOrEmpty(x11Display))
         {
-            Console.WriteLine("[DisplayServer] X11 display detected");
+            DiagnosticLog.Debug("DisplayServerFactory", "X11 display detected");
             _cachedServerType = DisplayServerType.X11;
             return DisplayServerType.X11;
         }
 
         // Default to X11 and let it fail if not available
-        Console.WriteLine("[DisplayServer] No display server detected, defaulting to X11");
+        DiagnosticLog.Warn("DisplayServerFactory", "No display server detected, defaulting to X11");
         _cachedServerType = DisplayServerType.X11;
         return DisplayServerType.X11;
     }
@@ -76,12 +76,12 @@ public static class DisplayServerFactory
     {
         try
         {
-            Console.WriteLine($"[DisplayServer] Creating X11 window: {title} ({width}x{height})");
+            DiagnosticLog.Debug("DisplayServerFactory", $"Creating X11 window: {title} ({width}x{height})");
             return new X11DisplayWindow(title, width, height);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DisplayServer] Failed to create X11 window: {ex.Message}");
+            DiagnosticLog.Error("DisplayServerFactory", $"Failed to create X11 window: {ex.Message}");
             throw;
         }
     }
@@ -90,18 +90,18 @@ public static class DisplayServerFactory
     {
         try
         {
-            Console.WriteLine($"[DisplayServer] Creating Wayland window: {title} ({width}x{height})");
+            DiagnosticLog.Debug("DisplayServerFactory", $"Creating Wayland window: {title} ({width}x{height})");
             return new WaylandDisplayWindow(title, width, height);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DisplayServer] Failed to create Wayland window: {ex.Message}");
+            DiagnosticLog.Error("DisplayServerFactory", $"Failed to create Wayland window: {ex.Message}");
             
             // Try to fall back to X11 via XWayland
             var xDisplay = Environment.GetEnvironmentVariable("DISPLAY");
             if (!string.IsNullOrEmpty(xDisplay))
             {
-                Console.WriteLine("[DisplayServer] Falling back to X11 (XWayland)");
+                DiagnosticLog.Warn("DisplayServerFactory", "Falling back to X11 (XWayland)");
                 return CreateX11Window(title, width, height);
             }
             

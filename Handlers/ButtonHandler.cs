@@ -4,6 +4,7 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -64,7 +65,7 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
             // Map size requests from MAUI Button
             if (VirtualView is Microsoft.Maui.Controls.Button mauiButton)
             {
-                Console.WriteLine($"[ButtonHandler] MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
+                DiagnosticLog.Debug("ButtonHandler", $"MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
                 if (mauiButton.WidthRequest >= 0)
                     platformView.WidthRequest = mauiButton.WidthRequest;
                 if (mauiButton.HeightRequest >= 0)
@@ -72,7 +73,7 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
             }
             else
             {
-                Console.WriteLine($"[ButtonHandler] VirtualView is NOT Microsoft.Maui.Controls.Button, type={VirtualView?.GetType().Name}");
+                DiagnosticLog.Debug("ButtonHandler", $"VirtualView is NOT Microsoft.Maui.Controls.Button, type={VirtualView?.GetType().Name}");
             }
         }
     }
@@ -162,7 +163,7 @@ public partial class TextButtonHandler : ButtonHandler
 
     protected override void ConnectHandler(SkiaButton platformView)
     {
-        Console.WriteLine($"[TextButtonHandler] ConnectHandler START");
+        DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler START");
         base.ConnectHandler(platformView);
 
         // Manually map text properties on connect since MAUI may not trigger updates
@@ -178,13 +179,13 @@ public partial class TextButtonHandler : ButtonHandler
         // Map size requests from MAUI Button
         if (VirtualView is Microsoft.Maui.Controls.Button mauiButton)
         {
-            Console.WriteLine($"[TextButtonHandler] MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
+            DiagnosticLog.Debug("TextButtonHandler", $"MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
             if (mauiButton.WidthRequest >= 0)
                 platformView.WidthRequest = mauiButton.WidthRequest;
             if (mauiButton.HeightRequest >= 0)
                 platformView.HeightRequest = mauiButton.HeightRequest;
         }
-        Console.WriteLine($"[TextButtonHandler] ConnectHandler DONE");
+        DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler DONE");
     }
 
     public static void MapText(TextButtonHandler handler, ITextButton button)

@@ -1644,7 +1644,7 @@ public class SkiaEntry : SkiaView, IInputContext
 
     private void ShowContextMenu(float x, float y)
     {
-        Console.WriteLine($"[SkiaEntry] ShowContextMenu at ({x}, {y}), IsGtkMode={LinuxApplication.IsGtkMode}");
+        DiagnosticLog.Debug("SkiaEntry", $"ShowContextMenu at ({x}, {y}), IsGtkMode={LinuxApplication.IsGtkMode}");
         bool hasSelection = _selectionLength != 0;
         bool hasText = !string.IsNullOrEmpty(Text);
         bool hasClipboard = !string.IsNullOrEmpty(SystemClipboard.GetText());

@@ -392,14 +392,14 @@ public class SystemThemeService
 
             if (oldTheme != CurrentTheme)
             {
-                Console.WriteLine($"[SystemThemeService] Theme change detected via polling: {oldTheme} -> {CurrentTheme}");
+                DiagnosticLog.Debug("SystemThemeService", $"Theme change detected via polling: {oldTheme} -> {CurrentTheme}");
                 UpdateColors();
                 ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(CurrentTheme));
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SystemThemeService] Error in poll timer: {ex.Message}");
+            DiagnosticLog.Error("SystemThemeService", $"Error in poll timer: {ex.Message}");
         }
     }
 

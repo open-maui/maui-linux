@@ -5,6 +5,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -81,19 +82,19 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
 
     public static void MapContent(WindowHandler handler, IWindow window)
     {
-        Console.Error.WriteLine($"[WindowHandler] MapContent - PlatformView={handler.PlatformView != null}");
+        DiagnosticLog.Debug("WindowHandler", $"MapContent - PlatformView={handler.PlatformView != null}");
         if (handler.PlatformView is null) return;
 
         var content = window.Content;
-        Console.Error.WriteLine($"[WindowHandler] MapContent - content type={content?.GetType().Name}, handler={content?.Handler?.GetType().Name}");
+        DiagnosticLog.Debug("WindowHandler", $"MapContent - content type={content?.GetType().Name}, handler={content?.Handler?.GetType().Name}");
         if (content?.Handler?.PlatformView is SkiaView skiaContent)
         {
-            Console.Error.WriteLine($"[WindowHandler] MapContent - setting SkiaView content: {skiaContent.GetType().Name}");
+            DiagnosticLog.Debug("WindowHandler", $"MapContent - setting SkiaView content: {skiaContent.GetType().Name}");
             handler.PlatformView.Content = skiaContent;
         }
         else
         {
-            Console.Error.WriteLine($"[WindowHandler] MapContent - content has no SkiaView! Handler={content?.Handler}, PlatformView={content?.Handler?.PlatformView}");
+            DiagnosticLog.Warn("WindowHandler", $"MapContent - content has no SkiaView! Handler={content?.Handler}, PlatformView={content?.Handler?.PlatformView}");
         }
     }
 

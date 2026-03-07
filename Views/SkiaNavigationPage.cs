@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -123,12 +124,12 @@ public class SkiaNavigationPage : SkiaView
         }
         else
         {
-            Console.WriteLine("[SkiaNavigationPage] Push (no animation): setting _currentPage to " + page.Title);
+            DiagnosticLog.Debug("SkiaNavigationPage", "Push (no animation): setting _currentPage to " + page.Title);
             _currentPage = page;
             _currentPage.OnAppearing();
-            Console.WriteLine("[SkiaNavigationPage] Push: calling Invalidate");
+            DiagnosticLog.Debug("SkiaNavigationPage", "Push: calling Invalidate");
             Invalidate();
-            Console.WriteLine("[SkiaNavigationPage] Push: Invalidate called, _currentPage is now " + _currentPage?.Title);
+            DiagnosticLog.Debug("SkiaNavigationPage", "Push: Invalidate called, _currentPage is now " + _currentPage?.Title);
         }
 
         Pushed?.Invoke(this, new NavigationEventArgs(page));
@@ -326,7 +327,7 @@ public class SkiaNavigationPage : SkiaView
         else if (_currentPage != null)
         {
             // Draw current page normally
-            Console.WriteLine("[SkiaNavigationPage] OnDraw: drawing _currentPage=" + _currentPage.Title);
+            DiagnosticLog.Debug("SkiaNavigationPage", "OnDraw: drawing _currentPage=" + _currentPage.Title);
             _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
             _currentPage.Draw(canvas);
 
@@ -375,7 +376,7 @@ public class SkiaNavigationPage : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaNavigationPage] OnPointerPressed at ({e.X}, {e.Y}), _isAnimating={_isAnimating}");
+        DiagnosticLog.Debug("SkiaNavigationPage", $"OnPointerPressed at ({e.X}, {e.Y}), _isAnimating={_isAnimating}");
         if (_isAnimating) return;
 
         // Check for back button click
@@ -383,13 +384,13 @@ public class SkiaNavigationPage : SkiaView
         {
             if (e.X < 56 && e.Y < _navigationBarHeight)
             {
-                Console.WriteLine($"[SkiaNavigationPage] Back button clicked");
+                DiagnosticLog.Debug("SkiaNavigationPage", "Back button clicked");
                 Pop();
                 return;
             }
         }
 
-        Console.WriteLine($"[SkiaNavigationPage] Forwarding to _currentPage: {_currentPage?.GetType().Name}");
+        DiagnosticLog.Debug("SkiaNavigationPage", $"Forwarding to _currentPage: {_currentPage?.GetType().Name}");
         _currentPage?.OnPointerPressed(e);
     }
 
@@ -454,7 +455,7 @@ public class SkiaNavigationPage : SkiaView
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SkiaNavigationPage] HitTest error: {ex.Message}");
+                DiagnosticLog.Error("SkiaNavigationPage", $"HitTest error: {ex.Message}", ex);
             }
         }
 

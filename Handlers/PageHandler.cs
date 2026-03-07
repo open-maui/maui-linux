@@ -6,6 +6,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -67,7 +68,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
 
     private void OnAppearing(object? sender, EventArgs e)
     {
-        Console.WriteLine($"[PageHandler] OnAppearing received for: {VirtualView?.Title}");
+        DiagnosticLog.Debug("PageHandler", $"OnAppearing received for: {VirtualView?.Title}");
         (VirtualView as IPageController)?.SendAppearing();
     }
 
@@ -118,7 +119,7 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
         if (backgroundColor != null && backgroundColor != Colors.Transparent)
         {
             handler.PlatformView.BackgroundColor = backgroundColor;
-            Console.WriteLine($"[PageHandler] MapBackgroundColor: {backgroundColor}");
+            DiagnosticLog.Debug("PageHandler", $"MapBackgroundColor: {backgroundColor}");
         }
     }
 
@@ -189,19 +190,19 @@ public partial class ContentPageHandler : PageHandler
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
             {
-                Console.WriteLine($"[ContentPageHandler] Creating handler for content: {content.GetType().Name}");
+                DiagnosticLog.Debug("ContentPageHandler", $"Creating handler for content: {content.GetType().Name}");
                 content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             // The content's handler should provide the platform view
             if (content.Handler?.PlatformView is SkiaView skiaContent)
             {
-                Console.WriteLine($"[ContentPageHandler] Setting content: {skiaContent.GetType().Name}");
+                DiagnosticLog.Debug("ContentPageHandler", $"Setting content: {skiaContent.GetType().Name}");
                 handler.PlatformView.Content = skiaContent;
             }
             else
             {
-                Console.WriteLine($"[ContentPageHandler] Content handler PlatformView is not SkiaView: {content.Handler?.PlatformView?.GetType().Name ?? "null"}");
+                DiagnosticLog.Warn("ContentPageHandler", $"Content handler PlatformView is not SkiaView: {content.Handler?.PlatformView?.GetType().Name ?? "null"}");
             }
         }
         else
@@ -235,7 +236,7 @@ public partial class ContentPageHandler : PageHandler
             if (item.IconImageSource is FileImageSource fileSource)
             {
                 // Icon loading would be async - simplified for now
-                Console.WriteLine($"[ContentPageHandler] Toolbar item icon: {fileSource.File}");
+                DiagnosticLog.Debug("ContentPageHandler", $"Toolbar item icon: {fileSource.File}");
             }
 
             platformView.ToolbarItems.Add(skiaItem);

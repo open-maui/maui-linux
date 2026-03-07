@@ -204,7 +204,7 @@ public class HardwareVideoService : IDisposable
                 {
                     _currentApi = VideoAccelerationApi.VaApi;
                     _initialized = true;
-                    Console.WriteLine($"[HardwareVideo] Initialized VA-API with {_supportedProfiles.Count} supported profiles");
+                    DiagnosticLog.Debug("HardwareVideoService", $"Initialized VA-API with {_supportedProfiles.Count} supported profiles");
                     return true;
                 }
             }
@@ -216,12 +216,12 @@ public class HardwareVideoService : IDisposable
                 {
                     _currentApi = VideoAccelerationApi.Vdpau;
                     _initialized = true;
-                    Console.WriteLine("[HardwareVideo] Initialized VDPAU");
+                    DiagnosticLog.Debug("HardwareVideoService", "Initialized VDPAU");
                     return true;
                 }
             }
 
-            Console.WriteLine("[HardwareVideo] No hardware acceleration available, using software");
+            DiagnosticLog.Warn("HardwareVideoService", "No hardware acceleration available, using software");
             _currentApi = VideoAccelerationApi.Software;
             return false;
         }
@@ -261,12 +261,12 @@ public class HardwareVideoService : IDisposable
         }
         catch (DllNotFoundException)
         {
-            Console.WriteLine("[HardwareVideo] VA-API libraries not found");
+            DiagnosticLog.Warn("HardwareVideoService", "VA-API libraries not found");
             return false;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HardwareVideo] VA-API initialization failed: {ex.Message}");
+            DiagnosticLog.Error("HardwareVideoService", $"VA-API initialization failed: {ex.Message}");
             return false;
         }
     }
@@ -276,11 +276,11 @@ public class HardwareVideoService : IDisposable
         int status = vaInitialize(_vaDisplay, out int major, out int minor);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaInitialize failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaInitialize failed: {GetVaError(status)}");
             return false;
         }
 
-        Console.WriteLine($"[HardwareVideo] VA-API {major}.{minor} initialized");
+        DiagnosticLog.Debug("HardwareVideoService", $"VA-API {major}.{minor} initialized");
 
         // Query supported profiles
         int[] profiles = new int[32];
@@ -331,11 +331,11 @@ public class HardwareVideoService : IDisposable
         }
         catch (DllNotFoundException)
         {
-            Console.WriteLine("[HardwareVideo] VDPAU libraries not found");
+            DiagnosticLog.Warn("HardwareVideoService", "VDPAU libraries not found");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HardwareVideo] VDPAU initialization failed: {ex.Message}");
+            DiagnosticLog.Error("HardwareVideoService", $"VDPAU initialization failed: {ex.Message}");
         }
 
         return false;
@@ -355,7 +355,7 @@ public class HardwareVideoService : IDisposable
 
         if (!_supportedProfiles.Contains(profile))
         {
-            Console.WriteLine($"[HardwareVideo] Profile {profile} not supported");
+            DiagnosticLog.Warn("HardwareVideoService", $"Profile {profile} not supported");
             return false;
         }
 
@@ -383,7 +383,7 @@ public class HardwareVideoService : IDisposable
         int status = vaCreateConfig(_vaDisplay, vaProfile, VAEntrypointVLD, IntPtr.Zero, 0, out _vaConfigId);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaCreateConfig failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaCreateConfig failed: {GetVaError(status)}");
             return false;
         }
 
@@ -396,7 +396,7 @@ public class HardwareVideoService : IDisposable
         status = vaCreateSurfaces(_vaDisplay, format, (uint)width, (uint)height, _vaSurfaces, 8, IntPtr.Zero, 0);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaCreateSurfaces failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaCreateSurfaces failed: {GetVaError(status)}");
             vaDestroyConfig(_vaDisplay, _vaConfigId);
             return false;
         }
@@ -405,13 +405,13 @@ public class HardwareVideoService : IDisposable
         status = vaCreateContext(_vaDisplay, _vaConfigId, width, height, 0, IntPtr.Zero, 0, out _vaContextId);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaCreateContext failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaCreateContext failed: {GetVaError(status)}");
             vaDestroySurfaces(_vaDisplay, _vaSurfaces, _vaSurfaces.Length);
             vaDestroyConfig(_vaDisplay, _vaConfigId);
             return false;
         }
 
-        Console.WriteLine($"[HardwareVideo] Created decoder: {profile} {width}x{height}");
+        DiagnosticLog.Debug("HardwareVideoService", $"Created decoder: {profile} {width}x{height}");
         return true;
     }
 

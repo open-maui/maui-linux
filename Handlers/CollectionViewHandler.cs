@@ -6,6 +6,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -130,18 +131,18 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
         {
             _isUpdatingSelection = true;
 
-            Console.WriteLine($"[CollectionViewHandler] OnItemTapped index={e.Index}, item={e.Item}, SelectionMode={VirtualView.SelectionMode}");
+            DiagnosticLog.Debug("CollectionViewHandler", $"OnItemTapped index={e.Index}, item={e.Item}, SelectionMode={VirtualView.SelectionMode}");
 
             // Try to get the item view and process gestures
             var skiaView = PlatformView?.GetItemView(e.Index);
-            Console.WriteLine($"[CollectionViewHandler] GetItemView({e.Index}) returned: {skiaView?.GetType().Name ?? "null"}, MauiView={skiaView?.MauiView?.GetType().Name ?? "null"}");
+            DiagnosticLog.Debug("CollectionViewHandler", $"GetItemView({e.Index}) returned: {skiaView?.GetType().Name ?? "null"}, MauiView={skiaView?.MauiView?.GetType().Name ?? "null"}");
 
             if (skiaView?.MauiView != null)
             {
-                Console.WriteLine($"[CollectionViewHandler] Found MauiView: {skiaView.MauiView.GetType().Name}, GestureRecognizers={skiaView.MauiView.GestureRecognizers?.Count ?? 0}");
+                DiagnosticLog.Debug("CollectionViewHandler", $"Found MauiView: {skiaView.MauiView.GetType().Name}, GestureRecognizers={skiaView.MauiView.GestureRecognizers?.Count ?? 0}");
                 if (GestureManager.ProcessTap(skiaView.MauiView, 0, 0))
                 {
-                    Console.WriteLine("[CollectionViewHandler] Gesture processed successfully");
+                    DiagnosticLog.Debug("CollectionViewHandler", "Gesture processed successfully");
                     return;
                 }
             }
@@ -208,7 +209,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                         {
                             // Set MauiView so gestures can be processed
                             skiaView.MauiView = view;
-                            Console.WriteLine($"[CollectionViewHandler.ItemViewCreator] Set MauiView={view.GetType().Name} on {skiaView.GetType().Name}, GestureRecognizers={view.GestureRecognizers?.Count ?? 0}");
+                            DiagnosticLog.Debug("CollectionViewHandler", $"ItemViewCreator: Set MauiView={view.GetType().Name} on {skiaView.GetType().Name}, GestureRecognizers={view.GestureRecognizers?.Count ?? 0}");
                             return skiaView;
                         }
                     }

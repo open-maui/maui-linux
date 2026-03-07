@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Window;
 
@@ -163,7 +164,7 @@ public sealed class GtkHostWindow : IDisposable
         ConnectSignal(_window, "button-release-event", Marshal.GetFunctionPointerForDelegate(_buttonReleaseHandler));
         ConnectSignal(_window, "motion-notify-event", Marshal.GetFunctionPointerForDelegate(_motionHandler));
 
-        Console.WriteLine($"[GtkHostWindow] Created GTK window on X11: {width}x{height}");
+        DiagnosticLog.Debug("GtkHostWindow", $"Created GTK window on X11: {width}x{height}");
     }
 
     private void ConnectSignal(IntPtr widget, string signal, IntPtr handler)
@@ -202,7 +203,7 @@ public sealed class GtkHostWindow : IDisposable
             1 => "Left",
             _ => $"Other({button})",
         };
-        Console.WriteLine($"[GtkHostWindow] ButtonPress at ({x:F1}, {y:F1}), button={button} ({buttonName})");
+        DiagnosticLog.Debug("GtkHostWindow", $"ButtonPress at ({x:F1}, {y:F1}), button={button} ({buttonName})");
         PointerPressed?.Invoke(this, (x, y, button));
         _skiaSurface?.RaisePointerPressed(x, y, button);
         return false;
@@ -256,7 +257,7 @@ public sealed class GtkHostWindow : IDisposable
     {
         if (string.IsNullOrEmpty(iconPath) || !File.Exists(iconPath))
         {
-            Console.WriteLine("[GtkHostWindow] Icon file not found: " + iconPath);
+            DiagnosticLog.Warn("GtkHostWindow", "Icon file not found: " + iconPath);
             return;
         }
         try
@@ -266,12 +267,12 @@ public sealed class GtkHostWindow : IDisposable
             {
                 GtkNative.gtk_window_set_icon(_window, pixbuf);
                 GtkNative.g_object_unref(pixbuf);
-                Console.WriteLine("[GtkHostWindow] Set window icon: " + iconPath);
+                DiagnosticLog.Debug("GtkHostWindow", "Set window icon: " + iconPath);
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[GtkHostWindow] Failed to set icon: " + ex.Message);
+            DiagnosticLog.Error("GtkHostWindow", "Failed to set icon", ex);
         }
     }
 
@@ -285,7 +286,7 @@ public sealed class GtkHostWindow : IDisposable
         GtkNative.gtk_widget_set_size_request(webViewWidget, width, height);
         GtkNative.gtk_fixed_put(_webViewLayer, webViewWidget, x, y);
         GtkNative.gtk_widget_show(webViewWidget);
-        Console.WriteLine($"[GtkHostWindow] Added WebView at ({x}, {y}) size {width}x{height}");
+        DiagnosticLog.Debug("GtkHostWindow", $"Added WebView at ({x}, {y}) size {width}x{height}");
     }
 
     public void MoveResizeWebView(IntPtr webViewWidget, int x, int y, int width, int height)

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Microsoft.Maui;
 
@@ -227,10 +228,10 @@ public abstract class SkiaLayoutView : SkiaView
             }
             if (hasCV)
             {
-                Console.WriteLine($"[SkiaStackLayout+CV] OnDraw - bounds={bounds}, children={_children.Count}");
+                DiagnosticLog.Debug("SkiaLayoutView", $"[SkiaStackLayout+CV] OnDraw - bounds={bounds}, children={_children.Count}");
                 foreach (var c in _children)
                 {
-                    Console.WriteLine($"[SkiaStackLayout+CV] Child: {c.GetType().Name}, IsVisible={c.IsVisible}, Bounds={c.Bounds}");
+                    DiagnosticLog.Debug("SkiaLayoutView", $"[SkiaStackLayout+CV] Child: {c.GetType().Name}, IsVisible={c.IsVisible}, Bounds={c.Bounds}");
                 }
             }
         }
@@ -959,9 +960,9 @@ public class SkiaGrid : SkiaLayoutView
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SkiaGrid] EXCEPTION in ArrangeOverride: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"[SkiaGrid] Bounds: {bounds}, RowHeights: {_rowHeights.Length}, RowDefs: {_rowDefinitions.Count}, Children: {Children.Count}");
-            Console.WriteLine($"[SkiaGrid] Stack trace: {ex.StackTrace}");
+            DiagnosticLog.Error("SkiaGrid", $"EXCEPTION in ArrangeOverride: {ex.GetType().Name}: {ex.Message}", ex);
+            DiagnosticLog.Error("SkiaGrid", $"Bounds: {bounds}, RowHeights: {_rowHeights.Length}, RowDefs: {_rowDefinitions.Count}, Children: {Children.Count}");
+            DiagnosticLog.Error("SkiaGrid", $"Stack trace: {ex.StackTrace}");
             throw;
         }
     }

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -428,7 +429,7 @@ public class SkiaScrollView : SkiaView
 
     public override void OnScroll(ScrollEventArgs e)
     {
-        Console.WriteLine($"[SkiaScrollView] OnScroll - DeltaY={e.DeltaY}, ScrollableHeight={ScrollableHeight}, ContentSize={ContentSize}, Bounds={Bounds}");
+        DiagnosticLog.Debug("SkiaScrollView", $"OnScroll - DeltaY={e.DeltaY}, ScrollableHeight={ScrollableHeight}, ContentSize={ContentSize}, Bounds={Bounds}");
 
         // Handle mouse wheel scrolling
         var deltaMultiplier = 40f; // Scroll speed
@@ -438,7 +439,7 @@ public class SkiaScrollView : SkiaView
         {
             var oldScrollY = _scrollY;
             ScrollY += e.DeltaY * deltaMultiplier;
-            Console.WriteLine($"[SkiaScrollView] ScrollY changed: {oldScrollY} -> {_scrollY}");
+            DiagnosticLog.Debug("SkiaScrollView", $"ScrollY changed: {oldScrollY} -> {_scrollY}");
             if (_scrollY != oldScrollY)
                 scrolled = true;
         }
@@ -876,7 +877,7 @@ public class SkiaScrollView : SkiaView
         var actualBounds = bounds;
         if (double.IsInfinity(bounds.Height) || double.IsNaN(bounds.Height))
         {
-            Console.WriteLine($"[SkiaScrollView] WARNING: Infinite/NaN height, using default viewport={DefaultViewportHeight}");
+            DiagnosticLog.Warn("SkiaScrollView", $"Infinite/NaN height, using default viewport={DefaultViewportHeight}");
             actualBounds = new Rect(bounds.Left, bounds.Top, bounds.Width, DefaultViewportHeight);
         }
 

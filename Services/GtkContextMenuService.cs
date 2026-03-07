@@ -31,7 +31,7 @@ public static class GtkContextMenuService
         IntPtr menu = GtkNative.gtk_menu_new();
         if (menu == IntPtr.Zero)
         {
-            Console.WriteLine("[GtkContextMenuService] Failed to create GTK menu");
+            DiagnosticLog.Error("GtkContextMenuService", "Failed to create GTK menu");
             return;
         }
 
@@ -56,7 +56,7 @@ public static class GtkContextMenuService
 
                     ActivateCallback callback = delegate
                     {
-                        Console.WriteLine("[GtkContextMenuService] Menu item activated: " + item.Text);
+                        DiagnosticLog.Debug("GtkContextMenuService", "Menu item activated: " + item.Text);
                         _actions[actionIndex]?.Invoke();
                     };
                     _callbacks.Add(callback);
@@ -88,7 +88,7 @@ public static class GtkContextMenuService
             GtkNative.gdk_event_free(currentEvent);
         }
 
-        Console.WriteLine($"[GtkContextMenuService] Showed GTK menu with {items.Count} items");
+        DiagnosticLog.Debug("GtkContextMenuService", $"Showed GTK menu with {items.Count} items");
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ public static class GtkContextMenuService
                 isDark = Microsoft.Maui.Controls.Application.Current?.RequestedTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
             }
 
-            Console.WriteLine($"[GtkContextMenuService] ApplyMenuTheme: isDark={isDark}");
+            DiagnosticLog.Debug("GtkContextMenuService", $"ApplyMenuTheme: isDark={isDark}");
 
             // Create comprehensive CSS based on the theme
             string css = isDark
@@ -164,7 +164,7 @@ public static class GtkContextMenuService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkContextMenuService] Error applying menu theme: {ex.Message}");
+            DiagnosticLog.Error("GtkContextMenuService", $"Error applying menu theme: {ex.Message}");
         }
     }
 }

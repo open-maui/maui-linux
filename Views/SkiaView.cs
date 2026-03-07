@@ -1682,7 +1682,7 @@ public abstract class SkiaView : BindableObject, IDisposable, IAccessible
 
     public virtual void OnPointerReleased(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaView] OnPointerReleased on {GetType().Name}, MauiView={MauiView?.GetType().Name ?? "null"}");
+        DiagnosticLog.Debug("SkiaView", $"OnPointerReleased on {GetType().Name}, MauiView={MauiView?.GetType().Name ?? "null"}");
         if (MauiView != null)
         {
             GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);

@@ -3,6 +3,7 @@
 
 using SkiaSharp;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Window;
 using System.Runtime.InteropServices;
 
@@ -58,7 +59,7 @@ public class GpuRenderingEngine : IDisposable
 
         if (!_gpuAvailable)
         {
-            Console.WriteLine("[GpuRenderingEngine] GPU not available, using software rendering");
+            DiagnosticLog.Debug("GpuRenderingEngine", "GPU not available, using software rendering");
             InitializeSoftwareRendering();
         }
 
@@ -74,25 +75,25 @@ public class GpuRenderingEngine : IDisposable
             var glInterface = GRGlInterface.Create();
             if (glInterface == null)
             {
-                Console.WriteLine("[GpuRenderingEngine] Failed to create GL interface");
+                DiagnosticLog.Warn("GpuRenderingEngine", "Failed to create GL interface");
                 return false;
             }
 
             _grContext = GRContext.CreateGl(glInterface);
             if (_grContext == null)
             {
-                Console.WriteLine("[GpuRenderingEngine] Failed to create GR context");
+                DiagnosticLog.Warn("GpuRenderingEngine", "Failed to create GR context");
                 glInterface.Dispose();
                 return false;
             }
 
             CreateGpuSurface();
-            Console.WriteLine("[GpuRenderingEngine] GPU acceleration enabled");
+            DiagnosticLog.Debug("GpuRenderingEngine", "GPU acceleration enabled");
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GpuRenderingEngine] GPU initialization failed: {ex.Message}");
+            DiagnosticLog.Error("GpuRenderingEngine", "GPU initialization failed", ex);
             return false;
         }
     }
@@ -124,7 +125,7 @@ public class GpuRenderingEngine : IDisposable
 
         if (_surface == null)
         {
-            Console.WriteLine("[GpuRenderingEngine] Failed to create GPU surface, falling back to software");
+            DiagnosticLog.Warn("GpuRenderingEngine", "Failed to create GPU surface, falling back to software");
             _gpuAvailable = false;
             InitializeSoftwareRendering();
             return;

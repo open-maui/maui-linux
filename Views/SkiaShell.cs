@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -481,10 +482,10 @@ public class SkiaShell : SkiaLayoutView
     /// </summary>
     public void RefreshTheme()
     {
-        Console.WriteLine("[SkiaShell] RefreshTheme called - refreshing all pages");
+        DiagnosticLog.Debug("SkiaShell", "RefreshTheme called - refreshing all pages");
         if (MauiShell != null && ColorRefresher != null)
         {
-            Console.WriteLine("[SkiaShell] Refreshing shell colors");
+            DiagnosticLog.Debug("SkiaShell", "Refreshing shell colors");
             ColorRefresher(this, MauiShell);
         }
         if (ContentRenderer != null)
@@ -495,7 +496,7 @@ public class SkiaShell : SkiaLayoutView
                 {
                     if (item.MauiShellContent != null)
                     {
-                        Console.WriteLine("[SkiaShell] Re-rendering: " + item.Title);
+                        DiagnosticLog.Debug("SkiaShell", "Re-rendering: " + item.Title);
                         var skiaView = ContentRenderer(item.MauiShellContent);
                         if (skiaView != null)
                         {
@@ -775,7 +776,7 @@ public class SkiaShell : SkiaLayoutView
 
     protected override Rect ArrangeOverride(Rect bounds)
     {
-        Console.WriteLine($"[SkiaShell] ArrangeOverride - bounds={bounds}");
+        DiagnosticLog.Debug("SkiaShell", $"ArrangeOverride - bounds={bounds}");
 
         // Arrange current content with padding
         if (_currentContent != null)
@@ -787,7 +788,7 @@ public class SkiaShell : SkiaLayoutView
                 contentTop,
                 bounds.Width - ContentPadding * 2,
                 contentBottom - contentTop);
-            Console.WriteLine($"[SkiaShell] Arranging content with bounds={contentBounds}, padding={ContentPadding}");
+            DiagnosticLog.Debug("SkiaShell", $"Arranging content with bounds={contentBounds}, padding={ContentPadding}");
             _currentContent.Arrange(contentBounds);
         }
 

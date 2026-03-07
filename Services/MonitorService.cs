@@ -106,7 +106,7 @@ public class MonitorService : IDisposable
                 _display = X11.XOpenDisplay(IntPtr.Zero);
                 if (_display == IntPtr.Zero)
                 {
-                    Console.WriteLine("[MonitorService] Failed to open X11 display");
+                    DiagnosticLog.Error("MonitorService", "Failed to open X11 display");
                     _initialized = true;
                     return;
                 }
@@ -117,26 +117,26 @@ public class MonitorService : IDisposable
                 // Check if XRandR is available
                 if (XRandR.XRRQueryExtension(_display, out _eventBase, out _errorBase) == 0)
                 {
-                    Console.WriteLine("[MonitorService] XRandR extension not available");
+                    DiagnosticLog.Warn("MonitorService", "XRandR extension not available");
                     _initialized = true;
                     return;
                 }
 
                 if (XRandR.XRRQueryVersion(_display, out int major, out int minor) == 0)
                 {
-                    Console.WriteLine("[MonitorService] Failed to query XRandR version");
+                    DiagnosticLog.Error("MonitorService", "Failed to query XRandR version");
                     _initialized = true;
                     return;
                 }
 
-                Console.WriteLine($"[MonitorService] XRandR {major}.{minor} available");
+                DiagnosticLog.Debug("MonitorService", $"XRandR {major}.{minor} available");
 
                 RefreshMonitors();
                 _initialized = true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MonitorService] Initialization failed: {ex.Message}");
+                DiagnosticLog.Error("MonitorService", $"Initialization failed: {ex.Message}");
                 _initialized = true;
             }
         }
@@ -157,7 +157,7 @@ public class MonitorService : IDisposable
             resources = XRandR.XRRGetScreenResourcesCurrent(_display, _rootWindow);
             if (resources == IntPtr.Zero)
             {
-                Console.WriteLine("[MonitorService] Failed to get screen resources");
+                DiagnosticLog.Error("MonitorService", "Failed to get screen resources");
                 return;
             }
 
@@ -252,10 +252,10 @@ public class MonitorService : IDisposable
             _monitors = newMonitors;
 
             // Log detected monitors
-            Console.WriteLine($"[MonitorService] Detected {_monitors.Count} monitor(s):");
+            DiagnosticLog.Debug("MonitorService", $"Detected {_monitors.Count} monitor(s):");
             foreach (var monitor in _monitors)
             {
-                Console.WriteLine($"  {monitor}");
+                DiagnosticLog.Debug("MonitorService", $"  {monitor}");
             }
 
             // Notify if configuration changed

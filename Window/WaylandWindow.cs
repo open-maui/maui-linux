@@ -3,6 +3,7 @@
 
 using System.Runtime.InteropServices;
 using Microsoft.Maui.Platform.Linux.Input;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Window;
 
@@ -789,7 +790,7 @@ public class WaylandWindow : IDisposable
         // Create shared memory buffer
         CreateShmBuffer();
 
-        Console.WriteLine($"[Wayland] Window created: {_width}x{_height}");
+        DiagnosticLog.Debug("WaylandWindow", $"Window created: {_width}x{_height}");
     }
 
     private void CreateShmBuffer()
@@ -910,7 +911,7 @@ public class WaylandWindow : IDisposable
         var window = (WaylandWindow)handle.Target!;
 
         var interfaceName = Marshal.PtrToStringAnsi(iface);
-        Console.WriteLine($"[Wayland] Global: {interfaceName} v{version}");
+        DiagnosticLog.Debug("WaylandWindow", $"Global: {interfaceName} v{version}");
 
         switch (interfaceName)
         {

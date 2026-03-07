@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -422,7 +423,7 @@ public class SkiaImageButton : SkiaView
     {
         _isLoading = true;
         Invalidate();
-        Console.WriteLine("[SkiaImageButton] LoadFromFileAsync: " + filePath);
+        DiagnosticLog.Debug("SkiaImageButton", "LoadFromFileAsync: " + filePath);
 
         try
         {
@@ -450,15 +451,15 @@ public class SkiaImageButton : SkiaView
                 if (File.Exists(path))
                 {
                     foundPath = path;
-                    Console.WriteLine("[SkiaImageButton] Found file at: " + path);
+                    DiagnosticLog.Debug("SkiaImageButton", "Found file at: " + path);
                     break;
                 }
             }
 
             if (foundPath == null)
             {
-                Console.WriteLine("[SkiaImageButton] File not found: " + filePath);
-                Console.WriteLine("[SkiaImageButton] Searched paths: " + string.Join(", ", searchPaths));
+                DiagnosticLog.Warn("SkiaImageButton", "File not found: " + filePath);
+                DiagnosticLog.Debug("SkiaImageButton", "Searched paths: " + string.Join(", ", searchPaths));
                 _isLoading = false;
                 ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
                 return;
@@ -498,7 +499,7 @@ public class SkiaImageButton : SkiaView
                         canvas.Translate(-cullRect.Left, -cullRect.Top);
                         canvas.DrawPicture(svg.Picture);
                         Bitmap = bitmap;
-                        Console.WriteLine($"[SkiaImageButton] Loaded SVG: {foundPath} ({width}x{height}), cullRect={cullRect}");
+                        DiagnosticLog.Debug("SkiaImageButton", $"Loaded SVG: {foundPath} ({width}x{height}), cullRect={cullRect}");
                     }
                 }
                 else
@@ -508,7 +509,7 @@ public class SkiaImageButton : SkiaView
                     if (bitmap != null)
                     {
                         Bitmap = bitmap;
-                        Console.WriteLine("[SkiaImageButton] Loaded image: " + foundPath);
+                        DiagnosticLog.Debug("SkiaImageButton", "Loaded image: " + foundPath);
                     }
                 }
             });

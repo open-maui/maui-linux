@@ -91,7 +91,7 @@ public class PortalFilePickerService : IFilePicker
         else
         {
             // No file picker available
-            Console.WriteLine("[FilePickerService] No file picker available (install xdg-desktop-portal, zenity, or kdialog)");
+            DiagnosticLog.Warn("PortalFilePickerService", "No file picker available (install xdg-desktop-portal, zenity, or kdialog)");
             return Enumerable.Empty<FileResult>();
         }
     }
@@ -146,7 +146,7 @@ public class PortalFilePickerService : IFilePicker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FilePickerService] Portal error: {ex.Message}");
+            DiagnosticLog.Error("PortalFilePickerService", $"Portal error: {ex.Message}");
             // Fall back to zenity/kdialog
             if (_fallbackTool != null)
             {
@@ -358,7 +358,7 @@ public class PortalFilePickerService : IFilePicker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FilePickerService] Command error: {ex.Message}");
+            DiagnosticLog.Error("PortalFilePickerService", $"Command error: {ex.Message}");
             return "";
         }
     }

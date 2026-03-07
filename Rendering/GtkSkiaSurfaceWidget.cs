@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using Microsoft.Maui.Platform.Linux.Native;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Rendering;
@@ -150,7 +151,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
         GtkNative.g_signal_connect_data(_widget, "key-release-event", Marshal.GetFunctionPointerForDelegate(_keyReleaseCallback), IntPtr.Zero, IntPtr.Zero, 0);
         GtkNative.g_signal_connect_data(_widget, "scroll-event", Marshal.GetFunctionPointerForDelegate(_scrollCallback), IntPtr.Zero, IntPtr.Zero, 0);
 
-        Console.WriteLine($"[GtkSkiaSurfaceWidget] Created with size {width}x{height}");
+        DiagnosticLog.Debug("GtkSkiaSurfaceWidget", $"Created with size {width}x{height}");
     }
 
     private void CreateBuffer(int width, int height)
@@ -179,7 +180,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
             _imageInfo.Height,
             _imageInfo.RowBytes);
 
-        Console.WriteLine($"[GtkSkiaSurfaceWidget] Created buffer {width}x{height}, stride={_imageInfo.RowBytes}");
+        DiagnosticLog.Debug("GtkSkiaSurfaceWidget", $"Created buffer {width}x{height}, stride={_imageInfo.RowBytes}");
     }
 
     public void Resize(int width, int height)
@@ -303,7 +304,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
             if (!char.IsControl(c) || c == '\r' || c == '\n' || c == '\t')
             {
                 string text = c.ToString();
-                Console.WriteLine($"[GtkSkiaSurfaceWidget] TextInput: '{text}' (keyval={keyval}, unicode={unicode})");
+                DiagnosticLog.Debug("GtkSkiaSurfaceWidget", $"TextInput: '{text}' (keyval={keyval}, unicode={unicode})");
                 TextInput?.Invoke(this, text);
             }
         }

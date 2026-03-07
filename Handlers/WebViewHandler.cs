@@ -4,6 +4,7 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -89,30 +90,30 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
 
     public static void MapSource(WebViewHandler handler, IWebView webView)
     {
-        Console.WriteLine("[WebViewHandler] MapSource called");
+        DiagnosticLog.Debug("WebViewHandler", "MapSource called");
         if (handler.PlatformView == null)
         {
-            Console.WriteLine("[WebViewHandler] PlatformView is null!");
+            DiagnosticLog.Warn("WebViewHandler", "PlatformView is null!");
             return;
         }
 
         var source = webView.Source;
-        Console.WriteLine($"[WebViewHandler] Source type: {source?.GetType().Name ?? "null"}");
+        DiagnosticLog.Debug("WebViewHandler", $"Source type: {source?.GetType().Name ?? "null"}");
 
         if (source is UrlWebViewSource urlSource)
         {
-            Console.WriteLine($"[WebViewHandler] Loading URL: {urlSource.Url}");
+            DiagnosticLog.Debug("WebViewHandler", $"Loading URL: {urlSource.Url}");
             handler.PlatformView.Source = urlSource.Url ?? "";
         }
         else if (source is HtmlWebViewSource htmlSource)
         {
-            Console.WriteLine($"[WebViewHandler] Loading HTML ({htmlSource.Html?.Length ?? 0} chars)");
-            Console.WriteLine($"[WebViewHandler] HTML preview: {htmlSource.Html?.Substring(0, Math.Min(100, htmlSource.Html?.Length ?? 0))}...");
+            DiagnosticLog.Debug("WebViewHandler", $"Loading HTML ({htmlSource.Html?.Length ?? 0} chars)");
+            DiagnosticLog.Debug("WebViewHandler", $"HTML preview: {htmlSource.Html?.Substring(0, Math.Min(100, htmlSource.Html?.Length ?? 0))}...");
             handler.PlatformView.Html = htmlSource.Html ?? "";
         }
         else
         {
-            Console.WriteLine("[WebViewHandler] Unknown source type or null");
+            DiagnosticLog.Debug("WebViewHandler", "Unknown source type or null");
         }
     }
 

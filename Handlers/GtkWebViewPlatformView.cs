@@ -74,7 +74,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
             Microsoft.Maui.Controls.Application.Current.RequestedThemeChanged += _themeChangedHandler;
         }
 
-        Console.WriteLine("[GtkWebViewPlatformView] Created WebKitWebView widget");
+        DiagnosticLog.Debug("GtkWebViewPlatformView", "Created WebKitWebView widget");
     }
 
     /// <summary>
@@ -105,7 +105,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
             var dialogType = (ScriptDialogType)(int)webkitDialogType;
             var message = WebKitNative.GetScriptDialogMessage(dialog) ?? "";
 
-            Console.WriteLine($"[GtkWebViewPlatformView] Script dialog: type={dialogType}, message={message}");
+            DiagnosticLog.Debug("GtkWebViewPlatformView", $"Script dialog: type={dialogType}, message={message}");
 
             // Get the parent window for proper modal behavior
             IntPtr parentWindow = GtkHostService.Instance.HostWindow?.Window ?? IntPtr.Zero;
@@ -166,7 +166,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
 
                 // Run the dialog synchronously - this blocks until user responds
                 int response = GtkNative.gtk_dialog_run(gtkDialog);
-                Console.WriteLine($"[GtkWebViewPlatformView] Dialog response: {response}");
+                DiagnosticLog.Debug("GtkWebViewPlatformView", $"Dialog response: {response}");
 
                 // Set the confirmed state for confirm dialogs
                 if (dialogType == ScriptDialogType.Confirm || dialogType == ScriptDialogType.BeforeUnloadConfirm)
@@ -184,7 +184,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkWebViewPlatformView] Error in OnScriptDialog: {ex.Message}");
+            DiagnosticLog.Error("GtkWebViewPlatformView", $"Error in OnScriptDialog: {ex.Message}", ex);
             // Return false on error to let WebKitGTK try its default handling
             return false;
         }
@@ -210,7 +210,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
 
             if (gtkDialog == IntPtr.Zero)
             {
-                Console.WriteLine("[GtkWebViewPlatformView] Failed to create prompt dialog");
+                DiagnosticLog.Error("GtkWebViewPlatformView", "Failed to create prompt dialog");
                 return false;
             }
 
@@ -251,7 +251,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
 
             // Run the dialog
             int response = GtkNative.gtk_dialog_run(gtkDialog);
-            Console.WriteLine($"[GtkWebViewPlatformView] Prompt dialog response: {response}");
+            DiagnosticLog.Debug("GtkWebViewPlatformView", $"Prompt dialog response: {response}");
 
             if (response == GtkNative.GTK_RESPONSE_OK)
             {
@@ -261,7 +261,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
                     ? System.Runtime.InteropServices.Marshal.PtrToStringUTF8(textPtr)
                     : "";
 
-                Console.WriteLine($"[GtkWebViewPlatformView] Prompt text: {enteredText}");
+                DiagnosticLog.Debug("GtkWebViewPlatformView", $"Prompt text: {enteredText}");
 
                 // Set the prompt response
                 WebKitNative.SetScriptDialogPromptText(webkitDialog, enteredText ?? "");
@@ -278,7 +278,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkWebViewPlatformView] Error in HandlePromptDialog: {ex.Message}");
+            DiagnosticLog.Error("GtkWebViewPlatformView", $"Error in HandlePromptDialog: {ex.Message}", ex);
             return false;
         }
     }
@@ -299,7 +299,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
                 isDark = Microsoft.Maui.Controls.Application.Current?.RequestedTheme == Microsoft.Maui.ApplicationModel.AppTheme.Dark;
             }
 
-            Console.WriteLine($"[GtkWebViewPlatformView] ApplyDialogTheme: isDark={isDark}, UserAppTheme={Microsoft.Maui.Controls.Application.Current?.UserAppTheme}");
+            DiagnosticLog.Debug("GtkWebViewPlatformView", $"ApplyDialogTheme: isDark={isDark}, UserAppTheme={Microsoft.Maui.Controls.Application.Current?.UserAppTheme}");
 
             // Create comprehensive CSS based on the theme - targeting all dialog elements
             string css = isDark
@@ -407,7 +407,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GtkWebViewPlatformView] Error applying dialog theme: {ex.Message}");
+            DiagnosticLog.Error("GtkWebViewPlatformView", $"Error applying dialog theme: {ex.Message}", ex);
         }
     }
 
@@ -419,17 +419,17 @@ public sealed class GtkWebViewPlatformView : IDisposable
             switch ((WebKitNative.WebKitLoadEvent)loadEvent)
             {
                 case WebKitNative.WebKitLoadEvent.Started:
-                    Console.WriteLine("[GtkWebViewPlatformView] Load started: " + uri);
+                    DiagnosticLog.Debug("GtkWebViewPlatformView", "Load started: " + uri);
                     NavigationStarted?.Invoke(this, uri);
                     break;
                 case WebKitNative.WebKitLoadEvent.Finished:
                     _currentUri = uri;
-                    Console.WriteLine("[GtkWebViewPlatformView] Load finished: " + uri);
+                    DiagnosticLog.Debug("GtkWebViewPlatformView", "Load finished: " + uri);
                     NavigationCompleted?.Invoke(this, (uri, true));
                     break;
                 case WebKitNative.WebKitLoadEvent.Committed:
                     _currentUri = uri;
-                    Console.WriteLine("[GtkWebViewPlatformView] Load committed: " + uri);
+                    DiagnosticLog.Debug("GtkWebViewPlatformView", "Load committed: " + uri);
                     break;
                 case WebKitNative.WebKitLoadEvent.Redirected:
                     break;
@@ -437,8 +437,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine("[GtkWebViewPlatformView] Error in OnLoadChanged: " + ex.Message);
-            Console.WriteLine("[GtkWebViewPlatformView] Stack trace: " + ex.StackTrace);
+            DiagnosticLog.Error("GtkWebViewPlatformView", "Error in OnLoadChanged: " + ex.Message, ex);
         }
     }
 
@@ -447,7 +446,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
         if (_widget != IntPtr.Zero)
         {
             WebKitNative.LoadUri(_widget, uri);
-            Console.WriteLine("[GtkWebViewPlatformView] Navigate to: " + uri);
+            DiagnosticLog.Debug("GtkWebViewPlatformView", "Navigate to: " + uri);
         }
     }
 
@@ -456,7 +455,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
         if (_widget != IntPtr.Zero)
         {
             WebKitNative.LoadHtml(_widget, html, baseUri);
-            Console.WriteLine("[GtkWebViewPlatformView] Load HTML content");
+            DiagnosticLog.Debug("GtkWebViewPlatformView", "Load HTML content");
         }
     }
 

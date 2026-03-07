@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -1096,7 +1097,7 @@ public class SkiaButton : SkiaView, IButtonController
 
         var result = new Size(Math.Max(width, 44f), Math.Max(height, 36f));
         if (Text == "Round")
-            Console.WriteLine($"[SkiaButton.Measure] Text='Round' WReq={WidthRequest} HReq={HeightRequest} width={width:F1} height={height:F1} result={result.Width:F0}x{result.Height:F0}");
+            DiagnosticLog.Debug("SkiaButton", $"Measure Text='Round' WReq={WidthRequest} HReq={HeightRequest} width={width:F1} height={height:F1} result={result.Width:F0}x{result.Height:F0}");
         return result;
     }
 

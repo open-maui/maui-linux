@@ -45,14 +45,14 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
             _bus = ibus_bus_new();
             if (_bus == IntPtr.Zero)
             {
-                Console.WriteLine("IBusInputMethodService: Failed to connect to IBus");
+                DiagnosticLog.Error("IBusInputMethodService", "Failed to connect to IBus");
                 return;
             }
 
             // Check if IBus is connected
             if (!ibus_bus_is_connected(_bus))
             {
-                Console.WriteLine("IBusInputMethodService: IBus not connected");
+                DiagnosticLog.Error("IBusInputMethodService", "IBus not connected");
                 return;
             }
 
@@ -60,7 +60,7 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
             _context = ibus_bus_create_input_context(_bus, "maui-linux");
             if (_context == IntPtr.Zero)
             {
-                Console.WriteLine("IBusInputMethodService: Failed to create input context");
+                DiagnosticLog.Error("IBusInputMethodService", "Failed to create input context");
                 return;
             }
 
@@ -71,11 +71,11 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
             // Connect signals
             ConnectSignals();
 
-            Console.WriteLine("IBusInputMethodService: Initialized successfully");
+            DiagnosticLog.Debug("IBusInputMethodService", "Initialized successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"IBusInputMethodService: Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("IBusInputMethodService", $"Initialization failed - {ex.Message}");
         }
     }
 

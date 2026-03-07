@@ -104,7 +104,7 @@ public class NotificationService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NotificationService] D-Bus monitor error: {ex.Message}");
+            DiagnosticLog.Error("NotificationService", $"D-Bus monitor error: {ex.Message}");
         }
     }
 

@@ -6,6 +6,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -111,13 +112,13 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
             {
-                Console.WriteLine($"[BorderHandler] Creating handler for content: {content.GetType().Name}");
+                DiagnosticLog.Debug("BorderHandler", $"Creating handler for content: {content.GetType().Name}");
                 content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             if (content.Handler?.PlatformView is SkiaView skiaContent)
             {
-                Console.WriteLine($"[BorderHandler] Adding content: {skiaContent.GetType().Name}");
+                DiagnosticLog.Debug("BorderHandler", $"Adding content: {skiaContent.GetType().Name}");
                 handler.PlatformView.AddChild(skiaContent);
             }
         }
@@ -156,7 +157,7 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         if (border is VisualElement ve)
         {
             var bgColor = ve.BackgroundColor;
-            Console.WriteLine($"[BorderHandler] MapBackgroundColor: {bgColor}");
+            DiagnosticLog.Debug("BorderHandler", $"MapBackgroundColor: {bgColor}");
             if (bgColor != null)
             {
                 handler.PlatformView.BackgroundColor = bgColor;

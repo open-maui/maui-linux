@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.InteropServices;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -507,7 +508,7 @@ public class SkiaWebView : SkiaView
     {
         _mainDisplay = display;
         _mainWindow = window;
-        Console.WriteLine($"[WebView] Main window set: display={display}, window={window}");
+        DiagnosticLog.Debug("SkiaWebView", $"Main window set: display={display}, window={window}");
     }
 
     public static void ProcessGtkEvents()
@@ -548,14 +549,14 @@ public class SkiaWebView : SkiaView
                 {
                     _useGtk4 = true;
                     _webkitLib = "libwebkitgtk-6.0.so.4";
-                    Console.WriteLine("[WebView] Warning: Using GTK4 WebKitGTK - embedding may be limited");
+                    DiagnosticLog.Warn("SkiaWebView", "Using GTK4 WebKitGTK - embedding may be limited");
                 }
             }
         }
 
         if (_webkitHandle == IntPtr.Zero)
         {
-            Console.WriteLine("[WebView] WebKitGTK not found. Install with: sudo apt install libwebkit2gtk-4.1-0");
+            DiagnosticLog.Error("SkiaWebView", "WebKitGTK not found. Install with: sudo apt install libwebkit2gtk-4.1-0");
             return false;
         }
 
@@ -579,7 +580,7 @@ public class SkiaWebView : SkiaView
         _webkitGetUserAgent = LoadFunction<WebKitSettingsGetUserAgentDelegate>("webkit_settings_get_user_agent");
         _webkitRunJavascript = LoadFunction<WebKitWebViewRunJavascriptDelegate>("webkit_web_view_run_javascript");
 
-        Console.WriteLine($"[WebView] Using {_webkitLib}");
+        DiagnosticLog.Debug("SkiaWebView", $"Using {_webkitLib}");
         return _webkitWebViewNew != null;
     }
 
@@ -593,7 +594,7 @@ public class SkiaWebView : SkiaView
     {
         string[] events = { "STARTED", "REDIRECTED", "COMMITTED", "FINISHED" };
         string eventName = loadEvent >= 0 && loadEvent < events.Length ? events[loadEvent] : loadEvent.ToString();
-        Console.WriteLine($"[WebView] Load event: {eventName}");
+        DiagnosticLog.Debug("SkiaWebView", $"Load event: {eventName}");
 
         if (!_webViewInstances.TryGetValue(webView, out var instance)) return;
 
@@ -644,11 +645,11 @@ public class SkiaWebView : SkiaView
                 Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
                 Environment.SetEnvironmentVariable("LIBGL_ALWAYS_SOFTWARE", "1");
                 Environment.SetEnvironmentVariable("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-                Console.WriteLine("[WebView] Using X11 backend with software rendering for proper positioning");
+                DiagnosticLog.Debug("SkiaWebView", "Using X11 backend with software rendering for proper positioning");
 
                 var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
-                Console.WriteLine($"[WebView] XDG_RUNTIME_DIR: {Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR")}");
-                Console.WriteLine($"[WebView] Forcing X11: GDK_BACKEND=x11, WAYLAND_DISPLAY={waylandDisplay}, XDG_SESSION_TYPE=x11");
+                DiagnosticLog.Debug("SkiaWebView", $"XDG_RUNTIME_DIR: {Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR")}");
+                DiagnosticLog.Debug("SkiaWebView", $"Forcing X11: GDK_BACKEND=x11, WAYLAND_DISPLAY={waylandDisplay}, XDG_SESSION_TYPE=x11");
 
                 if (_useGtk4)
                 {
@@ -660,19 +661,19 @@ public class SkiaWebView : SkiaView
                     IntPtr argv = IntPtr.Zero;
                     if (!gtk3_init_check(ref argc, ref argv))
                     {
-                        Console.WriteLine("[WebView] gtk3_init_check failed!");
+                        DiagnosticLog.Error("SkiaWebView", "gtk3_init_check failed!");
                     }
                 }
                 _gtkInitialized = true;
 
                 var gdkDisplay = gdk3_display_get_default();
-                Console.WriteLine($"[WebView] GDK display: {gdkDisplay}");
+                DiagnosticLog.Debug("SkiaWebView", $"GDK display: {gdkDisplay}");
             }
 
             _webView = _webkitWebViewNew!();
             if (_webView == IntPtr.Zero)
             {
-                Console.WriteLine("[WebView] Failed to create WebKit view");
+                DiagnosticLog.Error("SkiaWebView", "Failed to create WebKit view");
                 return;
             }
 
@@ -680,7 +681,7 @@ public class SkiaWebView : SkiaView
             _loadChangedCallback = OnLoadChanged;
             var callbackPtr = Marshal.GetFunctionPointerForDelegate(_loadChangedCallback);
             g_signal_connect_data(_webView, "load-changed", callbackPtr, IntPtr.Zero, IntPtr.Zero, 0);
-            Console.WriteLine("[WebView] Connected to load-changed signal");
+            DiagnosticLog.Debug("SkiaWebView", "Connected to load-changed signal");
 
             int width = Math.Max(800, (int)RequestedWidth);
             int height = Math.Max(600, (int)RequestedHeight);
@@ -691,7 +692,7 @@ public class SkiaWebView : SkiaView
                 gtk4_window_set_title(_gtkWindow, "OpenMaui WebView");
                 gtk4_window_set_default_size(_gtkWindow, width, height);
                 gtk4_window_set_child(_gtkWindow, _webView);
-                Console.WriteLine($"[WebView] GTK4 window created: {width}x{height}");
+                DiagnosticLog.Debug("SkiaWebView", $"GTK4 window created: {width}x{height}");
             }
             else
             {
@@ -702,7 +703,7 @@ public class SkiaWebView : SkiaView
                 gtk3_widget_set_vexpand(_webView, true);
                 gtk3_widget_set_size_request(_webView, width, height);
                 gtk3_container_add(_gtkWindow, _webView);
-                Console.WriteLine($"[WebView] GTK3 TOPLEVEL window created: {width}x{height}");
+                DiagnosticLog.Debug("SkiaWebView", $"GTK3 TOPLEVEL window created: {width}x{height}");
             }
 
             ConfigureWebKitSettings();
@@ -727,11 +728,11 @@ public class SkiaWebView : SkiaView
                 LoadHtml(_html);
             }
 
-            Console.WriteLine("[WebView] Initialized successfully");
+            DiagnosticLog.Debug("SkiaWebView", "Initialized successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WebView] Initialization failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaWebView", $"Initialization failed: {ex.Message}", ex);
         }
     }
 
@@ -746,31 +747,31 @@ public class SkiaWebView : SkiaView
             var settings = _webkitGetSettings(_webView);
             if (settings == IntPtr.Zero)
             {
-                Console.WriteLine("[WebView] Could not get WebKit settings");
+                DiagnosticLog.Warn("SkiaWebView", "Could not get WebKit settings");
                 return;
             }
 
             if (_webkitSetHardwareAcceleration != null)
             {
                 _webkitSetHardwareAcceleration(settings, 2); // NEVER
-                Console.WriteLine("[WebView] Set hardware acceleration to NEVER (software rendering)");
+                DiagnosticLog.Debug("SkiaWebView", "Set hardware acceleration to NEVER (software rendering)");
             }
             else
             {
-                Console.WriteLine("[WebView] Warning: Could not set hardware acceleration policy");
+                DiagnosticLog.Warn("SkiaWebView", "Could not set hardware acceleration policy");
             }
 
             if (_webkitSetWebgl != null)
             {
                 _webkitSetWebgl(settings, false);
-                Console.WriteLine("[WebView] Disabled WebGL");
+                DiagnosticLog.Debug("SkiaWebView", "Disabled WebGL");
             }
 
-            Console.WriteLine("[WebView] WebKit settings configured successfully");
+            DiagnosticLog.Debug("SkiaWebView", "WebKit settings configured successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WebView] Failed to configure settings: {ex.Message}");
+            DiagnosticLog.Error("SkiaWebView", $"Failed to configure settings: {ex.Message}", ex);
         }
     }
 
@@ -808,28 +809,28 @@ public class SkiaWebView : SkiaView
         {
             Navigating?.Invoke(this, new WebNavigatingEventArgs(url));
             _webkitLoadUri(_webView, url);
-            Console.WriteLine($"[WebView] URL loaded: {url}");
+            DiagnosticLog.Debug("SkiaWebView", $"URL loaded: {url}");
             ShowNativeWindow();
         }
     }
 
     public void LoadHtml(string html, string? baseUrl = null)
     {
-        Console.WriteLine($"[WebView] LoadHtml called, html length: {html?.Length ?? 0}");
+        DiagnosticLog.Debug("SkiaWebView", $"LoadHtml called, html length: {html?.Length ?? 0}");
         if (string.IsNullOrEmpty(html))
         {
-            Console.WriteLine("[WebView] Cannot load HTML - html is null or empty");
+            DiagnosticLog.Warn("SkiaWebView", "Cannot load HTML - html is null or empty");
             return;
         }
         if (!_isInitialized) Initialize();
         if (_webView == IntPtr.Zero || _webkitLoadHtml == null)
         {
-            Console.WriteLine("[WebView] Cannot load HTML - not initialized or no webkit function");
+            DiagnosticLog.Warn("SkiaWebView", "Cannot load HTML - not initialized or no webkit function");
             return;
         }
-        Console.WriteLine("[WebView] Calling webkit_web_view_load_html...");
+        DiagnosticLog.Debug("SkiaWebView", "Calling webkit_web_view_load_html...");
         _webkitLoadHtml(_webView, html, baseUrl);
-        Console.WriteLine("[WebView] HTML loaded to WebKit");
+        DiagnosticLog.Debug("SkiaWebView", "HTML loaded to WebKit");
         ShowNativeWindow();
     }
 
@@ -919,13 +920,13 @@ public class SkiaWebView : SkiaView
     {
         if (_mainDisplay == IntPtr.Zero || _mainWindow == IntPtr.Zero)
         {
-            Console.WriteLine("[WebView] Cannot create X11 container - main window not set");
+            DiagnosticLog.Warn("SkiaWebView", "Cannot create X11 container - main window not set");
             return false;
         }
 
         if (_x11Container != IntPtr.Zero)
         {
-            Console.WriteLine("[WebView] X11 container already exists");
+            DiagnosticLog.Debug("SkiaWebView", "X11 container already exists");
             return true;
         }
 
@@ -939,23 +940,23 @@ public class SkiaWebView : SkiaView
             if (width < 100) width = 780;
             if (height < 100) height = 300;
 
-            Console.WriteLine($"[WebView] Creating X11 container at ({x}, {y}), size ({width}x{height})");
+            DiagnosticLog.Debug("SkiaWebView", $"Creating X11 container at ({x}, {y}), size ({width}x{height})");
 
             _x11Container = XCreateSimpleWindow(_mainDisplay, _mainWindow, x, y, width, height, 0, 0, 0xFFFFFF);
             if (_x11Container == IntPtr.Zero)
             {
-                Console.WriteLine("[WebView] Failed to create X11 container window");
+                DiagnosticLog.Error("SkiaWebView", "Failed to create X11 container window");
                 return false;
             }
 
-            Console.WriteLine($"[WebView] Created X11 container: {_x11Container.ToInt64()}");
+            DiagnosticLog.Debug("SkiaWebView", $"Created X11 container: {_x11Container.ToInt64()}");
             XMapWindow(_mainDisplay, _x11Container);
             XFlush(_mainDisplay);
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WebView] Error creating X11 container: {ex.Message}");
+            DiagnosticLog.Error("SkiaWebView", $"Error creating X11 container: {ex.Message}", ex);
             return false;
         }
     }
@@ -966,7 +967,7 @@ public class SkiaWebView : SkiaView
         if (!_isInitialized) Initialize();
         if (_gtkWindow == IntPtr.Zero) return;
 
-        Console.WriteLine("[WebView] Showing native GTK window...");
+        DiagnosticLog.Debug("SkiaWebView", "Showing native GTK window...");
 
         if (!_useGtk4)
         {
@@ -997,14 +998,14 @@ public class SkiaWebView : SkiaView
 
         TryReparentIntoMainWindow();
         _isEmbedded = true;
-        Console.WriteLine("[WebView] Native window shown");
+        DiagnosticLog.Debug("SkiaWebView", "Native window shown");
     }
 
     private void TryReparentIntoMainWindow()
     {
         if (_mainDisplay == IntPtr.Zero || _mainWindow == IntPtr.Zero)
         {
-            Console.WriteLine("[WebView] Cannot setup - main window not set");
+            DiagnosticLog.Warn("SkiaWebView", "Cannot setup - main window not set");
             return;
         }
 
@@ -1015,11 +1016,11 @@ public class SkiaWebView : SkiaView
             if (_gtkX11Window != IntPtr.Zero)
             {
                 _isProperlyReparented = true;
-                Console.WriteLine($"[WebView] GTK X11 window: {_gtkX11Window} (reparented successfully)");
+                DiagnosticLog.Debug("SkiaWebView", $"GTK X11 window: {_gtkX11Window} (reparented successfully)");
             }
             else
             {
-                Console.WriteLine($"[WebView] GTK X11 window: failed to get XID");
+                DiagnosticLog.Warn("SkiaWebView", "GTK X11 window: failed to get XID");
             }
         }
 
@@ -1047,7 +1048,7 @@ public class SkiaWebView : SkiaView
         int width = Math.Max(100, (int)Bounds.Width);
         int height = Math.Max(100, (int)Bounds.Height);
 
-        Console.WriteLine($"[WebView] Position: screen=({screenX}, {screenY}), size ({width}x{height}), bounds=({Bounds.Left},{Bounds.Top})");
+        DiagnosticLog.Debug("SkiaWebView", $"Position: screen=({screenX}, {screenY}), size ({width}x{height}), bounds=({Bounds.Left},{Bounds.Top})");
 
         if (!_useGtk4)
         {
@@ -1126,11 +1127,11 @@ public class SkiaWebView : SkiaView
             gtk3_window_set_skip_pager_hint(_gtkWindow, true);
             gtk3_window_set_keep_above(_gtkWindow, true);
             gtk3_window_set_decorated(_gtkWindow, false);
-            Console.WriteLine("[WebView] Overlay mode enabled with UTILITY hint");
+            DiagnosticLog.Debug("SkiaWebView", "Overlay mode enabled with UTILITY hint");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WebView] Failed to enable overlay mode: {ex.Message}");
+            DiagnosticLog.Error("SkiaWebView", $"Failed to enable overlay mode: {ex.Message}", ex);
         }
     }
 
@@ -1138,7 +1139,7 @@ public class SkiaWebView : SkiaView
     {
         if (_mainDisplay == IntPtr.Zero || _mainWindow == IntPtr.Zero)
         {
-            Console.WriteLine("[WebView] Cannot setup embedding - main window not set");
+            DiagnosticLog.Warn("SkiaWebView", "Cannot setup embedding - main window not set");
             return;
         }
 
@@ -1148,7 +1149,7 @@ public class SkiaWebView : SkiaView
         int width = Math.Max(100, (int)Bounds.Width);
         int height = Math.Max(100, (int)Bounds.Height);
 
-        Console.WriteLine($"[WebView] Initial position: ({screenX}, {screenY}), size ({width}x{height})");
+        DiagnosticLog.Debug("SkiaWebView", $"Initial position: ({screenX}, {screenY}), size ({width}x{height})");
 
         if (!_useGtk4)
         {
@@ -1191,7 +1192,7 @@ public class SkiaWebView : SkiaView
         if (mainWindowMoved || Math.Abs(screenX - _lastPosX) > 2 || Math.Abs(screenY - _lastPosY) > 2 ||
             Math.Abs(width - _lastWidth) > 2 || Math.Abs(height - _lastHeight) > 2)
         {
-            Console.WriteLine($"[WebView] Move to ({screenX}, {screenY}), size ({width}x{height}), mainWin=({destX},{destY}), bounds=({Bounds.Left},{Bounds.Top})");
+            DiagnosticLog.Debug("SkiaWebView", $"Move to ({screenX}, {screenY}), size ({width}x{height}), mainWin=({destX},{destY}), bounds=({Bounds.Left},{Bounds.Top})");
             _lastPosX = screenX;
             _lastPosY = screenY;
             _lastWidth = width;
@@ -1266,12 +1267,12 @@ public class SkiaWebView : SkiaView
             var root = XDefaultRootWindow(display);
             if (XTranslateCoordinates(display, window, root, 0, 0, out x, out y, out _))
             {
-                Console.WriteLine($"[WebView] Main window at screen ({x}, {y})");
+                DiagnosticLog.Debug("SkiaWebView", $"Main window at screen ({x}, {y})");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WebView] Failed to get window position: {ex.Message}");
+            DiagnosticLog.Error("SkiaWebView", $"Failed to get window position: {ex.Message}", ex);
         }
     }
 
@@ -1295,13 +1296,13 @@ public class SkiaWebView : SkiaView
 
         if (_isProperlyReparented && _gtkX11Window != IntPtr.Zero)
         {
-            Console.WriteLine($"[WebView] UpdateEmbedded (reparented): ({x}, {y}), size ({width}x{height})");
+            DiagnosticLog.Debug("SkiaWebView", $"UpdateEmbedded (reparented): ({x}, {y}), size ({width}x{height})");
             XMoveResizeWindow(_mainDisplay, _gtkX11Window, x, y, width, height);
             XFlush(_mainDisplay);
         }
         else if (_x11Container != IntPtr.Zero)
         {
-            Console.WriteLine($"[WebView] UpdateEmbedded (container): ({x}, {y}), size ({width}x{height})");
+            DiagnosticLog.Debug("SkiaWebView", $"UpdateEmbedded (container): ({x}, {y}), size ({width}x{height})");
             XMoveResizeWindow(_mainDisplay, _x11Container, x, y, width, height);
             if (_gtkX11Window != IntPtr.Zero && _isProperlyReparented)
             {
