@@ -26,8 +26,15 @@ public class SkiaRenderingEngine : IDisposable
     // Dirty region tracking for optimized rendering
     private readonly List<SKRect> _dirtyRegions = new();
     private readonly object _dirtyLock = new();
-    private const int MaxDirtyRegions = 32;
-    private const float RegionMergeThreshold = 0.3f; // Merge if overlap > 30%
+    /// <summary>
+    /// Maximum number of dirty regions to track before falling back to a full redraw.
+    /// </summary>
+    public static int MaxDirtyRegions { get; set; } = 32;
+
+    /// <summary>
+    /// Overlap ratio threshold (0.0-1.0) at which adjacent dirty regions are merged.
+    /// </summary>
+    public static float RegionMergeThreshold { get; set; } = 0.3f;
 
     public static SkiaRenderingEngine? Current { get; private set; }
     public ResourceCache ResourceCache { get; }

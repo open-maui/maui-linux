@@ -606,11 +606,7 @@ public class SkiaLabel : SkiaView
         OnTextChanged();
     }
 
-    private SKColor ToSKColor(Color? color)
-    {
-        if (color == null) return SkiaTheme.TextPrimarySK;
-        return color.ToSKColor();
-    }
+    private SKColor ToSKColor(Color? color) => TextRenderingHelper.ToSKColor(color, SkiaTheme.TextPrimarySK);
 
     private string GetDisplayText()
     {
@@ -631,16 +627,7 @@ public class SkiaLabel : SkiaView
         };
     }
 
-    private SKFontStyle GetFontStyle()
-    {
-        bool isBold = FontAttributes.HasFlag(FontAttributes.Bold);
-        bool isItalic = FontAttributes.HasFlag(FontAttributes.Italic);
-
-        return new SKFontStyle(
-            isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-    }
+    private SKFontStyle GetFontStyle() => TextRenderingHelper.GetFontStyle(FontAttributes);
 
     /// <summary>
     /// Determines if text should be rendered right-to-left based on FlowDirection.
@@ -878,39 +865,7 @@ public class SkiaLabel : SkiaView
     /// Draws text with font fallback for emoji, CJK, and other scripts.
     /// </summary>
     private void DrawTextWithFallback(SKCanvas canvas, string text, float x, float y, SKPaint paint, SKTypeface preferredTypeface)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return;
-        }
-
-        // Use FontFallbackManager for mixed-script text
-        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, preferredTypeface);
-
-        if (runs.Count <= 1)
-        {
-            // Single run or no fallback needed - draw directly
-            canvas.DrawText(text, x, y, paint);
-            return;
-        }
-
-        // Multiple runs with different fonts
-        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
-        float currentX = x;
-
-        foreach (var run in runs)
-        {
-            using var runFont = new SKFont(run.Typeface, fontSize);
-            using var runPaint = new SKPaint(runFont)
-            {
-                Color = paint.Color,
-                IsAntialias = true
-            };
-
-            canvas.DrawText(run.Text, currentX, y, runPaint);
-            currentX += runPaint.MeasureText(run.Text);
-        }
-    }
+        => TextRenderingHelper.DrawTextWithFallback(canvas, text, x, y, paint, preferredTypeface, FontSize > 0 ? (float)FontSize : 14f);
 
     /// <summary>
     /// Draws formatted span text with font fallback for emoji, CJK, and other scripts.
