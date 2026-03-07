@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 MarketAlly LLC
+Copyright (c) 2025 MarketAlly Pte Ltd
 
 Lead Architect: David H. Friedel Jr.
 

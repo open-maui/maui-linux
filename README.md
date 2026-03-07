@@ -5,7 +5,7 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 [![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Developed by [MarketAlly LLC](https://marketally.com)**
+**Developed by [MarketAlly Pte Ltd](https://marketally.com)**
 **Lead Architect: David H. Friedel Jr.**
 
 ## Overview
@@ -275,11 +275,11 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 ## License
 
-Copyright (c) 2025-2026 MarketAlly LLC. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- [MarketAlly LLC](https://marketally.com) - Project development and maintenance
+- [MarketAlly Pte Ltd](https://marketally.com) - Project development and maintenance
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community
