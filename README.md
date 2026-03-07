@@ -5,7 +5,7 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 [![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Developed by [MarketAlly Pte Ltd](https://marketally.com)**
+**Developed by [MarketAlly Pte Ltd](https://marketally.sg)**
 **Lead Architect: David H. Friedel Jr.**
 
 ## Overview
@@ -135,12 +135,12 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 
 ## Sample Applications
 
-Full sample applications are available in the [maui-linux-samples](https://git.marketally.com/open-maui/maui-linux-samples) repository:
+Full sample applications are available in the [maui-linux-samples](https://git.marketally.ai/open-maui/maui-linux-samples) repository:
 
 | Sample | Description |
 |--------|-------------|
-| **[TodoApp](https://git.marketally.com/open-maui/maui-linux-samples/src/branch/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
-| **[ShellDemo](https://git.marketally.com/open-maui/maui-linux-samples/src/branch/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
+| **[TodoApp](https://git.marketally.ai/open-maui/maui-linux-samples/src/branch/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
+| **[ShellDemo](https://git.marketally.ai/open-maui/maui-linux-samples/src/branch/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
 
 ## Quick Example
 
@@ -179,7 +179,7 @@ app.Run();
 ## Building from Source
 
 ```bash
-git clone https://git.marketally.com/open-maui/maui-linux.git
+git clone https://git.marketally.ai/open-maui/maui-linux.git
 cd maui-linux
 dotnet build
 dotnet test
@@ -279,7 +279,7 @@ Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see
 
 ## Acknowledgments
 
-- [MarketAlly Pte Ltd](https://marketally.com) - Project development and maintenance
+- [MarketAlly Pte Ltd](https://marketally.sg) - Project development and maintenance
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community

@@ -14,18 +14,18 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>9.0.0</Version>
+    <Version>9.0.40</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
     <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers with 35+ controls, platform services, and accessibility support.</Description>
     <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://git.marketally.com/open-maui/maui-linux</PackageProjectUrl>
-    <RepositoryUrl>https://git.marketally.com/open-maui/maui-linux.git</RepositoryUrl>
+    <PackageProjectUrl>https://git.marketally.ai/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://git.marketally.ai/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>9.0: Version aligned with .NET 9 / MAUI 9. 100% .NET MAUI API compliance - all public APIs use MAUI types. Full XAML support, Visual State Manager, data binding, XAML styles. 541 passing tests. Previously released as 1.0.0.</PackageReleaseNotes>
+    <PackageReleaseNotes>9.0.40: Version aligned with MAUI 9.0.40. 100% .NET MAUI API compliance - all public APIs use MAUI types. Full XAML support, Visual State Manager, data binding, XAML styles. 541 passing tests. Previously released as 1.0.0.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>

@@ -50,7 +50,7 @@ jobs:
           for pkg in ./nupkg/*.nupkg; do
             dotnet nuget push "$pkg" \
               --api-key ${{ secrets.GITEATOKEN }} \
-              --source https://git.marketally.com/api/packages/${{ gitea.repository_owner }}/nuget/index.json \
+              --source https://git.marketally.ai/api/packages/${{ gitea.repository_owner }}/nuget/index.json \
               --skip-duplicate
           done
 

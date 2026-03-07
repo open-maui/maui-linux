@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
-    <PackageVersion>9.0.0</PackageVersion>
+    <PackageVersion>9.0.40</PackageVersion>
     <PackageId>OpenMaui.Linux.Templates</PackageId>
     <Title>OpenMaui Linux Project Templates</Title>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
@@ -13,7 +13,7 @@ Templates included:
 - openmaui-linux: Basic Linux app with code-based UI
 - openmaui-linux-xaml: Full XAML support with standard MAUI syntax</Description>
     <PackageTags>dotnet-new;templates;maui;linux;desktop;openmaui;xaml</PackageTags>
-    <PackageProjectUrl>https://git.marketally.com/open-maui/maui-linux</PackageProjectUrl>
+    <PackageProjectUrl>https://git.marketally.ai/open-maui/maui-linux</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
 

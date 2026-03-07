@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 9.0.x targets .NET 9 / MAUI 9).
 
-## [9.0.0] - 2026-03-06
+## [9.0.40] - 2026-03-07
 
-> Version realigned from 1.0.0 to match .NET 9 / MAUI 9.0.x versioning.
+> Version aligned with MAUI 9.0.40. Previously released as 1.0.0.
 
 ### Added
 - 35+ Skia-rendered controls: Button, Label, Entry, Editor, CheckBox, Switch, RadioButton, Slider, Stepper, Picker, DatePicker, TimePicker, SearchBar, Image, ImageButton, ProgressBar, ActivityIndicator, BoxView, Border, Frame, ScrollView, CollectionView, CarouselView, IndicatorView, SwipeView, RefreshView, GraphicsView, WebView, MenuBar
@@ -42,7 +42,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 9.0.x targ
 
 ## [1.0.0] - 2026-03-06 [DEPRECATED]
 
-> Superseded by 9.0.0. Identical codebase, version renumbered to align with .NET/MAUI versioning.
+> Superseded by 9.0.40. Identical codebase, version renumbered to align with MAUI versioning.
 
 ## [1.0.0-rc.1] - 2026-02-01
 

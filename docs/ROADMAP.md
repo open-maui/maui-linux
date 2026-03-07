@@ -79,13 +79,13 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 | Milestone | .NET / MAUI | Target | Status |
 |-----------|-------------|--------|--------|
-| v1.0.0 (now v9.0.0) | .NET 9 / MAUI 9.0.x | Q1 2026 | ✅ Released |
+| v9.0.40 | .NET 9 / MAUI 9.0.40 | Q1 2026 | ✅ Released |
 | v9.0.x | .NET 9 / MAUI 9.0.x | Q1-Q2 2026 | 🔧 Maintenance |
 | v10.0.0 | .NET 10 / MAUI 10.0.x | Q4 2026 | 📋 Planned |
 
 ## Feedback
 
-- Issues: https://git.marketally.com/open-maui/maui-linux/issues
+- Issues: https://git.marketally.ai/open-maui/maui-linux/issues
 
 ---
 

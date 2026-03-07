@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Collections.Concurrent;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -81,7 +82,7 @@ public class FontFallbackManager
 
     // Cache for typeface lookups
     private readonly Dictionary<string, SKTypeface?> _typefaceCache = new();
-    private readonly Dictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new();
+    private readonly ConcurrentDictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new();
 
     private FontFallbackManager()
     {
