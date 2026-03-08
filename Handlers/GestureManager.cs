@@ -159,13 +159,25 @@ public static class GestureManager
             {
                 if (_sendTappedMethod == null)
                 {
+                    // MAUI 9+: SendTapped(Func<IElement, Point?> getPosition)
                     _sendTappedMethod = typeof(TapGestureRecognizer).GetMethod(
                         "SendTapped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 }
                 if (_sendTappedMethod != null)
                 {
-                    var args = new TappedEventArgs(tapRecognizer.CommandParameter);
-                    _sendTappedMethod.Invoke(tapRecognizer, new object[] { view, args });
+                    var parameters = _sendTappedMethod.GetParameters();
+                    if (parameters.Length == 1 && parameters[0].ParameterType.Name.StartsWith("Func"))
+                    {
+                        // New MAUI signature: SendTapped(Func<IElement, Point?> getPosition)
+                        Func<IElement, Point?> getPosition = (element) => new Point(x, y);
+                        _sendTappedMethod.Invoke(tapRecognizer, new object[] { getPosition });
+                    }
+                    else
+                    {
+                        // Legacy signature: SendTapped(View sender, TappedEventArgs args)
+                        var args = new TappedEventArgs(tapRecognizer.CommandParameter);
+                        _sendTappedMethod.Invoke(tapRecognizer, new object[] { view, args });
+                    }
                     DiagnosticLog.Debug(Tag, "SendTapped invoked successfully");
                     eventFired = true;
                 }
