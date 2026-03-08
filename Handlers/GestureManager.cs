@@ -38,6 +38,99 @@ public static class GestureManager
         Released
     }
 
+    /// <summary>
+    /// Finds and invokes an internal MAUI gesture method, handling signature changes across versions.
+    /// Caches the resolved method for performance.
+    /// </summary>
+    private static bool InvokeGestureMethod(
+        ref MethodInfo? cached,
+        Type recognizerType,
+        string methodName,
+        object recognizerInstance,
+        View view,
+        Func<MethodInfo, object[]> buildArgs)
+    {
+        if (cached == null)
+        {
+            var methods = recognizerType.GetMethods(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(m => m.Name == methodName)
+                .ToArray();
+
+            if (methods.Length == 0)
+            {
+                DiagnosticLog.Warn(Tag, $"No {methodName} method found on {recognizerType.Name}");
+                return false;
+            }
+
+            if (methods.Length == 1)
+            {
+                cached = methods[0];
+            }
+            else
+            {
+                // Multiple overloads — prefer ones with Func parameters (newer MAUI)
+                cached = methods.FirstOrDefault(m =>
+                    m.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
+                    ?? methods[0];
+            }
+        }
+
+        try
+        {
+            var args = buildArgs(cached);
+            cached.Invoke(recognizerInstance, args);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error(Tag, $"{methodName} invocation failed", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Builds argument array matching the method's parameter types.
+    /// Handles View, Func&lt;IElement, Point?&gt;, and other parameter types.
+    /// </summary>
+    private static object[] BuildAdaptiveArgs(MethodInfo method, View view, double x, double y, params (Type type, object value)[] extras)
+    {
+        var parameters = method.GetParameters();
+        var args = new object[parameters.Length];
+        int extraIdx = 0;
+
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            var pType = parameters[i].ParameterType;
+
+            if (pType.IsAssignableFrom(typeof(View)) || pType.IsAssignableFrom(view.GetType()))
+            {
+                args[i] = view;
+            }
+            else if (pType.Name.Contains("Func"))
+            {
+                // Position resolver: Func<IElement, Point?>
+                Func<IElement, Point?> getPosition = (_) => new Point(x, y);
+                args[i] = getPosition;
+            }
+            else if (extraIdx < extras.Length && (pType == extras[extraIdx].type || pType.IsAssignableFrom(extras[extraIdx].type)))
+            {
+                args[i] = extras[extraIdx++].value;
+            }
+            else if (extraIdx < extras.Length)
+            {
+                // Try to convert
+                args[i] = extras[extraIdx++].value;
+            }
+            else
+            {
+                args[i] = pType.IsValueType ? Activator.CreateInstance(pType)! : null!;
+            }
+        }
+
+        return args;
+    }
+
     // Cached reflection MethodInfo for internal MAUI methods
     private static MethodInfo? _sendTappedMethod;
     private static MethodInfo? _sendSwipedMethod;
@@ -157,55 +250,16 @@ public static class GestureManager
             bool eventFired = false;
             try
             {
-                if (_sendTappedMethod == null)
-                {
-                    // Find the SendTapped method - signature varies by MAUI version
-                    var methods = typeof(TapGestureRecognizer).GetMethods(
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                        .Where(m => m.Name == "SendTapped")
-                        .ToArray();
-
-                    foreach (var m in methods)
-                    {
-                        var pStr = string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name));
-                        DiagnosticLog.Debug(Tag, $"Found SendTapped overload: ({pStr})");
-                    }
-
-                    // Prefer the overload with View + Func (MAUI 9+)
-                    _sendTappedMethod = methods.FirstOrDefault(m =>
-                        m.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
-                        ?? methods.FirstOrDefault();
-                }
-                if (_sendTappedMethod != null)
-                {
-                    var parameters = _sendTappedMethod.GetParameters();
-                    bool hasFunc = parameters.Any(p => p.ParameterType.Name.Contains("Func"));
-
-                    if (hasFunc)
-                    {
-                        // MAUI 9+ signature with position resolver
-                        Func<IElement, Point?> getPosition = (element) => new Point(x, y);
-                        var invokeArgs = new List<object>();
-                        foreach (var p in parameters)
-                        {
-                            if (p.ParameterType.IsAssignableFrom(typeof(View)))
-                                invokeArgs.Add(view);
-                            else if (p.ParameterType.Name.Contains("Func"))
-                                invokeArgs.Add(getPosition);
-                            else
-                                invokeArgs.Add(null!);
-                        }
-                        _sendTappedMethod.Invoke(tapRecognizer, invokeArgs.ToArray());
-                    }
-                    else
-                    {
-                        // Legacy signature: SendTapped(View sender, TappedEventArgs args)
-                        var args = new TappedEventArgs(tapRecognizer.CommandParameter);
-                        _sendTappedMethod.Invoke(tapRecognizer, new object[] { view, args });
-                    }
+                eventFired = InvokeGestureMethod(
+                    ref _sendTappedMethod,
+                    typeof(TapGestureRecognizer),
+                    "SendTapped",
+                    tapRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, x, y,
+                        (typeof(TappedEventArgs), new TappedEventArgs(tapRecognizer.CommandParameter))));
+                if (eventFired)
                     DiagnosticLog.Debug(Tag, "SendTapped invoked successfully");
-                    eventFired = true;
-                }
             }
             catch (Exception ex)
             {
@@ -420,16 +474,16 @@ public static class GestureManager
 
             try
             {
-                if (_sendSwipedMethod == null)
-                {
-                    _sendSwipedMethod = typeof(SwipeGestureRecognizer).GetMethod(
-                        "SendSwiped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-                if (_sendSwipedMethod != null)
-                {
-                    _sendSwipedMethod.Invoke(swipeRecognizer, new object[] { view, direction });
+                bool invoked = InvokeGestureMethod(
+                    ref _sendSwipedMethod,
+                    typeof(SwipeGestureRecognizer),
+                    "SendSwiped",
+                    swipeRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, 0, 0,
+                        (typeof(SwipeDirection), direction)));
+                if (invoked)
                     DiagnosticLog.Debug(Tag, "SendSwiped invoked successfully");
-                }
             }
             catch (Exception ex)
             {
@@ -461,21 +515,17 @@ public static class GestureManager
 
             try
             {
-                if (_sendPanMethod == null)
-                {
-                    _sendPanMethod = typeof(PanGestureRecognizer).GetMethod(
-                        "SendPan", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-                if (_sendPanMethod != null)
-                {
-                    _sendPanMethod.Invoke(panRecognizer, new object[]
-                    {
-                        view,
-                        totalX,
-                        totalY,
-                        (int)status
-                    });
-                }
+                InvokeGestureMethod(
+                    ref _sendPanMethod,
+                    typeof(PanGestureRecognizer),
+                    "SendPan",
+                    panRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, totalX, totalY,
+                        (typeof(double), totalX),
+                        (typeof(double), totalY),
+                        (typeof(int), (int)status),
+                        (typeof(GestureStatus), status)));
             }
             catch (Exception ex)
             {
@@ -515,15 +565,21 @@ public static class GestureManager
 
                 if (!_pointerMethodCache.TryGetValue(eventType, out var method))
                 {
-                    method = typeof(PointerGestureRecognizer).GetMethod(
-                        methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    var methods = typeof(PointerGestureRecognizer).GetMethods(
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .Where(m => m.Name == methodName)
+                        .ToArray();
+                    method = methods.FirstOrDefault(m =>
+                        m.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
+                        ?? methods.FirstOrDefault();
                     _pointerMethodCache[eventType] = method;
                 }
 
                 if (method != null)
                 {
-                    var args = CreatePointerEventArgs(view, x, y);
-                    method.Invoke(pointerRecognizer, new object[] { view, args });
+                    var pointerArgs = BuildAdaptiveArgs(method, view, x, y,
+                        (typeof(object), CreatePointerEventArgs(view, x, y)));
+                    method.Invoke(pointerRecognizer, pointerArgs);
                 }
             }
             catch (Exception ex)
@@ -642,24 +698,19 @@ public static class GestureManager
 
             try
             {
-                if (_sendPinchMethod == null)
-                {
-                    _sendPinchMethod = typeof(PinchGestureRecognizer).GetMethod(
-                        "SendPinch", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-
-                if (_sendPinchMethod != null)
-                {
-                    var scaleOrigin = new Point(originX / view.Width, originY / view.Height);
-                    _sendPinchMethod.Invoke(pinchRecognizer, new object[]
-                    {
-                        view,
-                        scale,
-                        scaleOrigin,
-                        status
-                    });
+                var scaleOrigin = new Point(originX / view.Width, originY / view.Height);
+                bool invoked = InvokeGestureMethod(
+                    ref _sendPinchMethod,
+                    typeof(PinchGestureRecognizer),
+                    "SendPinch",
+                    pinchRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, originX, originY,
+                        (typeof(double), scale),
+                        (typeof(Point), scaleOrigin),
+                        (typeof(GestureStatus), status)));
+                if (invoked)
                     DiagnosticLog.Debug(Tag, "SendPinch invoked successfully");
-                }
             }
             catch (Exception ex)
             {
@@ -800,17 +851,15 @@ public static class GestureManager
 
             try
             {
-                if (_sendDragStartingMethod == null)
-                {
-                    _sendDragStartingMethod = typeof(DragGestureRecognizer).GetMethod(
-                        "SendDragStarting", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-
-                if (_sendDragStartingMethod != null)
-                {
-                    _sendDragStartingMethod.Invoke(dragRecognizer, new object[] { view });
+                bool invoked = InvokeGestureMethod(
+                    ref _sendDragStartingMethod,
+                    typeof(DragGestureRecognizer),
+                    "SendDragStarting",
+                    dragRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, x, y));
+                if (invoked)
                     DiagnosticLog.Debug(Tag, "SendDragStarting invoked successfully");
-                }
             }
             catch (Exception ex)
             {
@@ -837,16 +886,13 @@ public static class GestureManager
 
             try
             {
-                if (_sendDragOverMethod == null)
-                {
-                    _sendDragOverMethod = typeof(DropGestureRecognizer).GetMethod(
-                        "SendDragOver", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-
-                if (_sendDragOverMethod != null)
-                {
-                    _sendDragOverMethod.Invoke(dropRecognizer, new object[] { view });
-                }
+                InvokeGestureMethod(
+                    ref _sendDragOverMethod,
+                    typeof(DropGestureRecognizer),
+                    "SendDragOver",
+                    dropRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, x, y));
             }
             catch (Exception ex)
             {
@@ -873,16 +919,13 @@ public static class GestureManager
 
             try
             {
-                if (_sendDropMethod == null)
-                {
-                    _sendDropMethod = typeof(DropGestureRecognizer).GetMethod(
-                        "SendDrop", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                }
-
-                if (_sendDropMethod != null)
-                {
-                    _sendDropMethod.Invoke(dropRecognizer, new object[] { view });
-                }
+                InvokeGestureMethod(
+                    ref _sendDropMethod,
+                    typeof(DropGestureRecognizer),
+                    "SendDrop",
+                    dropRecognizer,
+                    view,
+                    method => BuildAdaptiveArgs(method, view, x, y));
             }
             catch (Exception ex)
             {
