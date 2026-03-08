@@ -23,6 +23,11 @@ public abstract partial class SkiaView
         _popupOverlays.RemoveAll(p => p.Owner == owner);
     }
 
+    /// <summary>
+    /// DPI scale factor for popup overlay rendering. Set by the rendering engine.
+    /// </summary>
+    internal static float PopupDpiScale { get; set; } = 1.0f;
+
     public static void DrawPopupOverlays(SKCanvas canvas)
     {
         // Restore canvas to clean state for overlay drawing
@@ -35,6 +40,8 @@ public abstract partial class SkiaView
         foreach (var (_, draw) in _popupOverlays)
         {
             canvas.Save();
+            if (PopupDpiScale > 1.0f)
+                canvas.Scale(PopupDpiScale);
             draw(canvas);
             canvas.Restore();
         }

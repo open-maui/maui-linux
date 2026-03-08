@@ -432,17 +432,20 @@ public class SkiaPicker : SkiaView
     {
         var cornerRadius = (float)CornerRadius;
         var fontSize = (float)FontSize;
+        bool isDark = SkiaTheme.IsDarkMode;
 
-        // Get colors
-        var textColorSK = ToSKColor(TextColor);
-        var titleColorSK = ToSKColor(TitleColor);
-        var borderColorSK = ToSKColor(BorderColor);
+        // Get theme-aware colors
+        var textColorSK = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
+        var titleColorSK = isDark ? SkiaTheme.Gray400SK : ToSKColor(TitleColor);
+        var borderColorSK = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor);
         var focusColorSK = ToSKColor(Color.FromRgb(0x21, 0x96, 0xF3));
 
         // Draw background
+        var bgColor = GetEffectiveBackgroundColor();
+        if (bgColor.Alpha == 0) bgColor = isDark ? SkiaTheme.DarkSurfaceSK : SKColors.White;
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? GetEffectiveBackgroundColor() : ToSKColor(Color.FromRgb(0xF5, 0xF5, 0xF5)),
+            Color = IsEnabled ? bgColor : (isDark ? SkiaTheme.DarkBackgroundSK : ToSKColor(Color.FromRgb(0xF5, 0xF5, 0xF5))),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -571,12 +574,13 @@ public class SkiaPicker : SkiaView
             bounds.Right,
             bounds.Bottom + 4 + dropdownHeight);
 
-        // Get colors
-        var dropdownBgColorSK = ToSKColor(DropdownBackgroundColor);
-        var borderColorSK = ToSKColor(BorderColor);
-        var textColorSK = ToSKColor(TextColor);
+        // Get theme-aware colors for popup
+        bool isDark = SkiaTheme.IsDarkMode;
+        var dropdownBgColorSK = isDark ? SkiaTheme.DarkBackgroundSK : ToSKColor(DropdownBackgroundColor);
+        var borderColorSK = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor);
+        var textColorSK = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
         var selectedBgColorSK = ToSKColor(SelectedItemBackgroundColor);
-        var hoverBgColorSK = ToSKColor(HoverItemBackgroundColor);
+        var hoverBgColorSK = isDark ? SkiaTheme.DarkHoverSK : ToSKColor(HoverItemBackgroundColor);
 
         // Draw shadow
         using var shadowPaint = new SKPaint

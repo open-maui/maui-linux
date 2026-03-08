@@ -50,17 +50,6 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
     {
         base.ConnectHandler(platformView);
         platformView.DateSelected += OnDateSelected;
-
-        // Apply dark theme colors if dark mode is active
-        var current = Application.Current;
-        if (current != null && (int)current.UserAppTheme == 2) // Dark theme
-        {
-            platformView.CalendarBackgroundColor = Color.FromRgb(30, 30, 30);
-            platformView.TextColor = Color.FromRgb(224, 224, 224);
-            platformView.BorderColor = Color.FromRgb(97, 97, 97);
-            platformView.DisabledDayColor = Color.FromRgb(97, 97, 97);
-            platformView.BackgroundColor = Color.FromRgb(45, 45, 45);
-        }
     }
 
     protected override void DisconnectHandler(SkiaDatePicker platformView)

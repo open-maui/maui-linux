@@ -246,6 +246,7 @@ public class SkiaRenderingEngine : IDisposable
         // Draw popup overlays (always on top, full redraw)
         try
         {
+            SkiaView.PopupDpiScale = DpiScale;
             SkiaView.DrawPopupOverlays(_canvas);
         }
         catch (Exception ex)

@@ -48,16 +48,6 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
     {
         base.ConnectHandler(platformView);
         platformView.TimeSelected += OnTimeSelected;
-
-        // Apply dark theme colors if needed
-        if (Application.Current?.UserAppTheme == AppTheme.Dark)
-        {
-            platformView.ClockBackgroundColor = Color.FromRgb(30, 30, 30);
-            platformView.ClockFaceColor = Color.FromRgb(45, 45, 45);
-            platformView.TextColor = Color.FromRgb(224, 224, 224);
-            platformView.BorderColor = Color.FromRgb(97, 97, 97);
-            platformView.BackgroundColor = Color.FromRgb(45, 45, 45);
-        }
     }
 
     protected override void DisconnectHandler(SkiaTimePicker platformView)

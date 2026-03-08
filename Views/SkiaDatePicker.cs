@@ -308,16 +308,19 @@ public class SkiaDatePicker : SkiaView
     {
         float cornerRadius = (float)CornerRadius;
         float fontSize = (float)FontSize;
+        bool isDark = SkiaTheme.IsDarkMode;
 
+        var bgColor = GetEffectiveBackgroundColor();
+        if (bgColor.Alpha == 0) bgColor = isDark ? SkiaTheme.DarkSurfaceSK : SKColors.White;
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? GetEffectiveBackgroundColor() : SkiaTheme.Gray100SK,
+            Color = IsEnabled ? bgColor : (isDark ? SkiaTheme.DarkBackgroundSK : SkiaTheme.Gray100SK),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
         canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
 
-        SKColor borderColor = IsFocused ? ToSKColor(SelectedDayColor) : ToSKColor(BorderColor);
+        SKColor borderColor = IsFocused ? ToSKColor(SelectedDayColor) : (isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor));
         using var borderPaint = new SKPaint
         {
             Color = borderColor,
@@ -327,7 +330,7 @@ public class SkiaDatePicker : SkiaView
         };
         canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
 
-        SKColor textColor = ToSKColor(TextColor);
+        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
 
         // Get typeface based on FontFamily and FontAttributes
         SKTypeface typeface = SKTypeface.Default;
@@ -371,7 +374,7 @@ public class SkiaDatePicker : SkiaView
 
     private void DrawCalendarIcon(SKCanvas canvas, SKRect bounds)
     {
-        SKColor textColor = ToSKColor(TextColor);
+        SKColor textColor = SkiaTheme.IsDarkMode ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
         using var paint = new SKPaint
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
@@ -400,6 +403,7 @@ public class SkiaDatePicker : SkiaView
     {
         SKRect calendarRect = GetCalendarRect(bounds);
         float cornerRadius = (float)CornerRadius;
+        bool isDark = SkiaTheme.IsDarkMode;
 
         using var shadowPaint = new SKPaint
         {
@@ -411,7 +415,7 @@ public class SkiaDatePicker : SkiaView
 
         using var bgPaint = new SKPaint
         {
-            Color = ToSKColor(CalendarBackgroundColor),
+            Color = isDark ? SkiaTheme.DarkBackgroundSK : ToSKColor(CalendarBackgroundColor),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -419,7 +423,7 @@ public class SkiaDatePicker : SkiaView
 
         using var borderPaint = new SKPaint
         {
-            Color = ToSKColor(BorderColor),
+            Color = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1f,
             IsAntialias = true
@@ -485,11 +489,12 @@ public class SkiaDatePicker : SkiaView
     {
         string[] dayNames = new string[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };
         float cellWidth = bounds.Width / 7f;
+        bool isDark = SkiaTheme.IsDarkMode;
 
         using var font = new SKFont(SKTypeface.Default, 12f, 1f, 0f);
         using var paint = new SKPaint(font)
         {
-            Color = SkiaTheme.TextPlaceholderSK,
+            Color = isDark ? SkiaTheme.Gray400SK : SkiaTheme.TextPlaceholderSK,
             IsAntialias = true
         };
 
@@ -522,11 +527,12 @@ public class SkiaDatePicker : SkiaView
 
         DateTime today = DateTime.Today;
         SKRect cellRect = default;
+        bool isDark = SkiaTheme.IsDarkMode;
 
-        SKColor textColor = ToSKColor(TextColor);
+        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
         SKColor selectedDayColor = ToSKColor(SelectedDayColor);
         SKColor todayColor = ToSKColor(TodayColor);
-        SKColor disabledDayColor = ToSKColor(DisabledDayColor);
+        SKColor disabledDayColor = isDark ? SkiaTheme.Gray600SK : ToSKColor(DisabledDayColor);
 
         for (int day = 1; day <= daysInMonth; day++)
         {

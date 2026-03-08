@@ -286,13 +286,16 @@ public class SkiaTimePicker : SkiaView
     {
         float cornerRadius = (float)CornerRadius;
         float fontSize = (float)FontSize;
-        SKColor textColor = ToSKColor(TextColor);
-        SKColor borderColor = ToSKColor(BorderColor);
+        bool isDark = SkiaTheme.IsDarkMode;
+        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
+        SKColor borderColor = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor);
         SKColor selectedColor = ToSKColor(SelectedColor);
 
+        var bgColor = GetEffectiveBackgroundColor();
+        if (bgColor.Alpha == 0) bgColor = isDark ? SkiaTheme.DarkSurfaceSK : SKColors.White;
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? GetEffectiveBackgroundColor() : SkiaTheme.Gray100SK,
+            Color = IsEnabled ? bgColor : (isDark ? SkiaTheme.DarkBackgroundSK : SkiaTheme.Gray100SK),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -348,7 +351,7 @@ public class SkiaTimePicker : SkiaView
 
     private void DrawClockIcon(SKCanvas canvas, SKRect bounds)
     {
-        SKColor textColor = ToSKColor(TextColor);
+        SKColor textColor = SkiaTheme.IsDarkMode ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
         using var paint = new SKPaint
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
@@ -368,14 +371,15 @@ public class SkiaTimePicker : SkiaView
     {
         float cornerRadius = (float)CornerRadius;
         var popupRect = GetPopupRect(bounds);
+        bool isDark = SkiaTheme.IsDarkMode;
 
         using var shadowPaint = new SKPaint { Color = SkiaTheme.Shadow25SK, MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4), Style = SKPaintStyle.Fill };
         canvas.DrawRoundRect(new SKRoundRect(new SKRect(popupRect.Left + 2, popupRect.Top + 2, popupRect.Right + 2, popupRect.Bottom + 2), cornerRadius), shadowPaint);
 
-        using var bgPaint = new SKPaint { Color = ToSKColor(ClockBackgroundColor), Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var bgPaint = new SKPaint { Color = isDark ? SkiaTheme.DarkBackgroundSK : ToSKColor(ClockBackgroundColor), Style = SKPaintStyle.Fill, IsAntialias = true };
         canvas.DrawRoundRect(new SKRoundRect(popupRect, cornerRadius), bgPaint);
 
-        using var borderPaint = new SKPaint { Color = ToSKColor(BorderColor), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
+        using var borderPaint = new SKPaint { Color = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
         canvas.DrawRoundRect(new SKRoundRect(popupRect, cornerRadius), borderPaint);
 
         DrawTimeHeader(canvas, new SKRect(popupRect.Left, popupRect.Top, popupRect.Right, popupRect.Top + HeaderHeight));
@@ -419,9 +423,10 @@ public class SkiaTimePicker : SkiaView
     {
         var centerX = bounds.MidX;
         var centerY = bounds.MidY;
+        bool isDark = SkiaTheme.IsDarkMode;
 
-        SKColor textColor = ToSKColor(TextColor);
-        SKColor clockFaceColor = ToSKColor(ClockFaceColor);
+        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
+        SKColor clockFaceColor = isDark ? SkiaTheme.DarkSurfaceSK : ToSKColor(ClockFaceColor);
         SKColor selectedColor = ToSKColor(SelectedColor);
 
         using var facePaint = new SKPaint { Color = clockFaceColor, Style = SKPaintStyle.Fill, IsAntialias = true };
