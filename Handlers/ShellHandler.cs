@@ -31,6 +31,8 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         [nameof(Shell.Items)] = MapItems,
         [nameof(Shell.CurrentItem)] = MapCurrentItem,
         [nameof(Shell.Title)] = MapTitle,
+        ["ForegroundColor"] = MapForegroundColor,
+        ["TitleColor"] = MapTitleColor,
     };
 
     public static CommandMapper<Shell, ShellHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -63,9 +65,10 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         // Store reference to MAUI Shell for callbacks
         platformView.MauiShell = VirtualView;
 
-        // Set up content renderer
+        // Set up content renderer and theme callbacks
         platformView.ContentRenderer = RenderShellContent;
         platformView.ColorRefresher = RefreshShellColors;
+        platformView.IconSyncer = SyncFlyoutIcons;
 
         // Subscribe to Shell navigation events
         if (VirtualView != null)
@@ -85,6 +88,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         platformView.MauiShell = null;
         platformView.ContentRenderer = null;
         platformView.ColorRefresher = null;
+        platformView.IconSyncer = null;
 
         if (VirtualView != null)
         {
@@ -204,6 +208,30 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         }
     }
 
+    private void SyncFlyoutIcons(SkiaShell platformView)
+    {
+        if (VirtualView == null) return;
+
+        int sectionIndex = 0;
+        foreach (var item in VirtualView.Items)
+        {
+            if (sectionIndex >= platformView.Sections.Count) break;
+
+            string? iconPath = null;
+            if (item is FlyoutItem flyoutItem)
+            {
+                iconPath = flyoutItem.Icon?.ToString();
+            }
+            else if (item is ShellItem shellItem)
+            {
+                iconPath = shellItem.Icon?.ToString();
+            }
+
+            platformView.Sections[sectionIndex].IconPath = iconPath;
+            sectionIndex++;
+        }
+    }
+
     private SkiaView? RenderShellContent(Microsoft.Maui.Controls.ShellContent content)
     {
         if (MauiContext is null) return null;
@@ -239,7 +267,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
     private static void RefreshShellColors(SkiaShell platformView, Shell shell)
     {
-        // Sync flyout colors
+        // Sync flyout background colors
         if (shell.FlyoutBackgroundColor is Color flyoutBgColor)
         {
             platformView.FlyoutBackgroundColor = flyoutBgColor;
@@ -249,10 +277,23 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
             platformView.FlyoutBackgroundColor = flyoutBrush.Color;
         }
 
-        // Sync nav bar colors
+        // Sync flyout text color from Shell.ForegroundColor
+        if (Shell.GetForegroundColor(shell) is Color fgColor)
+        {
+            platformView.FlyoutTextColor = fgColor;
+            platformView.NavBarTextColor = fgColor;
+        }
+
+        // Sync nav bar background colors
         if (shell.BackgroundColor is Color bgColor)
         {
             platformView.NavBarBackgroundColor = bgColor;
+        }
+
+        // Sync title color (overrides foreground for nav bar)
+        if (Shell.GetTitleColor(shell) is Color titleColor)
+        {
+            platformView.NavBarTextColor = titleColor;
         }
     }
 
@@ -317,6 +358,27 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         if (shell.BackgroundColor is Color color)
         {
             handler.PlatformView.NavBarBackgroundColor = color;
+        }
+    }
+
+    public static void MapForegroundColor(ShellHandler handler, Shell shell)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (Shell.GetForegroundColor(shell) is Color color)
+        {
+            handler.PlatformView.FlyoutTextColor = color;
+            handler.PlatformView.NavBarTextColor = color;
+        }
+    }
+
+    public static void MapTitleColor(ShellHandler handler, Shell shell)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (Shell.GetTitleColor(shell) is Color color)
+        {
+            handler.PlatformView.NavBarTextColor = color;
         }
     }
 

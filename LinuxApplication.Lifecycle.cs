@@ -128,10 +128,11 @@ public partial class LinuxApplication
                         // Apply GTK CSS for dialogs, menus, and window decorations
                         GtkThemeService.ApplyTheme();
 
-                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
-
-                        // Force re-render the entire page to pick up theme changes
+                        // Force property re-evaluation first so AppThemeBindings settle
                         linuxApp.RefreshPageForThemeChange();
+
+                        // Then refresh shell colors (reads now-updated bound values)
+                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
 
                         // Invalidate to redraw - use correct method based on mode
                         if (linuxApp._useGtk)
@@ -161,8 +162,8 @@ public partial class LinuxApplication
                     else
                     {
                         // If UserAppTheme didn't change (user manually set it), still refresh
-                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
                         linuxApp.RefreshPageForThemeChange();
+                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
                         if (linuxApp._useGtk)
                         {
                             linuxApp._gtkWindow?.RequestRedraw();
@@ -419,6 +420,31 @@ public partial class LinuxApplication
             catch (Exception ex)
             {
                 DiagnosticLog.Error("LinuxApplication", $"Error refreshing theme for {mauiView.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        // Special handling for Shell - force flyout color properties to re-map
+        if (mauiView is Shell && handler != null)
+        {
+            try
+            {
+                handler.UpdateValue(nameof(Shell.FlyoutBackgroundColor));
+                handler.UpdateValue(nameof(Shell.FlyoutBackground));
+                handler.UpdateValue("ForegroundColor");
+                handler.UpdateValue("TitleColor");
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Debug("LinuxApplication", $"Error refreshing Shell flyout colors: {ex.Message}", ex);
+            }
+
+            // Refresh flyout header and footer views (they aren't part of the normal children)
+            if (view is SkiaShell skiaShell)
+            {
+                if (skiaShell.FlyoutHeaderView != null)
+                    RefreshViewTheme(skiaShell.FlyoutHeaderView);
+                if (skiaShell.FlyoutFooterView != null)
+                    RefreshViewTheme(skiaShell.FlyoutFooterView);
             }
         }
 

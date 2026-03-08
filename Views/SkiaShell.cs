@@ -4,6 +4,7 @@
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
@@ -198,6 +199,9 @@ public class SkiaShell : SkiaLayoutView
     private float _flyoutScrollOffset;
     private readonly Dictionary<string, Func<SkiaView?>> _registeredRoutes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _routeTitles = new(StringComparer.OrdinalIgnoreCase);
+
+    // Icon cache for flyout items (keyed by icon path)
+    private readonly Dictionary<string, SKBitmap?> _iconCache = new();
 
     // Internal SKColor fields for rendering
     private SKColor _flyoutBackgroundColorSK = SkiaTheme.BackgroundWhiteSK;
@@ -488,6 +492,16 @@ public class SkiaShell : SkiaLayoutView
             DiagnosticLog.Debug("SkiaShell", "Refreshing shell colors");
             ColorRefresher(this, MauiShell);
         }
+
+        // If no explicit colors were set, use theme-aware defaults
+        if (FlyoutBackgroundColor == null)
+        {
+            _flyoutBackgroundColorSK = SkiaTheme.CurrentSurfaceSK;
+        }
+        if (FlyoutTextColor == null)
+        {
+            _flyoutTextColorSK = SkiaTheme.CurrentTextSK;
+        }
         if (ContentRenderer != null)
         {
             foreach (var section in _sections)
@@ -517,8 +531,83 @@ public class SkiaShell : SkiaLayoutView
                 SetCurrentContent(item.Content);
             }
         }
+        // Clear icon cache so icons reload with new theme paths
+        ClearIconCache();
+
+        // Re-sync flyout item icon paths from MAUI Shell
+        IconSyncer?.Invoke(this);
+
         InvalidateMeasure();
         Invalidate();
+    }
+
+    /// <summary>
+    /// Delegate to re-sync flyout item icons from the MAUI Shell (called on theme change).
+    /// </summary>
+    public Action<SkiaShell>? IconSyncer { get; set; }
+
+    /// <summary>
+    /// Clears the cached flyout icons so they reload on next draw.
+    /// </summary>
+    public void ClearIconCache()
+    {
+        foreach (var bitmap in _iconCache.Values)
+        {
+            bitmap?.Dispose();
+        }
+        _iconCache.Clear();
+    }
+
+    /// <summary>
+    /// Loads a flyout icon from file (SVG or PNG), with caching.
+    /// </summary>
+    private SKBitmap? GetFlyoutIcon(string? iconPath)
+    {
+        if (string.IsNullOrEmpty(iconPath)) return null;
+
+        if (_iconCache.TryGetValue(iconPath, out var cached))
+            return cached;
+
+        SKBitmap? bitmap = null;
+        try
+        {
+            string baseDir = AppContext.BaseDirectory;
+            string fullPath = System.IO.Path.IsPathRooted(iconPath)
+                ? iconPath
+                : System.IO.Path.Combine(baseDir, iconPath);
+
+            if (System.IO.File.Exists(fullPath))
+            {
+                if (fullPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var svg = new SKSvg();
+                    svg.Load(fullPath);
+                    if (svg.Picture != null)
+                    {
+                        var cullRect = svg.Picture.CullRect;
+                        float iconSize = 24f;
+                        float scale = iconSize / Math.Max(cullRect.Width, cullRect.Height);
+                        bitmap = new SKBitmap((int)iconSize, (int)iconSize, false);
+                        using var canvas = new SKCanvas(bitmap);
+                        canvas.Clear(SKColors.Transparent);
+                        canvas.Scale(scale);
+                        canvas.DrawPicture(svg.Picture, null);
+                    }
+                }
+                else
+                {
+                    using var stream = System.IO.File.OpenRead(fullPath);
+                    bitmap = SKBitmap.Decode(stream);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("SkiaShell", $"Failed to load flyout icon: {iconPath}", ex);
+        }
+
+        _iconCache[iconPath] = bitmap;
+        return bitmap;
     }
 
     /// <summary>
@@ -1039,7 +1128,20 @@ public class SkiaShell : SkiaLayoutView
             }
 
             itemTextPaint.Color = isSelected ? _navBarBackgroundColorSK : _flyoutTextColorSK;
-            canvas.DrawText(section.Title, flyoutBounds.Left + 16, itemY + 30, itemTextPaint);
+
+            // Draw icon if available
+            float textStartX = flyoutBounds.Left + 16;
+            var icon = GetFlyoutIcon(section.IconPath);
+            if (icon != null)
+            {
+                float iconSize = 24f;
+                float iconX = flyoutBounds.Left + 16;
+                float iconY = itemY + (itemHeight - iconSize) / 2;
+                canvas.DrawBitmap(icon, new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize));
+                textStartX = iconX + iconSize + 12; // gap between icon and text
+            }
+
+            canvas.DrawText(section.Title, textStartX, itemY + 30, itemTextPaint);
 
             itemY += itemHeight;
         }

@@ -228,9 +228,10 @@ public class LinuxViewRenderer
         // Store reference to SkiaShell for navigation
         CurrentSkiaShell = skiaShell;
 
-        // Set up content renderer and color refresher delegates
+        // Set up content renderer, color refresher, and icon syncer delegates
         skiaShell.ContentRenderer = CreateShellContentPage;
         skiaShell.ColorRefresher = ApplyShellColors;
+        skiaShell.IconSyncer = s => SyncFlyoutIcons(s, shell);
 
         // Subscribe to MAUI Shell navigation events to update SkiaShell
         shell.Navigated += OnShellNavigated;
@@ -248,46 +249,108 @@ public class LinuxViewRenderer
     /// <summary>
     /// Applies shell colors based on the current theme (dark/light mode).
     /// </summary>
+    private static void SyncFlyoutIcons(SkiaShell skiaShell, Shell shell)
+    {
+        int sectionIndex = 0;
+        foreach (var item in shell.Items)
+        {
+            if (sectionIndex >= skiaShell.Sections.Count) break;
+
+            string? iconPath = item.Icon?.ToString();
+            skiaShell.Sections[sectionIndex].IconPath = iconPath;
+            sectionIndex++;
+        }
+    }
+
     private static void ApplyShellColors(SkiaShell skiaShell, Shell shell)
     {
         bool isDark = Application.Current?.UserAppTheme == AppTheme.Dark;
         DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: Theme is: {(isDark ? "Dark" : "Light")}");
 
+        // Look up theme resource colors from the Application's resources.
+        // This is more reliable than reading shell.FlyoutBackgroundColor during
+        // theme changes because AppThemeBinding may not have re-evaluated yet.
+        var resources = Application.Current?.Resources;
+
         // Flyout background color
-        if (shell.FlyoutBackgroundColor != null && shell.FlyoutBackgroundColor != Colors.Transparent)
+        Color? flyoutBg = TryGetResourceColor(resources, isDark ? "FlyoutBackgroundDark" : "FlyoutBackgroundLight");
+        if (flyoutBg == null)
         {
-            skiaShell.FlyoutBackgroundColor = shell.FlyoutBackgroundColor;
-            DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutBackgroundColor from MAUI: {skiaShell.FlyoutBackgroundColor}");
+            // Try the shell property (works for initial setup before theme changes)
+            flyoutBg = shell.FlyoutBackgroundColor;
+        }
+        if (flyoutBg != null && flyoutBg != Colors.Transparent)
+        {
+            skiaShell.FlyoutBackgroundColor = flyoutBg;
         }
         else
         {
             skiaShell.FlyoutBackgroundColor = isDark
                 ? Color.FromRgb(30, 30, 30)
                 : Color.FromRgb(255, 255, 255);
-            DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: Using default FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
         }
+        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
 
         // Flyout text color
-        skiaShell.FlyoutTextColor = isDark
-            ? Color.FromRgb(224, 224, 224)
-            : Color.FromRgb(33, 33, 33);
+        Color? fgColor = TryGetResourceColor(resources, isDark ? "TextPrimaryDark" : "TextPrimaryLight");
+        if (fgColor != null && fgColor != Colors.Transparent)
+        {
+            skiaShell.FlyoutTextColor = fgColor;
+        }
+        else
+        {
+            skiaShell.FlyoutTextColor = isDark
+                ? Color.FromRgb(224, 224, 224)
+                : Color.FromRgb(33, 33, 33);
+        }
         DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutTextColor: {skiaShell.FlyoutTextColor}");
 
         // Content background color
         skiaShell.ContentBackgroundColor = isDark
             ? Color.FromRgb(18, 18, 18)
             : Color.FromRgb(250, 250, 250);
-        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: ContentBackgroundColor: {skiaShell.ContentBackgroundColor}");
 
         // NavBar background color
-        if (shell.BackgroundColor != null && shell.BackgroundColor != Colors.Transparent)
+        Color? navBg = TryGetResourceColor(resources, isDark ? "ShellBackgroundDark" : "ShellBackgroundLight");
+        if (navBg == null)
         {
-            skiaShell.NavBarBackgroundColor = shell.BackgroundColor;
+            navBg = shell.BackgroundColor;
+        }
+        if (navBg != null && navBg != Colors.Transparent)
+        {
+            skiaShell.NavBarBackgroundColor = navBg;
         }
         else
         {
             skiaShell.NavBarBackgroundColor = Color.FromRgb(33, 150, 243); // Material blue
         }
+
+        // NavBar text color
+        if (fgColor != null && fgColor != Colors.Transparent)
+        {
+            skiaShell.NavBarTextColor = fgColor;
+        }
+    }
+
+    /// <summary>
+    /// Tries to resolve a Color from the app's merged resource dictionaries.
+    /// </summary>
+    private static Color? TryGetResourceColor(ResourceDictionary? resources, string key)
+    {
+        if (resources == null) return null;
+
+        // Check main dictionary
+        if (resources.TryGetValue(key, out var value) && value is Color color)
+            return color;
+
+        // Check merged dictionaries
+        foreach (var merged in resources.MergedDictionaries)
+        {
+            if (merged.TryGetValue(key, out var mergedValue) && mergedValue is Color mergedColor)
+                return mergedColor;
+        }
+
+        return null;
     }
 
     /// <summary>
