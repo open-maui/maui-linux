@@ -4,8 +4,9 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 
 [![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub Mirror](https://img.shields.io/badge/GitHub-mirror-181717?logo=github)](https://github.com/open-maui/maui-linux)
 
-**Developed by [MarketAlly Pte Ltd](https://marketally.sg)**
+**Developed by [MarketAlly Pte Ltd](https://marketally.ai)**
 **Lead Architect: David H. Friedel Jr.**
 
 ## Overview
@@ -179,7 +180,12 @@ app.Run();
 ## Building from Source
 
 ```bash
+# Primary repository
 git clone https://git.marketally.ai/open-maui/maui-linux.git
+
+# Or from GitHub mirror
+git clone https://github.com/open-maui/maui-linux.git
+
 cd maui-linux
 dotnet build
 dotnet test
@@ -188,6 +194,8 @@ dotnet test
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+> **Note:** The primary repository is hosted at [git.marketally.ai](https://git.marketally.ai/open-maui/maui-linux). The [GitHub repository](https://github.com/open-maui/maui-linux) is a mirror. Please submit issues and pull requests to the primary repository.
 
 ## Architecture
 
@@ -279,7 +287,7 @@ Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see
 
 ## Acknowledgments
 
-- [MarketAlly Pte Ltd](https://marketally.sg) - Project development and maintenance
+- [MarketAlly Pte Ltd](https://marketally.ai) - Project development and maintenance
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community

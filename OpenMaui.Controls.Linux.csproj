@@ -27,7 +27,7 @@
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
     <PackageReleaseNotes>10.0.41: Upgraded to .NET 10 / MAUI 10.0.41 / SkiaSharp 3.x. Full SKPaint→SKFont migration. All existing features carried forward.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>icon.png</PackageIcon>
+    <PackageIcon>logo_only.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
@@ -52,7 +52,7 @@
   <!-- Include README and icon in package -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
-    <None Include="assets/icon.png" Pack="true" PackagePath="" />
+    <None Include="assets/logo_only.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <!-- Include build targets in package - auto-imports when package is referenced -->
