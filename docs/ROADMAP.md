@@ -81,7 +81,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 |-----------|-------------|--------|--------|
 | v9.0.40 | .NET 9 / MAUI 9.0.40 | Q1 2026 | ✅ Released |
 | v9.0.x | .NET 9 / MAUI 9.0.x | Q1-Q2 2026 | 🔧 Maintenance |
-| v10.0.0 | .NET 10 / MAUI 10.0.x | Q4 2026 | 📋 Planned |
+| v10.0.41 | .NET 10 / MAUI 10.0.41 | Q1 2026 | ✅ Released |
+| v10.0.x | .NET 10 / MAUI 10.0.x | 2026 | 🚀 Active |
 
 ## Feedback
 

@@ -25,7 +25,7 @@ public class SkiaRenderingEngine : IDisposable
 
     // Dirty region tracking for optimized rendering
     private readonly List<SKRect> _dirtyRegions = new();
-    private readonly object _dirtyLock = new();
+    private readonly Lock _dirtyLock = new();
     /// <summary>
     /// Maximum number of dirty regions to track before falling back to a full redraw.
     /// </summary>

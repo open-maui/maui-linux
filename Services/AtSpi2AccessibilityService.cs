@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// AT-SPI2 accessibility service implementation.
 /// Provides screen reader support through the AT-SPI2 D-Bus interface.
 /// </summary>
-public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
+public partial class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
 {
     private nint _connection;
     private nint _registry;
@@ -371,20 +371,20 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
 
     #region AT-SPI2 Interop
 
-    [DllImport("libatspi.so.0")]
-    private static extern int atspi_init();
+    [LibraryImport("libatspi.so.0")]
+    private static partial int atspi_init();
 
-    [DllImport("libatspi.so.0")]
-    private static extern int atspi_exit();
+    [LibraryImport("libatspi.so.0")]
+    private static partial int atspi_exit();
 
-    [DllImport("libatspi.so.0")]
-    private static extern nint atspi_get_desktop(int i);
+    [LibraryImport("libatspi.so.0")]
+    private static partial nint atspi_get_desktop(int i);
 
-    [DllImport("libatspi.so.0")]
-    private static extern void atspi_set_main_context(nint context);
+    [LibraryImport("libatspi.so.0")]
+    private static partial void atspi_set_main_context(nint context);
 
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern void g_object_unref(nint obj);
+    [LibraryImport("libgobject-2.0.so.0")]
+    private static partial void g_object_unref(nint obj);
 
     #endregion
 }

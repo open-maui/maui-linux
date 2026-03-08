@@ -30,7 +30,7 @@ public class SkiaImage : SkiaView
     /// Key is the file path or URI, value is the cached bitmap data.
     /// </summary>
     private static readonly ConcurrentDictionary<string, CachedImage> _imageCache = new();
-    private static readonly object _cacheLock = new();
+    private static readonly Lock _cacheLock = new();
     private const int MaxCacheSize = 50; // Maximum number of cached images
     private const long MaxCacheMemoryBytes = 100 * 1024 * 1024; // 100MB max cache
 
@@ -195,7 +195,7 @@ public class SkiaImage : SkiaView
     private string? _cacheKey;
     private bool _isSvg;
     private CancellationTokenSource? _loadCts;
-    private readonly object _loadLock = new object();
+    private readonly Lock _loadLock = new();
     private double _svgLoadedWidth;
     private double _svgLoadedHeight;
     private bool _pendingSvgReload;

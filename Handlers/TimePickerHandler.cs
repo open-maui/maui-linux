@@ -76,7 +76,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
     public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Time = timePicker.Time;
+        handler.PlatformView.Time = timePicker.Time ?? TimeSpan.Zero;
     }
 
     public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)

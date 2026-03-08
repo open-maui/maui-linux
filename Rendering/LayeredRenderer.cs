@@ -8,7 +8,7 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 public class LayeredRenderer : IDisposable
 {
     private readonly Dictionary<int, RenderLayer> _layers = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private bool _disposed;
 
     public RenderLayer GetLayer(int zIndex)

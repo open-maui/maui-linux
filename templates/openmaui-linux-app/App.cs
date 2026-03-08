@@ -7,8 +7,8 @@ namespace OpenMauiLinuxApp;
 
 public class App : Application
 {
-    public App()
+    protected override Window CreateWindow(IActivationState? activationState)
     {
-        MainPage = new MainPage();
+        return new Window(new MainPage());
     }
 }

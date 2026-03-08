@@ -11,10 +11,10 @@ namespace Microsoft.Maui.Platform.Linux.Native;
 /// Safe handle wrapper for GTK widget pointers.
 /// Releases the widget via <c>gtk_widget_destroy</c> when disposed.
 /// </summary>
-internal class SafeGtkWidgetHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal partial class SafeGtkWidgetHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
-    [DllImport("libgtk-3.so.0")]
-    private static extern void gtk_widget_destroy(IntPtr widget);
+    [LibraryImport("libgtk-3.so.0")]
+    private static partial void gtk_widget_destroy(IntPtr widget);
 
     /// <summary>
     /// Initializes a new <see cref="SafeGtkWidgetHandle"/> that owns the handle.
@@ -46,10 +46,10 @@ internal class SafeGtkWidgetHandle : SafeHandleZeroOrMinusOneIsInvalid
 /// Releases the object via <c>g_object_unref</c> when disposed.
 /// Suitable for any GObject-derived type including GtkCssProvider, GdkPixbuf, etc.
 /// </summary>
-internal class SafeGObjectHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal partial class SafeGObjectHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern void g_object_unref(IntPtr obj);
+    [LibraryImport("libgobject-2.0.so.0")]
+    private static partial void g_object_unref(IntPtr obj);
 
     /// <summary>
     /// Initializes a new <see cref="SafeGObjectHandle"/> that owns the handle.
@@ -80,10 +80,10 @@ internal class SafeGObjectHandle : SafeHandleZeroOrMinusOneIsInvalid
 /// Safe handle wrapper for X11 <c>Display*</c> pointers.
 /// Releases the display connection via <c>XCloseDisplay</c> when disposed.
 /// </summary>
-internal class SafeX11DisplayHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal partial class SafeX11DisplayHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
-    [DllImport("libX11.so.6")]
-    private static extern int XCloseDisplay(IntPtr display);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XCloseDisplay(IntPtr display);
 
     /// <summary>
     /// Initializes a new <see cref="SafeX11DisplayHandle"/> that owns the handle.
@@ -116,10 +116,10 @@ internal class SafeX11DisplayHandle : SafeHandleZeroOrMinusOneIsInvalid
 /// Requires the associated <c>Display*</c> to be provided at construction time,
 /// as X11 cursor cleanup requires both the display and cursor handles.
 /// </summary>
-internal class SafeX11CursorHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal partial class SafeX11CursorHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
-    [DllImport("libX11.so.6")]
-    private static extern int XFreeCursor(IntPtr display, IntPtr cursor);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XFreeCursor(IntPtr display, IntPtr cursor);
 
     private readonly IntPtr _display;
 
@@ -165,10 +165,10 @@ internal class SafeX11CursorHandle : SafeHandleZeroOrMinusOneIsInvalid
 /// Safe handle wrapper for <c>GtkCssProvider*</c> pointers.
 /// Since GtkCssProvider is a GObject, this releases it via <c>g_object_unref</c> when disposed.
 /// </summary>
-internal class SafeCssProviderHandle : SafeHandleZeroOrMinusOneIsInvalid
+internal partial class SafeCssProviderHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern void g_object_unref(IntPtr obj);
+    [LibraryImport("libgobject-2.0.so.0")]
+    private static partial void g_object_unref(IntPtr obj);
 
     /// <summary>
     /// Initializes a new <see cref="SafeCssProviderHandle"/> that owns the handle.

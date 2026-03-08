@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform;
 /// WebView implementation using WebKitGTK for Linux.
 /// Renders web content in a native GTK window embedded via X11.
 /// </summary>
-public class SkiaWebView : SkiaView
+public partial class SkiaWebView : SkiaView
 {
     #region Delegates
 
@@ -150,213 +150,216 @@ public class SkiaWebView : SkiaView
 
     #region GTK Native Imports
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_init")]
-    private static extern void gtk4_init();
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_init")]
+    private static partial void gtk4_init();
 
     [DllImport(LibGtk3, EntryPoint = "gtk_init_check")]
     private static extern bool gtk3_init_check(ref int argc, ref IntPtr argv);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_window_new")]
-    private static extern IntPtr gtk4_window_new();
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_new")]
+    private static partial IntPtr gtk4_window_new();
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_new")]
-    private static extern IntPtr gtk3_window_new(int type);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_new")]
+    private static partial IntPtr gtk3_window_new(int type);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_window_set_default_size")]
-    private static extern void gtk4_window_set_default_size(IntPtr window, int width, int height);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_default_size")]
+    private static partial void gtk4_window_set_default_size(IntPtr window, int width, int height);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_window_set_title")]
-    private static extern void gtk4_window_set_title(IntPtr window, [MarshalAs(UnmanagedType.LPStr)] string title);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_title", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk4_window_set_title(IntPtr window, string title);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_default_size")]
-    private static extern void gtk3_window_set_default_size(IntPtr window, int width, int height);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_default_size")]
+    private static partial void gtk3_window_set_default_size(IntPtr window, int width, int height);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_title")]
-    private static extern void gtk3_window_set_title(IntPtr window, [MarshalAs(UnmanagedType.LPStr)] string title);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_title", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk3_window_set_title(IntPtr window, string title);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_window_set_child")]
-    private static extern void gtk4_window_set_child(IntPtr window, IntPtr child);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_child")]
+    private static partial void gtk4_window_set_child(IntPtr window, IntPtr child);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_container_add")]
-    private static extern void gtk3_container_add(IntPtr container, IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_container_add")]
+    private static partial void gtk3_container_add(IntPtr container, IntPtr widget);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_widget_show")]
-    private static extern void gtk4_widget_show(IntPtr widget);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_show")]
+    private static partial void gtk4_widget_show(IntPtr widget);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_window_present")]
-    private static extern void gtk4_window_present(IntPtr window);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_present")]
+    private static partial void gtk4_window_present(IntPtr window);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_show_all")]
-    private static extern void gtk3_widget_show_all(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_show_all")]
+    private static partial void gtk3_widget_show_all(IntPtr widget);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_widget_hide")]
-    private static extern void gtk4_widget_hide(IntPtr widget);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_hide")]
+    private static partial void gtk4_widget_hide(IntPtr widget);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_hide")]
-    private static extern void gtk3_widget_hide(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_hide")]
+    private static partial void gtk3_widget_hide(IntPtr widget);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_widget_get_width")]
-    private static extern int gtk4_widget_get_width(IntPtr widget);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_get_width")]
+    private static partial int gtk4_widget_get_width(IntPtr widget);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_widget_get_height")]
-    private static extern int gtk4_widget_get_height(IntPtr widget);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_get_height")]
+    private static partial int gtk4_widget_get_height(IntPtr widget);
 
-    [DllImport(LibGObject)]
-    private static extern void g_object_unref(IntPtr obj);
+    [LibraryImport(LibGObject)]
+    private static partial void g_object_unref(IntPtr obj);
 
-    [DllImport(LibGObject)]
-    private static extern ulong g_signal_connect_data(IntPtr instance, [MarshalAs(UnmanagedType.LPStr)] string signal, IntPtr handler, IntPtr data, IntPtr destroyData, int flags);
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial ulong g_signal_connect_data(IntPtr instance, string signal, IntPtr handler, IntPtr data, IntPtr destroyData, int flags);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_native_get_surface")]
-    private static extern IntPtr gtk4_native_get_surface(IntPtr native);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_native_get_surface")]
+    private static partial IntPtr gtk4_native_get_surface(IntPtr native);
 
-    [DllImport(LibGtk4, EntryPoint = "gdk_x11_surface_get_xid")]
-    private static extern IntPtr gdk4_x11_surface_get_xid(IntPtr surface);
+    [LibraryImport(LibGtk4, EntryPoint = "gdk_x11_surface_get_xid")]
+    private static partial IntPtr gdk4_x11_surface_get_xid(IntPtr surface);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_get_window")]
-    private static extern IntPtr gtk3_widget_get_window(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_get_window")]
+    private static partial IntPtr gtk3_widget_get_window(IntPtr widget);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_x11_window_get_xid")]
-    private static extern IntPtr gdk3_x11_window_get_xid(IntPtr gdkWindow);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_x11_window_get_xid")]
+    private static partial IntPtr gdk3_x11_window_get_xid(IntPtr gdkWindow);
 
-    [DllImport(LibGtk4, EntryPoint = "gtk_window_set_decorated")]
-    private static extern void gtk4_window_set_decorated(IntPtr window, bool decorated);
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_decorated")]
+    private static partial void gtk4_window_set_decorated(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool decorated);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_decorated")]
-    private static extern void gtk3_window_set_decorated(IntPtr window, bool decorated);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_decorated")]
+    private static partial void gtk3_window_set_decorated(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool decorated);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_move")]
-    private static extern void gtk3_window_move(IntPtr window, int x, int y);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_move")]
+    private static partial void gtk3_window_move(IntPtr window, int x, int y);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_resize")]
-    private static extern void gtk3_window_resize(IntPtr window, int width, int height);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_resize")]
+    private static partial void gtk3_window_resize(IntPtr window, int width, int height);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_window_move_resize")]
-    private static extern void gdk3_window_move_resize(IntPtr window, int x, int y, int width, int height);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_move_resize")]
+    private static partial void gdk3_window_move_resize(IntPtr window, int x, int y, int width, int height);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_window_move")]
-    private static extern void gdk3_gdk_window_move(IntPtr window, int x, int y);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_move")]
+    private static partial void gdk3_gdk_window_move(IntPtr window, int x, int y);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_window_set_override_redirect")]
-    private static extern void gdk3_window_set_override_redirect(IntPtr window, bool override_redirect);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_set_override_redirect")]
+    private static partial void gdk3_window_set_override_redirect(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool override_redirect);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_window_set_transient_for")]
-    private static extern void gdk3_window_set_transient_for(IntPtr window, IntPtr parent);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_set_transient_for")]
+    private static partial void gdk3_window_set_transient_for(IntPtr window, IntPtr parent);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_window_raise")]
-    private static extern void gdk3_window_raise(IntPtr window);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_raise")]
+    private static partial void gdk3_window_raise(IntPtr window);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_x11_window_foreign_new_for_display")]
-    private static extern IntPtr gdk3_x11_window_foreign_new_for_display(IntPtr display, IntPtr window);
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_x11_window_foreign_new_for_display")]
+    private static partial IntPtr gdk3_x11_window_foreign_new_for_display(IntPtr display, IntPtr window);
 
-    [DllImport(LibGdk3, EntryPoint = "gdk_display_get_default")]
-    private static extern IntPtr gdk3_display_get_default();
+    [LibraryImport(LibGdk3, EntryPoint = "gdk_display_get_default")]
+    private static partial IntPtr gdk3_display_get_default();
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_set_parent_window")]
-    private static extern void gtk3_widget_set_parent_window(IntPtr widget, IntPtr parentWindow);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_parent_window")]
+    private static partial void gtk3_widget_set_parent_window(IntPtr widget, IntPtr parentWindow);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_socket_new")]
-    private static extern IntPtr gtk3_socket_new();
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_socket_new")]
+    private static partial IntPtr gtk3_socket_new();
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_socket_add_id")]
-    private static extern void gtk3_socket_add_id(IntPtr socket, IntPtr windowId);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_socket_add_id")]
+    private static partial void gtk3_socket_add_id(IntPtr socket, IntPtr windowId);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_socket_get_id")]
-    private static extern IntPtr gtk3_socket_get_id(IntPtr socket);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_socket_get_id")]
+    private static partial IntPtr gtk3_socket_get_id(IntPtr socket);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_plug_new")]
-    private static extern IntPtr gtk3_plug_new(IntPtr socketId);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_plug_new")]
+    private static partial IntPtr gtk3_plug_new(IntPtr socketId);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_plug_get_id")]
-    private static extern IntPtr gtk3_plug_get_id(IntPtr plug);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_plug_get_id")]
+    private static partial IntPtr gtk3_plug_get_id(IntPtr plug);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_skip_taskbar_hint")]
-    private static extern void gtk3_window_set_skip_taskbar_hint(IntPtr window, bool setting);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_skip_taskbar_hint")]
+    private static partial void gtk3_window_set_skip_taskbar_hint(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool setting);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_skip_pager_hint")]
-    private static extern void gtk3_window_set_skip_pager_hint(IntPtr window, bool setting);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_skip_pager_hint")]
+    private static partial void gtk3_window_set_skip_pager_hint(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool setting);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_type_hint")]
-    private static extern void gtk3_window_set_type_hint(IntPtr window, int hint);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_type_hint")]
+    private static partial void gtk3_window_set_type_hint(IntPtr window, int hint);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_present")]
-    private static extern void gtk3_window_present(IntPtr window);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_present")]
+    private static partial void gtk3_window_present(IntPtr window);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_queue_draw")]
-    private static extern void gtk3_widget_queue_draw(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_queue_draw")]
+    private static partial void gtk3_widget_queue_draw(IntPtr widget);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_keep_above")]
-    private static extern void gtk3_window_set_keep_above(IntPtr window, bool setting);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_keep_above")]
+    private static partial void gtk3_window_set_keep_above(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool setting);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_set_hexpand")]
-    private static extern void gtk3_widget_set_hexpand(IntPtr widget, bool expand);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_hexpand")]
+    private static partial void gtk3_widget_set_hexpand(IntPtr widget, [MarshalAs(UnmanagedType.Bool)] bool expand);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_set_vexpand")]
-    private static extern void gtk3_widget_set_vexpand(IntPtr widget, bool expand);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_vexpand")]
+    private static partial void gtk3_widget_set_vexpand(IntPtr widget, [MarshalAs(UnmanagedType.Bool)] bool expand);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_set_size_request")]
-    private static extern void gtk3_widget_set_size_request(IntPtr widget, int width, int height);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_size_request")]
+    private static partial void gtk3_widget_set_size_request(IntPtr widget, int width, int height);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_realize")]
-    private static extern void gtk3_widget_realize(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_realize")]
+    private static partial void gtk3_widget_realize(IntPtr widget);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_map")]
-    private static extern void gtk3_widget_map(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_map")]
+    private static partial void gtk3_widget_map(IntPtr widget);
 
-    [DllImport(LibGLib)]
-    private static extern bool g_main_context_iteration(IntPtr context, bool mayBlock);
+    [LibraryImport(LibGLib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool g_main_context_iteration(IntPtr context, [MarshalAs(UnmanagedType.Bool)] bool mayBlock);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_events_pending")]
-    private static extern bool gtk3_events_pending();
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_events_pending")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool gtk3_events_pending();
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_main_iteration")]
-    private static extern void gtk3_main_iteration();
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_main_iteration")]
+    private static partial void gtk3_main_iteration();
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_main_iteration_do")]
-    private static extern bool gtk3_main_iteration_do(bool blocking);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_main_iteration_do")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool gtk3_main_iteration_do([MarshalAs(UnmanagedType.Bool)] bool blocking);
 
     #endregion
 
     #region X11 Native Imports
 
-    [DllImport(LibX11)]
-    private static extern int XReparentWindow(IntPtr display, IntPtr window, IntPtr parent, int x, int y);
+    [LibraryImport(LibX11)]
+    private static partial int XReparentWindow(IntPtr display, IntPtr window, IntPtr parent, int x, int y);
 
-    [DllImport(LibX11)]
-    private static extern int XMoveResizeWindow(IntPtr display, IntPtr window, int x, int y, uint width, uint height);
+    [LibraryImport(LibX11)]
+    private static partial int XMoveResizeWindow(IntPtr display, IntPtr window, int x, int y, uint width, uint height);
 
-    [DllImport(LibX11)]
-    private static extern int XMapWindow(IntPtr display, IntPtr window);
+    [LibraryImport(LibX11)]
+    private static partial int XMapWindow(IntPtr display, IntPtr window);
 
-    [DllImport(LibX11)]
-    private static extern int XUnmapWindow(IntPtr display, IntPtr window);
+    [LibraryImport(LibX11)]
+    private static partial int XUnmapWindow(IntPtr display, IntPtr window);
 
-    [DllImport(LibX11)]
-    private static extern int XFlush(IntPtr display);
+    [LibraryImport(LibX11)]
+    private static partial int XFlush(IntPtr display);
 
-    [DllImport(LibX11)]
-    private static extern int XRaiseWindow(IntPtr display, IntPtr window);
+    [LibraryImport(LibX11)]
+    private static partial int XRaiseWindow(IntPtr display, IntPtr window);
 
-    [DllImport(LibX11)]
-    private static extern IntPtr XCreateSimpleWindow(IntPtr display, IntPtr parent, int x, int y, uint width, uint height, uint borderWidth, ulong border, ulong background);
+    [LibraryImport(LibX11)]
+    private static partial IntPtr XCreateSimpleWindow(IntPtr display, IntPtr parent, int x, int y, uint width, uint height, uint borderWidth, ulong border, ulong background);
 
-    [DllImport(LibX11)]
-    private static extern int XDestroyWindow(IntPtr display, IntPtr window);
+    [LibraryImport(LibX11)]
+    private static partial int XDestroyWindow(IntPtr display, IntPtr window);
 
-    [DllImport(LibX11)]
-    private static extern int XSelectInput(IntPtr display, IntPtr window, long eventMask);
+    [LibraryImport(LibX11)]
+    private static partial int XSelectInput(IntPtr display, IntPtr window, long eventMask);
 
-    [DllImport(LibX11)]
-    private static extern int XSync(IntPtr display, bool discard);
+    [LibraryImport(LibX11)]
+    private static partial int XSync(IntPtr display, [MarshalAs(UnmanagedType.Bool)] bool discard);
 
     [DllImport(LibX11)]
     private static extern bool XQueryTree(IntPtr display, IntPtr window, ref IntPtr root, ref IntPtr parent, ref IntPtr children, ref uint nchildren);
 
-    [DllImport(LibX11)]
-    private static extern int XFree(IntPtr data);
+    [LibraryImport(LibX11)]
+    private static partial int XFree(IntPtr data);
 
-    [DllImport(LibX11)]
-    private static extern int XMapRaised(IntPtr display, IntPtr window);
+    [LibraryImport(LibX11)]
+    private static partial int XMapRaised(IntPtr display, IntPtr window);
 
     [DllImport(LibX11)]
     private static extern int XGetWindowAttributes(IntPtr display, IntPtr window, out XWindowAttributes attributes);
@@ -364,11 +367,11 @@ public class SkiaWebView : SkiaView
     [DllImport(LibX11)]
     private static extern bool XTranslateCoordinates(IntPtr display, IntPtr src, IntPtr dest, int srcX, int srcY, out int destX, out int destY, out IntPtr child);
 
-    [DllImport(LibX11)]
-    private static extern IntPtr XDefaultRootWindow(IntPtr display);
+    [LibraryImport(LibX11)]
+    private static partial IntPtr XDefaultRootWindow(IntPtr display);
 
-    [DllImport(LibX11)]
-    private static extern IntPtr XInternAtom(IntPtr display, string atomName, bool onlyIfExists);
+    [LibraryImport(LibX11, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr XInternAtom(IntPtr display, string atomName, [MarshalAs(UnmanagedType.Bool)] bool onlyIfExists);
 
     [DllImport(LibX11)]
     private static extern int XChangeProperty(IntPtr display, IntPtr window, IntPtr property, IntPtr type, int format, int mode, IntPtr data, int nelements);
@@ -376,14 +379,14 @@ public class SkiaWebView : SkiaView
     [DllImport(LibX11)]
     private static extern int XChangeProperty(IntPtr display, IntPtr window, IntPtr property, IntPtr type, int format, int mode, IntPtr[] data, int nelements);
 
-    [DllImport("libdl.so.2")]
-    private static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPStr)] string? filename, int flags);
+    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr dlopen(string? filename, int flags);
 
-    [DllImport("libdl.so.2")]
-    private static extern IntPtr dlsym(IntPtr handle, [MarshalAs(UnmanagedType.LPStr)] string symbol);
+    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr dlsym(IntPtr handle, string symbol);
 
-    [DllImport("libdl.so.2")]
-    private static extern IntPtr dlerror();
+    [LibraryImport("libdl.so.2")]
+    private static partial IntPtr dlerror();
 
     #endregion
 

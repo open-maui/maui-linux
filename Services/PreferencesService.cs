@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public class PreferencesService : IPreferences
 {
     private readonly string _preferencesPath;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private Dictionary<string, Dictionary<string, object?>> _preferences = new();
     private bool _loaded;
 

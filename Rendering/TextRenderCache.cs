@@ -41,7 +41,7 @@ public class TextRenderCache : IDisposable
     }
 
     private readonly Dictionary<TextCacheKey, SKBitmap> _cache = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private int _maxEntries = 500;
     private bool _disposed;
 

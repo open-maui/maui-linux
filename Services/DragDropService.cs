@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Provides drag and drop functionality using the X11 XDND protocol.
 /// </summary>
-public class DragDropService : IDisposable
+public partial class DragDropService : IDisposable
 {
     private nint _display;
     private nint _window;
@@ -376,8 +376,8 @@ public class DragDropService : IDisposable
         public nint data4;
     }
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XInternAtom(nint display, string atomName, bool onlyIfExists);
+    [LibraryImport("libX11.so.6", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint XInternAtom(nint display, string atomName, [MarshalAs(UnmanagedType.Bool)] bool onlyIfExists);
 
     [DllImport("libX11.so.6")]
     private static extern int XChangeProperty(nint display, nint window, nint property, nint type,
@@ -391,14 +391,14 @@ public class DragDropService : IDisposable
     [DllImport("libX11.so.6")]
     private static extern int XSendEvent(nint display, nint window, bool propagate, long eventMask, ref XClientMessageEvent xevent);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XConvertSelection(nint display, nint selection, nint target, nint property, nint requestor, uint time);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XConvertSelection(nint display, nint selection, nint target, nint property, nint requestor, uint time);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XFree(nint ptr);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XFree(nint ptr);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XFlush(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XFlush(nint display);
 
     #endregion
 }

@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public class MonitorService : IDisposable
 {
     private static MonitorService? _instance;
-    private static readonly object _lock = new();
+    private static readonly Lock _lock = new();
 
     private IntPtr _display;
     private IntPtr _rootWindow;

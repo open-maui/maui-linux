@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public class SystemThemeService
 {
     private static SystemThemeService? _instance;
-    private static readonly object _lock = new();
+    private static readonly Lock _lock = new();
 
     /// <summary>
     /// Gets the singleton instance of the system theme service.

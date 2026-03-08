@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 public class RenderCache : IDisposable
 {
     private readonly Dictionary<string, CacheEntry> _cache = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private long _maxCacheSize = 50 * 1024 * 1024; // 50 MB default
     private long _currentCacheSize;
     private bool _disposed;

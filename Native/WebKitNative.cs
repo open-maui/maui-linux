@@ -5,7 +5,7 @@ using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Native;
 
-internal static class WebKitNative
+internal static partial class WebKitNative
 {
     private delegate IntPtr WebKitWebViewNewDelegate();
     private delegate void WebKitWebViewLoadUriDelegate(IntPtr webView, string uri);
@@ -111,20 +111,20 @@ internal static class WebKitNative
 
     private static IntPtr _gobjectHandle;
 
-    [DllImport("libdl.so.2")]
-    private static extern IntPtr dlopen(string? filename, int flags);
+    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr dlopen(string? filename, int flags);
 
-    [DllImport("libdl.so.2")]
-    private static extern IntPtr dlsym(IntPtr handle, string symbol);
+    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr dlsym(IntPtr handle, string symbol);
 
-    [DllImport("libdl.so.2")]
-    private static extern int dlclose(IntPtr handle);
+    [LibraryImport("libdl.so.2")]
+    private static partial int dlclose(IntPtr handle);
 
-    [DllImport("libdl.so.2")]
-    private static extern IntPtr dlerror();
+    [LibraryImport("libdl.so.2")]
+    private static partial IntPtr dlerror();
 
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
+    [LibraryImport("libgobject-2.0.so.0")]
+    private static partial void g_signal_handler_disconnect(IntPtr instance, ulong handlerId);
 
     public static bool Initialize()
     {

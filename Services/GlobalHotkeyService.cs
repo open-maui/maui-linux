@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Provides global hotkey registration and handling using X11.
 /// </summary>
-public class GlobalHotkeyService : IDisposable
+public partial class GlobalHotkeyService : IDisposable
 {
     private nint _display;
     private nint _rootWindow;
@@ -257,33 +257,33 @@ public class GlobalHotkeyService : IDisposable
         public bool same_screen;
     }
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XOpenDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XCloseDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XCloseDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XDefaultRootWindow(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XDefaultRootWindow(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XKeysymToKeycode(nint display, nint keysym);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XKeysymToKeycode(nint display, nint keysym);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XGrabKey(nint display, int keycode, uint modifiers, nint grabWindow,
-        bool ownerEvents, int pointerMode, int keyboardMode);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XGrabKey(nint display, int keycode, uint modifiers, nint grabWindow,
+        [MarshalAs(UnmanagedType.Bool)] bool ownerEvents, int pointerMode, int keyboardMode);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XUngrabKey(nint display, int keycode, uint modifiers, nint grabWindow);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XUngrabKey(nint display, int keycode, uint modifiers, nint grabWindow);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XPending(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XPending(nint display);
 
     [DllImport("libX11.so.6")]
     private static extern int XNextEvent(nint display, ref XEvent xevent);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XFlush(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XFlush(nint display);
 
     #endregion
 

@@ -31,7 +31,7 @@ public class GpuRenderingEngine : IDisposable
 
     // Dirty region tracking
     private readonly List<SKRect> _dirtyRegions = new();
-    private readonly object _dirtyLock = new();
+    private readonly Lock _dirtyLock = new();
     private bool _fullRedrawNeeded = true;
     private const int MaxDirtyRegions = 32;
 
@@ -288,8 +288,8 @@ public class GpuRenderingEngine : IDisposable
             return new GpuStats { IsGpuAccelerated = false };
         }
 
-        // Get resource cache limits from GRContext
-        _grContext.GetResourceCacheLimits(out var maxResources, out var maxBytes);
+        // Get resource cache limit from GRContext (SkiaSharp 3.x API)
+        var maxBytes = _grContext.GetResourceCacheLimit();
 
         return new GpuStats
         {

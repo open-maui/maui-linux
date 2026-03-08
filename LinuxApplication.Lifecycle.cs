@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Reflection;
+
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
@@ -174,35 +174,25 @@ public partial class LinuxApplication
                     }
                 };
 
-                // Get the main page - prefer CreateWindow() over deprecated MainPage
+                // Get the main page via CreateWindow (the standard MAUI pattern)
                 Page? mainPage = null;
 
-                // Try CreateWindow() first (the modern MAUI pattern)
                 try
                 {
-                    // CreateWindow is protected, use reflection
-                    var createWindowMethod = typeof(Application).GetMethod("CreateWindow",
-                        BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-                        null, new[] { typeof(IActivationState) }, null);
+                    // Use IApplication interface to call CreateWindow without reflection
+                    var appInterface = (IApplication)mauiApplication;
+                    var mauiWindow = appInterface.CreateWindow(null!) as Microsoft.Maui.Controls.Window;
 
-                    if (createWindowMethod != null)
+                    if (mauiWindow != null)
                     {
-                        var mauiWindow = createWindowMethod.Invoke(mauiApplication, new object?[] { null }) as Microsoft.Maui.Controls.Window;
-                        if (mauiWindow != null)
-                        {
-                            DiagnosticLog.Debug("LinuxApplication", $"Got Window from CreateWindow: {mauiWindow.GetType().Name}");
-                            mainPage = mauiWindow.Page;
-                            DiagnosticLog.Debug("LinuxApplication", $"Window.Page: {mainPage?.GetType().Name}");
+                        DiagnosticLog.Debug("LinuxApplication", $"Got Window from CreateWindow: {mauiWindow.GetType().Name}");
+                        mainPage = mauiWindow.Page;
+                        DiagnosticLog.Debug("LinuxApplication", $"Window.Page: {mainPage?.GetType().Name}");
 
-                            // Add to windows list
-                            var windowsField = typeof(Application).GetField("_windows",
-                                BindingFlags.NonPublic | BindingFlags.Instance);
-                            var windowsList = windowsField?.GetValue(mauiApplication) as List<Microsoft.Maui.Controls.Window>;
-                            if (windowsList != null && !windowsList.Contains(mauiWindow))
-                            {
-                                windowsList.Add(mauiWindow);
-                                mauiWindow.Parent = mauiApplication;
-                            }
+                        // Ensure window is registered with the application
+                        if (!appInterface.Windows.Contains(mauiWindow))
+                        {
+                            mauiApplication.OpenWindow(mauiWindow);
                         }
                     }
                 }
@@ -211,25 +201,20 @@ public partial class LinuxApplication
                     DiagnosticLog.Error("LinuxApplication", $"CreateWindow failed: {ex.Message}");
                 }
 
-                // Fall back to deprecated MainPage if CreateWindow didn't work
+                // Fall back to MainPage if CreateWindow didn't produce a page
                 if (mainPage == null && mauiApplication.MainPage != null)
                 {
                     DiagnosticLog.Debug("LinuxApplication", $"Falling back to MainPage: {mauiApplication.MainPage.GetType().Name}");
                     mainPage = mauiApplication.MainPage;
 
-                    var windowsField = typeof(Application).GetField("_windows",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    var windowsList = windowsField?.GetValue(mauiApplication) as List<Microsoft.Maui.Controls.Window>;
-
-                    if (windowsList != null && windowsList.Count == 0)
+                    if (mauiApplication.Windows.Count == 0)
                     {
                         var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
-                        windowsList.Add(mauiWindow);
-                        mauiWindow.Parent = mauiApplication;
+                        mauiApplication.OpenWindow(mauiWindow);
                     }
-                    else if (windowsList != null && windowsList.Count > 0 && windowsList[0].Page == null)
+                    else if (mauiApplication.Windows[0] is Microsoft.Maui.Controls.Window w && w.Page == null)
                     {
-                        windowsList[0].Page = mainPage;
+                        w.Page = mainPage;
                     }
                 }
 

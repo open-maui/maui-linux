@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public static class InputMethodServiceFactory
 {
     private static IInputMethodService? _instance;
-    private static readonly object _lock = new();
+    private static readonly Lock _lock = new();
 
     /// <summary>
     /// Gets the singleton input method service instance.
