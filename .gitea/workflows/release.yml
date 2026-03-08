@@ -39,6 +39,9 @@ jobs:
       - name: Pack NuGet package
         run: dotnet pack --configuration Release --no-build -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
+      - name: Pack Templates package
+        run: dotnet pack templates/OpenMaui.Linux.Templates.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v3
         with:
