@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-public class Gtk4InteropService : IDisposable
+public partial class Gtk4InteropService : IDisposable
 {
     #region GTK4 Native Interop
 
@@ -15,168 +15,178 @@ public class Gtk4InteropService : IDisposable
     private const string LibGObject = "libgobject-2.0.so.0";
 
     // GTK initialization
-    [DllImport(LibGtk4)]
-    private static extern bool gtk_init_check();
+    [LibraryImport(LibGtk4)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool gtk_init_check();
 
-    [DllImport(LibGtk4)]
-    private static extern bool gtk_is_initialized();
+    [LibraryImport(LibGtk4)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool gtk_is_initialized();
 
     // Main loop
-    [DllImport(LibGtk4)]
-    private static extern IntPtr g_main_context_default();
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr g_main_context_default();
 
-    [DllImport(LibGtk4)]
-    private static extern bool g_main_context_iteration(IntPtr context, bool mayBlock);
+    [LibraryImport(LibGtk4)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool g_main_context_iteration(IntPtr context, [MarshalAs(UnmanagedType.Bool)] bool mayBlock);
 
-    [DllImport(LibGlib)]
-    private static extern void g_free(IntPtr mem);
+    [LibraryImport(LibGlib)]
+    private static partial void g_free(IntPtr mem);
 
     // GObject
-    [DllImport(LibGObject)]
-    private static extern void g_object_unref(IntPtr obj);
+    [LibraryImport(LibGObject)]
+    private static partial void g_object_unref(IntPtr obj);
 
-    [DllImport(LibGObject)]
-    private static extern void g_object_ref(IntPtr obj);
+    [LibraryImport(LibGObject)]
+    private static partial void g_object_ref(IntPtr obj);
 
     // Window
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_window_new();
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_window_new();
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_window_set_title(IntPtr window, [MarshalAs(UnmanagedType.LPStr)] string title);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_window_set_title(IntPtr window, string title);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_window_set_modal(IntPtr window, bool modal);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_window_set_modal(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool modal);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_window_set_transient_for(IntPtr window, IntPtr parent);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_window_set_transient_for(IntPtr window, IntPtr parent);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_window_destroy(IntPtr window);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_window_destroy(IntPtr window);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_window_present(IntPtr window);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_window_present(IntPtr window);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_window_close(IntPtr window);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_window_close(IntPtr window);
 
     // Widget
-    [DllImport(LibGtk4)]
-    private static extern void gtk_widget_show(IntPtr widget);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_widget_show(IntPtr widget);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_widget_hide(IntPtr widget);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_widget_hide(IntPtr widget);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_widget_set_visible(IntPtr widget, bool visible);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_widget_set_visible(IntPtr widget, [MarshalAs(UnmanagedType.Bool)] bool visible);
 
-    [DllImport(LibGtk4)]
-    private static extern bool gtk_widget_get_visible(IntPtr widget);
+    [LibraryImport(LibGtk4)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool gtk_widget_get_visible(IntPtr widget);
 
     // Alert Dialog (GTK4)
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_alert_dialog_new([MarshalAs(UnmanagedType.LPStr)] string format);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr gtk_alert_dialog_new(string format);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_alert_dialog_set_message(IntPtr dialog, [MarshalAs(UnmanagedType.LPStr)] string message);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_alert_dialog_set_message(IntPtr dialog, string message);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_alert_dialog_set_detail(IntPtr dialog, [MarshalAs(UnmanagedType.LPStr)] string detail);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_alert_dialog_set_detail(IntPtr dialog, string detail);
 
+    // string[] requires complex marshalling - keep as DllImport
     [DllImport(LibGtk4)]
     private static extern void gtk_alert_dialog_set_buttons(IntPtr dialog, string[] labels);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_alert_dialog_set_cancel_button(IntPtr dialog, int button);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_alert_dialog_set_cancel_button(IntPtr dialog, int button);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_alert_dialog_set_default_button(IntPtr dialog, int button);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_alert_dialog_set_default_button(IntPtr dialog, int button);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_alert_dialog_show(IntPtr dialog, IntPtr parent);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_alert_dialog_show(IntPtr dialog, IntPtr parent);
 
     // File Dialog (GTK4)
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_file_dialog_new();
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_file_dialog_new();
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_dialog_set_title(IntPtr dialog, [MarshalAs(UnmanagedType.LPStr)] string title);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_file_dialog_set_title(IntPtr dialog, string title);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_dialog_set_modal(IntPtr dialog, bool modal);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_file_dialog_set_modal(IntPtr dialog, [MarshalAs(UnmanagedType.Bool)] bool modal);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_dialog_set_accept_label(IntPtr dialog, [MarshalAs(UnmanagedType.LPStr)] string label);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_file_dialog_set_accept_label(IntPtr dialog, string label);
 
+    // GAsyncReadyCallback delegate requires complex marshalling - keep as DllImport
     [DllImport(LibGtk4)]
     private static extern void gtk_file_dialog_open(IntPtr dialog, IntPtr parent, IntPtr cancellable, GAsyncReadyCallback callback, IntPtr userData);
 
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_file_dialog_open_finish(IntPtr dialog, IntPtr result, out IntPtr error);
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_file_dialog_open_finish(IntPtr dialog, IntPtr result, out IntPtr error);
 
+    // GAsyncReadyCallback delegate requires complex marshalling - keep as DllImport
     [DllImport(LibGtk4)]
     private static extern void gtk_file_dialog_save(IntPtr dialog, IntPtr parent, IntPtr cancellable, GAsyncReadyCallback callback, IntPtr userData);
 
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_file_dialog_save_finish(IntPtr dialog, IntPtr result, out IntPtr error);
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_file_dialog_save_finish(IntPtr dialog, IntPtr result, out IntPtr error);
 
+    // GAsyncReadyCallback delegate requires complex marshalling - keep as DllImport
     [DllImport(LibGtk4)]
     private static extern void gtk_file_dialog_select_folder(IntPtr dialog, IntPtr parent, IntPtr cancellable, GAsyncReadyCallback callback, IntPtr userData);
 
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_file_dialog_select_folder_finish(IntPtr dialog, IntPtr result, out IntPtr error);
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_file_dialog_select_folder_finish(IntPtr dialog, IntPtr result, out IntPtr error);
 
+    // GAsyncReadyCallback delegate requires complex marshalling - keep as DllImport
     [DllImport(LibGtk4)]
     private static extern void gtk_file_dialog_open_multiple(IntPtr dialog, IntPtr parent, IntPtr cancellable, GAsyncReadyCallback callback, IntPtr userData);
 
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_file_dialog_open_multiple_finish(IntPtr dialog, IntPtr result, out IntPtr error);
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_file_dialog_open_multiple_finish(IntPtr dialog, IntPtr result, out IntPtr error);
 
     // File filters
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_file_filter_new();
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_file_filter_new();
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_filter_set_name(IntPtr filter, [MarshalAs(UnmanagedType.LPStr)] string name);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_file_filter_set_name(IntPtr filter, string name);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_filter_add_pattern(IntPtr filter, [MarshalAs(UnmanagedType.LPStr)] string pattern);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_file_filter_add_pattern(IntPtr filter, string pattern);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_filter_add_mime_type(IntPtr filter, [MarshalAs(UnmanagedType.LPStr)] string mimeType);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_file_filter_add_mime_type(IntPtr filter, string mimeType);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_file_dialog_set_default_filter(IntPtr dialog, IntPtr filter);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_file_dialog_set_default_filter(IntPtr dialog, IntPtr filter);
 
     // GFile
-    [DllImport(LibGio)]
-    private static extern IntPtr g_file_get_path(IntPtr file);
+    [LibraryImport(LibGio)]
+    private static partial IntPtr g_file_get_path(IntPtr file);
 
     // GListModel for multiple files
-    [DllImport(LibGio)]
-    private static extern uint g_list_model_get_n_items(IntPtr list);
+    [LibraryImport(LibGio)]
+    private static partial uint g_list_model_get_n_items(IntPtr list);
 
-    [DllImport(LibGio)]
-    private static extern IntPtr g_list_model_get_item(IntPtr list, uint position);
+    [LibraryImport(LibGio)]
+    private static partial IntPtr g_list_model_get_item(IntPtr list, uint position);
 
     // Color Dialog (GTK4)
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_color_dialog_new();
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_color_dialog_new();
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_color_dialog_set_title(IntPtr dialog, [MarshalAs(UnmanagedType.LPStr)] string title);
+    [LibraryImport(LibGtk4, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial void gtk_color_dialog_set_title(IntPtr dialog, string title);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_color_dialog_set_modal(IntPtr dialog, bool modal);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_color_dialog_set_modal(IntPtr dialog, [MarshalAs(UnmanagedType.Bool)] bool modal);
 
-    [DllImport(LibGtk4)]
-    private static extern void gtk_color_dialog_set_with_alpha(IntPtr dialog, bool withAlpha);
+    [LibraryImport(LibGtk4)]
+    private static partial void gtk_color_dialog_set_with_alpha(IntPtr dialog, [MarshalAs(UnmanagedType.Bool)] bool withAlpha);
 
+    // GAsyncReadyCallback delegate requires complex marshalling - keep as DllImport
     [DllImport(LibGtk4)]
     private static extern void gtk_color_dialog_choose_rgba(IntPtr dialog, IntPtr parent, IntPtr initialColor, IntPtr cancellable, GAsyncReadyCallback callback, IntPtr userData);
 
-    [DllImport(LibGtk4)]
-    private static extern IntPtr gtk_color_dialog_choose_rgba_finish(IntPtr dialog, IntPtr result, out IntPtr error);
+    [LibraryImport(LibGtk4)]
+    private static partial IntPtr gtk_color_dialog_choose_rgba_finish(IntPtr dialog, IntPtr result, out IntPtr error);
 
     // GdkRGBA
     [StructLayout(LayoutKind.Sequential)]
@@ -196,8 +206,10 @@ public class Gtk4InteropService : IDisposable
     private const string LibGtk3 = "libgtk-3.so.0";
 
     [DllImport(LibGtk3, EntryPoint = "gtk_init_check")]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool gtk3_init_check(ref int argc, ref IntPtr argv);
 
+    // Multiple string params + variadic-style terminator - keep as DllImport
     [DllImport(LibGtk3, EntryPoint = "gtk_file_chooser_dialog_new")]
     private static extern IntPtr gtk3_file_chooser_dialog_new(
         [MarshalAs(UnmanagedType.LPStr)] string title,
@@ -209,21 +221,22 @@ public class Gtk4InteropService : IDisposable
         int secondButtonResponse,
         IntPtr terminator);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_dialog_run")]
-    private static extern int gtk3_dialog_run(IntPtr dialog);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_dialog_run")]
+    private static partial int gtk3_dialog_run(IntPtr dialog);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_widget_destroy")]
-    private static extern void gtk3_widget_destroy(IntPtr widget);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_destroy")]
+    private static partial void gtk3_widget_destroy(IntPtr widget);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_file_chooser_get_filename")]
-    private static extern IntPtr gtk3_file_chooser_get_filename(IntPtr chooser);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_file_chooser_get_filename")]
+    private static partial IntPtr gtk3_file_chooser_get_filename(IntPtr chooser);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_file_chooser_get_filenames")]
-    private static extern IntPtr gtk3_file_chooser_get_filenames(IntPtr chooser);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_file_chooser_get_filenames")]
+    private static partial IntPtr gtk3_file_chooser_get_filenames(IntPtr chooser);
 
-    [DllImport(LibGtk3, EntryPoint = "gtk_file_chooser_set_select_multiple")]
-    private static extern void gtk3_file_chooser_set_select_multiple(IntPtr chooser, bool selectMultiple);
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_file_chooser_set_select_multiple")]
+    private static partial void gtk3_file_chooser_set_select_multiple(IntPtr chooser, [MarshalAs(UnmanagedType.Bool)] bool selectMultiple);
 
+    // Multiple string params with EntryPoint - keep as DllImport
     [DllImport(LibGtk3, EntryPoint = "gtk_message_dialog_new")]
     private static extern IntPtr gtk3_message_dialog_new(
         IntPtr parent,
@@ -232,14 +245,14 @@ public class Gtk4InteropService : IDisposable
         int buttons,
         [MarshalAs(UnmanagedType.LPStr)] string message);
 
-    [DllImport(LibGlib, EntryPoint = "g_slist_length")]
-    private static extern uint g_slist_length(IntPtr list);
+    [LibraryImport(LibGlib, EntryPoint = "g_slist_length")]
+    private static partial uint g_slist_length(IntPtr list);
 
-    [DllImport(LibGlib, EntryPoint = "g_slist_nth_data")]
-    private static extern IntPtr g_slist_nth_data(IntPtr list, uint n);
+    [LibraryImport(LibGlib, EntryPoint = "g_slist_nth_data")]
+    private static partial IntPtr g_slist_nth_data(IntPtr list, uint n);
 
-    [DllImport(LibGlib, EntryPoint = "g_slist_free")]
-    private static extern void g_slist_free(IntPtr list);
+    [LibraryImport(LibGlib, EntryPoint = "g_slist_free")]
+    private static partial void g_slist_free(IntPtr list);
 
     #endregion
 
@@ -248,7 +261,7 @@ public class Gtk4InteropService : IDisposable
     private bool _initialized;
     private bool _useGtk4;
     private bool _disposed;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     // Store callbacks to prevent GC
     private GAsyncReadyCallback? _currentCallback;

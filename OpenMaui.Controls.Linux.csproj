@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>OpenMaui.Platform.Linux</RootNamespace>
@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>9.0.40</Version>
+    <Version>10.0.41</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -25,34 +25,34 @@
     <RepositoryUrl>https://git.marketally.ai/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>9.0.40: Version aligned with MAUI 9.0.40. 100% .NET MAUI API compliance - all public APIs use MAUI types. Full XAML support, Visual State Manager, data binding, XAML styles. 541 passing tests. Previously released as 1.0.0.</PackageReleaseNotes>
+    <PackageReleaseNotes>10.0.41: Upgraded to .NET 10 / MAUI 10.0.41 / SkiaSharp 3.x. Full SKPaint→SKFont migration. All existing features carried forward.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>icon.png</PackageIcon>
+    <PackageIcon>logo_only.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.40" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.41" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.41" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.41" />
 
-    <!-- SkiaSharp for rendering (2.88.x for FreeType compatibility) -->
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.88.9" />
-    <PackageReference Include="Svg.Skia" Version="1.0.0" />
+    <!-- SkiaSharp for rendering (3.x with SKFont API) -->
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.2" />
+    <PackageReference Include="Svg.Skia" Version="3.4.1" />
 
     <!-- HarfBuzz for advanced text shaping -->
-    <PackageReference Include="HarfBuzzSharp" Version="7.3.0.3" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.3" />
+    <PackageReference Include="HarfBuzzSharp" Version="8.3.1.3" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.3" />
   </ItemGroup>
 
   <!-- Include README and icon in package -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
-    <None Include="assets/icon.png" Pack="true" PackagePath="" />
+    <None Include="assets/logo_only.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <!-- Include build targets in package - auto-imports when package is referenced -->

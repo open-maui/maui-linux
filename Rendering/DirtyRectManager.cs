@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 public class DirtyRectManager
 {
     private readonly List<SKRect> _dirtyRects = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private bool _fullRedrawNeeded = true;
     private SKRect _bounds;
     private int _maxDirtyRects = 10;

@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// X11 Input Method service using XIM protocol.
 /// Provides IME support for CJK and other complex input methods.
 /// </summary>
-public class X11InputMethodService : IInputMethodService, IDisposable
+public partial class X11InputMethodService : IInputMethodService, IDisposable
 {
     private nint _display;
     private nint _window;
@@ -341,17 +341,17 @@ public class X11InputMethodService : IInputMethodService, IDisposable
         public bool same_screen;
     }
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XOpenDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XSetLocaleModifiers(string modifiers);
+    [LibraryImport("libX11.so.6", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint XSetLocaleModifiers(string modifiers);
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenIM(nint display, nint db, nint res_name, nint res_class);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XOpenIM(nint display, nint db, nint res_name, nint res_class);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XCloseIM(nint xim);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XCloseIM(nint xim);
 
     [DllImport("libX11.so.6", EntryPoint = "XCreateIC")]
     private static extern nint XCreateIC(nint xim, nint name1, nint value1, nint name2, nint value2,
@@ -361,17 +361,17 @@ public class X11InputMethodService : IInputMethodService, IDisposable
     private static extern nint XCreateICSimple(nint xim, nint name1, nint value1, nint name2, nint value2,
         nint name3, long value3, nint terminator);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XDestroyIC(nint xic);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XDestroyIC(nint xic);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XSetICFocus(nint xic);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XSetICFocus(nint xic);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XUnsetICFocus(nint xic);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XUnsetICFocus(nint xic);
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XSetICValues(nint xic, nint name, nint value, nint terminator);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XSetICValues(nint xic, nint name, nint value, nint terminator);
 
     [DllImport("libX11.so.6")]
     private static extern nint XVaCreateNestedList(int unused, nint name, ref XPoint value, nint terminator);
@@ -383,11 +383,11 @@ public class X11InputMethodService : IInputMethodService, IDisposable
     private static extern int Xutf8LookupString(nint xic, ref XKeyEvent xevent,
         byte[] buffer, int bytes, ref nint keySym, ref nint status);
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XmbResetIC(nint xic);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XmbResetIC(nint xic);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XFree(nint ptr);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XFree(nint ptr);
 
     #endregion
 }

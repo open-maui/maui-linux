@@ -11,7 +11,7 @@ public class LinuxDispatcher : IDispatcher
 
     private static LinuxDispatcher? _mainDispatcher;
 
-    private static readonly object _lock = new object();
+    private static readonly Lock _lock = new();
 
     public static LinuxDispatcher? Main => _mainDispatcher;
 

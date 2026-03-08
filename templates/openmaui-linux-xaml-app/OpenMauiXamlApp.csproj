@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenMauiXamlApp</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -16,11 +16,11 @@
 
   <ItemGroup>
     <!-- OpenMaui Linux Platform -->
-    <PackageReference Include="OpenMaui.Controls.Linux" Version="9.0.*" />
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="10.0.*" />
 
     <!-- Core MAUI packages (includes XAML support) -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.*" />
-    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.*" />
   </ItemGroup>
 
   <!-- XAML Files -->

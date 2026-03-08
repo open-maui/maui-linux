@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Provides HiDPI and display scaling detection for Linux.
 /// </summary>
-public class HiDpiService
+public partial class HiDpiService
 {
     private const float DefaultDpi = 96f;
     private float _scaleFactor = 1.0f;
@@ -471,26 +471,26 @@ public class HiDpiService
 
     #region X11 Interop
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XOpenDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XCloseDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XCloseDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XDefaultScreen(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XDefaultScreen(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayWidth(nint display, int screen);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XDisplayWidth(nint display, int screen);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayHeight(nint display, int screen);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XDisplayHeight(nint display, int screen);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayWidthMM(nint display, int screen);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XDisplayWidthMM(nint display, int screen);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XDisplayHeightMM(nint display, int screen);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XDisplayHeightMM(nint display, int screen);
 
     #endregion
 }

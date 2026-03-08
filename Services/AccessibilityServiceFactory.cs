@@ -6,7 +6,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public static class AccessibilityServiceFactory
 {
     private static IAccessibilityService? _instance;
-    private static readonly object _lock = new();
+    private static readonly Lock _lock = new();
 
     public static IAccessibilityService Instance
     {

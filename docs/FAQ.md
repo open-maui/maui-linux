@@ -39,7 +39,7 @@ public class Program
 Add to your `.csproj`:
 
 ```xml
-<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Debug|net9.0'">
+<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Debug|net10.0'">
   <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
 </PropertyGroup>
 ```
@@ -304,4 +304,4 @@ jobs:
 
 ---
 
-*Developed by [MarketAlly Pte Ltd](https://marketally.sg) • Lead Architect: David H. Friedel Jr.*
+*Developed by [MarketAlly Pte Ltd](https://marketally.ai) • Lead Architect: David H. Friedel Jr.*

@@ -2,13 +2,13 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>OpenMaui.Controls.Linux</id>
-    <version>9.0.40</version>
+    <version>10.0.41</version>
     <title>OpenMaui Linux Controls</title>
     <authors>MarketAlly Pte Ltd, David H. Friedel Jr.</authors>
     <owners>MarketAlly Pte Ltd</owners>
     <license type="expression">MIT</license>
     <projectUrl>https://git.marketally.ai/open-maui/maui-linux</projectUrl>
-    <iconUrl>https://git.marketally.ai/open-maui/maui-linux/raw/branch/main/assets/icon.png</iconUrl>
+    <iconUrl>https://git.marketally.ai/open-maui/maui-linux/raw/branch/main/assets/logo_only.png</iconUrl>
     <description>
 Linux desktop support for .NET MAUI applications. This package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
 
@@ -24,25 +24,25 @@ Features:
 Developed by MarketAlly Pte Ltd. Lead Architect: David H. Friedel Jr.
     </description>
     <releaseNotes>
-9.0.40: Version aligned with MAUI 9.0.40. 100% .NET MAUI API compliance - all public APIs use MAUI types. Full XAML support, SkiaSharp rendering, X11 window management, 35+ controls, 18 platform services, accessibility support. 541 passing tests. Previously released as 1.0.0.
+10.0.41: Upgraded to .NET 10 / MAUI 10.0.41 / SkiaSharp 3.119.2 / HarfBuzzSharp 8.3.1.3. All 541 tests passing. Full feature parity with 9.0.40 release.
     </releaseNotes>
     <copyright>Copyright 2025-2026 MarketAlly Pte Ltd</copyright>
     <tags>maui linux desktop skia gui cross-platform dotnet openmaui</tags>
     <repository type="git" url="https://git.marketally.ai/open-maui/maui-linux.git" />
     <dependencies>
-      <group targetFramework="net9.0">
-        <dependency id="Microsoft.Maui.Controls" version="9.0.40" />
-        <dependency id="SkiaSharp" version="2.88.9" />
-        <dependency id="SkiaSharp.NativeAssets.Linux" version="2.88.9" />
+      <group targetFramework="net10.0">
+        <dependency id="Microsoft.Maui.Controls" version="10.0.41" />
+        <dependency id="SkiaSharp" version="3.119.2" />
+        <dependency id="SkiaSharp.NativeAssets.Linux" version="3.119.2" />
       </group>
     </dependencies>
     <frameworkAssemblies>
-      <frameworkAssembly assemblyName="System.Runtime" targetFramework="net9.0" />
+      <frameworkAssembly assemblyName="System.Runtime" targetFramework="net10.0" />
     </frameworkAssemblies>
   </metadata>
   <files>
-    <file src="bin/Release/net9.0/OpenMaui.Controls.Linux.dll" target="lib/net9.0" />
-    <file src="bin/Release/net9.0/OpenMaui.Controls.Linux.xml" target="lib/net9.0" />
+    <file src="bin/Release/net10.0/OpenMaui.Controls.Linux.dll" target="lib/net10.0" />
+    <file src="bin/Release/net10.0/OpenMaui.Controls.Linux.xml" target="lib/net10.0" />
     <file src="README.md" target="" />
   </files>
 </package>

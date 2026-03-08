@@ -11,85 +11,85 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// Native Wayland window implementation using xdg-shell protocol.
 /// Provides full Wayland support without XWayland dependency.
 /// </summary>
-public class WaylandWindow : IDisposable
+public partial class WaylandWindow : IDisposable
 {
     #region Native Interop - libwayland-client
 
     private const string LibWaylandClient = "libwayland-client.so.0";
 
     // Core display functions (actually exported)
-    [DllImport(LibWaylandClient)]
-    private static extern IntPtr wl_display_connect(string? name);
+    [LibraryImport(LibWaylandClient, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr wl_display_connect(string? name);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_display_disconnect(IntPtr display);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_display_disconnect(IntPtr display);
 
-    [DllImport(LibWaylandClient)]
-    private static extern int wl_display_dispatch(IntPtr display);
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_dispatch(IntPtr display);
 
-    [DllImport(LibWaylandClient)]
-    private static extern int wl_display_dispatch_pending(IntPtr display);
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_dispatch_pending(IntPtr display);
 
-    [DllImport(LibWaylandClient)]
-    private static extern int wl_display_roundtrip(IntPtr display);
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_roundtrip(IntPtr display);
 
-    [DllImport(LibWaylandClient)]
-    private static extern int wl_display_flush(IntPtr display);
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_flush(IntPtr display);
 
-    [DllImport(LibWaylandClient)]
-    private static extern int wl_display_get_fd(IntPtr display);
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_get_fd(IntPtr display);
 
     // Low-level proxy API (actually exported - used to implement protocol wrappers)
-    [DllImport(LibWaylandClient)]
-    private static extern IntPtr wl_proxy_marshal_constructor(
+    [LibraryImport(LibWaylandClient)]
+    private static partial IntPtr wl_proxy_marshal_constructor(
         IntPtr proxy, uint opcode, IntPtr iface, IntPtr arg);
 
-    [DllImport(LibWaylandClient)]
-    private static extern IntPtr wl_proxy_marshal_constructor_versioned(
+    [LibraryImport(LibWaylandClient)]
+    private static partial IntPtr wl_proxy_marshal_constructor_versioned(
         IntPtr proxy, uint opcode, IntPtr iface, uint version, IntPtr arg);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode, int arg1, int arg2);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, int arg1, int arg2);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, int arg2, int arg3);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, int arg2, int arg3);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode, int arg1, int arg2, int arg3, int arg4);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, int arg1, int arg2, int arg3, int arg4);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode, uint arg1);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, uint arg1);
 
     [DllImport(LibWaylandClient)]
     private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode,
         [MarshalAs(UnmanagedType.LPStr)] string arg1);
 
-    [DllImport(LibWaylandClient)]
-    private static extern IntPtr wl_proxy_marshal_array_constructor(
+    [LibraryImport(LibWaylandClient)]
+    private static partial IntPtr wl_proxy_marshal_array_constructor(
         IntPtr proxy, uint opcode, IntPtr args, IntPtr iface);
 
-    [DllImport(LibWaylandClient)]
-    private static extern IntPtr wl_proxy_marshal_array_constructor_versioned(
+    [LibraryImport(LibWaylandClient)]
+    private static partial IntPtr wl_proxy_marshal_array_constructor_versioned(
         IntPtr proxy, uint opcode, IntPtr args, IntPtr iface, uint version);
 
-    [DllImport(LibWaylandClient)]
-    private static extern int wl_proxy_add_listener(IntPtr proxy, IntPtr impl, IntPtr data);
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_proxy_add_listener(IntPtr proxy, IntPtr impl, IntPtr data);
 
-    [DllImport(LibWaylandClient)]
-    private static extern void wl_proxy_destroy(IntPtr proxy);
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_destroy(IntPtr proxy);
 
-    [DllImport(LibWaylandClient)]
-    private static extern uint wl_proxy_get_version(IntPtr proxy);
+    [LibraryImport(LibWaylandClient)]
+    private static partial uint wl_proxy_get_version(IntPtr proxy);
 
     // Interface globals (exported as data symbols)
-    [DllImport(LibWaylandClient)]
-    private static extern IntPtr wl_registry_interface_ptr();
+    [LibraryImport(LibWaylandClient)]
+    private static partial IntPtr wl_registry_interface_ptr();
 
     // We need to load these at runtime since they're data symbols
     private static IntPtr _wl_registry_interface;
@@ -103,14 +103,14 @@ public class WaylandWindow : IDisposable
     private static IntPtr _wl_keyboard_interface;
 
     // dlsym for loading interface symbols
-    [DllImport("libdl.so.2", EntryPoint = "dlopen")]
-    private static extern IntPtr dlopen(string? filename, int flags);
+    [LibraryImport("libdl.so.2", EntryPoint = "dlopen", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr dlopen(string? filename, int flags);
 
-    [DllImport("libdl.so.2", EntryPoint = "dlsym")]
-    private static extern IntPtr dlsym(IntPtr handle, string symbol);
+    [LibraryImport("libdl.so.2", EntryPoint = "dlsym", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr dlsym(IntPtr handle, string symbol);
 
-    [DllImport("libdl.so.2", EntryPoint = "dlclose")]
-    private static extern int dlclose(IntPtr handle);
+    [LibraryImport("libdl.so.2", EntryPoint = "dlclose")]
+    private static partial int dlclose(IntPtr handle);
 
     private const int RTLD_NOW = 2;
     private const int RTLD_GLOBAL = 0x100;
@@ -202,8 +202,8 @@ public class WaylandWindow : IDisposable
     }
 
     // wl_registry_bind wrapper - uses special marshaling
-    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_flags")]
-    private static extern IntPtr wl_proxy_marshal_flags(
+    [LibraryImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_flags")]
+    private static partial IntPtr wl_proxy_marshal_flags(
         IntPtr proxy, uint opcode, IntPtr iface, uint version, uint flags,
         uint name, IntPtr ifaceName, uint ifaceVersion);
 
@@ -249,8 +249,8 @@ public class WaylandWindow : IDisposable
     }
 
     // wl_shm_create_pool wrapper
-    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_flags")]
-    private static extern IntPtr wl_proxy_marshal_flags_fd(
+    [LibraryImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_flags")]
+    private static partial IntPtr wl_proxy_marshal_flags_fd(
         IntPtr proxy, uint opcode, IntPtr iface, uint version, uint flags,
         IntPtr newId, int fd, int size);
 
@@ -262,8 +262,8 @@ public class WaylandWindow : IDisposable
     }
 
     // wl_shm_pool methods
-    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_flags")]
-    private static extern IntPtr wl_proxy_marshal_flags_buffer(
+    [LibraryImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_flags")]
+    private static partial IntPtr wl_proxy_marshal_flags_buffer(
         IntPtr proxy, uint opcode, IntPtr iface, uint version, uint flags,
         IntPtr newId, int offset, int width, int height, int stride, uint format);
 
@@ -456,17 +456,17 @@ public class WaylandWindow : IDisposable
     [DllImport("libc", EntryPoint = "shm_unlink")]
     private static extern int shm_unlink([MarshalAs(UnmanagedType.LPStr)] string name);
 
-    [DllImport("libc", EntryPoint = "ftruncate")]
-    private static extern int ftruncate(int fd, long length);
+    [LibraryImport("libc", EntryPoint = "ftruncate")]
+    private static partial int ftruncate(int fd, long length);
 
-    [DllImport("libc", EntryPoint = "mmap")]
-    private static extern IntPtr mmap(IntPtr addr, nuint length, int prot, int flags, int fd, long offset);
+    [LibraryImport("libc", EntryPoint = "mmap")]
+    private static partial IntPtr mmap(IntPtr addr, nuint length, int prot, int flags, int fd, long offset);
 
-    [DllImport("libc", EntryPoint = "munmap")]
-    private static extern int munmap(IntPtr addr, nuint length);
+    [LibraryImport("libc", EntryPoint = "munmap")]
+    private static partial int munmap(IntPtr addr, nuint length);
 
-    [DllImport("libc", EntryPoint = "close")]
-    private static extern int close(int fd);
+    [LibraryImport("libc", EntryPoint = "close")]
+    private static partial int close(int fd);
 
     [DllImport("libc", EntryPoint = "memfd_create")]
     private static extern int memfd_create([MarshalAs(UnmanagedType.LPStr)] string name, uint flags);

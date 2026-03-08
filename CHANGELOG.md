@@ -2,7 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 9.0.x targets .NET 9 / MAUI 9).
+Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
+
+## [10.0.41] - 2026-03-08
+
+> Upgraded to .NET 10 / MAUI 10.0.41. Version aligned with MAUI 10.0.41.
+
+### Changed
+- Target framework: net9.0 → net10.0
+- Microsoft.Maui.Controls: 9.0.40 → 10.0.41
+- SkiaSharp: 2.88.9 → 3.119.2
+- HarfBuzzSharp: 7.3.0.3 → 8.3.1.3
+- Svg.Skia: 1.0.0 → 3.4.1
+
+### Fixed
+- GRContext.GetResourceCacheLimits replaced with GetResourceCacheLimit (SkiaSharp 3.x API)
+- DatePicker handler updated for nullable DateTime properties (MAUI 10 IDatePicker change)
+- TimePicker handler updated for nullable TimeSpan property (MAUI 10 ITimePicker change)
+- FontFallbackManager thread-safety: Dictionary → ConcurrentDictionary
 
 ## [9.0.40] - 2026-03-07
 

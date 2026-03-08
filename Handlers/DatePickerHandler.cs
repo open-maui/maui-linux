@@ -79,19 +79,19 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
     public static void MapDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Date = datePicker.Date;
+        handler.PlatformView.Date = datePicker.Date ?? DateTime.Today;
     }
 
     public static void MapMinimumDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MinimumDate = datePicker.MinimumDate;
+        handler.PlatformView.MinimumDate = datePicker.MinimumDate ?? DateTime.MinValue;
     }
 
     public static void MapMaximumDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MaximumDate = datePicker.MaximumDate;
+        handler.PlatformView.MaximumDate = datePicker.MaximumDate ?? DateTime.MaxValue;
     }
 
     public static void MapFormat(DatePickerHandler handler, IDatePicker datePicker)

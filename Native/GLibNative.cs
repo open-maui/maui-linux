@@ -5,7 +5,7 @@ using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Native;
 
-public static class GLibNative
+public static partial class GLibNative
 {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate bool GSourceFunc(IntPtr userData);
@@ -13,7 +13,7 @@ public static class GLibNative
     private const string Lib = "libglib-2.0.so.0";
 
     private static readonly List<GSourceFunc> _callbacks = new List<GSourceFunc>();
-    private static readonly object _callbackLock = new object();
+    private static readonly Lock _callbackLock = new();
 
     [DllImport("libglib-2.0.so.0", EntryPoint = "g_idle_add")]
     private static extern uint g_idle_add_native(GSourceFunc function, IntPtr data);
@@ -21,11 +21,12 @@ public static class GLibNative
     [DllImport("libglib-2.0.so.0", EntryPoint = "g_timeout_add")]
     private static extern uint g_timeout_add_native(uint interval, GSourceFunc function, IntPtr data);
 
-    [DllImport("libglib-2.0.so.0", EntryPoint = "g_source_remove")]
-    public static extern bool SourceRemove(uint sourceId);
+    [LibraryImport("libglib-2.0.so.0", EntryPoint = "g_source_remove")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SourceRemove(uint sourceId);
 
-    [DllImport("libglib-2.0.so.0", EntryPoint = "g_get_monotonic_time")]
-    public static extern long GetMonotonicTime();
+    [LibraryImport("libglib-2.0.so.0", EntryPoint = "g_get_monotonic_time")]
+    public static partial long GetMonotonicTime();
 
     public static uint IdleAdd(Func<bool> callback)
     {

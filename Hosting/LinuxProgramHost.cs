@@ -94,44 +94,54 @@ public static class LinuxProgramHost
     {
         try
         {
-            // For Applications, we need to create a window
+            // For Applications, get the page via CreateWindow or existing windows
             if (application is Application app)
             {
-                Page? mainPage = app.MainPage;
+                Page? mainPage = null;
 
-                // If no MainPage set, check for windows
-                if (mainPage == null && application.Windows.Count > 0)
+                // Check for existing windows first (CreateWindow may have been called during initialization)
+                if (app.Windows.Count > 0)
                 {
-                    var existingWindow = application.Windows[0];
-                    if (existingWindow.Content is Page page)
+                    if (app.Windows[0] is Microsoft.Maui.Controls.Window w)
                     {
-                        mainPage = page;
+                        mainPage = w.Page;
+                    }
+                }
+
+                // Try CreateWindow via IApplication interface
+                if (mainPage == null)
+                {
+                    try
+                    {
+                        var appInterface = (IApplication)app;
+                        var mauiWindow = appInterface.CreateWindow(null!) as Microsoft.Maui.Controls.Window;
+                        if (mauiWindow != null)
+                        {
+                            mainPage = mauiWindow.Page;
+                            if (!appInterface.Windows.Contains(mauiWindow))
+                            {
+                                app.OpenWindow(mauiWindow);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagnosticLog.Debug("LinuxProgramHost", $"CreateWindow failed: {ex.Message}");
+                    }
+                }
+
+                // Fall back to MainPage if still no page
+                if (mainPage == null && app.MainPage != null)
+                {
+                    mainPage = app.MainPage;
+                    if (app.Windows.Count == 0)
+                    {
+                        app.OpenWindow(new Microsoft.Maui.Controls.Window(mainPage));
                     }
                 }
 
                 if (mainPage != null)
                 {
-                    // Create a MAUI Window and add it to the application
-                    // This ensures Shell.Current works properly (it reads from Application.Current.Windows[0].Page)
-                    if (app.Windows.Count == 0)
-                    {
-                        var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
-
-                        // Try OpenWindow first
-                        app.OpenWindow(mauiWindow);
-
-                        // If that didn't work, use reflection to add directly to _windows
-                        if (app.Windows.Count == 0)
-                        {
-                            var windowsField = typeof(Application).GetField("_windows",
-                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                            if (windowsField?.GetValue(app) is System.Collections.IList windowsList)
-                            {
-                                windowsList.Add(mauiWindow);
-                            }
-                        }
-                    }
-
                     return RenderPage(mainPage, mauiContext);
                 }
             }

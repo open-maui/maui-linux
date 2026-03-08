@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.Maui.Platform.Linux.Native;
 
-internal static class GdkNative
+internal static partial class GdkNative
 {
     [Flags]
     public enum GdkEventMask
@@ -109,24 +109,24 @@ internal static class GdkNative
 
     private const string Lib = "libgdk-3.so.0";
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern IntPtr gdk_display_get_default();
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial IntPtr gdk_display_get_default();
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern IntPtr gdk_display_get_name(IntPtr display);
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial IntPtr gdk_display_get_name(IntPtr display);
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern IntPtr gdk_screen_get_default();
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial IntPtr gdk_screen_get_default();
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern int gdk_screen_get_width(IntPtr screen);
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial int gdk_screen_get_width(IntPtr screen);
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern int gdk_screen_get_height(IntPtr screen);
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial int gdk_screen_get_height(IntPtr screen);
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern void gdk_window_invalidate_rect(IntPtr window, IntPtr rect, bool invalidateChildren);
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial void gdk_window_invalidate_rect(IntPtr window, IntPtr rect, [MarshalAs(UnmanagedType.Bool)] bool invalidateChildren);
 
-    [DllImport("libgdk-3.so.0")]
-    public static extern uint gdk_keyval_to_unicode(uint keyval);
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial uint gdk_keyval_to_unicode(uint keyval);
 }

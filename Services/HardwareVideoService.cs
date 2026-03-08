@@ -6,7 +6,7 @@ using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-public class HardwareVideoService : IDisposable
+public partial class HardwareVideoService : IDisposable
 {
     #region VA-API Native Interop
 
@@ -35,20 +35,20 @@ public class HardwareVideoService : IDisposable
     private const uint VA_RT_FORMAT_YUV420 = 0x00000001;
     private const uint VA_RT_FORMAT_YUV420_10 = 0x00000100;
 
-    [DllImport(LibVa)]
-    private static extern IntPtr vaGetDisplayDRM(int fd);
+    [LibraryImport(LibVa)]
+    private static partial IntPtr vaGetDisplayDRM(int fd);
 
-    [DllImport(LibVaX11)]
-    private static extern IntPtr vaGetDisplay(IntPtr x11Display);
+    [LibraryImport(LibVaX11)]
+    private static partial IntPtr vaGetDisplay(IntPtr x11Display);
 
-    [DllImport(LibVa)]
-    private static extern int vaInitialize(IntPtr display, out int majorVersion, out int minorVersion);
+    [LibraryImport(LibVa)]
+    private static partial int vaInitialize(IntPtr display, out int majorVersion, out int minorVersion);
 
-    [DllImport(LibVa)]
-    private static extern int vaTerminate(IntPtr display);
+    [LibraryImport(LibVa)]
+    private static partial int vaTerminate(IntPtr display);
 
-    [DllImport(LibVa)]
-    private static extern IntPtr vaErrorStr(int errorCode);
+    [LibraryImport(LibVa)]
+    private static partial IntPtr vaErrorStr(int errorCode);
 
     [DllImport(LibVa)]
     private static extern int vaQueryConfigProfiles(IntPtr display, [Out] int[] profileList, out int numProfiles);
@@ -56,17 +56,17 @@ public class HardwareVideoService : IDisposable
     [DllImport(LibVa)]
     private static extern int vaQueryConfigEntrypoints(IntPtr display, int profile, [Out] int[] entrypoints, out int numEntrypoints);
 
-    [DllImport(LibVa)]
-    private static extern int vaCreateConfig(IntPtr display, int profile, int entrypoint, IntPtr attribList, int numAttribs, out uint configId);
+    [LibraryImport(LibVa)]
+    private static partial int vaCreateConfig(IntPtr display, int profile, int entrypoint, IntPtr attribList, int numAttribs, out uint configId);
 
-    [DllImport(LibVa)]
-    private static extern int vaDestroyConfig(IntPtr display, uint configId);
+    [LibraryImport(LibVa)]
+    private static partial int vaDestroyConfig(IntPtr display, uint configId);
 
-    [DllImport(LibVa)]
-    private static extern int vaCreateContext(IntPtr display, uint configId, int pictureWidth, int pictureHeight, int flag, IntPtr renderTargets, int numRenderTargets, out uint contextId);
+    [LibraryImport(LibVa)]
+    private static partial int vaCreateContext(IntPtr display, uint configId, int pictureWidth, int pictureHeight, int flag, IntPtr renderTargets, int numRenderTargets, out uint contextId);
 
-    [DllImport(LibVa)]
-    private static extern int vaDestroyContext(IntPtr display, uint contextId);
+    [LibraryImport(LibVa)]
+    private static partial int vaDestroyContext(IntPtr display, uint contextId);
 
     [DllImport(LibVa)]
     private static extern int vaCreateSurfaces(IntPtr display, uint format, uint width, uint height, [Out] uint[] surfaces, uint numSurfaces, IntPtr attribList, uint numAttribs);
@@ -74,20 +74,20 @@ public class HardwareVideoService : IDisposable
     [DllImport(LibVa)]
     private static extern int vaDestroySurfaces(IntPtr display, [In] uint[] surfaces, int numSurfaces);
 
-    [DllImport(LibVa)]
-    private static extern int vaSyncSurface(IntPtr display, uint surfaceId);
+    [LibraryImport(LibVa)]
+    private static partial int vaSyncSurface(IntPtr display, uint surfaceId);
 
-    [DllImport(LibVa)]
-    private static extern int vaMapBuffer(IntPtr display, uint bufferId, out IntPtr data);
+    [LibraryImport(LibVa)]
+    private static partial int vaMapBuffer(IntPtr display, uint bufferId, out IntPtr data);
 
-    [DllImport(LibVa)]
-    private static extern int vaUnmapBuffer(IntPtr display, uint bufferId);
+    [LibraryImport(LibVa)]
+    private static partial int vaUnmapBuffer(IntPtr display, uint bufferId);
 
     [DllImport(LibVa)]
     private static extern int vaDeriveImage(IntPtr display, uint surfaceId, out VaImage image);
 
-    [DllImport(LibVa)]
-    private static extern int vaDestroyImage(IntPtr display, uint imageId);
+    [LibraryImport(LibVa)]
+    private static partial int vaDestroyImage(IntPtr display, uint imageId);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct VaImage
@@ -116,18 +116,18 @@ public class HardwareVideoService : IDisposable
 
     private const string LibVdpau = "libvdpau.so.1";
 
-    [DllImport(LibVdpau)]
-    private static extern int vdp_device_create_x11(IntPtr display, int screen, out IntPtr device, out IntPtr getProcAddress);
+    [LibraryImport(LibVdpau)]
+    private static partial int vdp_device_create_x11(IntPtr display, int screen, out IntPtr device, out IntPtr getProcAddress);
 
     #endregion
 
     #region DRM Interop
 
-    [DllImport("libc", EntryPoint = "open")]
-    private static extern int open([MarshalAs(UnmanagedType.LPStr)] string path, int flags);
+    [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int open(string path, int flags);
 
-    [DllImport("libc", EntryPoint = "close")]
-    private static extern int close(int fd);
+    [LibraryImport("libc", EntryPoint = "close")]
+    private static partial int close(int fd);
 
     private const int O_RDWR = 2;
 
@@ -149,7 +149,7 @@ public class HardwareVideoService : IDisposable
     private VideoProfile _profile;
 
     private readonly HashSet<VideoProfile> _supportedProfiles = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     #endregion
 
