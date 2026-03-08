@@ -7,15 +7,15 @@
     <authors>MarketAlly Pte Ltd, David H. Friedel Jr.</authors>
     <owners>MarketAlly Pte Ltd</owners>
     <license type="expression">MIT</license>
-    <projectUrl>https://git.marketally.ai/open-maui/maui-linux</projectUrl>
-    <iconUrl>https://git.marketally.ai/open-maui/maui-linux/raw/branch/main/assets/logo_only.png</iconUrl>
+    <projectUrl>https://github.com/open-maui/maui-linux</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/open-maui/maui-linux/main/assets/logo_only.png</iconUrl>
     <description>
 Linux desktop support for .NET MAUI applications. This package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
 
 Features:
 - X11 display server support (primary)
 - Wayland support with XWayland fallback
-- 35+ Skia-rendered controls (Button, Label, Entry, CarouselView, SwipeView, RefreshView, and more)
+- 47+ Skia-rendered controls (Button, Label, Entry, CarouselView, SwipeView, RefreshView, and more)
 - Full input handling (keyboard, mouse, touch, gestures)
 - Platform services (Clipboard, FilePicker, Notifications, DragDrop, GlobalHotkeys)
 - Accessibility support (AT-SPI2, High Contrast)
@@ -28,7 +28,7 @@ Developed by MarketAlly Pte Ltd. Lead Architect: David H. Friedel Jr.
     </releaseNotes>
     <copyright>Copyright 2025-2026 MarketAlly Pte Ltd</copyright>
     <tags>maui linux desktop skia gui cross-platform dotnet openmaui</tags>
-    <repository type="git" url="https://git.marketally.ai/open-maui/maui-linux.git" />
+    <repository type="git" url="https://github.com/open-maui/maui-linux.git" />
     <dependencies>
       <group targetFramework="net10.0">
         <dependency id="Microsoft.Maui.Controls" version="10.0.41" />

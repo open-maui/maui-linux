@@ -8,7 +8,7 @@ This document outlines the development roadmap for the OpenMaui Linux platform.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Core Control Library | ✅ Complete | 35+ controls including Button, Label, Entry, etc. |
+| Core Control Library | ✅ Complete | 47+ controls including Button, Label, Entry, etc. |
 | SkiaSharp Rendering | ✅ Complete | Hardware-accelerated 2D graphics |
 | X11 Support | ✅ Complete | Full X11 display server integration |
 | Platform Services | ✅ Complete | Clipboard, file picker, notifications, etc. |
@@ -86,7 +86,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 ## Feedback
 
-- Issues: https://git.marketally.ai/open-maui/maui-linux/issues
+- Issues: https://github.com/open-maui/maui-linux/issues
 
 ---
 

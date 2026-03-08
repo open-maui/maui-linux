@@ -4,7 +4,7 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 
 [![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GitHub Mirror](https://img.shields.io/badge/GitHub-mirror-181717?logo=github)](https://github.com/open-maui/maui-linux)
+[![GitHub](https://img.shields.io/badge/GitHub-open--maui-181717?logo=github)](https://github.com/open-maui/maui-linux)
 
 **Developed by [MarketAlly Pte Ltd](https://marketally.ai)**
 **Lead Architect: David H. Friedel Jr.**
@@ -15,7 +15,7 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 
 ### Key Features
 
-- **Full Control Library**: 35+ controls including Button, Label, Entry, CarouselView, RefreshView, SwipeView, and more
+- **Full Control Library**: 47+ controls including Button, Label, Entry, CarouselView, RefreshView, SwipeView, and more
 - **Native Integration**: X11 and Wayland display server support
 - **Accessibility**: AT-SPI2 screen reader support and high contrast mode
 - **Platform Services**: Clipboard, file picker, notifications, global hotkeys, drag & drop
@@ -110,7 +110,7 @@ builder
 
 ## Requirements
 
-- .NET 9.0 SDK or later
+- .NET 10.0 SDK or later
 - Linux (kernel 5.4+)
 - X11 or Wayland
 - SkiaSharp native libraries
@@ -136,52 +136,46 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 
 ## Sample Applications
 
-Full sample applications are available in the [maui-linux-samples](https://git.marketally.ai/open-maui/maui-linux-samples) repository:
+Full sample applications are available in the [maui-linux-samples](https://github.com/open-maui/maui-linux-samples) repository:
 
 | Sample | Description |
 |--------|-------------|
-| **[TodoApp](https://git.marketally.ai/open-maui/maui-linux-samples/src/branch/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
-| **[ShellDemo](https://git.marketally.ai/open-maui/maui-linux-samples/src/branch/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
+| **[TodoApp](https://github.com/open-maui/maui-linux-samples/tree/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
+| **[ShellDemo](https://github.com/open-maui/maui-linux-samples/tree/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
+| **[WebViewDemo](https://github.com/open-maui/maui-linux-samples/tree/main/WebViewDemo)** | Web browser with WebView, navigation controls, and XAML UI |
+
+## Distribution
+
+Package your OpenMaui app as a portable AppImage with a single command:
+
+```bash
+dotnet tool install --global OpenMaui.AppImage
+dotnet appimage
+```
+
+Auto-detects your executable and icon, generates a `.desktop` file, and produces a self-contained AppImage that runs on most Linux distributions. See the [OpenMaui.AppImage](https://github.com/open-maui/appimage) repository for details.
 
 ## Quick Example
 
 ```csharp
-using OpenMaui.Platform.Linux;
+// MauiProgram.cs
+using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Platform.Linux.Hosting;
 
-var app = new LinuxApplication();
+var builder = MauiApp.CreateBuilder();
+builder
+    .UseMauiApp<App>()
+    .UseOpenMauiLinux();
 
-app.MainPage = new ContentPage
-{
-    Content = new VerticalStackLayout
-    {
-        Spacing = 10,
-        Children =
-        {
-            new Label
-            {
-                Text = "Welcome to MAUI on Linux!",
-                FontSize = 24
-            },
-            new Button
-            {
-                Text = "Click Me"
-            },
-            new Entry
-            {
-                Placeholder = "Enter your name"
-            }
-        }
-    }
-};
-
-app.Run();
+var app = builder.Build();
+LinuxApplication.Run(app, args);
 ```
 
 ## Building from Source
 
 ```bash
 # Primary repository
-git clone https://git.marketally.ai/open-maui/maui-linux.git
+git clone https://github.com/open-maui/maui-linux.git
 
 # Or from GitHub mirror
 git clone https://github.com/open-maui/maui-linux.git
@@ -195,7 +189,7 @@ dotnet test
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-> **Note:** The primary repository is hosted at [git.marketally.ai](https://git.marketally.ai/open-maui/maui-linux). The [GitHub repository](https://github.com/open-maui/maui-linux) is a mirror. Please submit issues and pull requests to the primary repository.
+> **Note:** Please submit issues and pull requests on [GitHub](https://github.com/open-maui/maui-linux).
 
 ## Architecture
 
@@ -266,7 +260,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 ## Roadmap
 
-- [x] Core control library (35+ controls)
+- [x] Core control library (47+ controls)
 - [x] Platform services integration
 - [x] Accessibility (AT-SPI2)
 - [x] Input method support (IBus/XIM)
@@ -277,6 +271,9 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Visual State Manager integration
 - [x] XAML styles and StaticResource
 - [x] Data binding (OneWay, TwoWay, IValueConverter)
+- [x] App icon support (MauiIcon build targets, .desktop integration)
+- [x] Dark mode for all picker popups
+- [x] DPI-aware popup rendering with edge detection
 - [ ] Complete Wayland support
 - [ ] Hardware video acceleration
 - [ ] GTK4 interop layer

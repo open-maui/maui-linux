@@ -21,8 +21,8 @@
     <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers with 35+ controls, platform services, and accessibility support.</Description>
     <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://git.marketally.ai/open-maui/maui-linux</PackageProjectUrl>
-    <RepositoryUrl>https://git.marketally.ai/open-maui/maui-linux.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
     <PackageReleaseNotes>10.0.41.1: App icon support (MauiIcon build targets, .desktop file integration for GNOME/Wayland), dark mode for picker popups (Picker, DatePicker, TimePicker), popup edge detection to flip above when near window bottom, DPI-correct popup rendering, flyout selected item text visibility fix, adaptive gesture method signatures for MAUI version resilience.</PackageReleaseNotes>
