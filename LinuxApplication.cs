@@ -252,8 +252,10 @@ public partial class LinuxApplication : IDisposable
         {
             DiagnosticLog.Debug("LinuxApplication", $"HiDPI detected: scale={DpiScale:F2}, dpi={hiDpi.Dpi:F0}");
 
-            // Scale default window size if user hasn't explicitly set custom dimensions
-            if (options.Width == 800 && options.Height == 600)
+            // Only apply HiDPI scaling for X11 mode. GTK mode uses native widgets
+            // (e.g., WebKitGTK) that handle their own rendering at physical pixels,
+            // so canvas scaling would create a mismatch.
+            if (!options.UseGtk && options.Width == 800 && options.Height == 600)
             {
                 options.Width = (int)(options.Width * DpiScale);
                 options.Height = (int)(options.Height * DpiScale);

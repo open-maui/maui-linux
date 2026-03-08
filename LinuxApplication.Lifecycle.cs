@@ -332,11 +332,8 @@ public partial class LinuxApplication
     {
         if (_rootView != null)
         {
-            // Layout at logical pixel dimensions for HiDPI support
-            var logicalWidth = (double)(width / DpiScale);
-            var logicalHeight = (double)(height / DpiScale);
-            _rootView.Measure(new Microsoft.Maui.Graphics.Size(logicalWidth, logicalHeight));
-            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, logicalWidth, logicalHeight));
+            _rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
+            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
         }
     }
 

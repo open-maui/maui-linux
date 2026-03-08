@@ -190,7 +190,7 @@ public partial class HiDpiService
                 }
             }
 
-            return scale > 1.0f || Math.Abs(scale - 1.0f) < 0.01f;
+            return scale > 1.01f;
         }
         catch
         {
