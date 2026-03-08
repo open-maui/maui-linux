@@ -159,18 +159,43 @@ public static class GestureManager
             {
                 if (_sendTappedMethod == null)
                 {
-                    // MAUI 9+: SendTapped(Func<IElement, Point?> getPosition)
-                    _sendTappedMethod = typeof(TapGestureRecognizer).GetMethod(
-                        "SendTapped", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    // Find the SendTapped method - signature varies by MAUI version
+                    var methods = typeof(TapGestureRecognizer).GetMethods(
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .Where(m => m.Name == "SendTapped")
+                        .ToArray();
+
+                    foreach (var m in methods)
+                    {
+                        var pStr = string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name));
+                        DiagnosticLog.Debug(Tag, $"Found SendTapped overload: ({pStr})");
+                    }
+
+                    // Prefer the overload with View + Func (MAUI 9+)
+                    _sendTappedMethod = methods.FirstOrDefault(m =>
+                        m.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
+                        ?? methods.FirstOrDefault();
                 }
                 if (_sendTappedMethod != null)
                 {
                     var parameters = _sendTappedMethod.GetParameters();
-                    if (parameters.Length == 1 && parameters[0].ParameterType.Name.StartsWith("Func"))
+                    bool hasFunc = parameters.Any(p => p.ParameterType.Name.Contains("Func"));
+
+                    if (hasFunc)
                     {
-                        // New MAUI signature: SendTapped(Func<IElement, Point?> getPosition)
+                        // MAUI 9+ signature with position resolver
                         Func<IElement, Point?> getPosition = (element) => new Point(x, y);
-                        _sendTappedMethod.Invoke(tapRecognizer, new object[] { getPosition });
+                        var invokeArgs = new List<object>();
+                        foreach (var p in parameters)
+                        {
+                            if (p.ParameterType.IsAssignableFrom(typeof(View)))
+                                invokeArgs.Add(view);
+                            else if (p.ParameterType.Name.Contains("Func"))
+                                invokeArgs.Add(getPosition);
+                            else
+                                invokeArgs.Add(null!);
+                        }
+                        _sendTappedMethod.Invoke(tapRecognizer, invokeArgs.ToArray());
                     }
                     else
                     {
