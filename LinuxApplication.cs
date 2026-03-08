@@ -234,10 +234,33 @@ public partial class LinuxApplication : IDisposable
     }
 
     /// <summary>
+    /// Gets the HiDPI scale factor detected at startup.
+    /// </summary>
+    public float DpiScale { get; private set; } = 1.0f;
+
+    /// <summary>
     /// Initializes the application with the specified options.
     /// </summary>
     public void Initialize(LinuxApplicationOptions options)
     {
+        // Detect HiDPI scale factor and apply to window dimensions
+        var hiDpi = new HiDpiService();
+        hiDpi.Initialize();
+        DpiScale = hiDpi.ScaleFactor;
+
+        if (DpiScale > 1.0f)
+        {
+            DiagnosticLog.Debug("LinuxApplication", $"HiDPI detected: scale={DpiScale:F2}, dpi={hiDpi.Dpi:F0}");
+
+            // Scale default window size if user hasn't explicitly set custom dimensions
+            if (options.Width == 800 && options.Height == 600)
+            {
+                options.Width = (int)(options.Width * DpiScale);
+                options.Height = (int)(options.Height * DpiScale);
+                DiagnosticLog.Debug("LinuxApplication", $"Scaled window to {options.Width}x{options.Height}");
+            }
+        }
+
         // Apply gesture configuration
         Handlers.GestureManager.SwipeMinDistance = options.SwipeMinDistance;
         Handlers.GestureManager.SwipeMaxTime = options.SwipeMaxTime;
@@ -279,6 +302,7 @@ public partial class LinuxApplication : IDisposable
         }
 
         _renderingEngine = new SkiaRenderingEngine(_mainWindow);
+        _renderingEngine.DpiScale = DpiScale;
 
         _mainWindow.Resized += OnWindowResized;
         _mainWindow.Exposed += OnWindowExposed;

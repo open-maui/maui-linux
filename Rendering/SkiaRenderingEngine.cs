@@ -42,6 +42,22 @@ public class SkiaRenderingEngine : IDisposable
     public int Height => _imageInfo.Height;
 
     /// <summary>
+    /// DPI scale factor for HiDPI displays. Layout is performed at logical pixels
+    /// (Width/DpiScale × Height/DpiScale) and the canvas is scaled up for rendering.
+    /// </summary>
+    public float DpiScale { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets the logical width (physical width divided by DPI scale).
+    /// </summary>
+    public float LogicalWidth => Width / DpiScale;
+
+    /// <summary>
+    /// Gets the logical height (physical height divided by DPI scale).
+    /// </summary>
+    public float LogicalHeight => Height / DpiScale;
+
+    /// <summary>
     /// Gets or sets whether dirty region optimization is enabled.
     /// When disabled, full redraws occur (useful for debugging).
     /// </summary>
@@ -175,12 +191,14 @@ public class SkiaRenderingEngine : IDisposable
         if (_canvas == null || _bitmap == null)
             return;
 
-        // Measure and arrange
-        var availableSize = new Size(Width, Height);
+        // Measure and arrange at logical pixel dimensions
+        var logicalWidth = (double)LogicalWidth;
+        var logicalHeight = (double)LogicalHeight;
+        var availableSize = new Size(logicalWidth, logicalHeight);
         try
         {
             rootView.Measure(availableSize);
-            rootView.Arrange(new Rect(0, 0, Width, Height));
+            rootView.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
         }
         catch (Exception ex)
         {
@@ -269,6 +287,12 @@ public class SkiaRenderingEngine : IDisposable
         // Clear the region
         using var clearPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
         _canvas.DrawRect(region, clearPaint);
+
+        // Apply DPI scaling so all drawing is proportionally larger on HiDPI displays
+        if (DpiScale > 1.0f)
+        {
+            _canvas.Scale(DpiScale);
+        }
 
         // Draw the view tree (views will naturally clip to their bounds)
         try

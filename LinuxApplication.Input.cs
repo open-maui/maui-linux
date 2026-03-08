@@ -13,6 +13,29 @@ namespace Microsoft.Maui.Platform.Linux;
 
 public partial class LinuxApplication
 {
+    /// <summary>
+    /// Converts physical pixel coordinates to logical pixel coordinates for HiDPI support.
+    /// </summary>
+    private float ToLogical(double physicalCoord) => (float)(physicalCoord / DpiScale);
+
+    /// <summary>
+    /// Creates a new PointerEventArgs with coordinates scaled to logical pixels.
+    /// </summary>
+    private PointerEventArgs ScalePointerArgs(PointerEventArgs e)
+    {
+        if (DpiScale <= 1.0f) return e;
+        return new PointerEventArgs(ToLogical(e.X), ToLogical(e.Y), e.Button);
+    }
+
+    /// <summary>
+    /// Creates a new ScrollEventArgs with coordinates scaled to logical pixels.
+    /// </summary>
+    private ScrollEventArgs ScaleScrollArgs(ScrollEventArgs e)
+    {
+        if (DpiScale <= 1.0f) return e;
+        return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y), e.DeltaX, e.DeltaY);
+    }
+
     private void UpdateAnimations()
     {
         // Update cursor blink for text input controls
@@ -83,6 +106,8 @@ public partial class LinuxApplication
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
+        e = ScalePointerArgs(e);
+
         // Route to context menu if one is active
         if (LinuxDialogService.HasContextMenu)
         {
@@ -128,6 +153,7 @@ public partial class LinuxApplication
 
     private void OnPointerPressed(object? sender, PointerEventArgs e)
     {
+        e = ScalePointerArgs(e);
         DiagnosticLog.Debug("LinuxApplication", $"OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
 
         // Route to context menu if one is active
@@ -179,6 +205,7 @@ public partial class LinuxApplication
 
     private void OnPointerReleased(object? sender, PointerEventArgs e)
     {
+        e = ScalePointerArgs(e);
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
         {
@@ -205,6 +232,7 @@ public partial class LinuxApplication
 
     private void OnScroll(object? sender, ScrollEventArgs e)
     {
+        e = ScaleScrollArgs(e);
         DiagnosticLog.Debug("LinuxApplication", $"OnScroll - X={e.X}, Y={e.Y}, DeltaX={e.DeltaX}, DeltaY={e.DeltaY}");
         if (_rootView != null)
         {
@@ -244,8 +272,19 @@ public partial class LinuxApplication
                 ? new SKColor(32, 33, 36)
                 : SKColors.White;
             surface.Canvas.Clear(bgColor);
+
+            // Apply DPI scaling for HiDPI displays
+            surface.Canvas.Save();
+            if (DpiScale > 1.0f)
+            {
+                surface.Canvas.Scale(DpiScale);
+            }
+
             DiagnosticLog.Debug("LinuxApplication", "Drawing rootView...");
             _rootView.Draw(surface.Canvas);
+
+            surface.Canvas.Restore();
+
             DiagnosticLog.Debug("LinuxApplication", "Drawing dialogs...");
             var bounds = new SKRect(0, 0, surface.Width, surface.Height);
             LinuxDialogService.DrawDialogs(surface.Canvas, bounds);
@@ -261,14 +300,16 @@ public partial class LinuxApplication
 
     private void OnGtkPointerPressed(object? sender, (double X, double Y, int Button) e)
     {
+        // Convert physical to logical coordinates for HiDPI
+        float lx = ToLogical(e.X), ly = ToLogical(e.Y);
         string buttonName = e.Button == 1 ? "Left" : e.Button == 2 ? "Middle" : e.Button == 3 ? "Right" : $"Unknown({e.Button})";
-        DiagnosticLog.Debug("LinuxApplication", $"GTK PointerPressed at ({e.X:F1}, {e.Y:F1}), Button={e.Button} ({buttonName})");
+        DiagnosticLog.Debug("LinuxApplication", $"GTK PointerPressed at ({lx:F1}, {ly:F1}), Button={e.Button} ({buttonName})");
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
-            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            var args = new PointerEventArgs(lx, ly, button);
             LinuxDialogService.TopDialog?.OnPointerPressed(args);
             _gtkWindow?.RequestRedraw();
             return;
@@ -277,7 +318,7 @@ public partial class LinuxApplication
         if (LinuxDialogService.HasContextMenu)
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
-            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            var args = new PointerEventArgs(lx, ly, button);
             LinuxDialogService.ActiveContextMenu?.OnPointerPressed(args);
             _gtkWindow?.RequestRedraw();
             return;
@@ -289,7 +330,7 @@ public partial class LinuxApplication
             return;
         }
 
-        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        var hitView = _rootView.HitTest(lx, ly);
         DiagnosticLog.Debug("LinuxApplication", $"GTK HitView: {hitView?.GetType().Name ?? "null"}");
 
         if (hitView != null)
@@ -302,7 +343,7 @@ public partial class LinuxApplication
             }
             _capturedView = hitView;
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
-            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            var args = new PointerEventArgs(lx, ly, button);
             DiagnosticLog.Debug("LinuxApplication", ">>> Before OnPointerPressed");
             hitView.OnPointerPressed(args);
             DiagnosticLog.Debug("LinuxApplication", "<<< After OnPointerPressed, calling RequestRedraw");
@@ -313,13 +354,14 @@ public partial class LinuxApplication
 
     private void OnGtkPointerReleased(object? sender, (double X, double Y, int Button) e)
     {
+        float lx = ToLogical(e.X), ly = ToLogical(e.Y);
         DiagnosticLog.Debug("LinuxApplication", ">>> OnGtkPointerReleased ENTER");
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
-            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            var args = new PointerEventArgs(lx, ly, button);
             LinuxDialogService.TopDialog?.OnPointerReleased(args);
             _gtkWindow?.RequestRedraw();
             return;
@@ -330,7 +372,7 @@ public partial class LinuxApplication
         if (_capturedView != null)
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
-            var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+            var args = new PointerEventArgs(lx, ly, button);
             DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerReleased on {_capturedView.GetType().Name}");
             _capturedView.OnPointerReleased(args);
             DiagnosticLog.Debug("LinuxApplication", "OnPointerReleased returned");
@@ -340,11 +382,11 @@ public partial class LinuxApplication
         }
         else
         {
-            var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+            var hitView = _rootView.HitTest(lx, ly);
             if (hitView != null)
             {
                 var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
-                var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
+                var args = new PointerEventArgs(lx, ly, button);
                 hitView.OnPointerReleased(args);
                 _gtkWindow?.RequestRedraw();
             }
@@ -353,10 +395,12 @@ public partial class LinuxApplication
 
     private void OnGtkPointerMoved(object? sender, (double X, double Y) e)
     {
+        float lx = ToLogical(e.X), ly = ToLogical(e.Y);
+
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
         {
-            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            var args = new PointerEventArgs(lx, ly);
             LinuxDialogService.TopDialog?.OnPointerMoved(args);
             _gtkWindow?.RequestRedraw();
             return;
@@ -364,7 +408,7 @@ public partial class LinuxApplication
 
         if (LinuxDialogService.HasContextMenu)
         {
-            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            var args = new PointerEventArgs(lx, ly);
             LinuxDialogService.ActiveContextMenu?.OnPointerMoved(args);
             _gtkWindow?.RequestRedraw();
             return;
@@ -374,16 +418,16 @@ public partial class LinuxApplication
 
         if (_capturedView != null)
         {
-            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            var args = new PointerEventArgs(lx, ly);
             _capturedView.OnPointerMoved(args);
             _gtkWindow?.RequestRedraw();
             return;
         }
 
-        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        var hitView = _rootView.HitTest(lx, ly);
         if (hitView != _hoveredView)
         {
-            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            var args = new PointerEventArgs(lx, ly);
             _hoveredView?.OnPointerExited(args);
             _hoveredView = hitView;
             _hoveredView?.OnPointerEntered(args);
@@ -392,7 +436,7 @@ public partial class LinuxApplication
 
         if (hitView != null)
         {
-            var args = new PointerEventArgs((float)e.X, (float)e.Y);
+            var args = new PointerEventArgs(lx, ly);
             hitView.OnPointerMoved(args);
         }
     }
