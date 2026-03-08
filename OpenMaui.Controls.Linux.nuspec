@@ -8,7 +8,7 @@
     <owners>MarketAlly Pte Ltd</owners>
     <license type="expression">MIT</license>
     <projectUrl>https://git.marketally.ai/open-maui/maui-linux</projectUrl>
-    <iconUrl>https://git.marketally.ai/open-maui/maui-linux/raw/branch/main/assets/icon.png</iconUrl>
+    <iconUrl>https://git.marketally.ai/open-maui/maui-linux/raw/branch/main/assets/logo_only.png</iconUrl>
     <description>
 Linux desktop support for .NET MAUI applications. This package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
 
