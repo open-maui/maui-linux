@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.41</Version>
+    <Version>10.0.41.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -25,7 +25,7 @@
     <RepositoryUrl>https://git.marketally.ai/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>10.0.41: Upgraded to .NET 10 / MAUI 10.0.41 / SkiaSharp 3.x. Full SKPaint→SKFont migration. All existing features carried forward.</PackageReleaseNotes>
+    <PackageReleaseNotes>10.0.41.1: App icon support (MauiIcon build targets, .desktop file integration for GNOME/Wayland), dark mode for picker popups (Picker, DatePicker, TimePicker), popup edge detection to flip above when near window bottom, DPI-correct popup rendering, flyout selected item text visibility fix, adaptive gesture method signatures for MAUI version resilience.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>logo_only.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>

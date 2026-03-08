@@ -291,6 +291,7 @@ Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community
+- A very special thank you to the [Anthropic](https://anthropic.com) team for delivering on the promise I hold most dear — that an individual with enough energy and persistence can still make a difference
  
  
  
