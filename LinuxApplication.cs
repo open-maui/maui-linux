@@ -296,11 +296,22 @@ public partial class LinuxApplication : IDisposable
         // Set up WebView main window
         SkiaWebView.SetMainWindow(_mainWindow.Display, _mainWindow.Handle);
 
-        // Set window icon
+        // Set window icon (X11 _NET_WM_ICON + GTK default icon + .desktop file for GNOME)
         string? iconPath = ResolveIconPath(options.IconPath);
         if (!string.IsNullOrEmpty(iconPath))
         {
             _mainWindow.SetIcon(iconPath);
+            try
+            {
+                GtkNative.gtk_window_set_default_icon_from_file(iconPath, IntPtr.Zero);
+                DiagnosticLog.Debug("LinuxApplication", "Set GTK default icon: " + iconPath);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Debug("LinuxApplication", "Failed to set GTK default icon", ex);
+            }
+            // Create/update .desktop file so GNOME/Wayland can match WM_CLASS to icon
+            InstallDesktopEntry(iconPath);
         }
 
         _renderingEngine = new SkiaRenderingEngine(_mainWindow);
@@ -379,6 +390,41 @@ public partial class LinuxApplication : IDisposable
         if (File.Exists(svgPath)) return svgPath;
 
         return null;
+    }
+
+    private static void InstallDesktopEntry(string iconPath)
+    {
+        try
+        {
+            string appName = Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MauiApp");
+            string wmClass = appName.Replace(" ", "").Replace("_", "");
+            string desktopDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".local", "share", "applications");
+            Directory.CreateDirectory(desktopDir);
+
+            string desktopFile = Path.Combine(desktopDir, $"{wmClass.ToLowerInvariant()}.desktop");
+            string fullIconPath = Path.GetFullPath(iconPath);
+            string content = $"""
+                [Desktop Entry]
+                Type=Application
+                Name={appName}
+                Icon={fullIconPath}
+                Exec={Environment.ProcessPath} %U
+                Terminal=false
+                StartupWMClass={wmClass}
+                """;
+            // Only write if changed to avoid unnecessary disk writes
+            if (!File.Exists(desktopFile) || File.ReadAllText(desktopFile) != content)
+            {
+                File.WriteAllText(desktopFile, content);
+                DiagnosticLog.Debug("LinuxApplication", $"Installed desktop entry: {desktopFile}");
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("LinuxApplication", "Failed to install desktop entry", ex);
+        }
     }
 
     private void RegisterServices()

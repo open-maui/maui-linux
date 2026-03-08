@@ -1120,14 +1120,14 @@ public class SkiaShell : SkiaLayoutView
             {
                 using var selectionPaint = new SKPaint
                 {
-                    Color = SkiaTheme.PrimarySelectionSK.WithAlpha(30),
+                    Color = SkiaTheme.PrimarySelectionSK,
                     Style = SKPaintStyle.Fill
                 };
                 var selectionRect = new SKRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight);
                 canvas.DrawRect(selectionRect, selectionPaint);
             }
 
-            itemTextPaint.Color = isSelected ? _navBarBackgroundColorSK : _flyoutTextColorSK;
+            itemTextPaint.Color = isSelected ? SKColors.White : _flyoutTextColorSK;
 
             // Draw icon if available
             float textStartX = flyoutBounds.Left + 16;

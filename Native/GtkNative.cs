@@ -70,6 +70,10 @@ internal static partial class GtkNative
     [LibraryImport("libgtk-3.so.0", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void gtk_window_set_icon_from_file(IntPtr window, string filename, IntPtr error);
 
+    [LibraryImport("libgtk-3.so.0", StringMarshalling = StringMarshalling.Utf8)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool gtk_window_set_default_icon_from_file(string filename, IntPtr error);
+
     [LibraryImport("libgdk_pixbuf-2.0.so.0", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr gdk_pixbuf_new_from_file(string filename, IntPtr error);
 

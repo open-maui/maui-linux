@@ -285,11 +285,11 @@ public class X11Window : IDisposable
             }
             DiagnosticLog.Debug("X11Window", $"Loaded bitmap: {bitmap.Width}x{bitmap.Height}");
 
-            // Scale to 64x64 if needed
-            int targetSize = 64;
+            // Scale to 48x48 for window manager title bar icon
+            int targetSize = 48;
             if (bitmap.Width != targetSize || bitmap.Height != targetSize)
             {
-                var scaled = new SKBitmap(targetSize, targetSize, false);
+                var scaled = new SKBitmap(targetSize, targetSize);
                 bitmap.ScalePixels(scaled, SKFilterQuality.High);
                 bitmap.Dispose();
                 bitmap = scaled;

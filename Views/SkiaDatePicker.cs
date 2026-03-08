@@ -253,8 +253,11 @@ public class SkiaDatePicker : SkiaView
 
     private SKRect GetCalendarRect(SKRect pickerBounds)
     {
-        int windowWidth = LinuxApplication.Current?.MainWindow?.Width ?? 800;
-        int windowHeight = LinuxApplication.Current?.MainWindow?.Height ?? 600;
+        var app = LinuxApplication.Current;
+        float dpiScale = app?.DpiScale ?? 1.0f;
+        // Use logical dimensions (ScreenBounds are in logical coordinates)
+        float windowWidth = (app?.MainWindow?.Width ?? 800) / dpiScale;
+        float windowHeight = (app?.MainWindow?.Height ?? 600) / dpiScale;
 
         float calendarLeft = pickerBounds.Left;
         float calendarTop = pickerBounds.Bottom + 4f;

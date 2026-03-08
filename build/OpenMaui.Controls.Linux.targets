@@ -3,7 +3,7 @@
 
   <!--
     OpenMaui Linux Build Targets
-    Handles MauiImage items for Linux platform since we don't use the full MAUI SDK targets.
+    Handles MauiImage and MauiIcon items for Linux platform since we don't use the full MAUI SDK targets.
   -->
 
   <!-- Copy MauiImage items to output directory after Build -->
@@ -16,6 +16,54 @@
   <Target Name="CopyMauiImagesToPublish" AfterTargets="Publish" Condition="@(MauiImage) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to publish folder..." />
     <Copy SourceFiles="@(MauiImage)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Process MauiIcon: copy foreground SVG and generate appicon.meta for runtime icon generation -->
+  <Target Name="ProcessMauiIconForOutput" AfterTargets="Build" Condition="@(MauiIcon) != ''">
+    <Message Importance="normal" Text="OpenMaui: Processing MauiIcon for output..." />
+
+    <!-- Copy the foreground SVG as appicon_fg.svg -->
+    <Copy SourceFiles="%(MauiIcon.ForegroundFile)"
+          DestinationFiles="$(OutputPath)appicon_fg.svg"
+          SkipUnchangedFiles="true"
+          Condition="'%(MauiIcon.ForegroundFile)' != '' AND Exists('%(MauiIcon.ForegroundFile)')" />
+
+    <!-- Generate appicon.meta with icon metadata -->
+    <PropertyGroup>
+      <_MauiIconColor Condition="'%(MauiIcon.Color)' != ''">%(MauiIcon.Color)</_MauiIconColor>
+      <_MauiIconColor Condition="'%(MauiIcon.Color)' == '' AND '%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconColor>
+      <_MauiIconColor Condition="'$(_MauiIconColor)' == ''">Purple</_MauiIconColor>
+      <_MauiIconBgColor Condition="'%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconBgColor>
+      <_MauiIconBgColor Condition="'$(_MauiIconBgColor)' == ''">$(_MauiIconColor)</_MauiIconBgColor>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+      File="$(OutputPath)appicon.meta"
+      Lines="Color=$(_MauiIconBgColor);Size=256;Scale=0.65"
+      Overwrite="true" />
+
+    <Message Importance="normal" Text="OpenMaui: Generated appicon.meta (Color=$(_MauiIconBgColor))" />
+  </Target>
+
+  <!-- Process MauiIcon for Publish -->
+  <Target Name="ProcessMauiIconForPublish" AfterTargets="Publish" Condition="@(MauiIcon) != ''">
+    <Copy SourceFiles="%(MauiIcon.ForegroundFile)"
+          DestinationFiles="$(PublishDir)appicon_fg.svg"
+          SkipUnchangedFiles="true"
+          Condition="'%(MauiIcon.ForegroundFile)' != '' AND Exists('%(MauiIcon.ForegroundFile)')" />
+
+    <PropertyGroup>
+      <_MauiIconColor Condition="'%(MauiIcon.Color)' != ''">%(MauiIcon.Color)</_MauiIconColor>
+      <_MauiIconColor Condition="'%(MauiIcon.Color)' == '' AND '%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconColor>
+      <_MauiIconColor Condition="'$(_MauiIconColor)' == ''">Purple</_MauiIconColor>
+      <_MauiIconBgColor Condition="'%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconBgColor>
+      <_MauiIconBgColor Condition="'$(_MauiIconBgColor)' == ''">$(_MauiIconColor)</_MauiIconBgColor>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+      File="$(PublishDir)appicon.meta"
+      Lines="Color=$(_MauiIconBgColor);Size=256;Scale=0.65"
+      Overwrite="true" />
   </Target>
 
 </Project>

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -558,6 +559,28 @@ public class SkiaPicker : SkiaView
         canvas.DrawPath(path, paint);
     }
 
+    private SKRect GetDropdownRect(SKRect pickerBounds)
+    {
+        var itemHeight = (float)ItemHeight;
+        var dropdownMaxHeight = (float)_dropdownMaxHeight;
+        var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
+
+        var app = LinuxApplication.Current;
+        float dpiScale = app?.DpiScale ?? 1.0f;
+        float windowHeight = (app?.MainWindow?.Height ?? 600) / dpiScale;
+
+        float dropdownTop = pickerBounds.Bottom + 4;
+
+        // Flip above if dropdown extends below window
+        if (dropdownTop + dropdownHeight > windowHeight)
+        {
+            dropdownTop = pickerBounds.Top - dropdownHeight - 4;
+        }
+        if (dropdownTop < 0) dropdownTop = 4;
+
+        return new SKRect(pickerBounds.Left, dropdownTop, pickerBounds.Right, dropdownTop + dropdownHeight);
+    }
+
     private void DrawDropdown(SKCanvas canvas, SKRect bounds)
     {
         if (_items.Count == 0) return;
@@ -565,14 +588,8 @@ public class SkiaPicker : SkiaView
         var itemHeight = (float)ItemHeight;
         var cornerRadius = (float)CornerRadius;
         var fontSize = (float)FontSize;
-        var dropdownMaxHeight = (float)_dropdownMaxHeight;
 
-        var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
-        var dropdownRect = new SKRect(
-            bounds.Left,
-            bounds.Bottom + 4,
-            bounds.Right,
-            bounds.Bottom + 4 + dropdownHeight);
+        var dropdownRect = GetDropdownRect(bounds);
 
         // Get theme-aware colors for popup
         bool isDark = SkiaTheme.IsDarkMode;
@@ -675,10 +692,11 @@ public class SkiaPicker : SkiaView
         if (IsOpen)
         {
             var screenBounds = ScreenBounds;
-            var dropdownTop = screenBounds.Bottom + 4;
-            if (e.Y >= dropdownTop)
+            var skScreenBounds = new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)(screenBounds.Left + screenBounds.Width), (float)(screenBounds.Top + screenBounds.Height));
+            var dropdownRect = GetDropdownRect(skScreenBounds);
+            if (e.Y >= dropdownRect.Top && e.Y <= dropdownRect.Bottom)
             {
-                var itemIndex = (int)((e.Y - dropdownTop) / itemHeight);
+                var itemIndex = (int)((e.Y - dropdownRect.Top) / itemHeight);
                 if (itemIndex >= 0 && itemIndex < _items.Count)
                 {
                     SelectedIndex = itemIndex;
@@ -701,11 +719,12 @@ public class SkiaPicker : SkiaView
 
         var itemHeight = (float)ItemHeight;
         var screenBounds = ScreenBounds;
-        var dropdownTop = screenBounds.Bottom + 4;
+        var skScreenBounds = new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)(screenBounds.Left + screenBounds.Width), (float)(screenBounds.Top + screenBounds.Height));
+        var dropdownRect = GetDropdownRect(skScreenBounds);
 
-        if (e.Y >= dropdownTop)
+        if (e.Y >= dropdownRect.Top && e.Y <= dropdownRect.Bottom)
         {
-            var newHovered = (int)((e.Y - dropdownTop) / itemHeight);
+            var newHovered = (int)((e.Y - dropdownRect.Top) / itemHeight);
             if (newHovered != _hoveredItemIndex && newHovered >= 0 && newHovered < _items.Count)
             {
                 _hoveredItemIndex = newHovered;
@@ -838,15 +857,8 @@ public class SkiaPicker : SkiaView
         // When open, also include the dropdown area
         if (_isOpen && _items.Count > 0)
         {
-            var itemHeight = (float)ItemHeight;
-            var dropdownMaxHeight = (float)_dropdownMaxHeight;
-            var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
-            var dropdownRect = new SKRect(
-                (float)screenBounds.Left,
-                (float)(screenBounds.Top + screenBounds.Height) + 4,
-                (float)(screenBounds.Left + screenBounds.Width),
-                (float)(screenBounds.Top + screenBounds.Height) + 4 + dropdownHeight);
-
+            var skScreenBounds = new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)(screenBounds.Left + screenBounds.Width), (float)(screenBounds.Top + screenBounds.Height));
+            var dropdownRect = GetDropdownRect(skScreenBounds);
             return dropdownRect.Contains(x, y);
         }
 
