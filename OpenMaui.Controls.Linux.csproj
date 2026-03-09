@@ -60,8 +60,11 @@
     <None Include="assets/logo_only.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
-  <!-- Include build targets in package - auto-imports when package is referenced -->
+  <!-- Include build props and targets in package - auto-imports when package is referenced -->
+  <!-- .props runs BEFORE the project (sets SingleProject=false, RuntimeIdentifiers) -->
+  <!-- .targets runs AFTER the project (manages platform folder exclusions, copies assets) -->
   <ItemGroup>
+    <None Include="build\OpenMaui.Controls.Linux.props" Pack="true" PackagePath="build\OpenMaui.Controls.Linux.props" />
     <None Include="build\OpenMaui.Controls.Linux.targets" Pack="true" PackagePath="build\OpenMaui.Controls.Linux.targets" />
   </ItemGroup>
 

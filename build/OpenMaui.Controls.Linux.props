@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    OpenMaui Linux Build Props (runs BEFORE project and MAUI targets)
+
+    Automatically configures the project for Linux platform support:
+    - Disables SingleProject on Linux (MAUI's SingleProject.targets removes all
+      Platforms/** files then only re-includes known platforms like android/ios/windows.
+      Since Linux isn't a recognized TargetPlatformIdentifier, Platforms/Linux/ gets excluded.)
+    - Sets RuntimeIdentifiers for Linux builds
+  -->
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <SingleProject>false</SingleProject>
+    <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+</Project>

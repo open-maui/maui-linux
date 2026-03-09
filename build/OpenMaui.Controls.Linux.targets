@@ -4,7 +4,37 @@
   <!--
     OpenMaui Linux Build Targets
     Handles MauiImage and MauiIcon items for Linux platform since we don't use the full MAUI SDK targets.
+    Also manages platform folder exclusions so developers don't need boilerplate in their csproj.
   -->
+
+  <!--
+    Platform folder management: On Linux, exclude other platform folders.
+    On non-Linux, exclude the Linux platform folder.
+    This runs after the project file, so it adds Remove items for platform folders
+    that don't apply to the current build host.
+  -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <Compile Remove="Platforms\Windows\**" />
+    <Compile Remove="Platforms\Android\**" />
+    <Compile Remove="Platforms\iOS\**" />
+    <Compile Remove="Platforms\MacCatalyst\**" />
+    <Compile Remove="Platforms\Tizen\**" />
+    <None Remove="Platforms\Windows\**" />
+    <None Remove="Platforms\Android\**" />
+    <None Remove="Platforms\iOS\**" />
+    <None Remove="Platforms\MacCatalyst\**" />
+    <None Remove="Platforms\Tizen\**" />
+    <MauiXaml Remove="Platforms\Windows\**" />
+    <MauiXaml Remove="Platforms\Android\**" />
+    <MauiXaml Remove="Platforms\iOS\**" />
+    <MauiXaml Remove="Platforms\MacCatalyst\**" />
+    <MauiXaml Remove="Platforms\Tizen\**" />
+  </ItemGroup>
+  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Linux'))">
+    <Compile Remove="Platforms\Linux\**" />
+    <None Remove="Platforms\Linux\**" />
+    <MauiXaml Remove="Platforms\Linux\**" />
+  </ItemGroup>
 
   <!-- Copy MauiImage items to output directory after Build -->
   <Target Name="CopyMauiImagesToOutput" AfterTargets="Build" Condition="@(MauiImage) != ''">
