@@ -285,9 +285,11 @@ public class SkiaRenderingEngine : IDisposable
             _canvas.ClipRect(region);
         }
 
-        // Clear the region
-        using var clearPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
-        _canvas.DrawRect(region, clearPaint);
+        // Clear the region with transparent so PNG alpha and view backgrounds are preserved
+        _canvas.Save();
+        _canvas.ClipRect(region);
+        _canvas.Clear(SKColors.Transparent);
+        _canvas.Restore();
 
         // Apply DPI scaling so all drawing is proportionally larger on HiDPI displays
         if (DpiScale > 1.0f)

@@ -129,6 +129,29 @@ public static class MauiHandlerExtensions
                 viewHandler.PlatformView is SkiaView skiaView)
             {
                 skiaView.MauiView = mauiView;
+
+                // Sync visual properties from MAUI view to platform view,
+                // and subscribe to future changes. MAUI's ViewMapper doesn't
+                // call platform-specific mappers for these on Linux.
+                skiaView.IsVisible = mauiView.IsVisible;
+                skiaView.Opacity = (float)mauiView.Opacity;
+                skiaView.InputTransparent = mauiView.InputTransparent;
+
+                mauiView.PropertyChanged += (s, e) =>
+                {
+                    switch (e.PropertyName)
+                    {
+                        case nameof(View.IsVisible):
+                            skiaView.IsVisible = mauiView.IsVisible;
+                            break;
+                        case nameof(View.Opacity):
+                            skiaView.Opacity = (float)mauiView.Opacity;
+                            break;
+                        case nameof(View.InputTransparent):
+                            skiaView.InputTransparent = mauiView.InputTransparent;
+                            break;
+                    }
+                };
             }
         }
 

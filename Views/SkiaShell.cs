@@ -1112,8 +1112,17 @@ public class SkiaShell : SkiaLayoutView
 
         // Calculate header and footer heights
         float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-        float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
-                            (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
+        float footerHeight;
+        if (FlyoutFooterView != null)
+        {
+            // Measure footer to its natural size so complex layouts aren't squished
+            var footerDesired = FlyoutFooterView.Measure(new Size(flyoutBounds.Width, double.PositiveInfinity));
+            footerHeight = Math.Max(FlyoutFooterHeight, (float)footerDesired.Height);
+        }
+        else
+        {
+            footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f;
+        }
 
         // Draw flyout header if present
         if (FlyoutHeaderView != null)
@@ -1191,12 +1200,11 @@ public class SkiaShell : SkiaLayoutView
 
         canvas.Restore();
 
-        // Draw flyout footer
+        // Draw flyout footer (footerHeight already measured to natural size above)
         if (FlyoutFooterView != null)
         {
             var footerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Bottom - footerHeight, flyoutBounds.Right, flyoutBounds.Bottom);
-            FlyoutFooterView.Measure(new Size(footerBounds.Width, footerBounds.Height));
-            FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerBounds.Height));
+            FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerHeight));
             FlyoutFooterView.Draw(canvas);
         }
         else if (!string.IsNullOrEmpty(FlyoutFooterText))
