@@ -35,7 +35,7 @@ public static class MauiHandlerExtensions
         [typeof(BoxView)] = () => new BoxViewHandler(),
         [typeof(Frame)] = () => new FrameHandler(),
         [typeof(Border)] = () => new BorderHandler(),
-        [typeof(ContentView)] = () => new BorderHandler(),
+        [typeof(ContentView)] = () => new ContentViewHandler(),
         [typeof(ScrollView)] = () => new ScrollViewHandler(),
         [typeof(Grid)] = () => new GridHandler(),
         [typeof(StackLayout)] = () => new StackLayoutHandler(),
