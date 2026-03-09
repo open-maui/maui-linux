@@ -13,7 +13,25 @@
     This runs after the project file, so it adds Remove items for platform folders
     that don't apply to the current build host.
   -->
+  <!--
+    On Linux: If SingleProject was true (set by the consuming project), MAUI's
+    SingleProject.targets will have marked ALL Platforms/** files as ExcludeFromCurrentConfiguration=true.
+    We undo this for Platforms/Linux/ and remove the other platform folders entirely.
+  -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <!-- Override SingleProject to false — prevents MAUI targets from interfering further -->
+    <SingleProject>false</SingleProject>
+    <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <!-- Re-include Linux platform files that MAUI's SingleProject.targets excluded -->
+    <Compile Update="Platforms\Linux\**\*$(DefaultLanguageSourceExtension)"
+             Condition="Exists('Platforms\Linux\')">
+      <ExcludeFromCurrentConfiguration>false</ExcludeFromCurrentConfiguration>
+    </Compile>
+
+    <!-- Remove other platform folders -->
     <Compile Remove="Platforms\Windows\**" />
     <Compile Remove="Platforms\Android\**" />
     <Compile Remove="Platforms\iOS\**" />
