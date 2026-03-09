@@ -402,32 +402,39 @@ public class SkiaGrid : SkiaLayoutView
             var childWidth = (float)childDesiredSize.Width;
             var childHeight = (float)childDesiredSize.Height;
 
-            var vAlign = (int)child.VerticalOptions.Alignment;
+            // Read alignment from the MAUI virtual view (authoritative source).
+            // Falls back to SkiaView.HorizontalOptions/VerticalOptions if no MauiView is set.
+            // Note: IView.HorizontalLayoutAlignment uses OpenMaui LayoutAlignment (Fill=0, Start=1, Center=2, End=3).
+            // SkiaView.HorizontalOptions.Alignment uses MAUI Controls LayoutAlignment (Start=0, Center=1, End=2, Fill=3).
+            // We normalize both to OpenMaui LayoutAlignment via MapAlignment.
+            var hAlign = child.MauiView is IView hv
+                ? (LayoutAlignment)(int)hv.HorizontalLayoutAlignment
+                : LayoutAlignmentHelper.MapFromMaui(child.HorizontalOptions);
+            var vAlign = child.MauiView is IView vv
+                ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
+                : LayoutAlignmentHelper.MapFromMaui(child.VerticalOptions);
 
             // Apply HorizontalOptions
-            // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
             float finalX = cellX;
             float finalWidth = cellWidth;
-            var hAlign = (int)child.HorizontalOptions.Alignment;
-            if (hAlign != 3 && childWidth < cellWidth && childWidth > 0) // 3 = Fill
+            if (hAlign != LayoutAlignment.Fill && childWidth < cellWidth && childWidth > 0)
             {
                 finalWidth = childWidth;
-                if (hAlign == 1) // Center
+                if (hAlign == LayoutAlignment.Center)
                     finalX = cellX + (cellWidth - childWidth) / 2;
-                else if (hAlign == 2) // End
+                else if (hAlign == LayoutAlignment.End)
                     finalX = cellX + cellWidth - childWidth;
             }
 
             // Apply VerticalOptions
             float finalY = cellY;
             float finalHeight = cellHeight;
-            // vAlign already calculated above for debug logging
-            if (vAlign != 3 && childHeight < cellHeight && childHeight > 0) // 3 = Fill
+            if (vAlign != LayoutAlignment.Fill && childHeight < cellHeight && childHeight > 0)
             {
                 finalHeight = childHeight;
-                if (vAlign == 1) // Center
+                if (vAlign == LayoutAlignment.Center)
                     finalY = cellY + (cellHeight - childHeight) / 2;
-                else if (vAlign == 2) // End
+                else if (vAlign == LayoutAlignment.End)
                     finalY = cellY + cellHeight - childHeight;
             }
 

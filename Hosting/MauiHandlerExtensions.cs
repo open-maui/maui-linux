@@ -123,26 +123,12 @@ public static class MauiHandlerExtensions
             handler.SetMauiContext(mauiContext);
             handler.SetVirtualView(element);
 
-            // Sync layout alignment from virtual view to platform view.
-            // Most handlers don't map HorizontalLayoutAlignment/VerticalLayoutAlignment,
-            // so the SkiaView defaults to Fill. This ensures all views respect alignment.
-            if (element is IView view && handler is IViewHandler viewHandler &&
+            // Set MauiView back-reference so layout views can read alignment
+            // directly from the MAUI virtual view (authoritative source).
+            if (element is View mauiView && handler is IViewHandler viewHandler &&
                 viewHandler.PlatformView is SkiaView skiaView)
             {
-                skiaView.HorizontalOptions = view.HorizontalLayoutAlignment switch
-                {
-                    Primitives.LayoutAlignment.Start => LayoutOptions.Start,
-                    Primitives.LayoutAlignment.Center => LayoutOptions.Center,
-                    Primitives.LayoutAlignment.End => LayoutOptions.End,
-                    _ => LayoutOptions.Fill,
-                };
-                skiaView.VerticalOptions = view.VerticalLayoutAlignment switch
-                {
-                    Primitives.LayoutAlignment.Start => LayoutOptions.Start,
-                    Primitives.LayoutAlignment.Center => LayoutOptions.Center,
-                    Primitives.LayoutAlignment.End => LayoutOptions.End,
-                    _ => LayoutOptions.Fill,
-                };
+                skiaView.MauiView = mauiView;
             }
         }
 
