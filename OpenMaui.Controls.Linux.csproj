@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.41.1</Version>
+    <Version>10.0.41.2</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -25,12 +25,17 @@
     <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>10.0.41.1: App icon support (MauiIcon build targets, .desktop file integration for GNOME/Wayland), dark mode for picker popups (Picker, DatePicker, TimePicker), popup edge detection to flip above when near window bottom, DPI-correct popup rendering, flyout selected item text visibility fix, adaptive gesture method signatures for MAUI version resilience.</PackageReleaseNotes>
+    <PackageReleaseNotes>10.0.41.2: New OpenMaui.Hosting package — call .UseLinux() unconditionally on all platforms (no-op on non-Linux, no #if required). App icon support (MauiIcon build targets, .desktop file integration for GNOME/Wayland), dark mode for picker popups, popup edge detection, DPI-correct popup rendering, flyout selected item text visibility fix, adaptive gesture method signatures.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>logo_only.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
+
+  <!-- OpenMaui.Hosting provides the cross-platform UseLinux() stub -->
+  <ItemGroup>
+    <ProjectReference Include="Hosting.Abstractions/OpenMaui.Hosting.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- MAUI Core packages -->
@@ -62,6 +67,7 @@
 
   <!-- Exclude old handler files, samples, templates, and VSIX -->
   <ItemGroup>
+    <Compile Remove="Hosting.Abstractions/**/*.cs" />
     <Compile Remove="Handlers/*.Linux.cs" />
     <Compile Remove="samples/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />

@@ -36,7 +36,10 @@ jobs:
         run: dotnet test --configuration Release --no-build --verbosity normal
         continue-on-error: true
 
-      - name: Pack NuGet package
+      - name: Pack OpenMaui.Hosting package
+        run: dotnet pack Hosting.Abstractions/OpenMaui.Hosting.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Pack OpenMaui.Controls.Linux package
         run: dotnet pack --configuration Release --no-build -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Pack Templates package

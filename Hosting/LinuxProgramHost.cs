@@ -36,7 +36,7 @@ public static class LinuxProgramHost
     {
         // Build the MAUI application
         var builder = MauiApp.CreateBuilder();
-        builder.UseLinux();
+        LinuxPlatformRegistrar.Register(builder);
         configure?.Invoke(builder);
         builder.UseMauiApp<TApp>();
         var mauiApp = builder.Build();
