@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
+using Path = Microsoft.Maui.Controls.Shapes.Path;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
@@ -53,7 +54,8 @@ public static class MauiHandlerExtensions
         [typeof(TabbedPage)] = () => new TabbedPageHandler(),
         [typeof(Application)] = () => new ApplicationHandler(),
         [typeof(Microsoft.Maui.Controls.Window)] = () => new WindowHandler(),
-        [typeof(GraphicsView)] = () => new GraphicsViewHandler()
+        [typeof(GraphicsView)] = () => new GraphicsViewHandler(),
+        [typeof(Path)] = () => new ShapePathHandler()
     };
 
     /// <summary>
@@ -117,6 +119,28 @@ public static class MauiHandlerExtensions
         {
             handler.SetMauiContext(mauiContext);
             handler.SetVirtualView(element);
+
+            // Sync layout alignment from virtual view to platform view.
+            // Most handlers don't map HorizontalLayoutAlignment/VerticalLayoutAlignment,
+            // so the SkiaView defaults to Fill. This ensures all views respect alignment.
+            if (element is IView view && handler is IViewHandler viewHandler &&
+                viewHandler.PlatformView is SkiaView skiaView)
+            {
+                skiaView.HorizontalOptions = view.HorizontalLayoutAlignment switch
+                {
+                    Primitives.LayoutAlignment.Start => LayoutOptions.Start,
+                    Primitives.LayoutAlignment.Center => LayoutOptions.Center,
+                    Primitives.LayoutAlignment.End => LayoutOptions.End,
+                    _ => LayoutOptions.Fill,
+                };
+                skiaView.VerticalOptions = view.VerticalLayoutAlignment switch
+                {
+                    Primitives.LayoutAlignment.Start => LayoutOptions.Start,
+                    Primitives.LayoutAlignment.Center => LayoutOptions.Center,
+                    Primitives.LayoutAlignment.End => LayoutOptions.End,
+                    _ => LayoutOptions.Fill,
+                };
+            }
         }
 
         return handler;

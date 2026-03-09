@@ -900,7 +900,6 @@ public class SkiaShell : SkiaLayoutView
                 contentTop,
                 bounds.Width - flyoutOffset - ContentPadding * 2,
                 contentBottom - contentTop);
-            DiagnosticLog.Debug("SkiaShell", $"Arranging content with bounds={contentBounds}, padding={ContentPadding}");
             _currentContent.Arrange(contentBounds);
         }
 

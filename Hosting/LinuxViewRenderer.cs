@@ -538,7 +538,7 @@ public class LinuxViewRenderer
                     }
                     catch (Exception diEx)
                     {
-                        DiagnosticLog.Error("LinuxViewRenderer", $"DI resolution failed for {templateType.Name}: {diEx.ToString()}");
+                        DiagnosticLog.Debug("LinuxViewRenderer", $"DI resolution failed for {templateType.Name}: {diEx.Message}");
                     }
                 }
 
