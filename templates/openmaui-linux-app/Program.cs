@@ -1,7 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using OpenMaui.Platform.Linux.Linux;
+using Microsoft.Maui.Platform.Linux;
 
 namespace OpenMauiLinuxApp;
 
@@ -9,10 +6,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var app = LinuxApplication.CreateBuilder()
-            .UseApp<App>()
-            .Build();
-
-        app.Run();
+        var app = MauiProgram.CreateMauiApp();
+        LinuxApplication.Run(app, args);
     }
 }
