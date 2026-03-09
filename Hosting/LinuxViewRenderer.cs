@@ -603,15 +603,13 @@ public class LinuxViewRenderer
     /// Renders a MAUI view and returns the corresponding SkiaView.
     /// </summary>
     /// <summary>
-    /// Set of view type names known to cause crashes on Linux (native platform renderers).
-    /// These are third-party controls that use platform-specific rendering not supported by OpenMaui.
+    /// Set of view type names known to cause crashes on Linux.
+    /// With SKCanvasView/SKGLView native hosting, ContentViewHandler, PathHandler,
+    /// and alignment fixes, most third-party controls now render through normal handlers.
+    /// Add entries here only as a last resort for controls that truly SIGSEGV.
     /// </summary>
     private static readonly HashSet<string> _unsupportedViewTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "PieChart", "CartesianChart", "PolarChart", "GeoMap",  // LiveChartsCore
-        "SKCanvasView", "SKGLView",                             // SkiaSharp native views
-        "OnboardingHost",                                        // SpotlightTour
-        "BuyMeACoffeeButton",                                    // BuyMeCofee.Maui
     };
 
     public SkiaView? RenderView(IView view)

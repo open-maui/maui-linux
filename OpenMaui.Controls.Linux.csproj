@@ -47,6 +47,8 @@
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
     <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Core" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
     <PackageReference Include="Svg.Skia" Version="3.4.1" />
 
     <!-- HarfBuzz for advanced text shaping -->

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
+using SkiaSharp.Views.Maui.Controls;
 using Path = Microsoft.Maui.Controls.Shapes.Path;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
@@ -55,7 +56,9 @@ public static class MauiHandlerExtensions
         [typeof(Application)] = () => new ApplicationHandler(),
         [typeof(Microsoft.Maui.Controls.Window)] = () => new WindowHandler(),
         [typeof(GraphicsView)] = () => new GraphicsViewHandler(),
-        [typeof(Path)] = () => new ShapePathHandler()
+        [typeof(Path)] = () => new ShapePathHandler(),
+        [typeof(SKCanvasView)] = () => new SKCanvasViewHandler(),
+        [typeof(SKGLView)] = () => new SKGLViewHandler()
     };
 
     /// <summary>
