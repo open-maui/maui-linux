@@ -51,6 +51,9 @@ public static class LinuxMauiAppBuilderExtensionsInternal
 
     internal static void RegisterLinuxServices(MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
     {
+        // Patch MAUI Essentials stubs before any services use them
+        EssentialsPatches.Apply();
+
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
 

@@ -52,6 +52,9 @@
     <!-- HarfBuzz for advanced text shaping -->
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.3" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.3" />
+
+    <!-- Harmony for patching MAUI Essentials stubs with Linux implementations -->
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" />
   </ItemGroup>
 
   <!-- Include README and icon in package -->

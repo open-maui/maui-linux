@@ -239,9 +239,11 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         try
         {
             var page = content.Content as Page;
+
             if (page == null && content.ContentTemplate != null)
             {
-                page = content.ContentTemplate.CreateContent() as Page;
+                var created = content.ContentTemplate.CreateContent();
+                page = created as Page;
             }
 
             if (page != null)
@@ -255,11 +257,19 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
                 {
                     return skiaView;
                 }
+                else
+                {
+                    DiagnosticLog.Error("ShellHandler", $"PlatformView is not a SkiaView for route: {content.Route}");
+                }
+            }
+            else
+            {
+                DiagnosticLog.Error("ShellHandler", $"Could not create page for route: {content.Route}");
             }
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("ShellHandler", $"Error rendering content: {ex.Message}", ex);
+            DiagnosticLog.Error("ShellHandler", $"Error rendering content '{content.Route}': {ex.Message}\n{ex.StackTrace}", ex);
         }
 
         return null;
@@ -419,11 +429,27 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         var footer = shell.FlyoutFooter;
         if (footer == null)
         {
+            handler.PlatformView.FlyoutFooterView = null;
             handler.PlatformView.FlyoutFooterText = null;
             return;
         }
 
-        // Simple text footer support
+        // Render complex view footers (VerticalStackLayout, Grid, etc.)
+        if (footer is View footerView)
+        {
+            if (footerView.Handler == null)
+            {
+                footerView.Handler = footerView.ToViewHandler(handler.MauiContext);
+            }
+
+            if (footerView.Handler?.PlatformView is SkiaView skiaFooter)
+            {
+                handler.PlatformView.FlyoutFooterView = skiaFooter;
+                return;
+            }
+        }
+
+        // Fallback: simple text footer
         if (footer is Label label)
         {
             handler.PlatformView.FlyoutFooterText = label.Text;

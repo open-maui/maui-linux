@@ -63,16 +63,24 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
             var child = VirtualView[i];
             if (child == null) continue;
 
-            // Create handler for child if it doesn't exist
-            if (child.Handler == null)
+            try
             {
-                child.Handler = child.ToViewHandler(MauiContext);
-            }
+                // Create handler for child if it doesn't exist
+                if (child.Handler == null)
+                {
+                    child.Handler = child.ToViewHandler(MauiContext);
+                }
 
-            // Add child's platform view to our layout
-            if (child.Handler?.PlatformView is SkiaView skiaChild)
+                // Add child's platform view to our layout
+                if (child.Handler?.PlatformView is SkiaView skiaChild)
+                {
+                    platformView.AddChild(skiaChild);
+                }
+            }
+            catch (Exception ex)
             {
-                platformView.AddChild(skiaChild);
+                // Skip unsupported child views (e.g. third-party controls without Linux handlers)
+                DiagnosticLog.Error("LayoutHandler", $"Skipping child {i} ({child.GetType().Name}): {ex.Message}");
             }
         }
     }
@@ -272,31 +280,39 @@ public partial class GridHandler : LayoutHandler
                 var child = gridLayout[i];
                 if (child == null) continue;
 
-                DiagnosticLog.Debug("GridHandler", $"Processing child {i}: {child.GetType().Name}");
-
-                // Create handler for child if it doesn't exist
-                if (child.Handler == null)
+                try
                 {
-                    child.Handler = child.ToViewHandler(MauiContext);
+                    DiagnosticLog.Debug("GridHandler", $"Processing child {i}: {child.GetType().Name}");
+
+                    // Create handler for child if it doesn't exist
+                    if (child.Handler == null)
+                    {
+                        child.Handler = child.ToViewHandler(MauiContext);
+                    }
+
+                    // Get grid position from attached properties
+                    int row = 0, column = 0, rowSpan = 1, columnSpan = 1;
+                    if (child is Microsoft.Maui.Controls.View mauiView)
+                    {
+                        row = Microsoft.Maui.Controls.Grid.GetRow(mauiView);
+                        column = Microsoft.Maui.Controls.Grid.GetColumn(mauiView);
+                        rowSpan = Microsoft.Maui.Controls.Grid.GetRowSpan(mauiView);
+                        columnSpan = Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiView);
+                    }
+
+                    DiagnosticLog.Debug("GridHandler", $"Child {i} at row={row}, col={column}, handler={child.Handler?.GetType().Name}");
+
+                    // Add child's platform view to our grid
+                    if (child.Handler?.PlatformView is SkiaView skiaChild)
+                    {
+                        grid.AddChild(skiaChild, row, column, rowSpan, columnSpan);
+                        DiagnosticLog.Debug("GridHandler", $"Added child {i} to grid");
+                    }
                 }
-
-                // Get grid position from attached properties
-                int row = 0, column = 0, rowSpan = 1, columnSpan = 1;
-                if (child is Microsoft.Maui.Controls.View mauiView)
+                catch (Exception childEx)
                 {
-                    row = Microsoft.Maui.Controls.Grid.GetRow(mauiView);
-                    column = Microsoft.Maui.Controls.Grid.GetColumn(mauiView);
-                    rowSpan = Microsoft.Maui.Controls.Grid.GetRowSpan(mauiView);
-                    columnSpan = Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiView);
-                }
-
-                DiagnosticLog.Debug("GridHandler", $"Child {i} at row={row}, col={column}, handler={child.Handler?.GetType().Name}");
-
-                // Add child's platform view to our grid
-                if (child.Handler?.PlatformView is SkiaView skiaChild)
-                {
-                    grid.AddChild(skiaChild, row, column, rowSpan, columnSpan);
-                    DiagnosticLog.Debug("GridHandler", $"Added child {i} to grid");
+                    // Skip unsupported child views (e.g. third-party controls without Linux handlers)
+                    DiagnosticLog.Error("GridHandler", $"Skipping child {i} ({child.GetType().Name}): {childEx.Message}");
                 }
             }
             DiagnosticLog.Debug("GridHandler", "ConnectHandler complete");

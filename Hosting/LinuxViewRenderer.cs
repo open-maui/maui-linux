@@ -521,7 +521,32 @@ public class LinuxViewRenderer
 
             if (content.ContentTemplate != null)
             {
-                page = content.ContentTemplate.CreateContent() as Page;
+                // Extract the type from the DataTemplate via reflection
+                // DataTemplate stores the type in a private field
+                var typeField = typeof(ElementTemplate).GetProperty("Type",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var templateType = typeField?.GetValue(content.ContentTemplate) as Type;
+
+                // First try to resolve from DI (handles constructor injection)
+                if (templateType != null)
+                {
+                    try
+                    {
+                        // Use ActivatorUtilities to create with DI - more robust than GetService
+                        page = Microsoft.Extensions.DependencyInjection.ActivatorUtilities
+                            .CreateInstance(_mauiContext.Services, templateType) as Page;
+                    }
+                    catch (Exception diEx)
+                    {
+                        DiagnosticLog.Error("LinuxViewRenderer", $"DI resolution failed for {templateType.Name}: {diEx.ToString()}");
+                    }
+                }
+
+                // Fallback to CreateContent() (uses Activator.CreateInstance)
+                if (page == null)
+                {
+                    page = content.ContentTemplate.CreateContent() as Page;
+                }
             }
 
             if (page == null && content.Content is Page contentPage)
@@ -566,9 +591,9 @@ public class LinuxViewRenderer
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Silently handle template creation errors
+            DiagnosticLog.Error("LinuxViewRenderer", $"CreateShellContentPage failed for route '{content.Route}': {ex.Message}\n{ex.StackTrace}");
         }
 
         return null;
@@ -577,10 +602,30 @@ public class LinuxViewRenderer
     /// <summary>
     /// Renders a MAUI view and returns the corresponding SkiaView.
     /// </summary>
+    /// <summary>
+    /// Set of view type names known to cause crashes on Linux (native platform renderers).
+    /// These are third-party controls that use platform-specific rendering not supported by OpenMaui.
+    /// </summary>
+    private static readonly HashSet<string> _unsupportedViewTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PieChart", "CartesianChart", "PolarChart", "GeoMap",  // LiveChartsCore
+        "SKCanvasView", "SKGLView",                             // SkiaSharp native views
+        "OnboardingHost",                                        // SpotlightTour
+        "BuyMeACoffeeButton",                                    // BuyMeCofee.Maui
+    };
+
     public SkiaView? RenderView(IView view)
     {
         if (view == null)
             return null;
+
+        // Skip known unsupported third-party controls that would segfault
+        var typeName = view.GetType().Name;
+        if (_unsupportedViewTypes.Contains(typeName))
+        {
+            DiagnosticLog.Error("LinuxViewRenderer", $"Skipping unsupported view type: {typeName}");
+            return CreateFallbackView(view);
+        }
 
         try
         {
@@ -604,8 +649,9 @@ public class LinuxViewRenderer
             // No manual child rendering needed here - that caused "View already has a parent" errors
             return skiaView;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            DiagnosticLog.Error("LinuxViewRenderer", $"RenderView failed for {typeName}: {ex.Message}");
             return CreateFallbackView(view);
         }
     }
