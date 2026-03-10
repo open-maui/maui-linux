@@ -137,7 +137,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
         {
             var childHandler = update.View.Handler;
             if (childHandler?.PlatformView is SkiaView skiaView)
@@ -149,7 +149,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapRemove(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
         {
             handler.PlatformView.RemoveChildAt(update.Index);
         }
@@ -162,7 +162,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapInsert(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
         {
             var childHandler = update.View.Handler;
             if (childHandler?.PlatformView is SkiaView skiaView)
@@ -185,20 +185,8 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     }
 }
 
-/// <summary>
-/// Update information for layout operations.
-/// </summary>
-public class LayoutHandlerUpdate
-{
-    public int Index { get; }
-    public IView View { get; }
-
-    public LayoutHandlerUpdate(int index, IView view)
-    {
-        Index = index;
-        View = view;
-    }
-}
+// NOTE: Layout add/remove/insert commands use Microsoft.Maui.Handlers.LayoutHandlerUpdate
+// from the MAUI framework. Do NOT define a local LayoutHandlerUpdate class here.
 
 /// <summary>
 /// Linux handler for StackLayout.
@@ -394,7 +382,7 @@ public partial class GridHandler : LayoutHandler
 
     public static void MapGridAdd(GridHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update && handler.PlatformView is SkiaGrid grid)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update && handler.PlatformView is SkiaGrid grid)
         {
             var childHandler = update.View.Handler;
             if (childHandler?.PlatformView is SkiaView skiaView)

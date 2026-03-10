@@ -204,6 +204,7 @@ public class SkiaShell : SkiaLayoutView
     private readonly Dictionary<string, SKBitmap?> _iconCache = new();
 
     // Internal SKColor fields for rendering
+    private bool _headerBgLogged;
     private SKColor _flyoutBackgroundColorSK = SkiaTheme.BackgroundWhiteSK;
     private SKColor _flyoutTextColorSK = SkiaTheme.TextPrimarySK;
     private SKColor _navBarBackgroundColorSK = SkiaTheme.PrimarySK;
@@ -1130,6 +1131,24 @@ public class SkiaShell : SkiaLayoutView
             var headerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Top, flyoutBounds.Right, flyoutBounds.Top + headerHeight);
             FlyoutHeaderView.Measure(new Size(headerBounds.Width, headerBounds.Height));
             FlyoutHeaderView.Arrange(new Rect(headerBounds.Left, headerBounds.Top, headerBounds.Width, headerBounds.Height));
+
+            // If the header view has a BackgroundColor, draw it over the flyout background
+            // to ensure it covers the default flyout color (e.g. white) in the header region
+            if (!_headerBgLogged)
+            {
+                _headerBgLogged = true;
+                DiagnosticLog.Error("SkiaShell", $"FlyoutHeader: type={FlyoutHeaderView.GetType().Name}, BgColor={FlyoutHeaderView.BackgroundColor}, Children={FlyoutHeaderView.Children.Count}, MauiView={FlyoutHeaderView.MauiView?.GetType().Name}");
+            }
+            if (FlyoutHeaderView.BackgroundColor != null && FlyoutHeaderView.BackgroundColor != Colors.Transparent)
+            {
+                using var headerBgPaint = new SKPaint
+                {
+                    Color = FlyoutHeaderView.BackgroundColor.ToSKColor(),
+                    Style = SKPaintStyle.Fill
+                };
+                canvas.DrawRect(headerBounds, headerBgPaint);
+            }
+
             FlyoutHeaderView.Draw(canvas);
         }
 

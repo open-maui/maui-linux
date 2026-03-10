@@ -61,16 +61,23 @@ public class SkiaSKCanvasView : SkiaView
         return new Size(w, h);
     }
 
+    private bool _drawLogged;
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         if (_canvasView == null)
         {
-            DiagnosticLog.Debug("SkiaSKCanvasView", "OnDraw skipped: _canvasView is null");
             return;
         }
 
         int width = Math.Max(1, (int)bounds.Width);
         int height = Math.Max(1, (int)bounds.Height);
+
+        if (!_drawLogged)
+        {
+            _drawLogged = true;
+            DiagnosticLog.Error("SkiaSKCanvasView", $"OnDraw: bounds={bounds.Width}x{bounds.Height}, canvasView={_canvasView.GetType().Name}");
+        }
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
 

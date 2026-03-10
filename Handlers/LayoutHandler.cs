@@ -52,6 +52,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
         // Create handlers for all children and add them to the platform view
         if (VirtualView == null || MauiContext == null) return;
+        DiagnosticLog.Error("LayoutHandler", $"ConnectHandler: {VirtualView.Count} children, VirtualView={VirtualView.GetType().Name}");
 
         // Explicitly map BackgroundColor since it may be set before handler creation
         if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
@@ -118,11 +119,20 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (handler.PlatformView == null || arg is not LayoutHandlerUpdate update)
+        if (handler.PlatformView == null) return;
+
+        // Use MAUI's LayoutHandlerUpdate type (Microsoft.Maui.Handlers namespace)
+        if (arg is not Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
             return;
 
         var index = update.Index;
         var child = update.View;
+
+        // Create handler for child if needed
+        if (child is IView view && child.Handler == null && handler.MauiContext != null)
+        {
+            child.Handler = view.ToViewHandler(handler.MauiContext);
+        }
 
         if (child?.Handler?.PlatformView is SkiaView skiaView)
         {
@@ -130,18 +140,24 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
                 handler.PlatformView.InsertChild(index, skiaView);
             else
                 handler.PlatformView.AddChild(skiaView);
+            handler.PlatformView.InvalidateMeasure();
+            handler.PlatformView.Invalidate();
         }
     }
 
     public static void MapRemove(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (handler.PlatformView == null || arg is not LayoutHandlerUpdate update)
+        if (handler.PlatformView == null) return;
+
+        if (arg is not Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
             return;
 
         var index = update.Index;
         if (index >= 0 && index < handler.PlatformView.Children.Count)
         {
             handler.PlatformView.RemoveChildAt(index);
+            handler.PlatformView.InvalidateMeasure();
+            handler.PlatformView.Invalidate();
         }
     }
 
@@ -174,20 +190,8 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     }
 }
 
-/// <summary>
-/// Update payload for layout changes.
-/// </summary>
-public class LayoutHandlerUpdate
-{
-    public int Index { get; }
-    public IView? View { get; }
-
-    public LayoutHandlerUpdate(int index, IView? view)
-    {
-        Index = index;
-        View = view;
-    }
-}
+// NOTE: Layout add/remove/insert commands use Microsoft.Maui.Handlers.LayoutHandlerUpdate
+// from the MAUI framework. Do NOT define a local LayoutHandlerUpdate class here.
 
 /// <summary>
 /// Handler for StackLayout on Linux.
@@ -269,7 +273,7 @@ public partial class GridHandler : LayoutHandler
             // Don't call base - we handle children specially for Grid
             if (VirtualView is not IGridLayout gridLayout || MauiContext == null || platformView is not SkiaGrid grid) return;
 
-            DiagnosticLog.Debug("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols");
+            DiagnosticLog.Error("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols, VirtualView={VirtualView.GetType().Name}");
 
             // Explicitly map BackgroundColor since it may be set before handler creation
             if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
