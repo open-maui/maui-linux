@@ -300,19 +300,8 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
             platformView.NavBarTextColor = fgColor;
         }
 
-        // Sync nav bar background colors from Shell attached property
-        // The style sets Shell.BackgroundColor (attached), not VisualElement.BackgroundColor
-        var attachedBg = Shell.GetBackgroundColor(shell);
-        var instanceBg = shell.BackgroundColor;
-        DiagnosticLog.Error("ShellHandler", $"RefreshShellColors: attached={attachedBg}, instance={instanceBg}, type={shell.GetType().Name}");
-        // Also try reading from the Shell's current page
-        Color? pageBg = null;
-        if (shell.CurrentPage is Page currentPage)
-        {
-            pageBg = Shell.GetBackgroundColor(currentPage);
-            DiagnosticLog.Error("ShellHandler", $"RefreshShellColors: page attached={pageBg}");
-        }
-        var bgColor = attachedBg ?? instanceBg ?? pageBg;
+        // Sync nav bar background colors
+        var bgColor = Shell.GetBackgroundColor(shell) ?? shell.BackgroundColor;
         if (bgColor is not null)
         {
             platformView.NavBarBackgroundColor = bgColor;
@@ -385,10 +374,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         if (handler.PlatformView is null) return;
 
         // Check both the instance property and the Shell attached property
-        var instanceColor = shell.BackgroundColor;
-        var attachedColor = Shell.GetBackgroundColor(shell);
-        DiagnosticLog.Error("ShellHandler", $"MapBackgroundColor: instance={instanceColor}, attached={attachedColor}");
-        var color = instanceColor ?? attachedColor;
+        var color = shell.BackgroundColor ?? Shell.GetBackgroundColor(shell);
         if (color is not null)
         {
             handler.PlatformView.NavBarBackgroundColor = color;

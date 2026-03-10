@@ -209,7 +209,7 @@ public class LinuxViewRenderer
             if (skiaFooter != null)
             {
                 skiaShell.FlyoutFooterView = skiaFooter;
-                skiaShell.FlyoutFooterHeight = (float)(footerView.HeightRequest > 0 ? footerView.HeightRequest : 40.0);
+                skiaShell.FlyoutFooterHeight = (float)(footerView.HeightRequest > 0 ? footerView.HeightRequest : 120.0);
             }
         }
         else
@@ -310,23 +310,29 @@ public class LinuxViewRenderer
             ? Color.FromRgb(18, 18, 18)
             : Color.FromRgb(250, 250, 250);
 
-        // NavBar background color
+        // NavBar background color - check resource, attached property, instance property
         Color? navBg = TryGetResourceColor(resources, isDark ? "ShellBackgroundDark" : "ShellBackgroundLight");
-        if (navBg == null)
-        {
-            navBg = shell.BackgroundColor;
-        }
+        navBg ??= Shell.GetBackgroundColor(shell);
+        navBg ??= shell.BackgroundColor;
         if (navBg != null && navBg != Colors.Transparent)
         {
             skiaShell.NavBarBackgroundColor = navBg;
         }
         else
         {
-            skiaShell.NavBarBackgroundColor = Color.FromRgb(33, 150, 243); // Material blue
+            // Theme-aware default instead of hardcoded blue
+            skiaShell.NavBarBackgroundColor = isDark
+                ? Color.FromRgb(30, 30, 30)
+                : Color.FromRgb(255, 255, 255);
         }
 
-        // NavBar text color
-        if (fgColor != null && fgColor != Colors.Transparent)
+        // NavBar text color - prefer Shell.TitleColor attached property
+        Color? titleColor = Shell.GetTitleColor(shell);
+        if (titleColor != null && titleColor != Colors.Transparent)
+        {
+            skiaShell.NavBarTextColor = titleColor;
+        }
+        else if (fgColor != null && fgColor != Colors.Transparent)
         {
             skiaShell.NavBarTextColor = fgColor;
         }
