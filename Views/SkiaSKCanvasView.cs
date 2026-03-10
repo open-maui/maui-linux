@@ -34,11 +34,18 @@ public class SkiaSKCanvasView : SkiaView
         }
     }
 
+    private bool _invalidateLogged;
+
     /// <summary>
     /// Called by the handler when InvalidateSurface() is requested.
     /// </summary>
     public void InvalidateCanvas()
     {
+        if (!_invalidateLogged)
+        {
+            _invalidateLogged = true;
+            DiagnosticLog.Error("SkiaSKCanvasView", $"InvalidateCanvas called, hasCanvasView={_canvasView != null}");
+        }
         InvalidateCachedSurface();
         Invalidate();
     }
@@ -61,7 +68,7 @@ public class SkiaSKCanvasView : SkiaView
         return new Size(w, h);
     }
 
-    private bool _drawLogged;
+    private int _drawCount;
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
@@ -73,10 +80,10 @@ public class SkiaSKCanvasView : SkiaView
         int width = Math.Max(1, (int)bounds.Width);
         int height = Math.Max(1, (int)bounds.Height);
 
-        if (!_drawLogged)
+        _drawCount++;
+        if (_drawCount <= 5 || _drawCount % 100 == 0)
         {
-            _drawLogged = true;
-            DiagnosticLog.Error("SkiaSKCanvasView", $"OnDraw: bounds={bounds.Width}x{bounds.Height}, canvasView={_canvasView.GetType().Name}");
+            DiagnosticLog.Error("SkiaSKCanvasView", $"OnDraw #{_drawCount}: bounds={bounds.Width}x{bounds.Height}, canvasView={_canvasView.GetType().Name}");
         }
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
@@ -105,6 +112,26 @@ public class SkiaSKCanvasView : SkiaView
         try
         {
             var args = new SKPaintSurfaceEventArgs(_cachedSurface, info);
+
+            if (_drawCount <= 3)
+            {
+                // Check if PaintSurface event has subscribers
+                var canvasViewType = _canvasView.GetType();
+                var paintField = canvasViewType.GetField("PaintSurface", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var paintEvent = paintField?.GetValue(_canvasView);
+                DiagnosticLog.Error("SkiaSKCanvasView", $"OnDraw #{_drawCount}: PaintSurface field={paintField?.Name ?? "null"}, delegate={paintEvent?.GetType().Name ?? "null"}, IsLoaded={(_canvasView as Microsoft.Maui.Controls.VisualElement)?.IsLoaded}");
+
+                // List all event-like fields
+                foreach (var f in canvasViewType.GetFields(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance))
+                {
+                    if (f.FieldType.Name.Contains("EventHandler") || f.FieldType.Name.Contains("Action") || f.Name.Contains("Paint"))
+                    {
+                        var val = f.GetValue(_canvasView);
+                        DiagnosticLog.Error("SkiaSKCanvasView", $"  Field: {f.Name} ({f.FieldType.Name}) = {(val != null ? "has value" : "null")}");
+                    }
+                }
+            }
+
             _canvasView.OnPaintSurface(args);
         }
         catch (Exception ex)
@@ -113,8 +140,25 @@ public class SkiaSKCanvasView : SkiaView
             return;
         }
 
-        // Composite the offscreen surface onto our canvas
+        // Check if LiveCharts actually drew something
         _cachedSurface.Canvas.Flush();
+        if (_drawCount <= 5)
+        {
+            using var snapshot = _cachedSurface.Snapshot();
+            using var pixmap = snapshot.PeekPixels();
+            if (pixmap != null)
+            {
+                var pixels = pixmap.GetPixelSpan();
+                int nonTransparent = 0;
+                for (int i = 3; i < Math.Min(pixels.Length, 4000); i += 4)
+                {
+                    if (pixels[i] > 0) nonTransparent++;
+                }
+                DiagnosticLog.Error("SkiaSKCanvasView", $"OnDraw #{_drawCount}: first 1000 pixels: {nonTransparent} non-transparent");
+            }
+        }
+
+        // Composite the offscreen surface onto our canvas
         canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
     }
 

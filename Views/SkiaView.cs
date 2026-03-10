@@ -1057,9 +1057,33 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// Arranges this view within the given bounds.
     /// Uses MAUI Rect for public API compliance.
     /// </summary>
+    private bool _arrangingMauiView;
+
     public virtual void Arrange(Rect bounds)
     {
         Bounds = ArrangeOverride(bounds);
+
+        // Notify the MAUI virtual view of its final size so that
+        // VisualElement.Width/Height update and SizeChanged fires.
+        // Controls like LiveCharts depend on SizeChanged to initialize
+        // their rendering engine.
+        if (!_arrangingMauiView && MauiView != null && Bounds.Width > 0 && Bounds.Height > 0)
+        {
+            var w = Bounds.Width;
+            var h = Bounds.Height;
+            if (Math.Abs(MauiView.Width - w) > 0.5 || Math.Abs(MauiView.Height - h) > 0.5)
+            {
+                _arrangingMauiView = true;
+                try
+                {
+                    MauiView.Frame = new Rect(Bounds.X, Bounds.Y, w, h);
+                }
+                finally
+                {
+                    _arrangingMauiView = false;
+                }
+            }
+        }
     }
 
     /// <summary>
