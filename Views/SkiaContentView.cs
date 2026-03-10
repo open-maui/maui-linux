@@ -13,16 +13,20 @@ public class SkiaContentView : SkiaLayoutView
 {
     protected override Size MeasureOverride(Size availableSize)
     {
-        // If we have explicit size, use it
-        var w = WidthRequest >= 0 ? WidthRequest : availableSize.Width;
-        var h = HeightRequest >= 0 ? HeightRequest : availableSize.Height;
+        // If we have explicit size, use it; otherwise accumulate from children
+        var w = WidthRequest >= 0 ? WidthRequest : 0.0;
+        var h = HeightRequest >= 0 ? HeightRequest : 0.0;
+
+        // Available size for child measurement (may be infinite from stack layouts)
+        var childAvailableW = WidthRequest >= 0 ? WidthRequest : availableSize.Width;
+        var childAvailableH = HeightRequest >= 0 ? HeightRequest : availableSize.Height;
 
         // Measure the single child (ContentView has one child)
         foreach (var child in Children)
         {
             if (child.IsVisible)
             {
-                var childSize = child.Measure(new Size(w, h));
+                var childSize = child.Measure(new Size(childAvailableW, childAvailableH));
                 // If no explicit size, use child's desired size
                 if (WidthRequest < 0)
                     w = Math.Max(w, childSize.Width);

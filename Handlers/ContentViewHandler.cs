@@ -78,6 +78,23 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
                 DiagnosticLog.Error("ContentViewHandler", $"Failed to render content ({view.GetType().Name}): {ex.Message}");
             }
         }
+        else if (contentView is VisualElement ve && ve is ContentView cv)
+        {
+            // Some third-party ContentView subclasses build their UI lazily.
+            // Listen for Content changes and re-map when it arrives.
+            cv.PropertyChanged += OnContentViewPropertyChanged;
+            void OnContentViewPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName == nameof(ContentView.Content) && sender is ContentView updated)
+                {
+                    updated.PropertyChanged -= OnContentViewPropertyChanged;
+                    if (handler.PlatformView != null && handler.MauiContext != null)
+                    {
+                        MapContent(handler, (IContentView)updated);
+                    }
+                }
+            }
+        }
     }
 
     public static void MapBackground(ContentViewHandler handler, IContentView contentView)

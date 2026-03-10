@@ -189,6 +189,7 @@ public class SkiaShell : SkiaLayoutView
 
     private readonly List<ShellSection> _sections = new();
     private SkiaView? _currentContent;
+    private SkiaView? _pressedTarget;
     private float _flyoutAnimationProgress = 0f;
     private int _selectedSectionIndex = 0;
     private int _selectedItemIndex = 0;
@@ -1326,6 +1327,7 @@ public class SkiaShell : SkiaLayoutView
                     var footerHit = FlyoutFooterView.HitTest(e.X, e.Y);
                     if (footerHit != null)
                     {
+                        _pressedTarget = footerHit;
                         footerHit.OnPointerPressed(e);
                         return;
                     }
@@ -1337,6 +1339,7 @@ public class SkiaShell : SkiaLayoutView
                     var headerHit = FlyoutHeaderView.HitTest(e.X, e.Y);
                     if (headerHit != null)
                     {
+                        _pressedTarget = headerHit;
                         headerHit.OnPointerPressed(e);
                         return;
                     }
@@ -1414,6 +1417,18 @@ public class SkiaShell : SkiaLayoutView
         }
 
         base.OnPointerPressed(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        if (_pressedTarget != null)
+        {
+            _pressedTarget.OnPointerReleased(e);
+            _pressedTarget = null;
+            return;
+        }
+
+        base.OnPointerReleased(e);
     }
 
     public override void OnScroll(ScrollEventArgs e)
