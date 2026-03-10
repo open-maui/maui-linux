@@ -120,10 +120,14 @@ internal static class EssentialsPatches
     private static int _displayInfoCallCount;
     private static bool GetMainDisplayInfo_Prefix(ref DisplayInfo __result)
     {
-        __result = DeviceDisplayService.Instance.MainDisplayInfo;
+        var real = DeviceDisplayService.Instance.MainDisplayInfo;
+        // Report density=1.0 because our rendering engine already handles DPI scaling
+        // via canvas.Scale(DpiScale). If we report the real density (e.g., 2.75),
+        // MotionCanvas/LiveCharts would double-scale via Canvas.Scale(density).
+        __result = new DisplayInfo(real.Width, real.Height, 1.0, real.Orientation, real.Rotation, real.RefreshRate);
         _displayInfoCallCount++;
         if (_displayInfoCallCount <= 5)
-            DiagnosticLog.Error("EssentialsPatches", $"GetMainDisplayInfo #{_displayInfoCallCount}: density={__result.Density}, {__result.Width}x{__result.Height}");
+            DiagnosticLog.Error("EssentialsPatches", $"GetMainDisplayInfo #{_displayInfoCallCount}: density={__result.Density} (real={real.Density}), {__result.Width}x{__result.Height}");
         return false; // Skip original (which throws)
     }
 

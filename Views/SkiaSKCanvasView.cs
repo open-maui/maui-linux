@@ -19,7 +19,7 @@ public class SkiaSKCanvasView : SkiaView
     private ISKCanvasView? _canvasView;
     private SKSurface? _cachedSurface;
     private SKImageInfo _cachedInfo;
-    private float _surfaceScale = 1f;
+    private bool _needsPaint = true;
 
     /// <summary>
     /// Sets the ISKCanvasView virtual view that will receive PaintSurface callbacks.
@@ -40,7 +40,7 @@ public class SkiaSKCanvasView : SkiaView
     /// </summary>
     public void InvalidateCanvas()
     {
-        InvalidateCachedSurface();
+        _needsPaint = true;
         Invalidate();
     }
 
@@ -48,6 +48,7 @@ public class SkiaSKCanvasView : SkiaView
     {
         _cachedSurface?.Dispose();
         _cachedSurface = null;
+        _needsPaint = true;
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -73,52 +74,53 @@ public class SkiaSKCanvasView : SkiaView
 
         _drawCount++;
 
-        // Create the offscreen surface at physical pixel dimensions (matching Android/iOS behavior).
-        // MotionCanvas applies Canvas.Scale(density) to convert logical→physical coordinates,
-        // so the surface must be in physical pixels for the scaling to work correctly.
-        float density = (float)DeviceDisplayService.Instance.MainDisplayInfo.Density;
-        if (density <= 0) density = 1f;
-        _surfaceScale = density;
+        int width = Math.Max(1, (int)bounds.Width);
+        int height = Math.Max(1, (int)bounds.Height);
 
-        int physWidth = Math.Max(1, (int)(bounds.Width * density));
-        int physHeight = Math.Max(1, (int)(bounds.Height * density));
+        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
 
-        var info = new SKImageInfo(physWidth, physHeight, SKColorType.Rgba8888, SKAlphaType.Premul);
-
-        // Reuse surface if dimensions match
-        if (_cachedSurface == null || _cachedInfo.Width != physWidth || _cachedInfo.Height != physHeight)
+        // Recreate surface if dimensions changed
+        if (_cachedSurface == null || _cachedInfo.Width != width || _cachedInfo.Height != height)
         {
             _cachedSurface?.Dispose();
             _cachedSurface = SKSurface.Create(info);
             _cachedInfo = info;
+            _needsPaint = true;
 
             if (_cachedSurface == null)
             {
-                DiagnosticLog.Error("SkiaSKCanvasView", $"Failed to create SKSurface ({physWidth}x{physHeight})");
+                DiagnosticLog.Error("SkiaSKCanvasView", $"Failed to create SKSurface ({width}x{height})");
                 return;
             }
 
-            // Notify the canvas view of the physical pixel size
-            _canvasView.OnCanvasSizeChanged(new SKSizeI(physWidth, physHeight));
+            // Notify the canvas view of the size change
+            _canvasView.OnCanvasSizeChanged(new SKSizeI(width, height));
         }
 
-        // Clear the offscreen surface
-        _cachedSurface.Canvas.Clear(SKColors.Transparent);
-
-        // Fire the PaintSurface event on the SKCanvasView
-        try
+        // Only repaint the offscreen surface when explicitly invalidated.
+        // This prevents partial dirty-region redraws from advancing animation
+        // state and creating visual discontinuities.
+        if (_needsPaint)
         {
-            var args = new SKPaintSurfaceEventArgs(_cachedSurface, info);
-            _canvasView.OnPaintSurface(args);
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("SkiaSKCanvasView", $"PaintSurface failed: {ex.Message}");
-            return;
-        }
+            _needsPaint = false;
 
-        // Composite the offscreen surface onto our canvas
-        _cachedSurface.Canvas.Flush();
+            // Clear the offscreen surface
+            _cachedSurface.Canvas.Clear(SKColors.Transparent);
+
+            // Fire the PaintSurface event on the SKCanvasView
+            try
+            {
+                var args = new SKPaintSurfaceEventArgs(_cachedSurface, info);
+                _canvasView.OnPaintSurface(args);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaSKCanvasView", $"PaintSurface failed: {ex.Message}");
+                return;
+            }
+
+            _cachedSurface.Canvas.Flush();
+        }
 
         if (_drawCount <= 30 && (_drawCount <= 3 || _drawCount % 5 == 0))
         {
@@ -228,24 +230,17 @@ public class SkiaSKCanvasView : SkiaView
                     coreInfo = $"err: {ex.Message}";
                 }
 
-                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {physWidth}x{physHeight} (scale={_surfaceScale}), pixels={nonT}/{totalPx}, {coreInfo}");
+                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {width}x{height}, pixels={nonT}/{totalPx}, {coreInfo}");
             }
         }
 
-        // Composite the physical-pixel surface back to our logical-pixel canvas
-        if (_surfaceScale != 1f)
-        {
-            canvas.Save();
-            canvas.Translate(bounds.Left, bounds.Top);
-            canvas.Scale(1f / _surfaceScale, 1f / _surfaceScale);
-            canvas.DrawSurface(_cachedSurface, 0, 0);
-            canvas.Restore();
-        }
-        else
-        {
-            canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
-        }
+        canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
     }
+
+    // Temporarily suppress pointer events to test if they cause chart movement
+    public override void OnPointerMoved(PointerEventArgs e) { }
+    public override void OnPointerEntered(PointerEventArgs e) { }
+    public override void OnPointerExited(PointerEventArgs e) { }
 
     protected override void Dispose(bool disposing)
     {
