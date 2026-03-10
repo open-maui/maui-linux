@@ -236,4 +236,37 @@ internal static partial class X11
 
     [LibraryImport(LibX11)]
     public static partial IntPtr XDefaultGC(IntPtr display, int screen);
+
+    [LibraryImport(LibX11)]
+    public static partial int XSetWMProtocols(IntPtr display, IntPtr window, IntPtr[] protocols, int count);
+
+    // XSync extension (libXext)
+    private const string LibXext = "libXext.so.6";
+
+    [LibraryImport(LibXext)]
+    public static partial int XSyncInitialize(IntPtr display, out int majorVersion, out int minorVersion);
+
+    [LibraryImport(LibXext)]
+    public static partial long XSyncCreateCounter(IntPtr display, XSyncValue initialValue);
+
+    [LibraryImport(LibXext)]
+    public static partial int XSyncSetCounter(IntPtr display, long counter, XSyncValue value);
+
+    [LibraryImport(LibXext)]
+    public static partial int XSyncDestroyCounter(IntPtr display, long counter);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct XSyncValue
+    {
+        public int Hi;
+        public uint Lo;
+
+        public XSyncValue(long value)
+        {
+            Hi = (int)(value >> 32);
+            Lo = (uint)(value & 0xFFFFFFFF);
+        }
+
+        public readonly long ToLong() => ((long)Hi << 32) | Lo;
+    }
 }

@@ -43,6 +43,7 @@ public partial class SKCanvasViewHandler : ViewHandler<SKCanvasView, SkiaSKCanva
         if (VirtualView is ISKCanvasView canvasView)
         {
             platformView.CanvasView = canvasView;
+            platformView.EnableTouchEvents = canvasView.EnableTouchEvents;
         }
         else
         {
@@ -73,7 +74,10 @@ public partial class SKCanvasViewHandler : ViewHandler<SKCanvasView, SkiaSKCanva
 
     public static void MapEnableTouchEvents(SKCanvasViewHandler handler, SKCanvasView canvasView)
     {
-        // Touch events are handled through OpenMaui's gesture system
+        if (handler.PlatformView is SkiaSKCanvasView platformView)
+        {
+            platformView.EnableTouchEvents = ((ISKCanvasView)canvasView).EnableTouchEvents;
+        }
     }
 
     public static void OnInvalidateSurface(SKCanvasViewHandler handler, SKCanvasView canvasView, object? args)

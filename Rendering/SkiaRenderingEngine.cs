@@ -85,8 +85,7 @@ public class SkiaRenderingEngine : IDisposable
 
     private void CreateSurface(int width, int height)
     {
-        _bitmap?.Dispose();
-        _backBuffer?.Dispose();
+        var oldBitmap = _bitmap;
         _canvas?.Dispose();
 
         _imageInfo = new SKImageInfo(
@@ -96,8 +95,17 @@ public class SkiaRenderingEngine : IDisposable
             SKAlphaType.Premul);
 
         _bitmap = new SKBitmap(_imageInfo);
-        _backBuffer = new SKBitmap(_imageInfo);
         _canvas = new SKCanvas(_bitmap);
+
+        // Copy old content to new bitmap to avoid a blank flash during resize
+        if (oldBitmap != null)
+        {
+            _canvas.DrawBitmap(oldBitmap, 0, 0);
+            oldBitmap.Dispose();
+        }
+
+        _backBuffer?.Dispose();
+        _backBuffer = new SKBitmap(_imageInfo);
         _fullRedrawNeeded = true;
 
         lock (_dirtyLock)

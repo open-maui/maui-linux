@@ -17,6 +17,11 @@ public class X11Window : IDisposable
     private IntPtr _display;
     private IntPtr _window;
     private IntPtr _wmDeleteMessage;
+    private IntPtr _wmSyncRequest;
+    private IntPtr _netWmSyncRequestCounter;
+    private long _syncCounter;
+    private long _syncCounterValue;
+    private bool _syncPending;
     private int _screen;
     private bool _disposed;
     private bool _isRunning;
@@ -142,7 +147,7 @@ public class X11Window : IDisposable
             (uint)width, (uint)height,
             0,
             0,
-            0xFFFFFF // White background
+            0x000000 // Black background (less visible during resize flash)
         );
 
         if (_window == IntPtr.Zero)
@@ -174,8 +179,33 @@ public class X11Window : IDisposable
             XEventMask.StructureNotifyMask |
             XEventMask.FocusChangeMask);
 
-        // Set up WM_DELETE_WINDOW protocol for proper close handling
+        // Set up WM protocols
         _wmDeleteMessage = X11.XInternAtom(_display, "WM_DELETE_WINDOW", false);
+        _wmSyncRequest = X11.XInternAtom(_display, "_NET_WM_SYNC_REQUEST", false);
+        _netWmSyncRequestCounter = X11.XInternAtom(_display, "_NET_WM_SYNC_REQUEST_COUNTER", false);
+
+        // Register WM protocols and sync counter for live resize
+        var protocols = new IntPtr[] { _wmDeleteMessage, _wmSyncRequest };
+        X11.XSetWMProtocols(_display, _window, protocols, protocols.Length);
+
+        // Create sync counter so the compositor sends ConfigureNotify during resize drag
+        if (X11.XSyncInitialize(_display, out _, out _) != 0)
+        {
+            _syncCounterValue = 0;
+            _syncCounter = X11.XSyncCreateCounter(_display, new X11.XSyncValue(0));
+            if (_syncCounter != 0)
+            {
+                // Set _NET_WM_SYNC_REQUEST_COUNTER property on the window
+                unsafe
+                {
+                    long counterValue = _syncCounter;
+                    var ptr = (IntPtr)(&counterValue);
+                    var xa_cardinal = X11.XInternAtom(_display, "CARDINAL", false);
+                    X11.XChangeProperty(_display, _window, _netWmSyncRequestCounter,
+                        xa_cardinal, 32, 0 /* PropModeReplace */, ptr, 1);
+                }
+            }
+        }
 
         // Initialize cursors
         _arrowCursor = X11.XCreateFontCursor(_display, 68); // XC_left_ptr
@@ -532,6 +562,13 @@ public class X11Window : IDisposable
                     CloseRequested?.Invoke(this, EventArgs.Empty);
                     _isRunning = false;
                 }
+                else if (xEvent.ClientMessageEvent.Data.L0 == (long)_wmSyncRequest)
+                {
+                    // Compositor requests sync — store the counter value to set after render
+                    _syncCounterValue = (long)(uint)xEvent.ClientMessageEvent.Data.L2
+                        | ((long)xEvent.ClientMessageEvent.Data.L3 << 32);
+                    _syncPending = true;
+                }
                 break;
         }
     }
@@ -597,13 +634,46 @@ public class X11Window : IDisposable
         PointerMoved?.Invoke(this, new PointerEventArgs(motionEvent.X, motionEvent.Y));
     }
 
+    private bool _resizePending;
+    private int _pendingWidth, _pendingHeight;
+
     private void HandleConfigure(ref XConfigureEvent configureEvent)
     {
         if (configureEvent.Width != _width || configureEvent.Height != _height)
         {
             _width = configureEvent.Width;
             _height = configureEvent.Height;
-            Resized?.Invoke(this, (_width, _height));
+            // Defer resize notification — will be fired after all pending events
+            // are drained, so rapid resize events are coalesced into one.
+            _resizePending = true;
+            _pendingWidth = _width;
+            _pendingHeight = _height;
+        }
+    }
+
+    /// <summary>
+    /// Fires any deferred resize event. Call after ProcessEvents().
+    /// </summary>
+    public void FlushDeferredResize()
+    {
+        if (_resizePending)
+        {
+            _resizePending = false;
+            Resized?.Invoke(this, (_pendingWidth, _pendingHeight));
+        }
+    }
+
+    /// <summary>
+    /// Acknowledges a pending _NET_WM_SYNC_REQUEST after rendering.
+    /// This tells the compositor we've finished drawing at the new size,
+    /// allowing it to send the next ConfigureNotify for live resize.
+    /// </summary>
+    public void AcknowledgeSync()
+    {
+        if (_syncPending && _syncCounter != 0)
+        {
+            _syncPending = false;
+            X11.XSyncSetCounter(_display, _syncCounter, new X11.XSyncValue(_syncCounterValue));
         }
     }
 
@@ -640,6 +710,12 @@ public class X11Window : IDisposable
                 _arrowCursor = IntPtr.Zero;
                 _handCursor = IntPtr.Zero;
                 _textCursor = IntPtr.Zero;
+            }
+
+            if (_syncCounter != 0 && _display != IntPtr.Zero)
+            {
+                X11.XSyncDestroyCounter(_display, _syncCounter);
+                _syncCounter = 0;
             }
 
             if (_window != IntPtr.Zero)

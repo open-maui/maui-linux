@@ -309,6 +309,7 @@ public partial class LinuxApplication
             }
 
             _mainWindow.ProcessEvents();
+            _mainWindow.FlushDeferredResize();
             // Process GLib events (idle callbacks, timeouts) so that
             // MainThread.BeginInvokeOnMainThread dispatches execute.
             // This is required for libraries like LiveCharts that use
@@ -317,6 +318,7 @@ public partial class LinuxApplication
             SkiaWebView.ProcessGtkEvents();
             UpdateAnimations();
             Render();
+            _mainWindow.AcknowledgeSync();
             Thread.Sleep(1);
         }
         DiagnosticLog.Debug("LinuxApplication", "Event loop ended");

@@ -20,6 +20,8 @@ public class SkiaSKCanvasView : SkiaView
     private SKSurface? _cachedSurface;
     private SKImageInfo _cachedInfo;
     private bool _needsPaint = true;
+    private bool _enableTouchEvents;
+    private bool _isInContact;
 
     /// <summary>
     /// Sets the ISKCanvasView virtual view that will receive PaintSurface callbacks.
@@ -237,10 +239,86 @@ public class SkiaSKCanvasView : SkiaView
         canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
     }
 
-    // Temporarily suppress pointer events to test if they cause chart movement
-    public override void OnPointerMoved(PointerEventArgs e) { }
-    public override void OnPointerEntered(PointerEventArgs e) { }
-    public override void OnPointerExited(PointerEventArgs e) { }
+    #region Touch Event Forwarding
+
+    /// <summary>
+    /// When true, pointer events are forwarded as SKTouchEventArgs to the ISKCanvasView.
+    /// This enables SkiaSharp-specific touch handling used by LiveCharts tooltips etc.
+    /// </summary>
+    public bool EnableTouchEvents
+    {
+        get => _enableTouchEvents;
+        set => _enableTouchEvents = value;
+    }
+
+    private static SKMouseButton ToSKMouseButton(PointerButton button) => button switch
+    {
+        PointerButton.Left => SKMouseButton.Left,
+        PointerButton.Middle => SKMouseButton.Middle,
+        PointerButton.Right => SKMouseButton.Right,
+        _ => SKMouseButton.Unknown,
+    };
+
+    private void ForwardTouch(SKTouchAction action, PointerEventArgs e, bool inContact)
+    {
+        if (!_enableTouchEvents || _canvasView == null) return;
+
+        var (rx, ry) = (e.X - Bounds.Left, e.Y - Bounds.Top);
+        var location = new SKPoint((float)rx, (float)ry);
+        var args = new SKTouchEventArgs(0, action, ToSKMouseButton(e.Button),
+            SKTouchDeviceType.Mouse, location, inContact);
+        _canvasView.OnTouch(args);
+        e.Handled = args.Handled;
+    }
+
+    public override void OnPointerEntered(PointerEventArgs e)
+    {
+        ForwardTouch(SKTouchAction.Entered, e, false);
+        base.OnPointerEntered(e);
+    }
+
+    public override void OnPointerExited(PointerEventArgs e)
+    {
+        _isInContact = false;
+        ForwardTouch(SKTouchAction.Exited, e, false);
+        base.OnPointerExited(e);
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        ForwardTouch(SKTouchAction.Moved, e, _isInContact);
+        base.OnPointerMoved(e);
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        _isInContact = true;
+        ForwardTouch(SKTouchAction.Pressed, e, true);
+        base.OnPointerPressed(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        ForwardTouch(SKTouchAction.Released, e, false);
+        _isInContact = false;
+        base.OnPointerReleased(e);
+    }
+
+    public override void OnScroll(ScrollEventArgs e)
+    {
+        if (_enableTouchEvents && _canvasView != null)
+        {
+            var (rx, ry) = (e.X - Bounds.Left, e.Y - Bounds.Top);
+            var location = new SKPoint((float)rx, (float)ry);
+            var args = new SKTouchEventArgs(0, SKTouchAction.WheelChanged, SKMouseButton.Middle,
+                SKTouchDeviceType.Mouse, location, false, (int)e.DeltaY);
+            _canvasView.OnTouch(args);
+            e.Handled = args.Handled;
+        }
+        base.OnScroll(e);
+    }
+
+    #endregion
 
     protected override void Dispose(bool disposing)
     {
