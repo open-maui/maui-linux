@@ -59,7 +59,6 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
         handler.PlatformView.ClearChildren();
 
         var content = contentView.PresentedContent ?? contentView.Content;
-        DiagnosticLog.Error("ContentViewHandler", $"MapContent: VirtualView={contentView.GetType().Name}, Content={content?.GetType().Name ?? "null"}");
         if (content is IView view)
         {
             try
@@ -72,7 +71,6 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
                 if (view.Handler?.PlatformView is SkiaView skiaChild)
                 {
                     handler.PlatformView.AddChild(skiaChild);
-                    DiagnosticLog.Error("ContentViewHandler", $"MapContent: Added child {skiaChild.GetType().Name} for {view.GetType().Name}");
                 }
             }
             catch (Exception ex)

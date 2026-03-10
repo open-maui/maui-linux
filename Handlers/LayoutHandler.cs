@@ -54,7 +54,6 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
         // Create handlers for all children and add them to the platform view
         if (VirtualView == null || MauiContext == null) return;
-        DiagnosticLog.Error("LayoutHandler", $"ConnectHandler: {VirtualView.Count} children, VirtualView={VirtualView.GetType().Name}");
 
         // Explicitly map properties that may be set before handler creation
         if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)
@@ -300,7 +299,7 @@ public partial class GridHandler : LayoutHandler
             // Don't call base - we handle children specially for Grid
             if (VirtualView is not IGridLayout gridLayout || MauiContext == null || platformView is not SkiaGrid grid) return;
 
-            DiagnosticLog.Error("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols, VirtualView={VirtualView.GetType().Name}");
+            DiagnosticLog.Debug("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols, VirtualView={VirtualView.GetType().Name}");
 
             // Explicitly map properties that may be set before handler creation
             if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)

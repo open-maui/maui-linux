@@ -186,7 +186,6 @@ public static class MauiHandlerExtensions
                 null);
 
             _sendLoadedMethod?.Invoke(element, null);
-            DiagnosticLog.Error("MauiHandlerExtensions", $"SendLoaded: {element.GetType().Name}, IsLoaded={element.IsLoaded}, Window={element.Window?.GetType().Name ?? "null"}");
         }
         catch (Exception ex)
         {
