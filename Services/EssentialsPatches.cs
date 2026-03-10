@@ -84,15 +84,31 @@ internal static class EssentialsPatches
     /// Replacement for MainThread.PlatformBeginInvokeOnMainThread.
     /// Dispatches the action to the GTK main loop.
     /// </summary>
+    private static int _dispatchCount;
+
     private static bool PlatformBeginInvokeOnMainThread_Prefix(Action action)
     {
+        _dispatchCount++;
+        if (_dispatchCount <= 20)
+        {
+            DiagnosticLog.Error("EssentialsPatches", $"BeginInvokeOnMainThread #{_dispatchCount}: isMain={LinuxDispatcher.IsMainThread}, dispatcher={LinuxDispatcher.Main != null}");
+        }
+
         if (LinuxDispatcher.IsMainThread)
         {
             action();
         }
         else
         {
-            LinuxDispatcherProvider.Instance.GetForCurrentThread()?.Dispatch(action);
+            var dispatcher = LinuxDispatcher.Main;
+            if (dispatcher != null)
+            {
+                dispatcher.Dispatch(action);
+            }
+            else
+            {
+                DiagnosticLog.Error("EssentialsPatches", "DROPPED: No dispatcher available for background thread dispatch!");
+            }
         }
         return false; // Skip original
     }
