@@ -309,6 +309,11 @@ public partial class LinuxApplication
             }
 
             _mainWindow.ProcessEvents();
+            // Process GLib events (idle callbacks, timeouts) so that
+            // MainThread.BeginInvokeOnMainThread dispatches execute.
+            // This is required for libraries like LiveCharts that use
+            // Task.Run + InvokeOnUIThread for chart updates.
+            GLibNative.ProcessPendingEvents();
             SkiaWebView.ProcessGtkEvents();
             UpdateAnimations();
             Render();

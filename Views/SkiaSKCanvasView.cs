@@ -111,7 +111,7 @@ public class SkiaSKCanvasView : SkiaView
         // Composite the offscreen surface onto our canvas
         _cachedSurface.Canvas.Flush();
 
-        if (_drawCount <= 30 && _drawCount % 5 == 0)
+        if (_drawCount <= 30 && (_drawCount <= 3 || _drawCount % 5 == 0))
         {
             using var snap = _cachedSurface.Snapshot();
             using var px = snap.PeekPixels();
@@ -119,8 +119,10 @@ public class SkiaSKCanvasView : SkiaView
             {
                 var span = px.GetPixelSpan();
                 int nonT = 0;
-                for (int i = 3; i < Math.Min(span.Length, 40000); i += 4)
+                // Scan the entire canvas for non-transparent pixels
+                for (int i = 3; i < span.Length; i += 4)
                     if (span[i] > 0) nonT++;
+                int totalPx = span.Length / 4;
 
                 // Check MotionCanvas state via reflection
                 string coreInfo = "n/a";
@@ -183,9 +185,31 @@ public class SkiaSKCanvasView : SkiaView
                                     coreInfo += $", isLoaded={isLoaded}";
                                 }
 
-                                // MotionCanvas W/H
+                                // MotionCanvas W/H and _density
                                 if (parent is Microsoft.Maui.Controls.VisualElement mcVe)
                                     coreInfo += $", mcW={mcVe.Width}, mcH={mcVe.Height}";
+
+                                // Check _density field on MotionCanvas
+                                var densityField = parent.GetType().GetField("_density",
+                                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                                if (densityField != null)
+                                {
+                                    var density = densityField.GetValue(parent);
+                                    coreInfo += $", _density={density}";
+                                }
+
+                                // Check ControlSize Width/Height
+                                if (coreObj != null)
+                                {
+                                    var csProp = coreObj.GetType().GetProperty("ControlSize");
+                                    var ctrlSizeVal = csProp?.GetValue(coreObj);
+                                    if (ctrlSizeVal != null)
+                                    {
+                                        var wProp = ctrlSizeVal.GetType().GetProperty("Width");
+                                        var hProp = ctrlSizeVal.GetType().GetProperty("Height");
+                                        coreInfo += $", csW={wProp?.GetValue(ctrlSizeVal)}, csH={hProp?.GetValue(ctrlSizeVal)}";
+                                    }
+                                }
                             }
                         }
                     }
@@ -195,7 +219,7 @@ public class SkiaSKCanvasView : SkiaView
                     coreInfo = $"err: {ex.Message}";
                 }
 
-                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {width}x{height}, pixels={nonT}/10000, {coreInfo}");
+                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {width}x{height}, pixels={nonT}/{totalPx}, {coreInfo}");
             }
         }
 

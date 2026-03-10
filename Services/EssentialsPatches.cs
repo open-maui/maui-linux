@@ -3,6 +3,7 @@
 
 using System.Reflection;
 using HarmonyLib;
+using Microsoft.Maui.Devices;
 using Microsoft.Maui.Platform.Linux.Dispatching;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -31,6 +32,7 @@ internal static class EssentialsPatches
 
             PatchMainThread(harmony);
             PatchMainThreadInvoke(harmony);
+            PatchDeviceDisplay(harmony);
 
             DiagnosticLog.Debug("EssentialsPatches", "MAUI Essentials patches applied successfully");
         }
@@ -68,6 +70,53 @@ internal static class EssentialsPatches
                 BindingFlags.Static | BindingFlags.NonPublic)!;
             harmony.Patch(original, new HarmonyMethod(prefix));
         }
+    }
+
+    private static void PatchDeviceDisplay(Harmony harmony)
+    {
+        // The static DeviceDisplay.Current delegates to DeviceDisplayImplementation
+        // which extends DeviceDisplayImplementationBase. The base class's
+        // GetMainDisplayInfo() throws on Linux. Patch it to use our service.
+        var implBaseType = typeof(DeviceDisplay).Assembly.GetType(
+            "Microsoft.Maui.Devices.DeviceDisplayImplementationBase");
+        if (implBaseType == null)
+        {
+            // Try the concrete implementation type
+            implBaseType = typeof(DeviceDisplay).Assembly.GetType(
+                "Microsoft.Maui.Devices.DeviceDisplayImplementation");
+        }
+
+        if (implBaseType != null)
+        {
+            var original = implBaseType.GetMethod("GetMainDisplayInfo",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+            if (original != null)
+            {
+                var prefix = typeof(EssentialsPatches).GetMethod(nameof(GetMainDisplayInfo_Prefix),
+                    BindingFlags.Static | BindingFlags.NonPublic)!;
+                harmony.Patch(original, new HarmonyMethod(prefix));
+                DiagnosticLog.Debug("EssentialsPatches", $"Patched {implBaseType.Name}.GetMainDisplayInfo");
+            }
+            else
+            {
+                DiagnosticLog.Error("EssentialsPatches", $"GetMainDisplayInfo not found on {implBaseType.Name}");
+            }
+        }
+        else
+        {
+            DiagnosticLog.Error("EssentialsPatches", "DeviceDisplayImplementationBase type not found");
+        }
+    }
+
+    /// <summary>
+    /// Replacement for DeviceDisplayImplementationBase.GetMainDisplayInfo.
+    /// Returns the display info from our DeviceDisplayService.
+    /// </summary>
+    private static bool GetMainDisplayInfo_Prefix(ref DisplayInfo __result)
+    {
+        __result = DeviceDisplayService.Instance.MainDisplayInfo;
+        return false; // Skip original (which throws)
     }
 
     /// <summary>
