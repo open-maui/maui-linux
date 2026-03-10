@@ -63,7 +63,11 @@ public class SkiaSKCanvasView : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        if (_canvasView == null) return;
+        if (_canvasView == null)
+        {
+            DiagnosticLog.Debug("SkiaSKCanvasView", "OnDraw skipped: _canvasView is null");
+            return;
+        }
 
         int width = Math.Max(1, (int)bounds.Width);
         int height = Math.Max(1, (int)bounds.Height);

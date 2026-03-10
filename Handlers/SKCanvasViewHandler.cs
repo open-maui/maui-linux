@@ -43,6 +43,11 @@ public partial class SKCanvasViewHandler : ViewHandler<SKCanvasView, SkiaSKCanva
         if (VirtualView is ISKCanvasView canvasView)
         {
             platformView.CanvasView = canvasView;
+            DiagnosticLog.Debug("SKCanvasViewHandler", $"Connected ISKCanvasView: {VirtualView.GetType().Name}");
+        }
+        else
+        {
+            DiagnosticLog.Error("SKCanvasViewHandler", $"VirtualView {VirtualView?.GetType().Name} does not implement ISKCanvasView");
         }
 
         // Sync size requests

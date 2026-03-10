@@ -1234,7 +1234,21 @@ public class SkiaShell : SkiaLayoutView
 
             if (flyoutBounds.Contains(x, y))
             {
-                return this; // Flyout handles its own hits
+                // Check footer view for hit testing (buttons, etc.)
+                if (FlyoutFooterView != null)
+                {
+                    var footerHit = FlyoutFooterView.HitTest(x, y);
+                    if (footerHit != null) return footerHit;
+                }
+
+                // Check header view for hit testing
+                if (FlyoutHeaderView != null)
+                {
+                    var headerHit = FlyoutHeaderView.HitTest(x, y);
+                    if (headerHit != null) return headerHit;
+                }
+
+                return this; // Flyout handles its own hits (menu items)
             }
 
             // Tap on scrim closes flyout (non-locked only)
@@ -1286,6 +1300,28 @@ public class SkiaShell : SkiaLayoutView
 
                 float itemsAreaTop = flyoutBounds.Top + headerHeight;
                 float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
+
+                // Check footer area — dispatch to footer view for button clicks
+                if (e.Y >= itemsAreaBottom && FlyoutFooterView != null)
+                {
+                    var footerHit = FlyoutFooterView.HitTest(e.X, e.Y);
+                    if (footerHit != null)
+                    {
+                        footerHit.OnPointerPressed(e);
+                        return;
+                    }
+                }
+
+                // Check header area — dispatch to header view
+                if (e.Y < itemsAreaTop && FlyoutHeaderView != null)
+                {
+                    var headerHit = FlyoutHeaderView.HitTest(e.X, e.Y);
+                    if (headerHit != null)
+                    {
+                        headerHit.OnPointerPressed(e);
+                        return;
+                    }
+                }
 
                 // Only check items if tap is in items area
                 if (e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)

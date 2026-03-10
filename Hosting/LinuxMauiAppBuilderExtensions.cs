@@ -150,6 +150,10 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<ImageButton, ImageButtonHandler>();
             handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
 
+            // SkiaSharp native views (LiveCharts, Microcharts, custom drawings)
+            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKCanvasView, SKCanvasViewHandler>();
+            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKGLView, SKGLViewHandler>();
+
             // Web - use GtkWebViewHandler
             handlers.AddHandler<WebView, GtkWebViewHandler>();
 

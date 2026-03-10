@@ -19,6 +19,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     {
         [nameof(ILayout.ClipsToBounds)] = MapClipsToBounds,
         [nameof(IView.Background)] = MapBackground,
+        ["BackgroundColor"] = MapBackgroundColor,
         [nameof(IPadding.Padding)] = MapPadding,
     };
 
@@ -98,6 +99,20 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         if (layout.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color;
+        }
+        else if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor is not null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
+        }
+    }
+
+    public static void MapBackgroundColor(LayoutHandler handler, ILayout layout)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor is not null)
+        {
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
         }
     }
 
