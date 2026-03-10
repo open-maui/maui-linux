@@ -7,7 +7,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Handlers;
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -541,7 +540,6 @@ public class SkiaBorder : SkiaLayoutView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        DiagnosticLog.Error("SkiaBorder", $"OnPointerPressed: HasTap={HasTapGestureRecognizers()}, MauiView={MauiView?.GetType().Name}, GR count={MauiView?.GestureRecognizers?.Count}");
         if (HasTapGestureRecognizers())
         {
             _isPressed = true;
@@ -559,7 +557,6 @@ public class SkiaBorder : SkiaLayoutView
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
-        DiagnosticLog.Error("SkiaBorder", $"OnPointerReleased: _isPressed={_isPressed}, MauiView={MauiView?.GetType().Name}");
         if (_isPressed)
         {
             _isPressed = false;

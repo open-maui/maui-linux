@@ -268,7 +268,6 @@ public partial class GridHandler : LayoutHandler
 
     protected override void ConnectHandler(SkiaLayoutView platformView)
     {
-        DiagnosticLog.Debug("GridHandler", $"ConnectHandler Called! VirtualView={VirtualView?.GetType().Name}, PlatformView={platformView?.GetType().Name}, MauiContext={(MauiContext != null ? "set" : "null")}");
         base.ConnectHandler(platformView);
 
         // Map definitions on connect

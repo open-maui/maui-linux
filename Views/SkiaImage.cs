@@ -410,7 +410,8 @@ public class SkiaImage : SkiaView
         using var paint = new SKPaint
         {
             IsAntialias = true,
-            FilterQuality = SKFilterQuality.High
+            FilterQuality = SKFilterQuality.High,
+            BlendMode = SKBlendMode.SrcOver
         };
 
         canvas.DrawImage(_image, destRect, paint);
@@ -518,7 +519,6 @@ public class SkiaImage : SkiaView
                 ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
                 return;
             }
-
             _isSvg = foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
             _currentFilePath = foundPath;
             _cacheKey = foundPath;
@@ -1204,15 +1204,17 @@ public class SkiaImage : SkiaView
             {
                 var resourceNames = assembly.GetManifestResourceNames();
 
-                // Try exact match first
+                // Try exact match first (require '.' boundary to avoid partial matches like bmc_logo.png matching logo.png)
+                string dotFileName = "." + fileName;
                 foreach (var resourceName in resourceNames)
                 {
-                    if (resourceName.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                    if (resourceName.EndsWith(dotFileName, StringComparison.OrdinalIgnoreCase) ||
+                        resourceName.Equals(fileName, StringComparison.OrdinalIgnoreCase))
                     {
                         var stream = assembly.GetManifestResourceStream(resourceName);
                         if (stream != null)
                         {
-                            DiagnosticLog.Debug("SkiaImage", $"Loaded embedded resource: {resourceName}");
+                            DiagnosticLog.Debug("SkiaImage", $"Loaded embedded resource: {resourceName} from {assembly.GetName().Name}");
                             return (stream, requestedExt);
                         }
                     }
@@ -1222,9 +1224,11 @@ public class SkiaImage : SkiaView
                 if (requestedExt.Equals(".png", StringComparison.OrdinalIgnoreCase))
                 {
                     string svgFileName = fileNameWithoutExt + ".svg";
+                    string dotSvgFileName = "." + svgFileName;
                     foreach (var resourceName in resourceNames)
                     {
-                        if (resourceName.EndsWith(svgFileName, StringComparison.OrdinalIgnoreCase))
+                        if (resourceName.EndsWith(dotSvgFileName, StringComparison.OrdinalIgnoreCase) ||
+                            resourceName.Equals(svgFileName, StringComparison.OrdinalIgnoreCase))
                         {
                             var stream = assembly.GetManifestResourceStream(resourceName);
                             if (stream != null)

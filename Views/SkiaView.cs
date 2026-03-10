@@ -1094,7 +1094,6 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             if (!_loadedFired)
             {
                 _loadedFired = true;
-                DiagnosticLog.Error("SkiaView", $"FireLoaded: {MauiView.GetType().Name}, IsLoaded={MauiView.IsLoaded}, W={MauiView.Width}, H={MauiView.Height}");
                 if (!MauiView.IsLoaded)
                     FireLoadedEvent(MauiView);
             }
@@ -1112,12 +1111,10 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
             var fieldVal = _loadedField?.GetValue(element);
-            DiagnosticLog.Error("SkiaView", $"FireLoaded field: {_loadedField?.Name ?? "null"}, hasHandler={fieldVal != null}, type={element.GetType().Name}");
 
             if (fieldVal is EventHandler handler)
             {
                 handler.Invoke(element, EventArgs.Empty);
-                DiagnosticLog.Error("SkiaView", $"FireLoaded invoked for {element.GetType().Name}");
             }
         }
         catch (Exception ex)

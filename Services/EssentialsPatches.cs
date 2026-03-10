@@ -91,28 +91,17 @@ internal static class EssentialsPatches
                 var prefix = typeof(EssentialsPatches).GetMethod(nameof(GetMainDisplayInfo_Prefix),
                     BindingFlags.Static | BindingFlags.NonPublic)!;
                 harmony.Patch(original, new HarmonyMethod(prefix));
-                DiagnosticLog.Error("EssentialsPatches", $"Patched {implType.Name}.GetMainDisplayInfo");
+                DiagnosticLog.Debug("EssentialsPatches", $"Patched {implType.Name}.GetMainDisplayInfo");
             }
             else
             {
                 DiagnosticLog.Error("EssentialsPatches",
-                    $"GetMainDisplayInfo not found (DeclaredOnly) on {implType.Name}, trying all methods");
-
-                // List available methods for debugging
-                foreach (var m in implType.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly))
-                    DiagnosticLog.Error("EssentialsPatches", $"  Method: {m.Name}");
+                    $"GetMainDisplayInfo not found on {implType.Name}");
             }
         }
         else
         {
             DiagnosticLog.Error("EssentialsPatches", "DeviceDisplayImplementation type not found");
-
-            // List all types with "Display" in the name for debugging
-            foreach (var t in typeof(DeviceDisplay).Assembly.GetTypes())
-            {
-                if (t.Name.Contains("Display"))
-                    DiagnosticLog.Error("EssentialsPatches", $"  Type: {t.FullName}");
-            }
         }
     }
 
@@ -178,7 +167,6 @@ internal static class EssentialsPatches
     /// Replacement for DeviceDisplayImplementation.GetMainDisplayInfo.
     /// Returns the display info from our DeviceDisplayService.
     /// </summary>
-    private static int _displayInfoCallCount;
     private static bool GetMainDisplayInfo_Prefix(ref DisplayInfo __result)
     {
         var real = DeviceDisplayService.Instance.MainDisplayInfo;
@@ -186,9 +174,6 @@ internal static class EssentialsPatches
         // via canvas.Scale(DpiScale). If we report the real density (e.g., 2.75),
         // MotionCanvas/LiveCharts would double-scale via Canvas.Scale(density).
         __result = new DisplayInfo(real.Width, real.Height, 1.0, real.Orientation, real.Rotation, real.RefreshRate);
-        _displayInfoCallCount++;
-        if (_displayInfoCallCount <= 5)
-            DiagnosticLog.Error("EssentialsPatches", $"GetMainDisplayInfo #{_displayInfoCallCount}: density={__result.Density} (real={real.Density}), {__result.Width}x{__result.Height}");
         return false; // Skip original (which throws)
     }
 
@@ -206,16 +191,8 @@ internal static class EssentialsPatches
     /// Replacement for MainThread.PlatformBeginInvokeOnMainThread.
     /// Dispatches the action to the GTK main loop.
     /// </summary>
-    private static int _dispatchCount;
-
     private static bool PlatformBeginInvokeOnMainThread_Prefix(Action action)
     {
-        _dispatchCount++;
-        if (_dispatchCount <= 20)
-        {
-            DiagnosticLog.Error("EssentialsPatches", $"BeginInvokeOnMainThread #{_dispatchCount}: isMain={LinuxDispatcher.IsMainThread}, dispatcher={LinuxDispatcher.Main != null}");
-        }
-
         if (LinuxDispatcher.IsMainThread)
         {
             action();

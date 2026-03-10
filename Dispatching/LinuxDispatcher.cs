@@ -39,8 +39,6 @@ public class LinuxDispatcher : IDispatcher
         }
     }
 
-    private static int _bgDispatchCount;
-
     public bool Dispatch(Action action)
     {
         ArgumentNullException.ThrowIfNull(action, "action");
@@ -49,20 +47,15 @@ public class LinuxDispatcher : IDispatcher
             action();
             return true;
         }
-        int seq = System.Threading.Interlocked.Increment(ref _bgDispatchCount);
-        if (seq <= 20)
-            DiagnosticLog.Error("LinuxDispatcher", $"Dispatch #{seq}: queuing from thread {Environment.CurrentManagedThreadId} (main={_mainThreadId})");
         GLibNative.IdleAdd(delegate
         {
             try
             {
-                if (seq <= 20)
-                    DiagnosticLog.Error("LinuxDispatcher", $"Dispatch #{seq}: EXECUTING on thread {Environment.CurrentManagedThreadId}");
                 action();
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("LinuxDispatcher", $"Dispatch #{seq}: EXCEPTION: {ex.GetType().Name}: {ex.Message}", ex);
+                DiagnosticLog.Error("LinuxDispatcher", $"Dispatch EXCEPTION: {ex.GetType().Name}: {ex.Message}", ex);
             }
             return false;
         });
