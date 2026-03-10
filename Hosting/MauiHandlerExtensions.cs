@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
@@ -155,41 +154,10 @@ public static class MauiHandlerExtensions
                 };
             }
 
-            // Fire VisualElement.Loaded event — MAUI platform handlers are
-            // responsible for triggering this. Controls like LiveCharts'
-            // MotionCanvas subscribe to PaintSurface in their Loaded handler.
-            if (element is VisualElement visualElement && !visualElement.IsLoaded)
-            {
-                SendLoadedToElement(visualElement);
-            }
+            // NOTE: Loaded event is fired from SkiaView.Arrange after the
+            // first successful layout, when the element has its final size.
         }
 
         return handler;
-    }
-
-    private static MethodInfo? _sendLoadedMethod;
-
-    /// <summary>
-    /// Calls the private VisualElement.SendLoaded() method via reflection.
-    /// This fires the Loaded event, which is required for controls that
-    /// set up event subscriptions in their Loaded handler.
-    /// </summary>
-    private static void SendLoadedToElement(VisualElement element)
-    {
-        try
-        {
-            _sendLoadedMethod ??= typeof(VisualElement).GetMethod(
-                "SendLoaded",
-                BindingFlags.NonPublic | BindingFlags.Instance,
-                null,
-                Type.EmptyTypes,
-                null);
-
-            _sendLoadedMethod?.Invoke(element, null);
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("MauiHandlerExtensions", $"SendLoaded failed for {element.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
-        }
     }
 }

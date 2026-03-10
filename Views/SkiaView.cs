@@ -1058,6 +1058,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// Uses MAUI Rect for public API compliance.
     /// </summary>
     private bool _arrangingMauiView;
+    private bool _loadedFired;
 
     public virtual void Arrange(Rect bounds)
     {
@@ -1078,11 +1079,50 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
                 {
                     MauiView.Frame = new Rect(Bounds.X, Bounds.Y, w, h);
                 }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Error("SkiaView", $"Frame set failed for {MauiView.GetType().Name}: {ex.Message}");
+                }
                 finally
                 {
                     _arrangingMauiView = false;
                 }
             }
+
+            // Fire the Loaded event after the first successful arrange.
+            // Controls like LiveCharts start their drawing loop in Loaded.
+            if (!_loadedFired)
+            {
+                _loadedFired = true;
+                DiagnosticLog.Error("SkiaView", $"FireLoaded: {MauiView.GetType().Name}, IsLoaded={MauiView.IsLoaded}, W={MauiView.Width}, H={MauiView.Height}");
+                if (!MauiView.IsLoaded)
+                    FireLoadedEvent(MauiView);
+            }
+        }
+    }
+
+    private static System.Reflection.FieldInfo? _loadedField;
+
+    private static void FireLoadedEvent(Microsoft.Maui.Controls.VisualElement element)
+    {
+        try
+        {
+            _loadedField ??= typeof(Microsoft.Maui.Controls.VisualElement).GetField(
+                "_loaded",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            var fieldVal = _loadedField?.GetValue(element);
+            DiagnosticLog.Error("SkiaView", $"FireLoaded field: {_loadedField?.Name ?? "null"}, hasHandler={fieldVal != null}, type={element.GetType().Name}");
+
+            if (fieldVal is EventHandler handler)
+            {
+                handler.Invoke(element, EventArgs.Empty);
+                DiagnosticLog.Error("SkiaView", $"FireLoaded invoked for {element.GetType().Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaView", $"FireLoaded failed for {element.GetType().Name}: {ex.Message}");
         }
     }
 

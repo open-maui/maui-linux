@@ -61,6 +61,8 @@ public class SkiaSKCanvasView : SkiaView
         return new Size(w, h);
     }
 
+    private int _drawCount;
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         if (_canvasView == null)
@@ -70,6 +72,7 @@ public class SkiaSKCanvasView : SkiaView
 
         int width = Math.Max(1, (int)bounds.Width);
         int height = Math.Max(1, (int)bounds.Height);
+        _drawCount++;
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
 
@@ -107,6 +110,95 @@ public class SkiaSKCanvasView : SkiaView
 
         // Composite the offscreen surface onto our canvas
         _cachedSurface.Canvas.Flush();
+
+        if (_drawCount <= 30 && _drawCount % 5 == 0)
+        {
+            using var snap = _cachedSurface.Snapshot();
+            using var px = snap.PeekPixels();
+            if (px != null)
+            {
+                var span = px.GetPixelSpan();
+                int nonT = 0;
+                for (int i = 3; i < Math.Min(span.Length, 40000); i += 4)
+                    if (span[i] > 0) nonT++;
+
+                // Check MotionCanvas state via reflection
+                string coreInfo = "n/a";
+                try
+                {
+                    if (_canvasView is Microsoft.Maui.Controls.VisualElement ve)
+                    {
+                        // SKCanvasView's parent should be MotionCanvas
+                        var parent = (ve as Microsoft.Maui.Controls.Element)?.Parent;
+                        coreInfo = $"parent={parent?.GetType().Name ?? "null"}";
+
+                        if (parent != null)
+                        {
+                            // Check MotionCanvas.CanvasCore paint task count
+                            var canvasCoreP = parent.GetType().GetProperty("CanvasCore");
+                            var canvasCore = canvasCoreP?.GetValue(parent);
+                            if (canvasCore != null)
+                            {
+                                var paintTasksProp = canvasCore.GetType().GetMethod("GetPaintTasks");
+                                if (paintTasksProp != null)
+                                {
+                                    var tasks = paintTasksProp.Invoke(canvasCore, null) as System.Collections.IEnumerable;
+                                    int count = 0;
+                                    if (tasks != null) foreach (var _ in tasks) count++;
+                                    coreInfo += $", tasks={count}";
+                                }
+                                else
+                                {
+                                    // Try _paintTasks field
+                                    var ptField = canvasCore.GetType().GetField("_paintTasks",
+                                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                                    if (ptField != null)
+                                    {
+                                        var tasks = ptField.GetValue(canvasCore) as System.Collections.IEnumerable;
+                                        int count = 0;
+                                        if (tasks != null) foreach (var _ in tasks) count++;
+                                        coreInfo += $", _paintTasks={count}";
+                                    }
+                                }
+                            }
+
+                            // Check the chart's _core
+                            var grandparent = (parent as Microsoft.Maui.Controls.Element)?.Parent;
+                            if (grandparent != null)
+                            {
+                                coreInfo += $", chart={grandparent.GetType().Name}";
+                                var coreField = grandparent.GetType().GetField("_core",
+                                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                                var coreObj = coreField?.GetValue(grandparent);
+                                coreInfo += $", _core={coreObj != null}";
+
+                                if (coreObj != null)
+                                {
+                                    var ctrlSizeProp = coreObj.GetType().GetProperty("ControlSize");
+                                    var ctrlSize = ctrlSizeProp?.GetValue(coreObj);
+                                    coreInfo += $", ctrlSize={ctrlSize}";
+
+                                    var isLoadedProp = coreObj.GetType().GetProperty("IsLoaded");
+                                    var isLoaded = isLoadedProp?.GetValue(coreObj);
+                                    coreInfo += $", isLoaded={isLoaded}";
+                                }
+
+                                // MotionCanvas W/H
+                                if (parent is Microsoft.Maui.Controls.VisualElement mcVe)
+                                    coreInfo += $", mcW={mcVe.Width}, mcH={mcVe.Height}";
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    coreInfo = $"err: {ex.Message}";
+                }
+
+                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {width}x{height}, pixels={nonT}/10000, {coreInfo}");
+            }
+        }
+
         canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
     }
 
