@@ -646,9 +646,10 @@ public class SkiaImage : SkiaView
             }
             else
             {
-                // Static image
+                // Static image — force premultiplied alpha so transparent PNGs render correctly
                 _isAnimatedImage = false;
-                var bitmap = SKBitmap.Decode(codec, codec.Info);
+                var info = codec.Info.WithAlphaType(SKAlphaType.Premul);
+                var bitmap = SKBitmap.Decode(codec, info);
                 if (bitmap != null)
                 {
                     CacheAndSetBitmap(filePath, bitmap, false);
@@ -800,7 +801,7 @@ public class SkiaImage : SkiaView
                 else
                 {
                     _isAnimatedImage = false;
-                    var bitmap = SKBitmap.Decode(codec, codec.Info);
+                    var bitmap = SKBitmap.Decode(codec, codec.Info.WithAlphaType(SKAlphaType.Premul));
                     if (bitmap != null)
                     {
                         Bitmap = bitmap;
@@ -930,7 +931,7 @@ public class SkiaImage : SkiaView
                 else
                 {
                     _isAnimatedImage = false;
-                    var bitmap = SKBitmap.Decode(codec, codec.Info);
+                    var bitmap = SKBitmap.Decode(codec, codec.Info.WithAlphaType(SKAlphaType.Premul));
                     if (bitmap != null)
                     {
                         CacheAndSetBitmap(_cacheKey, bitmap, false);
@@ -1010,7 +1011,7 @@ public class SkiaImage : SkiaView
             else
             {
                 _isAnimatedImage = false;
-                var bitmap = SKBitmap.Decode(codec, codec.Info);
+                var bitmap = SKBitmap.Decode(codec, codec.Info.WithAlphaType(SKAlphaType.Premul));
                 if (bitmap != null)
                 {
                     Bitmap = bitmap;
@@ -1328,7 +1329,7 @@ public class SkiaImage : SkiaView
                 using var codec = SKCodec.Create(memoryStream);
                 if (codec != null)
                 {
-                    var bitmap = SKBitmap.Decode(codec, codec.Info);
+                    var bitmap = SKBitmap.Decode(codec, codec.Info.WithAlphaType(SKAlphaType.Premul));
                     if (bitmap != null)
                     {
                         CacheAndSetBitmap(cacheKey, bitmap, false);

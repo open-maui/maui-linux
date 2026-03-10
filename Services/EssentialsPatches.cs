@@ -37,6 +37,9 @@ internal static class EssentialsPatches
         try { PatchDeviceDisplay(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"DeviceDisplay patch failed: {ex.Message}", ex); }
 
+        try { PatchLauncher(harmony); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Launcher patch failed: {ex.Message}", ex); }
+
         DiagnosticLog.Debug("EssentialsPatches", "MAUI Essentials patches applied");
     }
 
@@ -111,6 +114,64 @@ internal static class EssentialsPatches
                     DiagnosticLog.Error("EssentialsPatches", $"  Type: {t.FullName}");
             }
         }
+    }
+
+    private static void PatchLauncher(Harmony harmony)
+    {
+        // Launcher.Default delegates to LauncherImplementation which throws on Linux.
+        // Patch PlatformOpenAsync(Uri) to use xdg-open instead.
+        var implType = typeof(Microsoft.Maui.ApplicationModel.Launcher).Assembly.GetType(
+            "Microsoft.Maui.ApplicationModel.LauncherImplementation");
+
+        if (implType != null)
+        {
+            var original = implType.GetMethod("PlatformOpenAsync",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                null, new[] { typeof(Uri) }, null);
+
+            if (original != null)
+            {
+                var prefix = typeof(EssentialsPatches).GetMethod(nameof(PlatformOpenAsync_Prefix),
+                    BindingFlags.Static | BindingFlags.NonPublic)!;
+                harmony.Patch(original, new HarmonyMethod(prefix));
+                DiagnosticLog.Debug("EssentialsPatches", "Patched LauncherImplementation.PlatformOpenAsync");
+            }
+            else
+            {
+                DiagnosticLog.Error("EssentialsPatches", "PlatformOpenAsync(Uri) not found on LauncherImplementation");
+            }
+        }
+        else
+        {
+            DiagnosticLog.Error("EssentialsPatches", "LauncherImplementation type not found");
+        }
+    }
+
+    private static bool PlatformOpenAsync_Prefix(Uri uri, ref Task<bool> __result)
+    {
+        __result = Task.Run(() =>
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    Arguments = uri.ToString(),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+                using var process = System.Diagnostics.Process.Start(psi);
+                return process != null;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("EssentialsPatches", $"xdg-open failed: {ex.Message}");
+                return false;
+            }
+        });
+        return false; // Skip original (which throws)
     }
 
     /// <summary>
