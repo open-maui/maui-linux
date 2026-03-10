@@ -19,6 +19,7 @@ public class SkiaSKCanvasView : SkiaView
     private ISKCanvasView? _canvasView;
     private SKSurface? _cachedSurface;
     private SKImageInfo _cachedInfo;
+    private float _surfaceScale = 1f;
 
     /// <summary>
     /// Sets the ISKCanvasView virtual view that will receive PaintSurface callbacks.
@@ -70,14 +71,22 @@ public class SkiaSKCanvasView : SkiaView
             return;
         }
 
-        int width = Math.Max(1, (int)bounds.Width);
-        int height = Math.Max(1, (int)bounds.Height);
         _drawCount++;
 
-        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        // Create the offscreen surface at physical pixel dimensions (matching Android/iOS behavior).
+        // MotionCanvas applies Canvas.Scale(density) to convert logical→physical coordinates,
+        // so the surface must be in physical pixels for the scaling to work correctly.
+        float density = (float)DeviceDisplayService.Instance.MainDisplayInfo.Density;
+        if (density <= 0) density = 1f;
+        _surfaceScale = density;
+
+        int physWidth = Math.Max(1, (int)(bounds.Width * density));
+        int physHeight = Math.Max(1, (int)(bounds.Height * density));
+
+        var info = new SKImageInfo(physWidth, physHeight, SKColorType.Rgba8888, SKAlphaType.Premul);
 
         // Reuse surface if dimensions match
-        if (_cachedSurface == null || _cachedInfo.Width != width || _cachedInfo.Height != height)
+        if (_cachedSurface == null || _cachedInfo.Width != physWidth || _cachedInfo.Height != physHeight)
         {
             _cachedSurface?.Dispose();
             _cachedSurface = SKSurface.Create(info);
@@ -85,12 +94,12 @@ public class SkiaSKCanvasView : SkiaView
 
             if (_cachedSurface == null)
             {
-                DiagnosticLog.Error("SkiaSKCanvasView", $"Failed to create SKSurface ({width}x{height})");
+                DiagnosticLog.Error("SkiaSKCanvasView", $"Failed to create SKSurface ({physWidth}x{physHeight})");
                 return;
             }
 
-            // Notify the canvas view of the size change
-            _canvasView.OnCanvasSizeChanged(new SKSizeI(width, height));
+            // Notify the canvas view of the physical pixel size
+            _canvasView.OnCanvasSizeChanged(new SKSizeI(physWidth, physHeight));
         }
 
         // Clear the offscreen surface
@@ -194,8 +203,8 @@ public class SkiaSKCanvasView : SkiaView
                                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                                 if (densityField != null)
                                 {
-                                    var density = densityField.GetValue(parent);
-                                    coreInfo += $", _density={density}";
+                                    var mcDensity = densityField.GetValue(parent);
+                                    coreInfo += $", _density={mcDensity}";
                                 }
 
                                 // Check ControlSize Width/Height
@@ -219,11 +228,23 @@ public class SkiaSKCanvasView : SkiaView
                     coreInfo = $"err: {ex.Message}";
                 }
 
-                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {width}x{height}, pixels={nonT}/{totalPx}, {coreInfo}");
+                DiagnosticLog.Error("SkiaSKCanvasView", $"Draw #{_drawCount}: {physWidth}x{physHeight} (scale={_surfaceScale}), pixels={nonT}/{totalPx}, {coreInfo}");
             }
         }
 
-        canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
+        // Composite the physical-pixel surface back to our logical-pixel canvas
+        if (_surfaceScale != 1f)
+        {
+            canvas.Save();
+            canvas.Translate(bounds.Left, bounds.Top);
+            canvas.Scale(1f / _surfaceScale, 1f / _surfaceScale);
+            canvas.DrawSurface(_cachedSurface, 0, 0);
+            canvas.Restore();
+        }
+        else
+        {
+            canvas.DrawSurface(_cachedSurface, bounds.Left, bounds.Top);
+        }
     }
 
     protected override void Dispose(bool disposing)
