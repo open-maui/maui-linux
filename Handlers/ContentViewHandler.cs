@@ -21,6 +21,8 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
             [nameof(IPadding.Padding)] = MapPadding,
+            ["WidthRequest"] = MapWidthRequest,
+            ["HeightRequest"] = MapHeightRequest,
         };
 
     public static CommandMapper<IContentView, ContentViewHandler> CommandMapper =
@@ -37,9 +39,14 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
     {
         base.ConnectHandler(platformView);
 
-        if (VirtualView is VisualElement ve && ve.BackgroundColor != null)
+        if (VirtualView is VisualElement ve)
         {
-            platformView.BackgroundColor = ve.BackgroundColor;
+            if (ve.BackgroundColor != null)
+                platformView.BackgroundColor = ve.BackgroundColor;
+            if (ve.WidthRequest >= 0)
+                platformView.WidthRequest = ve.WidthRequest;
+            if (ve.HeightRequest >= 0)
+                platformView.HeightRequest = ve.HeightRequest;
         }
 
         MapContent(this, VirtualView);
@@ -99,6 +106,26 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
         if (contentView is IPadding paddable)
         {
             handler.PlatformView.Padding = paddable.Padding;
+        }
+    }
+
+    public static void MapWidthRequest(ContentViewHandler handler, IContentView contentView)
+    {
+        if (handler.PlatformView is null) return;
+        if (contentView is VisualElement ve && ve.WidthRequest >= 0)
+        {
+            handler.PlatformView.WidthRequest = ve.WidthRequest;
+            handler.PlatformView.InvalidateMeasure();
+        }
+    }
+
+    public static void MapHeightRequest(ContentViewHandler handler, IContentView contentView)
+    {
+        if (handler.PlatformView is null) return;
+        if (contentView is VisualElement ve && ve.HeightRequest >= 0)
+        {
+            handler.PlatformView.HeightRequest = ve.HeightRequest;
+            handler.PlatformView.InvalidateMeasure();
         }
     }
 }

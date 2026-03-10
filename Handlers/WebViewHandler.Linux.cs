@@ -165,7 +165,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
 
     public static void MapEvaluateJavaScriptAsync(WebViewHandler handler, IWebView webView, object? args)
     {
-        if (args is EvaluateJavaScriptAsyncRequest request)
+        if (args is Microsoft.Maui.EvaluateJavaScriptAsyncRequest request)
         {
             var result = handler.PlatformView?.EvaluateJavaScriptAsync(request.Script);
             if (result != null)
@@ -186,23 +186,5 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
     #endregion
 }
 
-/// <summary>
-/// Request object for async JavaScript evaluation.
-/// </summary>
-public class EvaluateJavaScriptAsyncRequest
-{
-    public string Script { get; }
-    private readonly TaskCompletionSource<string?> _tcs = new();
-
-    public EvaluateJavaScriptAsyncRequest(string script)
-    {
-        Script = script;
-    }
-
-    public Task<string?> Task => _tcs.Task;
-
-    public void SetResult(string? result)
-    {
-        _tcs.TrySetResult(result);
-    }
-}
+// NOTE: EvaluateJavaScriptAsync commands use Microsoft.Maui.EvaluateJavaScriptAsyncRequest
+// from the MAUI framework. Do NOT define a local EvaluateJavaScriptAsyncRequest class here.

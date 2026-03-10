@@ -9,7 +9,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Hosting</PackageId>
-    <Version>10.0.41.8</Version>
+    <Version>10.0.41.9</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Hosting</Product>

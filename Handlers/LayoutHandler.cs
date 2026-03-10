@@ -21,6 +21,8 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         [nameof(IView.Background)] = MapBackground,
         ["BackgroundColor"] = MapBackgroundColor,
         [nameof(IPadding.Padding)] = MapPadding,
+        ["WidthRequest"] = MapWidthRequest,
+        ["HeightRequest"] = MapHeightRequest,
     };
 
     public static CommandMapper<ILayout, LayoutHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -54,10 +56,15 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         if (VirtualView == null || MauiContext == null) return;
         DiagnosticLog.Error("LayoutHandler", $"ConnectHandler: {VirtualView.Count} children, VirtualView={VirtualView.GetType().Name}");
 
-        // Explicitly map BackgroundColor since it may be set before handler creation
-        if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        // Explicitly map properties that may be set before handler creation
+        if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)
         {
-            platformView.BackgroundColor = ve.BackgroundColor;
+            if (ve.BackgroundColor != null)
+                platformView.BackgroundColor = ve.BackgroundColor;
+            if (ve.WidthRequest >= 0)
+                platformView.WidthRequest = ve.WidthRequest;
+            if (ve.HeightRequest >= 0)
+                platformView.HeightRequest = ve.HeightRequest;
         }
 
         for (int i = 0; i < VirtualView.Count; i++)
@@ -188,6 +195,26 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
             handler.PlatformView.Invalidate();
         }
     }
+
+    public static void MapWidthRequest(LayoutHandler handler, ILayout layout)
+    {
+        if (handler.PlatformView is null) return;
+        if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.WidthRequest >= 0)
+        {
+            handler.PlatformView.WidthRequest = ve.WidthRequest;
+            handler.PlatformView.InvalidateMeasure();
+        }
+    }
+
+    public static void MapHeightRequest(LayoutHandler handler, ILayout layout)
+    {
+        if (handler.PlatformView is null) return;
+        if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.HeightRequest >= 0)
+        {
+            handler.PlatformView.HeightRequest = ve.HeightRequest;
+            handler.PlatformView.InvalidateMeasure();
+        }
+    }
 }
 
 // NOTE: Layout add/remove/insert commands use Microsoft.Maui.Handlers.LayoutHandlerUpdate
@@ -275,10 +302,15 @@ public partial class GridHandler : LayoutHandler
 
             DiagnosticLog.Error("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols, VirtualView={VirtualView.GetType().Name}");
 
-            // Explicitly map BackgroundColor since it may be set before handler creation
-            if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+            // Explicitly map properties that may be set before handler creation
+            if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)
             {
-                platformView.BackgroundColor = ve.BackgroundColor;
+                if (ve.BackgroundColor != null)
+                    platformView.BackgroundColor = ve.BackgroundColor;
+                if (ve.WidthRequest >= 0)
+                    platformView.WidthRequest = ve.WidthRequest;
+                if (ve.HeightRequest >= 0)
+                    platformView.HeightRequest = ve.HeightRequest;
             }
 
             // Explicitly map Padding since it may be set before handler creation
