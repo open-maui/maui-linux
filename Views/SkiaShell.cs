@@ -38,7 +38,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(SkiaShell),
             ShellFlyoutBehavior.Flyout,
             BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutBehaviorChanged((ShellFlyoutBehavior)n));
 
     /// <summary>
     /// Bindable property for FlyoutWidth.
@@ -189,6 +189,7 @@ public class SkiaShell : SkiaLayoutView
 
     private readonly List<ShellSection> _sections = new();
     private SkiaView? _currentContent;
+    private SkiaView? _pressedTarget;
     private float _flyoutAnimationProgress = 0f;
     private int _selectedSectionIndex = 0;
     private int _selectedItemIndex = 0;
@@ -240,9 +241,30 @@ public class SkiaShell : SkiaLayoutView
         Invalidate();
     }
 
+    private void OnFlyoutBehaviorChanged(ShellFlyoutBehavior newBehavior)
+    {
+        if (newBehavior == ShellFlyoutBehavior.Locked)
+        {
+            _flyoutAnimationProgress = 1f;
+        }
+        else if (newBehavior == ShellFlyoutBehavior.Disabled)
+        {
+            _flyoutAnimationProgress = 0f;
+        }
+        Invalidate();
+    }
+
     private void OnFlyoutIsPresentedChanged(bool newValue)
     {
-        _flyoutAnimationProgress = newValue ? 1f : 0f;
+        // In Locked mode, flyout is always visible regardless of FlyoutIsPresented
+        if (FlyoutBehavior == ShellFlyoutBehavior.Locked)
+        {
+            _flyoutAnimationProgress = 1f;
+        }
+        else
+        {
+            _flyoutAnimationProgress = newValue ? 1f : 0f;
+        }
         FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
         Invalidate();
     }
@@ -854,8 +876,9 @@ public class SkiaShell : SkiaLayoutView
         {
             float contentTop = NavBarIsVisible ? NavBarHeight : 0;
             float contentBottom = TabBarIsVisible ? TabBarHeight : 0;
+            float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             var contentSize = new Size(
-                availableSize.Width - Padding.Left - Padding.Right,
+                availableSize.Width - Padding.Left - Padding.Right - flyoutOffset,
                 availableSize.Height - contentTop - contentBottom - Padding.Top - Padding.Bottom);
             _currentContent.Measure(contentSize);
         }
@@ -867,17 +890,17 @@ public class SkiaShell : SkiaLayoutView
     {
         DiagnosticLog.Debug("SkiaShell", $"ArrangeOverride - bounds={bounds}");
 
-        // Arrange current content with padding
+        // Arrange current content with padding, offset for locked flyout
         if (_currentContent != null)
         {
+            float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
             float contentBottom = (float)bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
             var contentBounds = new Rect(
-                bounds.Left + ContentPadding,
+                bounds.Left + flyoutOffset + ContentPadding,
                 contentTop,
-                bounds.Width - ContentPadding * 2,
+                bounds.Width - flyoutOffset - ContentPadding * 2,
                 contentBottom - contentTop);
-            DiagnosticLog.Debug("SkiaShell", $"Arranging content with bounds={contentBounds}, padding={ContentPadding}");
             _currentContent.Arrange(contentBounds);
         }
 
@@ -889,13 +912,29 @@ public class SkiaShell : SkiaLayoutView
         canvas.Save();
         canvas.ClipRect(bounds);
 
+        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
+
+        // In Locked mode, draw flyout first (it's a permanent panel, not an overlay)
+        if (isLocked)
+        {
+            DrawFlyout(canvas, bounds);
+        }
+
         // Draw content
         _currentContent?.Draw(canvas);
 
-        // Draw navigation bar
+        // Draw navigation bar (offset for locked flyout)
         if (NavBarIsVisible)
         {
-            DrawNavBar(canvas, bounds);
+            if (isLocked)
+            {
+                var navBounds = new SKRect(bounds.Left + FlyoutWidth, bounds.Top, bounds.Right, bounds.Bottom);
+                DrawNavBar(canvas, navBounds);
+            }
+            else
+            {
+                DrawNavBar(canvas, bounds);
+            }
         }
 
         // Draw tab bar
@@ -904,8 +943,8 @@ public class SkiaShell : SkiaLayoutView
             DrawTabBar(canvas, bounds);
         }
 
-        // Draw flyout overlay and panel
-        if (_flyoutAnimationProgress > 0)
+        // Draw flyout overlay and panel (non-locked mode)
+        if (!isLocked && _flyoutAnimationProgress > 0)
         {
             DrawFlyout(canvas, bounds);
         }
@@ -979,7 +1018,7 @@ public class SkiaShell : SkiaLayoutView
             FakeBoldText = true
         };
 
-        float titleX = (CanGoBack || FlyoutBehavior == ShellFlyoutBehavior.Flyout) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
+        float titleX = (CanGoBack || (FlyoutBehavior == ShellFlyoutBehavior.Flyout && FlyoutBehavior != ShellFlyoutBehavior.Locked)) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
         float titleY = navBarBounds.MidY + 6;
         canvas.DrawText(Title, titleX, titleY, titlePaint);
     }
@@ -1043,16 +1082,21 @@ public class SkiaShell : SkiaLayoutView
 
     private void DrawFlyout(SKCanvas canvas, SKRect bounds)
     {
-        // Draw scrim
-        using var scrimPaint = new SKPaint
-        {
-            Color = SkiaTheme.Shadow40SK.WithAlpha((byte)(100 * _flyoutAnimationProgress)),
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, scrimPaint);
+        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
 
-        // Draw flyout panel
-        float flyoutX = bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+        // Draw scrim only for non-locked flyout (overlay mode)
+        if (!isLocked)
+        {
+            using var scrimPaint = new SKPaint
+            {
+                Color = SkiaTheme.Shadow40SK.WithAlpha((byte)(100 * _flyoutAnimationProgress)),
+                Style = SKPaintStyle.Fill
+            };
+            canvas.DrawRect(bounds, scrimPaint);
+        }
+
+        // Draw flyout panel — locked mode uses fixed position, overlay mode uses animation
+        float flyoutX = isLocked ? bounds.Left : bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
         var flyoutBounds = new SKRect(
             flyoutX,
             bounds.Top,
@@ -1069,8 +1113,17 @@ public class SkiaShell : SkiaLayoutView
 
         // Calculate header and footer heights
         float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-        float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
-                            (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
+        float footerHeight;
+        if (FlyoutFooterView != null)
+        {
+            // Measure footer to its natural size so complex layouts aren't squished
+            var footerDesired = FlyoutFooterView.Measure(new Size(flyoutBounds.Width, double.PositiveInfinity));
+            footerHeight = Math.Max(FlyoutFooterHeight, (float)footerDesired.Height);
+        }
+        else
+        {
+            footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f;
+        }
 
         // Draw flyout header if present
         if (FlyoutHeaderView != null)
@@ -1078,6 +1131,19 @@ public class SkiaShell : SkiaLayoutView
             var headerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Top, flyoutBounds.Right, flyoutBounds.Top + headerHeight);
             FlyoutHeaderView.Measure(new Size(headerBounds.Width, headerBounds.Height));
             FlyoutHeaderView.Arrange(new Rect(headerBounds.Left, headerBounds.Top, headerBounds.Width, headerBounds.Height));
+
+            // If the header view has a BackgroundColor, draw it over the flyout background
+            // to ensure it covers the default flyout color (e.g. white) in the header region
+            if (FlyoutHeaderView.BackgroundColor != null && FlyoutHeaderView.BackgroundColor != Colors.Transparent)
+            {
+                using var headerBgPaint = new SKPaint
+                {
+                    Color = FlyoutHeaderView.BackgroundColor.ToSKColor(),
+                    Style = SKPaintStyle.Fill
+                };
+                canvas.DrawRect(headerBounds, headerBgPaint);
+            }
+
             FlyoutHeaderView.Draw(canvas);
         }
 
@@ -1148,12 +1214,11 @@ public class SkiaShell : SkiaLayoutView
 
         canvas.Restore();
 
-        // Draw flyout footer
+        // Draw flyout footer (footerHeight already measured to natural size above)
         if (FlyoutFooterView != null)
         {
             var footerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Bottom - footerHeight, flyoutBounds.Right, flyoutBounds.Bottom);
-            FlyoutFooterView.Measure(new Size(footerBounds.Width, footerBounds.Height));
-            FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerBounds.Height));
+            FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerHeight));
             FlyoutFooterView.Draw(canvas);
         }
         else if (!string.IsNullOrEmpty(FlyoutFooterText))
@@ -1175,18 +1240,33 @@ public class SkiaShell : SkiaLayoutView
         if (!IsVisible || !Bounds.Contains(x, y)) return null;
 
         // Check flyout area
-        if (_flyoutAnimationProgress > 0)
+        bool isLockedHit = FlyoutBehavior == ShellFlyoutBehavior.Locked;
+        if (isLockedHit || _flyoutAnimationProgress > 0)
         {
-            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            float flyoutX = isLockedHit ? (float)Bounds.Left : (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
             var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
 
             if (flyoutBounds.Contains(x, y))
             {
-                return this; // Flyout handles its own hits
+                // Check footer view for hit testing (buttons, etc.)
+                if (FlyoutFooterView != null)
+                {
+                    var footerHit = FlyoutFooterView.HitTest(x, y);
+                    if (footerHit != null) return footerHit;
+                }
+
+                // Check header view for hit testing
+                if (FlyoutHeaderView != null)
+                {
+                    var headerHit = FlyoutHeaderView.HitTest(x, y);
+                    if (headerHit != null) return headerHit;
+                }
+
+                return this; // Flyout handles its own hits (menu items)
             }
 
-            // Tap on scrim closes flyout
-            if (FlyoutIsPresented)
+            // Tap on scrim closes flyout (non-locked only)
+            if (FlyoutIsPresented && !isLockedHit)
             {
                 return this;
             }
@@ -1219,9 +1299,10 @@ public class SkiaShell : SkiaLayoutView
         if (!IsEnabled) return;
 
         // Check flyout tap
-        if (_flyoutAnimationProgress > 0)
+        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
+        if (isLocked || _flyoutAnimationProgress > 0)
         {
-            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            float flyoutX = isLocked ? (float)Bounds.Left : (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
             var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
 
             if (flyoutBounds.Contains(e.X, e.Y))
@@ -1233,6 +1314,30 @@ public class SkiaShell : SkiaLayoutView
 
                 float itemsAreaTop = flyoutBounds.Top + headerHeight;
                 float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
+
+                // Check footer area — dispatch to footer view for button clicks
+                if (e.Y >= itemsAreaBottom && FlyoutFooterView != null)
+                {
+                    var footerHit = FlyoutFooterView.HitTest(e.X, e.Y);
+                    if (footerHit != null)
+                    {
+                        _pressedTarget = footerHit;
+                        footerHit.OnPointerPressed(e);
+                        return;
+                    }
+                }
+
+                // Check header area — dispatch to header view
+                if (e.Y < itemsAreaTop && FlyoutHeaderView != null)
+                {
+                    var headerHit = FlyoutHeaderView.HitTest(e.X, e.Y);
+                    if (headerHit != null)
+                    {
+                        _pressedTarget = headerHit;
+                        headerHit.OnPointerPressed(e);
+                        return;
+                    }
+                }
 
                 // Only check items if tap is in items area
                 if (e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)
@@ -1246,8 +1351,11 @@ public class SkiaShell : SkiaLayoutView
                         if (e.Y >= itemY && e.Y < itemY + itemHeight)
                         {
                             NavigateToSection(i, 0);
-                            FlyoutIsPresented = false;
-                            _flyoutScrollOffset = 0; // Reset scroll when closing
+                            if (!isLocked)
+                            {
+                                FlyoutIsPresented = false;
+                                _flyoutScrollOffset = 0; // Reset scroll when closing
+                            }
                             e.Handled = true;
                             return;
                         }
@@ -1255,9 +1363,9 @@ public class SkiaShell : SkiaLayoutView
                     }
                 }
             }
-            else if (FlyoutIsPresented)
+            else if (FlyoutIsPresented && !isLocked)
             {
-                // Tap on scrim
+                // Tap on scrim (non-locked mode only)
                 FlyoutIsPresented = false;
                 e.Handled = true;
                 return;
@@ -1303,6 +1411,18 @@ public class SkiaShell : SkiaLayoutView
         }
 
         base.OnPointerPressed(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        if (_pressedTarget != null)
+        {
+            _pressedTarget.OnPointerReleased(e);
+            _pressedTarget = null;
+            return;
+        }
+
+        base.OnPointerReleased(e);
     }
 
     public override void OnScroll(ScrollEventArgs e)

@@ -140,19 +140,19 @@ public class SkiaStackLayout : SkiaLayoutView
                 var useWidth = Math.Min(childWidth, contentWidth);
                 float childLeft = content.Left;
 
-                var horizontalOptions = child.HorizontalOptions;
-                var alignmentValue = (int)horizontalOptions.Alignment;
+                var hAlign = child.MauiView is IView hv
+                    ? (LayoutAlignment)(int)hv.HorizontalLayoutAlignment
+                    : LayoutAlignmentHelper.MapFromMaui(child.HorizontalOptions);
 
-                // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
-                if (alignmentValue == 1) // Center
+                if (hAlign == LayoutAlignment.Center)
                 {
                     childLeft = content.Left + (contentWidth - useWidth) / 2;
                 }
-                else if (alignmentValue == 2) // End
+                else if (hAlign == LayoutAlignment.End)
                 {
                     childLeft = content.Left + contentWidth - useWidth;
                 }
-                else if (alignmentValue == 3) // Fill
+                else if (hAlign == LayoutAlignment.Fill)
                 {
                     useWidth = contentWidth;
                 }
@@ -174,21 +174,21 @@ public class SkiaStackLayout : SkiaLayoutView
                 float childTop = content.Top;
                 float childBottomCalc = content.Top + useHeight;
 
-                var verticalOptions = child.VerticalOptions;
-                var alignmentValue = (int)verticalOptions.Alignment;
+                var vAlign = child.MauiView is IView vv
+                    ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
+                    : LayoutAlignmentHelper.MapFromMaui(child.VerticalOptions);
 
-                // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
-                if (alignmentValue == 1) // Center
+                if (vAlign == LayoutAlignment.Center)
                 {
                     childTop = content.Top + (contentHeight - useHeight) / 2;
                     childBottomCalc = childTop + useHeight;
                 }
-                else if (alignmentValue == 2) // End
+                else if (vAlign == LayoutAlignment.End)
                 {
                     childTop = content.Top + contentHeight - useHeight;
                     childBottomCalc = content.Top + contentHeight;
                 }
-                else if (alignmentValue == 3) // Fill
+                else if (vAlign == LayoutAlignment.Fill)
                 {
                     childTop = content.Top;
                     childBottomCalc = content.Top + contentHeight;

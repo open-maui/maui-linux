@@ -21,15 +21,39 @@ using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
-public static class LinuxMauiAppBuilderExtensions
+/// <summary>
+/// Called by OpenMaui.Hosting stub via reflection.
+/// This is the well-known entry point that the cross-platform UseLinux() resolves to.
+/// </summary>
+public static class LinuxPlatformRegistrar
 {
-    public static MauiAppBuilder UseLinux(this MauiAppBuilder builder)
+    public static void Register(MauiAppBuilder builder)
     {
-        return builder.UseLinux(null);
+        LinuxMauiAppBuilderExtensionsInternal.RegisterLinuxServices(builder, null);
+    }
+}
+
+/// <summary>
+/// Direct extension methods for Linux-only projects that reference OpenMaui.Controls.Linux directly.
+/// For cross-platform projects, use OpenMaui.Hosting's UseLinux() instead.
+/// </summary>
+public static class LinuxMauiAppBuilderExtensionsInternal
+{
+    /// <summary>
+    /// Adds Linux platform support with configuration options.
+    /// For cross-platform projects, prefer the parameterless UseLinux() from OpenMaui.Hosting.
+    /// </summary>
+    public static MauiAppBuilder UseLinux(this MauiAppBuilder builder, Action<LinuxApplicationOptions> configure)
+    {
+        RegisterLinuxServices(builder, configure);
+        return builder;
     }
 
-    public static MauiAppBuilder UseLinux(this MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
+    internal static void RegisterLinuxServices(MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
     {
+        // Patch MAUI Essentials stubs before any services use them
+        EssentialsPatches.Apply();
+
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
 
@@ -126,6 +150,10 @@ public static class LinuxMauiAppBuilderExtensions
             handlers.AddHandler<ImageButton, ImageButtonHandler>();
             handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
 
+            // SkiaSharp native views (LiveCharts, Microcharts, custom drawings)
+            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKCanvasView, SKCanvasViewHandler>();
+            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKGLView, SKGLViewHandler>();
+
             // Web - use GtkWebViewHandler
             handlers.AddHandler<WebView, GtkWebViewHandler>();
 
@@ -151,8 +179,6 @@ public static class LinuxMauiAppBuilderExtensions
 
         // Store options for later use
         builder.Services.AddSingleton(options);
-
-        return builder;
     }
 
     private static void RegisterTypeConverters()

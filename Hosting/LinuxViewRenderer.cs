@@ -209,7 +209,7 @@ public class LinuxViewRenderer
             if (skiaFooter != null)
             {
                 skiaShell.FlyoutFooterView = skiaFooter;
-                skiaShell.FlyoutFooterHeight = (float)(footerView.HeightRequest > 0 ? footerView.HeightRequest : 40.0);
+                skiaShell.FlyoutFooterHeight = (float)(footerView.HeightRequest > 0 ? footerView.HeightRequest : 120.0);
             }
         }
         else
@@ -310,23 +310,29 @@ public class LinuxViewRenderer
             ? Color.FromRgb(18, 18, 18)
             : Color.FromRgb(250, 250, 250);
 
-        // NavBar background color
+        // NavBar background color - check resource, attached property, instance property
         Color? navBg = TryGetResourceColor(resources, isDark ? "ShellBackgroundDark" : "ShellBackgroundLight");
-        if (navBg == null)
-        {
-            navBg = shell.BackgroundColor;
-        }
+        navBg ??= Shell.GetBackgroundColor(shell);
+        navBg ??= shell.BackgroundColor;
         if (navBg != null && navBg != Colors.Transparent)
         {
             skiaShell.NavBarBackgroundColor = navBg;
         }
         else
         {
-            skiaShell.NavBarBackgroundColor = Color.FromRgb(33, 150, 243); // Material blue
+            // Theme-aware default instead of hardcoded blue
+            skiaShell.NavBarBackgroundColor = isDark
+                ? Color.FromRgb(30, 30, 30)
+                : Color.FromRgb(255, 255, 255);
         }
 
-        // NavBar text color
-        if (fgColor != null && fgColor != Colors.Transparent)
+        // NavBar text color - prefer Shell.TitleColor attached property
+        Color? titleColor = Shell.GetTitleColor(shell);
+        if (titleColor != null && titleColor != Colors.Transparent)
+        {
+            skiaShell.NavBarTextColor = titleColor;
+        }
+        else if (fgColor != null && fgColor != Colors.Transparent)
         {
             skiaShell.NavBarTextColor = fgColor;
         }
@@ -521,7 +527,32 @@ public class LinuxViewRenderer
 
             if (content.ContentTemplate != null)
             {
-                page = content.ContentTemplate.CreateContent() as Page;
+                // Extract the type from the DataTemplate via reflection
+                // DataTemplate stores the type in a private field
+                var typeField = typeof(ElementTemplate).GetProperty("Type",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var templateType = typeField?.GetValue(content.ContentTemplate) as Type;
+
+                // First try to resolve from DI (handles constructor injection)
+                if (templateType != null)
+                {
+                    try
+                    {
+                        // Use ActivatorUtilities to create with DI - more robust than GetService
+                        page = Microsoft.Extensions.DependencyInjection.ActivatorUtilities
+                            .CreateInstance(_mauiContext.Services, templateType) as Page;
+                    }
+                    catch (Exception diEx)
+                    {
+                        DiagnosticLog.Debug("LinuxViewRenderer", $"DI resolution failed for {templateType.Name}: {diEx.Message}");
+                    }
+                }
+
+                // Fallback to CreateContent() (uses Activator.CreateInstance)
+                if (page == null)
+                {
+                    page = content.ContentTemplate.CreateContent() as Page;
+                }
             }
 
             if (page == null && content.Content is Page contentPage)
@@ -566,9 +597,9 @@ public class LinuxViewRenderer
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Silently handle template creation errors
+            DiagnosticLog.Error("LinuxViewRenderer", $"CreateShellContentPage failed for route '{content.Route}': {ex.Message}\n{ex.StackTrace}");
         }
 
         return null;
@@ -577,10 +608,28 @@ public class LinuxViewRenderer
     /// <summary>
     /// Renders a MAUI view and returns the corresponding SkiaView.
     /// </summary>
+    /// <summary>
+    /// Set of view type names known to cause crashes on Linux.
+    /// With SKCanvasView/SKGLView native hosting, ContentViewHandler, PathHandler,
+    /// and alignment fixes, most third-party controls now render through normal handlers.
+    /// Add entries here only as a last resort for controls that truly SIGSEGV.
+    /// </summary>
+    private static readonly HashSet<string> _unsupportedViewTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+    };
+
     public SkiaView? RenderView(IView view)
     {
         if (view == null)
             return null;
+
+        // Skip known unsupported third-party controls that would segfault
+        var typeName = view.GetType().Name;
+        if (_unsupportedViewTypes.Contains(typeName))
+        {
+            DiagnosticLog.Error("LinuxViewRenderer", $"Skipping unsupported view type: {typeName}");
+            return CreateFallbackView(view);
+        }
 
         try
         {
@@ -604,8 +653,9 @@ public class LinuxViewRenderer
             // No manual child rendering needed here - that caused "View already has a parent" errors
             return skiaView;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            DiagnosticLog.Error("LinuxViewRenderer", $"RenderView failed for {typeName}: {ex.Message}");
             return CreateFallbackView(view);
         }
     }

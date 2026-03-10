@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
+using SkiaSharp.Views.Maui.Controls;
+using Path = Microsoft.Maui.Controls.Shapes.Path;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
@@ -35,7 +37,7 @@ public static class MauiHandlerExtensions
         [typeof(BoxView)] = () => new BoxViewHandler(),
         [typeof(Frame)] = () => new FrameHandler(),
         [typeof(Border)] = () => new BorderHandler(),
-        [typeof(ContentView)] = () => new BorderHandler(),
+        [typeof(ContentView)] = () => new ContentViewHandler(),
         [typeof(ScrollView)] = () => new ScrollViewHandler(),
         [typeof(Grid)] = () => new GridHandler(),
         [typeof(StackLayout)] = () => new StackLayoutHandler(),
@@ -53,7 +55,10 @@ public static class MauiHandlerExtensions
         [typeof(TabbedPage)] = () => new TabbedPageHandler(),
         [typeof(Application)] = () => new ApplicationHandler(),
         [typeof(Microsoft.Maui.Controls.Window)] = () => new WindowHandler(),
-        [typeof(GraphicsView)] = () => new GraphicsViewHandler()
+        [typeof(GraphicsView)] = () => new GraphicsViewHandler(),
+        [typeof(Path)] = () => new ShapePathHandler(),
+        [typeof(SKCanvasView)] = () => new SKCanvasViewHandler(),
+        [typeof(SKGLView)] = () => new SKGLViewHandler()
     };
 
     /// <summary>
@@ -117,6 +122,40 @@ public static class MauiHandlerExtensions
         {
             handler.SetMauiContext(mauiContext);
             handler.SetVirtualView(element);
+
+            // Set MauiView back-reference so layout views can read alignment
+            // directly from the MAUI virtual view (authoritative source).
+            if (element is View mauiView && handler is IViewHandler viewHandler &&
+                viewHandler.PlatformView is SkiaView skiaView)
+            {
+                skiaView.MauiView = mauiView;
+
+                // Sync visual properties from MAUI view to platform view,
+                // and subscribe to future changes. MAUI's ViewMapper doesn't
+                // call platform-specific mappers for these on Linux.
+                skiaView.IsVisible = mauiView.IsVisible;
+                skiaView.Opacity = (float)mauiView.Opacity;
+                skiaView.InputTransparent = mauiView.InputTransparent;
+
+                mauiView.PropertyChanged += (s, e) =>
+                {
+                    switch (e.PropertyName)
+                    {
+                        case nameof(View.IsVisible):
+                            skiaView.IsVisible = mauiView.IsVisible;
+                            break;
+                        case nameof(View.Opacity):
+                            skiaView.Opacity = (float)mauiView.Opacity;
+                            break;
+                        case nameof(View.InputTransparent):
+                            skiaView.InputTransparent = mauiView.InputTransparent;
+                            break;
+                    }
+                };
+            }
+
+            // NOTE: Loaded event is fired from SkiaView.Arrange after the
+            // first successful layout, when the element has its final size.
         }
 
         return handler;

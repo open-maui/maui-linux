@@ -28,6 +28,40 @@ public static partial class GLibNative
     [LibraryImport("libglib-2.0.so.0", EntryPoint = "g_get_monotonic_time")]
     public static partial long GetMonotonicTime();
 
+    [DllImport("libglib-2.0.so.0", EntryPoint = "g_main_context_iteration")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool MainContextIteration(IntPtr context, [MarshalAs(UnmanagedType.Bool)] bool mayBlock);
+
+    private static bool _processingEvents;
+
+    /// <summary>
+    /// Processes pending GLib events (idle callbacks, timeouts, etc.) without blocking.
+    /// Must be called periodically from the main thread when not using gtk_main().
+    /// Limits processing to avoid cascading re-entrancy (e.g., a callback scheduling
+    /// more callbacks that get immediately drained in the same cycle).
+    /// </summary>
+    public static void ProcessPendingEvents(int maxIterations = 10)
+    {
+        // Re-entrancy guard: if a GLib callback triggers code that calls
+        // ProcessPendingEvents again, skip to prevent infinite recursion.
+        if (_processingEvents)
+            return;
+
+        _processingEvents = true;
+        try
+        {
+            for (int i = 0; i < maxIterations; i++)
+            {
+                if (!MainContextIteration(IntPtr.Zero, false))
+                    break;
+            }
+        }
+        finally
+        {
+            _processingEvents = false;
+        }
+    }
+
     public static uint IdleAdd(Func<bool> callback)
     {
         GSourceFunc wrapper = null!;

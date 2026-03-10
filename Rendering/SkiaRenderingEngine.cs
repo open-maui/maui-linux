@@ -85,8 +85,7 @@ public class SkiaRenderingEngine : IDisposable
 
     private void CreateSurface(int width, int height)
     {
-        _bitmap?.Dispose();
-        _backBuffer?.Dispose();
+        var oldBitmap = _bitmap;
         _canvas?.Dispose();
 
         _imageInfo = new SKImageInfo(
@@ -96,8 +95,17 @@ public class SkiaRenderingEngine : IDisposable
             SKAlphaType.Premul);
 
         _bitmap = new SKBitmap(_imageInfo);
-        _backBuffer = new SKBitmap(_imageInfo);
         _canvas = new SKCanvas(_bitmap);
+
+        // Copy old content to new bitmap to avoid a blank flash during resize
+        if (oldBitmap != null)
+        {
+            _canvas.DrawBitmap(oldBitmap, 0, 0);
+            oldBitmap.Dispose();
+        }
+
+        _backBuffer?.Dispose();
+        _backBuffer = new SKBitmap(_imageInfo);
         _fullRedrawNeeded = true;
 
         lock (_dirtyLock)
@@ -285,9 +293,11 @@ public class SkiaRenderingEngine : IDisposable
             _canvas.ClipRect(region);
         }
 
-        // Clear the region
-        using var clearPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
-        _canvas.DrawRect(region, clearPaint);
+        // Clear the region with transparent so PNG alpha and view backgrounds are preserved
+        _canvas.Save();
+        _canvas.ClipRect(region);
+        _canvas.Clear(SKColors.Transparent);
+        _canvas.Restore();
 
         // Apply DPI scaling so all drawing is proportionally larger on HiDPI displays
         if (DpiScale > 1.0f)
