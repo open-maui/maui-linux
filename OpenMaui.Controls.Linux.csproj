@@ -49,7 +49,7 @@
     <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.2" />
     <PackageReference Include="SkiaSharp.Views.Maui.Core" Version="3.119.2" />
     <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
-    <PackageReference Include="Svg.Skia" Version="3.4.1" />
+    <PackageReference Include="Svg.Skia" Version="3.6.0" />
 
     <!-- HarfBuzz for advanced text shaping -->
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.3" />
