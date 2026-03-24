@@ -110,6 +110,14 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             // Application handler
             handlers.AddHandler<IApplication, ApplicationHandler>();
 
+            // Shapes
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, EllipseHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Line, LineHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, PolygonHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, PolylineHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Path, PathHandler>();
+
             // Core controls
             handlers.AddHandler<BoxView, BoxViewHandler>();
             handlers.AddHandler<Button, TextButtonHandler>();

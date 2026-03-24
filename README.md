@@ -15,7 +15,7 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 
 ### Key Features
 
-- **Full Control Library**: 47+ controls including Button, Label, Entry, CarouselView, RefreshView, SwipeView, and more
+- **Full Control Library**: 50+ controls including Button, Label, Entry, Shapes, CarouselView, RefreshView, SwipeView, and more
 - **Native Integration**: X11 and Wayland display server support
 - **Accessibility**: AT-SPI2 screen reader support and high contrast mode
 - **Platform Services**: Clipboard, file picker, notifications, global hotkeys, drag & drop
@@ -82,6 +82,7 @@ builder
 | **Gesture** | SwipeView, RefreshView |
 | **Navigation** | NavigationPage, TabbedPage, FlyoutPage, Shell |
 | **Menu** | MenuBar, MenuFlyout, MenuItem |
+| **Shapes** | Ellipse, Line, Rectangle, Polygon, Polyline, Path |
 | **Graphics** | GraphicsView, Border |
 
 ## Platform Services
@@ -260,7 +261,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 ## Roadmap
 
-- [x] Core control library (47+ controls)
+- [x] Core control library (50+ controls)
 - [x] Platform services integration
 - [x] Accessibility (AT-SPI2)
 - [x] Input method support (IBus/XIM)
@@ -274,6 +275,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] App icon support (MauiIcon build targets, .desktop integration)
 - [x] Dark mode for all picker popups
 - [x] DPI-aware popup rendering with edge detection
+- [x] MAUI Shapes (Ellipse, Line, Rectangle, Polygon, Polyline, Path)
 - [ ] Complete Wayland support
 - [ ] Hardware video acceleration
 - [ ] GTK4 interop layer
