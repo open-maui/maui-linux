@@ -199,39 +199,80 @@ internal static class EssentialsPatches
 
     private static void RegisterPreferences()
     {
-        var prefsType = typeof(Microsoft.Maui.Storage.Preferences);
-        var field = prefsType.GetField("defaultImplementation",
-            BindingFlags.Static | BindingFlags.NonPublic);
+        // Patch the PreferencesImplementation constructor to not throw on Linux.
+        // Then set the defaultImplementation field to our Linux service.
+        var harmony = new Harmony("com.openmaui.essentials.preferences");
+        var asm = typeof(Microsoft.Maui.Storage.IPreferences).Assembly;
 
-        if (field == null)
+        var implType = asm.GetType("Microsoft.Maui.Storage.PreferencesImplementation");
+        if (implType != null)
         {
-            DiagnosticLog.Error("EssentialsPatches", "Preferences.defaultImplementation field not found");
-            return;
+            // Patch the constructor so it doesn't throw NotImplementedInReferenceAssemblyException.
+            var ctor = implType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (ctor != null)
+            {
+                harmony.Patch(ctor, prefix: new HarmonyMethod(typeof(EssentialsPatches), nameof(SuppressConstructor_Prefix)));
+            }
         }
 
-        field.SetValue(null, new PreferencesService());
-        DiagnosticLog.Debug("EssentialsPatches", "Registered Preferences (Linux)");
+        // Now safely access the Preferences type — the cctor will create
+        // PreferencesImplementation without throwing.
+        var prefsType = asm.GetType("Microsoft.Maui.Storage.Preferences");
+        var field = prefsType?.GetField("defaultImplementation",
+            BindingFlags.Static | BindingFlags.NonPublic);
+
+        if (field != null)
+        {
+            field.SetValue(null, new PreferencesService());
+            DiagnosticLog.Debug("EssentialsPatches", "Registered Preferences (Linux)");
+        }
+        else
+        {
+            DiagnosticLog.Error("EssentialsPatches", "Preferences.defaultImplementation field not found");
+        }
     }
 
     // -----------------------------------------------------------------------
-    // SecureStorage — set the static backing field to our Linux implementation
+    // SecureStorage — same approach
     // -----------------------------------------------------------------------
 
     private static void RegisterSecureStorage()
     {
-        var secType = typeof(Microsoft.Maui.Storage.SecureStorage);
-        var field = secType.GetField("defaultImplementation",
-            BindingFlags.Static | BindingFlags.NonPublic);
+        var harmony = new Harmony("com.openmaui.essentials.securestorage");
+        var asm = typeof(Microsoft.Maui.Storage.ISecureStorage).Assembly;
 
-        if (field == null)
+        var implType = asm.GetType("Microsoft.Maui.Storage.SecureStorageImplementation");
+        if (implType != null)
         {
-            DiagnosticLog.Error("EssentialsPatches", "SecureStorage.defaultImplementation field not found");
-            return;
+            var ctor = implType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (ctor != null)
+            {
+                harmony.Patch(ctor, prefix: new HarmonyMethod(typeof(EssentialsPatches), nameof(SuppressConstructor_Prefix)));
+            }
         }
 
-        field.SetValue(null, new SecureStorageService());
-        DiagnosticLog.Debug("EssentialsPatches", "Registered SecureStorage (Linux)");
+        var secType = asm.GetType("Microsoft.Maui.Storage.SecureStorage");
+        var field = secType?.GetField("defaultImplementation",
+            BindingFlags.Static | BindingFlags.NonPublic);
+
+        if (field != null)
+        {
+            field.SetValue(null, new SecureStorageService());
+            DiagnosticLog.Debug("EssentialsPatches", "Registered SecureStorage (Linux)");
+        }
+        else
+        {
+            DiagnosticLog.Error("EssentialsPatches", "SecureStorage.defaultImplementation field not found");
+        }
     }
+
+    /// <summary>
+    /// Suppresses the constructor of *Implementation types that throw
+    /// NotImplementedInReferenceAssemblyException on unsupported platforms.
+    /// The constructor body is skipped; the instance is created but never used
+    /// because we immediately replace it with our Linux implementation.
+    /// </summary>
+    private static bool SuppressConstructor_Prefix() => false;
 
     /// <summary>
     /// Replacement for MainThread.PlatformBeginInvokeOnMainThread.
