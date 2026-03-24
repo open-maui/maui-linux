@@ -202,8 +202,8 @@ internal static class EssentialsPatches
 
     private static void PatchPreferences(Harmony harmony)
     {
-        // Preferences.Default delegates to PreferencesImplementation which throws on Linux.
-        // Patch the concrete implementation's methods.
+        // In MAUI 10.0.50, PreferencesImplementation methods lost the "Platform" prefix
+        // and Get/Set are now generic. We patch all instance methods by name.
         var implType = typeof(Microsoft.Maui.Storage.Preferences).Assembly.GetType(
             "Microsoft.Maui.Storage.PreferencesImplementation");
 
@@ -213,54 +213,70 @@ internal static class EssentialsPatches
             return;
         }
 
-        PatchMethod(harmony, implType, "PlatformGet",
-            new[] { typeof(string), typeof(string), typeof(string) },
-            nameof(PlatformPreferencesGet_Prefix));
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        int patched = 0;
 
-        PatchMethod(harmony, implType, "PlatformSet",
-            new[] { typeof(string), typeof(string), typeof(string) },
-            nameof(PlatformPreferencesSet_Prefix));
+        foreach (var method in implType.GetMethods(flags))
+        {
+            var prefixName = method.Name switch
+            {
+                "Get" or "PlatformGet" => nameof(PreferencesGet_Prefix),
+                "Set" or "PlatformSet" => nameof(PreferencesSet_Prefix),
+                "ContainsKey" or "PlatformContainsKey" => nameof(PreferencesContainsKey_Prefix),
+                "Remove" or "PlatformRemove" => nameof(PreferencesRemove_Prefix),
+                "Clear" or "PlatformClear" => nameof(PreferencesClear_Prefix),
+                _ => null,
+            };
+            if (prefixName == null) continue;
 
-        PatchMethod(harmony, implType, "PlatformContainsKey",
-            new[] { typeof(string), typeof(string) },
-            nameof(PlatformPreferencesContainsKey_Prefix));
+            try
+            {
+                var prefix = typeof(EssentialsPatches).GetMethod(prefixName,
+                    BindingFlags.Static | BindingFlags.NonPublic)!;
+                harmony.Patch(method, new HarmonyMethod(prefix));
+                patched++;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("EssentialsPatches", $"Preferences.{method.Name} patch failed: {ex.Message}");
+            }
+        }
 
-        PatchMethod(harmony, implType, "PlatformRemove",
-            new[] { typeof(string), typeof(string) },
-            nameof(PlatformPreferencesRemove_Prefix));
-
-        PatchMethod(harmony, implType, "PlatformClear",
-            new[] { typeof(string) },
-            nameof(PlatformPreferencesClear_Prefix));
-
-        DiagnosticLog.Debug("EssentialsPatches", "Patched Preferences");
+        DiagnosticLog.Debug("EssentialsPatches", $"Patched Preferences ({patched} methods)");
     }
 
-    private static bool PlatformPreferencesGet_Prefix(string key, string? defaultValue, string? sharedName, ref string? __result)
+    // Generic-compatible prefixes: Harmony calls these for any T since we return false (skip original).
+    // The __result is object because the generic instantiation varies.
+
+    private static bool PreferencesGet_Prefix(string key, object? defaultValue, string? sharedName, ref object? __result)
     {
-        __result = PreferencesInstance.Get(key, defaultValue, sharedName);
+        // Get<T> — we store everything as strings in our PreferencesService, so retrieve as string
+        // and let the caller's implicit conversion handle it.
+        var stringDefault = defaultValue?.ToString();
+        var stored = PreferencesInstance.Get(key, stringDefault, sharedName);
+        __result = stored ?? defaultValue;
         return false;
     }
 
-    private static bool PlatformPreferencesSet_Prefix(string key, string? value, string? sharedName)
+    private static bool PreferencesSet_Prefix(string key, object? value, string? sharedName)
     {
         PreferencesInstance.Set(key, value, sharedName);
         return false;
     }
 
-    private static bool PlatformPreferencesContainsKey_Prefix(string key, string? sharedName, ref bool __result)
+    private static bool PreferencesContainsKey_Prefix(string key, string? sharedName, ref bool __result)
     {
         __result = PreferencesInstance.ContainsKey(key, sharedName);
         return false;
     }
 
-    private static bool PlatformPreferencesRemove_Prefix(string key, string? sharedName)
+    private static bool PreferencesRemove_Prefix(string key, string? sharedName)
     {
         PreferencesInstance.Remove(key, sharedName);
         return false;
     }
 
-    private static bool PlatformPreferencesClear_Prefix(string? sharedName)
+    private static bool PreferencesClear_Prefix(string? sharedName)
     {
         PreferencesInstance.Clear(sharedName);
         return false;
@@ -284,44 +300,57 @@ internal static class EssentialsPatches
             return;
         }
 
-        PatchMethod(harmony, implType, "PlatformGetAsync",
-            new[] { typeof(string) },
-            nameof(PlatformSecureStorageGetAsync_Prefix));
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        int patched = 0;
 
-        PatchMethod(harmony, implType, "PlatformSetAsync",
-            new[] { typeof(string), typeof(string) },
-            nameof(PlatformSecureStorageSetAsync_Prefix));
+        foreach (var method in implType.GetMethods(flags))
+        {
+            var prefixName = method.Name switch
+            {
+                "PlatformGetAsync" or "GetAsync" => nameof(SecureStorageGetAsync_Prefix),
+                "PlatformSetAsync" or "SetAsync" => nameof(SecureStorageSetAsync_Prefix),
+                "PlatformRemove" or "Remove" => nameof(SecureStorageRemove_Prefix),
+                "PlatformRemoveAll" or "RemoveAll" => nameof(SecureStorageRemoveAll_Prefix),
+                _ => null,
+            };
+            if (prefixName == null) continue;
 
-        PatchMethod(harmony, implType, "PlatformRemove",
-            new[] { typeof(string) },
-            nameof(PlatformSecureStorageRemove_Prefix));
+            try
+            {
+                var prefix = typeof(EssentialsPatches).GetMethod(prefixName,
+                    BindingFlags.Static | BindingFlags.NonPublic)!;
+                harmony.Patch(method, new HarmonyMethod(prefix));
+                patched++;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("EssentialsPatches", $"SecureStorage.{method.Name} patch failed: {ex.Message}");
+            }
+        }
 
-        PatchMethod(harmony, implType, "PlatformRemoveAll",
-            Type.EmptyTypes,
-            nameof(PlatformSecureStorageRemoveAll_Prefix));
-
-        DiagnosticLog.Debug("EssentialsPatches", "Patched SecureStorage");
+        DiagnosticLog.Debug("EssentialsPatches", $"Patched SecureStorage ({patched} methods)");
     }
 
-    private static bool PlatformSecureStorageGetAsync_Prefix(string key, ref Task<string?> __result)
+    // Parameter name is "data" in MAUI 10.0.50 but Harmony matches by position, not name.
+    private static bool SecureStorageGetAsync_Prefix(string key, ref Task<string?> __result)
     {
         __result = SecureStorageInstance.GetAsync(key);
         return false;
     }
 
-    private static bool PlatformSecureStorageSetAsync_Prefix(string key, string value, ref Task __result)
+    private static bool SecureStorageSetAsync_Prefix(string key, string data, ref Task __result)
     {
-        __result = SecureStorageInstance.SetAsync(key, value);
+        __result = SecureStorageInstance.SetAsync(key, data);
         return false;
     }
 
-    private static bool PlatformSecureStorageRemove_Prefix(string key, ref bool __result)
+    private static bool SecureStorageRemove_Prefix(string key, ref bool __result)
     {
         __result = SecureStorageInstance.Remove(key);
         return false;
     }
 
-    private static bool PlatformSecureStorageRemoveAll_Prefix()
+    private static bool SecureStorageRemoveAll_Prefix()
     {
         SecureStorageInstance.RemoveAll();
         return false;

@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.41.14] - 2026-03-23
+## [10.0.50.1] - 2026-03-23
+
+> Upgraded to MAUI 10.0.50. Version aligned with Microsoft.Maui.Controls 10.0.50.
+
+### Changed
+- Microsoft.Maui.Controls: 10.0.41 → 10.0.50
+- Microsoft.Maui.Graphics: 10.0.41 → 10.0.50
 
 ### Added
 - MAUI Shapes support: Ellipse, Line, Rectangle, Polygon, Polyline, Path
@@ -16,6 +22,11 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - SkiaPath: arbitrary geometry via PathGeometry-to-SVG conversion with support for Line, Bezier, QuadraticBezier, Arc, PolyLine, PolyBezier, and PolyQuadraticBezier segments
 - Handlers: EllipseHandler, LineHandler, RectangleHandler, PolygonHandler, PolylineHandler, PathHandler
 - All shape handlers registered in LinuxMauiAppBuilderExtensions
+
+### Fixed
+- Harmony patches for Preferences (MAUI 10.0.50 removed Platform prefix, Get/Set are now generic)
+- Harmony patches for SecureStorage (PlatformSetAsync parameter renamed from value to data)
+- Both patches now discover methods dynamically instead of hardcoding signatures
 
 ## [10.0.41] - 2026-03-08
 
