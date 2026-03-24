@@ -785,8 +785,8 @@ public class SkiaLabel : SkiaView
 
     private void DrawMultiLineText(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds, string text)
     {
-        // LineHeight -1 means platform default (use 1.0 multiplier)
-        double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
+        // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
+        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
         float lineHeight = (float)(FontSize * effectiveLineHeight);
         float y = bounds.Top;
         int lineCount = 0;
@@ -941,8 +941,8 @@ public class SkiaLabel : SkiaView
 
         float x = bounds.Left;
         float y = bounds.Top;
-        // LineHeight -1 means platform default (use 1.0 multiplier)
-        double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
+        // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
+        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
         float lineHeight = (float)(FontSize * effectiveLineHeight);
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
@@ -1178,8 +1178,8 @@ public class SkiaLabel : SkiaView
         using var paint = new SKPaint(font);
 
         double width, height;
-        // LineHeight -1 means platform default (use 1.0 multiplier)
-        double effectiveLineHeight = LineHeight < 0 ? 1.0 : LineHeight;
+        // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
+        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
 
         if (FormattedText != null && FormattedText.Spans.Count > 0)
         {
