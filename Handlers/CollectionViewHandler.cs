@@ -192,6 +192,23 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                     var content = template.CreateContent();
                     if (content is View view)
                     {
+                        // Set the parent to the CollectionView so RelativeSource AncestorType
+                        // bindings can walk the visual tree up to the Page.
+                        if (view.Parent == null)
+                        {
+                            try
+                            {
+                                // Use reflection to set the internal Parent property.
+                                // MAUI's Element.Parent setter is public but may trigger
+                                // side effects, so we use the internal SetParent if available.
+                                view.Parent = collectionView;
+                            }
+                            catch
+                            {
+                                // Fallback: some MAUI versions restrict parent assignment.
+                            }
+                        }
+
                         // Set binding context FIRST so bindings evaluate
                         view.BindingContext = item;
 

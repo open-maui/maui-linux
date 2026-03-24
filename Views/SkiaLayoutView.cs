@@ -1,7 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Microsoft.Maui;
@@ -251,6 +253,17 @@ public abstract class SkiaLayoutView : SkiaView
         if (!IsVisible || !IsEnabled || !Bounds.Contains(x, y))
             return null;
 
+        // If this layout view has tap gesture recognizers, it should handle the hit
+        // rather than passing through to children (matches SkiaBorder behavior).
+        if (MauiView?.GestureRecognizers != null)
+        {
+            foreach (var gr in MauiView.GestureRecognizers)
+            {
+                if (gr is Microsoft.Maui.Controls.TapGestureRecognizer)
+                    return this;
+            }
+        }
+
         // Hit test children in reverse order (top-most first)
         for (int i = _children.Count - 1; i >= 0; i--)
         {
@@ -264,28 +277,49 @@ public abstract class SkiaLayoutView : SkiaView
     }
 
     /// <summary>
-    /// Forward pointer pressed events to the appropriate child.
+    /// Forward pointer pressed events to the appropriate child,
+    /// or handle locally if this layout has gesture recognizers.
     /// </summary>
+    private bool _layoutPressed;
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        // Find which child was hit and forward the event
         var hit = HitTest(e.X, e.Y);
         if (hit != null && hit != this)
         {
             hit.OnPointerPressed(e);
         }
+        else if (hit == this && MauiView != null)
+        {
+            // This layout has gesture recognizers — handle locally.
+            _layoutPressed = true;
+            e.Handled = true;
+            GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
+        }
     }
 
     /// <summary>
-    /// Forward pointer released events to the appropriate child.
+    /// Forward pointer released events to the appropriate child,
+    /// or handle locally if this layout has gesture recognizers.
     /// </summary>
     public override void OnPointerReleased(PointerEventArgs e)
     {
-        // Find which child was hit and forward the event
-        var hit = HitTest(e.X, e.Y);
-        if (hit != null && hit != this)
+        if (_layoutPressed)
         {
-            hit.OnPointerReleased(e);
+            _layoutPressed = false;
+            e.Handled = true;
+            if (MauiView != null)
+            {
+                GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
+            }
+        }
+        else
+        {
+            var hit = HitTest(e.X, e.Y);
+            if (hit != null && hit != this)
+            {
+                hit.OnPointerReleased(e);
+            }
         }
     }
 

@@ -125,6 +125,11 @@ public partial class CarouselViewHandler : ViewHandler<CarouselView, SkiaCarouse
                     var content = template.CreateContent();
                     if (content is View view)
                     {
+                        // Set parent for RelativeSource AncestorType binding support.
+                        if (view.Parent == null)
+                        {
+                            try { view.Parent = carouselView; } catch { }
+                        }
                         view.BindingContext = item;
 
                         if (view.Handler == null)
