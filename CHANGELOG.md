@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.41.14] - 2026-03-23
+
+### Added
+- MAUI Shapes support: Ellipse, Line, Rectangle, Polygon, Polyline, Path
+- SkiaEllipse: filled/stroked ellipse with Brush support
+- SkiaLine: line between two points with configurable stroke
+- SkiaRectangle: rectangle with optional RadiusX/RadiusY rounded corners
+- SkiaPolygon: closed polygon with EvenOdd/Winding fill rules
+- SkiaPolyline: open connected points with stroke and optional fill
+- SkiaPath: arbitrary geometry via PathGeometry-to-SVG conversion with support for Line, Bezier, QuadraticBezier, Arc, PolyLine, PolyBezier, and PolyQuadraticBezier segments
+- Handlers: EllipseHandler, LineHandler, RectangleHandler, PolygonHandler, PolylineHandler, PathHandler
+- All shape handlers registered in LinuxMauiAppBuilderExtensions
+
 ## [10.0.41] - 2026-03-08
 
 > Upgraded to .NET 10 / MAUI 10.0.41. Version aligned with MAUI 10.0.41.
