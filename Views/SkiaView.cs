@@ -920,6 +920,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             SetInheritedBindingContext(child, BindingContext);
         }
 
+        InvalidateMeasure();
         Invalidate();
     }
 
@@ -933,6 +934,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
 
         child._parent = null;
         _children.Remove(child);
+        InvalidateMeasure();
         Invalidate();
     }
 
@@ -953,6 +955,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             SetInheritedBindingContext(child, BindingContext);
         }
 
+        InvalidateMeasure();
         Invalidate();
     }
 
@@ -966,6 +969,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             child._parent = null;
         }
         _children.Clear();
+        InvalidateMeasure();
         Invalidate();
     }
 
