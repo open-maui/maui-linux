@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// IBus Input Method service using D-Bus interface.
 /// Provides modern IME support on Linux desktops.
 /// </summary>
-public class IBusInputMethodService : IInputMethodService, IDisposable
+public partial class IBusInputMethodService : IInputMethodService, IDisposable
 {
     private nint _bus;
     private nint _context;
@@ -45,14 +45,14 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
             _bus = ibus_bus_new();
             if (_bus == IntPtr.Zero)
             {
-                Console.WriteLine("IBusInputMethodService: Failed to connect to IBus");
+                DiagnosticLog.Error("IBusInputMethodService", "Failed to connect to IBus");
                 return;
             }
 
             // Check if IBus is connected
             if (!ibus_bus_is_connected(_bus))
             {
-                Console.WriteLine("IBusInputMethodService: IBus not connected");
+                DiagnosticLog.Error("IBusInputMethodService", "IBus not connected");
                 return;
             }
 
@@ -60,7 +60,7 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
             _context = ibus_bus_create_input_context(_bus, "maui-linux");
             if (_context == IntPtr.Zero)
             {
-                Console.WriteLine("IBusInputMethodService: Failed to create input context");
+                DiagnosticLog.Error("IBusInputMethodService", "Failed to create input context");
                 return;
             }
 
@@ -71,11 +71,11 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
             // Connect signals
             ConnectSignals();
 
-            Console.WriteLine("IBusInputMethodService: Initialized successfully");
+            DiagnosticLog.Debug("IBusInputMethodService", "Initialized successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"IBusInputMethodService: Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("IBusInputMethodService", $"Initialization failed - {ex.Message}");
         }
     }
 
@@ -318,62 +318,64 @@ public class IBusInputMethodService : IInputMethodService, IDisposable
     private delegate void IBusShowPreeditTextCallback(nint context, nint userData);
     private delegate void IBusHidePreeditTextCallback(nint context, nint userData);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern void ibus_init();
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_init();
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern nint ibus_bus_new();
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial nint ibus_bus_new();
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern bool ibus_bus_is_connected(nint bus);
+    [LibraryImport("libibus-1.0.so.5")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ibus_bus_is_connected(nint bus);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern nint ibus_bus_create_input_context(nint bus, string clientName);
+    [LibraryImport("libibus-1.0.so.5", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint ibus_bus_create_input_context(nint bus, string clientName);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern void ibus_input_context_set_capabilities(nint context, uint capabilities);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_set_capabilities(nint context, uint capabilities);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern void ibus_input_context_focus_in(nint context);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_focus_in(nint context);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern void ibus_input_context_focus_out(nint context);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_focus_out(nint context);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern void ibus_input_context_reset(nint context);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_reset(nint context);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern void ibus_input_context_set_cursor_location(nint context, int x, int y, int w, int h);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_set_cursor_location(nint context, int x, int y, int w, int h);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern bool ibus_input_context_process_key_event(nint context, uint keyval, uint keycode, uint state);
+    [LibraryImport("libibus-1.0.so.5")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ibus_input_context_process_key_event(nint context, uint keyval, uint keycode, uint state);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern nint ibus_text_get_text(nint text);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial nint ibus_text_get_text(nint text);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern nint ibus_text_get_attributes(nint text);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial nint ibus_text_get_attributes(nint text);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern uint ibus_attr_list_size(nint attrList);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial uint ibus_attr_list_size(nint attrList);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern nint ibus_attr_list_get(nint attrList, uint index);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial nint ibus_attr_list_get(nint attrList, uint index);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern uint ibus_attribute_get_attr_type(nint attr);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial uint ibus_attribute_get_attr_type(nint attr);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern uint ibus_attribute_get_start_index(nint attr);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial uint ibus_attribute_get_start_index(nint attr);
 
-    [DllImport("libibus-1.0.so.5")]
-    private static extern uint ibus_attribute_get_end_index(nint attr);
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial uint ibus_attribute_get_end_index(nint attr);
 
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern void g_object_unref(nint obj);
+    [LibraryImport("libgobject-2.0.so.0")]
+    private static partial void g_object_unref(nint obj);
 
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern ulong g_signal_connect(nint instance, string signal, nint handler, nint data);
+    [LibraryImport("libgobject-2.0.so.0", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial ulong g_signal_connect(nint instance, string signal, nint handler, nint data);
 
     #endregion
 }

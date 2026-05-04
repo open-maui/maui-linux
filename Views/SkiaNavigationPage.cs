@@ -1,8 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using SkiaSharp;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux;
+using Microsoft.Maui.Platform.Linux.Services;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
@@ -19,28 +25,32 @@ public class SkiaNavigationPage : SkiaView
     private bool _isPushAnimation;
 
     // Navigation bar styling
-    private SKColor _barBackgroundColor = new SKColor(0x21, 0x96, 0xF3);
+    private SKColor _barBackgroundColor = SkiaTheme.PrimarySK;
     private SKColor _barTextColor = SKColors.White;
+    private Color _barBackgroundColorMaui = Color.FromRgb(0x21, 0x96, 0xF3);
+    private Color _barTextColorMaui = Colors.White;
     private float _navigationBarHeight = 56;
     private bool _showBackButton = true;
 
-    public SKColor BarBackgroundColor
+    public Color BarBackgroundColor
     {
-        get => _barBackgroundColor;
+        get => _barBackgroundColorMaui;
         set
         {
-            _barBackgroundColor = value;
+            _barBackgroundColorMaui = value;
+            _barBackgroundColor = value.ToSKColor();
             UpdatePageNavigationBar();
             Invalidate();
         }
     }
 
-    public SKColor BarTextColor
+    public Color BarTextColor
     {
-        get => _barTextColor;
+        get => _barTextColorMaui;
         set
         {
-            _barTextColor = value;
+            _barTextColorMaui = value;
+            _barTextColor = value.ToSKColor();
             UpdatePageNavigationBar();
             Invalidate();
         }
@@ -89,6 +99,12 @@ public class SkiaNavigationPage : SkiaView
     {
         if (_isAnimating) return;
 
+        // Disable animation in GTK mode
+        if (LinuxApplication.IsGtkMode)
+        {
+            animated = false;
+        }
+
         if (_currentPage != null)
         {
             _currentPage.OnDisappearing();
@@ -108,9 +124,12 @@ public class SkiaNavigationPage : SkiaView
         }
         else
         {
+            DiagnosticLog.Debug("SkiaNavigationPage", "Push (no animation): setting _currentPage to " + page.Title);
             _currentPage = page;
             _currentPage.OnAppearing();
+            DiagnosticLog.Debug("SkiaNavigationPage", "Push: calling Invalidate");
             Invalidate();
+            DiagnosticLog.Debug("SkiaNavigationPage", "Push: Invalidate called, _currentPage is now " + _currentPage?.Title);
         }
 
         Pushed?.Invoke(this, new NavigationEventArgs(page));
@@ -119,6 +138,12 @@ public class SkiaNavigationPage : SkiaView
     public SkiaPage? Pop(bool animated = true)
     {
         if (_isAnimating || _navigationStack.Count == 0) return null;
+
+        // Disable animation in GTK mode
+        if (LinuxApplication.IsGtkMode)
+        {
+            animated = false;
+        }
 
         var poppedPage = _currentPage;
         poppedPage?.OnDisappearing();
@@ -175,8 +200,8 @@ public class SkiaNavigationPage : SkiaView
     private void ConfigurePage(SkiaPage page, bool showBackButton)
     {
         page.ShowNavigationBar = true;
-        page.TitleBarColor = _barBackgroundColor;
-        page.TitleTextColor = _barTextColor;
+        page.TitleBarColor = _barBackgroundColorMaui;
+        page.TitleTextColor = _barTextColorMaui;
         page.NavigationBarHeight = _navigationBarHeight;
         _showBackButton = showBackButton && _navigationStack.Count > 0;
     }
@@ -185,8 +210,8 @@ public class SkiaNavigationPage : SkiaView
     {
         if (_currentPage != null)
         {
-            _currentPage.TitleBarColor = _barBackgroundColor;
-            _currentPage.TitleTextColor = _barTextColor;
+            _currentPage.TitleBarColor = _barBackgroundColorMaui;
+            _currentPage.TitleTextColor = _barTextColorMaui;
             _currentPage.NavigationBarHeight = _navigationBarHeight;
         }
     }
@@ -237,11 +262,11 @@ public class SkiaNavigationPage : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background
-        if (BackgroundColor != SKColors.Transparent)
+        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = BackgroundColor,
+                Color = GetEffectiveBackgroundColor(),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);
@@ -263,7 +288,7 @@ public class SkiaNavigationPage : SkiaView
                 {
                     canvas.Save();
                     canvas.Translate(currentOffset, 0);
-                    _currentPage.Bounds = bounds;
+                    _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                     _currentPage.Draw(canvas);
                     canvas.Restore();
                 }
@@ -271,7 +296,7 @@ public class SkiaNavigationPage : SkiaView
                 // Draw incoming page
                 canvas.Save();
                 canvas.Translate(incomingOffset, 0);
-                _incomingPage.Bounds = bounds;
+                _incomingPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                 _incomingPage.Draw(canvas);
                 canvas.Restore();
             }
@@ -284,7 +309,7 @@ public class SkiaNavigationPage : SkiaView
                 // Draw incoming page (sliding in)
                 canvas.Save();
                 canvas.Translate(incomingOffset, 0);
-                _incomingPage.Bounds = bounds;
+                _incomingPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                 _incomingPage.Draw(canvas);
                 canvas.Restore();
 
@@ -293,7 +318,7 @@ public class SkiaNavigationPage : SkiaView
                 {
                     canvas.Save();
                     canvas.Translate(currentOffset, 0);
-                    _currentPage.Bounds = bounds;
+                    _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
                     _currentPage.Draw(canvas);
                     canvas.Restore();
                 }
@@ -302,7 +327,8 @@ public class SkiaNavigationPage : SkiaView
         else if (_currentPage != null)
         {
             // Draw current page normally
-            _currentPage.Bounds = bounds;
+            DiagnosticLog.Debug("SkiaNavigationPage", "OnDraw: drawing _currentPage=" + _currentPage.Title);
+            _currentPage.Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
             _currentPage.Draw(canvas);
 
             // Draw back button if applicable
@@ -343,14 +369,14 @@ public class SkiaNavigationPage : SkiaView
         return 1 - (float)Math.Pow(1 - t, 3);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         return availableSize;
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaNavigationPage] OnPointerPressed at ({e.X}, {e.Y}), _isAnimating={_isAnimating}");
+        DiagnosticLog.Debug("SkiaNavigationPage", $"OnPointerPressed at ({e.X}, {e.Y}), _isAnimating={_isAnimating}");
         if (_isAnimating) return;
 
         // Check for back button click
@@ -358,13 +384,13 @@ public class SkiaNavigationPage : SkiaView
         {
             if (e.X < 56 && e.Y < _navigationBarHeight)
             {
-                Console.WriteLine($"[SkiaNavigationPage] Back button clicked");
+                DiagnosticLog.Debug("SkiaNavigationPage", "Back button clicked");
                 Pop();
                 return;
             }
         }
 
-        Console.WriteLine($"[SkiaNavigationPage] Forwarding to _currentPage: {_currentPage?.GetType().Name}");
+        DiagnosticLog.Debug("SkiaNavigationPage", $"Forwarding to _currentPage: {_currentPage?.GetType().Name}");
         _currentPage?.OnPointerPressed(e);
     }
 
@@ -429,23 +455,10 @@ public class SkiaNavigationPage : SkiaView
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SkiaNavigationPage] HitTest error: {ex.Message}");
+                DiagnosticLog.Error("SkiaNavigationPage", $"HitTest error: {ex.Message}", ex);
             }
         }
 
         return this;
-    }
-}
-
-/// <summary>
-/// Event args for navigation events.
-/// </summary>
-public class NavigationEventArgs : EventArgs
-{
-    public SkiaPage Page { get; }
-
-    public NavigationEventArgs(SkiaPage page)
-    {
-        Page = page;
     }
 }

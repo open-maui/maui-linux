@@ -143,7 +143,7 @@ public partial class ItemsViewHandler<TItemsView> : ViewHandler<TItemsView, Skia
 
         if (itemsView.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 

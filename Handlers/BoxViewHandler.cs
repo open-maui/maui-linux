@@ -30,28 +30,38 @@ public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
         return new SkiaBoxView();
     }
 
+    protected override void ConnectHandler(SkiaBoxView platformView)
+    {
+        base.ConnectHandler(platformView);
+
+        // Map size requests from MAUI BoxView
+        if (VirtualView is BoxView boxView)
+        {
+            if (boxView.WidthRequest >= 0)
+                platformView.WidthRequest = boxView.WidthRequest;
+            if (boxView.HeightRequest >= 0)
+                platformView.HeightRequest = boxView.HeightRequest;
+        }
+    }
+
     public static void MapColor(BoxViewHandler handler, BoxView boxView)
     {
         if (boxView.Color != null)
         {
-            handler.PlatformView.Color = new SKColor(
-                (byte)(boxView.Color.Red * 255),
-                (byte)(boxView.Color.Green * 255),
-                (byte)(boxView.Color.Blue * 255),
-                (byte)(boxView.Color.Alpha * 255));
+            handler.PlatformView.Color = boxView.Color;
         }
     }
 
     public static void MapCornerRadius(BoxViewHandler handler, BoxView boxView)
     {
-        handler.PlatformView.CornerRadius = (float)boxView.CornerRadius.TopLeft;
+        handler.PlatformView.CornerRadius = boxView.CornerRadius;
     }
 
     public static void MapBackground(BoxViewHandler handler, BoxView boxView)
     {
         if (boxView.Background is SolidColorBrush solidBrush && solidBrush.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
             handler.PlatformView.Invalidate();
         }
     }
@@ -60,7 +70,7 @@ public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
     {
         if (boxView.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = boxView.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = boxView.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }

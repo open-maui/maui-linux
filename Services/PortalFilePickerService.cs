@@ -91,7 +91,7 @@ public class PortalFilePickerService : IFilePicker
         else
         {
             // No file picker available
-            Console.WriteLine("[FilePickerService] No file picker available (install xdg-desktop-portal, zenity, or kdialog)");
+            DiagnosticLog.Warn("PortalFilePickerService", "No file picker available (install xdg-desktop-portal, zenity, or kdialog)");
             return Enumerable.Empty<FileResult>();
         }
     }
@@ -146,7 +146,7 @@ public class PortalFilePickerService : IFilePicker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FilePickerService] Portal error: {ex.Message}");
+            DiagnosticLog.Error("PortalFilePickerService", $"Portal error: {ex.Message}");
             // Fall back to zenity/kdialog
             if (_fallbackTool != null)
             {
@@ -358,122 +358,8 @@ public class PortalFilePickerService : IFilePicker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FilePickerService] Command error: {ex.Message}");
+            DiagnosticLog.Error("PortalFilePickerService", $"Command error: {ex.Message}");
             return "";
         }
     }
-}
-
-/// <summary>
-/// Folder picker service using xdg-desktop-portal for native dialogs.
-/// </summary>
-public class PortalFolderPickerService
-{
-    public async Task<FolderPickerResult> PickAsync(FolderPickerOptions? options = null, CancellationToken cancellationToken = default)
-    {
-        options ??= new FolderPickerOptions();
-
-        // Use zenity/kdialog for folder selection (simpler than portal)
-        string? selectedFolder = null;
-
-        if (IsCommandAvailable("zenity"))
-        {
-            var args = $"--file-selection --directory --title=\"{options.Title ?? "Select Folder"}\"";
-            selectedFolder = await Task.Run(() => RunCommand("zenity", args)?.Trim());
-        }
-        else if (IsCommandAvailable("kdialog"))
-        {
-            var args = $"--getexistingdirectory . --title \"{options.Title ?? "Select Folder"}\"";
-            selectedFolder = await Task.Run(() => RunCommand("kdialog", args)?.Trim());
-        }
-
-        if (!string.IsNullOrEmpty(selectedFolder) && Directory.Exists(selectedFolder))
-        {
-            return new FolderPickerResult(new FolderResult(selectedFolder));
-        }
-
-        return new FolderPickerResult(null);
-    }
-
-    public async Task<FolderPickerResult> PickAsync(CancellationToken cancellationToken = default)
-    {
-        return await PickAsync(null, cancellationToken);
-    }
-
-    private bool IsCommandAvailable(string command)
-    {
-        try
-        {
-            var output = RunCommand("which", command);
-            return !string.IsNullOrWhiteSpace(output);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private string? RunCommand(string command, string arguments)
-    {
-        try
-        {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = command,
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(30000);
-            return output;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-}
-
-/// <summary>
-/// Result of a folder picker operation.
-/// </summary>
-public class FolderResult
-{
-    public string Path { get; }
-    public string Name => System.IO.Path.GetFileName(Path) ?? Path;
-
-    public FolderResult(string path)
-    {
-        Path = path;
-    }
-}
-
-/// <summary>
-/// Result wrapper for folder picker.
-/// </summary>
-public class FolderPickerResult
-{
-    public FolderResult? Folder { get; }
-    public bool WasSuccessful => Folder != null;
-
-    public FolderPickerResult(FolderResult? folder)
-    {
-        Folder = folder;
-    }
-}
-
-/// <summary>
-/// Options for folder picker.
-/// </summary>
-public class FolderPickerOptions
-{
-    public string? Title { get; set; }
-    public string? InitialDirectory { get; set; }
 }

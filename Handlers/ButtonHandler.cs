@@ -1,8 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -59,6 +61,20 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
             MapBackground(this, VirtualView);
             MapPadding(this, VirtualView);
             MapIsEnabled(this, VirtualView);
+
+            // Map size requests from MAUI Button
+            if (VirtualView is Microsoft.Maui.Controls.Button mauiButton)
+            {
+                DiagnosticLog.Debug("ButtonHandler", $"MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
+                if (mauiButton.WidthRequest >= 0)
+                    platformView.WidthRequest = mauiButton.WidthRequest;
+                if (mauiButton.HeightRequest >= 0)
+                    platformView.HeightRequest = mauiButton.HeightRequest;
+            }
+            else
+            {
+                DiagnosticLog.Debug("ButtonHandler", $"VirtualView is NOT Microsoft.Maui.Controls.Button, type={VirtualView?.GetType().Name}");
+            }
         }
     }
 
@@ -80,13 +96,13 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
 
         var strokeColor = button.StrokeColor;
         if (strokeColor is not null)
-            handler.PlatformView.BorderColor = strokeColor.ToSKColor();
+            handler.PlatformView.BorderColor = strokeColor;
     }
 
     public static void MapStrokeThickness(ButtonHandler handler, IButton button)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.BorderWidth = (float)button.StrokeThickness;
+        handler.PlatformView.BorderWidth = button.StrokeThickness;
     }
 
     public static void MapCornerRadius(ButtonHandler handler, IButton button)
@@ -101,8 +117,8 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
 
         if (button.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            // Set ButtonBackgroundColor (used for rendering) not base BackgroundColor
-            handler.PlatformView.ButtonBackgroundColor = solidPaint.Color.ToSKColor();
+            // Set BackgroundColor (MAUI Color type)
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 
@@ -111,17 +127,16 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
         if (handler.PlatformView is null) return;
 
         var padding = button.Padding;
-        handler.PlatformView.Padding = new SKRect(
-            (float)padding.Left,
-            (float)padding.Top,
-            (float)padding.Right,
-            (float)padding.Bottom);
+        handler.PlatformView.Padding = new Thickness(
+            padding.Left,
+            padding.Top,
+            padding.Right,
+            padding.Bottom);
     }
 
     public static void MapIsEnabled(ButtonHandler handler, IButton button)
     {
         if (handler.PlatformView is null) return;
-        Console.WriteLine($"[ButtonHandler] MapIsEnabled - Text='{handler.PlatformView.Text}', IsEnabled={button.IsEnabled}");
         handler.PlatformView.IsEnabled = button.IsEnabled;
         handler.PlatformView.Invalidate();
     }
@@ -148,6 +163,7 @@ public partial class TextButtonHandler : ButtonHandler
 
     protected override void ConnectHandler(SkiaButton platformView)
     {
+        DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler START");
         base.ConnectHandler(platformView);
 
         // Manually map text properties on connect since MAUI may not trigger updates
@@ -159,6 +175,17 @@ public partial class TextButtonHandler : ButtonHandler
             MapFont(this, textButton);
             MapCharacterSpacing(this, textButton);
         }
+
+        // Map size requests from MAUI Button
+        if (VirtualView is Microsoft.Maui.Controls.Button mauiButton)
+        {
+            DiagnosticLog.Debug("TextButtonHandler", $"MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
+            if (mauiButton.WidthRequest >= 0)
+                platformView.WidthRequest = mauiButton.WidthRequest;
+            if (mauiButton.HeightRequest >= 0)
+                platformView.HeightRequest = mauiButton.HeightRequest;
+        }
+        DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler DONE");
     }
 
     public static void MapText(TextButtonHandler handler, ITextButton button)
@@ -172,7 +199,7 @@ public partial class TextButtonHandler : ButtonHandler
         if (handler.PlatformView is null) return;
 
         if (button.TextColor is not null)
-            handler.PlatformView.TextColor = button.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = button.TextColor;
     }
 
     public static void MapFont(TextButtonHandler handler, ITextButton button)
@@ -181,18 +208,23 @@ public partial class TextButtonHandler : ButtonHandler
 
         var font = button.Font;
         if (font.Size > 0)
-            handler.PlatformView.FontSize = (float)font.Size;
+            handler.PlatformView.FontSize = font.Size;
 
         if (!string.IsNullOrEmpty(font.Family))
             handler.PlatformView.FontFamily = font.Family;
 
-        handler.PlatformView.IsBold = font.Weight >= FontWeight.Bold;
-        handler.PlatformView.IsItalic = font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique;
+        // Convert Font weight/slant to FontAttributes
+        FontAttributes attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapCharacterSpacing(TextButtonHandler handler, ITextButton button)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = (float)button.CharacterSpacing;
+        handler.PlatformView.CharacterSpacing = button.CharacterSpacing;
     }
 }

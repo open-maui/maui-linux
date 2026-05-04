@@ -3,6 +3,7 @@
 
 using SkiaSharp;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform;
 
@@ -13,8 +14,10 @@ public class SkiaPage : SkiaView
 {
     private SkiaView? _content;
     private string _title = "";
-    private SKColor _titleBarColor = new SKColor(0x21, 0x96, 0xF3); // Material Blue
-    private SKColor _titleTextColor = SKColors.White;
+    protected SKColor _titleBarColor = SkiaTheme.PrimarySK;
+    protected SKColor _titleTextColor = SKColors.White;
+    private Color _titleBarColorMaui = Color.FromRgb(0x21, 0x96, 0xF3); // Material Blue
+    private Color _titleTextColorMaui = Colors.White;
     private bool _showNavigationBar = false;
     private float _navigationBarHeight = 56;
 
@@ -23,6 +26,11 @@ public class SkiaPage : SkiaView
     private float _paddingTop;
     private float _paddingRight;
     private float _paddingBottom;
+
+    /// <summary>
+    /// Reference to the MAUI Page for handler access during theme refresh.
+    /// </summary>
+    public Microsoft.Maui.Controls.Page? MauiPage { get; set; }
 
     public SkiaView? Content
     {
@@ -52,22 +60,24 @@ public class SkiaPage : SkiaView
         }
     }
 
-    public SKColor TitleBarColor
+    public Color TitleBarColor
     {
-        get => _titleBarColor;
+        get => _titleBarColorMaui;
         set
         {
-            _titleBarColor = value;
+            _titleBarColorMaui = value;
+            _titleBarColor = value.ToSKColor();
             Invalidate();
         }
     }
 
-    public SKColor TitleTextColor
+    public Color TitleTextColor
     {
-        get => _titleTextColor;
+        get => _titleTextColorMaui;
         set
         {
-            _titleTextColor = value;
+            _titleTextColorMaui = value;
+            _titleTextColor = value.ToSKColor();
             Invalidate();
         }
     }
@@ -118,20 +128,50 @@ public class SkiaPage : SkiaView
 
     public bool IsBusy { get; set; }
 
+    /// <summary>
+    /// Icon image source for this page (used by navigation containers).
+    /// </summary>
+    public SKBitmap? IconImage { get; set; }
+
+    /// <summary>
+    /// Background image source for this page.
+    /// </summary>
+    public SKBitmap? BackgroundImage { get; set; }
+
+    // Lifecycle events
     public event EventHandler? Appearing;
     public event EventHandler? Disappearing;
+    public event EventHandler? NavigatedTo;
+    public event EventHandler? NavigatedFrom;
+    public event EventHandler? NavigatingFrom;
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        // Draw background
-        if (BackgroundColor != SKColors.Transparent)
+        // Use BackgroundColor if explicitly set (including via AppThemeBinding),
+        // otherwise fall back to theme-aware default
+        SKColor bgColor;
+        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
         {
-            using var bgPaint = new SKPaint
-            {
-                Color = BackgroundColor,
-                Style = SKPaintStyle.Fill
-            };
-            canvas.DrawRect(bounds, bgPaint);
+            bgColor = GetEffectiveBackgroundColor();
+        }
+        else
+        {
+            // No explicit background - use theme-aware default
+            bgColor = SkiaTheme.CurrentPageBackgroundSK;
+        }
+
+        using var bgPaint = new SKPaint
+        {
+            Color = bgColor,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(bounds, bgPaint);
+
+        // Draw background image if set
+        if (BackgroundImage != null)
+        {
+            var destRect = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Bottom);
+            canvas.DrawBitmap(BackgroundImage, destRect);
         }
 
         var contentTop = bounds.Top;
@@ -162,10 +202,10 @@ public class SkiaPage : SkiaView
                 contentBounds.Bottom - (float)margin.Bottom);
 
             // Measure and arrange the content before drawing
-            var availableSize = new SKSize(adjustedBounds.Width, adjustedBounds.Height);
+            var availableSize = new Size(adjustedBounds.Width, adjustedBounds.Height);
             _content.Measure(availableSize);
-            _content.Arrange(adjustedBounds);
-            Console.WriteLine($"[SkiaPage] Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
+            _content.Arrange(new Rect(adjustedBounds.Left, adjustedBounds.Top, adjustedBounds.Width, adjustedBounds.Height));
+            DiagnosticLog.Debug("SkiaPage", $"Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
             _content.Draw(canvas);
         }
 
@@ -207,7 +247,7 @@ public class SkiaPage : SkiaView
         // Draw shadow
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 30),
+            Color = SkiaTheme.Shadow20SK,
             Style = SKPaintStyle.Fill,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
         };
@@ -219,7 +259,7 @@ public class SkiaPage : SkiaView
         // Draw semi-transparent overlay
         using var overlayPaint = new SKPaint
         {
-            Color = new SKColor(255, 255, 255, 180),
+            Color = SkiaTheme.WhiteSemiTransparentSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, overlayPaint);
@@ -245,7 +285,7 @@ public class SkiaPage : SkiaView
 
     public void OnAppearing()
     {
-        Console.WriteLine($"[SkiaPage] OnAppearing called for: {Title}, HasListeners={Appearing != null}");
+        DiagnosticLog.Debug("SkiaPage", $"OnAppearing called for: {Title}, HasListeners={Appearing != null}");
         Appearing?.Invoke(this, EventArgs.Empty);
     }
 
@@ -254,7 +294,22 @@ public class SkiaPage : SkiaView
         Disappearing?.Invoke(this, EventArgs.Empty);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    public void OnNavigatedTo()
+    {
+        NavigatedTo?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OnNavigatedFrom()
+    {
+        NavigatedFrom?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OnNavigatingFrom()
+    {
+        NavigatingFrom?.Invoke(this, EventArgs.Empty);
+    }
+
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Page takes all available space
         return availableSize;
@@ -343,7 +398,7 @@ public class SkiaContentPage : SkiaPage
         // Draw navigation bar background
         using var barPaint = new SKPaint
         {
-            Color = TitleBarColor,
+            Color = _titleBarColor,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, barPaint);
@@ -354,7 +409,7 @@ public class SkiaContentPage : SkiaPage
             using var font = new SKFont(SKTypeface.Default, 20);
             using var textPaint = new SKPaint(font)
             {
-                Color = TitleTextColor,
+                Color = _titleTextColor,
                 IsAntialias = true
             };
 
@@ -372,7 +427,7 @@ public class SkiaContentPage : SkiaPage
         // Draw shadow
         using var shadowPaint = new SKPaint
         {
-            Color = new SKColor(0, 0, 0, 30),
+            Color = SkiaTheme.Shadow20SK,
             Style = SKPaintStyle.Fill,
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2)
         };
@@ -382,61 +437,87 @@ public class SkiaContentPage : SkiaPage
     private void DrawToolbarItems(SKCanvas canvas, SKRect navBarBounds)
     {
         var primaryItems = _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary).ToList();
-        Console.WriteLine($"[SkiaContentPage] DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
+        DiagnosticLog.Debug("SkiaContentPage", $"DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
         if (primaryItems.Count == 0) return;
 
         using var font = new SKFont(SKTypeface.Default, 14);
         using var textPaint = new SKPaint(font)
         {
-            Color = TitleTextColor,
+            Color = _titleTextColor,
             IsAntialias = true
         };
 
         float rightEdge = navBarBounds.Right - 16;
+        const float iconSize = 24f;
+        const float itemPadding = 12f;
 
         foreach (var item in primaryItems.AsEnumerable().Reverse())
         {
-            var textBounds = new SKRect();
-            textPaint.MeasureText(item.Text, ref textBounds);
+            float itemWidth;
+            float itemLeft;
 
-            var itemWidth = textBounds.Width + 24; // Padding
-            var itemLeft = rightEdge - itemWidth;
+            if (item.Icon != null)
+            {
+                // Icon-based toolbar item
+                itemWidth = iconSize + itemPadding * 2;
+                itemLeft = rightEdge - itemWidth;
 
-            // Store hit area for click handling
-            item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
-            Console.WriteLine($"[SkiaContentPage] Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
+                // Store hit area for click handling
+                item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
 
-            // Draw text
-            var x = itemLeft + 12;
-            var y = navBarBounds.MidY - textBounds.MidY;
-            canvas.DrawText(item.Text, x, y, textPaint);
+                // Draw icon centered in the hit area
+                var iconX = itemLeft + itemPadding;
+                var iconY = navBarBounds.MidY - iconSize / 2;
+                var destRect = new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize);
+                canvas.DrawBitmap(item.Icon, destRect);
 
+                DiagnosticLog.Debug("SkiaContentPage", $"Drew toolbar icon '{item.Text}' at ({iconX}, {iconY})");
+            }
+            else
+            {
+                // Text-based toolbar item (fallback)
+                var textBounds = new SKRect();
+                textPaint.MeasureText(item.Text, ref textBounds);
+
+                itemWidth = textBounds.Width + 24;
+                itemLeft = rightEdge - itemWidth;
+
+                // Store hit area for click handling
+                item.HitBounds = new SKRect(itemLeft, navBarBounds.Top, rightEdge, navBarBounds.Bottom);
+
+                // Draw text
+                var x = itemLeft + 12;
+                var y = navBarBounds.MidY - textBounds.MidY;
+                canvas.DrawText(item.Text, x, y, textPaint);
+            }
+
+            DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
             rightEdge = itemLeft - 8; // Gap between items
         }
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        Console.WriteLine($"[SkiaContentPage] OnPointerPressed at ({e.X}, {e.Y}), ShowNavigationBar={ShowNavigationBar}, NavigationBarHeight={NavigationBarHeight}");
-        Console.WriteLine($"[SkiaContentPage] ToolbarItems count: {_toolbarItems.Count}");
+        DiagnosticLog.Debug("SkiaContentPage", $"OnPointerPressed at ({e.X}, {e.Y}), ShowNavigationBar={ShowNavigationBar}, NavigationBarHeight={NavigationBarHeight}");
+        DiagnosticLog.Debug("SkiaContentPage", $"ToolbarItems count: {_toolbarItems.Count}");
 
         // Check toolbar item clicks
         if (ShowNavigationBar && e.Y < NavigationBarHeight)
         {
-            Console.WriteLine($"[SkiaContentPage] In navigation bar area, checking toolbar items");
+            DiagnosticLog.Debug("SkiaContentPage", "In navigation bar area, checking toolbar items");
             foreach (var item in _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary))
             {
                 var bounds = item.HitBounds;
                 var contains = bounds.Contains(e.X, e.Y);
-                Console.WriteLine($"[SkiaContentPage] Checking item '{item.Text}', HitBounds=({bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}), Click=({e.X},{e.Y}), Contains={contains}, Command={item.Command != null}");
+                DiagnosticLog.Debug("SkiaContentPage", $"Checking item '{item.Text}', HitBounds=({bounds.Left},{bounds.Top},{bounds.Right},{bounds.Bottom}), Click=({e.X},{e.Y}), Contains={contains}, Command={item.Command != null}");
                 if (contains)
                 {
-                    Console.WriteLine($"[SkiaContentPage] Toolbar item clicked: {item.Text}");
+                    DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item clicked: {item.Text}");
                     item.Command?.Execute(null);
                     return;
                 }
             }
-            Console.WriteLine($"[SkiaContentPage] No toolbar item hit");
+            DiagnosticLog.Debug("SkiaContentPage", "No toolbar item hit");
         }
 
         base.OnPointerPressed(e);
@@ -449,6 +530,7 @@ public class SkiaContentPage : SkiaPage
 public class SkiaToolbarItem
 {
     public string Text { get; set; } = "";
+    public SKBitmap? Icon { get; set; }
     public SkiaToolbarItemOrder Order { get; set; } = SkiaToolbarItemOrder.Primary;
     public System.Windows.Input.ICommand? Command { get; set; }
     public SKRect HitBounds { get; set; }

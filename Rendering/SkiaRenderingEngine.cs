@@ -2,8 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using SkiaSharp;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Window;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 using System.Runtime.InteropServices;
 
 namespace Microsoft.Maui.Platform.Linux.Rendering;
@@ -23,14 +25,37 @@ public class SkiaRenderingEngine : IDisposable
 
     // Dirty region tracking for optimized rendering
     private readonly List<SKRect> _dirtyRegions = new();
-    private readonly object _dirtyLock = new();
-    private const int MaxDirtyRegions = 32;
-    private const float RegionMergeThreshold = 0.3f; // Merge if overlap > 30%
+    private readonly Lock _dirtyLock = new();
+    /// <summary>
+    /// Maximum number of dirty regions to track before falling back to a full redraw.
+    /// </summary>
+    public static int MaxDirtyRegions { get; set; } = 32;
+
+    /// <summary>
+    /// Overlap ratio threshold (0.0-1.0) at which adjacent dirty regions are merged.
+    /// </summary>
+    public static float RegionMergeThreshold { get; set; } = 0.3f;
 
     public static SkiaRenderingEngine? Current { get; private set; }
     public ResourceCache ResourceCache { get; }
     public int Width => _imageInfo.Width;
     public int Height => _imageInfo.Height;
+
+    /// <summary>
+    /// DPI scale factor for HiDPI displays. Layout is performed at logical pixels
+    /// (Width/DpiScale × Height/DpiScale) and the canvas is scaled up for rendering.
+    /// </summary>
+    public float DpiScale { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets the logical width (physical width divided by DPI scale).
+    /// </summary>
+    public float LogicalWidth => Width / DpiScale;
+
+    /// <summary>
+    /// Gets the logical height (physical height divided by DPI scale).
+    /// </summary>
+    public float LogicalHeight => Height / DpiScale;
 
     /// <summary>
     /// Gets or sets whether dirty region optimization is enabled.
@@ -60,8 +85,7 @@ public class SkiaRenderingEngine : IDisposable
 
     private void CreateSurface(int width, int height)
     {
-        _bitmap?.Dispose();
-        _backBuffer?.Dispose();
+        var oldBitmap = _bitmap;
         _canvas?.Dispose();
 
         _imageInfo = new SKImageInfo(
@@ -71,8 +95,17 @@ public class SkiaRenderingEngine : IDisposable
             SKAlphaType.Premul);
 
         _bitmap = new SKBitmap(_imageInfo);
-        _backBuffer = new SKBitmap(_imageInfo);
         _canvas = new SKCanvas(_bitmap);
+
+        // Copy old content to new bitmap to avoid a blank flash during resize
+        if (oldBitmap != null)
+        {
+            _canvas.DrawBitmap(oldBitmap, 0, 0);
+            oldBitmap.Dispose();
+        }
+
+        _backBuffer?.Dispose();
+        _backBuffer = new SKBitmap(_imageInfo);
         _fullRedrawNeeded = true;
 
         lock (_dirtyLock)
@@ -166,10 +199,20 @@ public class SkiaRenderingEngine : IDisposable
         if (_canvas == null || _bitmap == null)
             return;
 
-        // Measure and arrange
-        var availableSize = new SKSize(Width, Height);
-        rootView.Measure(availableSize);
-        rootView.Arrange(new SKRect(0, 0, Width, Height));
+        // Measure and arrange at logical pixel dimensions
+        var logicalWidth = (double)LogicalWidth;
+        var logicalHeight = (double)LogicalHeight;
+        var availableSize = new Size(logicalWidth, logicalHeight);
+        try
+        {
+            rootView.Measure(availableSize);
+            rootView.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception during Measure/Arrange", ex);
+            return;
+        }
 
         // Determine what to redraw
         List<SKRect> regionsToRedraw;
@@ -198,16 +241,38 @@ public class SkiaRenderingEngine : IDisposable
         // Render dirty regions
         foreach (var region in regionsToRedraw)
         {
-            RenderRegion(rootView, region, isFullRedraw);
+            try
+            {
+                RenderRegion(rootView, region, isFullRedraw);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaRenderingEngine", $"Exception rendering region {region}", ex);
+            }
         }
 
         // Draw popup overlays (always on top, full redraw)
-        SkiaView.DrawPopupOverlays(_canvas);
-
-        // Draw modal dialogs on top of everything
-        if (LinuxDialogService.HasActiveDialog)
+        try
         {
-            LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
+            SkiaView.PopupDpiScale = DpiScale;
+            SkiaView.DrawPopupOverlays(_canvas);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing popup overlays", ex);
+        }
+
+        // Draw modal dialogs and context menus on top of everything
+        try
+        {
+            if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
+            {
+                LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing dialogs", ex);
         }
 
         _canvas.Flush();
@@ -228,12 +293,27 @@ public class SkiaRenderingEngine : IDisposable
             _canvas.ClipRect(region);
         }
 
-        // Clear the region
-        using var clearPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Fill };
-        _canvas.DrawRect(region, clearPaint);
+        // Clear the region with transparent so PNG alpha and view backgrounds are preserved
+        _canvas.Save();
+        _canvas.ClipRect(region);
+        _canvas.Clear(SKColors.Transparent);
+        _canvas.Restore();
+
+        // Apply DPI scaling so all drawing is proportionally larger on HiDPI displays
+        if (DpiScale > 1.0f)
+        {
+            _canvas.Scale(DpiScale);
+        }
 
         // Draw the view tree (views will naturally clip to their bounds)
-        rootView.Draw(_canvas);
+        try
+        {
+            rootView.Draw(_canvas);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaRenderingEngine", "Exception during view Draw", ex);
+        }
 
         _canvas.Restore();
     }
@@ -311,33 +391,5 @@ public class SkiaRenderingEngine : IDisposable
     {
         Dispose(true);
         GC.SuppressFinalize(this);
-    }
-}
-
-public class ResourceCache : IDisposable
-{
-    private readonly Dictionary<string, SKTypeface> _typefaces = new();
-    private bool _disposed;
-
-    public SKTypeface GetTypeface(string fontFamily, SKFontStyle style)
-    {
-        var key = $"{fontFamily}_{style.Weight}_{style.Width}_{style.Slant}";
-        if (!_typefaces.TryGetValue(key, out var typeface))
-        {
-            typeface = SKTypeface.FromFamilyName(fontFamily, style) ?? SKTypeface.Default;
-            _typefaces[key] = typeface;
-        }
-        return typeface;
-    }
-
-    public void Clear()
-    {
-        foreach (var tf in _typefaces.Values) tf.Dispose();
-        _typefaces.Clear();
-    }
-
-    public void Dispose()
-    {
-        if (!_disposed) { Clear(); _disposed = true; }
     }
 }

@@ -21,6 +21,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
             [nameof(ITimePicker.Format)] = MapFormat,
             [nameof(ITimePicker.TextColor)] = MapTextColor,
             [nameof(ITimePicker.CharacterSpacing)] = MapCharacterSpacing,
+            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IView.Background)] = MapBackground,
         };
 
@@ -55,17 +56,17 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
         base.DisconnectHandler(platformView);
     }
 
-    private void OnTimeSelected(object? sender, EventArgs e)
+    private void OnTimeSelected(object? sender, TimeChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.Time = PlatformView.Time;
+        VirtualView.Time = e.NewTime;
     }
 
     public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Time = timePicker.Time;
+        handler.PlatformView.Time = timePicker.Time ?? TimeSpan.Zero;
     }
 
     public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)
@@ -79,13 +80,32 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
         if (handler.PlatformView is null) return;
         if (timePicker.TextColor is not null)
         {
-            handler.PlatformView.TextColor = timePicker.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = timePicker.TextColor;
         }
     }
 
     public static void MapCharacterSpacing(TimePickerHandler handler, ITimePicker timePicker)
     {
-        // Character spacing would require custom text rendering
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = timePicker.CharacterSpacing;
+    }
+
+    public static void MapFont(TimePickerHandler handler, ITimePicker timePicker)
+    {
+        if (handler.PlatformView is null) return;
+
+        var font = timePicker.Font;
+        if (font.Size > 0)
+            handler.PlatformView.FontSize = font.Size;
+
+        if (!string.IsNullOrEmpty(font.Family))
+            handler.PlatformView.FontFamily = font.Family;
+
+        // Map FontAttributes from the Font weight/slant
+        var attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapBackground(TimePickerHandler handler, ITimePicker timePicker)
@@ -94,7 +114,7 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
 
         if (timePicker.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
     }
 }

@@ -1,13 +1,17 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using SkiaSharp;
+using System;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered date picker control with calendar popup.
+/// Implements MAUI IDatePicker interface patterns.
 /// </summary>
 public class SkiaDatePicker : SkiaView
 {
@@ -15,55 +19,78 @@ public class SkiaDatePicker : SkiaView
 
     public static readonly BindableProperty DateProperty =
         BindableProperty.Create(nameof(Date), typeof(DateTime), typeof(SkiaDatePicker), DateTime.Today, BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).OnDatePropertyChanged());
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).OnDatePropertyChanged((DateTime)o, (DateTime)n));
 
     public static readonly BindableProperty MinimumDateProperty =
-        BindableProperty.Create(nameof(MinimumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(1900, 1, 1),
+        BindableProperty.Create(nameof(MinimumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(1900, 1, 1), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty MaximumDateProperty =
-        BindableProperty.Create(nameof(MaximumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(2100, 12, 31),
+        BindableProperty.Create(nameof(MaximumDate), typeof(DateTime), typeof(SkiaDatePicker), new DateTime(2100, 12, 31), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty FormatProperty =
-        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaDatePicker), "d",
+        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaDatePicker), "d", BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaDatePicker), SKColors.Black,
+        BindableProperty.Create(nameof(TextColor), typeof(Color), typeof(SkiaDatePicker), Colors.Black, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(BorderColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(189, 189, 189), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty CalendarBackgroundColorProperty =
-        BindableProperty.Create(nameof(CalendarBackgroundColor), typeof(SKColor), typeof(SkiaDatePicker), SKColors.White,
+        BindableProperty.Create(nameof(CalendarBackgroundColor), typeof(Color), typeof(SkiaDatePicker), Colors.White, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty SelectedDayColorProperty =
-        BindableProperty.Create(nameof(SelectedDayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0x21, 0x96, 0xF3),
+        BindableProperty.Create(nameof(SelectedDayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty TodayColorProperty =
-        BindableProperty.Create(nameof(TodayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0x21, 0x96, 0xF3, 0x40),
+        BindableProperty.Create(nameof(TodayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgba(33, 150, 243, 64), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty HeaderColorProperty =
-        BindableProperty.Create(nameof(HeaderColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0x21, 0x96, 0xF3),
+        BindableProperty.Create(nameof(HeaderColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty DisabledDayColorProperty =
-        BindableProperty.Create(nameof(DisabledDayColor), typeof(SKColor), typeof(SkiaDatePicker), new SKColor(0xBD, 0xBD, 0xBD),
+        BindableProperty.Create(nameof(DisabledDayColor), typeof(Color), typeof(SkiaDatePicker), Color.FromRgb(189, 189, 189), BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
+
+    public static readonly BindableProperty FontFamilyProperty =
+        BindableProperty.Create(nameof(FontFamily), typeof(string), typeof(SkiaDatePicker), string.Empty, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
 
     public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaDatePicker), 14f,
+        BindableProperty.Create(nameof(FontSize), typeof(double), typeof(SkiaDatePicker), 14.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).InvalidateMeasure());
 
-    public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaDatePicker), 4f,
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(nameof(FontAttributes), typeof(FontAttributes), typeof(SkiaDatePicker), FontAttributes.None, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
+
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(nameof(CharacterSpacing), typeof(double), typeof(SkiaDatePicker), 0.0, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
+
+    public static readonly BindableProperty CornerRadiusProperty =
+        BindableProperty.Create(nameof(CornerRadius), typeof(double), typeof(SkiaDatePicker), 4.0, BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaDatePicker)b).Invalidate());
+
+    #endregion
+
+    #region Fields
+
+    private DateTime _displayMonth;
+    private bool _isOpen;
+
+    private const float CalendarWidth = 280f;
+    private const float CalendarHeight = 320f;
+    private const float HeaderHeight = 48f;
 
     #endregion
 
@@ -93,57 +120,75 @@ public class SkiaDatePicker : SkiaView
         set => SetValue(FormatProperty, value);
     }
 
-    public SKColor TextColor
+    public Color TextColor
     {
-        get => (SKColor)GetValue(TextColorProperty);
+        get => (Color)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
-    public SKColor BorderColor
+    public Color BorderColor
     {
-        get => (SKColor)GetValue(BorderColorProperty);
+        get => (Color)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
-    public SKColor CalendarBackgroundColor
+    public Color CalendarBackgroundColor
     {
-        get => (SKColor)GetValue(CalendarBackgroundColorProperty);
+        get => (Color)GetValue(CalendarBackgroundColorProperty);
         set => SetValue(CalendarBackgroundColorProperty, value);
     }
 
-    public SKColor SelectedDayColor
+    public Color SelectedDayColor
     {
-        get => (SKColor)GetValue(SelectedDayColorProperty);
+        get => (Color)GetValue(SelectedDayColorProperty);
         set => SetValue(SelectedDayColorProperty, value);
     }
 
-    public SKColor TodayColor
+    public Color TodayColor
     {
-        get => (SKColor)GetValue(TodayColorProperty);
+        get => (Color)GetValue(TodayColorProperty);
         set => SetValue(TodayColorProperty, value);
     }
 
-    public SKColor HeaderColor
+    public Color HeaderColor
     {
-        get => (SKColor)GetValue(HeaderColorProperty);
+        get => (Color)GetValue(HeaderColorProperty);
         set => SetValue(HeaderColorProperty, value);
     }
 
-    public SKColor DisabledDayColor
+    public Color DisabledDayColor
     {
-        get => (SKColor)GetValue(DisabledDayColorProperty);
+        get => (Color)GetValue(DisabledDayColorProperty);
         set => SetValue(DisabledDayColorProperty, value);
     }
 
-    public float FontSize
+    public string FontFamily
     {
-        get => (float)GetValue(FontSizeProperty);
+        get => (string)GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
+    public double FontSize
+    {
+        get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
-    public float CornerRadius
+    public FontAttributes FontAttributes
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    public double CornerRadius
+    {
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
@@ -156,9 +201,9 @@ public class SkiaDatePicker : SkiaView
             {
                 _isOpen = value;
                 if (_isOpen)
-                    RegisterPopupOverlay(this, DrawCalendarOverlay);
+                    SkiaView.RegisterPopupOverlay(this, DrawCalendarOverlay);
                 else
-                    UnregisterPopupOverlay(this);
+                    SkiaView.UnregisterPopupOverlay(this);
                 Invalidate();
             }
         }
@@ -166,44 +211,13 @@ public class SkiaDatePicker : SkiaView
 
     #endregion
 
-    private DateTime _displayMonth;
-    private bool _isOpen;
+    #region Events
 
-    private const float CalendarWidth = 280;
-    private const float CalendarHeight = 320;
-    private const float HeaderHeight = 48;
+    public event EventHandler<DateChangedEventArgs>? DateSelected;
 
-    public event EventHandler? DateSelected;
+    #endregion
 
-    /// <summary>
-    /// Gets the calendar popup rectangle with edge detection applied.
-    /// </summary>
-    private SKRect GetCalendarRect(SKRect pickerBounds)
-    {
-        // Get window dimensions for edge detection
-        var windowWidth = LinuxApplication.Current?.MainWindow?.Width ?? 800;
-        var windowHeight = LinuxApplication.Current?.MainWindow?.Height ?? 600;
-
-        // Calculate default position (below the picker)
-        var calendarLeft = pickerBounds.Left;
-        var calendarTop = pickerBounds.Bottom + 4;
-
-        // Edge detection: adjust horizontal position if popup would go off-screen
-        if (calendarLeft + CalendarWidth > windowWidth)
-        {
-            calendarLeft = windowWidth - CalendarWidth - 4;
-        }
-        if (calendarLeft < 0) calendarLeft = 4;
-
-        // Edge detection: show above if popup would go off-screen vertically
-        if (calendarTop + CalendarHeight > windowHeight)
-        {
-            calendarTop = pickerBounds.Top - CalendarHeight - 4;
-        }
-        if (calendarTop < 0) calendarTop = 4;
-
-        return new SKRect(calendarLeft, calendarTop, calendarLeft + CalendarWidth, calendarTop + CalendarHeight);
-    }
+    #region Constructor
 
     public SkiaDatePicker()
     {
@@ -211,232 +225,402 @@ public class SkiaDatePicker : SkiaView
         _displayMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     }
 
-    private void OnDatePropertyChanged()
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Converts a MAUI Color to SkiaSharp SKColor.
+    /// </summary>
+    private static SKColor ToSKColor(Color? color)
     {
-        _displayMonth = new DateTime(Date.Year, Date.Month, 1);
-        DateSelected?.Invoke(this, EventArgs.Empty);
+        if (color == null) return SKColors.Transparent;
+        return color.ToSKColor();
+    }
+
+    /// <summary>
+    /// Converts a MAUI Color to SKColor with modified alpha.
+    /// </summary>
+    private static SKColor ToSKColorWithAlpha(Color? color, byte alpha)
+    {
+        if (color == null) return SKColors.Transparent;
+        return color.ToSKColor().WithAlpha(alpha);
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    private SKRect GetCalendarRect(SKRect pickerBounds)
+    {
+        var app = LinuxApplication.Current;
+        float dpiScale = app?.DpiScale ?? 1.0f;
+        // Use logical dimensions (ScreenBounds are in logical coordinates)
+        float windowWidth = (app?.MainWindow?.Width ?? 800) / dpiScale;
+        float windowHeight = (app?.MainWindow?.Height ?? 600) / dpiScale;
+
+        float calendarLeft = pickerBounds.Left;
+        float calendarTop = pickerBounds.Bottom + 4f;
+
+        if (calendarLeft + CalendarWidth > windowWidth)
+        {
+            calendarLeft = windowWidth - CalendarWidth - 4f;
+        }
+        if (calendarLeft < 0f)
+        {
+            calendarLeft = 4f;
+        }
+        if (calendarTop + CalendarHeight > windowHeight)
+        {
+            calendarTop = pickerBounds.Top - CalendarHeight - 4f;
+        }
+        if (calendarTop < 0f)
+        {
+            calendarTop = 4f;
+        }
+
+        return new SKRect(calendarLeft, calendarTop, calendarLeft + CalendarWidth, calendarTop + CalendarHeight);
+    }
+
+    private void OnDatePropertyChanged(DateTime oldValue, DateTime newValue)
+    {
+        _displayMonth = new DateTime(newValue.Year, newValue.Month, 1);
+        DateSelected?.Invoke(this, new DateChangedEventArgs(oldValue, newValue));
         Invalidate();
     }
 
     private DateTime ClampDate(DateTime date)
     {
-        if (date < MinimumDate) return MinimumDate;
-        if (date > MaximumDate) return MaximumDate;
+        if (date < MinimumDate)
+            return MinimumDate;
+        if (date > MaximumDate)
+            return MaximumDate;
         return date;
     }
 
     private void DrawCalendarOverlay(SKCanvas canvas)
     {
-        if (!_isOpen) return;
-        // Use ScreenBounds for popup drawing (accounts for scroll offset)
-        DrawCalendar(canvas, ScreenBounds);
+        if (_isOpen)
+        {
+            var skScreenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
+            DrawCalendar(canvas, skScreenBounds);
+        }
     }
+
+    private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
+    {
+        float cornerRadius = (float)CornerRadius;
+        float fontSize = (float)FontSize;
+        bool isDark = SkiaTheme.IsDarkMode;
+
+        var bgColor = GetEffectiveBackgroundColor();
+        if (bgColor.Alpha == 0) bgColor = isDark ? SkiaTheme.DarkSurfaceSK : SKColors.White;
+        using var bgPaint = new SKPaint
+        {
+            Color = IsEnabled ? bgColor : (isDark ? SkiaTheme.DarkBackgroundSK : SkiaTheme.Gray100SK),
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
+
+        SKColor borderColor = IsFocused ? ToSKColor(SelectedDayColor) : (isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor));
+        using var borderPaint = new SKPaint
+        {
+            Color = borderColor,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = IsFocused ? 2 : 1,
+            IsAntialias = true
+        };
+        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
+
+        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
+
+        // Get typeface based on FontFamily and FontAttributes
+        SKTypeface typeface = SKTypeface.Default;
+        if (!string.IsNullOrEmpty(FontFamily))
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
+        }
+        else if (FontAttributes != FontAttributes.None)
+        {
+            var style = FontAttributes switch
+            {
+                FontAttributes.Bold => SKFontStyle.Bold,
+                FontAttributes.Italic => SKFontStyle.Italic,
+                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
+                _ => SKFontStyle.Normal
+            };
+            typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
+        }
+
+        using var font = new SKFont(typeface, fontSize, 1f, 0f);
+        using var textPaint = new SKPaint(font)
+        {
+            Color = IsEnabled ? textColor : textColor.WithAlpha(128),
+            IsAntialias = true
+        };
+
+        string dateText = Date.ToString(Format);
+        SKRect textBounds = default;
+        textPaint.MeasureText(dateText, ref textBounds);
+        canvas.DrawText(dateText, bounds.Left + 12f, bounds.MidY - textBounds.MidY, textPaint);
+
+        DrawCalendarIcon(canvas, new SKRect(bounds.Right - 36f, bounds.MidY - 10f, bounds.Right - 12f, bounds.MidY + 10f));
+    }
+
+    private void DrawCalendarIcon(SKCanvas canvas, SKRect bounds)
+    {
+        SKColor textColor = SkiaTheme.IsDarkMode ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
+        using var paint = new SKPaint
+        {
+            Color = IsEnabled ? textColor : textColor.WithAlpha(128),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1.5f,
+            IsAntialias = true
+        };
+
+        SKRect calRect = new SKRect(bounds.Left, bounds.Top + 3f, bounds.Right, bounds.Bottom);
+        canvas.DrawRoundRect(new SKRoundRect(calRect, 2f), paint);
+        canvas.DrawLine(bounds.Left + 5f, bounds.Top, bounds.Left + 5f, bounds.Top + 5f, paint);
+        canvas.DrawLine(bounds.Right - 5f, bounds.Top, bounds.Right - 5f, bounds.Top + 5f, paint);
+        canvas.DrawLine(bounds.Left, bounds.Top + 8f, bounds.Right, bounds.Top + 8f, paint);
+
+        paint.Style = SKPaintStyle.Fill;
+        for (int i = 0; i < 2; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                canvas.DrawCircle(bounds.Left + 4f + j * 6, bounds.Top + 12f + i * 4, 1f, paint);
+            }
+        }
+    }
+
+    private void DrawCalendar(SKCanvas canvas, SKRect bounds)
+    {
+        SKRect calendarRect = GetCalendarRect(bounds);
+        float cornerRadius = (float)CornerRadius;
+        bool isDark = SkiaTheme.IsDarkMode;
+
+        using var shadowPaint = new SKPaint
+        {
+            Color = SkiaTheme.Shadow25SK,
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f),
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRoundRect(new SKRoundRect(new SKRect(calendarRect.Left + 2f, calendarRect.Top + 2f, calendarRect.Right + 2f, calendarRect.Bottom + 2f), cornerRadius), shadowPaint);
+
+        using var bgPaint = new SKPaint
+        {
+            Color = isDark ? SkiaTheme.DarkBackgroundSK : ToSKColor(CalendarBackgroundColor),
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        canvas.DrawRoundRect(new SKRoundRect(calendarRect, cornerRadius), bgPaint);
+
+        using var borderPaint = new SKPaint
+        {
+            Color = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1f,
+            IsAntialias = true
+        };
+        canvas.DrawRoundRect(new SKRoundRect(calendarRect, cornerRadius), borderPaint);
+
+        DrawCalendarHeader(canvas, new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + 48f));
+        DrawWeekdayHeaders(canvas, new SKRect(calendarRect.Left, calendarRect.Top + 48f, calendarRect.Right, calendarRect.Top + 48f + 30f));
+        DrawDays(canvas, new SKRect(calendarRect.Left, calendarRect.Top + 48f + 30f, calendarRect.Right, calendarRect.Bottom));
+    }
+
+    private void DrawCalendarHeader(SKCanvas canvas, SKRect bounds)
+    {
+        float cornerRadius = (float)CornerRadius;
+
+        using var headerPaint = new SKPaint
+        {
+            Color = ToSKColor(HeaderColor),
+            Style = SKPaintStyle.Fill
+        };
+
+        canvas.Save();
+        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + cornerRadius * 2f), cornerRadius), SKClipOperation.Intersect, false);
+        canvas.DrawRect(bounds, headerPaint);
+        canvas.Restore();
+        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
+
+        using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
+        using var textPaint = new SKPaint(font)
+        {
+            Color = SkiaTheme.BackgroundWhiteSK,
+            IsAntialias = true
+        };
+
+        string monthYear = _displayMonth.ToString("MMMM yyyy");
+        SKRect textBounds = default;
+        textPaint.MeasureText(monthYear, ref textBounds);
+        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, bounds.MidY - textBounds.MidY, textPaint);
+
+        using var arrowPaint = new SKPaint
+        {
+            Color = SkiaTheme.BackgroundWhiteSK,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 2f,
+            IsAntialias = true,
+            StrokeCap = SKStrokeCap.Round
+        };
+
+        using var leftPath = new SKPath();
+        leftPath.MoveTo(bounds.Left + 26f, bounds.MidY - 6f);
+        leftPath.LineTo(bounds.Left + 20f, bounds.MidY);
+        leftPath.LineTo(bounds.Left + 26f, bounds.MidY + 6f);
+        canvas.DrawPath(leftPath, arrowPaint);
+
+        using var rightPath = new SKPath();
+        rightPath.MoveTo(bounds.Right - 26f, bounds.MidY - 6f);
+        rightPath.LineTo(bounds.Right - 20f, bounds.MidY);
+        rightPath.LineTo(bounds.Right - 26f, bounds.MidY + 6f);
+        canvas.DrawPath(rightPath, arrowPaint);
+    }
+
+    private void DrawWeekdayHeaders(SKCanvas canvas, SKRect bounds)
+    {
+        string[] dayNames = new string[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };
+        float cellWidth = bounds.Width / 7f;
+        bool isDark = SkiaTheme.IsDarkMode;
+
+        using var font = new SKFont(SKTypeface.Default, 12f, 1f, 0f);
+        using var paint = new SKPaint(font)
+        {
+            Color = isDark ? SkiaTheme.Gray400SK : SkiaTheme.TextPlaceholderSK,
+            IsAntialias = true
+        };
+
+        for (int i = 0; i < 7; i++)
+        {
+            SKRect textBounds = default;
+            paint.MeasureText(dayNames[i], ref textBounds);
+            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2f - textBounds.MidX, bounds.MidY - textBounds.MidY, paint);
+        }
+    }
+
+    private void DrawDays(SKCanvas canvas, SKRect bounds)
+    {
+        DateTime firstDay = new DateTime(_displayMonth.Year, _displayMonth.Month, 1);
+        int daysInMonth = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
+        int startDayOfWeek = (int)firstDay.DayOfWeek;
+        float cellWidth = bounds.Width / 7f;
+        float cellHeight = (bounds.Height - 10f) / 6f;
+
+        using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
+        using var textPaint = new SKPaint(font)
+        {
+            IsAntialias = true
+        };
+        using var bgPaint = new SKPaint
+        {
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+
+        DateTime today = DateTime.Today;
+        SKRect cellRect = default;
+        bool isDark = SkiaTheme.IsDarkMode;
+
+        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
+        SKColor selectedDayColor = ToSKColor(SelectedDayColor);
+        SKColor todayColor = ToSKColor(TodayColor);
+        SKColor disabledDayColor = isDark ? SkiaTheme.Gray600SK : ToSKColor(DisabledDayColor);
+
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            DateTime dayDate = new DateTime(_displayMonth.Year, _displayMonth.Month, day);
+            int cellIndex = startDayOfWeek + day - 1;
+            int row = cellIndex / 7;
+            int col = cellIndex % 7;
+
+            cellRect = new SKRect(
+                bounds.Left + col * cellWidth + 2f,
+                bounds.Top + row * cellHeight + 2f,
+                bounds.Left + (col + 1) * cellWidth - 2f,
+                bounds.Top + (row + 1) * cellHeight - 2f);
+
+            bool isSelected = dayDate.Date == Date.Date;
+            bool isToday = dayDate.Date == today;
+            bool isDisabled = dayDate < MinimumDate || dayDate > MaximumDate;
+
+            if (isSelected)
+            {
+                bgPaint.Color = selectedDayColor;
+                canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2f - 2f, bgPaint);
+            }
+            else if (isToday)
+            {
+                bgPaint.Color = todayColor;
+                canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2f - 2f, bgPaint);
+            }
+
+            textPaint.Color = isSelected ? SkiaTheme.BackgroundWhiteSK : (isDisabled ? disabledDayColor : textColor);
+            string dayText = day.ToString();
+            SKRect dayTextBounds = default;
+            textPaint.MeasureText(dayText, ref dayTextBounds);
+            canvas.DrawText(dayText, cellRect.MidX - dayTextBounds.MidX, cellRect.MidY - dayTextBounds.MidY, textPaint);
+        }
+    }
+
+    #endregion
+
+    #region Overrides
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         DrawPickerButton(canvas, bounds);
     }
 
-    private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
-    {
-        using var bgPaint = new SKPaint
-        {
-            Color = IsEnabled ? BackgroundColor : new SKColor(0xF5, 0xF5, 0xF5),
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), bgPaint);
-
-        using var borderPaint = new SKPaint
-        {
-            Color = IsFocused ? SelectedDayColor : BorderColor,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = IsFocused ? 2 : 1,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), borderPaint);
-
-        using var font = new SKFont(SKTypeface.Default, FontSize);
-        using var textPaint = new SKPaint(font)
-        {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
-            IsAntialias = true
-        };
-
-        var dateText = Date.ToString(Format);
-        var textBounds = new SKRect();
-        textPaint.MeasureText(dateText, ref textBounds);
-        canvas.DrawText(dateText, bounds.Left + 12, bounds.MidY - textBounds.MidY, textPaint);
-
-        DrawCalendarIcon(canvas, new SKRect(bounds.Right - 36, bounds.MidY - 10, bounds.Right - 12, bounds.MidY + 10));
-    }
-
-    private void DrawCalendarIcon(SKCanvas canvas, SKRect bounds)
-    {
-        using var paint = new SKPaint
-        {
-            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.5f,
-            IsAntialias = true
-        };
-
-        var calRect = new SKRect(bounds.Left, bounds.Top + 3, bounds.Right, bounds.Bottom);
-        canvas.DrawRoundRect(new SKRoundRect(calRect, 2), paint);
-        canvas.DrawLine(bounds.Left + 5, bounds.Top, bounds.Left + 5, bounds.Top + 5, paint);
-        canvas.DrawLine(bounds.Right - 5, bounds.Top, bounds.Right - 5, bounds.Top + 5, paint);
-        canvas.DrawLine(bounds.Left, bounds.Top + 8, bounds.Right, bounds.Top + 8, paint);
-
-        paint.Style = SKPaintStyle.Fill;
-        for (int row = 0; row < 2; row++)
-            for (int col = 0; col < 3; col++)
-                canvas.DrawCircle(bounds.Left + 4 + col * 6, bounds.Top + 12 + row * 4, 1, paint);
-    }
-
-    private void DrawCalendar(SKCanvas canvas, SKRect bounds)
-    {
-        var calendarRect = GetCalendarRect(bounds);
-
-        using var shadowPaint = new SKPaint
-        {
-            Color = new SKColor(0, 0, 0, 40),
-            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4),
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRoundRect(new SKRoundRect(new SKRect(calendarRect.Left + 2, calendarRect.Top + 2, calendarRect.Right + 2, calendarRect.Bottom + 2), CornerRadius), shadowPaint);
-
-        using var bgPaint = new SKPaint { Color = CalendarBackgroundColor, Style = SKPaintStyle.Fill, IsAntialias = true };
-        canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), bgPaint);
-
-        using var borderPaint = new SKPaint { Color = BorderColor, Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
-        canvas.DrawRoundRect(new SKRoundRect(calendarRect, CornerRadius), borderPaint);
-
-        DrawCalendarHeader(canvas, new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + HeaderHeight));
-        DrawWeekdayHeaders(canvas, new SKRect(calendarRect.Left, calendarRect.Top + HeaderHeight, calendarRect.Right, calendarRect.Top + HeaderHeight + 30));
-        DrawDays(canvas, new SKRect(calendarRect.Left, calendarRect.Top + HeaderHeight + 30, calendarRect.Right, calendarRect.Bottom));
-    }
-
-    private void DrawCalendarHeader(SKCanvas canvas, SKRect bounds)
-    {
-        using var headerPaint = new SKPaint { Color = HeaderColor, Style = SKPaintStyle.Fill };
-        canvas.Save();
-        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + CornerRadius * 2), CornerRadius));
-        canvas.DrawRect(bounds, headerPaint);
-        canvas.Restore();
-        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + CornerRadius, bounds.Right, bounds.Bottom), headerPaint);
-
-        using var font = new SKFont(SKTypeface.Default, 16);
-        using var textPaint = new SKPaint(font) { Color = SKColors.White, IsAntialias = true };
-        var monthYear = _displayMonth.ToString("MMMM yyyy");
-        var textBounds = new SKRect();
-        textPaint.MeasureText(monthYear, ref textBounds);
-        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, bounds.MidY - textBounds.MidY, textPaint);
-
-        using var arrowPaint = new SKPaint { Color = SKColors.White, Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = true, StrokeCap = SKStrokeCap.Round };
-        using var leftPath = new SKPath();
-        leftPath.MoveTo(bounds.Left + 26, bounds.MidY - 6);
-        leftPath.LineTo(bounds.Left + 20, bounds.MidY);
-        leftPath.LineTo(bounds.Left + 26, bounds.MidY + 6);
-        canvas.DrawPath(leftPath, arrowPaint);
-
-        using var rightPath = new SKPath();
-        rightPath.MoveTo(bounds.Right - 26, bounds.MidY - 6);
-        rightPath.LineTo(bounds.Right - 20, bounds.MidY);
-        rightPath.LineTo(bounds.Right - 26, bounds.MidY + 6);
-        canvas.DrawPath(rightPath, arrowPaint);
-    }
-
-    private void DrawWeekdayHeaders(SKCanvas canvas, SKRect bounds)
-    {
-        var dayNames = new[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };
-        var cellWidth = bounds.Width / 7;
-        using var font = new SKFont(SKTypeface.Default, 12);
-        using var paint = new SKPaint(font) { Color = new SKColor(0x80, 0x80, 0x80), IsAntialias = true };
-        for (int i = 0; i < 7; i++)
-        {
-            var textBounds = new SKRect();
-            paint.MeasureText(dayNames[i], ref textBounds);
-            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2 - textBounds.MidX, bounds.MidY - textBounds.MidY, paint);
-        }
-    }
-
-    private void DrawDays(SKCanvas canvas, SKRect bounds)
-    {
-        var firstDay = new DateTime(_displayMonth.Year, _displayMonth.Month, 1);
-        var daysInMonth = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
-        var startDayOfWeek = (int)firstDay.DayOfWeek;
-        var cellWidth = bounds.Width / 7;
-        var cellHeight = (bounds.Height - 10) / 6;
-        using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font) { IsAntialias = true };
-        using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
-        var today = DateTime.Today;
-
-        for (int day = 1; day <= daysInMonth; day++)
-        {
-            var dayDate = new DateTime(_displayMonth.Year, _displayMonth.Month, day);
-            var cellIndex = startDayOfWeek + day - 1;
-            var row = cellIndex / 7;
-            var col = cellIndex % 7;
-            var cellRect = new SKRect(bounds.Left + col * cellWidth + 2, bounds.Top + row * cellHeight + 2, bounds.Left + (col + 1) * cellWidth - 2, bounds.Top + (row + 1) * cellHeight - 2);
-
-            var isSelected = dayDate.Date == Date.Date;
-            var isToday = dayDate.Date == today;
-            var isDisabled = dayDate < MinimumDate || dayDate > MaximumDate;
-
-            if (isSelected)
-            {
-                bgPaint.Color = SelectedDayColor;
-                canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2 - 2, bgPaint);
-            }
-            else if (isToday)
-            {
-                bgPaint.Color = TodayColor;
-                canvas.DrawCircle(cellRect.MidX, cellRect.MidY, Math.Min(cellRect.Width, cellRect.Height) / 2 - 2, bgPaint);
-            }
-
-            textPaint.Color = isSelected ? SKColors.White : isDisabled ? DisabledDayColor : TextColor;
-            var dayText = day.ToString();
-            var textBounds = new SKRect();
-            textPaint.MeasureText(dayText, ref textBounds);
-            canvas.DrawText(dayText, cellRect.MidX - textBounds.MidX, cellRect.MidY - textBounds.MidY, textPaint);
-        }
-    }
-
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        if (!IsEnabled) return;
+        if (!IsEnabled)
+            return;
 
         if (IsOpen)
         {
-            // Use ScreenBounds for popup coordinate calculations (accounts for scroll offset)
-            var screenBounds = ScreenBounds;
-            var calendarRect = GetCalendarRect(screenBounds);
+            SKRect screenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
+            SKRect calendarRect = GetCalendarRect(screenBounds);
 
-            // Check if click is in header area (navigation arrows)
-            var headerRect = new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + HeaderHeight);
+            SKRect headerRect = new SKRect(calendarRect.Left, calendarRect.Top, calendarRect.Right, calendarRect.Top + 48f);
             if (headerRect.Contains(e.X, e.Y))
             {
-                if (e.X < calendarRect.Left + 40) { _displayMonth = _displayMonth.AddMonths(-1); Invalidate(); return; }
-                if (e.X > calendarRect.Right - 40) { _displayMonth = _displayMonth.AddMonths(1); Invalidate(); return; }
+                if (e.X < calendarRect.Left + 40f)
+                {
+                    _displayMonth = _displayMonth.AddMonths(-1);
+                    Invalidate();
+                }
+                else if (e.X > calendarRect.Right - 40f)
+                {
+                    _displayMonth = _displayMonth.AddMonths(1);
+                    Invalidate();
+                }
                 return;
             }
 
-            // Check if click is in days area
-            var daysTop = calendarRect.Top + HeaderHeight + 30;
-            var daysRect = new SKRect(calendarRect.Left, daysTop, calendarRect.Right, calendarRect.Bottom);
+            float daysTop = calendarRect.Top + 48f + 30f;
+            SKRect daysRect = new SKRect(calendarRect.Left, daysTop, calendarRect.Right, calendarRect.Bottom);
             if (daysRect.Contains(e.X, e.Y))
             {
-                var cellWidth = CalendarWidth / 7;
-                var cellHeight = (CalendarHeight - HeaderHeight - 40) / 6;
-                var col = (int)((e.X - calendarRect.Left) / cellWidth);
-                var row = (int)((e.Y - daysTop) / cellHeight);
-                var firstDay = new DateTime(_displayMonth.Year, _displayMonth.Month, 1);
-                var dayIndex = row * 7 + col - (int)firstDay.DayOfWeek + 1;
-                var daysInMonth = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
+                float cellWidth = 40f;
+                float cellHeight = 38.666668f;
+                int col = (int)((e.X - calendarRect.Left) / cellWidth);
+                int dayIndex = (int)((e.Y - daysTop) / cellHeight) * 7 + col - (int)new DateTime(_displayMonth.Year, _displayMonth.Month, 1).DayOfWeek + 1;
+                int daysInMonth = DateTime.DaysInMonth(_displayMonth.Year, _displayMonth.Month);
+
                 if (dayIndex >= 1 && dayIndex <= daysInMonth)
                 {
-                    var selectedDate = new DateTime(_displayMonth.Year, _displayMonth.Month, dayIndex);
+                    DateTime selectedDate = new DateTime(_displayMonth.Year, _displayMonth.Month, dayIndex);
                     if (selectedDate >= MinimumDate && selectedDate <= MaximumDate)
                     {
                         Date = selectedDate;
@@ -446,27 +630,53 @@ public class SkiaDatePicker : SkiaView
                 return;
             }
 
-            // Click is outside calendar - check if it's on the picker itself
             if (screenBounds.Contains(e.X, e.Y))
             {
                 IsOpen = false;
             }
         }
-        else IsOpen = true;
+        else
+        {
+            IsOpen = true;
+        }
         Invalidate();
     }
 
     public override void OnKeyDown(KeyEventArgs e)
     {
-        if (!IsEnabled) return;
+        if (!IsEnabled)
+            return;
+
         switch (e.Key)
         {
-            case Key.Enter: case Key.Space: IsOpen = !IsOpen; e.Handled = true; break;
-            case Key.Escape: if (IsOpen) { IsOpen = false; e.Handled = true; } break;
-            case Key.Left: Date = Date.AddDays(-1); e.Handled = true; break;
-            case Key.Right: Date = Date.AddDays(1); e.Handled = true; break;
-            case Key.Up: Date = Date.AddDays(-7); e.Handled = true; break;
-            case Key.Down: Date = Date.AddDays(7); e.Handled = true; break;
+            case Key.Enter:
+            case Key.Space:
+                IsOpen = !IsOpen;
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                if (IsOpen)
+                {
+                    IsOpen = false;
+                    e.Handled = true;
+                }
+                break;
+            case Key.Left:
+                Date = Date.AddDays(-1.0);
+                e.Handled = true;
+                break;
+            case Key.Right:
+                Date = Date.AddDays(1.0);
+                e.Handled = true;
+                break;
+            case Key.Up:
+                Date = Date.AddDays(-7.0);
+                e.Handled = true;
+                break;
+            case Key.Down:
+                Date = Date.AddDays(7.0);
+                e.Handled = true;
+                break;
         }
         Invalidate();
     }
@@ -474,37 +684,31 @@ public class SkiaDatePicker : SkiaView
     public override void OnFocusLost()
     {
         base.OnFocusLost();
-        // Close popup when focus is lost (clicking outside)
         if (IsOpen)
         {
             IsOpen = false;
         }
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200) : 200, 40);
+        return new Size(availableSize.Width < double.MaxValue ? Math.Min(availableSize.Width, 200.0) : 200.0, 40.0);
     }
 
-    /// <summary>
-    /// Override to include calendar popup area in hit testing.
-    /// </summary>
     protected override bool HitTestPopupArea(float x, float y)
     {
-        // Use ScreenBounds for hit testing (accounts for scroll offset)
-        var screenBounds = ScreenBounds;
-
-        // Always include the picker button itself
+        SKRect screenBounds = new SKRect((float)ScreenBounds.Left, (float)ScreenBounds.Top, (float)(ScreenBounds.Left + ScreenBounds.Width), (float)(ScreenBounds.Top + ScreenBounds.Height));
         if (screenBounds.Contains(x, y))
+        {
             return true;
-
-        // When open, also include the calendar area (with edge detection)
+        }
         if (_isOpen)
         {
-            var calendarRect = GetCalendarRect(screenBounds);
+            SKRect calendarRect = GetCalendarRect(screenBounds);
             return calendarRect.Contains(x, y);
         }
-
         return false;
     }
+
+    #endregion
 }

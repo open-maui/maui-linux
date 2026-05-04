@@ -4,6 +4,7 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -15,6 +16,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
     public static IPropertyMapper<IWebView, WebViewHandler> Mapper = new PropertyMapper<IWebView, WebViewHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IWebView.Source)] = MapSource,
+        [nameof(IWebView.UserAgent)] = MapUserAgent,
     };
 
     public static CommandMapper<IWebView, WebViewHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -22,6 +24,8 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
         [nameof(IWebView.GoBack)] = MapGoBack,
         [nameof(IWebView.GoForward)] = MapGoForward,
         [nameof(IWebView.Reload)] = MapReload,
+        [nameof(IWebView.Eval)] = MapEval,
+        [nameof(IWebView.EvaluateJavaScriptAsync)] = MapEvaluateJavaScriptAsync,
     };
 
     public WebViewHandler() : base(Mapper, CommandMapper)
@@ -54,28 +58,62 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
         base.DisconnectHandler(platformView);
     }
 
-    private void OnNavigating(object? sender, WebNavigatingEventArgs e)
+    private void OnNavigating(object? sender, Microsoft.Maui.Platform.WebNavigatingEventArgs e)
     {
-        // Forward to virtual view if needed
+        IWebView virtualView = VirtualView;
+        IWebViewController? controller = virtualView as IWebViewController;
+        if (controller != null)
+        {
+            var args = new Microsoft.Maui.Controls.WebNavigatingEventArgs(
+                WebNavigationEvent.NewPage,
+                null,
+                e.Url);
+            controller.SendNavigating(args);
+        }
     }
 
-    private void OnNavigated(object? sender, WebNavigatedEventArgs e)
+    private void OnNavigated(object? sender, Microsoft.Maui.Platform.WebNavigatedEventArgs e)
     {
-        // Forward to virtual view if needed
+        IWebView virtualView = VirtualView;
+        IWebViewController? controller = virtualView as IWebViewController;
+        if (controller != null)
+        {
+            WebNavigationResult result = e.Success ? WebNavigationResult.Success : WebNavigationResult.Failure;
+            var args = new Microsoft.Maui.Controls.WebNavigatedEventArgs(
+                WebNavigationEvent.NewPage,
+                null,
+                e.Url,
+                result);
+            controller.SendNavigated(args);
+        }
     }
 
     public static void MapSource(WebViewHandler handler, IWebView webView)
     {
-        if (handler.PlatformView == null) return;
+        DiagnosticLog.Debug("WebViewHandler", "MapSource called");
+        if (handler.PlatformView == null)
+        {
+            DiagnosticLog.Warn("WebViewHandler", "PlatformView is null!");
+            return;
+        }
 
         var source = webView.Source;
+        DiagnosticLog.Debug("WebViewHandler", $"Source type: {source?.GetType().Name ?? "null"}");
+
         if (source is UrlWebViewSource urlSource)
         {
+            DiagnosticLog.Debug("WebViewHandler", $"Loading URL: {urlSource.Url}");
             handler.PlatformView.Source = urlSource.Url ?? "";
         }
         else if (source is HtmlWebViewSource htmlSource)
         {
+            DiagnosticLog.Debug("WebViewHandler", $"Loading HTML ({htmlSource.Html?.Length ?? 0} chars)");
+            DiagnosticLog.Debug("WebViewHandler", $"HTML preview: {htmlSource.Html?.Substring(0, Math.Min(100, htmlSource.Html?.Length ?? 0))}...");
             handler.PlatformView.Html = htmlSource.Html ?? "";
+        }
+        else
+        {
+            DiagnosticLog.Debug("WebViewHandler", "Unknown source type or null");
         }
     }
 
@@ -93,4 +131,48 @@ public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
     {
         handler.PlatformView?.Reload();
     }
+
+    public static void MapUserAgent(WebViewHandler handler, IWebView webView)
+    {
+        if (handler.PlatformView != null && !string.IsNullOrEmpty(webView.UserAgent))
+        {
+            handler.PlatformView.UserAgent = webView.UserAgent;
+        }
+    }
+
+    public static void MapEval(WebViewHandler handler, IWebView webView, object? args)
+    {
+        if (args is string script)
+        {
+            handler.PlatformView?.Eval(script);
+        }
+    }
+
+    public static void MapEvaluateJavaScriptAsync(WebViewHandler handler, IWebView webView, object? args)
+    {
+        // Use MAUI's EvaluateJavaScriptAsyncRequest type (Microsoft.Maui namespace)
+        if (args is Microsoft.Maui.EvaluateJavaScriptAsyncRequest request)
+        {
+            var result = handler.PlatformView?.EvaluateJavaScriptAsync(request.Script);
+            if (result != null)
+            {
+                result.ContinueWith(t =>
+                {
+                    request.SetResult(t.Result);
+                });
+            }
+            else
+            {
+                request.SetResult(null);
+            }
+        }
+        else if (args is string script)
+        {
+            // Direct script string
+            handler.PlatformView?.EvaluateJavaScriptAsync(script);
+        }
+    }
 }
+
+// NOTE: EvaluateJavaScriptAsync commands use Microsoft.Maui.EvaluateJavaScriptAsyncRequest
+// from the MAUI framework. Do NOT define a local EvaluateJavaScriptAsyncRequest class here.

@@ -3,13 +3,14 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
-using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for Stepper on Linux using Skia rendering.
+/// Maps IStepper interface to SkiaStepper platform view.
 /// </summary>
 public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
 {
@@ -19,7 +20,9 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
             [nameof(IStepper.Value)] = MapValue,
             [nameof(IStepper.Minimum)] = MapMinimum,
             [nameof(IStepper.Maximum)] = MapMaximum,
+            ["Increment"] = MapIncrement,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(IView.IsEnabled)] = MapIsEnabled,
         };
 
     public static CommandMapper<IStepper, StepperHandler> CommandMapper =
@@ -45,6 +48,26 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
     {
         base.ConnectHandler(platformView);
         platformView.ValueChanged += OnValueChanged;
+
+        // Apply dark theme colors if needed
+        if (Application.Current?.UserAppTheme == AppTheme.Dark)
+        {
+            platformView.ButtonBackgroundColor = Color.FromRgb(66, 66, 66);
+            platformView.ButtonPressedColor = Color.FromRgb(97, 97, 97);
+            platformView.ButtonDisabledColor = Color.FromRgb(48, 48, 48);
+            platformView.SymbolColor = Color.FromRgb(224, 224, 224);
+            platformView.SymbolDisabledColor = Color.FromRgb(97, 97, 97);
+            platformView.BorderColor = Color.FromRgb(97, 97, 97);
+        }
+
+        // Sync properties
+        if (VirtualView != null)
+        {
+            MapValue(this, VirtualView);
+            MapMinimum(this, VirtualView);
+            MapMaximum(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
     }
 
     protected override void DisconnectHandler(SkiaStepper platformView)
@@ -53,16 +76,22 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
         base.DisconnectHandler(platformView);
     }
 
-    private void OnValueChanged(object? sender, EventArgs e)
+    private void OnValueChanged(object? sender, ValueChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
-        VirtualView.Value = PlatformView.Value;
+
+        if (Math.Abs(VirtualView.Value - e.NewValue) > 0.0001)
+        {
+            VirtualView.Value = e.NewValue;
+        }
     }
 
     public static void MapValue(StepperHandler handler, IStepper stepper)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Value = stepper.Value;
+
+        if (Math.Abs(handler.PlatformView.Value - stepper.Value) > 0.0001)
+            handler.PlatformView.Value = stepper.Value;
     }
 
     public static void MapMinimum(StepperHandler handler, IStepper stepper)
@@ -83,7 +112,24 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
 
         if (stepper.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
+    }
+
+    public static void MapIncrement(StepperHandler handler, IStepper stepper)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (stepper is Stepper stepperControl)
+        {
+            handler.PlatformView.Increment = stepperControl.Increment;
+        }
+    }
+
+    public static void MapIsEnabled(StepperHandler handler, IStepper stepper)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = stepper.IsEnabled;
+        handler.PlatformView.Invalidate();
     }
 }

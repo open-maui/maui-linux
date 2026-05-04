@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// AT-SPI2 accessibility service implementation.
 /// Provides screen reader support through the AT-SPI2 D-Bus interface.
 /// </summary>
-public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
+public partial class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
 {
     private nint _connection;
     private nint _registry;
@@ -36,7 +36,7 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
             int result = atspi_init();
             if (result != 0)
             {
-                Console.WriteLine("AtSpi2AccessibilityService: Failed to initialize AT-SPI2");
+                DiagnosticLog.Error("AtSpi2AccessibilityService", "Failed to initialize AT-SPI2");
                 return;
             }
 
@@ -51,16 +51,16 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
                 // Register our application
                 RegisterApplication();
 
-                Console.WriteLine("AtSpi2AccessibilityService: Initialized successfully");
+                DiagnosticLog.Debug("AtSpi2AccessibilityService", "Initialized successfully");
             }
             else
             {
-                Console.WriteLine("AtSpi2AccessibilityService: Accessibility is not enabled");
+                DiagnosticLog.Warn("AtSpi2AccessibilityService", "Accessibility is not enabled");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"AtSpi2AccessibilityService: Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Initialization failed - {ex.Message}");
         }
     }
 
@@ -168,11 +168,11 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
             // or by emitting "object:announcement" events
 
             // For now, use a simpler approach with the event system
-            Console.WriteLine($"[Accessibility Announcement ({priority})]: {text}");
+            DiagnosticLog.Debug("AtSpi2AccessibilityService", $"Announcement ({priority}): {text}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"AtSpi2AccessibilityService: Announcement failed - {ex.Message}");
+            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Announcement failed - {ex.Message}");
         }
     }
 
@@ -182,7 +182,7 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
         // using the org.a11y.atspi.Event interface
 
         // For now, log the event for debugging
-        Console.WriteLine($"[AT-SPI2 Event] {eventName}: {accessible.AccessibleName} ({accessible.Role})");
+        DiagnosticLog.Debug("AtSpi2AccessibilityService", $"Event {eventName}: {accessible.AccessibleName} ({accessible.Role})");
     }
 
     /// <summary>
@@ -371,91 +371,20 @@ public class AtSpi2AccessibilityService : IAccessibilityService, IDisposable
 
     #region AT-SPI2 Interop
 
-    [DllImport("libatspi.so.0")]
-    private static extern int atspi_init();
+    [LibraryImport("libatspi.so.0")]
+    private static partial int atspi_init();
 
-    [DllImport("libatspi.so.0")]
-    private static extern int atspi_exit();
+    [LibraryImport("libatspi.so.0")]
+    private static partial int atspi_exit();
 
-    [DllImport("libatspi.so.0")]
-    private static extern nint atspi_get_desktop(int i);
+    [LibraryImport("libatspi.so.0")]
+    private static partial nint atspi_get_desktop(int i);
 
-    [DllImport("libatspi.so.0")]
-    private static extern void atspi_set_main_context(nint context);
+    [LibraryImport("libatspi.so.0")]
+    private static partial void atspi_set_main_context(nint context);
 
-    [DllImport("libgobject-2.0.so.0")]
-    private static extern void g_object_unref(nint obj);
+    [LibraryImport("libgobject-2.0.so.0")]
+    private static partial void g_object_unref(nint obj);
 
     #endregion
-}
-
-/// <summary>
-/// Factory for creating accessibility service instances.
-/// </summary>
-public static class AccessibilityServiceFactory
-{
-    private static IAccessibilityService? _instance;
-    private static readonly object _lock = new();
-
-    /// <summary>
-    /// Gets the singleton accessibility service instance.
-    /// </summary>
-    public static IAccessibilityService Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                lock (_lock)
-                {
-                    _instance ??= CreateService();
-                }
-            }
-            return _instance;
-        }
-    }
-
-    private static IAccessibilityService CreateService()
-    {
-        try
-        {
-            var service = new AtSpi2AccessibilityService();
-            service.Initialize();
-            return service;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"AccessibilityServiceFactory: Failed to create AT-SPI2 service - {ex.Message}");
-            return new NullAccessibilityService();
-        }
-    }
-
-    /// <summary>
-    /// Resets the singleton instance.
-    /// </summary>
-    public static void Reset()
-    {
-        lock (_lock)
-        {
-            _instance?.Shutdown();
-            _instance = null;
-        }
-    }
-}
-
-/// <summary>
-/// Null implementation of accessibility service.
-/// </summary>
-public class NullAccessibilityService : IAccessibilityService
-{
-    public bool IsEnabled => false;
-
-    public void Initialize() { }
-    public void Register(IAccessible accessible) { }
-    public void Unregister(IAccessible accessible) { }
-    public void NotifyFocusChanged(IAccessible? accessible) { }
-    public void NotifyPropertyChanged(IAccessible accessible, AccessibleProperty property) { }
-    public void NotifyStateChanged(IAccessible accessible, AccessibleState state, bool value) { }
-    public void Announce(string text, AnnouncementPriority priority = AnnouncementPriority.Polite) { }
-    public void Shutdown() { }
 }

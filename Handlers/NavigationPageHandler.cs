@@ -1,11 +1,15 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.IO;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Svg.Skia;
 using System.Collections.Specialized;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -83,71 +87,59 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
     {
         if (VirtualView == null || PlatformView == null || MauiContext == null) return;
 
-        // Get all pages in the navigation stack
-        var pages = VirtualView.Navigation.NavigationStack.ToList();
-        Console.WriteLine($"[NavigationPageHandler] Setting up {pages.Count} pages");
+        // MapRequestNavigation handles the actual navigation stack setup.
+        // This method only runs as a fallback if the platform has no pages yet
+        // (e.g., if ConnectHandler fires before the initial RequestNavigation command).
+        if (PlatformView.StackDepth > 0)
+        {
+            DiagnosticLog.Debug("NavigationPageHandler", $"SetupNavigationStack skipped - platform already has {PlatformView.StackDepth} pages");
+            return;
+        }
 
-        // If no pages in stack, check CurrentPage
+        var pages = VirtualView.Navigation.NavigationStack.ToList();
+        DiagnosticLog.Debug("NavigationPageHandler", $"SetupNavigationStack: {pages.Count} pages");
+
         if (pages.Count == 0 && VirtualView.CurrentPage != null)
         {
-            Console.WriteLine($"[NavigationPageHandler] No pages in stack, using CurrentPage: {VirtualView.CurrentPage.Title}");
             pages.Add(VirtualView.CurrentPage);
         }
 
         foreach (var page in pages)
         {
-            // Ensure the page has a handler
             if (page.Handler == null)
             {
-                Console.WriteLine($"[NavigationPageHandler] Creating handler for: {page.Title}");
-                page.Handler = page.ToHandler(MauiContext);
+                page.Handler = page.ToViewHandler(MauiContext);
             }
-
-            Console.WriteLine($"[NavigationPageHandler] Page handler type: {page.Handler?.GetType().Name}");
-            Console.WriteLine($"[NavigationPageHandler] Page PlatformView type: {page.Handler?.PlatformView?.GetType().Name}");
 
             if (page.Handler?.PlatformView is SkiaPage skiaPage)
             {
-                // Set navigation bar properties
                 skiaPage.ShowNavigationBar = true;
                 skiaPage.TitleBarColor = PlatformView.BarBackgroundColor;
                 skiaPage.TitleTextColor = PlatformView.BarTextColor;
                 skiaPage.Title = page.Title ?? "";
 
-                Console.WriteLine($"[NavigationPageHandler] SkiaPage content: {skiaPage.Content?.GetType().Name ?? "null"}");
-
-                // If content is null, try to get it from ContentPage
                 if (skiaPage.Content == null && page is ContentPage contentPage && contentPage.Content != null)
                 {
-                    Console.WriteLine($"[NavigationPageHandler] Content is null, manually creating handler for: {contentPage.Content.GetType().Name}");
                     if (contentPage.Content.Handler == null)
                     {
-                        contentPage.Content.Handler = contentPage.Content.ToHandler(MauiContext);
+                        contentPage.Content.Handler = contentPage.Content.ToViewHandler(MauiContext);
                     }
                     if (contentPage.Content.Handler?.PlatformView is SkiaView skiaContent)
                     {
                         skiaPage.Content = skiaContent;
-                        Console.WriteLine($"[NavigationPageHandler] Set content to: {skiaContent.GetType().Name}");
                     }
                 }
 
-                // Map toolbar items
                 MapToolbarItems(skiaPage, page);
 
                 if (PlatformView.StackDepth == 0)
                 {
-                    Console.WriteLine($"[NavigationPageHandler] Setting root page: {page.Title}");
                     PlatformView.SetRootPage(skiaPage);
                 }
                 else
                 {
-                    Console.WriteLine($"[NavigationPageHandler] Pushing page: {page.Title}");
                     PlatformView.Push(skiaPage, false);
                 }
-            }
-            else
-            {
-                Console.WriteLine($"[NavigationPageHandler] Failed to get SkiaPage for: {page.Title}");
             }
         }
     }
@@ -158,12 +150,12 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
     {
         if (skiaPage is SkiaContentPage contentPage)
         {
-            Console.WriteLine($"[NavigationPageHandler] MapToolbarItems for '{page.Title}', count={page.ToolbarItems.Count}");
+            DiagnosticLog.Debug("NavigationPageHandler", $"MapToolbarItems for '{page.Title}', count={page.ToolbarItems.Count}");
 
             contentPage.ToolbarItems.Clear();
             foreach (var item in page.ToolbarItems)
             {
-                Console.WriteLine($"[NavigationPageHandler] Adding toolbar item: '{item.Text}', Order={item.Order}");
+                DiagnosticLog.Debug("NavigationPageHandler", $"Adding toolbar item: '{item.Text}', IconImageSource={item.IconImageSource}, Order={item.Order}");
                 // Default and Primary should both be treated as Primary (shown in toolbar)
                 // Only Secondary goes to overflow menu
                 var order = item.Order == ToolbarItemOrder.Secondary
@@ -174,7 +166,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
                 var toolbarItem = item; // Capture for closure
                 var clickCommand = new RelayCommand(() =>
                 {
-                    Console.WriteLine($"[NavigationPageHandler] ToolbarItem '{toolbarItem.Text}' clicked, invoking...");
+                    DiagnosticLog.Debug("NavigationPageHandler", $"ToolbarItem '{toolbarItem.Text}' clicked, invoking...");
                     // Use IMenuItemController to send the click
                     if (toolbarItem is IMenuItemController menuController)
                     {
@@ -187,9 +179,17 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
                     }
                 });
 
+                // Load icon if specified
+                SKBitmap? icon = null;
+                if (item.IconImageSource is FileImageSource fileSource && !string.IsNullOrEmpty(fileSource.File))
+                {
+                    icon = LoadToolbarIcon(fileSource.File);
+                }
+
                 contentPage.ToolbarItems.Add(new SkiaToolbarItem
                 {
                     Text = item.Text ?? "",
+                    Icon = icon,
                     Order = order,
                     Command = clickCommand
                 });
@@ -198,10 +198,10 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
             // Subscribe to ToolbarItems changes if not already subscribed
             if (page.ToolbarItems is INotifyCollectionChanged notifyCollection && !_toolbarSubscriptions.ContainsKey(page))
             {
-                Console.WriteLine($"[NavigationPageHandler] Subscribing to ToolbarItems changes for '{page.Title}'");
+                DiagnosticLog.Debug("NavigationPageHandler", $"Subscribing to ToolbarItems changes for '{page.Title}'");
                 notifyCollection.CollectionChanged += (s, e) =>
                 {
-                    Console.WriteLine($"[NavigationPageHandler] ToolbarItems changed for '{page.Title}', action={e.Action}");
+                    DiagnosticLog.Debug("NavigationPageHandler", $"ToolbarItems changed for '{page.Title}', action={e.Action}");
                     MapToolbarItems(skiaPage, page);
                     skiaPage.Invalidate();
                 };
@@ -210,53 +210,74 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
         }
     }
 
-    private void OnVirtualViewPushed(object? sender, Microsoft.Maui.Controls.NavigationEventArgs e)
+    private SKBitmap? LoadToolbarIcon(string fileName)
     {
         try
         {
-            Console.WriteLine($"[NavigationPageHandler] VirtualView Pushed: {e.Page?.Title}");
-            if (e.Page == null || PlatformView == null || MauiContext == null) return;
+            string baseDirectory = AppContext.BaseDirectory;
+            string pngPath = Path.Combine(baseDirectory, fileName);
+            string svgPath = Path.Combine(baseDirectory, Path.ChangeExtension(fileName, ".svg"));
 
-            // Ensure the page has a handler
-            if (e.Page.Handler == null)
+            DiagnosticLog.Debug("NavigationPageHandler", $"LoadToolbarIcon: Looking for {fileName}");
+            DiagnosticLog.Debug("NavigationPageHandler", $"  Trying PNG: {pngPath} (exists: {File.Exists(pngPath)})");
+            DiagnosticLog.Debug("NavigationPageHandler", $"  Trying SVG: {svgPath} (exists: {File.Exists(svgPath)})");
+
+            // Try SVG first
+            if (File.Exists(svgPath))
             {
-                Console.WriteLine($"[NavigationPageHandler] Creating handler for page: {e.Page.GetType().Name}");
-                e.Page.Handler = e.Page.ToHandler(MauiContext);
-                Console.WriteLine($"[NavigationPageHandler] Handler created: {e.Page.Handler?.GetType().Name}");
+                using var svg = new SKSvg();
+                svg.Load(svgPath);
+                if (svg.Picture != null)
+                {
+                    var cullRect = svg.Picture.CullRect;
+                    float scale = 24f / Math.Max(cullRect.Width, cullRect.Height);
+                    var bitmap = new SKBitmap(24, 24, false);
+                    using var canvas = new SKCanvas(bitmap);
+                    canvas.Clear(SKColors.Transparent);
+                    canvas.Scale(scale);
+                    canvas.DrawPicture(svg.Picture, null);
+                    DiagnosticLog.Debug("NavigationPageHandler", $"Loaded SVG icon: {svgPath}");
+                    return bitmap;
+                }
             }
 
-            if (e.Page.Handler?.PlatformView is SkiaPage skiaPage)
+            // Try PNG
+            if (File.Exists(pngPath))
             {
-                Console.WriteLine($"[NavigationPageHandler] Setting up skiaPage, content: {skiaPage.Content?.GetType().Name ?? "null"}");
-                skiaPage.ShowNavigationBar = true;
-                skiaPage.TitleBarColor = PlatformView.BarBackgroundColor;
-                skiaPage.TitleTextColor = PlatformView.BarTextColor;
-                Console.WriteLine($"[NavigationPageHandler] Mapping toolbar items");
-                MapToolbarItems(skiaPage, e.Page);
-                Console.WriteLine($"[NavigationPageHandler] Pushing page to platform");
-                PlatformView.Push(skiaPage, true);
-                Console.WriteLine($"[NavigationPageHandler] Push complete");
+                using var stream = File.OpenRead(pngPath);
+                var result = SKBitmap.Decode(stream);
+                DiagnosticLog.Debug("NavigationPageHandler", $"Loaded PNG icon: {pngPath}");
+                return result;
             }
+
+            DiagnosticLog.Warn("NavigationPageHandler", $"Icon not found: {fileName}");
+            return null;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NavigationPageHandler] EXCEPTION in OnVirtualViewPushed: {ex.GetType().Name}: {ex.Message}");
-            Console.WriteLine($"[NavigationPageHandler] Stack trace: {ex.StackTrace}");
-            throw;
+            DiagnosticLog.Error("NavigationPageHandler", $"Error loading icon {fileName}: {ex.Message}", ex);
+            return null;
         }
+    }
+
+    private void OnVirtualViewPushed(object? sender, Microsoft.Maui.Controls.NavigationEventArgs e)
+    {
+        // This event fires after NavigationFinished() is called in MapRequestNavigation.
+        // The actual platform push is already handled there, so we only log here.
+        DiagnosticLog.Debug("NavigationPageHandler", $"VirtualView Pushed confirmed: {e.Page?.Title}");
     }
 
     private void OnVirtualViewPopped(object? sender, Microsoft.Maui.Controls.NavigationEventArgs e)
     {
-        Console.WriteLine($"[NavigationPageHandler] VirtualView Popped: {e.Page?.Title}");
-        // Pop on the platform side to sync with MAUI navigation
-        PlatformView?.Pop(true);
+        // This event fires after NavigationFinished() is called in MapRequestNavigation.
+        // The actual platform pop is already handled there, so we only log here.
+        DiagnosticLog.Debug("NavigationPageHandler", $"VirtualView Popped confirmed: {e.Page?.Title}");
     }
 
     private void OnVirtualViewPoppedToRoot(object? sender, Microsoft.Maui.Controls.NavigationEventArgs e)
     {
-        Console.WriteLine($"[NavigationPageHandler] VirtualView PoppedToRoot");
-        PlatformView?.PopToRoot(true);
+        // This event fires after NavigationFinished() is called in MapRequestNavigation.
+        DiagnosticLog.Debug("NavigationPageHandler", "VirtualView PoppedToRoot confirmed");
     }
 
     private void OnPushed(object? sender, NavigationEventArgs e)
@@ -266,12 +287,9 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
     private void OnPopped(object? sender, NavigationEventArgs e)
     {
-        // Sync back to virtual view - pop from MAUI navigation stack
-        if (VirtualView?.Navigation.NavigationStack.Count > 1)
-        {
-            // Don't trigger another pop on platform side
-            VirtualView.Navigation.RemovePage(VirtualView.Navigation.NavigationStack.Last());
-        }
+        // Platform pop events are handled by MapRequestNavigation, which drives navigation.
+        // No need to sync back — MAUI's stack is already correct when this fires.
+        DiagnosticLog.Debug("NavigationPageHandler", $"Platform Popped: {e.Page?.GetType().Name}");
     }
 
     private void OnPoppedToRoot(object? sender, NavigationEventArgs e)
@@ -285,7 +303,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.BarBackgroundColor is not null)
         {
-            handler.PlatformView.BarBackgroundColor = navigationPage.BarBackgroundColor.ToSKColor();
+            handler.PlatformView.BarBackgroundColor = navigationPage.BarBackgroundColor;
         }
     }
 
@@ -295,7 +313,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.BarBackground is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BarBackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BarBackgroundColor = solidBrush.Color;
         }
     }
 
@@ -305,7 +323,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.BarTextColor is not null)
         {
-            handler.PlatformView.BarTextColor = navigationPage.BarTextColor.ToSKColor();
+            handler.PlatformView.BarTextColor = navigationPage.BarTextColor;
         }
     }
 
@@ -315,7 +333,7 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
 
         if (navigationPage.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
     }
 
@@ -324,36 +342,61 @@ public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNav
         if (handler.PlatformView is null || handler.MauiContext is null || args is not NavigationRequest request)
             return;
 
-        Console.WriteLine($"[NavigationPageHandler] MapRequestNavigation: {request.NavigationStack.Count} pages");
+        var requestedStack = request.NavigationStack;
+        int currentDepth = handler.PlatformView.StackDepth;
 
-        // Handle navigation request
-        foreach (var view in request.NavigationStack)
+        DiagnosticLog.Debug("NavigationPageHandler", $"MapRequestNavigation: requested={requestedStack.Count} pages, current platform depth={currentDepth}");
+
+        if (requestedStack.Count < currentDepth)
         {
-            if (view is not Page page) continue;
-
-            // Ensure handler exists
-            if (page.Handler == null)
+            // Pop: the requested stack is shorter than current
+            int popCount = currentDepth - requestedStack.Count;
+            DiagnosticLog.Debug("NavigationPageHandler", $"Popping {popCount} pages");
+            for (int i = 0; i < popCount; i++)
             {
-                page.Handler = page.ToHandler(handler.MauiContext);
+                handler.PlatformView.Pop(request.Animated);
             }
-
-            if (page.Handler?.PlatformView is SkiaPage skiaPage)
+        }
+        else if (requestedStack.Count > currentDepth || currentDepth == 0)
+        {
+            // Push: new pages on the stack
+            // Only push pages that aren't already on the platform stack
+            int startIndex = Math.Max(0, currentDepth);
+            for (int i = startIndex; i < requestedStack.Count; i++)
             {
-                skiaPage.ShowNavigationBar = true;
-                skiaPage.TitleBarColor = handler.PlatformView.BarBackgroundColor;
-                skiaPage.TitleTextColor = handler.PlatformView.BarTextColor;
-                handler.MapToolbarItems(skiaPage, page);
+                if (requestedStack[i] is not Page page) continue;
 
-                if (handler.PlatformView.StackDepth == 0)
+                // Ensure handler exists
+                if (page.Handler == null)
                 {
-                    handler.PlatformView.SetRootPage(skiaPage);
+                    page.Handler = page.ToViewHandler(handler.MauiContext);
                 }
-                else
+
+                if (page.Handler?.PlatformView is SkiaPage skiaPage)
                 {
-                    handler.PlatformView.Push(skiaPage, request.Animated);
+                    skiaPage.ShowNavigationBar = true;
+                    skiaPage.TitleBarColor = handler.PlatformView.BarBackgroundColor;
+                    skiaPage.TitleTextColor = handler.PlatformView.BarTextColor;
+                    handler.MapToolbarItems(skiaPage, page);
+
+                    if (handler.PlatformView.StackDepth == 0)
+                    {
+                        handler.PlatformView.SetRootPage(skiaPage);
+                    }
+                    else
+                    {
+                        handler.PlatformView.Push(skiaPage, request.Animated);
+                    }
+
+                    DiagnosticLog.Debug("NavigationPageHandler", $"Pushed page [{i}]: {page.Title ?? page.GetType().Name}");
                 }
             }
         }
+
+        // Signal to MAUI that navigation is complete.
+        // Without this, PushAsync/PopAsync Tasks never complete and the Pushed/Popped events never fire.
+        ((IStackNavigation)navigationPage).NavigationFinished(requestedStack);
+        DiagnosticLog.Debug("NavigationPageHandler", "NavigationFinished called");
     }
 }
 

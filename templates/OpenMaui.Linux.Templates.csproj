@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
-    <PackageVersion>1.0.0-preview.1</PackageVersion>
+    <PackageVersion>10.0.50.7</PackageVersion>
     <PackageId>OpenMaui.Linux.Templates</PackageId>
     <Title>OpenMaui Linux Project Templates</Title>
-    <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
-    <Company>MarketAlly LLC</Company>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
     <Description>Project templates for building .NET MAUI applications on Linux desktop using OpenMaui.
 
 Templates included:
@@ -15,7 +15,9 @@ Templates included:
     <PackageTags>dotnet-new;templates;maui;linux;desktop;openmaui;xaml</PackageTags>
     <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Copyright 2025 MarketAlly LLC</Copyright>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <TargetFramework>netstandard2.0</TargetFramework>
 
@@ -32,6 +34,12 @@ Templates included:
     <!-- XAML-based template -->
     <Content Include="openmaui-linux-xaml-app\**\*" Exclude="openmaui-linux-xaml-app\**\bin\**;openmaui-linux-xaml-app\**\obj\**" />
     <Compile Remove="**\*" />
+  </ItemGroup>
+
+  <!-- Include icon and README in package -->
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>

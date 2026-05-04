@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenMauiXamlApp</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -15,19 +15,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- OpenMaui Linux Platform -->
-    <PackageReference Include="OpenMaui.Controls.Linux" Version="1.0.0-preview.*" />
+    <!-- OpenMaui: UseLinux() stub (safe no-op on non-Linux platforms) -->
+    <PackageReference Include="OpenMaui.Hosting" Version="10.0.*" />
+    <!-- OpenMaui: Full Linux platform (handlers, services, rendering) -->
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="10.0.*" />
 
     <!-- Core MAUI packages (includes XAML support) -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.*" />
-    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.*" />
+  </ItemGroup>
+
+  <!-- Linux platform files: only compiled on Linux -->
+  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Linux'))">
+    <Compile Remove="Platforms\Linux\**" />
   </ItemGroup>
 
   <!-- XAML Files -->
   <ItemGroup>
     <MauiXaml Update="**/*.xaml" />
-    <MauiXaml Update="App.xaml" />
-    <MauiXaml Update="MainPage.xaml" />
   </ItemGroup>
 
   <!-- Embedded Resources -->

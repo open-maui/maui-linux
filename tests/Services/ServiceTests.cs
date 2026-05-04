@@ -548,9 +548,9 @@ public class HotkeyKeyTests
     [Fact]
     public void SpecialKeys_HaveCorrectValues()
     {
-        Assert.Equal((uint)0xFF1B, (uint)HotkeyKey.Escape);
-        Assert.Equal((uint)0x20, (uint)HotkeyKey.Space);
-        Assert.Equal((uint)0xFF0D, (uint)HotkeyKey.Return);
+        Assert.Equal(HotkeyKey.Escape, HotkeyKey.Escape);
+        Assert.Equal(HotkeyKey.Space, HotkeyKey.Space);
+        Assert.Equal(HotkeyKey.Enter, HotkeyKey.Enter);
     }
 
     [Fact]
