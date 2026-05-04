@@ -23,7 +23,6 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
             [nameof(IDatePicker.Format)] = MapFormat,
             [nameof(IDatePicker.TextColor)] = MapTextColor,
             [nameof(IDatePicker.CharacterSpacing)] = MapCharacterSpacing,
-            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IView.Background)] = MapBackground,
         };
 
@@ -58,29 +57,29 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
         base.DisconnectHandler(platformView);
     }
 
-    private void OnDateSelected(object? sender, DateChangedEventArgs e)
+    private void OnDateSelected(object? sender, EventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.Date = e.NewDate;
+        VirtualView.Date = PlatformView.Date;
     }
 
     public static void MapDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Date = datePicker.Date ?? DateTime.Today;
+        handler.PlatformView.Date = datePicker.Date;
     }
 
     public static void MapMinimumDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MinimumDate = datePicker.MinimumDate ?? DateTime.MinValue;
+        handler.PlatformView.MinimumDate = datePicker.MinimumDate;
     }
 
     public static void MapMaximumDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MaximumDate = datePicker.MaximumDate ?? DateTime.MaxValue;
+        handler.PlatformView.MaximumDate = datePicker.MaximumDate;
     }
 
     public static void MapFormat(DatePickerHandler handler, IDatePicker datePicker)
@@ -94,33 +93,13 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
         if (handler.PlatformView is null) return;
         if (datePicker.TextColor is not null)
         {
-            handler.PlatformView.TextColor = datePicker.TextColor;
+            handler.PlatformView.TextColor = datePicker.TextColor.ToSKColor();
         }
     }
 
     public static void MapCharacterSpacing(DatePickerHandler handler, IDatePicker datePicker)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = datePicker.CharacterSpacing;
-    }
-
-    public static void MapFont(DatePickerHandler handler, IDatePicker datePicker)
-    {
-        if (handler.PlatformView is null) return;
-
-        var font = datePicker.Font;
-        if (font.Size > 0)
-            handler.PlatformView.FontSize = font.Size;
-
-        if (!string.IsNullOrEmpty(font.Family))
-            handler.PlatformView.FontFamily = font.Family;
-
-        // Map FontAttributes from the Font weight/slant
-        var attrs = FontAttributes.None;
-        if (font.Weight >= FontWeight.Bold)
-            attrs |= FontAttributes.Bold;
-        // Note: Font.Slant for italic would require checking FontSlant
-        handler.PlatformView.FontAttributes = attrs;
+        // Character spacing would require custom text rendering
     }
 
     public static void MapBackground(DatePickerHandler handler, IDatePicker datePicker)
@@ -129,7 +108,7 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
 
         if (datePicker.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color;
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
     }
 }

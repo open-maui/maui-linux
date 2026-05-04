@@ -48,18 +48,18 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
                 if (start >= 0 && end > start)
                 {
                     _inputContextPath = output.Substring(start + 1, end - start - 1);
-                    DiagnosticLog.Debug("Fcitx5InputMethodService", $"Created context at {_inputContextPath}");
+                    Console.WriteLine($"Fcitx5InputMethodService: Created context at {_inputContextPath}");
                     StartMonitoring();
                 }
             }
             else
             {
-                DiagnosticLog.Error("Fcitx5InputMethodService", "Failed to create input context");
+                Console.WriteLine("Fcitx5InputMethodService: Failed to create input context");
             }
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("Fcitx5InputMethodService", $"Initialization failed - {ex.Message}");
+            Console.WriteLine($"Fcitx5InputMethodService: Initialization failed - {ex.Message}");
         }
     }
 
@@ -102,7 +102,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("Fcitx5InputMethodService", $"Monitor error - {ex.Message}");
+                Console.WriteLine($"Fcitx5InputMethodService: Monitor error - {ex.Message}");
             }
         });
     }
@@ -133,7 +133,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
                 }
             }
         }
-        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "Commit signal processing failed", ex); }
+        catch { }
     }
 
     private async Task ProcessPreeditSignal(StreamReader reader)
@@ -160,7 +160,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
                 }
             }
         }
-        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "Preedit signal processing failed", ex); }
+        catch { }
     }
 
     public void SetFocus(IInputContext? context)
@@ -284,7 +284,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
             _dBusMonitor?.Kill();
             _dBusMonitor?.Dispose();
         }
-        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "D-Bus monitor cleanup failed", ex); }
+        catch { }
 
         if (!string.IsNullOrEmpty(_inputContextPath))
         {

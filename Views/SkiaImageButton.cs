@@ -1,96 +1,20 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using Svg.Skia;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered image button control.
 /// Combines button behavior with image display.
-/// Implements MAUI IImageButton interface requirements.
 /// </summary>
 public class SkiaImageButton : SkiaView
 {
-    #region Private Fields
     private SKBitmap? _bitmap;
     private SKImage? _image;
     private bool _isLoading;
-    #endregion
-
-    #region SKColor Helper
-    /// <summary>
-    /// Converts a MAUI Color to SkiaSharp SKColor.
-    /// Uses the ToSKColor() extension from ColorExtensions for MAUI-compliant theming.
-    /// </summary>
-    private static SKColor ToSKColor(Color? color)
-    {
-        if (color == null) return SKColors.Transparent;
-        return color.ToSKColor();
-    }
-    #endregion
-
-    #region BindableProperties
-
-    public static readonly BindableProperty AspectProperty = BindableProperty.Create(
-        nameof(Aspect), typeof(Aspect), typeof(SkiaImageButton), Aspect.AspectFit,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty IsOpaqueProperty = BindableProperty.Create(
-        nameof(IsOpaque), typeof(bool), typeof(SkiaImageButton), false,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty StrokeColorProperty = BindableProperty.Create(
-        nameof(StrokeColor), typeof(Color), typeof(SkiaImageButton), Colors.Transparent,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty StrokeThicknessProperty = BindableProperty.Create(
-        nameof(StrokeThickness), typeof(double), typeof(SkiaImageButton), 0.0,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty CornerRadiusProperty = BindableProperty.Create(
-        nameof(CornerRadius), typeof(int), typeof(SkiaImageButton), 0,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty PaddingProperty = BindableProperty.Create(
-        nameof(Padding), typeof(Thickness), typeof(SkiaImageButton), new Thickness(0),
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty PressedBackgroundColorProperty = BindableProperty.Create(
-        nameof(PressedBackgroundColor), typeof(Color), typeof(SkiaImageButton),
-        Color.FromRgba(0, 0, 0, 30),
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty HoveredBackgroundColorProperty = BindableProperty.Create(
-        nameof(HoveredBackgroundColor), typeof(Color), typeof(SkiaImageButton),
-        Color.FromRgba(0, 0, 0, 15),
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty ImageBackgroundColorProperty = BindableProperty.Create(
-        nameof(ImageBackgroundColor), typeof(Color), typeof(SkiaImageButton), null,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).Invalidate());
-
-    public static readonly BindableProperty CommandProperty = BindableProperty.Create(
-        nameof(Command), typeof(ICommand), typeof(SkiaImageButton), null,
-        propertyChanged: OnCommandChanged);
-
-    public static readonly BindableProperty CommandParameterProperty = BindableProperty.Create(
-        nameof(CommandParameter), typeof(object), typeof(SkiaImageButton), null,
-        propertyChanged: (b, o, n) => ((SkiaImageButton)b).UpdateCommandCanExecute());
-
-    #endregion
-
-    #region Properties
 
     public SKBitmap? Bitmap
     {
@@ -105,189 +29,57 @@ public class SkiaImageButton : SkiaView
         }
     }
 
-    public Aspect Aspect
-    {
-        get => (Aspect)GetValue(AspectProperty);
-        set => SetValue(AspectProperty, value);
-    }
-
-    public bool IsOpaque
-    {
-        get => (bool)GetValue(IsOpaqueProperty);
-        set => SetValue(IsOpaqueProperty, value);
-    }
-
+    // Image properties
+    public Aspect Aspect { get; set; } = Aspect.AspectFit;
+    public bool IsOpaque { get; set; }
     public bool IsLoading => _isLoading;
 
-    public Color StrokeColor
-    {
-        get => (Color)GetValue(StrokeColorProperty);
-        set => SetValue(StrokeColorProperty, value);
-    }
-
-    public double StrokeThickness
-    {
-        get => (double)GetValue(StrokeThicknessProperty);
-        set => SetValue(StrokeThicknessProperty, value);
-    }
-
-    public int CornerRadius
-    {
-        get => (int)GetValue(CornerRadiusProperty);
-        set => SetValue(CornerRadiusProperty, value);
-    }
-
-    public Thickness Padding
-    {
-        get => (Thickness)GetValue(PaddingProperty);
-        set => SetValue(PaddingProperty, value);
-    }
-
-    public Color PressedBackgroundColor
-    {
-        get => (Color)GetValue(PressedBackgroundColorProperty);
-        set => SetValue(PressedBackgroundColorProperty, value);
-    }
-
-    public Color HoveredBackgroundColor
-    {
-        get => (Color)GetValue(HoveredBackgroundColorProperty);
-        set => SetValue(HoveredBackgroundColorProperty, value);
-    }
-
-    public Color? ImageBackgroundColor
-    {
-        get => (Color?)GetValue(ImageBackgroundColorProperty);
-        set => SetValue(ImageBackgroundColorProperty, value);
-    }
-
-    public ICommand? Command
-    {
-        get => (ICommand?)GetValue(CommandProperty);
-        set => SetValue(CommandProperty, value);
-    }
-
-    public object? CommandParameter
-    {
-        get => GetValue(CommandParameterProperty);
-        set => SetValue(CommandParameterProperty, value);
-    }
+    // Button stroke properties
+    public SKColor StrokeColor { get; set; } = SKColors.Transparent;
+    public float StrokeThickness { get; set; } = 0;
+    public float CornerRadius { get; set; } = 0;
 
     // Button state
     public bool IsPressed { get; private set; }
     public bool IsHovered { get; private set; }
 
-    #endregion
+    // Visual state colors
+    public SKColor PressedBackgroundColor { get; set; } = new SKColor(0, 0, 0, 30);
+    public SKColor HoveredBackgroundColor { get; set; } = new SKColor(0, 0, 0, 15);
 
-    #region Events
+    // Padding for the image content
+    public float PaddingLeft { get; set; }
+    public float PaddingTop { get; set; }
+    public float PaddingRight { get; set; }
+    public float PaddingBottom { get; set; }
+
     public event EventHandler? Clicked;
     public event EventHandler? Pressed;
     public event EventHandler? Released;
     public event EventHandler? ImageLoaded;
     public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
-    #endregion
-
-    #region Constructor
 
     public SkiaImageButton()
     {
         IsFocusable = true;
     }
 
-    #endregion
-
-    #region Command Support
-
-    private static void OnCommandChanged(BindableObject bindable, object oldValue, object newValue)
-    {
-        var button = (SkiaImageButton)bindable;
-
-        if (oldValue is ICommand oldCommand)
-        {
-            oldCommand.CanExecuteChanged -= button.OnCommandCanExecuteChanged;
-        }
-
-        if (newValue is ICommand newCommand)
-        {
-            newCommand.CanExecuteChanged += button.OnCommandCanExecuteChanged;
-        }
-
-        button.UpdateCommandCanExecute();
-    }
-
-    private void OnCommandCanExecuteChanged(object? sender, EventArgs e)
-    {
-        UpdateCommandCanExecute();
-    }
-
-    private void UpdateCommandCanExecute()
-    {
-        if (Command != null)
-        {
-            IsEnabled = Command.CanExecute(CommandParameter);
-        }
-    }
-
-    private void ExecuteCommand()
-    {
-        if (Command?.CanExecute(CommandParameter) == true)
-        {
-            Command.Execute(CommandParameter);
-        }
-    }
-
-    #endregion
-
-    #region Rendering
-
-    protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
-    {
-        // Skip base background drawing if button is transparent
-        var baseBgColor = ImageBackgroundColor != null
-            ? ToSKColor(ImageBackgroundColor)
-            : GetEffectiveBackgroundColor();
-
-        if (baseBgColor.Alpha < 10)
-            return;
-
-        // Otherwise let base class draw
-        base.DrawBackground(canvas, bounds);
-    }
-
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var padding = Padding;
+        // Apply padding
         var contentBounds = new SKRect(
-            bounds.Left + (float)padding.Left,
-            bounds.Top + (float)padding.Top,
-            bounds.Right - (float)padding.Right,
-            bounds.Bottom - (float)padding.Bottom);
+            bounds.Left + PaddingLeft,
+            bounds.Top + PaddingTop,
+            bounds.Right - PaddingRight,
+            bounds.Bottom - PaddingBottom);
 
-        // Determine background color
-        var baseBgColor = ImageBackgroundColor != null
-            ? ToSKColor(ImageBackgroundColor)
-            : GetEffectiveBackgroundColor();
-        var isTransparentButton = baseBgColor.Alpha < 10;
+        // Draw background based on state
+        if (IsPressed || IsHovered || !IsOpaque && BackgroundColor != SKColors.Transparent)
+        {
+            var bgColor = IsPressed ? PressedBackgroundColor
+                        : IsHovered ? HoveredBackgroundColor
+                        : BackgroundColor;
 
-        SKColor bgColor;
-        if (IsPressed && !isTransparentButton)
-        {
-            // Only show pressed state for non-transparent buttons
-            bgColor = ToSKColor(PressedBackgroundColor);
-        }
-        else if (IsHovered && !isTransparentButton)
-        {
-            // Only show hovered state for non-transparent buttons
-            bgColor = ToSKColor(HoveredBackgroundColor);
-        }
-        else
-        {
-            bgColor = baseBgColor;
-        }
-
-        // Draw background (skip if fully transparent)
-        if (bgColor.Alpha > 0)
-        {
             using var bgPaint = new SKPaint
             {
                 Color = bgColor,
@@ -333,15 +125,13 @@ public class SkiaImageButton : SkiaView
         }
 
         // Draw stroke/border
-        var strokeThickness = (float)StrokeThickness;
-        var strokeColor = ToSKColor(StrokeColor);
-        if (strokeThickness > 0 && strokeColor != SKColors.Transparent)
+        if (StrokeThickness > 0 && StrokeColor != SKColors.Transparent)
         {
             using var strokePaint = new SKPaint
             {
-                Color = strokeColor,
+                Color = StrokeColor,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = strokeThickness,
+                StrokeWidth = StrokeThickness,
                 IsAntialias = true
             };
 
@@ -361,7 +151,7 @@ public class SkiaImageButton : SkiaView
         {
             using var focusPaint = new SKPaint
             {
-                Color = SkiaTheme.Shadow25SK,
+                Color = new SKColor(0x00, 0x00, 0x00, 0x40),
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2,
                 IsAntialias = true
@@ -415,102 +205,21 @@ public class SkiaImageButton : SkiaView
         }
     }
 
-    #endregion
-
-    #region Image Loading
-
+    // Image loading methods
     public async Task LoadFromFileAsync(string filePath)
     {
         _isLoading = true;
         Invalidate();
-        DiagnosticLog.Debug("SkiaImageButton", "LoadFromFileAsync: " + filePath);
 
         try
         {
-            var searchPaths = new List<string>
-            {
-                filePath,
-                Path.Combine(AppContext.BaseDirectory, filePath),
-                Path.Combine(AppContext.BaseDirectory, "Resources", "Images", filePath),
-                Path.Combine(AppContext.BaseDirectory, "Resources", filePath)
-            };
-
-            // Also check for SVG version if PNG was requested
-            if (filePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-            {
-                var svgPath = Path.ChangeExtension(filePath, ".svg");
-                searchPaths.Add(svgPath);
-                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, svgPath));
-                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", "Images", svgPath));
-                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", svgPath));
-            }
-
-            string? foundPath = null;
-            foreach (var path in searchPaths)
-            {
-                if (File.Exists(path))
-                {
-                    foundPath = path;
-                    DiagnosticLog.Debug("SkiaImageButton", "Found file at: " + path);
-                    break;
-                }
-            }
-
-            if (foundPath == null)
-            {
-                DiagnosticLog.Warn("SkiaImageButton", "File not found: " + filePath);
-                DiagnosticLog.Debug("SkiaImageButton", "Searched paths: " + string.Join(", ", searchPaths));
-                _isLoading = false;
-                ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
-                return;
-            }
-
-            var padding = Padding;
             await Task.Run(() =>
             {
-                if (foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+                using var stream = File.OpenRead(filePath);
+                var bitmap = SKBitmap.Decode(stream);
+                if (bitmap != null)
                 {
-                    using var svg = new SKSvg();
-                    svg.Load(foundPath);
-                    if (svg.Picture != null)
-                    {
-                        var cullRect = svg.Picture.CullRect;
-                        bool hasWidth = WidthRequest > 0;
-                        bool hasHeight = HeightRequest > 0;
-
-                        // Default to 24x24 for icons when no size specified
-                        const float DefaultIconSize = 24f;
-                        float targetWidth = hasWidth
-                            ? (float)(WidthRequest - padding.Left - padding.Right)
-                            : DefaultIconSize;
-                        float targetHeight = hasHeight
-                            ? (float)(HeightRequest - padding.Top - padding.Bottom)
-                            : DefaultIconSize;
-
-                        float scale = Math.Min(targetWidth / cullRect.Width, targetHeight / cullRect.Height);
-                        int width = Math.Max(1, (int)(cullRect.Width * scale));
-                        int height = Math.Max(1, (int)(cullRect.Height * scale));
-
-                        var bitmap = new SKBitmap(width, height, false);
-                        using var canvas = new SKCanvas(bitmap);
-                        canvas.Clear(SKColors.Transparent);
-                        canvas.Scale(scale);
-                        // Translate to handle negative viewBox coordinates (e.g., Material icons use 0 -960 960 960)
-                        canvas.Translate(-cullRect.Left, -cullRect.Top);
-                        canvas.DrawPicture(svg.Picture);
-                        Bitmap = bitmap;
-                        DiagnosticLog.Debug("SkiaImageButton", $"Loaded SVG: {foundPath} ({width}x{height}), cullRect={cullRect}");
-                    }
-                }
-                else
-                {
-                    using var stream = File.OpenRead(foundPath);
-                    var bitmap = SKBitmap.Decode(stream);
-                    if (bitmap != null)
-                    {
-                        Bitmap = bitmap;
-                        DiagnosticLog.Debug("SkiaImageButton", "Loaded image: " + foundPath);
-                    }
+                    Bitmap = bitmap;
                 }
             });
 
@@ -587,12 +296,6 @@ public class SkiaImageButton : SkiaView
     {
         try
         {
-            if (data == null || data.Length == 0)
-            {
-                Bitmap = null;
-                return;
-            }
-
             using var stream = new MemoryStream(data);
             var bitmap = SKBitmap.Decode(stream);
             if (bitmap != null)
@@ -607,16 +310,7 @@ public class SkiaImageButton : SkiaView
         }
     }
 
-    public void LoadFromBitmap(SKBitmap bitmap)
-    {
-        Bitmap = bitmap;
-        ImageLoaded?.Invoke(this, EventArgs.Empty);
-    }
-
-    #endregion
-
-    #region Pointer Event Handlers
-
+    // Pointer event handlers
     public override void OnPointerEntered(PointerEventArgs e)
     {
         if (!IsEnabled) return;
@@ -661,17 +355,13 @@ public class SkiaImageButton : SkiaView
 
         Released?.Invoke(this, EventArgs.Empty);
 
-        if (wasPressed && Bounds.Contains(e.X, e.Y))
+        if (wasPressed && Bounds.Contains(new SKPoint(e.X, e.Y)))
         {
             Clicked?.Invoke(this, EventArgs.Empty);
-            ExecuteCommand();
         }
     }
 
-    #endregion
-
-    #region Keyboard Event Handlers
-
+    // Keyboard event handlers
     public override void OnKeyDown(KeyEventArgs e)
     {
         if (!IsEnabled) return;
@@ -697,140 +387,52 @@ public class SkiaImageButton : SkiaView
                 Invalidate();
                 Released?.Invoke(this, EventArgs.Empty);
                 Clicked?.Invoke(this, EventArgs.Empty);
-                ExecuteCommand();
             }
             e.Handled = true;
         }
     }
 
-    #endregion
-
-    #region Layout
-
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        var padding = Padding;
-        var paddingWidth = padding.Left + padding.Right;
-        var paddingHeight = padding.Top + padding.Bottom;
+        var padding = new SKSize(PaddingLeft + PaddingRight, PaddingTop + PaddingBottom);
 
-        // Respect explicit WidthRequest/HeightRequest first (MAUI standard behavior)
-        if (WidthRequest > 0 && HeightRequest > 0)
-        {
-            return new Size(WidthRequest, HeightRequest);
-        }
-        if (WidthRequest > 0)
-        {
-            // Fixed width, calculate height from aspect ratio or use width
-            double height = HeightRequest > 0 ? HeightRequest
-                         : _image != null ? WidthRequest * _image.Height / _image.Width
-                         : WidthRequest;
-            return new Size(WidthRequest, height);
-        }
-        if (HeightRequest > 0)
-        {
-            // Fixed height, calculate width from aspect ratio or use height
-            double width = WidthRequest > 0 ? WidthRequest
-                        : _image != null ? HeightRequest * _image.Width / _image.Height
-                        : HeightRequest;
-            return new Size(width, HeightRequest);
-        }
-
-        // No explicit size - calculate from content
         if (_image == null)
-            return new Size(44 + paddingWidth, 44 + paddingHeight); // Default touch target size
+            return new SKSize(44 + padding.Width, 44 + padding.Height); // Default touch target size
 
         var imageWidth = _image.Width;
         var imageHeight = _image.Height;
 
-        if (availableSize.Width < double.MaxValue && availableSize.Height < double.MaxValue)
+        if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
         {
-            var availableContentW = availableSize.Width - paddingWidth;
-            var availableContentH = availableSize.Height - paddingHeight;
-            var scale = Math.Min(availableContentW / imageWidth, availableContentH / imageHeight);
-            return new Size(imageWidth * scale + paddingWidth, imageHeight * scale + paddingHeight);
+            var availableContent = new SKSize(
+                availableSize.Width - padding.Width,
+                availableSize.Height - padding.Height);
+            var scale = Math.Min(availableContent.Width / imageWidth, availableContent.Height / imageHeight);
+            return new SKSize(imageWidth * scale + padding.Width, imageHeight * scale + padding.Height);
         }
-        else if (availableSize.Width < double.MaxValue)
+        else if (availableSize.Width < float.MaxValue)
         {
-            var availableWidth = availableSize.Width - paddingWidth;
+            var availableWidth = availableSize.Width - padding.Width;
             var scale = availableWidth / imageWidth;
-            return new Size(availableSize.Width, imageHeight * scale + paddingHeight);
+            return new SKSize(availableSize.Width, imageHeight * scale + padding.Height);
         }
-        else if (availableSize.Height < double.MaxValue)
+        else if (availableSize.Height < float.MaxValue)
         {
-            var availableHeight = availableSize.Height - paddingHeight;
+            var availableHeight = availableSize.Height - padding.Height;
             var scale = availableHeight / imageHeight;
-            return new Size(imageWidth * scale + paddingWidth, availableSize.Height);
+            return new SKSize(imageWidth * scale + padding.Width, availableSize.Height);
         }
 
-        return new Size(imageWidth + paddingWidth, imageHeight + paddingHeight);
+        return new SKSize(imageWidth + padding.Width, imageHeight + padding.Height);
     }
-
-    protected override Rect ArrangeOverride(Rect bounds)
-    {
-        // If we have explicit size requests, constrain to desired size
-        // This follows MAUI standard behavior - controls respect WidthRequest/HeightRequest
-        var desiredWidth = DesiredSize.Width;
-        var desiredHeight = DesiredSize.Height;
-
-        // If desired size is smaller than available bounds, align within bounds
-        if (desiredWidth > 0 && desiredHeight > 0 &&
-            (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
-        {
-            double finalWidth = Math.Min(desiredWidth, bounds.Width);
-            double finalHeight = Math.Min(desiredHeight, bounds.Height);
-
-            // Calculate position based on HorizontalOptions
-            // LayoutAlignment: Start=0, Center=1, End=2, Fill=3
-            double x = bounds.Left;
-            var hAlignValue = (int)HorizontalOptions.Alignment;
-            if (hAlignValue == 1) // Center
-            {
-                x = bounds.Left + (bounds.Width - finalWidth) / 2;
-            }
-            else if (hAlignValue == 2) // End
-            {
-                x = bounds.Right - finalWidth;
-            }
-            // Fill (3) and Start (0) both use x = bounds.Left
-
-            // Calculate position based on VerticalOptions
-            double y = bounds.Top;
-            var vAlignValue = (int)VerticalOptions.Alignment;
-            if (vAlignValue == 1) // Center
-            {
-                y = bounds.Top + (bounds.Height - finalHeight) / 2;
-            }
-            else if (vAlignValue == 2) // End
-            {
-                y = bounds.Bottom - finalHeight;
-            }
-            // Fill (3) and Start (0) both use y = bounds.Top
-
-            return new Rect(x, y, finalWidth, finalHeight);
-        }
-
-        return bounds;
-    }
-
-    #endregion
-
-    #region Dispose
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            // Unsubscribe from command
-            if (Command != null)
-            {
-                Command.CanExecuteChanged -= OnCommandCanExecuteChanged;
-            }
-
             _bitmap?.Dispose();
             _image?.Dispose();
         }
         base.Dispose(disposing);
     }
-
-    #endregion
 }

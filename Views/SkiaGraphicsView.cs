@@ -27,11 +27,11 @@ public class SkiaGraphicsView : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background
-        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
+        if (BackgroundColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = GetEffectiveBackgroundColor(),
+                Color = BackgroundColor,
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);
@@ -49,17 +49,17 @@ public class SkiaGraphicsView : SkiaView
         }
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
         // Graphics view takes all available space by default
-        if (availableSize.Width < double.MaxValue && availableSize.Height < double.MaxValue)
+        if (availableSize.Width < float.MaxValue && availableSize.Height < float.MaxValue)
         {
             return availableSize;
         }
 
         // Return a reasonable default size
-        return new Size(
-            availableSize.Width < double.MaxValue ? availableSize.Width : 100,
-            availableSize.Height < double.MaxValue ? availableSize.Height : 100);
+        return new SKSize(
+            availableSize.Width < float.MaxValue ? availableSize.Width : 100,
+            availableSize.Height < float.MaxValue ? availableSize.Height : 100);
     }
 }

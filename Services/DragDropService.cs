@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Provides drag and drop functionality using the X11 XDND protocol.
 /// </summary>
-public partial class DragDropService : IDisposable
+public class DragDropService : IDisposable
 {
     private nint _display;
     private nint _window;
@@ -376,8 +376,8 @@ public partial class DragDropService : IDisposable
         public nint data4;
     }
 
-    [LibraryImport("libX11.so.6", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial nint XInternAtom(nint display, string atomName, [MarshalAs(UnmanagedType.Bool)] bool onlyIfExists);
+    [DllImport("libX11.so.6")]
+    private static extern nint XInternAtom(nint display, string atomName, bool onlyIfExists);
 
     [DllImport("libX11.so.6")]
     private static extern int XChangeProperty(nint display, nint window, nint property, nint type,
@@ -391,14 +391,126 @@ public partial class DragDropService : IDisposable
     [DllImport("libX11.so.6")]
     private static extern int XSendEvent(nint display, nint window, bool propagate, long eventMask, ref XClientMessageEvent xevent);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial int XConvertSelection(nint display, nint selection, nint target, nint property, nint requestor, uint time);
+    [DllImport("libX11.so.6")]
+    private static extern int XConvertSelection(nint display, nint selection, nint target, nint property, nint requestor, uint time);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial void XFree(nint ptr);
+    [DllImport("libX11.so.6")]
+    private static extern void XFree(nint ptr);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial void XFlush(nint display);
+    [DllImport("libX11.so.6")]
+    private static extern void XFlush(nint display);
 
     #endregion
+}
+
+/// <summary>
+/// Contains data for a drag operation.
+/// </summary>
+public class DragData
+{
+    /// <summary>
+    /// Gets or sets the source window.
+    /// </summary>
+    public nint SourceWindow { get; set; }
+
+    /// <summary>
+    /// Gets or sets the supported MIME types.
+    /// </summary>
+    public nint[] SupportedTypes { get; set; } = Array.Empty<nint>();
+
+    /// <summary>
+    /// Gets or sets the text data.
+    /// </summary>
+    public string? Text { get; set; }
+
+    /// <summary>
+    /// Gets or sets the file paths.
+    /// </summary>
+    public string[]? FilePaths { get; set; }
+
+    /// <summary>
+    /// Gets or sets custom data.
+    /// </summary>
+    public object? Data { get; set; }
+}
+
+/// <summary>
+/// Event args for drag events.
+/// </summary>
+public class DragEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets the drag data.
+    /// </summary>
+    public DragData Data { get; }
+
+    /// <summary>
+    /// Gets the X coordinate.
+    /// </summary>
+    public int X { get; }
+
+    /// <summary>
+    /// Gets the Y coordinate.
+    /// </summary>
+    public int Y { get; }
+
+    /// <summary>
+    /// Gets or sets whether the drop is accepted.
+    /// </summary>
+    public bool Accepted { get; set; }
+
+    /// <summary>
+    /// Gets or sets the allowed action.
+    /// </summary>
+    public DragAction AllowedAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the accepted action.
+    /// </summary>
+    public DragAction AcceptedAction { get; set; } = DragAction.Copy;
+
+    public DragEventArgs(DragData data, int x, int y)
+    {
+        Data = data;
+        X = x;
+        Y = y;
+    }
+}
+
+/// <summary>
+/// Event args for drop events.
+/// </summary>
+public class DropEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets the drag data.
+    /// </summary>
+    public DragData Data { get; }
+
+    /// <summary>
+    /// Gets the dropped data as string.
+    /// </summary>
+    public string? DroppedData { get; }
+
+    /// <summary>
+    /// Gets or sets whether the drop was handled.
+    /// </summary>
+    public bool Handled { get; set; }
+
+    public DropEventArgs(DragData data, string? droppedData)
+    {
+        Data = data;
+        DroppedData = droppedData;
+    }
+}
+
+/// <summary>
+/// Drag action types.
+/// </summary>
+public enum DragAction
+{
+    None,
+    Copy,
+    Move,
+    Link
 }

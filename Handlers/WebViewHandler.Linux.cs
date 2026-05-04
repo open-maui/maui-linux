@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Handlers;
-using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform;
 
@@ -48,7 +47,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
 
     protected override LinuxWebView CreatePlatformView()
     {
-        DiagnosticLog.Debug("WebViewHandler", "Creating LinuxWebView");
+        Console.WriteLine("[WebViewHandler] Creating LinuxWebView");
         return new LinuxWebView();
     }
 
@@ -66,7 +65,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
             MapUserAgent(this, VirtualView);
         }
 
-        DiagnosticLog.Debug("WebViewHandler", "Handler connected");
+        Console.WriteLine("[WebViewHandler] Handler connected");
     }
 
     protected override void DisconnectHandler(LinuxWebView platformView)
@@ -75,7 +74,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
         platformView.Navigated -= OnNavigated;
 
         base.DisconnectHandler(platformView);
-        DiagnosticLog.Debug("WebViewHandler", "Handler disconnected");
+        Console.WriteLine("[WebViewHandler] Handler disconnected");
     }
 
     private void OnNavigating(object? sender, WebViewNavigatingEventArgs e)
@@ -105,7 +104,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
         if (source == null)
             return;
 
-        DiagnosticLog.Debug("WebViewHandler", $"MapSource: {source.GetType().Name}");
+        Console.WriteLine($"[WebViewHandler] MapSource: {source.GetType().Name}");
 
         if (source is IUrlWebViewSource urlSource && !string.IsNullOrEmpty(urlSource.Url))
         {
@@ -122,7 +121,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
         if (handler.PlatformView != null && !string.IsNullOrEmpty(webView.UserAgent))
         {
             handler.PlatformView.UserAgent = webView.UserAgent;
-            DiagnosticLog.Debug("WebViewHandler", $"MapUserAgent: {webView.UserAgent}");
+            Console.WriteLine($"[WebViewHandler] MapUserAgent: {webView.UserAgent}");
         }
     }
 
@@ -135,7 +134,7 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
         if (handler.PlatformView?.CanGoBack == true)
         {
             handler.PlatformView.GoBack();
-            DiagnosticLog.Debug("WebViewHandler", "GoBack");
+            Console.WriteLine("[WebViewHandler] GoBack");
         }
     }
 
@@ -144,14 +143,14 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
         if (handler.PlatformView?.CanGoForward == true)
         {
             handler.PlatformView.GoForward();
-            DiagnosticLog.Debug("WebViewHandler", "GoForward");
+            Console.WriteLine("[WebViewHandler] GoForward");
         }
     }
 
     public static void MapReload(WebViewHandler handler, IWebView webView, object? args)
     {
         handler.PlatformView?.Reload();
-        DiagnosticLog.Debug("WebViewHandler", "Reload");
+        Console.WriteLine("[WebViewHandler] Reload");
     }
 
     public static void MapEval(WebViewHandler handler, IWebView webView, object? args)
@@ -159,13 +158,13 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
         if (args is string script)
         {
             handler.PlatformView?.Eval(script);
-            DiagnosticLog.Debug("WebViewHandler", $"Eval: {script.Substring(0, Math.Min(50, script.Length))}...");
+            Console.WriteLine($"[WebViewHandler] Eval: {script.Substring(0, Math.Min(50, script.Length))}...");
         }
     }
 
     public static void MapEvaluateJavaScriptAsync(WebViewHandler handler, IWebView webView, object? args)
     {
-        if (args is Microsoft.Maui.EvaluateJavaScriptAsyncRequest request)
+        if (args is EvaluateJavaScriptAsyncRequest request)
         {
             var result = handler.PlatformView?.EvaluateJavaScriptAsync(request.Script);
             if (result != null)
@@ -179,12 +178,30 @@ public partial class WebViewHandler : ViewHandler<IWebView, LinuxWebView>
             {
                 request.SetResult(null);
             }
-            DiagnosticLog.Debug("WebViewHandler", $"EvaluateJavaScriptAsync: {request.Script.Substring(0, Math.Min(50, request.Script.Length))}...");
+            Console.WriteLine($"[WebViewHandler] EvaluateJavaScriptAsync: {request.Script.Substring(0, Math.Min(50, request.Script.Length))}...");
         }
     }
 
     #endregion
 }
 
-// NOTE: EvaluateJavaScriptAsync commands use Microsoft.Maui.EvaluateJavaScriptAsyncRequest
-// from the MAUI framework. Do NOT define a local EvaluateJavaScriptAsyncRequest class here.
+/// <summary>
+/// Request object for async JavaScript evaluation.
+/// </summary>
+public class EvaluateJavaScriptAsyncRequest
+{
+    public string Script { get; }
+    private readonly TaskCompletionSource<string?> _tcs = new();
+
+    public EvaluateJavaScriptAsyncRequest(string script)
+    {
+        Script = script;
+    }
+
+    public Task<string?> Task => _tcs.Task;
+
+    public void SetResult(string? result)
+    {
+        _tcs.TrySetResult(result);
+    }
+}

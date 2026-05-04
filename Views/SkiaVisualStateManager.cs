@@ -55,34 +55,10 @@ public static class SkiaVisualStateManager
 
     private static void OnVisualStateGroupsChanged(BindableObject bindable, object? oldValue, object? newValue)
     {
-        if (bindable is SkiaView view)
+        if (bindable is SkiaView view && newValue is SkiaVisualStateGroupList groups)
         {
-            // Detach old triggers
-            if (oldValue is SkiaVisualStateGroupList oldGroups)
-            {
-                foreach (var group in oldGroups)
-                {
-                    foreach (var state in group.States)
-                    {
-                        state.DetachTriggers();
-                    }
-                }
-            }
-
-            // Attach new triggers
-            if (newValue is SkiaVisualStateGroupList groups)
-            {
-                foreach (var group in groups)
-                {
-                    foreach (var state in group.States)
-                    {
-                        state.AttachTriggers(view);
-                    }
-                }
-
-                // Initialize to default state
-                GoToState(view, CommonStates.Normal);
-            }
+            // Initialize to default state
+            GoToState(view, CommonStates.Normal);
         }
     }
 
@@ -145,5 +121,96 @@ public static class SkiaVisualStateManager
         {
             setter.Unapply(view);
         }
+    }
+}
+
+/// <summary>
+/// A list of visual state groups.
+/// </summary>
+public class SkiaVisualStateGroupList : List<SkiaVisualStateGroup>
+{
+}
+
+/// <summary>
+/// A group of mutually exclusive visual states.
+/// </summary>
+public class SkiaVisualStateGroup
+{
+    /// <summary>
+    /// Gets or sets the name of this group.
+    /// </summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>
+    /// Gets the collection of states in this group.
+    /// </summary>
+    public List<SkiaVisualState> States { get; } = new();
+
+    /// <summary>
+    /// Gets or sets the currently active state.
+    /// </summary>
+    public SkiaVisualState? CurrentState { get; set; }
+}
+
+/// <summary>
+/// Represents a single visual state with its setters.
+/// </summary>
+public class SkiaVisualState
+{
+    /// <summary>
+    /// Gets or sets the name of this state.
+    /// </summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>
+    /// Gets the collection of setters for this state.
+    /// </summary>
+    public List<SkiaVisualStateSetter> Setters { get; } = new();
+}
+
+/// <summary>
+/// Sets a property value when a visual state is active.
+/// </summary>
+public class SkiaVisualStateSetter
+{
+    /// <summary>
+    /// Gets or sets the property to set.
+    /// </summary>
+    public BindableProperty? Property { get; set; }
+
+    /// <summary>
+    /// Gets or sets the value to set.
+    /// </summary>
+    public object? Value { get; set; }
+
+    // Store original value for unapply
+    private object? _originalValue;
+    private bool _hasOriginalValue;
+
+    /// <summary>
+    /// Applies this setter to the target view.
+    /// </summary>
+    public void Apply(SkiaView view)
+    {
+        if (Property == null) return;
+
+        // Store original value if not already stored
+        if (!_hasOriginalValue)
+        {
+            _originalValue = view.GetValue(Property);
+            _hasOriginalValue = true;
+        }
+
+        view.SetValue(Property, Value);
+    }
+
+    /// <summary>
+    /// Unapplies this setter, restoring the original value.
+    /// </summary>
+    public void Unapply(SkiaView view)
+    {
+        if (Property == null || !_hasOriginalValue) return;
+
+        view.SetValue(Property, _originalValue);
     }
 }

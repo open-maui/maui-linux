@@ -9,7 +9,7 @@ Unlike Android, iOS, and Windows which appear in Visual Studio's platform dropdo
 **Step 1: Add the NuGet Package**
 
 ```bash
-dotnet add package OpenMaui.Controls.Linux
+dotnet add package OpenMaui.Controls.Linux --prerelease
 ```
 
 Or in Visual Studio: Right-click project → Manage NuGet Packages → Search "OpenMaui.Controls.Linux"
@@ -39,7 +39,7 @@ public class Program
 Add to your `.csproj`:
 
 ```xml
-<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Debug|net10.0'">
+<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Debug|net9.0'">
   <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
 </PropertyGroup>
 ```
@@ -304,4 +304,4 @@ jobs:
 
 ---
 
-*Developed by [MarketAlly Pte Ltd](https://marketally.ai) • Lead Architect: David H. Friedel Jr.*
+*Developed by [MarketAlly LLC](https://marketally.com) • Lead Architect: David H. Friedel Jr.*

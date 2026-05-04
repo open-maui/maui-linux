@@ -5,7 +5,6 @@ using SkiaSharp;
 using System.Collections;
 using System.Collections.Specialized;
 using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform;
 
@@ -36,8 +35,8 @@ public class SkiaItemsView : SkiaView
     // Scroll bar
     private bool _showVerticalScrollBar = true;
     private float _scrollBarWidth = 8;
-    private Color _scrollBarColor = SkiaTheme.ScrollbarThumb;
-    private Color _scrollBarTrackColor = SkiaTheme.ScrollbarTrack;
+    private SKColor _scrollBarColor = new SKColor(128, 128, 128, 128);
+    private SKColor _scrollBarTrackColor = new SKColor(200, 200, 200, 64);
 
     public IEnumerable? ItemsSource
     {
@@ -115,7 +114,7 @@ public class SkiaItemsView : SkiaView
 
     protected virtual void RefreshItems()
     {
-        DiagnosticLog.Debug("SkiaItemsView", $"RefreshItems called, clearing {_items.Count} items and {_itemViewCache.Count} cached views");
+        Console.WriteLine($"[SkiaItemsView] RefreshItems called, clearing {_items.Count} items and {_itemViewCache.Count} cached views");
         _items.Clear();
         _itemViewCache.Clear(); // Clear cached views when items change
         _itemHeights.Clear(); // Clear cached heights
@@ -126,20 +125,8 @@ public class SkiaItemsView : SkiaView
                 _items.Add(item);
             }
         }
-        DiagnosticLog.Debug("SkiaItemsView", $"RefreshItems done, now have {_items.Count} items");
+        Console.WriteLine($"[SkiaItemsView] RefreshItems done, now have {_items.Count} items");
         _scrollOffset = 0;
-    }
-
-    /// <summary>
-    /// Called when theme changes to refresh all cached item views.
-    /// Clears the item view cache so items are recreated with new theme colors.
-    /// </summary>
-    public virtual void RefreshTheme()
-    {
-        // Clear cached views to force recreation with new AppThemeBinding values
-        _itemViewCache.Clear();
-        _itemHeights.Clear();
-        Invalidate();
     }
 
     private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -150,12 +137,10 @@ public class SkiaItemsView : SkiaView
 
     /// <summary>
     /// Gets the height for a specific item, using cached height or default.
-    /// Always returns at least ItemHeight to allow vertical centering of smaller content.
     /// </summary>
     protected float GetItemHeight(int index)
     {
-        var cached = _itemHeights.TryGetValue(index, out var height) ? height : _itemHeight;
-        return Math.Max(cached, _itemHeight);
+        return _itemHeights.TryGetValue(index, out var height) ? height : _itemHeight;
     }
 
     /// <summary>
@@ -191,18 +176,18 @@ public class SkiaItemsView : SkiaView
     }
 
     // Use ScreenBounds.Height for visible viewport
-    protected float MaxScrollOffset => Math.Max(0, TotalContentHeight - (float)ScreenBounds.Height);
+    protected float MaxScrollOffset => Math.Max(0, TotalContentHeight - ScreenBounds.Height);
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        DiagnosticLog.Debug("SkiaItemsView", $"OnDraw - bounds={bounds}, items={_items.Count}, ItemViewCreator={(ItemViewCreator != null ? "set" : "null")}");
+        Console.WriteLine($"[SkiaItemsView] OnDraw - bounds={bounds}, items={_items.Count}, ItemViewCreator={(ItemViewCreator != null ? "set" : "null")}");
 
         // Draw background
-        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
+        if (BackgroundColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = GetEffectiveBackgroundColor(),
+                Color = BackgroundColor,
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);
@@ -276,7 +261,7 @@ public class SkiaItemsView : SkiaView
         // Draw selection highlight
         if (index == SelectedIndex)
         {
-            paint.Color = SkiaTheme.PrimarySelectionSK;
+            paint.Color = new SKColor(0x21, 0x96, 0xF3, 0x59); // Light blue with 35% opacity
             paint.Style = SKPaintStyle.Fill;
             canvas.DrawRect(bounds, paint);
         }
@@ -284,7 +269,7 @@ public class SkiaItemsView : SkiaView
         // Try to use ItemViewCreator for templated rendering
         if (ItemViewCreator != null)
         {
-            DiagnosticLog.Debug("SkiaItemsView", $"DrawItem {index} - ItemViewCreator exists, item: {item}");
+            Console.WriteLine($"[SkiaItemsView] DrawItem {index} - ItemViewCreator exists, item: {item}");
             // Get or create cached view for this index
             if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
             {
@@ -299,11 +284,11 @@ public class SkiaItemsView : SkiaView
             if (itemView != null)
             {
                 // Measure with large height to get natural size
-                var availableSize = new Size(bounds.Width, float.MaxValue);
+                var availableSize = new SKSize(bounds.Width, float.MaxValue);
                 var measuredSize = itemView.Measure(availableSize);
 
                 // Store individual item height (with minimum of default height)
-                var measuredHeight = Math.Max((float)measuredSize.Height, _itemHeight);
+                var measuredHeight = Math.Max(measuredSize.Height, _itemHeight);
                 if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - measuredHeight) > 1)
                 {
                     _itemHeights[index] = measuredHeight;
@@ -315,7 +300,7 @@ public class SkiaItemsView : SkiaView
                 }
 
                 // Arrange with the actual measured height
-                var actualBounds = new Rect(bounds.Left, bounds.Top, bounds.Width, measuredHeight);
+                var actualBounds = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + measuredHeight);
                 itemView.Arrange(actualBounds);
                 itemView.Draw(canvas);
                 return;
@@ -323,11 +308,11 @@ public class SkiaItemsView : SkiaView
         }
         else
         {
-            DiagnosticLog.Debug("SkiaItemsView", $"DrawItem {index} - ItemViewCreator is NULL, falling back to ToString");
+            Console.WriteLine($"[SkiaItemsView] DrawItem {index} - ItemViewCreator is NULL, falling back to ToString");
         }
 
         // Draw separator
-        paint.Color = SkiaTheme.Gray300SK;
+        paint.Color = new SKColor(0xE0, 0xE0, 0xE0);
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1;
         canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
@@ -340,13 +325,13 @@ public class SkiaItemsView : SkiaView
         }
 
         // Default rendering - just show ToString
-        paint.Color = SkiaTheme.TextPrimarySK;
+        paint.Color = SKColors.Black;
         paint.Style = SKPaintStyle.Fill;
 
         using var font = new SKFont(SKTypeface.Default, 14);
         using var textPaint = new SKPaint(font)
         {
-            Color = SkiaTheme.TextPrimarySK,
+            Color = SKColors.Black,
             IsAntialias = true
         };
 
@@ -363,14 +348,14 @@ public class SkiaItemsView : SkiaView
     {
         using var paint = new SKPaint
         {
-            Color = SkiaTheme.TextPlaceholderSK,
+            Color = new SKColor(0x80, 0x80, 0x80),
             IsAntialias = true
         };
 
         using var font = new SKFont(SKTypeface.Default, 16);
         using var textPaint = new SKPaint(font)
         {
-            Color = SkiaTheme.TextPlaceholderSK,
+            Color = new SKColor(0x80, 0x80, 0x80),
             IsAntialias = true
         };
 
@@ -394,7 +379,7 @@ public class SkiaItemsView : SkiaView
         // Draw track
         using var trackPaint = new SKPaint
         {
-            Color = SkiaTheme.ScrollbarTrackSK,
+            Color = _scrollBarTrackColor,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(trackRect, trackPaint);
@@ -414,7 +399,7 @@ public class SkiaItemsView : SkiaView
         // Draw thumb
         using var thumbPaint = new SKPaint
         {
-            Color = SkiaTheme.ScrollbarThumbSK,
+            Color = _scrollBarColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -425,7 +410,7 @@ public class SkiaItemsView : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        DiagnosticLog.Debug("SkiaItemsView", $"OnPointerPressed - x={e.X}, y={e.Y}, Bounds={Bounds}, ScreenBounds={ScreenBounds}, ItemCount={_items.Count}");
+        Console.WriteLine($"[SkiaItemsView] OnPointerPressed - x={e.X}, y={e.Y}, Bounds={Bounds}, ScreenBounds={ScreenBounds}, ItemCount={_items.Count}");
         if (!IsEnabled) return;
 
         // Check if clicking on scrollbar thumb
@@ -438,8 +423,8 @@ public class SkiaItemsView : SkiaView
                 _scrollbarDragStartY = e.Y;
                 _scrollbarDragStartScrollOffset = _scrollOffset;
                 // Cache values to prevent stutter
-                var thumbHeight = Math.Max(20f, (float)Bounds.Height * ((float)Bounds.Height / TotalContentHeight));
-                _scrollbarDragAvailableTrack = (float)Bounds.Height - thumbHeight;
+                var thumbHeight = Math.Max(20, Bounds.Height * (Bounds.Height / TotalContentHeight));
+                _scrollbarDragAvailableTrack = Bounds.Height - thumbHeight;
                 _scrollbarDragMaxScroll = MaxScrollOffset;
                 return;
             }
@@ -460,15 +445,15 @@ public class SkiaItemsView : SkiaView
     {
         // Use ScreenBounds for hit testing (input events use screen coordinates)
         var screenBounds = ScreenBounds;
-        var viewportRatio = (float)screenBounds.Height / TotalContentHeight;
-        var thumbHeight = Math.Max(20f, (float)screenBounds.Height * viewportRatio);
-        var scrollRatio = MaxScrollOffset > 0 ? _scrollOffset / MaxScrollOffset : 0f;
-        var thumbY = (float)screenBounds.Top + ((float)screenBounds.Height - thumbHeight) * scrollRatio;
+        var viewportRatio = screenBounds.Height / TotalContentHeight;
+        var thumbHeight = Math.Max(20, screenBounds.Height * viewportRatio);
+        var scrollRatio = MaxScrollOffset > 0 ? _scrollOffset / MaxScrollOffset : 0;
+        var thumbY = screenBounds.Top + (screenBounds.Height - thumbHeight) * scrollRatio;
 
         return new SKRect(
-            (float)(screenBounds.Left + screenBounds.Width) - _scrollBarWidth,
+            screenBounds.Right - _scrollBarWidth,
             thumbY,
-            (float)(screenBounds.Left + screenBounds.Width),
+            screenBounds.Right,
             thumbY + thumbHeight);
     }
 
@@ -538,7 +523,7 @@ public class SkiaItemsView : SkiaView
                     cumulativeY += itemH + _itemSpacing;
                 }
 
-                DiagnosticLog.Debug("SkiaItemsView", $"Tap at Y={e.Y}, screenBounds.Top={screenBounds.Top}, scrollOffset={_scrollOffset}, localY={localY}, index={tappedIndex}");
+                Console.WriteLine($"[SkiaItemsView] Tap at Y={e.Y}, screenBounds.Top={screenBounds.Top}, scrollOffset={_scrollOffset}, localY={localY}, index={tappedIndex}");
 
                 if (tappedIndex >= 0 && tappedIndex < _items.Count)
                 {
@@ -636,12 +621,12 @@ public class SkiaItemsView : SkiaView
                 break;
 
             case Key.PageUp:
-                SetScrollOffset(_scrollOffset - (float)Bounds.Height);
+                SetScrollOffset(_scrollOffset - Bounds.Height);
                 e.Handled = true;
                 break;
 
             case Key.PageDown:
-                SetScrollOffset(_scrollOffset + (float)Bounds.Height);
+                SetScrollOffset(_scrollOffset + Bounds.Height);
                 e.Handled = true;
                 break;
 
@@ -678,9 +663,9 @@ public class SkiaItemsView : SkiaView
         {
             SetScrollOffset(itemTop);
         }
-        else if (itemBottom > _scrollOffset + (float)Bounds.Height)
+        else if (itemBottom > _scrollOffset + Bounds.Height)
         {
-            SetScrollOffset(itemBottom - (float)Bounds.Height);
+            SetScrollOffset(itemBottom - Bounds.Height);
         }
     }
 
@@ -694,14 +679,14 @@ public class SkiaItemsView : SkiaView
     public override SkiaView? HitTest(float x, float y)
     {
         // HitTest uses Bounds (content space) - coordinates are transformed by parent
-        if (!IsVisible || !Bounds.Contains(x, y))
+        if (!IsVisible || !Bounds.Contains(new SKPoint(x, y)))
             return null;
 
         // Check scrollbar area FIRST before content
         // This ensures scrollbar clicks are handled by this view
-        if (_showVerticalScrollBar && TotalContentHeight > (float)Bounds.Height)
+        if (_showVerticalScrollBar && TotalContentHeight > Bounds.Height)
         {
-            var trackArea = new SKRect((float)(Bounds.Left + Bounds.Width) - _scrollBarWidth, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
+            var trackArea = new SKRect(Bounds.Right - _scrollBarWidth, Bounds.Top, Bounds.Right, Bounds.Bottom);
             if (trackArea.Contains(x, y))
                 return this;
         }
@@ -709,21 +694,21 @@ public class SkiaItemsView : SkiaView
         return this;
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        var width = availableSize.Width < double.MaxValue ? availableSize.Width : 200;
-        var height = availableSize.Height < double.MaxValue ? availableSize.Height : 300;
+        var width = availableSize.Width < float.MaxValue ? availableSize.Width : 200;
+        var height = availableSize.Height < float.MaxValue ? availableSize.Height : 300;
 
         // Clear item caches when width changes significantly (items need re-measurement for text wrapping)
         if (Math.Abs(width - _lastMeasuredWidth) > 5)
         {
             _itemHeights.Clear();
             _itemViewCache.Clear();
-            _lastMeasuredWidth = (float)width;
+            _lastMeasuredWidth = width;
         }
 
         // Items view takes all available space
-        return new Size(width, height);
+        return new SKSize(width, height);
     }
 
     protected override void Dispose(bool disposing)
@@ -736,18 +721,6 @@ public class SkiaItemsView : SkiaView
             }
         }
         base.Dispose(disposing);
-    }
-
-    /// <summary>
-    /// Gets the SkiaView for a given item index from the cache.
-    /// </summary>
-    public SkiaView? GetItemView(int index)
-    {
-        if (!_itemViewCache.TryGetValue(index, out var view))
-        {
-            return null;
-        }
-        return view;
     }
 }
 

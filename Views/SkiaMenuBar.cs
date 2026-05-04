@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -16,78 +15,30 @@ public class SkiaMenuBar : SkiaView
     private int _openIndex = -1;
     private SkiaMenuFlyout? _openFlyout;
 
-    // Internal SKColor fields for rendering
-    private SKColor _menuBackgroundColorSK = SkiaTheme.MenuBackgroundSK;
-    private SKColor _textColorSK = SkiaTheme.TextPrimarySK;
-    private SKColor _hoverBackgroundColorSK = SkiaTheme.MenuHoverSK;
-    private SKColor _activeBackgroundColorSK = SkiaTheme.MenuActiveSK;
-
-    // MAUI Color backing fields
-    private Color _menuBackgroundColor = Color.FromRgb(240, 240, 240);
-    private Color _textColor = Color.FromRgb(33, 33, 33);
-    private Color _hoverBackgroundColor = Color.FromRgb(220, 220, 220);
-    private Color _activeBackgroundColor = Color.FromRgb(200, 200, 200);
-
     /// <summary>
     /// Gets the menu bar items.
     /// </summary>
     public IList<MenuBarItem> Items => _items;
 
     /// <summary>
-    /// Gets or sets the menu bar background color.
+    /// Gets or sets the background color.
     /// </summary>
-    public new Color MenuBackgroundColor
-    {
-        get => _menuBackgroundColor;
-        set
-        {
-            _menuBackgroundColor = value;
-            _menuBackgroundColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor BackgroundColor { get; set; } = new SKColor(240, 240, 240);
 
     /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public Color TextColor
-    {
-        get => _textColor;
-        set
-        {
-            _textColor = value;
-            _textColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor TextColor { get; set; } = new SKColor(33, 33, 33);
 
     /// <summary>
     /// Gets or sets the hover background color.
     /// </summary>
-    public Color HoverBackgroundColor
-    {
-        get => _hoverBackgroundColor;
-        set
-        {
-            _hoverBackgroundColor = value;
-            _hoverBackgroundColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor HoverBackgroundColor { get; set; } = new SKColor(220, 220, 220);
 
     /// <summary>
     /// Gets or sets the active background color.
     /// </summary>
-    public Color ActiveBackgroundColor
-    {
-        get => _activeBackgroundColor;
-        set
-        {
-            _activeBackgroundColor = value;
-            _activeBackgroundColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor ActiveBackgroundColor { get; set; } = new SKColor(200, 200, 200);
 
     /// <summary>
     /// Gets or sets the bar height.
@@ -104,9 +55,9 @@ public class SkiaMenuBar : SkiaView
     /// </summary>
     public float ItemPadding { get; set; } = 12f;
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        return new Size(availableSize.Width, BarHeight);
+        return new SKSize(availableSize.Width, BarHeight);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -116,30 +67,29 @@ public class SkiaMenuBar : SkiaView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = _menuBackgroundColorSK,
+            Color = BackgroundColor,
             Style = SKPaintStyle.Fill
         };
-        var skBounds = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
-        canvas.DrawRect(skBounds, bgPaint);
+        canvas.DrawRect(Bounds, bgPaint);
 
         // Draw bottom border
         using var borderPaint = new SKPaint
         {
-            Color = SkiaTheme.BorderMediumSK,
+            Color = new SKColor(200, 200, 200),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
-        canvas.DrawLine((float)Bounds.Left, (float)(Bounds.Top + Bounds.Height), (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height), borderPaint);
+        canvas.DrawLine(Bounds.Left, Bounds.Bottom, Bounds.Right, Bounds.Bottom, borderPaint);
 
         // Draw menu items
         using var textPaint = new SKPaint
         {
-            Color = _textColorSK,
+            Color = TextColor,
             TextSize = FontSize,
             IsAntialias = true
         };
 
-        float x = (float)Bounds.Left;
+        float x = Bounds.Left;
 
         for (int i = 0; i < _items.Count; i++)
         {
@@ -148,23 +98,23 @@ public class SkiaMenuBar : SkiaView
             textPaint.MeasureText(item.Text, ref textBounds);
 
             float itemWidth = textBounds.Width + ItemPadding * 2;
-            var itemBounds = new SKRect(x, (float)Bounds.Top, x + itemWidth, (float)(Bounds.Top + Bounds.Height));
+            var itemBounds = new SKRect(x, Bounds.Top, x + itemWidth, Bounds.Bottom);
 
             // Draw item background
             if (i == _openIndex)
             {
-                using var activePaint = new SKPaint { Color = _activeBackgroundColorSK, Style = SKPaintStyle.Fill };
+                using var activePaint = new SKPaint { Color = ActiveBackgroundColor, Style = SKPaintStyle.Fill };
                 canvas.DrawRect(itemBounds, activePaint);
             }
             else if (i == _hoveredIndex)
             {
-                using var hoverPaint = new SKPaint { Color = _hoverBackgroundColorSK, Style = SKPaintStyle.Fill };
+                using var hoverPaint = new SKPaint { Color = HoverBackgroundColor, Style = SKPaintStyle.Fill };
                 canvas.DrawRect(itemBounds, hoverPaint);
             }
 
-            // Draw text (MidY = Top + Height/2)
+            // Draw text
             float textX = x + ItemPadding;
-            float textY = (float)(Bounds.Top + Bounds.Height / 2) - textBounds.MidY;
+            float textY = Bounds.MidY - textBounds.MidY;
             canvas.DrawText(item.Text, textX, textY, textPaint);
 
             item.Bounds = itemBounds;
@@ -310,5 +260,339 @@ public class SkiaMenuBar : SkiaView
     private void OnFlyoutItemClicked(object? sender, MenuItemClickedEventArgs e)
     {
         CloseFlyout();
+    }
+}
+
+/// <summary>
+/// Represents a top-level menu bar item.
+/// </summary>
+public class MenuBarItem
+{
+    /// <summary>
+    /// Gets or sets the display text.
+    /// </summary>
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the menu items.
+    /// </summary>
+    public List<MenuItem> Items { get; } = new();
+
+    /// <summary>
+    /// Gets or sets the bounds (set during rendering).
+    /// </summary>
+    internal SKRect Bounds { get; set; }
+}
+
+/// <summary>
+/// Represents a menu item.
+/// </summary>
+public class MenuItem
+{
+    /// <summary>
+    /// Gets or sets the display text.
+    /// </summary>
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the keyboard shortcut text.
+    /// </summary>
+    public string? Shortcut { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this is a separator.
+    /// </summary>
+    public bool IsSeparator { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this item is enabled.
+    /// </summary>
+    public bool IsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether this item is checked.
+    /// </summary>
+    public bool IsChecked { get; set; }
+
+    /// <summary>
+    /// Gets or sets the icon source.
+    /// </summary>
+    public string? IconSource { get; set; }
+
+    /// <summary>
+    /// Gets the sub-menu items.
+    /// </summary>
+    public List<MenuItem> SubItems { get; } = new();
+
+    /// <summary>
+    /// Event raised when the item is clicked.
+    /// </summary>
+    public event EventHandler? Clicked;
+
+    internal void OnClicked()
+    {
+        Clicked?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+/// <summary>
+/// A dropdown menu flyout.
+/// </summary>
+public class SkiaMenuFlyout : SkiaView
+{
+    private int _hoveredIndex = -1;
+    private SKRect _bounds;
+
+    /// <summary>
+    /// Gets or sets the menu items.
+    /// </summary>
+    public List<MenuItem> Items { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the position.
+    /// </summary>
+    public SKPoint Position { get; set; }
+
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
+    public SKColor BackgroundColor { get; set; } = SKColors.White;
+
+    /// <summary>
+    /// Gets or sets the text color.
+    /// </summary>
+    public SKColor TextColor { get; set; } = new SKColor(33, 33, 33);
+
+    /// <summary>
+    /// Gets or sets the disabled text color.
+    /// </summary>
+    public SKColor DisabledTextColor { get; set; } = new SKColor(160, 160, 160);
+
+    /// <summary>
+    /// Gets or sets the hover background color.
+    /// </summary>
+    public SKColor HoverBackgroundColor { get; set; } = new SKColor(230, 230, 230);
+
+    /// <summary>
+    /// Gets or sets the separator color.
+    /// </summary>
+    public SKColor SeparatorColor { get; set; } = new SKColor(220, 220, 220);
+
+    /// <summary>
+    /// Gets or sets the font size.
+    /// </summary>
+    public float FontSize { get; set; } = 13f;
+
+    /// <summary>
+    /// Gets or sets the item height.
+    /// </summary>
+    public float ItemHeight { get; set; } = 28f;
+
+    /// <summary>
+    /// Gets or sets the separator height.
+    /// </summary>
+    public float SeparatorHeight { get; set; } = 9f;
+
+    /// <summary>
+    /// Gets or sets the minimum width.
+    /// </summary>
+    public float MinWidth { get; set; } = 180f;
+
+    /// <summary>
+    /// Event raised when an item is clicked.
+    /// </summary>
+    public event EventHandler<MenuItemClickedEventArgs>? ItemClicked;
+
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        if (Items.Count == 0) return;
+
+        // Calculate bounds
+        float width = MinWidth;
+        float height = 0;
+
+        using var textPaint = new SKPaint
+        {
+            TextSize = FontSize,
+            IsAntialias = true
+        };
+
+        foreach (var item in Items)
+        {
+            if (item.IsSeparator)
+            {
+                height += SeparatorHeight;
+            }
+            else
+            {
+                height += ItemHeight;
+
+                var textBounds = new SKRect();
+                textPaint.MeasureText(item.Text, ref textBounds);
+                float itemWidth = textBounds.Width + 50; // Padding + icon space
+                if (!string.IsNullOrEmpty(item.Shortcut))
+                {
+                    textPaint.MeasureText(item.Shortcut, ref textBounds);
+                    itemWidth += textBounds.Width + 20;
+                }
+                width = Math.Max(width, itemWidth);
+            }
+        }
+
+        _bounds = new SKRect(Position.X, Position.Y, Position.X + width, Position.Y + height);
+
+        // Draw shadow
+        using var shadowPaint = new SKPaint
+        {
+            ImageFilter = SKImageFilter.CreateDropShadow(0, 2, 8, 8, new SKColor(0, 0, 0, 40))
+        };
+        canvas.DrawRect(_bounds, shadowPaint);
+
+        // Draw background
+        using var bgPaint = new SKPaint
+        {
+            Color = BackgroundColor,
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(_bounds, bgPaint);
+
+        // Draw border
+        using var borderPaint = new SKPaint
+        {
+            Color = new SKColor(200, 200, 200),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1
+        };
+        canvas.DrawRect(_bounds, borderPaint);
+
+        // Draw items
+        float y = _bounds.Top;
+        textPaint.Color = TextColor;
+
+        for (int i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+
+            if (item.IsSeparator)
+            {
+                float separatorY = y + SeparatorHeight / 2;
+                using var sepPaint = new SKPaint { Color = SeparatorColor, StrokeWidth = 1 };
+                canvas.DrawLine(_bounds.Left + 8, separatorY, _bounds.Right - 8, separatorY, sepPaint);
+                y += SeparatorHeight;
+            }
+            else
+            {
+                var itemBounds = new SKRect(_bounds.Left, y, _bounds.Right, y + ItemHeight);
+
+                // Draw hover background
+                if (i == _hoveredIndex && item.IsEnabled)
+                {
+                    using var hoverPaint = new SKPaint { Color = HoverBackgroundColor, Style = SKPaintStyle.Fill };
+                    canvas.DrawRect(itemBounds, hoverPaint);
+                }
+
+                // Draw check mark
+                if (item.IsChecked)
+                {
+                    using var checkPaint = new SKPaint
+                    {
+                        Color = item.IsEnabled ? TextColor : DisabledTextColor,
+                        TextSize = FontSize,
+                        IsAntialias = true
+                    };
+                    canvas.DrawText("✓", _bounds.Left + 8, y + ItemHeight / 2 + 5, checkPaint);
+                }
+
+                // Draw text
+                textPaint.Color = item.IsEnabled ? TextColor : DisabledTextColor;
+                canvas.DrawText(item.Text, _bounds.Left + 28, y + ItemHeight / 2 + 5, textPaint);
+
+                // Draw shortcut
+                if (!string.IsNullOrEmpty(item.Shortcut))
+                {
+                    textPaint.Color = DisabledTextColor;
+                    var shortcutBounds = new SKRect();
+                    textPaint.MeasureText(item.Shortcut, ref shortcutBounds);
+                    canvas.DrawText(item.Shortcut, _bounds.Right - shortcutBounds.Width - 12, y + ItemHeight / 2 + 5, textPaint);
+                }
+
+                // Draw submenu arrow
+                if (item.SubItems.Count > 0)
+                {
+                    canvas.DrawText("▸", _bounds.Right - 16, y + ItemHeight / 2 + 5, textPaint);
+                }
+
+                y += ItemHeight;
+            }
+        }
+    }
+
+    public override SkiaView? HitTest(float x, float y)
+    {
+        if (_bounds.Contains(x, y))
+        {
+            return this;
+        }
+        return null;
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        if (!_bounds.Contains(e.X, e.Y))
+        {
+            _hoveredIndex = -1;
+            Invalidate();
+            return;
+        }
+
+        float y = _bounds.Top;
+        int newHovered = -1;
+
+        for (int i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            float itemHeight = item.IsSeparator ? SeparatorHeight : ItemHeight;
+
+            if (e.Y >= y && e.Y < y + itemHeight && !item.IsSeparator)
+            {
+                newHovered = i;
+                break;
+            }
+
+            y += itemHeight;
+        }
+
+        if (newHovered != _hoveredIndex)
+        {
+            _hoveredIndex = newHovered;
+            Invalidate();
+        }
+    }
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        if (_hoveredIndex >= 0 && _hoveredIndex < Items.Count)
+        {
+            var item = Items[_hoveredIndex];
+            if (item.IsEnabled && !item.IsSeparator)
+            {
+                item.OnClicked();
+                ItemClicked?.Invoke(this, new MenuItemClickedEventArgs(item));
+                e.Handled = true;
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Event args for menu item clicked.
+/// </summary>
+public class MenuItemClickedEventArgs : EventArgs
+{
+    public MenuItem Item { get; }
+
+    public MenuItemClickedEventArgs(MenuItem item)
+    {
+        Item = item;
     }
 }

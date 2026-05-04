@@ -3,7 +3,6 @@
 
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
-using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -38,36 +37,15 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
         return new SkiaFrame();
     }
 
-    protected override void ConnectHandler(SkiaFrame platformView)
-    {
-        base.ConnectHandler(platformView);
-        if (VirtualView is View view)
-        {
-            platformView.MauiView = view;
-        }
-        platformView.Tapped += OnPlatformViewTapped;
-    }
-
-    protected override void DisconnectHandler(SkiaFrame platformView)
-    {
-        platformView.Tapped -= OnPlatformViewTapped;
-        platformView.MauiView = null;
-        base.DisconnectHandler(platformView);
-    }
-
-    private void OnPlatformViewTapped(object? sender, EventArgs e)
-    {
-        if (VirtualView is View view)
-        {
-            GestureManager.ProcessTap(view, 0.0, 0.0);
-        }
-    }
-
     public static void MapBorderColor(FrameHandler handler, Frame frame)
     {
         if (frame.BorderColor != null)
         {
-            handler.PlatformView.Stroke = frame.BorderColor;
+            handler.PlatformView.Stroke = new SKColor(
+                (byte)(frame.BorderColor.Red * 255),
+                (byte)(frame.BorderColor.Green * 255),
+                (byte)(frame.BorderColor.Blue * 255),
+                (byte)(frame.BorderColor.Alpha * 255));
         }
     }
 
@@ -85,7 +63,11 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
     {
         if (frame.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = frame.BackgroundColor;
+            handler.PlatformView.BackgroundColor = new SKColor(
+                (byte)(frame.BackgroundColor.Red * 255),
+                (byte)(frame.BackgroundColor.Green * 255),
+                (byte)(frame.BackgroundColor.Blue * 255),
+                (byte)(frame.BackgroundColor.Alpha * 255));
         }
     }
 
@@ -110,7 +92,7 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
             {
-                content.Handler = content.ToViewHandler(handler.MauiContext);
+                content.Handler = content.ToHandler(handler.MauiContext);
             }
 
             if (content.Handler?.PlatformView is SkiaView skiaContent)

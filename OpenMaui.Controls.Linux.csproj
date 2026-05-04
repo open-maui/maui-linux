@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>OpenMaui.Platform.Linux</RootNamespace>
@@ -14,68 +14,48 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.50.7</Version>
-    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
-    <Company>MarketAlly Pte Ltd</Company>
+    <Version>1.0.0-rc.1</Version>
+    <Authors>MarketAlly LLC, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly LLC</Company>
     <Product>OpenMaui Linux Controls</Product>
     <Description>Linux desktop support for .NET MAUI applications using SkiaSharp rendering. Supports X11 and Wayland display servers with 35+ controls, platform services, and accessibility support.</Description>
-    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <Copyright>Copyright 2025 MarketAlly LLC</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <PackageProjectUrl>https://git.marketally.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://git.marketally.com/open-maui/maui-linux.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>maui;linux;desktop;skia;gui;cross-platform;dotnet;x11;wayland;openmaui</PackageTags>
-    <PackageReleaseNotes>10.0.41.3: New OpenMaui.Hosting package — call .UseLinux() unconditionally on all platforms (no-op on non-Linux, no #if required). App icon support (MauiIcon build targets, .desktop file integration for GNOME/Wayland), dark mode for picker popups, popup edge detection, DPI-correct popup rendering, flyout selected item text visibility fix, adaptive gesture method signatures.</PackageReleaseNotes>
+    <PackageReleaseNotes>RC1: Full XAML support with BindableProperty for all controls, Visual State Manager integration, data binding, and XAML styles.</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageIcon>icon.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
 
-  <!-- OpenMaui.Hosting provides the cross-platform UseLinux() stub -->
-  <ItemGroup>
-    <ProjectReference Include="Hosting.Abstractions/OpenMaui.Hosting.csproj" />
-  </ItemGroup>
-
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.50" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.50" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.50" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="9.0.40" />
 
-    <!-- SkiaSharp for rendering (3.x with SKFont API) -->
-    <PackageReference Include="SkiaSharp" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.Views.Maui.Core" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
-    <PackageReference Include="Svg.Skia" Version="3.4.1" />
+    <!-- SkiaSharp for rendering (2.88.x for FreeType compatibility) -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.88.9" />
 
     <!-- HarfBuzz for advanced text shaping -->
-    <PackageReference Include="HarfBuzzSharp" Version="8.3.1.3" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.3" />
-
-    <!-- Harmony for patching MAUI Essentials stubs with Linux implementations -->
-    <PackageReference Include="Lib.Harmony" Version="2.4.2" />
+    <PackageReference Include="HarfBuzzSharp" Version="7.3.0.3" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="7.3.0.3" />
   </ItemGroup>
 
   <!-- Include README and icon in package -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
-    <None Include="assets/logo_only.png" Pack="true" PackagePath="" />
-  </ItemGroup>
-
-  <!-- Include build props and targets in package - auto-imports when package is referenced -->
-  <!-- .props runs BEFORE the project (sets SingleProject=false, RuntimeIdentifiers) -->
-  <!-- .targets runs AFTER the project (manages platform folder exclusions, copies assets) -->
-  <ItemGroup>
-    <None Include="build\OpenMaui.Controls.Linux.props" Pack="true" PackagePath="build\OpenMaui.Controls.Linux.props" />
-    <None Include="build\OpenMaui.Controls.Linux.targets" Pack="true" PackagePath="build\OpenMaui.Controls.Linux.targets" />
+    <None Include="assets/icon.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <!-- Exclude old handler files, samples, templates, and VSIX -->
   <ItemGroup>
-    <Compile Remove="Hosting.Abstractions/**/*.cs" />
     <Compile Remove="Handlers/*.Linux.cs" />
     <Compile Remove="samples/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />

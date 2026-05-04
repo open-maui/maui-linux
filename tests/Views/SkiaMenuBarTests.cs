@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Xunit;
 
@@ -146,9 +145,9 @@ public class SkiaMenuBarTests
     {
         var menuBar = new SkiaMenuBar();
 
-        menuBar.BackgroundColor = Colors.White;
+        menuBar.BackgroundColor = SKColors.White;
 
-        Assert.Equal(Colors.White, menuBar.BackgroundColor);
+        Assert.Equal(SKColors.White, menuBar.BackgroundColor);
     }
 
     [Fact]
@@ -156,9 +155,9 @@ public class SkiaMenuBarTests
     {
         var menuBar = new SkiaMenuBar();
 
-        menuBar.TextColor = Colors.Black;
+        menuBar.TextColor = SKColors.Black;
 
-        Assert.Equal(Colors.Black, menuBar.TextColor);
+        Assert.Equal(SKColors.Black, menuBar.TextColor);
     }
 
     [Fact]
@@ -166,9 +165,9 @@ public class SkiaMenuBarTests
     {
         var menuBar = new SkiaMenuBar();
 
-        menuBar.HoverBackgroundColor = Colors.LightGrey;
+        menuBar.HoverBackgroundColor = SKColors.LightGray;
 
-        Assert.Equal(Colors.LightGrey, menuBar.HoverBackgroundColor);
+        Assert.Equal(SKColors.LightGray, menuBar.HoverBackgroundColor);
     }
 
     [Fact]
@@ -176,9 +175,9 @@ public class SkiaMenuBarTests
     {
         var menuBar = new SkiaMenuBar();
 
-        menuBar.ActiveBackgroundColor = Colors.DarkGrey;
+        menuBar.ActiveBackgroundColor = SKColors.DarkGray;
 
-        Assert.Equal(Colors.DarkGrey, menuBar.ActiveBackgroundColor);
+        Assert.Equal(SKColors.DarkGray, menuBar.ActiveBackgroundColor);
     }
 
     [Fact]
@@ -187,7 +186,7 @@ public class SkiaMenuBarTests
         var menuBar = new SkiaMenuBar();
         menuBar.BarHeight = 30f;
 
-        var size = menuBar.Measure(new Size(800, 600));
+        var size = menuBar.Measure(new SKSize(800, 600));
 
         Assert.Equal(30f, size.Height);
     }
@@ -197,7 +196,7 @@ public class SkiaMenuBarTests
     {
         var menuBar = new SkiaMenuBar();
 
-        var size = menuBar.Measure(new Size(800, 600));
+        var size = menuBar.Measure(new SKSize(800, 600));
 
         Assert.Equal(800f, size.Width);
     }
@@ -206,7 +205,7 @@ public class SkiaMenuBarTests
     public void HitTest_WithinBounds_ReturnsMenuBar()
     {
         var menuBar = new SkiaMenuBar();
-        menuBar.Arrange(new Rect(0, 0, 800, 28));
+        menuBar.Arrange(new SKRect(0, 0, 800, 28));
 
         var hit = menuBar.HitTest(400, 14);
 
@@ -217,7 +216,7 @@ public class SkiaMenuBarTests
     public void HitTest_OutsideBounds_ReturnsNull()
     {
         var menuBar = new SkiaMenuBar();
-        menuBar.Arrange(new Rect(0, 0, 800, 28));
+        menuBar.Arrange(new SKRect(0, 0, 800, 28));
 
         var hit = menuBar.HitTest(400, 50);
 
@@ -267,9 +266,9 @@ public class SkiaMenuFlyoutTests
     {
         var flyout = new SkiaMenuFlyout();
 
-        flyout.BackgroundColor = Colors.White;
+        flyout.BackgroundColor = SKColors.White;
 
-        Assert.Equal(Colors.White, flyout.BackgroundColor);
+        Assert.Equal(SKColors.White, flyout.BackgroundColor);
     }
 
     [Fact]
@@ -277,9 +276,9 @@ public class SkiaMenuFlyoutTests
     {
         var flyout = new SkiaMenuFlyout();
 
-        flyout.TextColor = Colors.Black;
+        flyout.TextColor = SKColors.Black;
 
-        Assert.Equal(Colors.Black, flyout.TextColor);
+        Assert.Equal(SKColors.Black, flyout.TextColor);
     }
 
     [Fact]
@@ -287,9 +286,9 @@ public class SkiaMenuFlyoutTests
     {
         var flyout = new SkiaMenuFlyout();
 
-        flyout.DisabledTextColor = Color.FromRgb(160, 160, 160);
+        flyout.DisabledTextColor = new SKColor(160, 160, 160);
 
-        Assert.Equal(Color.FromRgb(160, 160, 160), flyout.DisabledTextColor);
+        Assert.Equal(new SKColor(160, 160, 160), flyout.DisabledTextColor);
     }
 
     [Fact]
@@ -297,9 +296,9 @@ public class SkiaMenuFlyoutTests
     {
         var flyout = new SkiaMenuFlyout();
 
-        flyout.HoverBackgroundColor = Colors.LightBlue;
+        flyout.HoverBackgroundColor = SKColors.LightBlue;
 
-        Assert.Equal(Colors.LightBlue, flyout.HoverBackgroundColor);
+        Assert.Equal(SKColors.LightBlue, flyout.HoverBackgroundColor);
     }
 
     [Fact]
@@ -307,9 +306,9 @@ public class SkiaMenuFlyoutTests
     {
         var flyout = new SkiaMenuFlyout();
 
-        flyout.SeparatorColor = Colors.Grey;
+        flyout.SeparatorColor = SKColors.Gray;
 
-        Assert.Equal(Colors.Grey, flyout.SeparatorColor);
+        Assert.Equal(SKColors.Gray, flyout.SeparatorColor);
     }
 
     [Fact]

@@ -1,24 +1,91 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Runtime.InteropServices;
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// WebView implementation using WebKitGTK for Linux.
-/// Renders web content in a native GTK window embedded via X11.
+/// Renders web content in a native GTK window and composites to Skia.
 /// </summary>
-public partial class SkiaWebView : SkiaView
+public class SkiaWebView : SkiaView
 {
-    #region Delegates
+    #region Native Interop - GTK
 
-    private delegate void LoadChangedCallback(IntPtr webView, int loadEvent, IntPtr userData);
+    private const string LibGtk4 = "libgtk-4.so.1";
+    private const string LibGtk3 = "libgtk-3.so.0";
+    private const string LibWebKit2Gtk4 = "libwebkitgtk-6.0.so.4";
+    private const string LibWebKit2Gtk3 = "libwebkit2gtk-4.1.so.0";
+    private const string LibGObject = "libgobject-2.0.so.0";
+    private const string LibGLib = "libglib-2.0.so.0";
+
+    private static bool _useGtk4;
+    private static bool _gtkInitialized;
+    private static string _webkitLib = LibWebKit2Gtk3;
+
+    // GTK functions
+    [DllImport(LibGtk4, EntryPoint = "gtk_init")]
+    private static extern void gtk4_init();
+
+    [DllImport(LibGtk3, EntryPoint = "gtk_init_check")]
+    private static extern bool gtk3_init_check(ref int argc, ref IntPtr argv);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_window_new")]
+    private static extern IntPtr gtk4_window_new();
+
+    [DllImport(LibGtk3, EntryPoint = "gtk_window_new")]
+    private static extern IntPtr gtk3_window_new(int type);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_window_set_default_size")]
+    private static extern void gtk4_window_set_default_size(IntPtr window, int width, int height);
+
+    [DllImport(LibGtk3, EntryPoint = "gtk_window_set_default_size")]
+    private static extern void gtk3_window_set_default_size(IntPtr window, int width, int height);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_window_set_child")]
+    private static extern void gtk4_window_set_child(IntPtr window, IntPtr child);
+
+    [DllImport(LibGtk3, EntryPoint = "gtk_container_add")]
+    private static extern void gtk3_container_add(IntPtr container, IntPtr widget);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_widget_show")]
+    private static extern void gtk4_widget_show(IntPtr widget);
+
+    [DllImport(LibGtk3, EntryPoint = "gtk_widget_show_all")]
+    private static extern void gtk3_widget_show_all(IntPtr widget);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_widget_hide")]
+    private static extern void gtk4_widget_hide(IntPtr widget);
+
+    [DllImport(LibGtk3, EntryPoint = "gtk_widget_hide")]
+    private static extern void gtk3_widget_hide(IntPtr widget);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_widget_get_width")]
+    private static extern int gtk4_widget_get_width(IntPtr widget);
+
+    [DllImport(LibGtk4, EntryPoint = "gtk_widget_get_height")]
+    private static extern int gtk4_widget_get_height(IntPtr widget);
+
+    // GObject
+    [DllImport(LibGObject, EntryPoint = "g_object_unref")]
+    private static extern void g_object_unref(IntPtr obj);
+
+    [DllImport(LibGObject, EntryPoint = "g_signal_connect_data")]
+    private static extern ulong g_signal_connect_data(IntPtr instance,
+        [MarshalAs(UnmanagedType.LPStr)] string signal,
+        IntPtr handler, IntPtr data, IntPtr destroyData, int flags);
+
+    // GLib main loop (for event processing)
+    [DllImport(LibGLib, EntryPoint = "g_main_context_iteration")]
+    private static extern bool g_main_context_iteration(IntPtr context, bool mayBlock);
+
+    #endregion
+
+    #region WebKit Functions
+
+    // We'll load these dynamically based on available version
     private delegate IntPtr WebKitWebViewNewDelegate();
     private delegate void WebKitWebViewLoadUriDelegate(IntPtr webView, [MarshalAs(UnmanagedType.LPStr)] string uri);
     private delegate void WebKitWebViewLoadHtmlDelegate(IntPtr webView, [MarshalAs(UnmanagedType.LPStr)] string html, [MarshalAs(UnmanagedType.LPStr)] string? baseUri);
@@ -33,70 +100,6 @@ public partial class SkiaWebView : SkiaView
     private delegate double WebKitWebViewGetEstimatedLoadProgressDelegate(IntPtr webView);
     private delegate IntPtr WebKitWebViewGetSettingsDelegate(IntPtr webView);
     private delegate void WebKitSettingsSetEnableJavascriptDelegate(IntPtr settings, bool enabled);
-    private delegate void WebKitSettingsSetHardwareAccelerationPolicyDelegate(IntPtr settings, int policy);
-    private delegate void WebKitSettingsSetEnableWebglDelegate(IntPtr settings, bool enabled);
-    private delegate void WebKitSettingsSetUserAgentDelegate(IntPtr settings, [MarshalAs(UnmanagedType.LPStr)] string userAgent);
-    private delegate IntPtr WebKitSettingsGetUserAgentDelegate(IntPtr settings);
-    private delegate void WebKitWebViewRunJavascriptDelegate(IntPtr webView, [MarshalAs(UnmanagedType.LPStr)] string script, IntPtr cancellable, IntPtr callback, IntPtr userData);
-
-    #endregion
-
-    #region X11 Structures
-
-    private struct XWindowAttributes
-    {
-        public int x;
-        public int y;
-        public int width;
-        public int height;
-        public int border_width;
-        public int depth;
-        public IntPtr visual;
-        public IntPtr root;
-        public int c_class;
-        public int bit_gravity;
-        public int win_gravity;
-        public int backing_store;
-        public ulong backing_planes;
-        public ulong backing_pixel;
-        public int save_under;
-        public IntPtr colormap;
-        public int map_installed;
-        public int map_state;
-        public long all_event_masks;
-        public long your_event_mask;
-        public long do_not_propagate_mask;
-        public int override_redirect;
-        public IntPtr screen;
-    }
-
-    #endregion
-
-    #region Constants
-
-    private const string LibGtk4 = "libgtk-4.so.1";
-    private const string LibGtk3 = "libgtk-3.so.0";
-    private const string LibWebKit2Gtk4 = "libwebkitgtk-6.0.so.4";
-    private const string LibWebKit2Gtk3 = "libwebkit2gtk-4.1.so.0";
-    private const string LibGObject = "libgobject-2.0.so.0";
-    private const string LibGLib = "libglib-2.0.so.0";
-    private const string LibGdk4 = "libgtk-4.so.1";
-    private const string LibGdk3 = "libgdk-3.so.0";
-    private const string LibX11 = "libX11.so.6";
-    private const int RTLD_NOW = 2;
-    private const int RTLD_GLOBAL = 256;
-
-    #endregion
-
-    #region Static Fields
-
-    private static bool _useGtk4;
-    private static bool _gtkInitialized;
-    private static string _webkitLib = LibWebKit2Gtk3;
-    private static LoadChangedCallback? _loadChangedCallback;
-    private static IntPtr _webkitHandle;
-    private static IntPtr _mainDisplay;
-    private static IntPtr _mainWindow;
 
     private static WebKitWebViewNewDelegate? _webkitWebViewNew;
     private static WebKitWebViewLoadUriDelegate? _webkitLoadUri;
@@ -112,322 +115,90 @@ public partial class SkiaWebView : SkiaView
     private static WebKitWebViewGetEstimatedLoadProgressDelegate? _webkitGetProgress;
     private static WebKitWebViewGetSettingsDelegate? _webkitGetSettings;
     private static WebKitSettingsSetEnableJavascriptDelegate? _webkitSetJavascript;
-    private static WebKitSettingsSetHardwareAccelerationPolicyDelegate? _webkitSetHardwareAcceleration;
-    private static WebKitSettingsSetEnableWebglDelegate? _webkitSetWebgl;
-    private static WebKitSettingsSetUserAgentDelegate? _webkitSetUserAgent;
-    private static WebKitSettingsGetUserAgentDelegate? _webkitGetUserAgent;
-    private static WebKitWebViewRunJavascriptDelegate? _webkitRunJavascript;
 
-    private static readonly List<SkiaWebView> _activeWebViews = new();
-    private static readonly Dictionary<IntPtr, SkiaWebView> _webViewInstances = new();
+    [DllImport("libdl.so.2")]
+    private static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPStr)] string? filename, int flags);
+
+    [DllImport("libdl.so.2")]
+    private static extern IntPtr dlsym(IntPtr handle, [MarshalAs(UnmanagedType.LPStr)] string symbol);
+
+    [DllImport("libdl.so.2")]
+    private static extern IntPtr dlerror();
+
+    private const int RTLD_NOW = 2;
+    private const int RTLD_GLOBAL = 0x100;
+
+    private static IntPtr _webkitHandle;
 
     #endregion
 
-    #region Instance Fields
+    #region Fields
 
     private IntPtr _gtkWindow;
     private IntPtr _webView;
-    private IntPtr _gtkX11Window;
-    private IntPtr _x11Container;
     private string _source = "";
     private string _html = "";
     private bool _isInitialized;
-    private bool _isEmbedded;
-    private bool _isProperlyReparented;
     private bool _javascriptEnabled = true;
-    private string? _userAgent;
-    private CookieContainer _cookies = new();
     private double _loadProgress;
-    private Rect _lastBounds;
-    private int _lastMainX;
-    private int _lastMainY;
-    private int _lastPosX;
-    private int _lastPosY;
-    private int _lastWidth;
-    private int _lastHeight;
-
-    #endregion
-
-    #region GTK Native Imports
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_init")]
-    private static partial void gtk4_init();
-
-    [DllImport(LibGtk3, EntryPoint = "gtk_init_check")]
-    private static extern bool gtk3_init_check(ref int argc, ref IntPtr argv);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_new")]
-    private static partial IntPtr gtk4_window_new();
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_new")]
-    private static partial IntPtr gtk3_window_new(int type);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_default_size")]
-    private static partial void gtk4_window_set_default_size(IntPtr window, int width, int height);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_title", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial void gtk4_window_set_title(IntPtr window, string title);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_default_size")]
-    private static partial void gtk3_window_set_default_size(IntPtr window, int width, int height);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_title", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial void gtk3_window_set_title(IntPtr window, string title);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_child")]
-    private static partial void gtk4_window_set_child(IntPtr window, IntPtr child);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_container_add")]
-    private static partial void gtk3_container_add(IntPtr container, IntPtr widget);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_show")]
-    private static partial void gtk4_widget_show(IntPtr widget);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_present")]
-    private static partial void gtk4_window_present(IntPtr window);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_show_all")]
-    private static partial void gtk3_widget_show_all(IntPtr widget);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_hide")]
-    private static partial void gtk4_widget_hide(IntPtr widget);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_hide")]
-    private static partial void gtk3_widget_hide(IntPtr widget);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_get_width")]
-    private static partial int gtk4_widget_get_width(IntPtr widget);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_get_height")]
-    private static partial int gtk4_widget_get_height(IntPtr widget);
-
-    [LibraryImport(LibGObject)]
-    private static partial void g_object_unref(IntPtr obj);
-
-    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
-    private static partial ulong g_signal_connect_data(IntPtr instance, string signal, IntPtr handler, IntPtr data, IntPtr destroyData, int flags);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_native_get_surface")]
-    private static partial IntPtr gtk4_native_get_surface(IntPtr native);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gdk_x11_surface_get_xid")]
-    private static partial IntPtr gdk4_x11_surface_get_xid(IntPtr surface);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_get_window")]
-    private static partial IntPtr gtk3_widget_get_window(IntPtr widget);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_x11_window_get_xid")]
-    private static partial IntPtr gdk3_x11_window_get_xid(IntPtr gdkWindow);
-
-    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_set_decorated")]
-    private static partial void gtk4_window_set_decorated(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool decorated);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_decorated")]
-    private static partial void gtk3_window_set_decorated(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool decorated);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_move")]
-    private static partial void gtk3_window_move(IntPtr window, int x, int y);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_resize")]
-    private static partial void gtk3_window_resize(IntPtr window, int width, int height);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_move_resize")]
-    private static partial void gdk3_window_move_resize(IntPtr window, int x, int y, int width, int height);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_move")]
-    private static partial void gdk3_gdk_window_move(IntPtr window, int x, int y);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_set_override_redirect")]
-    private static partial void gdk3_window_set_override_redirect(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool override_redirect);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_set_transient_for")]
-    private static partial void gdk3_window_set_transient_for(IntPtr window, IntPtr parent);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_window_raise")]
-    private static partial void gdk3_window_raise(IntPtr window);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_x11_window_foreign_new_for_display")]
-    private static partial IntPtr gdk3_x11_window_foreign_new_for_display(IntPtr display, IntPtr window);
-
-    [LibraryImport(LibGdk3, EntryPoint = "gdk_display_get_default")]
-    private static partial IntPtr gdk3_display_get_default();
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_parent_window")]
-    private static partial void gtk3_widget_set_parent_window(IntPtr widget, IntPtr parentWindow);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_socket_new")]
-    private static partial IntPtr gtk3_socket_new();
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_socket_add_id")]
-    private static partial void gtk3_socket_add_id(IntPtr socket, IntPtr windowId);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_socket_get_id")]
-    private static partial IntPtr gtk3_socket_get_id(IntPtr socket);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_plug_new")]
-    private static partial IntPtr gtk3_plug_new(IntPtr socketId);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_plug_get_id")]
-    private static partial IntPtr gtk3_plug_get_id(IntPtr plug);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_skip_taskbar_hint")]
-    private static partial void gtk3_window_set_skip_taskbar_hint(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool setting);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_skip_pager_hint")]
-    private static partial void gtk3_window_set_skip_pager_hint(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool setting);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_type_hint")]
-    private static partial void gtk3_window_set_type_hint(IntPtr window, int hint);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_present")]
-    private static partial void gtk3_window_present(IntPtr window);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_queue_draw")]
-    private static partial void gtk3_widget_queue_draw(IntPtr widget);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_window_set_keep_above")]
-    private static partial void gtk3_window_set_keep_above(IntPtr window, [MarshalAs(UnmanagedType.Bool)] bool setting);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_hexpand")]
-    private static partial void gtk3_widget_set_hexpand(IntPtr widget, [MarshalAs(UnmanagedType.Bool)] bool expand);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_vexpand")]
-    private static partial void gtk3_widget_set_vexpand(IntPtr widget, [MarshalAs(UnmanagedType.Bool)] bool expand);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_set_size_request")]
-    private static partial void gtk3_widget_set_size_request(IntPtr widget, int width, int height);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_realize")]
-    private static partial void gtk3_widget_realize(IntPtr widget);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_map")]
-    private static partial void gtk3_widget_map(IntPtr widget);
-
-    [LibraryImport(LibGLib)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool g_main_context_iteration(IntPtr context, [MarshalAs(UnmanagedType.Bool)] bool mayBlock);
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_events_pending")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool gtk3_events_pending();
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_main_iteration")]
-    private static partial void gtk3_main_iteration();
-
-    [LibraryImport(LibGtk3, EntryPoint = "gtk_main_iteration_do")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool gtk3_main_iteration_do([MarshalAs(UnmanagedType.Bool)] bool blocking);
-
-    #endregion
-
-    #region X11 Native Imports
-
-    [LibraryImport(LibX11)]
-    private static partial int XReparentWindow(IntPtr display, IntPtr window, IntPtr parent, int x, int y);
-
-    [LibraryImport(LibX11)]
-    private static partial int XMoveResizeWindow(IntPtr display, IntPtr window, int x, int y, uint width, uint height);
-
-    [LibraryImport(LibX11)]
-    private static partial int XMapWindow(IntPtr display, IntPtr window);
-
-    [LibraryImport(LibX11)]
-    private static partial int XUnmapWindow(IntPtr display, IntPtr window);
-
-    [LibraryImport(LibX11)]
-    private static partial int XFlush(IntPtr display);
-
-    [LibraryImport(LibX11)]
-    private static partial int XRaiseWindow(IntPtr display, IntPtr window);
-
-    [LibraryImport(LibX11)]
-    private static partial IntPtr XCreateSimpleWindow(IntPtr display, IntPtr parent, int x, int y, uint width, uint height, uint borderWidth, ulong border, ulong background);
-
-    [LibraryImport(LibX11)]
-    private static partial int XDestroyWindow(IntPtr display, IntPtr window);
-
-    [LibraryImport(LibX11)]
-    private static partial int XSelectInput(IntPtr display, IntPtr window, long eventMask);
-
-    [LibraryImport(LibX11)]
-    private static partial int XSync(IntPtr display, [MarshalAs(UnmanagedType.Bool)] bool discard);
-
-    [DllImport(LibX11)]
-    private static extern bool XQueryTree(IntPtr display, IntPtr window, ref IntPtr root, ref IntPtr parent, ref IntPtr children, ref uint nchildren);
-
-    [LibraryImport(LibX11)]
-    private static partial int XFree(IntPtr data);
-
-    [LibraryImport(LibX11)]
-    private static partial int XMapRaised(IntPtr display, IntPtr window);
-
-    [DllImport(LibX11)]
-    private static extern int XGetWindowAttributes(IntPtr display, IntPtr window, out XWindowAttributes attributes);
-
-    [DllImport(LibX11)]
-    private static extern bool XTranslateCoordinates(IntPtr display, IntPtr src, IntPtr dest, int srcX, int srcY, out int destX, out int destY, out IntPtr child);
-
-    [LibraryImport(LibX11)]
-    private static partial IntPtr XDefaultRootWindow(IntPtr display);
-
-    [LibraryImport(LibX11, StringMarshalling = StringMarshalling.Utf8)]
-    private static partial IntPtr XInternAtom(IntPtr display, string atomName, [MarshalAs(UnmanagedType.Bool)] bool onlyIfExists);
-
-    [DllImport(LibX11)]
-    private static extern int XChangeProperty(IntPtr display, IntPtr window, IntPtr property, IntPtr type, int format, int mode, IntPtr data, int nelements);
-
-    [DllImport(LibX11)]
-    private static extern int XChangeProperty(IntPtr display, IntPtr window, IntPtr property, IntPtr type, int format, int mode, IntPtr[] data, int nelements);
-
-    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial IntPtr dlopen(string? filename, int flags);
-
-    [LibraryImport("libdl.so.2", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial IntPtr dlsym(IntPtr handle, string symbol);
-
-    [LibraryImport("libdl.so.2")]
-    private static partial IntPtr dlerror();
 
     #endregion
 
     #region Properties
 
+    /// <summary>
+    /// Gets or sets the URL to navigate to.
+    /// </summary>
     public string Source
     {
         get => _source;
         set
         {
-            if (_source == value) return;
-            _source = value;
-            if (!string.IsNullOrEmpty(value))
+            if (_source != value)
             {
-                if (!_isInitialized) Initialize();
-                if (_isInitialized) LoadUrl(value);
+                _source = value;
+                if (_isInitialized && !string.IsNullOrEmpty(value))
+                {
+                    LoadUrl(value);
+                }
+                Invalidate();
             }
-            Invalidate();
         }
     }
 
+    /// <summary>
+    /// Gets or sets the HTML content to display.
+    /// </summary>
     public string Html
     {
         get => _html;
         set
         {
-            if (_html == value) return;
-            _html = value;
-            if (!string.IsNullOrEmpty(value))
+            if (_html != value)
             {
-                if (!_isInitialized) Initialize();
-                if (_isInitialized) LoadHtml(value);
+                _html = value;
+                if (_isInitialized && !string.IsNullOrEmpty(value))
+                {
+                    LoadHtml(value);
+                }
+                Invalidate();
             }
-            Invalidate();
         }
     }
 
-    public bool CanGoBack => _webView != IntPtr.Zero && (_webkitCanGoBack?.Invoke(_webView) ?? false);
+    /// <summary>
+    /// Gets whether the WebView can navigate back.
+    /// </summary>
+    public bool CanGoBack => _webView != IntPtr.Zero && _webkitCanGoBack?.Invoke(_webView) == true;
 
-    public bool CanGoForward => _webView != IntPtr.Zero && (_webkitCanGoForward?.Invoke(_webView) ?? false);
+    /// <summary>
+    /// Gets whether the WebView can navigate forward.
+    /// </summary>
+    public bool CanGoForward => _webView != IntPtr.Zero && _webkitCanGoForward?.Invoke(_webView) == true;
 
+    /// <summary>
+    /// Gets the current URL.
+    /// </summary>
     public string? CurrentUrl
     {
         get
@@ -438,6 +209,9 @@ public partial class SkiaWebView : SkiaView
         }
     }
 
+    /// <summary>
+    /// Gets the current page title.
+    /// </summary>
     public string? Title
     {
         get
@@ -448,6 +222,9 @@ public partial class SkiaWebView : SkiaView
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether JavaScript is enabled.
+    /// </summary>
     public bool JavaScriptEnabled
     {
         get => _javascriptEnabled;
@@ -458,40 +235,14 @@ public partial class SkiaWebView : SkiaView
         }
     }
 
+    /// <summary>
+    /// Gets the load progress (0.0 to 1.0).
+    /// </summary>
     public double LoadProgress => _loadProgress;
 
-    public string? UserAgent
-    {
-        get
-        {
-            if (!string.IsNullOrEmpty(_userAgent))
-                return _userAgent;
-            if (_webView == IntPtr.Zero || _webkitGetSettings == null || _webkitGetUserAgent == null)
-                return null;
-            var settings = _webkitGetSettings(_webView);
-            if (settings == IntPtr.Zero) return null;
-            var ptr = _webkitGetUserAgent(settings);
-            return ptr != IntPtr.Zero ? Marshal.PtrToStringAnsi(ptr) : null;
-        }
-        set
-        {
-            _userAgent = value;
-            UpdateUserAgentSetting();
-        }
-    }
-
     /// <summary>
-    /// Gets or sets the cookie container for this WebView.
-    /// Note: Cookies set here are available for .NET code but are not automatically
-    /// synchronized with WebKitGTK's internal cookie storage. For full cookie
-    /// integration, use JavaScript-based cookie operations.
+    /// Gets whether WebKit is available on this system.
     /// </summary>
-    public CookieContainer Cookies
-    {
-        get => _cookies;
-        set => _cookies = value ?? new CookieContainer();
-    }
-
     public static bool IsSupported => InitializeWebKit();
 
     #endregion
@@ -505,64 +256,58 @@ public partial class SkiaWebView : SkiaView
 
     #endregion
 
-    #region Static Methods
+    #region Constructor
 
-    public static void SetMainWindow(IntPtr display, IntPtr window)
+    public SkiaWebView()
     {
-        _mainDisplay = display;
-        _mainWindow = window;
-        DiagnosticLog.Debug("SkiaWebView", $"Main window set: display={display}, window={window}");
+        RequestedWidth = 400;
+        RequestedHeight = 300;
+        BackgroundColor = SKColors.White;
     }
 
-    public static void ProcessGtkEvents()
-    {
-        bool hasActive;
-        lock (_activeWebViews)
-        {
-            hasActive = _activeWebViews.Count > 0;
-        }
-        if (hasActive && _gtkInitialized)
-        {
-            while (g_main_context_iteration(IntPtr.Zero, mayBlock: false)) { }
-        }
-    }
+    #endregion
+
+    #region Initialization
 
     private static bool InitializeWebKit()
     {
         if (_webkitHandle != IntPtr.Zero) return true;
 
-        _webkitHandle = dlopen("libwebkit2gtk-4.1.so.0", RTLD_NOW | RTLD_GLOBAL);
+        // Try WebKitGTK 6.0 (GTK4) first
+        _webkitHandle = dlopen(LibWebKit2Gtk4, RTLD_NOW | RTLD_GLOBAL);
         if (_webkitHandle != IntPtr.Zero)
         {
-            _useGtk4 = false;
-            _webkitLib = "libwebkit2gtk-4.1.so.0";
+            _useGtk4 = true;
+            _webkitLib = LibWebKit2Gtk4;
         }
         else
         {
-            _webkitHandle = dlopen("libwebkit2gtk-4.0.so.37", RTLD_NOW | RTLD_GLOBAL);
+            // Fall back to WebKitGTK 4.1 (GTK3)
+            _webkitHandle = dlopen(LibWebKit2Gtk3, RTLD_NOW | RTLD_GLOBAL);
             if (_webkitHandle != IntPtr.Zero)
             {
                 _useGtk4 = false;
-                _webkitLib = "libwebkit2gtk-4.0.so.37";
+                _webkitLib = LibWebKit2Gtk3;
             }
             else
             {
-                _webkitHandle = dlopen("libwebkitgtk-6.0.so.4", RTLD_NOW | RTLD_GLOBAL);
+                // Try older WebKitGTK 4.0
+                _webkitHandle = dlopen("libwebkit2gtk-4.0.so.37", RTLD_NOW | RTLD_GLOBAL);
                 if (_webkitHandle != IntPtr.Zero)
                 {
-                    _useGtk4 = true;
-                    _webkitLib = "libwebkitgtk-6.0.so.4";
-                    DiagnosticLog.Warn("SkiaWebView", "Using GTK4 WebKitGTK - embedding may be limited");
+                    _useGtk4 = false;
+                    _webkitLib = "libwebkit2gtk-4.0.so.37";
                 }
             }
         }
 
         if (_webkitHandle == IntPtr.Zero)
         {
-            DiagnosticLog.Error("SkiaWebView", "WebKitGTK not found. Install with: sudo apt install libwebkit2gtk-4.1-0");
+            Console.WriteLine("[WebView] WebKitGTK not found. Install with: sudo apt install libwebkit2gtk-4.1-0");
             return false;
         }
 
+        // Load function pointers
         _webkitWebViewNew = LoadFunction<WebKitWebViewNewDelegate>("webkit_web_view_new");
         _webkitLoadUri = LoadFunction<WebKitWebViewLoadUriDelegate>("webkit_web_view_load_uri");
         _webkitLoadHtml = LoadFunction<WebKitWebViewLoadHtmlDelegate>("webkit_web_view_load_html");
@@ -577,83 +322,28 @@ public partial class SkiaWebView : SkiaView
         _webkitGetProgress = LoadFunction<WebKitWebViewGetEstimatedLoadProgressDelegate>("webkit_web_view_get_estimated_load_progress");
         _webkitGetSettings = LoadFunction<WebKitWebViewGetSettingsDelegate>("webkit_web_view_get_settings");
         _webkitSetJavascript = LoadFunction<WebKitSettingsSetEnableJavascriptDelegate>("webkit_settings_set_enable_javascript");
-        _webkitSetHardwareAcceleration = LoadFunction<WebKitSettingsSetHardwareAccelerationPolicyDelegate>("webkit_settings_set_hardware_acceleration_policy");
-        _webkitSetWebgl = LoadFunction<WebKitSettingsSetEnableWebglDelegate>("webkit_settings_set_enable_webgl");
-        _webkitSetUserAgent = LoadFunction<WebKitSettingsSetUserAgentDelegate>("webkit_settings_set_user_agent");
-        _webkitGetUserAgent = LoadFunction<WebKitSettingsGetUserAgentDelegate>("webkit_settings_get_user_agent");
-        _webkitRunJavascript = LoadFunction<WebKitWebViewRunJavascriptDelegate>("webkit_web_view_run_javascript");
 
-        DiagnosticLog.Debug("SkiaWebView", $"Using {_webkitLib}");
+        Console.WriteLine($"[WebView] Using {_webkitLib}");
         return _webkitWebViewNew != null;
     }
 
     private static T? LoadFunction<T>(string name) where T : Delegate
     {
         var ptr = dlsym(_webkitHandle, name);
-        return ptr == IntPtr.Zero ? null : Marshal.GetDelegateForFunctionPointer<T>(ptr);
+        if (ptr == IntPtr.Zero) return null;
+        return Marshal.GetDelegateForFunctionPointer<T>(ptr);
     }
-
-    private static void OnLoadChanged(IntPtr webView, int loadEvent, IntPtr userData)
-    {
-        string[] events = { "STARTED", "REDIRECTED", "COMMITTED", "FINISHED" };
-        string eventName = loadEvent >= 0 && loadEvent < events.Length ? events[loadEvent] : loadEvent.ToString();
-        DiagnosticLog.Debug("SkiaWebView", $"Load event: {eventName}");
-
-        if (!_webViewInstances.TryGetValue(webView, out var instance)) return;
-
-        string url = instance.Source ?? "";
-        if (_webkitGetUri != null)
-        {
-            var ptr = _webkitGetUri(webView);
-            if (ptr != IntPtr.Zero)
-            {
-                url = Marshal.PtrToStringAnsi(ptr) ?? "";
-            }
-        }
-
-        switch (loadEvent)
-        {
-            case 0: // STARTED
-                instance.Navigating?.Invoke(instance, new WebNavigatingEventArgs(url));
-                break;
-            case 3: // FINISHED
-                instance.Navigated?.Invoke(instance, new WebNavigatedEventArgs(url, true));
-                break;
-        }
-    }
-
-    #endregion
-
-    #region Constructor
-
-    public SkiaWebView()
-    {
-        RequestedWidth = 400.0;
-        RequestedHeight = 300.0;
-        BackgroundColor = Colors.White;
-    }
-
-    #endregion
-
-    #region Initialization
 
     private void Initialize()
     {
-        if (_isInitialized || !InitializeWebKit()) return;
+        if (_isInitialized) return;
+        if (!InitializeWebKit()) return;
 
         try
         {
+            // Initialize GTK if needed
             if (!_gtkInitialized)
             {
-                Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
-                Environment.SetEnvironmentVariable("LIBGL_ALWAYS_SOFTWARE", "1");
-                Environment.SetEnvironmentVariable("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-                DiagnosticLog.Debug("SkiaWebView", "Using X11 backend with software rendering for proper positioning");
-
-                var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
-                DiagnosticLog.Debug("SkiaWebView", $"XDG_RUNTIME_DIR: {Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR")}");
-                DiagnosticLog.Debug("SkiaWebView", $"Forcing X11: GDK_BACKEND=x11, WAYLAND_DISPLAY={waylandDisplay}, XDG_SESSION_TYPE=x11");
-
                 if (_useGtk4)
                 {
                     gtk4_init();
@@ -662,66 +352,37 @@ public partial class SkiaWebView : SkiaView
                 {
                     int argc = 0;
                     IntPtr argv = IntPtr.Zero;
-                    if (!gtk3_init_check(ref argc, ref argv))
-                    {
-                        DiagnosticLog.Error("SkiaWebView", "gtk3_init_check failed!");
-                    }
+                    gtk3_init_check(ref argc, ref argv);
                 }
                 _gtkInitialized = true;
-
-                var gdkDisplay = gdk3_display_get_default();
-                DiagnosticLog.Debug("SkiaWebView", $"GDK display: {gdkDisplay}");
             }
 
+            // Create WebKit view
             _webView = _webkitWebViewNew!();
             if (_webView == IntPtr.Zero)
             {
-                DiagnosticLog.Error("SkiaWebView", "Failed to create WebKit view");
+                Console.WriteLine("[WebView] Failed to create WebKit view");
                 return;
             }
 
-            _webViewInstances[_webView] = this;
-            _loadChangedCallback = OnLoadChanged;
-            var callbackPtr = Marshal.GetFunctionPointerForDelegate(_loadChangedCallback);
-            g_signal_connect_data(_webView, "load-changed", callbackPtr, IntPtr.Zero, IntPtr.Zero, 0);
-            DiagnosticLog.Debug("SkiaWebView", "Connected to load-changed signal");
-
-            int width = Math.Max(800, (int)RequestedWidth);
-            int height = Math.Max(600, (int)RequestedHeight);
-
+            // Create GTK window to host the WebView
             if (_useGtk4)
             {
                 _gtkWindow = gtk4_window_new();
-                gtk4_window_set_title(_gtkWindow, "OpenMaui WebView");
-                gtk4_window_set_default_size(_gtkWindow, width, height);
+                gtk4_window_set_default_size(_gtkWindow, (int)RequestedWidth, (int)RequestedHeight);
                 gtk4_window_set_child(_gtkWindow, _webView);
-                DiagnosticLog.Debug("SkiaWebView", $"GTK4 window created: {width}x{height}");
             }
             else
             {
-                _gtkWindow = gtk3_window_new(0);
-                gtk3_window_set_default_size(_gtkWindow, width, height);
-                gtk3_window_set_title(_gtkWindow, "WebViewDemo");
-                gtk3_widget_set_hexpand(_webView, true);
-                gtk3_widget_set_vexpand(_webView, true);
-                gtk3_widget_set_size_request(_webView, width, height);
+                _gtkWindow = gtk3_window_new(0); // GTK_WINDOW_TOPLEVEL
+                gtk3_window_set_default_size(_gtkWindow, (int)RequestedWidth, (int)RequestedHeight);
                 gtk3_container_add(_gtkWindow, _webView);
-                DiagnosticLog.Debug("SkiaWebView", $"GTK3 TOPLEVEL window created: {width}x{height}");
             }
 
-            ConfigureWebKitSettings();
             UpdateJavaScriptSetting();
-            UpdateUserAgentSetting();
             _isInitialized = true;
 
-            lock (_activeWebViews)
-            {
-                if (!_activeWebViews.Contains(this))
-                {
-                    _activeWebViews.Add(this);
-                }
-            }
-
+            // Load initial content
             if (!string.IsNullOrEmpty(_source))
             {
                 LoadUrl(_source);
@@ -731,73 +392,11 @@ public partial class SkiaWebView : SkiaView
                 LoadHtml(_html);
             }
 
-            DiagnosticLog.Debug("SkiaWebView", "Initialized successfully");
+            Console.WriteLine("[WebView] Initialized successfully");
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaWebView", $"Initialization failed: {ex.Message}", ex);
-        }
-    }
-
-    private void ConfigureWebKitSettings()
-    {
-        if (_webView == IntPtr.Zero) return;
-
-        try
-        {
-            if (_webkitGetSettings == null) return;
-
-            var settings = _webkitGetSettings(_webView);
-            if (settings == IntPtr.Zero)
-            {
-                DiagnosticLog.Warn("SkiaWebView", "Could not get WebKit settings");
-                return;
-            }
-
-            if (_webkitSetHardwareAcceleration != null)
-            {
-                _webkitSetHardwareAcceleration(settings, 2); // NEVER
-                DiagnosticLog.Debug("SkiaWebView", "Set hardware acceleration to NEVER (software rendering)");
-            }
-            else
-            {
-                DiagnosticLog.Warn("SkiaWebView", "Could not set hardware acceleration policy");
-            }
-
-            if (_webkitSetWebgl != null)
-            {
-                _webkitSetWebgl(settings, false);
-                DiagnosticLog.Debug("SkiaWebView", "Disabled WebGL");
-            }
-
-            DiagnosticLog.Debug("SkiaWebView", "WebKit settings configured successfully");
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("SkiaWebView", $"Failed to configure settings: {ex.Message}", ex);
-        }
-    }
-
-    private void UpdateJavaScriptSetting()
-    {
-        if (_webView == IntPtr.Zero || _webkitGetSettings == null || _webkitSetJavascript == null) return;
-
-        var settings = _webkitGetSettings(_webView);
-        if (settings != IntPtr.Zero)
-        {
-            _webkitSetJavascript(settings, _javascriptEnabled);
-        }
-    }
-
-    private void UpdateUserAgentSetting()
-    {
-        if (_webView == IntPtr.Zero || _webkitGetSettings == null || _webkitSetUserAgent == null) return;
-        if (string.IsNullOrEmpty(_userAgent)) return;
-
-        var settings = _webkitGetSettings(_webView);
-        if (settings != IntPtr.Zero)
-        {
-            _webkitSetUserAgent(settings, _userAgent);
+            Console.WriteLine($"[WebView] Initialization failed: {ex.Message}");
         }
     }
 
@@ -808,33 +407,18 @@ public partial class SkiaWebView : SkiaView
     public void LoadUrl(string url)
     {
         if (!_isInitialized) Initialize();
-        if (_webView != IntPtr.Zero && _webkitLoadUri != null)
-        {
-            Navigating?.Invoke(this, new WebNavigatingEventArgs(url));
-            _webkitLoadUri(_webView, url);
-            DiagnosticLog.Debug("SkiaWebView", $"URL loaded: {url}");
-            ShowNativeWindow();
-        }
+        if (_webView == IntPtr.Zero || _webkitLoadUri == null) return;
+
+        Navigating?.Invoke(this, new WebNavigatingEventArgs(url));
+        _webkitLoadUri(_webView, url);
     }
 
     public void LoadHtml(string html, string? baseUrl = null)
     {
-        DiagnosticLog.Debug("SkiaWebView", $"LoadHtml called, html length: {html?.Length ?? 0}");
-        if (string.IsNullOrEmpty(html))
-        {
-            DiagnosticLog.Warn("SkiaWebView", "Cannot load HTML - html is null or empty");
-            return;
-        }
         if (!_isInitialized) Initialize();
-        if (_webView == IntPtr.Zero || _webkitLoadHtml == null)
-        {
-            DiagnosticLog.Warn("SkiaWebView", "Cannot load HTML - not initialized or no webkit function");
-            return;
-        }
-        DiagnosticLog.Debug("SkiaWebView", "Calling webkit_web_view_load_html...");
+        if (_webView == IntPtr.Zero || _webkitLoadHtml == null) return;
+
         _webkitLoadHtml(_webView, html, baseUrl);
-        DiagnosticLog.Debug("SkiaWebView", "HTML loaded to WebKit");
-        ShowNativeWindow();
     }
 
     public void GoBack()
@@ -855,58 +439,49 @@ public partial class SkiaWebView : SkiaView
 
     public void Reload()
     {
-        _webkitReload?.Invoke(_webView);
+        if (_webView != IntPtr.Zero)
+        {
+            _webkitReload?.Invoke(_webView);
+        }
     }
 
     public void Stop()
     {
-        _webkitStopLoading?.Invoke(_webView);
-    }
-
-    /// <summary>
-    /// Evaluates JavaScript in the WebView. This is a fire-and-forget operation.
-    /// For MAUI compatibility - use EvaluateJavaScriptAsync for async results.
-    /// </summary>
-    public void Eval(string script)
-    {
-        if (_webView == IntPtr.Zero || _webkitRunJavascript == null || string.IsNullOrEmpty(script)) return;
-        _webkitRunJavascript(_webView, script, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-    }
-
-    /// <summary>
-    /// Evaluates JavaScript in the WebView asynchronously.
-    /// Note: WebKitGTK async result handling is complex - this implementation
-    /// executes the script but returns null. Full async result support would
-    /// require GAsyncReadyCallback integration.
-    /// </summary>
-    public System.Threading.Tasks.Task<string?> EvaluateJavaScriptAsync(string script)
-    {
-        if (_webView == IntPtr.Zero || _webkitRunJavascript == null || string.IsNullOrEmpty(script))
+        if (_webView != IntPtr.Zero)
         {
-            return System.Threading.Tasks.Task.FromResult<string?>(null);
+            _webkitStopLoading?.Invoke(_webView);
         }
+    }
 
-        // Execute the JavaScript
-        _webkitRunJavascript(_webView, script, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+    private void UpdateJavaScriptSetting()
+    {
+        if (_webView == IntPtr.Zero || _webkitGetSettings == null || _webkitSetJavascript == null) return;
 
-        // Note: Full async result handling would require GAsyncReadyCallback
-        // For now, we execute and return null (script side effects still work)
-        return System.Threading.Tasks.Task.FromResult<string?>(null);
+        var settings = _webkitGetSettings(_webView);
+        if (settings != IntPtr.Zero)
+        {
+            _webkitSetJavascript(settings, _javascriptEnabled);
+        }
     }
 
     #endregion
 
     #region Event Processing
 
+    /// <summary>
+    /// Process pending GTK events. Call this from your main loop.
+    /// </summary>
     public void ProcessEvents()
     {
         if (!_isInitialized) return;
 
-        g_main_context_iteration(IntPtr.Zero, mayBlock: false);
+        // Process GTK events
+        g_main_context_iteration(IntPtr.Zero, false);
 
+        // Update progress
         if (_webView != IntPtr.Zero && _webkitGetProgress != null)
         {
-            double progress = _webkitGetProgress(_webView);
+            var progress = _webkitGetProgress(_webView);
             if (Math.Abs(progress - _loadProgress) > 0.01)
             {
                 _loadProgress = progress;
@@ -915,414 +490,27 @@ public partial class SkiaWebView : SkiaView
         }
     }
 
-    #endregion
-
-    #region Window Management
-
-    private bool CreateX11Container()
-    {
-        if (_mainDisplay == IntPtr.Zero || _mainWindow == IntPtr.Zero)
-        {
-            DiagnosticLog.Warn("SkiaWebView", "Cannot create X11 container - main window not set");
-            return false;
-        }
-
-        if (_x11Container != IntPtr.Zero)
-        {
-            DiagnosticLog.Debug("SkiaWebView", "X11 container already exists");
-            return true;
-        }
-
-        try
-        {
-            int x = (int)Bounds.Left;
-            int y = (int)Bounds.Top;
-            uint width = Math.Max(100u, (uint)Bounds.Width);
-            uint height = Math.Max(100u, (uint)Bounds.Height);
-
-            if (width < 100) width = 780;
-            if (height < 100) height = 300;
-
-            DiagnosticLog.Debug("SkiaWebView", $"Creating X11 container at ({x}, {y}), size ({width}x{height})");
-
-            _x11Container = XCreateSimpleWindow(_mainDisplay, _mainWindow, x, y, width, height, 0, 0, 0xFFFFFF);
-            if (_x11Container == IntPtr.Zero)
-            {
-                DiagnosticLog.Error("SkiaWebView", "Failed to create X11 container window");
-                return false;
-            }
-
-            DiagnosticLog.Debug("SkiaWebView", $"Created X11 container: {_x11Container.ToInt64()}");
-            XMapWindow(_mainDisplay, _x11Container);
-            XFlush(_mainDisplay);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("SkiaWebView", $"Error creating X11 container: {ex.Message}", ex);
-            return false;
-        }
-    }
-
+    /// <summary>
+    /// Show the native WebView window (for testing/debugging).
+    /// </summary>
     public void ShowNativeWindow()
     {
-        if (_isEmbedded) return; // Already embedded
         if (!_isInitialized) Initialize();
         if (_gtkWindow == IntPtr.Zero) return;
-
-        DiagnosticLog.Debug("SkiaWebView", "Showing native GTK window...");
-
-        if (!_useGtk4)
-        {
-            gtk3_window_set_decorated(_gtkWindow, false);
-            gtk3_window_set_skip_taskbar_hint(_gtkWindow, true);
-            gtk3_window_set_skip_pager_hint(_gtkWindow, true);
-            gtk3_window_set_keep_above(_gtkWindow, true);
-            gtk3_window_set_type_hint(_gtkWindow, 5); // UTILITY
-        }
 
         if (_useGtk4)
         {
             gtk4_widget_show(_gtkWindow);
-            gtk4_window_present(_gtkWindow);
         }
         else
         {
             gtk3_widget_show_all(_gtkWindow);
         }
-
-        for (int i = 0; i < 100; i++)
-        {
-            while (gtk3_events_pending())
-            {
-                gtk3_main_iteration_do(false);
-            }
-        }
-
-        TryReparentIntoMainWindow();
-        _isEmbedded = true;
-        DiagnosticLog.Debug("SkiaWebView", "Native window shown");
     }
 
-    private void TryReparentIntoMainWindow()
-    {
-        if (_mainDisplay == IntPtr.Zero || _mainWindow == IntPtr.Zero)
-        {
-            DiagnosticLog.Warn("SkiaWebView", "Cannot setup - main window not set");
-            return;
-        }
-
-        var gdkWindow = gtk3_widget_get_window(_gtkWindow);
-        if (gdkWindow != IntPtr.Zero)
-        {
-            _gtkX11Window = gdk3_x11_window_get_xid(gdkWindow);
-            if (_gtkX11Window != IntPtr.Zero)
-            {
-                _isProperlyReparented = true;
-                DiagnosticLog.Debug("SkiaWebView", $"GTK X11 window: {_gtkX11Window} (reparented successfully)");
-            }
-            else
-            {
-                DiagnosticLog.Warn("SkiaWebView", "GTK X11 window: failed to get XID");
-            }
-        }
-
-        PositionUsingGtk();
-    }
-
-    private void PositionUsingGtk()
-    {
-        if (_gtkWindow == IntPtr.Zero || _mainDisplay == IntPtr.Zero) return;
-
-        int destX = 0, destY = 0;
-        try
-        {
-            var root = XDefaultRootWindow(_mainDisplay);
-            XTranslateCoordinates(_mainDisplay, _mainWindow, root, 0, 0, out destX, out destY, out _);
-        }
-        catch
-        {
-            destX = 0;
-            destY = 0;
-        }
-
-        int screenX = destX + (int)Bounds.Left;
-        int screenY = destY + (int)Bounds.Top;
-        int width = Math.Max(100, (int)Bounds.Width);
-        int height = Math.Max(100, (int)Bounds.Height);
-
-        DiagnosticLog.Debug("SkiaWebView", $"Position: screen=({screenX}, {screenY}), size ({width}x{height}), bounds=({Bounds.Left},{Bounds.Top})");
-
-        if (!_useGtk4)
-        {
-            gtk3_window_move(_gtkWindow, screenX, screenY);
-            gtk3_window_resize(_gtkWindow, width, height);
-
-            while (gtk3_events_pending())
-            {
-                gtk3_main_iteration_do(false);
-            }
-
-            if (_gtkX11Window != IntPtr.Zero)
-            {
-                XRaiseWindow(_mainDisplay, _gtkX11Window);
-                SetWindowAlwaysOnTop(_gtkX11Window);
-                XFlush(_mainDisplay);
-            }
-        }
-        else
-        {
-            gtk4_window_set_default_size(_gtkWindow, width, height);
-        }
-    }
-
-    private void PositionWithX11()
-    {
-        if (_gtkX11Window == IntPtr.Zero || _mainDisplay == IntPtr.Zero) return;
-
-        int destX = 0, destY = 0;
-        try
-        {
-            var root = XDefaultRootWindow(_mainDisplay);
-            XTranslateCoordinates(_mainDisplay, _mainWindow, root, 0, 0, out destX, out destY, out _);
-        }
-        catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "X11 coordinate translation failed", ex); }
-
-        int x = destX + (int)Bounds.Left;
-        int y = destY + (int)Bounds.Top;
-        uint width = (uint)Math.Max(100f, Bounds.Width > 10f ? Bounds.Width : 780f);
-        uint height = (uint)Math.Max(100f, Bounds.Height > 10f ? Bounds.Height : 300f);
-
-        XMoveResizeWindow(_mainDisplay, _gtkX11Window, x, y, width, height);
-        XRaiseWindow(_mainDisplay, _gtkX11Window);
-        SetWindowAlwaysOnTop(_gtkX11Window);
-        XFlush(_mainDisplay);
-
-        gtk3_widget_queue_draw(_webView);
-
-        for (int i = 0; i < 5; i++)
-        {
-            g_main_context_iteration(IntPtr.Zero, mayBlock: false);
-        }
-    }
-
-    private void SetWindowAlwaysOnTop(IntPtr window)
-    {
-        try
-        {
-            var wmState = XInternAtom(_mainDisplay, "_NET_WM_STATE", false);
-            var wmStateAbove = XInternAtom(_mainDisplay, "_NET_WM_STATE_ABOVE", false);
-            var atomType = XInternAtom(_mainDisplay, "ATOM", false);
-            IntPtr[] data = { wmStateAbove };
-            XChangeProperty(_mainDisplay, window, wmState, atomType, 32, 0, data, 1);
-        }
-        catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "Window state change failed", ex); }
-    }
-
-    private void EnableOverlayMode()
-    {
-        if (_gtkWindow == IntPtr.Zero || _useGtk4) return;
-
-        try
-        {
-            gtk3_window_set_type_hint(_gtkWindow, 5); // UTILITY
-            gtk3_window_set_skip_taskbar_hint(_gtkWindow, true);
-            gtk3_window_set_skip_pager_hint(_gtkWindow, true);
-            gtk3_window_set_keep_above(_gtkWindow, true);
-            gtk3_window_set_decorated(_gtkWindow, false);
-            DiagnosticLog.Debug("SkiaWebView", "Overlay mode enabled with UTILITY hint");
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("SkiaWebView", $"Failed to enable overlay mode: {ex.Message}", ex);
-        }
-    }
-
-    private void SetupEmbedding()
-    {
-        if (_mainDisplay == IntPtr.Zero || _mainWindow == IntPtr.Zero)
-        {
-            DiagnosticLog.Warn("SkiaWebView", "Cannot setup embedding - main window not set");
-            return;
-        }
-
-        GetWindowPosition(_mainDisplay, _mainWindow, out int x, out int y);
-        int screenX = x + (int)Bounds.Left;
-        int screenY = y + (int)Bounds.Top;
-        int width = Math.Max(100, (int)Bounds.Width);
-        int height = Math.Max(100, (int)Bounds.Height);
-
-        DiagnosticLog.Debug("SkiaWebView", $"Initial position: ({screenX}, {screenY}), size ({width}x{height})");
-
-        if (!_useGtk4)
-        {
-            gtk3_window_move(_gtkWindow, screenX, screenY);
-            gtk3_window_resize(_gtkWindow, width, height);
-        }
-        else
-        {
-            gtk4_window_set_default_size(_gtkWindow, width, height);
-        }
-
-        _lastBounds = Bounds;
-    }
-
-    private void PositionAtScreenCoordinates()
-    {
-        if (_gtkWindow == IntPtr.Zero || _mainDisplay == IntPtr.Zero) return;
-
-        int destX = 0, destY = 0;
-        try
-        {
-            var root = XDefaultRootWindow(_mainDisplay);
-            XTranslateCoordinates(_mainDisplay, _mainWindow, root, 0, 0, out destX, out destY, out _);
-        }
-        catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "X11 coordinate translation failed", ex); }
-
-        // Track main window position changes
-        bool mainWindowMoved = destX != _lastMainX || destY != _lastMainY;
-        if (mainWindowMoved)
-        {
-            _lastMainX = destX;
-            _lastMainY = destY;
-        }
-
-        int screenX = destX + (int)Bounds.Left;
-        int screenY = destY + (int)Bounds.Top;
-        int width = Math.Max(100, (int)Bounds.Width);
-        int height = Math.Max(100, (int)Bounds.Height);
-
-        if (mainWindowMoved || Math.Abs(screenX - _lastPosX) > 2 || Math.Abs(screenY - _lastPosY) > 2 ||
-            Math.Abs(width - _lastWidth) > 2 || Math.Abs(height - _lastHeight) > 2)
-        {
-            DiagnosticLog.Debug("SkiaWebView", $"Move to ({screenX}, {screenY}), size ({width}x{height}), mainWin=({destX},{destY}), bounds=({Bounds.Left},{Bounds.Top})");
-            _lastPosX = screenX;
-            _lastPosY = screenY;
-            _lastWidth = width;
-            _lastHeight = height;
-            _lastBounds = Bounds;
-        }
-
-        if (!_useGtk4)
-        {
-            gtk3_window_move(_gtkWindow, screenX, screenY);
-            gtk3_window_resize(_gtkWindow, width, height);
-
-            var gdkWindow = gtk3_widget_get_window(_gtkWindow);
-            if (gdkWindow != IntPtr.Zero)
-            {
-                var xid = gdk3_x11_window_get_xid(gdkWindow);
-                if (xid != IntPtr.Zero)
-                {
-                    XRaiseWindow(_mainDisplay, xid);
-                    XFlush(_mainDisplay);
-                }
-            }
-
-            while (gtk3_events_pending())
-            {
-                gtk3_main_iteration_do(false);
-            }
-        }
-        else
-        {
-            gtk4_window_set_default_size(_gtkWindow, width, height);
-        }
-    }
-
-    private IntPtr GetGtkX11Window()
-    {
-        if (_gtkWindow == IntPtr.Zero) return IntPtr.Zero;
-
-        for (int i = 0; i < 50; i++)
-        {
-            g_main_context_iteration(IntPtr.Zero, mayBlock: false);
-        }
-
-        if (_useGtk4)
-        {
-            var surface = gtk4_native_get_surface(_gtkWindow);
-            if (surface != IntPtr.Zero)
-            {
-                try { return gdk4_x11_surface_get_xid(surface); }
-                catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "GTK4 XID lookup failed", ex); }
-            }
-        }
-        else
-        {
-            var gdkWindow = gtk3_widget_get_window(_gtkWindow);
-            if (gdkWindow != IntPtr.Zero)
-            {
-                try { return gdk3_x11_window_get_xid(gdkWindow); }
-                catch (Exception ex) { DiagnosticLog.Debug("SkiaWebView", "GTK3 XID lookup failed", ex); }
-            }
-        }
-
-        return IntPtr.Zero;
-    }
-
-    private void GetWindowPosition(IntPtr display, IntPtr window, out int x, out int y)
-    {
-        x = 0;
-        y = 0;
-        try
-        {
-            var root = XDefaultRootWindow(display);
-            if (XTranslateCoordinates(display, window, root, 0, 0, out x, out y, out _))
-            {
-                DiagnosticLog.Debug("SkiaWebView", $"Main window at screen ({x}, {y})");
-            }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("SkiaWebView", $"Failed to get window position: {ex.Message}", ex);
-        }
-    }
-
-    public void UpdateEmbeddedPosition()
-    {
-        if (_mainDisplay == IntPtr.Zero) return;
-        if (Bounds.Width < 10f || Bounds.Height < 10f) return;
-
-        bool boundsChanged = Math.Abs(Bounds.Left - _lastBounds.Left) > 1f ||
-                             Math.Abs(Bounds.Top - _lastBounds.Top) > 1f ||
-                             Math.Abs(Bounds.Width - _lastBounds.Width) > 1f ||
-                             Math.Abs(Bounds.Height - _lastBounds.Height) > 1f;
-
-        if (!boundsChanged) return;
-
-        _lastBounds = Bounds;
-        int x = (int)Bounds.Left;
-        int y = (int)Bounds.Top;
-        uint width = (uint)Math.Max(10f, Bounds.Width);
-        uint height = (uint)Math.Max(10f, Bounds.Height);
-
-        if (_isProperlyReparented && _gtkX11Window != IntPtr.Zero)
-        {
-            DiagnosticLog.Debug("SkiaWebView", $"UpdateEmbedded (reparented): ({x}, {y}), size ({width}x{height})");
-            XMoveResizeWindow(_mainDisplay, _gtkX11Window, x, y, width, height);
-            XFlush(_mainDisplay);
-        }
-        else if (_x11Container != IntPtr.Zero)
-        {
-            DiagnosticLog.Debug("SkiaWebView", $"UpdateEmbedded (container): ({x}, {y}), size ({width}x{height})");
-            XMoveResizeWindow(_mainDisplay, _x11Container, x, y, width, height);
-            if (_gtkX11Window != IntPtr.Zero && _isProperlyReparented)
-            {
-                XMoveResizeWindow(_mainDisplay, _gtkX11Window, 0, 0, width, height);
-            }
-            else if (_gtkWindow != IntPtr.Zero)
-            {
-                PositionAtScreenCoordinates();
-            }
-            XFlush(_mainDisplay);
-        }
-        else if (_gtkWindow != IntPtr.Zero)
-        {
-            PositionAtScreenCoordinates();
-        }
-    }
-
+    /// <summary>
+    /// Hide the native WebView window.
+    /// </summary>
     public void HideNativeWindow()
     {
         if (_gtkWindow == IntPtr.Zero) return;
@@ -1344,66 +532,40 @@ public partial class SkiaWebView : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         base.OnDraw(canvas, bounds);
-        Bounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
 
-        if (_isInitialized)
-        {
-            while (gtk3_events_pending())
-            {
-                gtk3_main_iteration_do(false);
-            }
-
-            if (_gtkWindow != IntPtr.Zero && _mainDisplay != IntPtr.Zero)
-            {
-                bool needsUpdate = Math.Abs(bounds.Left - _lastBounds.Left) > 1f ||
-                                   Math.Abs(bounds.Top - _lastBounds.Top) > 1f ||
-                                   Math.Abs(bounds.Width - _lastBounds.Width) > 1f ||
-                                   Math.Abs(bounds.Height - _lastBounds.Height) > 1f;
-
-                if (!needsUpdate && _lastBounds.Width < 150f && bounds.Width > 150f)
-                {
-                    needsUpdate = true;
-                }
-
-                if (needsUpdate && bounds.Width > 50f && bounds.Height > 50f)
-                {
-                    PositionUsingGtk();
-                    _lastBounds = new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
-                }
-            }
-        }
-
-        if (_isInitialized && _gtkWindow != IntPtr.Zero) return;
-
-        // Draw placeholder when not initialized
-        using var bgPaint = new SKPaint { Color = GetEffectiveBackgroundColor(), Style = SKPaintStyle.Fill };
+        // Draw placeholder/loading state
+        using var bgPaint = new SKPaint { Color = BackgroundColor, Style = SKPaintStyle.Fill };
         canvas.DrawRect(bounds, bgPaint);
 
+        // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = SkiaTheme.BorderMediumSK,
+            Color = new SKColor(200, 200, 200),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
         canvas.DrawRect(bounds, borderPaint);
 
-        float midX = bounds.MidX;
-        float midY = bounds.MidY;
+        // Draw web icon and status
+        var centerX = bounds.MidX;
+        var centerY = bounds.MidY;
 
+        // Globe icon
         using var iconPaint = new SKPaint
         {
-            Color = SkiaTheme.Gray600SK,
+            Color = new SKColor(100, 100, 100),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             IsAntialias = true
         };
-        canvas.DrawCircle(midX, midY - 20, 25, iconPaint);
-        canvas.DrawLine(midX - 25, midY - 20, midX + 25, midY - 20, iconPaint);
-        canvas.DrawArc(new SKRect(midX - 15, midY - 45, midX + 15, midY + 5), 0, 180, false, iconPaint);
+        canvas.DrawCircle(centerX, centerY - 20, 25, iconPaint);
+        canvas.DrawLine(centerX - 25, centerY - 20, centerX + 25, centerY - 20, iconPaint);
+        canvas.DrawArc(new SKRect(centerX - 15, centerY - 45, centerX + 15, centerY + 5), 0, 180, false, iconPaint);
 
+        // Status text
         using var textPaint = new SKPaint
         {
-            Color = SkiaTheme.Gray700SK,
+            Color = new SKColor(80, 80, 80),
             IsAntialias = true,
             TextSize = 14
         };
@@ -1426,31 +588,33 @@ public partial class SkiaWebView : SkiaView
             statusText = "WebView (click to open)";
         }
 
-        float textWidth = textPaint.MeasureText(statusText);
-        canvas.DrawText(statusText, midX - textWidth / 2, midY + 30, textPaint);
+        var textWidth = textPaint.MeasureText(statusText);
+        canvas.DrawText(statusText, centerX - textWidth / 2, centerY + 30, textPaint);
 
+        // Draw install hint if not supported
         if (!IsSupported)
         {
             using var hintPaint = new SKPaint
             {
-                Color = SkiaTheme.Gray600SK,
+                Color = new SKColor(120, 120, 120),
                 IsAntialias = true,
                 TextSize = 11
             };
-            string hint = "Install: sudo apt install libwebkit2gtk-4.1-0";
-            float hintWidth = hintPaint.MeasureText(hint);
-            canvas.DrawText(hint, midX - hintWidth / 2, midY + 50, hintPaint);
+            var hint = "Install: sudo apt install libwebkit2gtk-4.1-0";
+            var hintWidth = hintPaint.MeasureText(hint);
+            canvas.DrawText(hint, centerX - hintWidth / 2, centerY + 50, hintPaint);
         }
 
+        // Progress bar
         if (_loadProgress > 0 && _loadProgress < 1)
         {
             var progressRect = new SKRect(bounds.Left + 20, bounds.Bottom - 30, bounds.Right - 20, bounds.Bottom - 20);
-            using var progressBgPaint = new SKPaint { Color = SkiaTheme.Gray200SK, Style = SKPaintStyle.Fill };
+            using var progressBgPaint = new SKPaint { Color = new SKColor(230, 230, 230), Style = SKPaintStyle.Fill };
             canvas.DrawRoundRect(new SKRoundRect(progressRect, 5), progressBgPaint);
 
-            float filledWidth = progressRect.Width * (float)_loadProgress;
+            var filledWidth = progressRect.Width * (float)_loadProgress;
             var filledRect = new SKRect(progressRect.Left, progressRect.Top, progressRect.Left + filledWidth, progressRect.Bottom);
-            using var progressPaint = new SKPaint { Color = SkiaTheme.PrimarySK, Style = SKPaintStyle.Fill };
+            using var progressPaint = new SKPaint { Color = new SKColor(33, 150, 243), Style = SKPaintStyle.Fill };
             canvas.DrawRoundRect(new SKRoundRect(filledRect, 5), progressPaint);
         }
     }
@@ -1478,16 +642,6 @@ public partial class SkiaWebView : SkiaView
     {
         if (disposing)
         {
-            lock (_activeWebViews)
-            {
-                _activeWebViews.Remove(this);
-            }
-
-            if (_webView != IntPtr.Zero)
-            {
-                _webViewInstances.Remove(_webView);
-            }
-
             if (_gtkWindow != IntPtr.Zero)
             {
                 if (_useGtk4)
@@ -1501,15 +655,7 @@ public partial class SkiaWebView : SkiaView
                 g_object_unref(_gtkWindow);
                 _gtkWindow = IntPtr.Zero;
             }
-
-            if (_x11Container != IntPtr.Zero && _mainDisplay != IntPtr.Zero)
-            {
-                XDestroyWindow(_mainDisplay, _x11Container);
-                _x11Container = IntPtr.Zero;
-            }
-
             _webView = IntPtr.Zero;
-            _gtkX11Window = IntPtr.Zero;
             _isInitialized = false;
         }
 

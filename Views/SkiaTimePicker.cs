@@ -1,32 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform.Linux;
-using Microsoft.Maui.Platform.Linux.Converters;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Event args for time picker time changes.
-/// </summary>
-public class TimeChangedEventArgs : EventArgs
-{
-    public TimeSpan OldTime { get; }
-    public TimeSpan NewTime { get; }
-
-    public TimeChangedEventArgs(TimeSpan oldTime, TimeSpan newTime)
-    {
-        OldTime = oldTime;
-        NewTime = newTime;
-    }
-}
-
-/// <summary>
 /// Skia-rendered time picker control with clock popup.
-/// Implements MAUI ITimePicker interface patterns.
 /// </summary>
 public class SkiaTimePicker : SkiaView
 {
@@ -34,54 +15,42 @@ public class SkiaTimePicker : SkiaView
 
     public static readonly BindableProperty TimeProperty =
         BindableProperty.Create(nameof(Time), typeof(TimeSpan), typeof(SkiaTimePicker), DateTime.Now.TimeOfDay, BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).OnTimePropertyChanged((TimeSpan)o, (TimeSpan)n));
+            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).OnTimePropertyChanged());
 
     public static readonly BindableProperty FormatProperty =
-        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaTimePicker), "t", BindingMode.TwoWay,
+        BindableProperty.Create(nameof(Format), typeof(string), typeof(SkiaTimePicker), "t",
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty TextColorProperty =
-        BindableProperty.Create(nameof(TextColor), typeof(Color), typeof(SkiaTimePicker), Colors.Black, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(TextColor), typeof(SKColor), typeof(SkiaTimePicker), SKColors.Black,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(nameof(BorderColor), typeof(Color), typeof(SkiaTimePicker), Color.FromRgb(189, 189, 189), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0xBD, 0xBD, 0xBD),
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty ClockBackgroundColorProperty =
-        BindableProperty.Create(nameof(ClockBackgroundColor), typeof(Color), typeof(SkiaTimePicker), Colors.White, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(ClockBackgroundColor), typeof(SKColor), typeof(SkiaTimePicker), SKColors.White,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty ClockFaceColorProperty =
-        BindableProperty.Create(nameof(ClockFaceColor), typeof(Color), typeof(SkiaTimePicker), Color.FromRgb(245, 245, 245), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(ClockFaceColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0xF5, 0xF5, 0xF5),
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty SelectedColorProperty =
-        BindableProperty.Create(nameof(SelectedColor), typeof(Color), typeof(SkiaTimePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
+        BindableProperty.Create(nameof(SelectedColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0x21, 0x96, 0xF3),
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty HeaderColorProperty =
-        BindableProperty.Create(nameof(HeaderColor), typeof(Color), typeof(SkiaTimePicker), Color.FromRgb(33, 150, 243), BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
-
-    public static readonly BindableProperty FontFamilyProperty =
-        BindableProperty.Create(nameof(FontFamily), typeof(string), typeof(SkiaTimePicker), string.Empty, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(HeaderColor), typeof(SKColor), typeof(SkiaTimePicker), new SKColor(0x21, 0x96, 0xF3),
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     public static readonly BindableProperty FontSizeProperty =
-        BindableProperty.Create(nameof(FontSize), typeof(double), typeof(SkiaTimePicker), 14.0, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(FontSize), typeof(float), typeof(SkiaTimePicker), 14f,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).InvalidateMeasure());
 
-    public static readonly BindableProperty FontAttributesProperty =
-        BindableProperty.Create(nameof(FontAttributes), typeof(FontAttributes), typeof(SkiaTimePicker), FontAttributes.None, BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
-
-    public static readonly BindableProperty CharacterSpacingProperty =
-        BindableProperty.Create(nameof(CharacterSpacing), typeof(double), typeof(SkiaTimePicker), 0.0, BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
-
     public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(nameof(CornerRadius), typeof(double), typeof(SkiaTimePicker), 4.0, BindingMode.TwoWay,
+        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaTimePicker), 4f,
             propertyChanged: (b, o, n) => ((SkiaTimePicker)b).Invalidate());
 
     #endregion
@@ -100,69 +69,51 @@ public class SkiaTimePicker : SkiaView
         set => SetValue(FormatProperty, value);
     }
 
-    public Color TextColor
+    public SKColor TextColor
     {
-        get => (Color)GetValue(TextColorProperty);
+        get => (SKColor)GetValue(TextColorProperty);
         set => SetValue(TextColorProperty, value);
     }
 
-    public Color BorderColor
+    public SKColor BorderColor
     {
-        get => (Color)GetValue(BorderColorProperty);
+        get => (SKColor)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
-    public Color ClockBackgroundColor
+    public SKColor ClockBackgroundColor
     {
-        get => (Color)GetValue(ClockBackgroundColorProperty);
+        get => (SKColor)GetValue(ClockBackgroundColorProperty);
         set => SetValue(ClockBackgroundColorProperty, value);
     }
 
-    public Color ClockFaceColor
+    public SKColor ClockFaceColor
     {
-        get => (Color)GetValue(ClockFaceColorProperty);
+        get => (SKColor)GetValue(ClockFaceColorProperty);
         set => SetValue(ClockFaceColorProperty, value);
     }
 
-    public Color SelectedColor
+    public SKColor SelectedColor
     {
-        get => (Color)GetValue(SelectedColorProperty);
+        get => (SKColor)GetValue(SelectedColorProperty);
         set => SetValue(SelectedColorProperty, value);
     }
 
-    public Color HeaderColor
+    public SKColor HeaderColor
     {
-        get => (Color)GetValue(HeaderColorProperty);
+        get => (SKColor)GetValue(HeaderColorProperty);
         set => SetValue(HeaderColorProperty, value);
     }
 
-    public string FontFamily
+    public float FontSize
     {
-        get => (string)GetValue(FontFamilyProperty);
-        set => SetValue(FontFamilyProperty, value);
-    }
-
-    public double FontSize
-    {
-        get => (double)GetValue(FontSizeProperty);
+        get => (float)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
     }
 
-    public FontAttributes FontAttributes
+    public float CornerRadius
     {
-        get => (FontAttributes)GetValue(FontAttributesProperty);
-        set => SetValue(FontAttributesProperty, value);
-    }
-
-    public double CharacterSpacing
-    {
-        get => (double)GetValue(CharacterSpacingProperty);
-        set => SetValue(CharacterSpacingProperty, value);
-    }
-
-    public double CornerRadius
-    {
-        get => (double)GetValue(CornerRadiusProperty);
+        get => (float)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
@@ -185,8 +136,6 @@ public class SkiaTimePicker : SkiaView
 
     #endregion
 
-    #region Fields
-
     private bool _isOpen;
     private int _selectedHour;
     private int _selectedMinute;
@@ -197,65 +146,29 @@ public class SkiaTimePicker : SkiaView
     private const float HeaderHeight = 80;
     private const float PopupHeight = ClockSize + HeaderHeight;
 
-    #endregion
-
-    #region Events
-
-    public event EventHandler<TimeChangedEventArgs>? TimeSelected;
-
-    #endregion
-
-    #region Constructor
-
-    public SkiaTimePicker()
-    {
-        IsFocusable = true;
-        _selectedHour = DateTime.Now.Hour;
-        _selectedMinute = DateTime.Now.Minute;
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    /// <summary>
-    /// Converts a MAUI Color to SkiaSharp SKColor.
-    /// </summary>
-    private static SKColor ToSKColor(Color? color)
-    {
-        if (color == null) return SKColors.Transparent;
-        return color.ToSKColor();
-    }
-
-    /// <summary>
-    /// Converts a MAUI Color to SKColor with modified alpha.
-    /// </summary>
-    private static SKColor ToSKColorWithAlpha(Color? color, byte alpha)
-    {
-        if (color == null) return SKColors.Transparent;
-        return color.ToSKColor().WithAlpha(alpha);
-    }
+    public event EventHandler? TimeSelected;
 
     /// <summary>
     /// Gets the clock popup rectangle with edge detection applied.
     /// </summary>
     private SKRect GetPopupRect(SKRect pickerBounds)
     {
-        var app = LinuxApplication.Current;
-        float dpiScale = app?.DpiScale ?? 1.0f;
-        // Use logical dimensions (ScreenBounds are in logical coordinates)
-        float windowWidth = (app?.MainWindow?.Width ?? 800) / dpiScale;
-        float windowHeight = (app?.MainWindow?.Height ?? 600) / dpiScale;
+        // Get window dimensions for edge detection
+        var windowWidth = LinuxApplication.Current?.MainWindow?.Width ?? 800;
+        var windowHeight = LinuxApplication.Current?.MainWindow?.Height ?? 600;
 
+        // Calculate default position (below the picker)
         var popupLeft = pickerBounds.Left;
         var popupTop = pickerBounds.Bottom + 4;
 
+        // Edge detection: adjust horizontal position if popup would go off-screen
         if (popupLeft + ClockSize > windowWidth)
         {
             popupLeft = windowWidth - ClockSize - 4;
         }
         if (popupLeft < 0) popupLeft = 4;
 
+        // Edge detection: show above if popup would go off-screen vertically
         if (popupTop + PopupHeight > windowHeight)
         {
             popupTop = pickerBounds.Top - PopupHeight - 4;
@@ -265,82 +178,56 @@ public class SkiaTimePicker : SkiaView
         return new SKRect(popupLeft, popupTop, popupLeft + ClockSize, popupTop + PopupHeight);
     }
 
-    #endregion
-
-    #region Private Methods
-
-    private void OnTimePropertyChanged(TimeSpan oldValue, TimeSpan newValue)
+    public SkiaTimePicker()
     {
-        _selectedHour = newValue.Hours;
-        _selectedMinute = newValue.Minutes;
-        TimeSelected?.Invoke(this, new TimeChangedEventArgs(oldValue, newValue));
+        IsFocusable = true;
+        _selectedHour = DateTime.Now.Hour;
+        _selectedMinute = DateTime.Now.Minute;
+    }
+
+    private void OnTimePropertyChanged()
+    {
+        _selectedHour = Time.Hours;
+        _selectedMinute = Time.Minutes;
+        TimeSelected?.Invoke(this, EventArgs.Empty);
         Invalidate();
     }
 
     private void DrawClockOverlay(SKCanvas canvas)
     {
         if (!_isOpen) return;
-        var sb = ScreenBounds;
-        DrawClockPopup(canvas, new SKRect((float)sb.Left, (float)sb.Top, (float)sb.Right, (float)sb.Bottom));
+        // Use ScreenBounds for popup drawing (accounts for scroll offset)
+        DrawClockPopup(canvas, ScreenBounds);
+    }
+
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        DrawPickerButton(canvas, bounds);
     }
 
     private void DrawPickerButton(SKCanvas canvas, SKRect bounds)
     {
-        float cornerRadius = (float)CornerRadius;
-        float fontSize = (float)FontSize;
-        bool isDark = SkiaTheme.IsDarkMode;
-        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
-        SKColor borderColor = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor);
-        SKColor selectedColor = ToSKColor(SelectedColor);
-
-        var bgColor = GetEffectiveBackgroundColor();
-        if (bgColor.Alpha == 0) bgColor = isDark ? SkiaTheme.DarkSurfaceSK : SKColors.White;
         using var bgPaint = new SKPaint
         {
-            Color = IsEnabled ? bgColor : (isDark ? SkiaTheme.DarkBackgroundSK : SkiaTheme.Gray100SK),
+            Color = IsEnabled ? BackgroundColor : new SKColor(0xF5, 0xF5, 0xF5),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
+        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), bgPaint);
 
         using var borderPaint = new SKPaint
         {
-            Color = IsFocused ? selectedColor : borderColor,
+            Color = IsFocused ? SelectedColor : BorderColor,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = IsFocused ? 2 : 1,
             IsAntialias = true
         };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
+        canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), borderPaint);
 
-        // Get typeface based on FontFamily and FontAttributes
-        SKTypeface typeface = SKTypeface.Default;
-        if (!string.IsNullOrEmpty(FontFamily))
-        {
-            var style = FontAttributes switch
-            {
-                FontAttributes.Bold => SKFontStyle.Bold,
-                FontAttributes.Italic => SKFontStyle.Italic,
-                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
-                _ => SKFontStyle.Normal
-            };
-            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
-        }
-        else if (FontAttributes != FontAttributes.None)
-        {
-            var style = FontAttributes switch
-            {
-                FontAttributes.Bold => SKFontStyle.Bold,
-                FontAttributes.Italic => SKFontStyle.Italic,
-                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
-                _ => SKFontStyle.Normal
-            };
-            typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
-        }
-
-        using var font = new SKFont(typeface, fontSize);
+        using var font = new SKFont(SKTypeface.Default, FontSize);
         using var textPaint = new SKPaint(font)
         {
-            Color = IsEnabled ? textColor : textColor.WithAlpha(128),
+            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
             IsAntialias = true
         };
         var timeText = DateTime.Today.Add(Time).ToString(Format);
@@ -353,10 +240,9 @@ public class SkiaTimePicker : SkiaView
 
     private void DrawClockIcon(SKCanvas canvas, SKRect bounds)
     {
-        SKColor textColor = SkiaTheme.IsDarkMode ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
         using var paint = new SKPaint
         {
-            Color = IsEnabled ? textColor : textColor.WithAlpha(128),
+            Color = IsEnabled ? TextColor : TextColor.WithAlpha(128),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1.5f,
             IsAntialias = true
@@ -371,18 +257,16 @@ public class SkiaTimePicker : SkiaView
 
     private void DrawClockPopup(SKCanvas canvas, SKRect bounds)
     {
-        float cornerRadius = (float)CornerRadius;
         var popupRect = GetPopupRect(bounds);
-        bool isDark = SkiaTheme.IsDarkMode;
 
-        using var shadowPaint = new SKPaint { Color = SkiaTheme.Shadow25SK, MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4), Style = SKPaintStyle.Fill };
-        canvas.DrawRoundRect(new SKRoundRect(new SKRect(popupRect.Left + 2, popupRect.Top + 2, popupRect.Right + 2, popupRect.Bottom + 2), cornerRadius), shadowPaint);
+        using var shadowPaint = new SKPaint { Color = new SKColor(0, 0, 0, 40), MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4), Style = SKPaintStyle.Fill };
+        canvas.DrawRoundRect(new SKRoundRect(new SKRect(popupRect.Left + 2, popupRect.Top + 2, popupRect.Right + 2, popupRect.Bottom + 2), CornerRadius), shadowPaint);
 
-        using var bgPaint = new SKPaint { Color = isDark ? SkiaTheme.DarkBackgroundSK : ToSKColor(ClockBackgroundColor), Style = SKPaintStyle.Fill, IsAntialias = true };
-        canvas.DrawRoundRect(new SKRoundRect(popupRect, cornerRadius), bgPaint);
+        using var bgPaint = new SKPaint { Color = ClockBackgroundColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+        canvas.DrawRoundRect(new SKRoundRect(popupRect, CornerRadius), bgPaint);
 
-        using var borderPaint = new SKPaint { Color = isDark ? SkiaTheme.Gray600SK : ToSKColor(BorderColor), Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
-        canvas.DrawRoundRect(new SKRoundRect(popupRect, cornerRadius), borderPaint);
+        using var borderPaint = new SKPaint { Color = BorderColor, Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
+        canvas.DrawRoundRect(new SKRoundRect(popupRect, CornerRadius), borderPaint);
 
         DrawTimeHeader(canvas, new SKRect(popupRect.Left, popupRect.Top, popupRect.Right, popupRect.Top + HeaderHeight));
         DrawClockFace(canvas, new SKRect(popupRect.Left, popupRect.Top + HeaderHeight, popupRect.Right, popupRect.Bottom));
@@ -390,17 +274,16 @@ public class SkiaTimePicker : SkiaView
 
     private void DrawTimeHeader(SKCanvas canvas, SKRect bounds)
     {
-        float cornerRadius = (float)CornerRadius;
-        using var headerPaint = new SKPaint { Color = ToSKColor(HeaderColor), Style = SKPaintStyle.Fill };
+        using var headerPaint = new SKPaint { Color = HeaderColor, Style = SKPaintStyle.Fill };
         canvas.Save();
-        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + cornerRadius * 2), cornerRadius));
+        canvas.ClipRoundRect(new SKRoundRect(new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + CornerRadius * 2), CornerRadius));
         canvas.DrawRect(bounds, headerPaint);
         canvas.Restore();
-        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
+        canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + CornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
         using var font = new SKFont(SKTypeface.Default, 32);
-        using var selectedPaint = new SKPaint(font) { Color = SkiaTheme.BackgroundWhiteSK, IsAntialias = true };
-        using var unselectedPaint = new SKPaint(font) { Color = SkiaTheme.WhiteSemiTransparentSK, IsAntialias = true };
+        using var selectedPaint = new SKPaint(font) { Color = SKColors.White, IsAntialias = true };
+        using var unselectedPaint = new SKPaint(font) { Color = new SKColor(255, 255, 255, 150), IsAntialias = true };
 
         var hourText = _selectedHour.ToString("D2");
         var minuteText = _selectedMinute.ToString("D2");
@@ -425,17 +308,12 @@ public class SkiaTimePicker : SkiaView
     {
         var centerX = bounds.MidX;
         var centerY = bounds.MidY;
-        bool isDark = SkiaTheme.IsDarkMode;
 
-        SKColor textColor = isDark ? SkiaTheme.DarkTextSK : ToSKColor(TextColor);
-        SKColor clockFaceColor = isDark ? SkiaTheme.DarkSurfaceSK : ToSKColor(ClockFaceColor);
-        SKColor selectedColor = ToSKColor(SelectedColor);
-
-        using var facePaint = new SKPaint { Color = clockFaceColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+        using var facePaint = new SKPaint { Color = ClockFaceColor, Style = SKPaintStyle.Fill, IsAntialias = true };
         canvas.DrawCircle(centerX, centerY, ClockRadius + 20, facePaint);
 
         using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font) { Color = textColor, IsAntialias = true };
+        using var textPaint = new SKPaint(font) { Color = TextColor, IsAntialias = true };
 
         if (_isSelectingHours)
         {
@@ -447,16 +325,16 @@ public class SkiaTimePicker : SkiaView
                 var isSelected = (_selectedHour % 12 == i % 12);
                 if (isSelected)
                 {
-                    using var selBgPaint = new SKPaint { Color = selectedColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+                    using var selBgPaint = new SKPaint { Color = SelectedColor, Style = SKPaintStyle.Fill, IsAntialias = true };
                     canvas.DrawCircle(x, y, 18, selBgPaint);
-                    textPaint.Color = SkiaTheme.BackgroundWhiteSK;
+                    textPaint.Color = SKColors.White;
                 }
-                else textPaint.Color = textColor;
-                var tBounds = new SKRect();
-                textPaint.MeasureText(i.ToString(), ref tBounds);
-                canvas.DrawText(i.ToString(), x - tBounds.MidX, y - tBounds.MidY, textPaint);
+                else textPaint.Color = TextColor;
+                var textBounds = new SKRect();
+                textPaint.MeasureText(i.ToString(), ref textBounds);
+                canvas.DrawText(i.ToString(), x - textBounds.MidX, y - textBounds.MidY, textPaint);
             }
-            DrawClockHand(canvas, centerX, centerY, (_selectedHour % 12) * 30 - 90, ClockRadius - 18, selectedColor);
+            DrawClockHand(canvas, centerX, centerY, (_selectedHour % 12) * 30 - 90, ClockRadius - 18);
         }
         else
         {
@@ -469,35 +347,26 @@ public class SkiaTimePicker : SkiaView
                 var isSelected = (_selectedMinute / 5 == i);
                 if (isSelected)
                 {
-                    using var selBgPaint = new SKPaint { Color = selectedColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+                    using var selBgPaint = new SKPaint { Color = SelectedColor, Style = SKPaintStyle.Fill, IsAntialias = true };
                     canvas.DrawCircle(x, y, 18, selBgPaint);
-                    textPaint.Color = SkiaTheme.BackgroundWhiteSK;
+                    textPaint.Color = SKColors.White;
                 }
-                else textPaint.Color = textColor;
-                var tBounds = new SKRect();
-                textPaint.MeasureText(minute.ToString("D2"), ref tBounds);
-                canvas.DrawText(minute.ToString("D2"), x - tBounds.MidX, y - tBounds.MidY, textPaint);
+                else textPaint.Color = TextColor;
+                var textBounds = new SKRect();
+                textPaint.MeasureText(minute.ToString("D2"), ref textBounds);
+                canvas.DrawText(minute.ToString("D2"), x - textBounds.MidX, y - textBounds.MidY, textPaint);
             }
-            DrawClockHand(canvas, centerX, centerY, _selectedMinute * 6 - 90, ClockRadius - 18, selectedColor);
+            DrawClockHand(canvas, centerX, centerY, _selectedMinute * 6 - 90, ClockRadius - 18);
         }
     }
 
-    private void DrawClockHand(SKCanvas canvas, float centerX, float centerY, float angleDegrees, float length, SKColor color)
+    private void DrawClockHand(SKCanvas canvas, float centerX, float centerY, float angleDegrees, float length)
     {
         var angle = angleDegrees * Math.PI / 180;
-        using var handPaint = new SKPaint { Color = color, Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = true };
+        using var handPaint = new SKPaint { Color = SelectedColor, Style = SKPaintStyle.Stroke, StrokeWidth = 2, IsAntialias = true };
         canvas.DrawLine(centerX, centerY, centerX + (float)(length * Math.Cos(angle)), centerY + (float)(length * Math.Sin(angle)), handPaint);
         handPaint.Style = SKPaintStyle.Fill;
         canvas.DrawCircle(centerX, centerY, 6, handPaint);
-    }
-
-    #endregion
-
-    #region Overrides
-
-    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
-    {
-        DrawPickerButton(canvas, bounds);
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
@@ -506,9 +375,11 @@ public class SkiaTimePicker : SkiaView
 
         if (IsOpen)
         {
+            // Use ScreenBounds for popup coordinate calculations (accounts for scroll offset)
             var screenBounds = ScreenBounds;
-            var popupRect = GetPopupRect(new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)screenBounds.Right, (float)screenBounds.Bottom));
+            var popupRect = GetPopupRect(screenBounds);
 
+            // Check if click is in header area
             var headerRect = new SKRect(popupRect.Left, popupRect.Top, popupRect.Right, popupRect.Top + HeaderHeight);
             if (headerRect.Contains(e.X, e.Y))
             {
@@ -517,6 +388,7 @@ public class SkiaTimePicker : SkiaView
                 return;
             }
 
+            // Check if click is in clock face area
             var clockCenterX = popupRect.Left + ClockSize / 2;
             var clockCenterY = popupRect.Top + HeaderHeight + ClockSize / 2;
             var dx = e.X - clockCenterX;
@@ -546,6 +418,7 @@ public class SkiaTimePicker : SkiaView
                 return;
             }
 
+            // Click is outside clock - check if it's on the picker itself to toggle
             if (screenBounds.Contains(e.X, e.Y))
             {
                 IsOpen = false;
@@ -562,6 +435,7 @@ public class SkiaTimePicker : SkiaView
     public override void OnFocusLost()
     {
         base.OnFocusLost();
+        // Close popup when focus is lost (clicking outside)
         if (IsOpen)
         {
             IsOpen = false;
@@ -574,57 +448,42 @@ public class SkiaTimePicker : SkiaView
 
         switch (e.Key)
         {
-            case Key.Enter:
-            case Key.Space:
-                if (IsOpen)
-                {
-                    if (_isSelectingHours) _isSelectingHours = false;
-                    else { Time = new TimeSpan(_selectedHour, _selectedMinute, 0); IsOpen = false; }
-                }
+            case Key.Enter: case Key.Space:
+                if (IsOpen) { if (_isSelectingHours) _isSelectingHours = false; else { Time = new TimeSpan(_selectedHour, _selectedMinute, 0); IsOpen = false; } }
                 else { IsOpen = true; _isSelectingHours = true; }
-                e.Handled = true;
-                break;
-            case Key.Escape:
-                if (IsOpen) { IsOpen = false; e.Handled = true; }
-                break;
-            case Key.Up:
-                if (_isSelectingHours) _selectedHour = (_selectedHour + 1) % 24;
-                else _selectedMinute = (_selectedMinute + 1) % 60;
-                e.Handled = true;
-                break;
-            case Key.Down:
-                if (_isSelectingHours) _selectedHour = (_selectedHour - 1 + 24) % 24;
-                else _selectedMinute = (_selectedMinute - 1 + 60) % 60;
-                e.Handled = true;
-                break;
-            case Key.Left:
-            case Key.Right:
-                _isSelectingHours = !_isSelectingHours;
-                e.Handled = true;
-                break;
+                e.Handled = true; break;
+            case Key.Escape: if (IsOpen) { IsOpen = false; e.Handled = true; } break;
+            case Key.Up: if (_isSelectingHours) _selectedHour = (_selectedHour + 1) % 24; else _selectedMinute = (_selectedMinute + 1) % 60; e.Handled = true; break;
+            case Key.Down: if (_isSelectingHours) _selectedHour = (_selectedHour - 1 + 24) % 24; else _selectedMinute = (_selectedMinute - 1 + 60) % 60; e.Handled = true; break;
+            case Key.Left: case Key.Right: _isSelectingHours = !_isSelectingHours; e.Handled = true; break;
         }
         Invalidate();
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        return new Size(availableSize.Width < double.MaxValue ? Math.Min(availableSize.Width, 200) : 200, 40);
+        return new SKSize(availableSize.Width < float.MaxValue ? Math.Min(availableSize.Width, 200) : 200, 40);
     }
 
+    /// <summary>
+    /// Override to include clock popup area in hit testing.
+    /// </summary>
     protected override bool HitTestPopupArea(float x, float y)
     {
+        // Use ScreenBounds for hit testing (accounts for scroll offset)
         var screenBounds = ScreenBounds;
+
+        // Always include the picker button itself
         if (screenBounds.Contains(x, y))
             return true;
 
+        // When open, also include the clock popup area (with edge detection)
         if (_isOpen)
         {
-            var popupRect = GetPopupRect(new SKRect((float)screenBounds.Left, (float)screenBounds.Top, (float)screenBounds.Right, (float)screenBounds.Bottom));
+            var popupRect = GetPopupRect(screenBounds);
             return popupRect.Contains(x, y);
         }
 
         return false;
     }
-
-    #endregion
 }

@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public static class InputMethodServiceFactory
 {
     private static IInputMethodService? _instance;
-    private static readonly Lock _lock = new();
+    private static readonly object _lock = new();
 
     /// <summary>
     /// Gets the singleton input method service instance.
@@ -63,33 +63,33 @@ public static class InputMethodServiceFactory
         // Try Fcitx5 first if it's the configured IM
         if (imModule?.Contains("fcitx") == true && Fcitx5InputMethodService.IsAvailable())
         {
-            DiagnosticLog.Debug("InputMethodServiceFactory", "Using Fcitx5");
+            Console.WriteLine("InputMethodServiceFactory: Using Fcitx5");
             return CreateFcitx5Service();
         }
 
         // Try IBus (most common on modern Linux)
         if (IsIBusAvailable())
         {
-            DiagnosticLog.Debug("InputMethodServiceFactory", "Using IBus");
+            Console.WriteLine("InputMethodServiceFactory: Using IBus");
             return CreateIBusService();
         }
 
         // Try Fcitx5 as fallback
         if (Fcitx5InputMethodService.IsAvailable())
         {
-            DiagnosticLog.Debug("InputMethodServiceFactory", "Using Fcitx5");
+            Console.WriteLine("InputMethodServiceFactory: Using Fcitx5");
             return CreateFcitx5Service();
         }
 
         // Fall back to XIM
         if (IsXIMAvailable())
         {
-            DiagnosticLog.Debug("InputMethodServiceFactory", "Using XIM");
+            Console.WriteLine("InputMethodServiceFactory: Using XIM");
             return CreateXIMService();
         }
 
         // No IME available
-        DiagnosticLog.Warn("InputMethodServiceFactory", "No IME available, using null service");
+        Console.WriteLine("InputMethodServiceFactory: No IME available, using null service");
         return new NullInputMethodService();
     }
 
@@ -101,7 +101,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create IBus service - {ex.Message}");
+            Console.WriteLine($"InputMethodServiceFactory: Failed to create IBus service - {ex.Message}");
             return new NullInputMethodService();
         }
     }
@@ -114,7 +114,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create Fcitx5 service - {ex.Message}");
+            Console.WriteLine($"InputMethodServiceFactory: Failed to create Fcitx5 service - {ex.Message}");
             return new NullInputMethodService();
         }
     }
@@ -127,7 +127,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create XIM service - {ex.Message}");
+            Console.WriteLine($"InputMethodServiceFactory: Failed to create XIM service - {ex.Message}");
             return new NullInputMethodService();
         }
     }
@@ -179,4 +179,25 @@ public static class InputMethodServiceFactory
             _instance = null;
         }
     }
+}
+
+/// <summary>
+/// Null implementation of IInputMethodService for when no IME is available.
+/// </summary>
+public class NullInputMethodService : IInputMethodService
+{
+    public bool IsActive => false;
+    public string PreEditText => string.Empty;
+    public int PreEditCursorPosition => 0;
+
+    public event EventHandler<TextCommittedEventArgs>? TextCommitted;
+    public event EventHandler<PreEditChangedEventArgs>? PreEditChanged;
+    public event EventHandler? PreEditEnded;
+
+    public void Initialize(nint windowHandle) { }
+    public void SetFocus(IInputContext? context) { }
+    public void SetCursorLocation(int x, int y, int width, int height) { }
+    public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown) => false;
+    public void Reset() { }
+    public void Shutdown() { }
 }

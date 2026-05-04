@@ -24,11 +24,6 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         [nameof(IButtonStroke.CornerRadius)] = MapCornerRadius,
         [nameof(IPadding.Padding)] = MapPadding,
         [nameof(IView.Background)] = MapBackground,
-        ["BackgroundColor"] = MapBackgroundColor,
-        [nameof(IView.Width)] = MapWidth,
-        [nameof(IView.Height)] = MapHeight,
-        ["VerticalOptions"] = MapVerticalOptions,
-        ["HorizontalOptions"] = MapHorizontalOptions,
     };
 
     public static CommandMapper<IImageButton, ImageButtonHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -123,13 +118,13 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         if (handler.PlatformView is null) return;
 
         if (imageButton.StrokeColor is not null)
-            handler.PlatformView.StrokeColor = imageButton.StrokeColor;
+            handler.PlatformView.StrokeColor = imageButton.StrokeColor.ToSKColor();
     }
 
     public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.StrokeThickness = imageButton.StrokeThickness;
+        handler.PlatformView.StrokeThickness = (float)imageButton.StrokeThickness;
     }
 
     public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton)
@@ -141,7 +136,12 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
     public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Padding = imageButton.Padding;
+
+        var padding = imageButton.Padding;
+        handler.PlatformView.PaddingLeft = (float)padding.Left;
+        handler.PlatformView.PaddingTop = (float)padding.Top;
+        handler.PlatformView.PaddingRight = (float)padding.Right;
+        handler.PlatformView.PaddingBottom = (float)padding.Bottom;
     }
 
     public static void MapBackground(ImageButtonHandler handler, IImageButton imageButton)
@@ -150,59 +150,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
 
         if (imageButton.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.ImageBackgroundColor = solidPaint.Color;
-        }
-    }
-
-    public static void MapBackgroundColor(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.BackgroundColor is not null)
-        {
-            handler.PlatformView.ImageBackgroundColor = imgBtn.BackgroundColor;
-        }
-    }
-
-    public static void MapWidth(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-
-        // Map WidthRequest from the MAUI ImageButton to the platform view
-        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.WidthRequest > 0)
-        {
-            handler.PlatformView.WidthRequest = imgBtn.WidthRequest;
-        }
-    }
-
-    public static void MapHeight(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-
-        // Map HeightRequest from the MAUI ImageButton to the platform view
-        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn && imgBtn.HeightRequest > 0)
-        {
-            handler.PlatformView.HeightRequest = imgBtn.HeightRequest;
-        }
-    }
-
-    public static void MapVerticalOptions(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn)
-        {
-            handler.PlatformView.VerticalOptions = imgBtn.VerticalOptions;
-        }
-    }
-
-    public static void MapHorizontalOptions(ImageButtonHandler handler, IImageButton imageButton)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (imageButton is Microsoft.Maui.Controls.ImageButton imgBtn)
-        {
-            handler.PlatformView.HorizontalOptions = imgBtn.HorizontalOptions;
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
     }
 

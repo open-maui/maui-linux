@@ -2,13 +2,13 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Version 1.0 (Released)
+## Version 1.0 (Current - Preview)
 
 ### Completed Features ✅
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Core Control Library | ✅ Complete | 47+ controls including Button, Label, Entry, etc. |
+| Core Control Library | ✅ Complete | 35+ controls including Button, Label, Entry, etc. |
 | SkiaSharp Rendering | ✅ Complete | Hardware-accelerated 2D graphics |
 | X11 Support | ✅ Complete | Full X11 display server integration |
 | Platform Services | ✅ Complete | Clipboard, file picker, notifications, etc. |
@@ -77,18 +77,20 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 ## Milestones
 
-| Milestone | .NET / MAUI | Target | Status |
-|-----------|-------------|--------|--------|
-| v9.0.40 | .NET 9 / MAUI 9.0.40 | Q1 2026 | ✅ Released |
-| v9.0.x | .NET 9 / MAUI 9.0.x | Q1-Q2 2026 | 🔧 Maintenance |
-| v10.0.41 | .NET 10 / MAUI 10.0.41 | Q1 2026 | ✅ Released |
-| v10.0.x | .NET 10 / MAUI 10.0.x | 2026 | 🚀 Active |
+| Milestone | Target | Status |
+|-----------|--------|--------|
+| v1.0.0-preview.1 | Q1 2025 | ✅ Released |
+| v1.0.0-preview.2 | Q1 2025 | ✅ Released |
+| v1.0.0 | Q2 2025 | 🚧 In Progress |
+| v1.1.0 | Q3 2025 | 📋 Planned |
+| v1.2.0 | Q4 2025 | 📋 Planned |
 
 ## Feedback
 
-- Issues: https://github.com/open-maui/maui-linux/issues
+- GitHub Issues: https://github.com/open-maui/maui-linux/issues
+- Discussions: https://github.com/open-maui/maui-linux/discussions
 
 ---
 
-*Last updated: March 2026*
-*Copyright 2025-2026 MarketAlly Pte Ltd*
+*Last updated: January 2025*
+*Copyright 2025 MarketAlly LLC*

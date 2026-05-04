@@ -1,14 +1,17 @@
-using Microsoft.Maui.Controls;
-
 namespace $safeprojectname$;
 
-public class App : Application
+/// <summary>
+/// Application configuration and lifecycle management.
+/// </summary>
+public partial class App
 {
-    protected override Window CreateWindow(IActivationState? activationState)
+    public App()
     {
-        return new Window(new MainPage())
-        {
-            Title = "$projectname$"
-        };
+        InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        // Initialize application resources here
     }
 }

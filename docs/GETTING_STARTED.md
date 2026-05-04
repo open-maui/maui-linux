@@ -55,7 +55,7 @@ cd MyMauiLinuxApp
 
 2. Add the NuGet package:
 ```bash
-dotnet add package OpenMaui.Controls.Linux
+dotnet add package OpenMaui.Controls.Linux --prerelease
 ```
 
 3. Update your `Program.cs`:
@@ -97,56 +97,51 @@ MyApp/
 
 ## Basic Controls
 
-All controls use standard .NET MAUI types (Color, Rect, Size, Thickness) for full API compliance.
-
 ### Labels
 ```csharp
-using Microsoft.Maui.Graphics;
-
-var label = new Label
+var label = new SkiaLabel
 {
     Text = "Hello World",
-    TextColor = Color.FromRgb(33, 33, 33),  // MAUI Color
-    FontSize = 16
+    TextColor = new SKColor(33, 33, 33),
+    FontSize = 16f
 };
 ```
 
 ### Buttons
 ```csharp
-var button = new Button
+var button = new SkiaButton
 {
     Text = "Click Me",
-    BackgroundColor = Color.FromRgb(33, 150, 243)  // MAUI Color
+    BackgroundColor = new SKColor(33, 150, 243)
 };
 button.Clicked += (s, e) => Console.WriteLine("Clicked!");
 ```
 
 ### Text Input
 ```csharp
-var entry = new Entry
+var entry = new SkiaEntry
 {
     Placeholder = "Enter text...",
     MaxLength = 100
 };
-entry.TextChanged += (s, e) => Console.WriteLine($"Text: {e.NewTextValue}");
+entry.TextChanged += (s, e) => Console.WriteLine($"Text: {e.NewValue}");
 ```
 
 ### Layouts
 ```csharp
 // Vertical stack
-var vstack = new VerticalStackLayout
+var vstack = new SkiaStackLayout
 {
-    Spacing = 10,
-    Children =
-    {
-        new Label { Text = "Item 1" },
-        new Label { Text = "Item 2" }
-    }
+    Orientation = StackOrientation.Vertical,
+    Spacing = 10
 };
+vstack.AddChild(new SkiaLabel { Text = "Item 1" });
+vstack.AddChild(new SkiaLabel { Text = "Item 2" });
 
 // Horizontal stack
-var hstack = new HorizontalStackLayout
+var hstack = new SkiaStackLayout
 {
+    Orientation = StackOrientation.Horizontal,
     Spacing = 8
 };
 ```
@@ -155,28 +150,24 @@ var hstack = new HorizontalStackLayout
 
 ### CarouselView
 ```csharp
-var carousel = new CarouselView
+var carousel = new SkiaCarouselView
 {
     Loop = true,
-    PeekAreaInsets = new Thickness(20),
-    ItemsSource = new[] { "Page 1", "Page 2", "Page 3" },
-    ItemTemplate = new DataTemplate(() =>
-    {
-        var label = new Label();
-        label.SetBinding(Label.TextProperty, ".");
-        return label;
-    })
+    PeekAreaInsets = 20f,
+    ShowIndicators = true
 };
+carousel.AddItem(new SkiaLabel { Text = "Page 1" });
+carousel.AddItem(new SkiaLabel { Text = "Page 2" });
 carousel.PositionChanged += (s, e) =>
     Console.WriteLine($"Position: {e.CurrentPosition}");
 ```
 
 ### RefreshView
 ```csharp
-var refreshView = new RefreshView
+var refreshView = new SkiaRefreshView
 {
     Content = myScrollableContent,
-    RefreshColor = Colors.Blue  // MAUI Color
+    RefreshColor = SKColors.Blue
 };
 refreshView.Refreshing += async (s, e) =>
 {
@@ -187,29 +178,26 @@ refreshView.Refreshing += async (s, e) =>
 
 ### SwipeView
 ```csharp
-var swipeView = new SwipeView
+var swipeView = new SkiaSwipeView
 {
-    Content = new Label { Text = "Swipe me" }
+    Content = new SkiaLabel { Text = "Swipe me" }
 };
-swipeView.RightItems = new SwipeItems
+swipeView.RightItems.Add(new SwipeItem
 {
-    new SwipeItem
-    {
-        Text = "Delete",
-        BackgroundColor = Colors.Red  // MAUI Color
-    }
-};
+    Text = "Delete",
+    BackgroundColor = SKColors.Red
+});
 ```
 
 ### MenuBar
 ```csharp
-var menuBar = new MenuBar();
+var menuBar = new SkiaMenuBar();
 var fileMenu = new MenuBarItem { Text = "File" };
-fileMenu.Add(new MenuFlyoutItem { Text = "New", KeyboardAccelerators = { new KeyboardAccelerator { Modifiers = KeyboardAcceleratorModifiers.Ctrl, Key = "N" } } });
-fileMenu.Add(new MenuFlyoutItem { Text = "Open" });
-fileMenu.Add(new MenuFlyoutSeparator());
-fileMenu.Add(new MenuFlyoutItem { Text = "Exit" });
-menuBar.Add(fileMenu);
+fileMenu.Items.Add(new MenuItem { Text = "New", Shortcut = "Ctrl+N" });
+fileMenu.Items.Add(new MenuItem { Text = "Open", Shortcut = "Ctrl+O" });
+fileMenu.Items.Add(new MenuItem { IsSeparator = true });
+fileMenu.Items.Add(new MenuItem { Text = "Exit" });
+menuBar.Items.Add(fileMenu);
 ```
 
 ## Platform Services

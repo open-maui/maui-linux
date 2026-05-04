@@ -1,10 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
@@ -25,7 +22,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(bool),
             typeof(SkiaShell),
             false,
-            BindingMode.OneWay,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutIsPresentedChanged((bool)n));
 
     /// <summary>
@@ -37,8 +34,7 @@ public class SkiaShell : SkiaLayoutView
             typeof(ShellFlyoutBehavior),
             typeof(SkiaShell),
             ShellFlyoutBehavior.Flyout,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutBehaviorChanged((ShellFlyoutBehavior)n));
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
     /// Bindable property for FlyoutWidth.
@@ -49,7 +45,6 @@ public class SkiaShell : SkiaLayoutView
             typeof(float),
             typeof(SkiaShell),
             280f,
-            BindingMode.TwoWay,
             coerceValue: (b, v) => Math.Max(100f, (float)v),
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
@@ -59,23 +54,10 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty FlyoutBackgroundColorProperty =
         BindableProperty.Create(
             nameof(FlyoutBackgroundColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaShell),
-            Colors.White,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutBackgroundColorChanged());
-
-    /// <summary>
-    /// Bindable property for FlyoutTextColor.
-    /// </summary>
-    public static readonly BindableProperty FlyoutTextColorProperty =
-        BindableProperty.Create(
-            nameof(FlyoutTextColor),
-            typeof(Color),
-            typeof(SkiaShell),
-            Color.FromRgb(33, 33, 33),
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).OnFlyoutTextColorChanged());
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
     /// Bindable property for NavBarBackgroundColor.
@@ -83,11 +65,10 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty NavBarBackgroundColorProperty =
         BindableProperty.Create(
             nameof(NavBarBackgroundColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaShell),
-            Color.FromRgb(33, 150, 243),
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).OnNavBarBackgroundColorChanged());
+            new SKColor(33, 150, 243),
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
     /// Bindable property for NavBarTextColor.
@@ -95,11 +76,10 @@ public class SkiaShell : SkiaLayoutView
     public static readonly BindableProperty NavBarTextColorProperty =
         BindableProperty.Create(
             nameof(NavBarTextColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaShell),
-            Colors.White,
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).OnNavBarTextColorChanged());
+            SKColors.White,
+            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     /// <summary>
     /// Bindable property for NavBarHeight.
@@ -110,7 +90,6 @@ public class SkiaShell : SkiaLayoutView
             typeof(float),
             typeof(SkiaShell),
             56f,
-            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -122,7 +101,6 @@ public class SkiaShell : SkiaLayoutView
             typeof(float),
             typeof(SkiaShell),
             56f,
-            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -134,7 +112,6 @@ public class SkiaShell : SkiaLayoutView
             typeof(bool),
             typeof(SkiaShell),
             true,
-            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -146,7 +123,6 @@ public class SkiaShell : SkiaLayoutView
             typeof(bool),
             typeof(SkiaShell),
             false,
-            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
     /// <summary>
@@ -157,21 +133,8 @@ public class SkiaShell : SkiaLayoutView
             nameof(ContentPadding),
             typeof(float),
             typeof(SkiaShell),
-            0f,
-            BindingMode.TwoWay,
+            16f,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for ContentBackgroundColor.
-    /// </summary>
-    public static readonly BindableProperty ContentBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(ContentBackgroundColor),
-            typeof(Color),
-            typeof(SkiaShell),
-            Color.FromRgb(250, 250, 250),
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaShell)b).OnContentBackgroundColorChanged());
 
     /// <summary>
     /// Bindable property for Title.
@@ -182,14 +145,12 @@ public class SkiaShell : SkiaLayoutView
             typeof(string),
             typeof(SkiaShell),
             string.Empty,
-            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
 
     #endregion
 
     private readonly List<ShellSection> _sections = new();
     private SkiaView? _currentContent;
-    private SkiaView? _pressedTarget;
     private float _flyoutAnimationProgress = 0f;
     private int _selectedSectionIndex = 0;
     private int _selectedItemIndex = 0;
@@ -197,74 +158,9 @@ public class SkiaShell : SkiaLayoutView
     // Navigation stack for push/pop navigation
     private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new();
 
-    private float _flyoutScrollOffset;
-    private readonly Dictionary<string, Func<SkiaView?>> _registeredRoutes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _routeTitles = new(StringComparer.OrdinalIgnoreCase);
-
-    // Icon cache for flyout items (keyed by icon path)
-    private readonly Dictionary<string, SKBitmap?> _iconCache = new();
-
-    // Internal SKColor fields for rendering
-    private SKColor _flyoutBackgroundColorSK = SkiaTheme.BackgroundWhiteSK;
-    private SKColor _flyoutTextColorSK = SkiaTheme.TextPrimarySK;
-    private SKColor _navBarBackgroundColorSK = SkiaTheme.PrimarySK;
-    private SKColor _navBarTextColorSK = SkiaTheme.BackgroundWhiteSK;
-    private SKColor _contentBackgroundColorSK = SkiaTheme.Gray50SK;
-
-    private void OnFlyoutBackgroundColorChanged()
-    {
-        _flyoutBackgroundColorSK = FlyoutBackgroundColor?.ToSKColor() ?? SkiaTheme.BackgroundWhiteSK;
-        Invalidate();
-    }
-
-    private void OnFlyoutTextColorChanged()
-    {
-        _flyoutTextColorSK = FlyoutTextColor?.ToSKColor() ?? SkiaTheme.TextPrimarySK;
-        Invalidate();
-    }
-
-    private void OnNavBarBackgroundColorChanged()
-    {
-        _navBarBackgroundColorSK = NavBarBackgroundColor?.ToSKColor() ?? SkiaTheme.PrimarySK;
-        Invalidate();
-    }
-
-    private void OnNavBarTextColorChanged()
-    {
-        _navBarTextColorSK = NavBarTextColor?.ToSKColor() ?? SkiaTheme.BackgroundWhiteSK;
-        Invalidate();
-    }
-
-    private void OnContentBackgroundColorChanged()
-    {
-        _contentBackgroundColorSK = ContentBackgroundColor?.ToSKColor() ?? SkiaTheme.Gray50SK;
-        Invalidate();
-    }
-
-    private void OnFlyoutBehaviorChanged(ShellFlyoutBehavior newBehavior)
-    {
-        if (newBehavior == ShellFlyoutBehavior.Locked)
-        {
-            _flyoutAnimationProgress = 1f;
-        }
-        else if (newBehavior == ShellFlyoutBehavior.Disabled)
-        {
-            _flyoutAnimationProgress = 0f;
-        }
-        Invalidate();
-    }
-
     private void OnFlyoutIsPresentedChanged(bool newValue)
     {
-        // In Locked mode, flyout is always visible regardless of FlyoutIsPresented
-        if (FlyoutBehavior == ShellFlyoutBehavior.Locked)
-        {
-            _flyoutAnimationProgress = 1f;
-        }
-        else
-        {
-            _flyoutAnimationProgress = newValue ? 1f : 0f;
-        }
+        _flyoutAnimationProgress = newValue ? 1f : 0f;
         FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
         Invalidate();
     }
@@ -299,61 +195,27 @@ public class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Background color of the flyout.
     /// </summary>
-    public Color? FlyoutBackgroundColor
+    public SKColor FlyoutBackgroundColor
     {
-        get => (Color?)GetValue(FlyoutBackgroundColorProperty);
+        get => (SKColor)GetValue(FlyoutBackgroundColorProperty);
         set => SetValue(FlyoutBackgroundColorProperty, value);
     }
 
     /// <summary>
-    /// Text color in the flyout.
-    /// </summary>
-    public Color? FlyoutTextColor
-    {
-        get => (Color?)GetValue(FlyoutTextColorProperty);
-        set => SetValue(FlyoutTextColorProperty, value);
-    }
-
-    /// <summary>
-    /// Optional header view in the flyout.
-    /// </summary>
-    public SkiaView? FlyoutHeaderView { get; set; }
-
-    /// <summary>
-    /// Height of the flyout header.
-    /// </summary>
-    public float FlyoutHeaderHeight { get; set; } = 140f;
-
-    /// <summary>
-    /// Optional footer text in the flyout (fallback if no FlyoutFooterView).
-    /// </summary>
-    public string? FlyoutFooterText { get; set; }
-
-    /// <summary>
-    /// Optional footer view in the flyout.
-    /// </summary>
-    public SkiaView? FlyoutFooterView { get; set; }
-
-    /// <summary>
-    /// Height of the flyout footer.
-    /// </summary>
-    public float FlyoutFooterHeight { get; set; } = 40f;
-
-    /// <summary>
     /// Background color of the navigation bar.
     /// </summary>
-    public Color? NavBarBackgroundColor
+    public SKColor NavBarBackgroundColor
     {
-        get => (Color?)GetValue(NavBarBackgroundColorProperty);
+        get => (SKColor)GetValue(NavBarBackgroundColorProperty);
         set => SetValue(NavBarBackgroundColorProperty, value);
     }
 
     /// <summary>
     /// Text color of the navigation bar title.
     /// </summary>
-    public Color? NavBarTextColor
+    public SKColor NavBarTextColor
     {
-        get => (Color?)GetValue(NavBarTextColorProperty);
+        get => (SKColor)GetValue(NavBarTextColorProperty);
         set => SetValue(NavBarTextColorProperty, value);
     }
 
@@ -395,20 +257,12 @@ public class SkiaShell : SkiaLayoutView
 
     /// <summary>
     /// Gets or sets the padding applied to page content.
+    /// Default is 16 pixels on all sides.
     /// </summary>
     public float ContentPadding
     {
         get => (float)GetValue(ContentPaddingProperty);
         set => SetValue(ContentPaddingProperty, value);
-    }
-
-    /// <summary>
-    /// Background color of the content area.
-    /// </summary>
-    public Color? ContentBackgroundColor
-    {
-        get => (Color?)GetValue(ContentBackgroundColorProperty);
-        set => SetValue(ContentBackgroundColorProperty, value);
     }
 
     /// <summary>
@@ -429,21 +283,6 @@ public class SkiaShell : SkiaLayoutView
     /// Gets the currently selected section index.
     /// </summary>
     public int CurrentSectionIndex => _selectedSectionIndex;
-
-    /// <summary>
-    /// Reference to the MAUI Shell this view represents.
-    /// </summary>
-    public Shell? MauiShell { get; set; }
-
-    /// <summary>
-    /// Callback to render content from a ShellContent.
-    /// </summary>
-    public Func<Microsoft.Maui.Controls.ShellContent, SkiaView?>? ContentRenderer { get; set; }
-
-    /// <summary>
-    /// Callback to refresh shell colors.
-    /// </summary>
-    public Action<SkiaShell, Shell>? ColorRefresher { get; set; }
 
     /// <summary>
     /// Event raised when FlyoutIsPresented changes.
@@ -504,294 +343,38 @@ public class SkiaShell : SkiaLayoutView
     }
 
     /// <summary>
-    /// Refreshes the shell theme and re-renders all pages.
-    /// </summary>
-    public void RefreshTheme()
-    {
-        DiagnosticLog.Debug("SkiaShell", "RefreshTheme called - refreshing all pages");
-        if (MauiShell != null && ColorRefresher != null)
-        {
-            DiagnosticLog.Debug("SkiaShell", "Refreshing shell colors");
-            ColorRefresher(this, MauiShell);
-        }
-
-        // If no explicit colors were set, use theme-aware defaults
-        if (FlyoutBackgroundColor == null)
-        {
-            _flyoutBackgroundColorSK = SkiaTheme.CurrentSurfaceSK;
-        }
-        if (FlyoutTextColor == null)
-        {
-            _flyoutTextColorSK = SkiaTheme.CurrentTextSK;
-        }
-        if (ContentRenderer != null)
-        {
-            foreach (var section in _sections)
-            {
-                foreach (var item in section.Items)
-                {
-                    if (item.MauiShellContent != null)
-                    {
-                        DiagnosticLog.Debug("SkiaShell", "Re-rendering: " + item.Title);
-                        var skiaView = ContentRenderer(item.MauiShellContent);
-                        if (skiaView != null)
-                        {
-                            item.Content = skiaView;
-                        }
-                    }
-                }
-            }
-        }
-        // Only update current content if there are no pushed pages on the navigation stack
-        // Pushed pages are handled separately by LinuxApplication.RefreshViewTheme
-        if (_navigationStack.Count == 0 && _selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
-        {
-            var section = _sections[_selectedSectionIndex];
-            if (_selectedItemIndex >= 0 && _selectedItemIndex < section.Items.Count)
-            {
-                var item = section.Items[_selectedItemIndex];
-                SetCurrentContent(item.Content);
-            }
-        }
-        // Clear icon cache so icons reload with new theme paths
-        ClearIconCache();
-
-        // Re-sync flyout item icon paths from MAUI Shell
-        IconSyncer?.Invoke(this);
-
-        InvalidateMeasure();
-        Invalidate();
-    }
-
-    /// <summary>
-    /// Delegate to re-sync flyout item icons from the MAUI Shell (called on theme change).
-    /// </summary>
-    public Action<SkiaShell>? IconSyncer { get; set; }
-
-    /// <summary>
-    /// Clears the cached flyout icons so they reload on next draw.
-    /// </summary>
-    public void ClearIconCache()
-    {
-        foreach (var bitmap in _iconCache.Values)
-        {
-            bitmap?.Dispose();
-        }
-        _iconCache.Clear();
-    }
-
-    /// <summary>
-    /// Loads a flyout icon from file (SVG or PNG), with caching.
-    /// </summary>
-    private SKBitmap? GetFlyoutIcon(string? iconPath)
-    {
-        if (string.IsNullOrEmpty(iconPath)) return null;
-
-        if (_iconCache.TryGetValue(iconPath, out var cached))
-            return cached;
-
-        SKBitmap? bitmap = null;
-        try
-        {
-            string baseDir = AppContext.BaseDirectory;
-            string fullPath = System.IO.Path.IsPathRooted(iconPath)
-                ? iconPath
-                : System.IO.Path.Combine(baseDir, iconPath);
-
-            if (System.IO.File.Exists(fullPath))
-            {
-                if (fullPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var svg = new SKSvg();
-                    svg.Load(fullPath);
-                    if (svg.Picture != null)
-                    {
-                        var cullRect = svg.Picture.CullRect;
-                        float iconSize = 24f;
-                        float scale = iconSize / Math.Max(cullRect.Width, cullRect.Height);
-                        bitmap = new SKBitmap((int)iconSize, (int)iconSize, false);
-                        using var canvas = new SKCanvas(bitmap);
-                        canvas.Clear(SKColors.Transparent);
-                        canvas.Scale(scale);
-                        canvas.DrawPicture(svg.Picture, null);
-                    }
-                }
-                else
-                {
-                    using var stream = System.IO.File.OpenRead(fullPath);
-                    bitmap = SKBitmap.Decode(stream);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Debug("SkiaShell", $"Failed to load flyout icon: {iconPath}", ex);
-        }
-
-        _iconCache[iconPath] = bitmap;
-        return bitmap;
-    }
-
-    /// <summary>
     /// Navigates using a URI route.
     /// </summary>
     public void GoToAsync(string route)
     {
-        GoToAsync(route, null);
-    }
-
-    /// <summary>
-    /// Navigates using a URI route with parameters.
-    /// </summary>
-    public void GoToAsync(string route, IDictionary<string, object>? parameters)
-    {
+        // Simple route parsing - format: "//section/item"
         if (string.IsNullOrEmpty(route)) return;
 
-        string routePath = route;
-        Dictionary<string, string> queryParams = new Dictionary<string, string>();
-        int queryIndex = route.IndexOf('?');
-        if (queryIndex >= 0)
-        {
-            routePath = route.Substring(0, queryIndex);
-            queryParams = ParseQueryString(route.Substring(queryIndex + 1));
-        }
-
-        Dictionary<string, object> allParams = new Dictionary<string, object>();
-        foreach (var kvp in queryParams)
-        {
-            allParams[kvp.Key] = kvp.Value;
-        }
-        if (parameters != null)
-        {
-            foreach (var kvp in parameters)
-            {
-                allParams[kvp.Key] = kvp.Value;
-            }
-        }
-
-        var parts = routePath.TrimStart('/').Split('/');
+        var parts = route.TrimStart('/').Split('/');
         if (parts.Length == 0) return;
-
-        // Check registered routes first
-        if (_registeredRoutes.TryGetValue(routePath.TrimStart('/'), out Func<SkiaView?>? factory))
-        {
-            var view = factory();
-            if (view != null)
-            {
-                ApplyQueryParameters(view, allParams);
-                PushAsync(view, GetRouteTitle(routePath.TrimStart('/')));
-                return;
-            }
-        }
 
         // Find matching section
         for (int i = 0; i < _sections.Count; i++)
         {
             var section = _sections[i];
-            if (!section.Route.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (parts.Length > 1)
+            if (section.Route.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
             {
-                // Find matching item
-                for (int j = 0; j < section.Items.Count; j++)
+                if (parts.Length > 1)
                 {
-                    if (section.Items[j].Route.Equals(parts[1], StringComparison.OrdinalIgnoreCase))
+                    // Find matching item
+                    for (int j = 0; j < section.Items.Count; j++)
                     {
-                        NavigateToSection(i, j);
-                        if (section.Items[j].Content != null && allParams.Count > 0)
+                        if (section.Items[j].Route.Equals(parts[1], StringComparison.OrdinalIgnoreCase))
                         {
-                            ApplyQueryParameters(section.Items[j].Content!, allParams);
+                            NavigateToSection(i, j);
+                            return;
                         }
-                        return;
                     }
                 }
-            }
-            NavigateToSection(i);
-            if (section.Items.Count > 0 && section.Items[0].Content != null && allParams.Count > 0)
-            {
-                ApplyQueryParameters(section.Items[0].Content!, allParams);
-            }
-            break;
-        }
-    }
-
-    private static Dictionary<string, string> ParseQueryString(string queryString)
-    {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrEmpty(queryString)) return result;
-
-        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var pair in pairs)
-        {
-            var parts = pair.Split('=', 2);
-            if (parts.Length == 2)
-            {
-                result[Uri.UnescapeDataString(parts[0])] = Uri.UnescapeDataString(parts[1]);
-            }
-            else if (parts.Length == 1)
-            {
-                result[Uri.UnescapeDataString(parts[0])] = string.Empty;
+                NavigateToSection(i, 0);
+                return;
             }
         }
-        return result;
-    }
-
-    private static void ApplyQueryParameters(SkiaView content, IDictionary<string, object> parameters)
-    {
-        if (parameters.Count == 0) return;
-
-        if (content is ISkiaQueryAttributable attributable)
-        {
-            attributable.ApplyQueryAttributes(parameters);
-        }
-
-        var type = content.GetType();
-        foreach (var param in parameters)
-        {
-            var prop = type.GetProperty(param.Key, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-            if (prop != null && prop.CanWrite)
-            {
-                try
-                {
-                    var value = Convert.ChangeType(param.Value, prop.PropertyType);
-                    prop.SetValue(content, value);
-                }
-                catch (Exception ex) { DiagnosticLog.Debug("SkiaShell", "Parameter type conversion failed", ex); }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Registers a route with a content factory.
-    /// </summary>
-    public void RegisterRoute(string route, Func<SkiaView?> contentFactory, string? title = null)
-    {
-        var key = route.TrimStart('/');
-        _registeredRoutes[key] = contentFactory;
-        if (!string.IsNullOrEmpty(title))
-        {
-            _routeTitles[key] = title;
-        }
-    }
-
-    /// <summary>
-    /// Unregisters a route.
-    /// </summary>
-    public void UnregisterRoute(string route)
-    {
-        var key = route.TrimStart('/');
-        _registeredRoutes.Remove(key);
-        _routeTitles.Remove(key);
-    }
-
-    private string GetRouteTitle(string route)
-    {
-        if (_routeTitles.TryGetValue(route, out string? title))
-        {
-            return title;
-        }
-        return route.Split('/').LastOrDefault() ?? route;
     }
 
     /// <summary>
@@ -850,7 +433,7 @@ public class SkiaShell : SkiaLayoutView
         }
 
         SetCurrentContent(root.Content);
-        Title = root.Title ?? string.Empty;
+        Title = root.Title;
         Invalidate();
     }
 
@@ -869,38 +452,37 @@ public class SkiaShell : SkiaLayoutView
         }
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
         // Measure current content with padding accounted for (consistent with ArrangeOverride)
         if (_currentContent != null)
         {
             float contentTop = NavBarIsVisible ? NavBarHeight : 0;
             float contentBottom = TabBarIsVisible ? TabBarHeight : 0;
-            float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
-            var contentSize = new Size(
-                availableSize.Width - Padding.Left - Padding.Right - flyoutOffset,
-                availableSize.Height - contentTop - contentBottom - Padding.Top - Padding.Bottom);
+            var contentSize = new SKSize(
+                availableSize.Width - (float)Padding.Left - (float)Padding.Right,
+                availableSize.Height - contentTop - contentBottom - (float)Padding.Top - (float)Padding.Bottom);
             _currentContent.Measure(contentSize);
         }
 
         return availableSize;
     }
 
-    protected override Rect ArrangeOverride(Rect bounds)
+    protected override SKRect ArrangeOverride(SKRect bounds)
     {
-        DiagnosticLog.Debug("SkiaShell", $"ArrangeOverride - bounds={bounds}");
+        Console.WriteLine($"[SkiaShell] ArrangeOverride - bounds={bounds}");
 
-        // Arrange current content with padding, offset for locked flyout
+        // Arrange current content with padding
         if (_currentContent != null)
         {
-            float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
-            float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
-            float contentBottom = (float)bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
-            var contentBounds = new Rect(
-                bounds.Left + flyoutOffset + ContentPadding,
+            float contentTop = bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
+            float contentBottom = bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
+            var contentBounds = new SKRect(
+                bounds.Left + ContentPadding,
                 contentTop,
-                bounds.Width - flyoutOffset - ContentPadding * 2,
-                contentBottom - contentTop);
+                bounds.Right - ContentPadding,
+                contentBottom);
+            Console.WriteLine($"[SkiaShell] Arranging content with bounds={contentBounds}, padding={ContentPadding}");
             _currentContent.Arrange(contentBounds);
         }
 
@@ -912,29 +494,13 @@ public class SkiaShell : SkiaLayoutView
         canvas.Save();
         canvas.ClipRect(bounds);
 
-        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
-
-        // In Locked mode, draw flyout first (it's a permanent panel, not an overlay)
-        if (isLocked)
-        {
-            DrawFlyout(canvas, bounds);
-        }
-
         // Draw content
         _currentContent?.Draw(canvas);
 
-        // Draw navigation bar (offset for locked flyout)
+        // Draw navigation bar
         if (NavBarIsVisible)
         {
-            if (isLocked)
-            {
-                var navBounds = new SKRect(bounds.Left + FlyoutWidth, bounds.Top, bounds.Right, bounds.Bottom);
-                DrawNavBar(canvas, navBounds);
-            }
-            else
-            {
-                DrawNavBar(canvas, bounds);
-            }
+            DrawNavBar(canvas, bounds);
         }
 
         // Draw tab bar
@@ -943,8 +509,8 @@ public class SkiaShell : SkiaLayoutView
             DrawTabBar(canvas, bounds);
         }
 
-        // Draw flyout overlay and panel (non-locked mode)
-        if (!isLocked && _flyoutAnimationProgress > 0)
+        // Draw flyout overlay and panel
+        if (_flyoutAnimationProgress > 0)
         {
             DrawFlyout(canvas, bounds);
         }
@@ -963,7 +529,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = _navBarBackgroundColorSK,
+            Color = NavBarBackgroundColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -972,7 +538,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw nav icon (back arrow if can go back, else hamburger menu if flyout enabled)
         using var iconPaint = new SKPaint
         {
-            Color = _navBarTextColorSK,
+            Color = NavBarTextColor,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             StrokeCap = SKStrokeCap.Round,
@@ -987,7 +553,7 @@ public class SkiaShell : SkiaLayoutView
             // Draw iOS-style back chevron "<"
             using var chevronPaint = new SKPaint
             {
-                Color = _navBarTextColorSK,
+                Color = NavBarTextColor,
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2.5f,
                 StrokeCap = SKStrokeCap.Round,
@@ -1012,13 +578,13 @@ public class SkiaShell : SkiaLayoutView
         // Draw title
         using var titlePaint = new SKPaint
         {
-            Color = _navBarTextColorSK,
+            Color = NavBarTextColor,
             TextSize = 20f,
             IsAntialias = true,
             FakeBoldText = true
         };
 
-        float titleX = (CanGoBack || (FlyoutBehavior == ShellFlyoutBehavior.Flyout && FlyoutBehavior != ShellFlyoutBehavior.Locked)) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
+        float titleX = (CanGoBack || FlyoutBehavior == ShellFlyoutBehavior.Flyout) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
         float titleY = navBarBounds.MidY + 6;
         canvas.DrawText(Title, titleX, titleY, titlePaint);
     }
@@ -1039,7 +605,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = SkiaTheme.BackgroundWhiteSK,
+            Color = SKColors.White,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -1048,7 +614,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw top border
         using var borderPaint = new SKPaint
         {
-            Color = SkiaTheme.Gray300SK,
+            Color = new SKColor(224, 224, 224),
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
@@ -1068,7 +634,7 @@ public class SkiaShell : SkiaLayoutView
             var item = section.Items[i];
             bool isSelected = i == _selectedItemIndex;
 
-            textPaint.Color = isSelected ? _navBarBackgroundColorSK : SkiaTheme.TextTertiarySK;
+            textPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(117, 117, 117);
 
             var textBounds = new SKRect();
             textPaint.MeasureText(item.Title, ref textBounds);
@@ -1082,21 +648,16 @@ public class SkiaShell : SkiaLayoutView
 
     private void DrawFlyout(SKCanvas canvas, SKRect bounds)
     {
-        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
-
-        // Draw scrim only for non-locked flyout (overlay mode)
-        if (!isLocked)
+        // Draw scrim
+        using var scrimPaint = new SKPaint
         {
-            using var scrimPaint = new SKPaint
-            {
-                Color = SkiaTheme.Shadow40SK.WithAlpha((byte)(100 * _flyoutAnimationProgress)),
-                Style = SKPaintStyle.Fill
-            };
-            canvas.DrawRect(bounds, scrimPaint);
-        }
+            Color = new SKColor(0, 0, 0, (byte)(100 * _flyoutAnimationProgress)),
+            Style = SKPaintStyle.Fill
+        };
+        canvas.DrawRect(bounds, scrimPaint);
 
-        // Draw flyout panel — locked mode uses fixed position, overlay mode uses animation
-        float flyoutX = isLocked ? bounds.Left : bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+        // Draw flyout panel
+        float flyoutX = bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
         var flyoutBounds = new SKRect(
             flyoutX,
             bounds.Top,
@@ -1105,59 +666,15 @@ public class SkiaShell : SkiaLayoutView
 
         using var flyoutPaint = new SKPaint
         {
-            Color = _flyoutBackgroundColorSK,
+            Color = FlyoutBackgroundColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
         canvas.DrawRect(flyoutBounds, flyoutPaint);
 
-        // Calculate header and footer heights
-        float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-        float footerHeight;
-        if (FlyoutFooterView != null)
-        {
-            // Measure footer to its natural size so complex layouts aren't squished
-            var footerDesired = FlyoutFooterView.Measure(new Size(flyoutBounds.Width, double.PositiveInfinity));
-            footerHeight = Math.Max(FlyoutFooterHeight, (float)footerDesired.Height);
-        }
-        else
-        {
-            footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f;
-        }
-
-        // Draw flyout header if present
-        if (FlyoutHeaderView != null)
-        {
-            var headerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Top, flyoutBounds.Right, flyoutBounds.Top + headerHeight);
-            FlyoutHeaderView.Measure(new Size(headerBounds.Width, headerBounds.Height));
-            FlyoutHeaderView.Arrange(new Rect(headerBounds.Left, headerBounds.Top, headerBounds.Width, headerBounds.Height));
-
-            // If the header view has a BackgroundColor, draw it over the flyout background
-            // to ensure it covers the default flyout color (e.g. white) in the header region
-            if (FlyoutHeaderView.BackgroundColor != null && FlyoutHeaderView.BackgroundColor != Colors.Transparent)
-            {
-                using var headerBgPaint = new SKPaint
-                {
-                    Color = FlyoutHeaderView.BackgroundColor.ToSKColor(),
-                    Style = SKPaintStyle.Fill
-                };
-                canvas.DrawRect(headerBounds, headerBgPaint);
-            }
-
-            FlyoutHeaderView.Draw(canvas);
-        }
-
-        // Draw flyout items with scrolling support
+        // Draw flyout items
+        float itemY = flyoutBounds.Top + 80;
         float itemHeight = 48f;
-        float itemsAreaTop = flyoutBounds.Top + headerHeight;
-        float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
-
-        // Clip to items area (between header and footer)
-        canvas.Save();
-        canvas.ClipRect(new SKRect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Right, itemsAreaBottom));
-
-        // Apply scroll offset
-        float itemY = itemsAreaTop - _flyoutScrollOffset;
 
         using var itemTextPaint = new SKPaint
         {
@@ -1170,68 +687,22 @@ public class SkiaShell : SkiaLayoutView
             var section = _sections[i];
             bool isSelected = i == _selectedSectionIndex;
 
-            // Skip items that are scrolled above the visible area
-            if (itemY + itemHeight < itemsAreaTop)
-            {
-                itemY += itemHeight;
-                continue;
-            }
-
-            // Stop if we're below the visible area
-            if (itemY > itemsAreaBottom)
-                break;
-
             // Draw selection background
             if (isSelected)
             {
                 using var selectionPaint = new SKPaint
                 {
-                    Color = SkiaTheme.PrimarySelectionSK,
+                    Color = new SKColor(33, 150, 243, 30),
                     Style = SKPaintStyle.Fill
                 };
                 var selectionRect = new SKRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight);
                 canvas.DrawRect(selectionRect, selectionPaint);
             }
 
-            itemTextPaint.Color = isSelected ? SKColors.White : _flyoutTextColorSK;
-
-            // Draw icon if available
-            float textStartX = flyoutBounds.Left + 16;
-            var icon = GetFlyoutIcon(section.IconPath);
-            if (icon != null)
-            {
-                float iconSize = 24f;
-                float iconX = flyoutBounds.Left + 16;
-                float iconY = itemY + (itemHeight - iconSize) / 2;
-                canvas.DrawBitmap(icon, new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize));
-                textStartX = iconX + iconSize + 12; // gap between icon and text
-            }
-
-            canvas.DrawText(section.Title, textStartX, itemY + 30, itemTextPaint);
+            itemTextPaint.Color = isSelected ? NavBarBackgroundColor : new SKColor(33, 33, 33);
+            canvas.DrawText(section.Title, flyoutBounds.Left + 16, itemY + 30, itemTextPaint);
 
             itemY += itemHeight;
-        }
-
-        canvas.Restore();
-
-        // Draw flyout footer (footerHeight already measured to natural size above)
-        if (FlyoutFooterView != null)
-        {
-            var footerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Bottom - footerHeight, flyoutBounds.Right, flyoutBounds.Bottom);
-            FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerHeight));
-            FlyoutFooterView.Draw(canvas);
-        }
-        else if (!string.IsNullOrEmpty(FlyoutFooterText))
-        {
-            // Fallback: draw simple text footer
-            using var footerPaint = new SKPaint
-            {
-                TextSize = 12f,
-                Color = _flyoutTextColorSK.WithAlpha(180),
-                IsAntialias = true
-            };
-            var footerY = flyoutBounds.Bottom - footerHeight / 2 + 4;
-            canvas.DrawText(FlyoutFooterText, flyoutBounds.Left + 16, footerY, footerPaint);
         }
     }
 
@@ -1240,46 +711,31 @@ public class SkiaShell : SkiaLayoutView
         if (!IsVisible || !Bounds.Contains(x, y)) return null;
 
         // Check flyout area
-        bool isLockedHit = FlyoutBehavior == ShellFlyoutBehavior.Locked;
-        if (isLockedHit || _flyoutAnimationProgress > 0)
+        if (_flyoutAnimationProgress > 0)
         {
-            float flyoutX = isLockedHit ? (float)Bounds.Left : (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
+            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
 
             if (flyoutBounds.Contains(x, y))
             {
-                // Check footer view for hit testing (buttons, etc.)
-                if (FlyoutFooterView != null)
-                {
-                    var footerHit = FlyoutFooterView.HitTest(x, y);
-                    if (footerHit != null) return footerHit;
-                }
-
-                // Check header view for hit testing
-                if (FlyoutHeaderView != null)
-                {
-                    var headerHit = FlyoutHeaderView.HitTest(x, y);
-                    if (headerHit != null) return headerHit;
-                }
-
-                return this; // Flyout handles its own hits (menu items)
+                return this; // Flyout handles its own hits
             }
 
-            // Tap on scrim closes flyout (non-locked only)
-            if (FlyoutIsPresented && !isLockedHit)
+            // Tap on scrim closes flyout
+            if (FlyoutIsPresented)
             {
                 return this;
             }
         }
 
         // Check nav bar
-        if (NavBarIsVisible && y < (float)Bounds.Top + NavBarHeight)
+        if (NavBarIsVisible && y < Bounds.Top + NavBarHeight)
         {
             return this;
         }
 
         // Check tab bar
-        if (TabBarIsVisible && y > (float)Bounds.Bottom - TabBarHeight)
+        if (TabBarIsVisible && y > Bounds.Bottom - TabBarHeight)
         {
             return this;
         }
@@ -1299,73 +755,32 @@ public class SkiaShell : SkiaLayoutView
         if (!IsEnabled) return;
 
         // Check flyout tap
-        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
-        if (isLocked || _flyoutAnimationProgress > 0)
+        if (_flyoutAnimationProgress > 0)
         {
-            float flyoutX = isLocked ? (float)Bounds.Left : (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
+            float flyoutX = Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new SKRect(flyoutX, Bounds.Top, flyoutX + FlyoutWidth, Bounds.Bottom);
 
             if (flyoutBounds.Contains(e.X, e.Y))
             {
-                // Calculate header and footer heights
-                float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-                float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
-                                    (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
+                // Check which section was tapped
+                float itemY = flyoutBounds.Top + 80;
+                float itemHeight = 48f;
 
-                float itemsAreaTop = flyoutBounds.Top + headerHeight;
-                float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
-
-                // Check footer area — dispatch to footer view for button clicks
-                if (e.Y >= itemsAreaBottom && FlyoutFooterView != null)
+                for (int i = 0; i < _sections.Count; i++)
                 {
-                    var footerHit = FlyoutFooterView.HitTest(e.X, e.Y);
-                    if (footerHit != null)
+                    if (e.Y >= itemY && e.Y < itemY + itemHeight)
                     {
-                        _pressedTarget = footerHit;
-                        footerHit.OnPointerPressed(e);
+                        NavigateToSection(i, 0);
+                        FlyoutIsPresented = false;
+                        e.Handled = true;
                         return;
                     }
-                }
-
-                // Check header area — dispatch to header view
-                if (e.Y < itemsAreaTop && FlyoutHeaderView != null)
-                {
-                    var headerHit = FlyoutHeaderView.HitTest(e.X, e.Y);
-                    if (headerHit != null)
-                    {
-                        _pressedTarget = headerHit;
-                        headerHit.OnPointerPressed(e);
-                        return;
-                    }
-                }
-
-                // Only check items if tap is in items area
-                if (e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)
-                {
-                    // Apply scroll offset to find which item was tapped
-                    float itemY = itemsAreaTop - _flyoutScrollOffset;
-                    float itemHeight = 48f;
-
-                    for (int i = 0; i < _sections.Count; i++)
-                    {
-                        if (e.Y >= itemY && e.Y < itemY + itemHeight)
-                        {
-                            NavigateToSection(i, 0);
-                            if (!isLocked)
-                            {
-                                FlyoutIsPresented = false;
-                                _flyoutScrollOffset = 0; // Reset scroll when closing
-                            }
-                            e.Handled = true;
-                            return;
-                        }
-                        itemY += itemHeight;
-                    }
+                    itemY += itemHeight;
                 }
             }
-            else if (FlyoutIsPresented && !isLocked)
+            else if (FlyoutIsPresented)
             {
-                // Tap on scrim (non-locked mode only)
+                // Tap on scrim
                 FlyoutIsPresented = false;
                 e.Handled = true;
                 return;
@@ -1392,13 +807,13 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Check tab bar tap
-        if (TabBarIsVisible && e.Y > (float)Bounds.Bottom - TabBarHeight)
+        if (TabBarIsVisible && e.Y > Bounds.Bottom - TabBarHeight)
         {
             if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
             {
                 var section = _sections[_selectedSectionIndex];
-                float tabWidth = (float)Bounds.Width / section.Items.Count;
-                int tappedIndex = (int)((e.X - (float)Bounds.Left) / tabWidth);
+                float tabWidth = Bounds.Width / section.Items.Count;
+                int tappedIndex = (int)((e.X - Bounds.Left) / tabWidth);
                 tappedIndex = Math.Clamp(tappedIndex, 0, section.Items.Count - 1);
 
                 if (tappedIndex != _selectedItemIndex)
@@ -1411,45 +826,6 @@ public class SkiaShell : SkiaLayoutView
         }
 
         base.OnPointerPressed(e);
-    }
-
-    public override void OnPointerReleased(PointerEventArgs e)
-    {
-        if (_pressedTarget != null)
-        {
-            _pressedTarget.OnPointerReleased(e);
-            _pressedTarget = null;
-            return;
-        }
-
-        base.OnPointerReleased(e);
-    }
-
-    public override void OnScroll(ScrollEventArgs e)
-    {
-        if (FlyoutIsPresented && _flyoutAnimationProgress > 0)
-        {
-            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
-
-            if (flyoutBounds.Contains(e.X, e.Y))
-            {
-                float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-                float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
-                                    (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
-                float itemHeight = 48f;
-                float totalItemsHeight = _sections.Count * itemHeight;
-                float viewableHeight = flyoutBounds.Height - headerHeight - footerHeight;
-                float maxScroll = Math.Max(0f, totalItemsHeight - viewableHeight);
-
-                _flyoutScrollOffset += e.DeltaY * 30f;
-                _flyoutScrollOffset = Math.Max(0f, Math.Min(_flyoutScrollOffset, maxScroll));
-                Invalidate();
-                e.Handled = true;
-                return;
-            }
-        }
-        base.OnScroll(e);
     }
 }
 
@@ -1524,11 +900,6 @@ public class ShellContent
     /// The content view.
     /// </summary>
     public SkiaView? Content { get; set; }
-
-    /// <summary>
-    /// Reference to the MAUI ShellContent this represents.
-    /// </summary>
-    public Microsoft.Maui.Controls.ShellContent? MauiShellContent { get; set; }
 }
 
 /// <summary>

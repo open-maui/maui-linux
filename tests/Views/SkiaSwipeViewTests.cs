@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 using Xunit;
 
@@ -37,7 +36,7 @@ public class SkiaSwipeViewTests
     public void LeftItems_CanAddItems()
     {
         var swipeView = new SkiaSwipeView();
-        var item = new SwipeItem { Text = "Delete", BackgroundColor = Colors.Red };
+        var item = new SwipeItem { Text = "Delete", BackgroundColor = SKColors.Red };
 
         swipeView.LeftItems.Add(item);
 
@@ -49,7 +48,7 @@ public class SkiaSwipeViewTests
     public void RightItems_CanAddItems()
     {
         var swipeView = new SkiaSwipeView();
-        var item = new SwipeItem { Text = "Archive", BackgroundColor = Colors.Blue };
+        var item = new SwipeItem { Text = "Archive", BackgroundColor = SKColors.Blue };
 
         swipeView.RightItems.Add(item);
 
@@ -147,17 +146,17 @@ public class SkiaSwipeViewTests
     [Fact]
     public void SwipeItem_TextColor_CanBeSet()
     {
-        var item = new SwipeItem { TextColor = Colors.Yellow };
+        var item = new SwipeItem { TextColor = SKColors.Yellow };
 
-        Assert.Equal(Colors.Yellow, item.TextColor);
+        Assert.Equal(SKColors.Yellow, item.TextColor);
     }
 
     [Fact]
     public void SwipeItem_BackgroundColor_CanBeSet()
     {
-        var item = new SwipeItem { BackgroundColor = Colors.Green };
+        var item = new SwipeItem { BackgroundColor = SKColors.Green };
 
-        Assert.Equal(Colors.Green, item.BackgroundColor);
+        Assert.Equal(SKColors.Green, item.BackgroundColor);
     }
 
     [Fact]
@@ -191,7 +190,7 @@ public class SkiaSwipeViewTests
     {
         var swipeView = new SkiaSwipeView();
         swipeView.Content = new SkiaLabel { Text = "Content" };
-        swipeView.Arrange(new Rect(0, 0, 300, 50));
+        swipeView.Arrange(new SKRect(0, 0, 300, 50));
 
         var hit = swipeView.HitTest(150, 25);
 
@@ -204,7 +203,7 @@ public class SkiaSwipeViewTests
         var swipeView = new SkiaSwipeView();
         swipeView.Content = new SkiaLabel { Text = "Test" };
 
-        var size = swipeView.Measure(new Size(300, 100));
+        var size = swipeView.Measure(new SKSize(300, 100));
 
         Assert.True(size.Width <= 300);
         Assert.True(size.Height <= 100);

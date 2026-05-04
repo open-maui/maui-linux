@@ -1,10 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.Controls.Shapes;
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -183,7 +180,7 @@ public abstract class SkiaTemplatedView : SkiaView
             Microsoft.Maui.Controls.Border border => CreateSkiaBorder(border),
             Microsoft.Maui.Controls.Label label => CreateSkiaLabel(label),
             Microsoft.Maui.Controls.ContentPresenter cp => new SkiaContentPresenter(),
-            _ => new SkiaLabel { Text = $"[{element.GetType().Name}]", TextColor = Colors.Gray }
+            _ => new SkiaLabel { Text = $"[{element.GetType().Name}]", TextColor = SKColors.Gray }
         };
     }
 
@@ -269,12 +266,12 @@ public abstract class SkiaTemplatedView : SkiaView
 
         if (border.Stroke is SolidColorBrush strokeBrush)
         {
-            skiaBorder.Stroke = strokeBrush.Color;
+            skiaBorder.Stroke = strokeBrush.Color.ToSKColor();
         }
 
         if (border.Background is SolidColorBrush bgBrush)
         {
-            skiaBorder.BackgroundColor = bgBrush.Color;
+            skiaBorder.BackgroundColor = bgBrush.Color.ToSKColor();
         }
 
         if (border.Content is Element content)
@@ -292,12 +289,12 @@ public abstract class SkiaTemplatedView : SkiaView
         var skiaLabel = new SkiaLabel
         {
             Text = label.Text ?? "",
-            FontSize = label.FontSize
+            FontSize = (float)label.FontSize
         };
 
         if (label.TextColor != null)
         {
-            skiaLabel.TextColor = label.TextColor;
+            skiaLabel.TextColor = label.TextColor.ToSKColor();
         }
 
         return skiaLabel;
@@ -323,12 +320,11 @@ public abstract class SkiaTemplatedView : SkiaView
     /// </summary>
     protected abstract void DrawDefaultAppearance(SKCanvas canvas, SKRect bounds);
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
         if (_templateRoot != null && _templateApplied)
         {
-            var measured = _templateRoot.Measure(new Size(availableSize.Width, availableSize.Height));
-            return new Size(measured.Width, measured.Height);
+            return _templateRoot.Measure(availableSize);
         }
 
         return MeasureDefaultAppearance(availableSize);
@@ -338,12 +334,12 @@ public abstract class SkiaTemplatedView : SkiaView
     /// Measures the default appearance when no template is applied.
     /// Override in derived classes.
     /// </summary>
-    protected virtual Size MeasureDefaultAppearance(Size availableSize)
+    protected virtual SKSize MeasureDefaultAppearance(SKSize availableSize)
     {
-        return new Size(100, 40);
+        return new SKSize(100, 40);
     }
 
-    public new void Arrange(Rect bounds)
+    public new void Arrange(SKRect bounds)
     {
         base.Arrange(bounds);
 

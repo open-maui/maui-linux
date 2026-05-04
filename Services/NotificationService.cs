@@ -61,7 +61,7 @@ public class NotificationService
             _dBusMonitor?.Dispose();
             _dBusMonitor = null;
         }
-        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "D-Bus monitor cleanup failed", ex); }
+        catch { }
     }
 
     private async Task MonitorNotificationSignals()
@@ -104,7 +104,7 @@ public class NotificationService
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("NotificationService", $"D-Bus monitor error: {ex.Message}");
+            Console.WriteLine($"[NotificationService] D-Bus monitor error: {ex.Message}");
         }
     }
 
@@ -155,7 +155,7 @@ public class NotificationService
                 }
             }
         }
-        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "Action invoked processing failed", ex); }
+        catch { }
     }
 
     private async Task ProcessNotificationClosed(StreamReader reader)
@@ -192,7 +192,7 @@ public class NotificationService
                     context?.Tag));
             }
         }
-        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "Notification closed processing failed", ex); }
+        catch { }
     }
 
     /// <summary>
@@ -270,7 +270,7 @@ public class NotificationService
 
             _activeNotifications.TryRemove(notificationId, out _);
         }
-        catch (Exception ex) { DiagnosticLog.Debug("NotificationService", "Notification cancel failed", ex); }
+        catch { }
     }
 
     /// <summary>
@@ -423,5 +423,115 @@ public class NotificationService
     private static string EscapeArg(string arg)
     {
         return arg?.Replace("\\", "\\\\").Replace("\"", "\\\"") ?? "";
+    }
+}
+
+/// <summary>
+/// Options for displaying a notification.
+/// </summary>
+public class NotificationOptions
+{
+    public string Title { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string? IconPath { get; set; }
+    public string? IconName { get; set; } // Standard icon name like "dialog-information"
+    public NotificationUrgency Urgency { get; set; } = NotificationUrgency.Normal;
+    public int ExpireTimeMs { get; set; } = 5000; // 5 seconds default
+    public string? Category { get; set; } // e.g., "email", "im", "transfer"
+    public bool IsTransient { get; set; }
+    public Dictionary<string, string>? Actions { get; set; }
+}
+
+/// <summary>
+/// Notification urgency level.
+/// </summary>
+public enum NotificationUrgency
+{
+    Low,
+    Normal,
+    Critical
+}
+
+/// <summary>
+/// Reason a notification was closed.
+/// </summary>
+public enum NotificationCloseReason
+{
+    Expired = 1,
+    Dismissed = 2,
+    Closed = 3,
+    Undefined = 4
+}
+
+/// <summary>
+/// Internal context for tracking active notifications.
+/// </summary>
+internal class NotificationContext
+{
+    public string? Tag { get; set; }
+    public Dictionary<string, Action?>? ActionCallbacks { get; set; }
+}
+
+/// <summary>
+/// Event args for notification action events.
+/// </summary>
+public class NotificationActionEventArgs : EventArgs
+{
+    public uint NotificationId { get; }
+    public string ActionKey { get; }
+    public string? Tag { get; }
+
+    public NotificationActionEventArgs(uint notificationId, string actionKey, string? tag)
+    {
+        NotificationId = notificationId;
+        ActionKey = actionKey;
+        Tag = tag;
+    }
+}
+
+/// <summary>
+/// Event args for notification closed events.
+/// </summary>
+public class NotificationClosedEventArgs : EventArgs
+{
+    public uint NotificationId { get; }
+    public NotificationCloseReason Reason { get; }
+    public string? Tag { get; }
+
+    public NotificationClosedEventArgs(uint notificationId, NotificationCloseReason reason, string? tag)
+    {
+        NotificationId = notificationId;
+        Reason = reason;
+        Tag = tag;
+    }
+}
+
+/// <summary>
+/// Defines an action button for a notification.
+/// </summary>
+public class NotificationAction
+{
+    /// <summary>
+    /// Internal action key (not displayed).
+    /// </summary>
+    public string Key { get; set; } = "";
+
+    /// <summary>
+    /// Display label for the action button.
+    /// </summary>
+    public string Label { get; set; } = "";
+
+    /// <summary>
+    /// Callback to invoke when the action is clicked.
+    /// </summary>
+    public Action? Callback { get; set; }
+
+    public NotificationAction() { }
+
+    public NotificationAction(string key, string label, Action? callback = null)
+    {
+        Key = key;
+        Label = label;
+        Callback = callback;
     }
 }

@@ -1,11 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.ComponentModel;
-using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -20,12 +18,7 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
     {
         [nameof(IProgress.Progress)] = MapProgress,
         [nameof(IProgress.ProgressColor)] = MapProgressColor,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
         [nameof(IView.Background)] = MapBackground,
-        ["BackgroundColor"] = MapBackgroundColor,
-        [nameof(IView.Height)] = MapHeight,
-        [nameof(IView.Width)] = MapWidth,
-        ["VerticalOptions"] = MapVerticalOptions,
     };
 
     public static CommandMapper<IProgress, ProgressBarHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -46,48 +39,6 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
         return new SkiaProgressBar();
     }
 
-    protected override void ConnectHandler(SkiaProgressBar platformView)
-    {
-        base.ConnectHandler(platformView);
-
-        if (VirtualView is BindableObject bindable)
-        {
-            bindable.PropertyChanged += OnVirtualViewPropertyChanged;
-        }
-
-        if (VirtualView is VisualElement visualElement)
-        {
-            platformView.IsVisible = visualElement.IsVisible;
-        }
-
-        // Sync properties
-        if (VirtualView != null)
-        {
-            MapProgress(this, VirtualView);
-            MapProgressColor(this, VirtualView);
-            MapIsEnabled(this, VirtualView);
-        }
-    }
-
-    protected override void DisconnectHandler(SkiaProgressBar platformView)
-    {
-        if (VirtualView is BindableObject bindable)
-        {
-            bindable.PropertyChanged -= OnVirtualViewPropertyChanged;
-        }
-
-        base.DisconnectHandler(platformView);
-    }
-
-    private void OnVirtualViewPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (VirtualView is VisualElement visualElement && e.PropertyName == nameof(VisualElement.IsVisible))
-        {
-            PlatformView.IsVisible = visualElement.IsVisible;
-            PlatformView.Invalidate();
-        }
-    }
-
     public static void MapProgress(ProgressBarHandler handler, IProgress progress)
     {
         if (handler.PlatformView is null) return;
@@ -99,18 +50,7 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
         if (handler.PlatformView is null) return;
 
         if (progress.ProgressColor is not null)
-        {
-            handler.PlatformView.ProgressColor = progress.ProgressColor;
-        }
-        handler.PlatformView.Invalidate();
-    }
-
-    public static void MapIsEnabled(ProgressBarHandler handler, IProgress progress)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.IsEnabled = progress.IsEnabled;
-        handler.PlatformView.Invalidate();
+            handler.PlatformView.ProgressColor = progress.ProgressColor.ToSKColor();
     }
 
     public static void MapBackground(ProgressBarHandler handler, IProgress progress)
@@ -119,49 +59,7 @@ public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar
 
         if (progress.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color;
-            handler.PlatformView.Invalidate();
-        }
-    }
-
-    public static void MapBackgroundColor(ProgressBarHandler handler, IProgress progress)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (progress is VisualElement visualElement && visualElement.BackgroundColor is not null)
-        {
-            handler.PlatformView.TrackColor = visualElement.BackgroundColor;
-            handler.PlatformView.Invalidate();
-        }
-    }
-
-    public static void MapHeight(ProgressBarHandler handler, IProgress progress)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (progress is VisualElement visualElement && visualElement.HeightRequest >= 0)
-        {
-            handler.PlatformView.HeightRequest = visualElement.HeightRequest;
-        }
-    }
-
-    public static void MapWidth(ProgressBarHandler handler, IProgress progress)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (progress is VisualElement visualElement && visualElement.WidthRequest >= 0)
-        {
-            handler.PlatformView.WidthRequest = visualElement.WidthRequest;
-        }
-    }
-
-    public static void MapVerticalOptions(ProgressBarHandler handler, IProgress progress)
-    {
-        if (handler.PlatformView is null) return;
-
-        if (progress is Microsoft.Maui.Controls.View view)
-        {
-            handler.PlatformView.VerticalOptions = view.VerticalOptions;
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
     }
 }

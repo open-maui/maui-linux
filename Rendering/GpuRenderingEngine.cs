@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using SkiaSharp;
-using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Window;
 using System.Runtime.InteropServices;
 
@@ -31,7 +29,7 @@ public class GpuRenderingEngine : IDisposable
 
     // Dirty region tracking
     private readonly List<SKRect> _dirtyRegions = new();
-    private readonly Lock _dirtyLock = new();
+    private readonly object _dirtyLock = new();
     private bool _fullRedrawNeeded = true;
     private const int MaxDirtyRegions = 32;
 
@@ -59,7 +57,7 @@ public class GpuRenderingEngine : IDisposable
 
         if (!_gpuAvailable)
         {
-            DiagnosticLog.Debug("GpuRenderingEngine", "GPU not available, using software rendering");
+            Console.WriteLine("[GpuRenderingEngine] GPU not available, using software rendering");
             InitializeSoftwareRendering();
         }
 
@@ -75,25 +73,25 @@ public class GpuRenderingEngine : IDisposable
             var glInterface = GRGlInterface.Create();
             if (glInterface == null)
             {
-                DiagnosticLog.Warn("GpuRenderingEngine", "Failed to create GL interface");
+                Console.WriteLine("[GpuRenderingEngine] Failed to create GL interface");
                 return false;
             }
 
             _grContext = GRContext.CreateGl(glInterface);
             if (_grContext == null)
             {
-                DiagnosticLog.Warn("GpuRenderingEngine", "Failed to create GR context");
+                Console.WriteLine("[GpuRenderingEngine] Failed to create GR context");
                 glInterface.Dispose();
                 return false;
             }
 
             CreateGpuSurface();
-            DiagnosticLog.Debug("GpuRenderingEngine", "GPU acceleration enabled");
+            Console.WriteLine("[GpuRenderingEngine] GPU acceleration enabled");
             return true;
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("GpuRenderingEngine", "GPU initialization failed", ex);
+            Console.WriteLine($"[GpuRenderingEngine] GPU initialization failed: {ex.Message}");
             return false;
         }
     }
@@ -125,7 +123,7 @@ public class GpuRenderingEngine : IDisposable
 
         if (_surface == null)
         {
-            DiagnosticLog.Warn("GpuRenderingEngine", "Failed to create GPU surface, falling back to software");
+            Console.WriteLine("[GpuRenderingEngine] Failed to create GPU surface, falling back to software");
             _gpuAvailable = false;
             InitializeSoftwareRendering();
             return;
@@ -209,9 +207,9 @@ public class GpuRenderingEngine : IDisposable
         if (_canvas == null) return;
 
         // Measure and arrange
-        var availableSize = new Size(Width, Height);
+        var availableSize = new SKSize(Width, Height);
         rootView.Measure(availableSize);
-        rootView.Arrange(new Rect(0, 0, Width, Height));
+        rootView.Arrange(new SKRect(0, 0, Width, Height));
 
         // Determine regions to redraw
         List<SKRect> regionsToRedraw;
@@ -254,8 +252,8 @@ public class GpuRenderingEngine : IDisposable
         // Draw popup overlays
         SkiaView.DrawPopupOverlays(_canvas);
 
-        // Draw modal dialogs and context menus
-        if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
+        // Draw modal dialogs
+        if (LinuxDialogService.HasActiveDialog)
         {
             LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
         }
@@ -288,8 +286,8 @@ public class GpuRenderingEngine : IDisposable
             return new GpuStats { IsGpuAccelerated = false };
         }
 
-        // Get resource cache limit from GRContext (SkiaSharp 3.x API)
-        var maxBytes = _grContext.GetResourceCacheLimit();
+        // Get resource cache limits from GRContext
+        _grContext.GetResourceCacheLimits(out var maxResources, out var maxBytes);
 
         return new GpuStats
         {
@@ -334,4 +332,18 @@ public class GpuRenderingEngine : IDisposable
         Dispose(true);
         GC.SuppressFinalize(this);
     }
+}
+
+/// <summary>
+/// GPU performance statistics.
+/// </summary>
+public class GpuStats
+{
+    public bool IsGpuAccelerated { get; init; }
+    public int MaxTextureSize { get; init; }
+    public long ResourceCacheUsedBytes { get; init; }
+    public long ResourceCacheLimitBytes { get; init; }
+
+    public double ResourceCacheUsedMB => ResourceCacheUsedBytes / (1024.0 * 1024.0);
+    public double ResourceCacheLimitMB => ResourceCacheLimitBytes / (1024.0 * 1024.0);
 }

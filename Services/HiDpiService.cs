@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Provides HiDPI and display scaling detection for Linux.
 /// </summary>
-public partial class HiDpiService
+public class HiDpiService
 {
     private const float DefaultDpi = 96f;
     private float _scaleFactor = 1.0f;
@@ -190,7 +190,7 @@ public partial class HiDpiService
                 }
             }
 
-            return scale > 1.01f;
+            return scale > 1.0f || Math.Abs(scale - 1.0f) < 0.01f;
         }
         catch
         {
@@ -464,33 +464,61 @@ public partial class HiDpiService
                 return textScale;
             }
         }
-        catch (Exception ex) { DiagnosticLog.Debug("HiDpiService", "Font scale factor detection failed", ex); }
+        catch { }
 
         return _scaleFactor;
     }
 
     #region X11 Interop
 
-    [LibraryImport("libX11.so.6")]
-    private static partial nint XOpenDisplay(nint display);
+    [DllImport("libX11.so.6")]
+    private static extern nint XOpenDisplay(nint display);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial void XCloseDisplay(nint display);
+    [DllImport("libX11.so.6")]
+    private static extern void XCloseDisplay(nint display);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial int XDefaultScreen(nint display);
+    [DllImport("libX11.so.6")]
+    private static extern int XDefaultScreen(nint display);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial int XDisplayWidth(nint display, int screen);
+    [DllImport("libX11.so.6")]
+    private static extern int XDisplayWidth(nint display, int screen);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial int XDisplayHeight(nint display, int screen);
+    [DllImport("libX11.so.6")]
+    private static extern int XDisplayHeight(nint display, int screen);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial int XDisplayWidthMM(nint display, int screen);
+    [DllImport("libX11.so.6")]
+    private static extern int XDisplayWidthMM(nint display, int screen);
 
-    [LibraryImport("libX11.so.6")]
-    private static partial int XDisplayHeightMM(nint display, int screen);
+    [DllImport("libX11.so.6")]
+    private static extern int XDisplayHeightMM(nint display, int screen);
 
     #endregion
+}
+
+/// <summary>
+/// Event args for scale change events.
+/// </summary>
+public class ScaleChangedEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets the old scale factor.
+    /// </summary>
+    public float OldScale { get; }
+
+    /// <summary>
+    /// Gets the new scale factor.
+    /// </summary>
+    public float NewScale { get; }
+
+    /// <summary>
+    /// Gets the new DPI.
+    /// </summary>
+    public float NewDpi { get; }
+
+    public ScaleChangedEventArgs(float oldScale, float newScale, float newDpi)
+    {
+        OldScale = oldScale;
+        NewScale = newScale;
+        NewDpi = newDpi;
+    }
 }

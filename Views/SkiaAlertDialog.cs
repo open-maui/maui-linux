@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -23,17 +22,17 @@ public class SkiaAlertDialog : SkiaView
     private bool _cancelHovered;
     private bool _acceptHovered;
 
-    // Dialog styling - theme-aware colors (evaluated at draw time)
-    private static SKColor OverlayColor => SkiaTheme.Overlay50SK;
-    private static SKColor DialogBackground => SkiaTheme.CurrentSurfaceSK;
-    private static SKColor TitleColor => SkiaTheme.CurrentTextSK;
-    private static SKColor MessageColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray400SK : SkiaTheme.TextSecondarySK;
-    private static SKColor ButtonColor => SkiaTheme.PrimarySK;
-    private static SKColor ButtonHoverColor => SkiaTheme.PrimaryDarkSK;
-    private static SKColor ButtonTextColor => SKColors.White;
-    private static SKColor CancelButtonColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray600SK : SkiaTheme.ButtonCancelSK;
-    private static SKColor CancelButtonHoverColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray700SK : SkiaTheme.ButtonCancelHoverSK;
-    private static SKColor BorderColor => SkiaTheme.CurrentBorderSK;
+    // Dialog styling
+    private static readonly SKColor OverlayColor = new SKColor(0, 0, 0, 128);
+    private static readonly SKColor DialogBackground = SKColors.White;
+    private static readonly SKColor TitleColor = new SKColor(0x21, 0x21, 0x21);
+    private static readonly SKColor MessageColor = new SKColor(0x61, 0x61, 0x61);
+    private static readonly SKColor ButtonColor = new SKColor(0x21, 0x96, 0xF3);
+    private static readonly SKColor ButtonHoverColor = new SKColor(0x19, 0x76, 0xD2);
+    private static readonly SKColor ButtonTextColor = SKColors.White;
+    private static readonly SKColor CancelButtonColor = new SKColor(0x9E, 0x9E, 0x9E);
+    private static readonly SKColor CancelButtonHoverColor = new SKColor(0x75, 0x75, 0x75);
+    private static readonly SKColor BorderColor = new SKColor(0xE0, 0xE0, 0xE0);
 
     private const float DialogWidth = 400;
     private const float DialogPadding = 24;
@@ -62,9 +61,6 @@ public class SkiaAlertDialog : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var app = Application.Current;
-        DiagnosticLog.Debug("SkiaAlertDialog", $"OnDraw: app={app != null}, UserAppTheme={app?.UserAppTheme}, RequestedTheme={app?.RequestedTheme}, IsDarkMode={SkiaTheme.IsDarkMode}, DialogBg={DialogBackground}");
-
         // Draw semi-transparent overlay covering entire screen
         using var overlayPaint = new SKPaint
         {
@@ -84,7 +80,7 @@ public class SkiaAlertDialog : SkiaView
         // Draw dialog shadow
         using var shadowPaint = new SKPaint
         {
-            Color = SkiaTheme.Shadow25SK,
+            Color = new SKColor(0, 0, 0, 60),
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 8),
             Style = SKPaintStyle.Fill
         };
@@ -315,7 +311,7 @@ public class SkiaAlertDialog : SkiaView
         _tcs.TrySetResult(result);
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
         // Dialog takes full screen for the overlay
         return availableSize;
@@ -325,5 +321,65 @@ public class SkiaAlertDialog : SkiaView
     {
         // Modal dialogs capture all input
         return this;
+    }
+}
+
+/// <summary>
+/// Service for showing modal dialogs in OpenMaui Linux.
+/// </summary>
+public static class LinuxDialogService
+{
+    private static readonly List<SkiaAlertDialog> _activeDialogs = new();
+    private static Action? _invalidateCallback;
+
+    /// <summary>
+    /// Registers the invalidation callback (called by LinuxApplication).
+    /// </summary>
+    public static void SetInvalidateCallback(Action callback)
+    {
+        _invalidateCallback = callback;
+    }
+
+    /// <summary>
+    /// Shows an alert dialog and returns when dismissed.
+    /// </summary>
+    public static Task<bool> ShowAlertAsync(string title, string message, string? accept, string? cancel)
+    {
+        var dialog = new SkiaAlertDialog(title, message, accept, cancel);
+        _activeDialogs.Add(dialog);
+        _invalidateCallback?.Invoke();
+        return dialog.Result;
+    }
+
+    /// <summary>
+    /// Hides a dialog.
+    /// </summary>
+    internal static void HideDialog(SkiaAlertDialog dialog)
+    {
+        _activeDialogs.Remove(dialog);
+        _invalidateCallback?.Invoke();
+    }
+
+    /// <summary>
+    /// Gets whether there are active dialogs.
+    /// </summary>
+    public static bool HasActiveDialog => _activeDialogs.Count > 0;
+
+    /// <summary>
+    /// Gets the topmost dialog.
+    /// </summary>
+    public static SkiaAlertDialog? TopDialog => _activeDialogs.Count > 0 ? _activeDialogs[^1] : null;
+
+    /// <summary>
+    /// Draws all active dialogs.
+    /// </summary>
+    public static void DrawDialogs(SKCanvas canvas, SKRect bounds)
+    {
+        foreach (var dialog in _activeDialogs)
+        {
+            dialog.Measure(new SKSize(bounds.Width, bounds.Height));
+            dialog.Arrange(bounds);
+            dialog.Draw(canvas);
+        }
     }
 }

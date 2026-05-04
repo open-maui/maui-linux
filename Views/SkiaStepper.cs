@@ -1,400 +1,205 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered stepper control with increment/decrement buttons.
-/// Implements IStepper interface requirements:
-/// - Minimum, Maximum, Value, Increment properties
-/// - ValueChanged event with old/new values
 /// </summary>
 public class SkiaStepper : SkiaView
 {
-    #region SKColor Helper
-
-    private static SKColor ToSKColor(Color? color)
-    {
-        if (color == null) return SKColors.Transparent;
-        return color.ToSKColor();
-    }
-
-    #endregion
-
     #region BindableProperties
 
     public static readonly BindableProperty ValueProperty =
-        BindableProperty.Create(
-            nameof(Value),
-            typeof(double),
-            typeof(SkiaStepper),
-            0.0,
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(Value), typeof(double), typeof(SkiaStepper), 0.0, BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).OnValuePropertyChanged((double)o, (double)n));
 
     public static readonly BindableProperty MinimumProperty =
-        BindableProperty.Create(
-            nameof(Minimum),
-            typeof(double),
-            typeof(SkiaStepper),
-            0.0,
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(Minimum), typeof(double), typeof(SkiaStepper), 0.0,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).OnRangeChanged());
 
     public static readonly BindableProperty MaximumProperty =
-        BindableProperty.Create(
-            nameof(Maximum),
-            typeof(double),
-            typeof(SkiaStepper),
-            100.0,
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(Maximum), typeof(double), typeof(SkiaStepper), 100.0,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).OnRangeChanged());
 
     public static readonly BindableProperty IncrementProperty =
-        BindableProperty.Create(
-            nameof(Increment),
-            typeof(double),
-            typeof(SkiaStepper),
-            1.0,
-            BindingMode.TwoWay);
+        BindableProperty.Create(nameof(Increment), typeof(double), typeof(SkiaStepper), 1.0);
 
     public static readonly BindableProperty ButtonBackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(ButtonBackgroundColor),
-            typeof(Color),
-            typeof(SkiaStepper),
-            Color.FromRgb(0xE0, 0xE0, 0xE0),
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(ButtonBackgroundColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xE0, 0xE0, 0xE0),
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty ButtonPressedColorProperty =
-        BindableProperty.Create(
-            nameof(ButtonPressedColor),
-            typeof(Color),
-            typeof(SkiaStepper),
-            Color.FromRgb(0xBD, 0xBD, 0xBD),
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(ButtonPressedColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD),
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty ButtonDisabledColorProperty =
-        BindableProperty.Create(
-            nameof(ButtonDisabledColor),
-            typeof(Color),
-            typeof(SkiaStepper),
-            Color.FromRgb(0xF5, 0xF5, 0xF5),
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(ButtonDisabledColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xF5, 0xF5, 0xF5),
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty BorderColorProperty =
-        BindableProperty.Create(
-            nameof(BorderColor),
-            typeof(Color),
-            typeof(SkiaStepper),
-            Color.FromRgb(0xBD, 0xBD, 0xBD),
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(BorderColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD),
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty SymbolColorProperty =
-        BindableProperty.Create(
-            nameof(SymbolColor),
-            typeof(Color),
-            typeof(SkiaStepper),
-            Colors.Black,
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(SymbolColor), typeof(SKColor), typeof(SkiaStepper), SKColors.Black,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty SymbolDisabledColorProperty =
-        BindableProperty.Create(
-            nameof(SymbolDisabledColor),
-            typeof(Color),
-            typeof(SkiaStepper),
-            Color.FromRgb(0xBD, 0xBD, 0xBD),
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(SymbolDisabledColor), typeof(SKColor), typeof(SkiaStepper), new SKColor(0xBD, 0xBD, 0xBD),
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty CornerRadiusProperty =
-        BindableProperty.Create(
-            nameof(CornerRadius),
-            typeof(double),
-            typeof(SkiaStepper),
-            4.0,
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(CornerRadius), typeof(float), typeof(SkiaStepper), 4f,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).Invalidate());
 
     public static readonly BindableProperty ButtonWidthProperty =
-        BindableProperty.Create(
-            nameof(ButtonWidth),
-            typeof(double),
-            typeof(SkiaStepper),
-            40.0,
-            BindingMode.TwoWay,
+        BindableProperty.Create(nameof(ButtonWidth), typeof(float), typeof(SkiaStepper), 40f,
             propertyChanged: (b, o, n) => ((SkiaStepper)b).InvalidateMeasure());
 
     #endregion
 
     #region Properties
 
-    /// <summary>
-    /// Gets or sets the current value.
-    /// </summary>
     public double Value
     {
         get => (double)GetValue(ValueProperty);
         set => SetValue(ValueProperty, Math.Clamp(value, Minimum, Maximum));
     }
 
-    /// <summary>
-    /// Gets or sets the minimum value.
-    /// </summary>
     public double Minimum
     {
         get => (double)GetValue(MinimumProperty);
         set => SetValue(MinimumProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the maximum value.
-    /// </summary>
     public double Maximum
     {
         get => (double)GetValue(MaximumProperty);
         set => SetValue(MaximumProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the increment amount.
-    /// </summary>
     public double Increment
     {
         get => (double)GetValue(IncrementProperty);
         set => SetValue(IncrementProperty, Math.Max(0.001, value));
     }
 
-    /// <summary>
-    /// Gets or sets the button background color.
-    /// </summary>
-    public Color ButtonBackgroundColor
+    public SKColor ButtonBackgroundColor
     {
-        get => (Color)GetValue(ButtonBackgroundColorProperty);
+        get => (SKColor)GetValue(ButtonBackgroundColorProperty);
         set => SetValue(ButtonBackgroundColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the button pressed color.
-    /// </summary>
-    public Color ButtonPressedColor
+    public SKColor ButtonPressedColor
     {
-        get => (Color)GetValue(ButtonPressedColorProperty);
+        get => (SKColor)GetValue(ButtonPressedColorProperty);
         set => SetValue(ButtonPressedColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the button disabled color.
-    /// </summary>
-    public Color ButtonDisabledColor
+    public SKColor ButtonDisabledColor
     {
-        get => (Color)GetValue(ButtonDisabledColorProperty);
+        get => (SKColor)GetValue(ButtonDisabledColorProperty);
         set => SetValue(ButtonDisabledColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the border color.
-    /// </summary>
-    public Color BorderColor
+    public SKColor BorderColor
     {
-        get => (Color)GetValue(BorderColorProperty);
+        get => (SKColor)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the symbol color.
-    /// </summary>
-    public Color SymbolColor
+    public SKColor SymbolColor
     {
-        get => (Color)GetValue(SymbolColorProperty);
+        get => (SKColor)GetValue(SymbolColorProperty);
         set => SetValue(SymbolColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the symbol disabled color.
-    /// </summary>
-    public Color SymbolDisabledColor
+    public SKColor SymbolDisabledColor
     {
-        get => (Color)GetValue(SymbolDisabledColorProperty);
+        get => (SKColor)GetValue(SymbolDisabledColorProperty);
         set => SetValue(SymbolDisabledColorProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the corner radius.
-    /// </summary>
-    public double CornerRadius
+    public float CornerRadius
     {
-        get => (double)GetValue(CornerRadiusProperty);
+        get => (float)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
-    /// <summary>
-    /// Gets or sets the button width.
-    /// </summary>
-    public double ButtonWidth
+    public float ButtonWidth
     {
-        get => (double)GetValue(ButtonWidthProperty);
+        get => (float)GetValue(ButtonWidthProperty);
         set => SetValue(ButtonWidthProperty, value);
     }
 
-    /// <summary>
-    /// Gets whether the minus button is currently pressed.
-    /// </summary>
-    public bool IsMinusPressed { get; private set; }
-
-    /// <summary>
-    /// Gets whether the plus button is currently pressed.
-    /// </summary>
-    public bool IsPlusPressed { get; private set; }
-
     #endregion
 
-    #region Events
+    private bool _isMinusPressed;
+    private bool _isPlusPressed;
 
-    /// <summary>
-    /// Event raised when the value changes.
-    /// </summary>
-    public event EventHandler<ValueChangedEventArgs>? ValueChanged;
-
-    #endregion
-
-    #region Constructor
+    public event EventHandler? ValueChanged;
 
     public SkiaStepper()
     {
         IsFocusable = true;
     }
 
-    #endregion
-
-    #region Event Handlers
-
     private void OnValuePropertyChanged(double oldValue, double newValue)
     {
-        ValueChanged?.Invoke(this, new ValueChangedEventArgs(oldValue, newValue));
+        ValueChanged?.Invoke(this, EventArgs.Empty);
         Invalidate();
     }
 
     private void OnRangeChanged()
     {
         var clamped = Math.Clamp(Value, Minimum, Maximum);
-        if (Math.Abs(Value - clamped) > double.Epsilon)
+        if (Value != clamped)
         {
             Value = clamped;
         }
         Invalidate();
     }
 
-    #endregion
-
-    #region Rendering
-
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var buttonWidth = (float)ButtonWidth;
-        var cornerRadius = (float)CornerRadius;
+        var minusRect = new SKRect(bounds.Left, bounds.Top, bounds.Left + ButtonWidth, bounds.Bottom);
+        var plusRect = new SKRect(bounds.Right - ButtonWidth, bounds.Top, bounds.Right, bounds.Bottom);
 
-        var minusRect = new SKRect(bounds.Left, bounds.Top, bounds.Left + buttonWidth, bounds.Bottom);
-        var plusRect = new SKRect(bounds.Right - buttonWidth, bounds.Top, bounds.Right, bounds.Bottom);
+        DrawButton(canvas, minusRect, "-", _isMinusPressed, !CanDecrement());
+        DrawButton(canvas, plusRect, "+", _isPlusPressed, !CanIncrement());
 
-        // Get colors
-        var buttonBgColorSK = ToSKColor(ButtonBackgroundColor);
-        var buttonPressedColorSK = ToSKColor(ButtonPressedColor);
-        var buttonDisabledColorSK = ToSKColor(ButtonDisabledColor);
-        var borderColorSK = ToSKColor(BorderColor);
-        var symbolColorSK = ToSKColor(SymbolColor);
-        var symbolDisabledColorSK = ToSKColor(SymbolDisabledColor);
-
-        // Draw focus ring
-        if (IsFocused)
-        {
-            using var focusPaint = new SKPaint
-            {
-                Color = ToSKColor(Color.FromRgb(0x21, 0x96, 0xF3)).WithAlpha(60),
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 3,
-                IsAntialias = true
-            };
-            var focusRect = new SKRect(bounds.Left - 2, bounds.Top - 2, bounds.Right + 2, bounds.Bottom + 2);
-            canvas.DrawRoundRect(new SKRoundRect(focusRect, cornerRadius + 2), focusPaint);
-        }
-
-        DrawButton(canvas, minusRect, "-", IsMinusPressed, !CanDecrement(),
-            buttonBgColorSK, buttonPressedColorSK, buttonDisabledColorSK,
-            symbolColorSK, symbolDisabledColorSK, cornerRadius, true);
-
-        DrawButton(canvas, plusRect, "+", IsPlusPressed, !CanIncrement(),
-            buttonBgColorSK, buttonPressedColorSK, buttonDisabledColorSK,
-            symbolColorSK, symbolDisabledColorSK, cornerRadius, false);
-
-        // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = borderColorSK,
+            Color = BorderColor,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1,
             IsAntialias = true
         };
 
         var totalRect = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Bottom);
-        canvas.DrawRoundRect(new SKRoundRect(totalRect, cornerRadius), borderPaint);
+        canvas.DrawRoundRect(new SKRoundRect(totalRect, CornerRadius), borderPaint);
 
-        // Draw center divider
         var centerX = bounds.MidX;
         canvas.DrawLine(centerX, bounds.Top, centerX, bounds.Bottom, borderPaint);
     }
 
-    private void DrawButton(SKCanvas canvas, SKRect rect, string symbol, bool isPressed, bool isDisabled,
-        SKColor bgColor, SKColor pressedColor, SKColor disabledColor,
-        SKColor symbolColor, SKColor symbolDisabledColor, float cornerRadius, bool isLeft)
+    private void DrawButton(SKCanvas canvas, SKRect rect, string symbol, bool isPressed, bool isDisabled)
     {
-        // Draw background with rounded corners on the appropriate side
         using var bgPaint = new SKPaint
         {
-            Color = isDisabled ? disabledColor : (isPressed ? pressedColor : bgColor),
+            Color = isDisabled ? ButtonDisabledColor : (isPressed ? ButtonPressedColor : ButtonBackgroundColor),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
+        canvas.DrawRect(rect, bgPaint);
 
-        // Create path for rounded corners on one side only
-        using var path = new SKPath();
-        if (isLeft)
-        {
-            path.MoveTo(rect.Left + cornerRadius, rect.Top);
-            path.LineTo(rect.Right, rect.Top);
-            path.LineTo(rect.Right, rect.Bottom);
-            path.LineTo(rect.Left + cornerRadius, rect.Bottom);
-            path.ArcTo(new SKRect(rect.Left, rect.Bottom - cornerRadius * 2, rect.Left + cornerRadius * 2, rect.Bottom), 90, 90, false);
-            path.LineTo(rect.Left, rect.Top + cornerRadius);
-            path.ArcTo(new SKRect(rect.Left, rect.Top, rect.Left + cornerRadius * 2, rect.Top + cornerRadius * 2), 180, 90, false);
-        }
-        else
-        {
-            path.MoveTo(rect.Left, rect.Top);
-            path.LineTo(rect.Right - cornerRadius, rect.Top);
-            path.ArcTo(new SKRect(rect.Right - cornerRadius * 2, rect.Top, rect.Right, rect.Top + cornerRadius * 2), 270, 90, false);
-            path.LineTo(rect.Right, rect.Bottom - cornerRadius);
-            path.ArcTo(new SKRect(rect.Right - cornerRadius * 2, rect.Bottom - cornerRadius * 2, rect.Right, rect.Bottom), 0, 90, false);
-            path.LineTo(rect.Left, rect.Bottom);
-        }
-        path.Close();
-        canvas.DrawPath(path, bgPaint);
-
-        // Draw symbol
         using var font = new SKFont(SKTypeface.Default, 20);
         using var textPaint = new SKPaint(font)
         {
-            Color = isDisabled ? symbolDisabledColor : symbolColor,
+            Color = isDisabled ? SymbolDisabledColor : SymbolColor,
             IsAntialias = true
         };
 
@@ -403,71 +208,32 @@ public class SkiaStepper : SkiaView
         canvas.DrawText(symbol, rect.MidX - textBounds.MidX, rect.MidY - textBounds.MidY, textPaint);
     }
 
-    #endregion
-
-    #region Helper Methods
-
     private bool CanIncrement() => IsEnabled && Value < Maximum;
     private bool CanDecrement() => IsEnabled && Value > Minimum;
-
-    #endregion
-
-    #region Pointer Events
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
         if (!IsEnabled) return;
 
-        var buttonWidth = (float)ButtonWidth;
-
-        if (e.X < buttonWidth)
+        if (e.X < ButtonWidth)
         {
-            IsMinusPressed = true;
+            _isMinusPressed = true;
             if (CanDecrement()) Value -= Increment;
-            SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
         }
-        else if (e.X > Bounds.Width - buttonWidth)
+        else if (e.X > Bounds.Width - ButtonWidth)
         {
-            IsPlusPressed = true;
+            _isPlusPressed = true;
             if (CanIncrement()) Value += Increment;
-            SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.Pressed);
         }
-
-        e.Handled = true;
         Invalidate();
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
-        if (IsMinusPressed || IsPlusPressed)
-        {
-            IsMinusPressed = false;
-            IsPlusPressed = false;
-            SkiaVisualStateManager.GoToState(this, IsEnabled
-                ? SkiaVisualStateManager.CommonStates.Normal
-                : SkiaVisualStateManager.CommonStates.Disabled);
-            Invalidate();
-        }
+        _isMinusPressed = false;
+        _isPlusPressed = false;
+        Invalidate();
     }
-
-    public override void OnPointerEntered(PointerEventArgs e)
-    {
-        if (IsEnabled)
-        {
-            SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
-        }
-    }
-
-    public override void OnPointerExited(PointerEventArgs e)
-    {
-        SkiaVisualStateManager.GoToState(this, IsEnabled
-            ? SkiaVisualStateManager.CommonStates.Normal
-            : SkiaVisualStateManager.CommonStates.Disabled);
-    }
-
-    #endregion
-
-    #region Keyboard Events
 
     public override void OnKeyDown(KeyEventArgs e)
     {
@@ -485,46 +251,11 @@ public class SkiaStepper : SkiaView
                 if (CanDecrement()) Value -= Increment;
                 e.Handled = true;
                 break;
-            case Key.PageUp:
-                if (CanIncrement()) Value += Increment * 10;
-                e.Handled = true;
-                break;
-            case Key.PageDown:
-                if (CanDecrement()) Value -= Increment * 10;
-                e.Handled = true;
-                break;
-            case Key.Home:
-                Value = Minimum;
-                e.Handled = true;
-                break;
-            case Key.End:
-                Value = Maximum;
-                e.Handled = true;
-                break;
         }
     }
 
-    #endregion
-
-    #region Lifecycle
-
-    protected override void OnEnabledChanged()
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled
-            ? SkiaVisualStateManager.CommonStates.Normal
-            : SkiaVisualStateManager.CommonStates.Disabled);
+        return new SKSize(ButtonWidth * 2 + 1, 32);
     }
-
-    #endregion
-
-    #region Layout
-
-    protected override Size MeasureOverride(Size availableSize)
-    {
-        var buttonWidth = ButtonWidth;
-        return new Size(buttonWidth * 2 + 1, 32);
-    }
-
-    #endregion
 }

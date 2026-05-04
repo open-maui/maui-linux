@@ -68,7 +68,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         base.DisconnectHandler(platformView);
     }
 
-    private void OnValueChanged(object? sender, ValueChangedEventArgs e)
+    private void OnValueChanged(object? sender, SliderValueChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
@@ -112,16 +112,18 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
     {
         if (handler.PlatformView is null) return;
 
+        // MinimumTrackColor maps to ActiveTrackColor (the filled portion)
         if (slider.MinimumTrackColor is not null)
-            handler.PlatformView.MinimumTrackColor = slider.MinimumTrackColor;
+            handler.PlatformView.ActiveTrackColor = slider.MinimumTrackColor.ToSKColor();
     }
 
     public static void MapMaximumTrackColor(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
 
+        // MaximumTrackColor maps to TrackColor (the unfilled portion)
         if (slider.MaximumTrackColor is not null)
-            handler.PlatformView.MaximumTrackColor = slider.MaximumTrackColor;
+            handler.PlatformView.TrackColor = slider.MaximumTrackColor.ToSKColor();
     }
 
     public static void MapThumbColor(SliderHandler handler, ISlider slider)
@@ -129,7 +131,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         if (handler.PlatformView is null) return;
 
         if (slider.ThumbColor is not null)
-            handler.PlatformView.ThumbColor = slider.ThumbColor;
+            handler.PlatformView.ThumbColor = slider.ThumbColor.ToSKColor();
     }
 
     public static void MapBackground(SliderHandler handler, ISlider slider)
@@ -138,7 +140,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
 
         if (slider.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color;
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
     }
 

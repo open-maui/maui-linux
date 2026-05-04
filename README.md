@@ -4,9 +4,8 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 
 [![NuGet](https://img.shields.io/nuget/v/OpenMaui.Controls.Linux)](https://www.nuget.org/packages/OpenMaui.Controls.Linux)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![GitHub](https://img.shields.io/badge/GitHub-open--maui-181717?logo=github)](https://github.com/open-maui/maui-linux)
 
-**Developed by [MarketAlly Pte Ltd](https://marketally.ai)**
+**Developed by [MarketAlly LLC](https://marketally.com)**
 **Lead Architect: David H. Friedel Jr.**
 
 ## Overview
@@ -15,7 +14,7 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 
 ### Key Features
 
-- **Full Control Library**: 50+ controls including Button, Label, Entry, Shapes, CarouselView, RefreshView, SwipeView, and more
+- **Full Control Library**: 35+ controls including Button, Label, Entry, CarouselView, RefreshView, SwipeView, and more
 - **Native Integration**: X11 and Wayland display server support
 - **Accessibility**: AT-SPI2 screen reader support and high contrast mode
 - **Platform Services**: Clipboard, file picker, notifications, global hotkeys, drag & drop
@@ -41,7 +40,7 @@ dotnet run
 ### Manual Installation
 
 ```bash
-dotnet add package OpenMaui.Controls.Linux
+dotnet add package OpenMaui.Controls.Linux --prerelease
 ```
 
 ## XAML Support
@@ -82,7 +81,6 @@ builder
 | **Gesture** | SwipeView, RefreshView |
 | **Navigation** | NavigationPage, TabbedPage, FlyoutPage, Shell |
 | **Menu** | MenuBar, MenuFlyout, MenuItem |
-| **Shapes** | Ellipse, Line, Rectangle, Polygon, Polyline, Path |
 | **Graphics** | GraphicsView, Border |
 
 ## Platform Services
@@ -111,7 +109,7 @@ builder
 
 ## Requirements
 
-- .NET 10.0 SDK or later
+- .NET 9.0 SDK or later
 - Linux (kernel 5.4+)
 - X11 or Wayland
 - SkiaSharp native libraries
@@ -137,50 +135,51 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 
 ## Sample Applications
 
-Full sample applications are available in the [maui-linux-samples](https://github.com/open-maui/maui-linux-samples) repository:
+Full sample applications are available in the [maui-linux-samples](https://git.marketally.com/open-maui/maui-linux-samples) repository:
 
 | Sample | Description |
 |--------|-------------|
-| **[TodoApp](https://github.com/open-maui/maui-linux-samples/tree/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
-| **[ShellDemo](https://github.com/open-maui/maui-linux-samples/tree/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
-| **[WebViewDemo](https://github.com/open-maui/maui-linux-samples/tree/main/WebViewDemo)** | Web browser with WebView, navigation controls, and XAML UI |
-
-## Distribution
-
-Package your OpenMaui app as a portable AppImage with a single command:
-
-```bash
-dotnet tool install --global OpenMaui.AppImage
-dotnet appimage
-```
-
-Auto-detects your executable and icon, generates a `.desktop` file, and produces a self-contained AppImage that runs on most Linux distributions. See the [OpenMaui.AppImage](https://github.com/open-maui/appimage) repository for details.
+| **[TodoApp](https://git.marketally.com/open-maui/maui-linux-samples/src/branch/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
+| **[ShellDemo](https://git.marketally.com/open-maui/maui-linux-samples/src/branch/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
 
 ## Quick Example
 
 ```csharp
-// MauiProgram.cs
-using Microsoft.Maui.Hosting;
-using Microsoft.Maui.Platform.Linux.Hosting;
+using OpenMaui.Platform.Linux;
 
-var builder = MauiApp.CreateBuilder();
-builder
-    .UseMauiApp<App>()
-    .UseOpenMauiLinux();
+var app = new LinuxApplication();
 
-var app = builder.Build();
-LinuxApplication.Run(app, args);
+app.MainPage = new ContentPage
+{
+    Content = new VerticalStackLayout
+    {
+        Spacing = 10,
+        Children =
+        {
+            new Label
+            {
+                Text = "Welcome to MAUI on Linux!",
+                FontSize = 24
+            },
+            new Button
+            {
+                Text = "Click Me"
+            },
+            new Entry
+            {
+                Placeholder = "Enter your name"
+            }
+        }
+    }
+};
+
+app.Run();
 ```
 
 ## Building from Source
 
 ```bash
-# Primary repository
-git clone https://github.com/open-maui/maui-linux.git
-
-# Or from GitHub mirror
-git clone https://github.com/open-maui/maui-linux.git
-
+git clone https://git.marketally.com/open-maui/maui-linux.git
 cd maui-linux
 dotnet build
 dotnet test
@@ -189,8 +188,6 @@ dotnet test
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-> **Note:** Please submit issues and pull requests on [GitHub](https://github.com/open-maui/maui-linux).
 
 ## Architecture
 
@@ -261,7 +258,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 ## Roadmap
 
-- [x] Core control library (50+ controls)
+- [x] Core control library (35+ controls)
 - [x] Platform services integration
 - [x] Accessibility (AT-SPI2)
 - [x] Input method support (IBus/XIM)
@@ -272,25 +269,20 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Visual State Manager integration
 - [x] XAML styles and StaticResource
 - [x] Data binding (OneWay, TwoWay, IValueConverter)
-- [x] App icon support (MauiIcon build targets, .desktop integration)
-- [x] Dark mode for all picker popups
-- [x] DPI-aware popup rendering with edge detection
-- [x] MAUI Shapes (Ellipse, Line, Rectangle, Polygon, Polyline, Path)
 - [ ] Complete Wayland support
 - [ ] Hardware video acceleration
 - [ ] GTK4 interop layer
 
 ## License
 
-Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (c) 2025 MarketAlly LLC. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- [MarketAlly Pte Ltd](https://marketally.ai) - Project development and maintenance
+- [MarketAlly LLC](https://marketally.com) - Project development and maintenance
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
 - The .NET community
-- A very special thank you to the [Anthropic](https://anthropic.com) team for delivering on the promise I hold most dear — that an individual with enough energy and persistence can still make a difference
  
  
  

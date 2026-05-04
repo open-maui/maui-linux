@@ -134,6 +134,10 @@ public class AppActionsService : IAppActions
                 }
 
                 content.AppendLine($"Exec={execPath} --action={action.Id}");
+
+                {
+                }
+
                 content.AppendLine();
             }
         }

@@ -1,34 +1,21 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered checkbox control with full MAUI compliance.
-/// Implements ICheckBox interface requirements:
-/// - IsChecked property with CheckedChanged event
-/// - Color property (maps to BoxColor when checked)
-/// - Foreground property (maps to CheckColor - the checkmark color)
+/// Skia-rendered checkbox control with full XAML styling support.
 /// </summary>
 public class SkiaCheckBox : SkiaView
 {
-    #region SKColor Helper
-
-    private static SKColor ToSKColor(Color? color)
-    {
-        if (color == null) return SKColors.Transparent;
-        return color.ToSKColor();
-    }
-
-    #endregion
-
     #region BindableProperties
 
+    /// <summary>
+    /// Bindable property for IsChecked.
+    /// </summary>
     public static readonly BindableProperty IsCheckedProperty =
         BindableProperty.Create(
             nameof(IsChecked),
@@ -38,94 +25,114 @@ public class SkiaCheckBox : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).OnIsCheckedChanged());
 
-    public static readonly BindableProperty ColorProperty =
-        BindableProperty.Create(
-            nameof(Color),
-            typeof(Color),
-            typeof(SkiaCheckBox),
-            Color.FromRgb(33, 150, 243), // Material Blue
-            BindingMode.TwoWay,
-            propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
-
+    /// <summary>
+    /// Bindable property for CheckColor.
+    /// </summary>
     public static readonly BindableProperty CheckColorProperty =
         BindableProperty.Create(
             nameof(CheckColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaCheckBox),
-            Colors.White,
-            BindingMode.TwoWay,
+            SKColors.White,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for BoxColor.
+    /// </summary>
+    public static readonly BindableProperty BoxColorProperty =
+        BindableProperty.Create(
+            nameof(BoxColor),
+            typeof(SKColor),
+            typeof(SkiaCheckBox),
+            new SKColor(0x21, 0x96, 0xF3),
+            propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
+
+    /// <summary>
+    /// Bindable property for UncheckedBoxColor.
+    /// </summary>
     public static readonly BindableProperty UncheckedBoxColorProperty =
         BindableProperty.Create(
             nameof(UncheckedBoxColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaCheckBox),
-            Colors.White,
-            BindingMode.TwoWay,
+            SKColors.White,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for BorderColor.
+    /// </summary>
     public static readonly BindableProperty BorderColorProperty =
         BindableProperty.Create(
             nameof(BorderColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaCheckBox),
-            Color.FromRgb(117, 117, 117),
-            BindingMode.TwoWay,
+            new SKColor(0x75, 0x75, 0x75),
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for DisabledColor.
+    /// </summary>
     public static readonly BindableProperty DisabledColorProperty =
         BindableProperty.Create(
             nameof(DisabledColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaCheckBox),
-            Color.FromRgb(189, 189, 189),
-            BindingMode.TwoWay,
+            new SKColor(0xBD, 0xBD, 0xBD),
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for HoveredBorderColor.
+    /// </summary>
     public static readonly BindableProperty HoveredBorderColorProperty =
         BindableProperty.Create(
             nameof(HoveredBorderColor),
-            typeof(Color),
+            typeof(SKColor),
             typeof(SkiaCheckBox),
-            Color.FromRgb(33, 150, 243),
-            BindingMode.TwoWay,
+            new SKColor(0x21, 0x96, 0xF3),
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for BoxSize.
+    /// </summary>
     public static readonly BindableProperty BoxSizeProperty =
         BindableProperty.Create(
             nameof(BoxSize),
-            typeof(double),
+            typeof(float),
             typeof(SkiaCheckBox),
-            20.0,
-            BindingMode.TwoWay,
+            20f,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).InvalidateMeasure());
 
+    /// <summary>
+    /// Bindable property for CornerRadius.
+    /// </summary>
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(
             nameof(CornerRadius),
-            typeof(double),
+            typeof(float),
             typeof(SkiaCheckBox),
-            3.0,
-            BindingMode.TwoWay,
+            3f,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for BorderWidth.
+    /// </summary>
     public static readonly BindableProperty BorderWidthProperty =
         BindableProperty.Create(
             nameof(BorderWidth),
-            typeof(double),
+            typeof(float),
             typeof(SkiaCheckBox),
-            2.0,
-            BindingMode.TwoWay,
+            2f,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
+    /// <summary>
+    /// Bindable property for CheckStrokeWidth.
+    /// </summary>
     public static readonly BindableProperty CheckStrokeWidthProperty =
         BindableProperty.Create(
             nameof(CheckStrokeWidth),
-            typeof(double),
+            typeof(float),
             typeof(SkiaCheckBox),
-            2.5,
-            BindingMode.TwoWay,
+            2.5f,
             propertyChanged: (b, o, n) => ((SkiaCheckBox)b).Invalidate());
 
     #endregion
@@ -142,167 +149,136 @@ public class SkiaCheckBox : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the color of the checkbox box when checked.
-    /// This is the primary MAUI CheckBox.Color property.
+    /// Gets or sets the check color.
     /// </summary>
-    public Color Color
+    public SKColor CheckColor
     {
-        get => (Color)GetValue(ColorProperty);
-        set => SetValue(ColorProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the color of the checkmark itself.
-    /// Maps to ICheckBox.Foreground in MAUI.
-    /// </summary>
-    public Color CheckColor
-    {
-        get => (Color)GetValue(CheckColorProperty);
+        get => (SKColor)GetValue(CheckColorProperty);
         set => SetValue(CheckColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the color of the checkbox box when unchecked.
+    /// Gets or sets the box color when checked.
     /// </summary>
-    public Color UncheckedBoxColor
+    public SKColor BoxColor
     {
-        get => (Color)GetValue(UncheckedBoxColorProperty);
+        get => (SKColor)GetValue(BoxColorProperty);
+        set => SetValue(BoxColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the box color when unchecked.
+    /// </summary>
+    public SKColor UncheckedBoxColor
+    {
+        get => (SKColor)GetValue(UncheckedBoxColorProperty);
         set => SetValue(UncheckedBoxColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the border color when unchecked.
+    /// Gets or sets the border color.
     /// </summary>
-    public Color BorderColor
+    public SKColor BorderColor
     {
-        get => (Color)GetValue(BorderColorProperty);
+        get => (SKColor)GetValue(BorderColorProperty);
         set => SetValue(BorderColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the color used when the control is disabled.
+    /// Gets or sets the disabled color.
     /// </summary>
-    public Color DisabledColor
+    public SKColor DisabledColor
     {
-        get => (Color)GetValue(DisabledColorProperty);
+        get => (SKColor)GetValue(DisabledColorProperty);
         set => SetValue(DisabledColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the border color when hovered.
+    /// Gets or sets the hovered border color.
     /// </summary>
-    public Color HoveredBorderColor
+    public SKColor HoveredBorderColor
     {
-        get => (Color)GetValue(HoveredBorderColorProperty);
+        get => (SKColor)GetValue(HoveredBorderColorProperty);
         set => SetValue(HoveredBorderColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the size of the checkbox box in device-independent units.
+    /// Gets or sets the box size.
     /// </summary>
-    public double BoxSize
+    public float BoxSize
     {
-        get => (double)GetValue(BoxSizeProperty);
+        get => (float)GetValue(BoxSizeProperty);
         set => SetValue(BoxSizeProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the corner radius of the checkbox box.
+    /// Gets or sets the corner radius.
     /// </summary>
-    public double CornerRadius
+    public float CornerRadius
     {
-        get => (double)GetValue(CornerRadiusProperty);
+        get => (float)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the border width.
     /// </summary>
-    public double BorderWidth
+    public float BorderWidth
     {
-        get => (double)GetValue(BorderWidthProperty);
+        get => (float)GetValue(BorderWidthProperty);
         set => SetValue(BorderWidthProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the stroke width of the checkmark.
+    /// Gets or sets the check stroke width.
     /// </summary>
-    public double CheckStrokeWidth
+    public float CheckStrokeWidth
     {
-        get => (double)GetValue(CheckStrokeWidthProperty);
+        get => (float)GetValue(CheckStrokeWidthProperty);
         set => SetValue(CheckStrokeWidthProperty, value);
     }
 
     /// <summary>
-    /// Gets whether the control is currently hovered.
+    /// Gets whether the pointer is over the checkbox.
     /// </summary>
     public bool IsHovered { get; private set; }
 
     #endregion
 
-    #region Events
-
     /// <summary>
-    /// Occurs when the IsChecked property changes.
+    /// Event raised when checked state changes.
     /// </summary>
     public event EventHandler<CheckedChangedEventArgs>? CheckedChanged;
-
-    #endregion
-
-    #region Constructor
 
     public SkiaCheckBox()
     {
         IsFocusable = true;
     }
 
-    #endregion
-
-    #region Event Handlers
-
     private void OnIsCheckedChanged()
     {
         CheckedChanged?.Invoke(this, new CheckedChangedEventArgs(IsChecked));
-        SkiaVisualStateManager.GoToState(this, IsChecked ? "Checked" : "Unchecked");
+        SkiaVisualStateManager.GoToState(this, IsChecked ? SkiaVisualStateManager.CommonStates.Checked : SkiaVisualStateManager.CommonStates.Unchecked);
         Invalidate();
     }
 
-    #endregion
-
-    #region Rendering
-
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var boxSize = (float)BoxSize;
-        var cornerRadius = (float)CornerRadius;
-        var borderWidth = (float)BorderWidth;
-
         // Center the checkbox box in bounds
         var boxRect = new SKRect(
-            bounds.Left + (bounds.Width - boxSize) / 2f,
-            bounds.Top + (bounds.Height - boxSize) / 2f,
-            bounds.Left + (bounds.Width - boxSize) / 2f + boxSize,
-            bounds.Top + (bounds.Height - boxSize) / 2f + boxSize);
+            bounds.Left + (bounds.Width - BoxSize) / 2,
+            bounds.Top + (bounds.Height - BoxSize) / 2,
+            bounds.Left + (bounds.Width - BoxSize) / 2 + BoxSize,
+            bounds.Top + (bounds.Height - BoxSize) / 2 + BoxSize);
 
-        var roundRect = new SKRoundRect(boxRect, cornerRadius);
-
-        // Get colors as SKColor
-        var colorSK = ToSKColor(Color);
-        var checkColorSK = ToSKColor(CheckColor);
-        // Use theme-aware color for unchecked box if default white
-        var uncheckedBoxColorSK = UncheckedBoxColor == Colors.White
-            ? SkiaTheme.CurrentSurfaceSK
-            : ToSKColor(UncheckedBoxColor);
-        var borderColorSK = ToSKColor(BorderColor);
-        var disabledColorSK = ToSKColor(DisabledColor);
-        var hoveredBorderColorSK = ToSKColor(HoveredBorderColor);
+        var roundRect = new SKRoundRect(boxRect, CornerRadius);
 
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = !IsEnabled ? disabledColorSK
-                  : IsChecked ? colorSK
-                  : uncheckedBoxColorSK,
+            Color = !IsEnabled ? DisabledColor
+                  : IsChecked ? BoxColor
+                  : UncheckedBoxColor,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -311,13 +287,13 @@ public class SkiaCheckBox : SkiaView
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = !IsEnabled ? disabledColorSK
-                  : IsChecked ? colorSK
-                  : IsHovered ? hoveredBorderColorSK
-                  : borderColorSK,
+            Color = !IsEnabled ? DisabledColor
+                  : IsChecked ? BoxColor
+                  : IsHovered ? HoveredBorderColor
+                  : BorderColor,
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = borderWidth
+            StrokeWidth = BorderWidth
         };
         canvas.DrawRoundRect(roundRect, borderPaint);
 
@@ -326,44 +302,43 @@ public class SkiaCheckBox : SkiaView
         {
             using var focusPaint = new SKPaint
             {
-                Color = colorSK.WithAlpha(80),
+                Color = BoxColor.WithAlpha(80),
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = 3f
+                StrokeWidth = 3
             };
-            var focusRect = new SKRoundRect(boxRect, cornerRadius);
-            focusRect.Inflate(4f, 4f);
+            var focusRect = new SKRoundRect(boxRect, CornerRadius);
+            focusRect.Inflate(4, 4);
             canvas.DrawRoundRect(focusRect, focusPaint);
         }
 
         // Draw checkmark
         if (IsChecked)
         {
-            DrawCheckmark(canvas, boxRect, checkColorSK);
+            DrawCheckmark(canvas, boxRect);
         }
     }
 
-    private void DrawCheckmark(SKCanvas canvas, SKRect boxRect, SKColor checkColor)
+    private void DrawCheckmark(SKCanvas canvas, SKRect boxRect)
     {
-        var checkStrokeWidth = (float)CheckStrokeWidth;
-        var boxSize = (float)BoxSize;
-
         using var paint = new SKPaint
         {
-            Color = checkColor,
+            Color = CheckColor,
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = checkStrokeWidth,
+            StrokeWidth = CheckStrokeWidth,
             StrokeCap = SKStrokeCap.Round,
             StrokeJoin = SKStrokeJoin.Round
         };
 
-        float padding = boxSize * 0.2f;
-        float left = boxRect.Left + padding;
-        float right = boxRect.Right - padding;
-        float top = boxRect.Top + padding;
-        float bottom = boxRect.Bottom - padding;
+        // Checkmark path - a simple check
+        var padding = BoxSize * 0.2f;
+        var left = boxRect.Left + padding;
+        var right = boxRect.Right - padding;
+        var top = boxRect.Top + padding;
+        var bottom = boxRect.Bottom - padding;
 
+        // Check starts from bottom-left, goes to middle-bottom, then to top-right
         using var path = new SKPath();
         path.MoveTo(left, boxRect.MidY);
         path.LineTo(boxRect.MidX - padding * 0.3f, bottom - padding * 0.5f);
@@ -372,73 +347,67 @@ public class SkiaCheckBox : SkiaView
         canvas.DrawPath(path, paint);
     }
 
-    #endregion
-
-    #region Pointer Events
-
     public override void OnPointerEntered(PointerEventArgs e)
     {
-        if (IsEnabled)
-        {
-            IsHovered = true;
-            SkiaVisualStateManager.GoToState(this, "PointerOver");
-            Invalidate();
-        }
+        if (!IsEnabled) return;
+        IsHovered = true;
+        SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
+        Invalidate();
     }
 
     public override void OnPointerExited(PointerEventArgs e)
     {
         IsHovered = false;
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
         Invalidate();
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        if (IsEnabled)
-        {
-            IsChecked = !IsChecked;
-            e.Handled = true;
-        }
+        if (!IsEnabled) return;
+        IsChecked = !IsChecked;
+        e.Handled = true;
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
-        // No action needed
+        // Toggle handled in OnPointerPressed
     }
-
-    #endregion
-
-    #region Keyboard Events
 
     public override void OnKeyDown(KeyEventArgs e)
     {
-        if (IsEnabled && e.Key == Key.Space)
+        if (!IsEnabled) return;
+
+        // Toggle on Space
+        if (e.Key == Key.Space)
         {
             IsChecked = !IsChecked;
             e.Handled = true;
         }
     }
 
-    #endregion
-
-    #region Lifecycle
-
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
-        SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
+        SkiaVisualStateManager.GoToState(this, IsEnabled ? SkiaVisualStateManager.CommonStates.Normal : SkiaVisualStateManager.CommonStates.Disabled);
     }
 
-    #endregion
-
-    #region Layout
-
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        var boxSize = BoxSize;
-        return new Size(boxSize + 8.0, boxSize + 8.0);
+        // Add some padding around the box for touch targets
+        return new SKSize(BoxSize + 8, BoxSize + 8);
     }
+}
 
-    #endregion
+/// <summary>
+/// Event args for checked changed events.
+/// </summary>
+public class CheckedChangedEventArgs : EventArgs
+{
+    public bool IsChecked { get; }
+
+    public CheckedChangedEventArgs(bool isChecked)
+    {
+        IsChecked = isChecked;
+    }
 }

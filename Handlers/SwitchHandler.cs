@@ -19,7 +19,6 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         [nameof(ISwitch.TrackColor)] = MapTrackColor,
         [nameof(ISwitch.ThumbColor)] = MapThumbColor,
         [nameof(IView.Background)] = MapBackground,
-        [nameof(IView.IsEnabled)] = MapIsEnabled,
     };
 
     public static CommandMapper<ISwitch, SwitchHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -70,12 +69,13 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
     {
         if (handler.PlatformView is null) return;
 
-        // TrackColor sets the On track color (MAUI's OnColor)
+        // TrackColor sets both On and Off track colors
         if (@switch.TrackColor is not null)
         {
-            handler.PlatformView.OnTrackColor = @switch.TrackColor;
-            // Off track is a lighter/desaturated version
-            handler.PlatformView.OffTrackColor = @switch.TrackColor.WithAlpha(0.5f);
+            var color = @switch.TrackColor.ToSKColor();
+            handler.PlatformView.OnTrackColor = color;
+            // Off track could be a lighter version
+            handler.PlatformView.OffTrackColor = color.WithAlpha(128);
         }
     }
 
@@ -84,7 +84,7 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
         if (handler.PlatformView is null) return;
 
         if (@switch.ThumbColor is not null)
-            handler.PlatformView.ThumbColor = @switch.ThumbColor;
+            handler.PlatformView.ThumbColor = @switch.ThumbColor.ToSKColor();
     }
 
     public static void MapBackground(SwitchHandler handler, ISwitch @switch)
@@ -93,14 +93,7 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
 
         if (@switch.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            // Background color for the switch container (not the track)
-            handler.PlatformView.BackgroundColor = solidPaint.Color;
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
-    }
-
-    public static void MapIsEnabled(SwitchHandler handler, ISwitch @switch)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsEnabled = @switch.IsEnabled;
     }
 }

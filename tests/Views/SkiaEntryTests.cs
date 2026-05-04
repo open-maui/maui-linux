@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using FluentAssertions;
-using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
 using Xunit;
@@ -105,7 +104,7 @@ public class SkiaEntryTests
     {
         // Arrange
         var entry = new SkiaEntry { Text = "Hello" };
-        entry.Bounds = new Rect(0, 0, 200, 40);
+        entry.Bounds = new SKRect(0, 0, 200, 40);
         entry.OnFocusGained();
         var originalLength = entry.Text.Length;
 
@@ -121,7 +120,7 @@ public class SkiaEntryTests
     {
         // Arrange
         var entry = new SkiaEntry { Text = "Hello" };
-        entry.Bounds = new Rect(0, 0, 200, 40);
+        entry.Bounds = new SKRect(0, 0, 200, 40);
         entry.OnFocusGained();
 
         // Act - Verify OnKeyDown doesn't throw
@@ -137,7 +136,7 @@ public class SkiaEntryTests
         // Arrange
         var entry = new SkiaEntry { Text = "Hello", IsReadOnly = true };
         var originalText = entry.Text;
-        entry.Bounds = new Rect(0, 0, 200, 40);
+        entry.Bounds = new SKRect(0, 0, 200, 40);
         entry.OnFocusGained();
 
         // Act
@@ -164,13 +163,13 @@ public class SkiaEntryTests
     public void Draw_DoesNotThrow()
     {
         // Arrange
-        var entry = new SkiaEntry();
-        entry.Bounds = new Rect(0, 0, 200, 40);
+        var entry = new SkiaEntry { Text = "Test", Placeholder = "Enter..." };
+        entry.Bounds = new SKRect(0, 0, 200, 40);
 
         using var surface = SKSurface.Create(new SKImageInfo(300, 100));
         var canvas = surface.Canvas;
 
-        // Act & Assert - draw with no text to avoid font fallback dependency
+        // Act & Assert
         var exception = Record.Exception(() => entry.Draw(canvas));
         exception.Should().BeNull();
     }

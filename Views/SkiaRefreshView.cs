@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Windows.Input;
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,14 +18,6 @@ public class SkiaRefreshView : SkiaLayoutView
     private float _pullStartY;
     private float _spinnerRotation = 0f;
     private DateTime _lastSpinnerUpdate;
-
-    // SKColor fields for rendering
-    private SKColor _refreshColorSK = SkiaTheme.PrimarySK;
-    private SKColor _refreshBackgroundColorSK = SKColors.White;
-
-    // MAUI Color backing fields
-    private Color _refreshColor = Color.FromRgb(33, 150, 243);
-    private Color _refreshBackgroundColor = Colors.White;
 
     /// <summary>
     /// Gets or sets the content view.
@@ -90,61 +79,37 @@ public class SkiaRefreshView : SkiaLayoutView
     /// <summary>
     /// Gets or sets the refresh indicator color.
     /// </summary>
-    public Color RefreshColor
-    {
-        get => _refreshColor;
-        set
-        {
-            _refreshColor = value;
-            _refreshColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor RefreshColor { get; set; } = new SKColor(33, 150, 243);
 
     /// <summary>
     /// Gets or sets the background color of the refresh indicator.
     /// </summary>
-    public Color RefreshBackgroundColor
-    {
-        get => _refreshBackgroundColor;
-        set
-        {
-            _refreshBackgroundColor = value;
-            _refreshBackgroundColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets the command to execute when refresh is triggered.
-    /// </summary>
-    public ICommand? Command { get; set; }
-
-    /// <summary>
-    /// Gets or sets the command parameter.
-    /// </summary>
-    public object? CommandParameter { get; set; }
+    public SKColor RefreshBackgroundColor { get; set; } = SKColors.White;
 
     /// <summary>
     /// Event raised when refresh is triggered.
     /// </summary>
     public event EventHandler? Refreshing;
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
         if (_content != null)
         {
-            _content.Measure(new Size(availableSize.Width, availableSize.Height));
+            _content.Measure(availableSize);
         }
         return availableSize;
     }
 
-    protected override Rect ArrangeOverride(Rect bounds)
+    protected override SKRect ArrangeOverride(SKRect bounds)
     {
         if (_content != null)
         {
             float offset = _isRefreshing ? _refreshThreshold : _pullDistance;
-            var contentBounds = new Rect(bounds.Left, bounds.Top + offset, bounds.Width, bounds.Height);
+            var contentBounds = new SKRect(
+                bounds.Left,
+                bounds.Top + offset,
+                bounds.Right,
+                bounds.Bottom + offset);
             _content.Arrange(contentBounds);
         }
         return bounds;
@@ -177,19 +142,19 @@ public class SkiaRefreshView : SkiaLayoutView
         // Draw background circle
         using var bgPaint = new SKPaint
         {
-            Color = _refreshBackgroundColorSK,
+            Color = RefreshBackgroundColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
         // Add shadow
-        bgPaint.ImageFilter = SKImageFilter.CreateDropShadow(0, 2, 4, 4, SkiaTheme.Shadow25SK);
+        bgPaint.ImageFilter = SKImageFilter.CreateDropShadow(0, 2, 4, 4, new SKColor(0, 0, 0, 40));
         canvas.DrawCircle(x, y, size / 2, bgPaint);
 
         // Draw spinner
         using var spinnerPaint = new SKPaint
         {
-            Color = _refreshColorSK,
+            Color = RefreshColor,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 3,
             IsAntialias = true,
@@ -301,7 +266,6 @@ public class SkiaRefreshView : SkiaLayoutView
             _pullDistance = _refreshThreshold;
             _lastSpinnerUpdate = DateTime.UtcNow;
             Refreshing?.Invoke(this, EventArgs.Empty);
-            Command?.Execute(CommandParameter);
         }
         else
         {

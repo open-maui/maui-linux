@@ -1,11 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Reflection;
 using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
@@ -39,13 +36,13 @@ public class LinuxViewRenderer
     {
         if (CurrentSkiaShell == null)
         {
-            DiagnosticLog.Warn("LinuxViewRenderer", "CurrentSkiaShell is null");
+            Console.WriteLine($"[NavigateToRoute] CurrentSkiaShell is null");
             return false;
         }
 
         // Clean up the route - remove leading // or /
         var cleanRoute = route.TrimStart('/');
-        DiagnosticLog.Debug("LinuxViewRenderer", $"NavigateToRoute: Navigating to: {cleanRoute}");
+        Console.WriteLine($"[NavigateToRoute] Navigating to: {cleanRoute}");
 
         for (int i = 0; i < CurrentSkiaShell.Sections.Count; i++)
         {
@@ -53,13 +50,13 @@ public class LinuxViewRenderer
             if (section.Route.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase) ||
                 section.Title.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase))
             {
-                DiagnosticLog.Debug("LinuxViewRenderer", $"NavigateToRoute: Found section {i}: {section.Title}");
+                Console.WriteLine($"[NavigateToRoute] Found section {i}: {section.Title}");
                 CurrentSkiaShell.NavigateToSection(i);
                 return true;
             }
         }
 
-        DiagnosticLog.Warn("LinuxViewRenderer", $"NavigateToRoute: Route not found: {cleanRoute}");
+        Console.WriteLine($"[NavigateToRoute] Route not found: {cleanRoute}");
         return false;
     }
 
@@ -75,40 +72,50 @@ public class LinuxViewRenderer
     /// <returns>True if successful</returns>
     public static bool PushPage(Page page)
     {
-        DiagnosticLog.Debug("LinuxViewRenderer", $"PushPage: Pushing page: {page.GetType().Name}");
+        Console.WriteLine($"[PushPage] Pushing page: {page.GetType().Name}");
 
         if (CurrentSkiaShell == null)
         {
-            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: CurrentSkiaShell is null");
+            Console.WriteLine($"[PushPage] CurrentSkiaShell is null");
             return false;
         }
 
         if (CurrentRenderer == null)
         {
-            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: CurrentRenderer is null");
+            Console.WriteLine($"[PushPage] CurrentRenderer is null");
             return false;
         }
 
         try
         {
-            // Render the page through the proper handler system
-            // This ensures all properties (including BackgroundColor via AppThemeBinding) are mapped
-            var skiaPage = CurrentRenderer.RenderPage(page);
-
-            if (skiaPage == null)
+            // Render the page content
+            SkiaView? pageContent = null;
+            if (page is ContentPage contentPage && contentPage.Content != null)
             {
-                DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: Failed to render page through handler");
+                pageContent = CurrentRenderer.RenderView(contentPage.Content);
+            }
+
+            if (pageContent == null)
+            {
+                Console.WriteLine($"[PushPage] Failed to render page content");
                 return false;
             }
 
+            // Wrap in ScrollView if needed
+            if (pageContent is not SkiaScrollView)
+            {
+                var scrollView = new SkiaScrollView { Content = pageContent };
+                pageContent = scrollView;
+            }
+
             // Push onto SkiaShell's navigation stack
-            CurrentSkiaShell.PushAsync(skiaPage, page.Title ?? "Detail");
-            DiagnosticLog.Debug("LinuxViewRenderer", "PushPage: Successfully pushed page via handler system");
+            CurrentSkiaShell.PushAsync(pageContent, page.Title ?? "Detail");
+            Console.WriteLine($"[PushPage] Successfully pushed page");
             return true;
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("LinuxViewRenderer", "PushPage failed", ex);
+            Console.WriteLine($"[PushPage] Error: {ex.Message}");
             return false;
         }
     }
@@ -119,11 +126,11 @@ public class LinuxViewRenderer
     /// <returns>True if successful</returns>
     public static bool PopPage()
     {
-        DiagnosticLog.Debug("LinuxViewRenderer", "PopPage: Popping page");
+        Console.WriteLine($"[PopPage] Popping page");
 
         if (CurrentSkiaShell == null)
         {
-            DiagnosticLog.Warn("LinuxViewRenderer", "PopPage: CurrentSkiaShell is null");
+            Console.WriteLine($"[PopPage] CurrentSkiaShell is null");
             return false;
         }
 
@@ -155,11 +162,18 @@ public class LinuxViewRenderer
         page.Handler?.DisconnectHandler();
         var handler = page.ToHandler(_mauiContext);
 
-        // The handler's property mappers (e.g., ContentPageHandler.MapContent)
-        // already set up the content and child handlers - no need to re-render here.
-        // Re-rendering would disconnect the existing handler hierarchy.
         if (handler.PlatformView is SkiaView skiaPage)
         {
+            // For ContentPage, render the content
+            if (page is ContentPage contentPage && contentPage.Content != null)
+            {
+                var contentView = RenderView(contentPage.Content);
+                if (skiaPage is SkiaPage sp && contentView != null)
+                {
+                    sp.Content = contentView;
+                }
+            }
+
             return skiaPage;
         }
 
@@ -184,40 +198,8 @@ public class LinuxViewRenderer
                 FlyoutBehavior.Locked => ShellFlyoutBehavior.Locked,
                 FlyoutBehavior.Disabled => ShellFlyoutBehavior.Disabled,
                 _ => ShellFlyoutBehavior.Flyout
-            },
-            MauiShell = shell
+            }
         };
-
-        // Apply shell colors based on theme
-        ApplyShellColors(skiaShell, shell);
-
-        // Render flyout header if present
-        if (shell.FlyoutHeader is View headerView)
-        {
-            var skiaHeader = RenderView(headerView);
-            if (skiaHeader != null)
-            {
-                skiaShell.FlyoutHeaderView = skiaHeader;
-                skiaShell.FlyoutHeaderHeight = (float)(headerView.HeightRequest > 0 ? headerView.HeightRequest : 140.0);
-            }
-        }
-
-        // Render flyout footer if present, otherwise use version text
-        if (shell.FlyoutFooter is View footerView)
-        {
-            var skiaFooter = RenderView(footerView);
-            if (skiaFooter != null)
-            {
-                skiaShell.FlyoutFooterView = skiaFooter;
-                skiaShell.FlyoutFooterHeight = (float)(footerView.HeightRequest > 0 ? footerView.HeightRequest : 120.0);
-            }
-        }
-        else
-        {
-            // Fallback: use assembly version as footer text
-            var version = Assembly.GetEntryAssembly()?.GetName().Version;
-            skiaShell.FlyoutFooterText = $"Version {version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
-        }
 
         // Process shell items into sections
         foreach (var item in shell.Items)
@@ -228,135 +210,17 @@ public class LinuxViewRenderer
         // Store reference to SkiaShell for navigation
         CurrentSkiaShell = skiaShell;
 
-        // Set up content renderer, color refresher, and icon syncer delegates
-        skiaShell.ContentRenderer = CreateShellContentPage;
-        skiaShell.ColorRefresher = ApplyShellColors;
-        skiaShell.IconSyncer = s => SyncFlyoutIcons(s, shell);
-
         // Subscribe to MAUI Shell navigation events to update SkiaShell
         shell.Navigated += OnShellNavigated;
-        shell.Navigating += (s, e) => DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Navigating: {e.Target}");
+        shell.Navigating += (s, e) => Console.WriteLine($"[Navigation] Navigating: {e.Target}");
 
-        DiagnosticLog.Debug("LinuxViewRenderer", $"Shell navigation events subscribed. Sections: {skiaShell.Sections.Count}");
+        Console.WriteLine($"[Navigation] Shell navigation events subscribed. Sections: {skiaShell.Sections.Count}");
         for (int i = 0; i < skiaShell.Sections.Count; i++)
         {
-            DiagnosticLog.Debug("LinuxViewRenderer", $"Section {i}: Route='{skiaShell.Sections[i].Route}', Title='{skiaShell.Sections[i].Title}'");
+            Console.WriteLine($"[Navigation] Section {i}: Route='{skiaShell.Sections[i].Route}', Title='{skiaShell.Sections[i].Title}'");
         }
 
         return skiaShell;
-    }
-
-    /// <summary>
-    /// Applies shell colors based on the current theme (dark/light mode).
-    /// </summary>
-    private static void SyncFlyoutIcons(SkiaShell skiaShell, Shell shell)
-    {
-        int sectionIndex = 0;
-        foreach (var item in shell.Items)
-        {
-            if (sectionIndex >= skiaShell.Sections.Count) break;
-
-            string? iconPath = item.Icon?.ToString();
-            skiaShell.Sections[sectionIndex].IconPath = iconPath;
-            sectionIndex++;
-        }
-    }
-
-    private static void ApplyShellColors(SkiaShell skiaShell, Shell shell)
-    {
-        bool isDark = Application.Current?.UserAppTheme == AppTheme.Dark;
-        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: Theme is: {(isDark ? "Dark" : "Light")}");
-
-        // Look up theme resource colors from the Application's resources.
-        // This is more reliable than reading shell.FlyoutBackgroundColor during
-        // theme changes because AppThemeBinding may not have re-evaluated yet.
-        var resources = Application.Current?.Resources;
-
-        // Flyout background color
-        Color? flyoutBg = TryGetResourceColor(resources, isDark ? "FlyoutBackgroundDark" : "FlyoutBackgroundLight");
-        if (flyoutBg == null)
-        {
-            // Try the shell property (works for initial setup before theme changes)
-            flyoutBg = shell.FlyoutBackgroundColor;
-        }
-        if (flyoutBg != null && flyoutBg != Colors.Transparent)
-        {
-            skiaShell.FlyoutBackgroundColor = flyoutBg;
-        }
-        else
-        {
-            skiaShell.FlyoutBackgroundColor = isDark
-                ? Color.FromRgb(30, 30, 30)
-                : Color.FromRgb(255, 255, 255);
-        }
-        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutBackgroundColor: {skiaShell.FlyoutBackgroundColor}");
-
-        // Flyout text color
-        Color? fgColor = TryGetResourceColor(resources, isDark ? "TextPrimaryDark" : "TextPrimaryLight");
-        if (fgColor != null && fgColor != Colors.Transparent)
-        {
-            skiaShell.FlyoutTextColor = fgColor;
-        }
-        else
-        {
-            skiaShell.FlyoutTextColor = isDark
-                ? Color.FromRgb(224, 224, 224)
-                : Color.FromRgb(33, 33, 33);
-        }
-        DiagnosticLog.Debug("LinuxViewRenderer", $"ApplyShellColors: FlyoutTextColor: {skiaShell.FlyoutTextColor}");
-
-        // Content background color
-        skiaShell.ContentBackgroundColor = isDark
-            ? Color.FromRgb(18, 18, 18)
-            : Color.FromRgb(250, 250, 250);
-
-        // NavBar background color - check resource, attached property, instance property
-        Color? navBg = TryGetResourceColor(resources, isDark ? "ShellBackgroundDark" : "ShellBackgroundLight");
-        navBg ??= Shell.GetBackgroundColor(shell);
-        navBg ??= shell.BackgroundColor;
-        if (navBg != null && navBg != Colors.Transparent)
-        {
-            skiaShell.NavBarBackgroundColor = navBg;
-        }
-        else
-        {
-            // Theme-aware default instead of hardcoded blue
-            skiaShell.NavBarBackgroundColor = isDark
-                ? Color.FromRgb(30, 30, 30)
-                : Color.FromRgb(255, 255, 255);
-        }
-
-        // NavBar text color - prefer Shell.TitleColor attached property
-        Color? titleColor = Shell.GetTitleColor(shell);
-        if (titleColor != null && titleColor != Colors.Transparent)
-        {
-            skiaShell.NavBarTextColor = titleColor;
-        }
-        else if (fgColor != null && fgColor != Colors.Transparent)
-        {
-            skiaShell.NavBarTextColor = fgColor;
-        }
-    }
-
-    /// <summary>
-    /// Tries to resolve a Color from the app's merged resource dictionaries.
-    /// </summary>
-    private static Color? TryGetResourceColor(ResourceDictionary? resources, string key)
-    {
-        if (resources == null) return null;
-
-        // Check main dictionary
-        if (resources.TryGetValue(key, out var value) && value is Color color)
-            return color;
-
-        // Check merged dictionaries
-        foreach (var merged in resources.MergedDictionaries)
-        {
-            if (merged.TryGetValue(key, out var mergedValue) && mergedValue is Color mergedColor)
-                return mergedColor;
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -364,27 +228,27 @@ public class LinuxViewRenderer
     /// </summary>
     private static void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
     {
-        DiagnosticLog.Debug("LinuxViewRenderer", $"OnShellNavigated called - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
+        Console.WriteLine($"[Navigation] OnShellNavigated called - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
 
         if (CurrentSkiaShell == null || CurrentMauiShell == null)
         {
-            DiagnosticLog.Warn("LinuxViewRenderer", "CurrentSkiaShell or CurrentMauiShell is null");
+            Console.WriteLine($"[Navigation] CurrentSkiaShell or CurrentMauiShell is null");
             return;
         }
 
         // Get the current route from the Shell
         var currentState = CurrentMauiShell.CurrentState;
         var location = currentState?.Location?.OriginalString ?? "";
-        DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Location: {location}, Sections: {CurrentSkiaShell.Sections.Count}");
+        Console.WriteLine($"[Navigation] Location: {location}, Sections: {CurrentSkiaShell.Sections.Count}");
 
         // Find the matching section in SkiaShell by route
         for (int i = 0; i < CurrentSkiaShell.Sections.Count; i++)
         {
             var section = CurrentSkiaShell.Sections[i];
-            DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Checking section {i}: Route='{section.Route}', Title='{section.Title}'");
+            Console.WriteLine($"[Navigation] Checking section {i}: Route='{section.Route}', Title='{section.Title}'");
             if (!string.IsNullOrEmpty(section.Route) && location.Contains(section.Route, StringComparison.OrdinalIgnoreCase))
             {
-                DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Match found by route! Navigating to section {i}");
+                Console.WriteLine($"[Navigation] Match found by route! Navigating to section {i}");
                 if (i != CurrentSkiaShell.CurrentSectionIndex)
                 {
                     CurrentSkiaShell.NavigateToSection(i);
@@ -393,7 +257,7 @@ public class LinuxViewRenderer
             }
             if (!string.IsNullOrEmpty(section.Title) && location.Contains(section.Title, StringComparison.OrdinalIgnoreCase))
             {
-                DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Match found by title! Navigating to section {i}");
+                Console.WriteLine($"[Navigation] Match found by title! Navigating to section {i}");
                 if (i != CurrentSkiaShell.CurrentSectionIndex)
                 {
                     CurrentSkiaShell.NavigateToSection(i);
@@ -401,7 +265,7 @@ public class LinuxViewRenderer
                 return;
             }
         }
-        DiagnosticLog.Warn("LinuxViewRenderer", $"Navigation: No matching section found for location: {location}");
+        Console.WriteLine($"[Navigation] No matching section found for location: {location}");
     }
 
     /// <summary>
@@ -426,8 +290,7 @@ public class LinuxViewRenderer
                     var shellContent = new ShellContent
                     {
                         Title = content.Title ?? shellSection.Title ?? flyoutItem.Title ?? "",
-                        Route = content.Route ?? "",
-                        MauiShellContent = content
+                        Route = content.Route ?? ""
                     };
 
                     // Create the page content
@@ -465,8 +328,7 @@ public class LinuxViewRenderer
                     var shellContent = new ShellContent
                     {
                         Title = content.Title ?? tab.Title ?? "",
-                        Route = content.Route ?? "",
-                        MauiShellContent = content
+                        Route = content.Route ?? ""
                     };
 
                     var pageContent = CreateShellContentPage(content);
@@ -497,8 +359,7 @@ public class LinuxViewRenderer
                     var shellContent = new ShellContent
                     {
                         Title = content.Title ?? "",
-                        Route = content.Route ?? "",
-                        MauiShellContent = content
+                        Route = content.Route ?? ""
                     };
 
                     var pageContent = CreateShellContentPage(content);
@@ -527,32 +388,7 @@ public class LinuxViewRenderer
 
             if (content.ContentTemplate != null)
             {
-                // Extract the type from the DataTemplate via reflection
-                // DataTemplate stores the type in a private field
-                var typeField = typeof(ElementTemplate).GetProperty("Type",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                var templateType = typeField?.GetValue(content.ContentTemplate) as Type;
-
-                // First try to resolve from DI (handles constructor injection)
-                if (templateType != null)
-                {
-                    try
-                    {
-                        // Use ActivatorUtilities to create with DI - more robust than GetService
-                        page = Microsoft.Extensions.DependencyInjection.ActivatorUtilities
-                            .CreateInstance(_mauiContext.Services, templateType) as Page;
-                    }
-                    catch (Exception diEx)
-                    {
-                        DiagnosticLog.Debug("LinuxViewRenderer", $"DI resolution failed for {templateType.Name}: {diEx.Message}");
-                    }
-                }
-
-                // Fallback to CreateContent() (uses Activator.CreateInstance)
-                if (page == null)
-                {
-                    page = content.ContentTemplate.CreateContent() as Page;
-                }
+                page = content.ContentTemplate.CreateContent() as Page;
             }
 
             if (page == null && content.Content is Page contentPage)
@@ -566,40 +402,24 @@ public class LinuxViewRenderer
                 var contentView = RenderView(cp.Content);
                 if (contentView != null)
                 {
-                    // Get page background color if set
-                    Color? bgColor = null;
-                    if (cp.BackgroundColor != null && cp.BackgroundColor != Colors.Transparent)
+                    if (contentView is SkiaScrollView)
                     {
-                        bgColor = cp.BackgroundColor;
-                        DiagnosticLog.Debug("LinuxViewRenderer", $"CreateShellContentPage: Page BackgroundColor: {bgColor}");
-                    }
-
-                    if (contentView is SkiaScrollView scrollView)
-                    {
-                        if (bgColor != null)
-                        {
-                            scrollView.BackgroundColor = bgColor;
-                        }
-                        return scrollView;
+                        return contentView;
                     }
                     else
                     {
-                        var newScrollView = new SkiaScrollView
+                        var scrollView = new SkiaScrollView
                         {
                             Content = contentView
                         };
-                        if (bgColor != null)
-                        {
-                            newScrollView.BackgroundColor = bgColor;
-                        }
-                        return newScrollView;
+                        return scrollView;
                     }
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            DiagnosticLog.Error("LinuxViewRenderer", $"CreateShellContentPage failed for route '{content.Route}': {ex.Message}\n{ex.StackTrace}");
+            // Silently handle template creation errors
         }
 
         return null;
@@ -608,28 +428,10 @@ public class LinuxViewRenderer
     /// <summary>
     /// Renders a MAUI view and returns the corresponding SkiaView.
     /// </summary>
-    /// <summary>
-    /// Set of view type names known to cause crashes on Linux.
-    /// With SKCanvasView/SKGLView native hosting, ContentViewHandler, PathHandler,
-    /// and alignment fixes, most third-party controls now render through normal handlers.
-    /// Add entries here only as a last resort for controls that truly SIGSEGV.
-    /// </summary>
-    private static readonly HashSet<string> _unsupportedViewTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-    };
-
     public SkiaView? RenderView(IView view)
     {
         if (view == null)
             return null;
-
-        // Skip known unsupported third-party controls that would segfault
-        var typeName = view.GetType().Name;
-        if (_unsupportedViewTypes.Contains(typeName))
-        {
-            DiagnosticLog.Error("LinuxViewRenderer", $"Skipping unsupported view type: {typeName}");
-            return CreateFallbackView(view);
-        }
 
         try
         {
@@ -653,9 +455,8 @@ public class LinuxViewRenderer
             // No manual child rendering needed here - that caused "View already has a parent" errors
             return skiaView;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            DiagnosticLog.Error("LinuxViewRenderer", $"RenderView failed for {typeName}: {ex.Message}");
             return CreateFallbackView(view);
         }
     }
@@ -669,9 +470,28 @@ public class LinuxViewRenderer
         return new SkiaLabel
         {
             Text = $"[{view.GetType().Name}]",
-            TextColor = Colors.Gray,
+            TextColor = SKColors.Gray,
             FontSize = 12
         };
     }
 }
 
+/// <summary>
+/// Extension methods for MAUI handler creation.
+/// </summary>
+public static class MauiHandlerExtensions
+{
+    /// <summary>
+    /// Creates a handler for the view and returns it.
+    /// </summary>
+    public static IElementHandler ToHandler(this IElement element, IMauiContext mauiContext)
+    {
+        var handler = mauiContext.Handlers.GetHandler(element.GetType());
+        if (handler != null)
+        {
+            handler.SetMauiContext(mauiContext);
+            handler.SetVirtualView(element);
+        }
+        return handler!;
+    }
+}

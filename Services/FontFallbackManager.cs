@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Concurrent;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -13,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public class FontFallbackManager
 {
     private static FontFallbackManager? _instance;
-    private static readonly Lock _lock = new();
+    private static readonly object _lock = new();
 
     /// <summary>
     /// Gets the singleton instance of the font fallback manager.
@@ -82,7 +81,7 @@ public class FontFallbackManager
 
     // Cache for typeface lookups
     private readonly Dictionary<string, SKTypeface?> _typefaceCache = new();
-    private readonly ConcurrentDictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new();
+    private readonly Dictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new();
 
     private FontFallbackManager()
     {
@@ -257,6 +256,37 @@ public class FontFallbackManager
     }
 }
 
+/// <summary>
+/// Represents a run of text with a specific typeface.
+/// </summary>
+public class TextRun
+{
+    /// <summary>
+    /// The text content of this run.
+    /// </summary>
+    public string Text { get; }
+
+    /// <summary>
+    /// The typeface to use for this run.
+    /// </summary>
+    public SKTypeface Typeface { get; }
+
+    /// <summary>
+    /// The starting character index in the original string.
+    /// </summary>
+    public int StartIndex { get; }
+
+    public TextRun(string text, SKTypeface typeface, int startIndex)
+    {
+        Text = text;
+        Typeface = typeface;
+        StartIndex = startIndex;
+    }
+}
+
+/// <summary>
+/// StringBuilder for internal use.
+/// </summary>
 file class StringBuilder
 {
     private readonly List<char> _chars = new();

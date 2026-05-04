@@ -224,7 +224,7 @@ public class VersionTrackingService : IVersionTracking
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         var version = assembly.GetName().Version;
-        return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "10.0.41";
+        return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
     }
 
     private static string GetAssemblyBuild()

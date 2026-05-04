@@ -6,12 +6,15 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var builder = MauiApp.CreateBuilder();
-        builder
-            .UseMauiApp<App>()
-            .UseOpenMauiLinux();
+        var app = new LinuxApplication();
 
-        var mauiApp = builder.Build();
-        LinuxApplication.Run(mauiApp, args);
+        // Configure the application
+        app.Title = "$projectname$";
+
+        // Set the main page
+        app.MainPage = new MainPage();
+
+        // Run the application
+        app.Run();
     }
 }

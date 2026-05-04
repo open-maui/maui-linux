@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -28,12 +27,6 @@ public class SkiaCarouselView : SkiaLayoutView
     private float _animationTargetOffset;
     private DateTime _animationStartTime;
     private const float AnimationDurationMs = 300f;
-
-    // Indicator color fields
-    private Color _indicatorColor = Color.FromRgb(180, 180, 180);
-    private Color _selectedIndicatorColor = Color.FromRgb(33, 150, 243);
-    private SKColor _indicatorColorSK = SkiaTheme.IndicatorUnselectedSK;
-    private SKColor _selectedIndicatorColorSK = SkiaTheme.PrimarySK;
 
     /// <summary>
     /// Gets or sets the current position (item index).
@@ -66,12 +59,12 @@ public class SkiaCarouselView : SkiaLayoutView
     /// <summary>
     /// Gets or sets the peek amount (how much of adjacent items to show).
     /// </summary>
-    public double PeekAreaInsets { get; set; } = 0.0;
+    public float PeekAreaInsets { get; set; } = 0f;
 
     /// <summary>
     /// Gets or sets the spacing between items.
     /// </summary>
-    public double ItemSpacing { get; set; } = 0.0;
+    public float ItemSpacing { get; set; } = 0f;
 
     /// <summary>
     /// Gets or sets whether swipe gestures are enabled.
@@ -86,30 +79,12 @@ public class SkiaCarouselView : SkiaLayoutView
     /// <summary>
     /// Gets or sets the indicator color.
     /// </summary>
-    public Color IndicatorColor
-    {
-        get => _indicatorColor;
-        set
-        {
-            _indicatorColor = value;
-            _indicatorColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor IndicatorColor { get; set; } = new SKColor(180, 180, 180);
 
     /// <summary>
     /// Gets or sets the selected indicator color.
     /// </summary>
-    public Color SelectedIndicatorColor
-    {
-        get => _selectedIndicatorColor;
-        set
-        {
-            _selectedIndicatorColor = value;
-            _selectedIndicatorColorSK = value.ToSKColor();
-            Invalidate();
-        }
-    }
+    public SKColor SelectedIndicatorColor { get; set; } = new SKColor(33, 150, 243);
 
     /// <summary>
     /// Event raised when position changes.
@@ -204,39 +179,39 @@ public class SkiaCarouselView : SkiaLayoutView
 
     private float GetOffsetForPosition(int position)
     {
-        float itemWidth = (float)Bounds.Width - (float)PeekAreaInsets * 2;
-        return position * (itemWidth + (float)ItemSpacing);
+        float itemWidth = Bounds.Width - PeekAreaInsets * 2;
+        return position * (itemWidth + ItemSpacing);
     }
 
     private int GetPositionForOffset(float offset)
     {
-        float itemWidth = (float)Bounds.Width - (float)PeekAreaInsets * 2;
+        float itemWidth = Bounds.Width - PeekAreaInsets * 2;
         if (itemWidth <= 0) return 0;
-        return Math.Clamp((int)Math.Round(offset / (itemWidth + (float)ItemSpacing)), 0, Math.Max(0, _items.Count - 1));
+        return Math.Clamp((int)Math.Round(offset / (itemWidth + ItemSpacing)), 0, Math.Max(0, _items.Count - 1));
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
-        float itemWidth = (float)availableSize.Width - (float)PeekAreaInsets * 2;
-        float itemHeight = (float)availableSize.Height - (ShowIndicators ? 30 : 0);
+        float itemWidth = availableSize.Width - PeekAreaInsets * 2;
+        float itemHeight = availableSize.Height - (ShowIndicators ? 30 : 0);
 
         foreach (var item in _items)
         {
-            item.Measure(new Size(itemWidth, itemHeight));
+            item.Measure(new SKSize(itemWidth, itemHeight));
         }
 
         return availableSize;
     }
 
-    protected override Rect ArrangeOverride(Rect bounds)
+    protected override SKRect ArrangeOverride(SKRect bounds)
     {
-        float itemWidth = (float)bounds.Width - (float)PeekAreaInsets * 2;
-        float itemHeight = (float)bounds.Height - (ShowIndicators ? 30 : 0);
+        float itemWidth = bounds.Width - PeekAreaInsets * 2;
+        float itemHeight = bounds.Height - (ShowIndicators ? 30 : 0);
 
         for (int i = 0; i < _items.Count; i++)
         {
-            float x = (float)bounds.Left + (float)PeekAreaInsets + i * (itemWidth + (float)ItemSpacing) - _scrollOffset;
-            var itemBounds = new Rect(x, bounds.Top, itemWidth, itemHeight);
+            float x = bounds.Left + PeekAreaInsets + i * (itemWidth + ItemSpacing) - _scrollOffset;
+            var itemBounds = new SKRect(x, bounds.Top, x + itemWidth, bounds.Top + itemHeight);
             _items[i].Arrange(itemBounds);
         }
 
@@ -271,12 +246,12 @@ public class SkiaCarouselView : SkiaLayoutView
         canvas.ClipRect(bounds);
 
         // Draw visible items
-        float itemWidth = bounds.Width - (float)PeekAreaInsets * 2;
+        float itemWidth = bounds.Width - PeekAreaInsets * 2;
         float contentHeight = bounds.Height - (ShowIndicators ? 30 : 0);
 
         for (int i = 0; i < _items.Count; i++)
         {
-            float x = bounds.Left + (float)PeekAreaInsets + i * (itemWidth + (float)ItemSpacing) - _scrollOffset;
+            float x = bounds.Left + PeekAreaInsets + i * (itemWidth + ItemSpacing) - _scrollOffset;
 
             // Only draw visible items
             if (x + itemWidth > bounds.Left && x < bounds.Right)
@@ -304,14 +279,14 @@ public class SkiaCarouselView : SkiaLayoutView
 
         using var normalPaint = new SKPaint
         {
-            Color = _indicatorColorSK,
+            Color = IndicatorColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
 
         using var selectedPaint = new SKPaint
         {
-            Color = _selectedIndicatorColorSK,
+            Color = SelectedIndicatorColor,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -389,7 +364,7 @@ public class SkiaCarouselView : SkiaLayoutView
         _isDragging = false;
 
         // Determine target position based on velocity and position
-        float itemWidth = (float)Bounds.Width - (float)PeekAreaInsets * 2;
+        float itemWidth = Bounds.Width - PeekAreaInsets * 2;
         int targetPosition = GetPositionForOffset(_scrollOffset);
 
         // Apply velocity influence
@@ -409,5 +384,20 @@ public class SkiaCarouselView : SkiaLayoutView
         e.Handled = true;
 
         base.OnPointerReleased(e);
+    }
+}
+
+/// <summary>
+/// Event args for position changed events.
+/// </summary>
+public class PositionChangedEventArgs : EventArgs
+{
+    public int PreviousPosition { get; }
+    public int CurrentPosition { get; }
+
+    public PositionChangedEventArgs(int previousPosition, int currentPosition)
+    {
+        PreviousPosition = previousPosition;
+        CurrentPosition = currentPosition;
     }
 }

@@ -80,7 +80,7 @@ public partial class RadioButtonHandler : ViewHandler<IRadioButton, SkiaRadioBut
 
         if (radioButton.TextColor is not null)
         {
-            handler.PlatformView.TextColor = radioButton.TextColor;
+            handler.PlatformView.TextColor = radioButton.TextColor.ToSKColor();
         }
     }
 
@@ -100,7 +100,7 @@ public partial class RadioButtonHandler : ViewHandler<IRadioButton, SkiaRadioBut
 
         if (radioButton.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color;
+            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
         }
     }
 }

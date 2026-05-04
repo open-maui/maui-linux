@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -28,7 +27,7 @@ public class SkiaContentPresenter : SkiaView
             propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
 
     public static readonly BindableProperty PaddingProperty =
-        BindableProperty.Create(nameof(Padding), typeof(Thickness), typeof(SkiaContentPresenter), default(Thickness),
+        BindableProperty.Create(nameof(Padding), typeof(SKRect), typeof(SkiaContentPresenter), SKRect.Empty,
             propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
 
     #endregion
@@ -65,9 +64,9 @@ public class SkiaContentPresenter : SkiaView
     /// <summary>
     /// Gets or sets the padding around the content.
     /// </summary>
-    public Thickness Padding
+    public SKRect Padding
     {
-        get => (Thickness)GetValue(PaddingProperty);
+        get => (SKRect)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
     }
 
@@ -111,11 +110,11 @@ public class SkiaContentPresenter : SkiaView
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background if set
-        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
+        if (BackgroundColor != SKColors.Transparent)
         {
             using var bgPaint = new SKPaint
             {
-                Color = GetEffectiveBackgroundColor(),
+                Color = BackgroundColor,
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(bounds, bgPaint);
@@ -125,42 +124,38 @@ public class SkiaContentPresenter : SkiaView
         Content?.Draw(canvas);
     }
 
-    protected override Size MeasureOverride(Size availableSize)
+    protected override SKSize MeasureOverride(SKSize availableSize)
     {
         var padding = Padding;
-        var paddingLeft = padding.Left;
-        var paddingTop = padding.Top;
-        var paddingRight = padding.Right;
-        var paddingBottom = padding.Bottom;
 
         if (Content == null)
-            return new Size(paddingLeft + paddingRight, paddingTop + paddingBottom);
+            return new SKSize(padding.Left + padding.Right, padding.Top + padding.Bottom);
 
         // When alignment is not Fill, give content unlimited size in that dimension
         // so it can measure its natural size without truncation
         var measureWidth = HorizontalContentAlignment == LayoutAlignment.Fill
-            ? (float)Math.Max(0, availableSize.Width - paddingLeft - paddingRight)
+            ? Math.Max(0, availableSize.Width - padding.Left - padding.Right)
             : float.PositiveInfinity;
         var measureHeight = VerticalContentAlignment == LayoutAlignment.Fill
-            ? (float)Math.Max(0, availableSize.Height - paddingTop - paddingBottom)
+            ? Math.Max(0, availableSize.Height - padding.Top - padding.Bottom)
             : float.PositiveInfinity;
 
-        var contentSize = Content.Measure(new Size(measureWidth, measureHeight));
-        return new Size(
-            contentSize.Width + paddingLeft + paddingRight,
-            contentSize.Height + paddingTop + paddingBottom);
+        var contentSize = Content.Measure(new SKSize(measureWidth, measureHeight));
+        return new SKSize(
+            contentSize.Width + padding.Left + padding.Right,
+            contentSize.Height + padding.Top + padding.Bottom);
     }
 
-    protected override Rect ArrangeOverride(Rect bounds)
+    protected override SKRect ArrangeOverride(SKRect bounds)
     {
         if (Content != null)
         {
             var padding = Padding;
-            var contentBounds = new Rect(
+            var contentBounds = new SKRect(
                 bounds.Left + padding.Left,
                 bounds.Top + padding.Top,
-                bounds.Width - padding.Left - padding.Right,
-                bounds.Height - padding.Top - padding.Bottom);
+                bounds.Right - padding.Right,
+                bounds.Bottom - padding.Bottom);
 
             // Apply alignment
             var contentSize = Content.DesiredSize;
@@ -171,12 +166,12 @@ public class SkiaContentPresenter : SkiaView
         return bounds;
     }
 
-    private static Rect ApplyAlignment(Rect availableBounds, Size contentSize, LayoutAlignment horizontal, LayoutAlignment vertical)
+    private static SKRect ApplyAlignment(SKRect availableBounds, SKSize contentSize, LayoutAlignment horizontal, LayoutAlignment vertical)
     {
-        double x = availableBounds.Left;
-        double y = availableBounds.Top;
-        double width = horizontal == LayoutAlignment.Fill ? availableBounds.Width : contentSize.Width;
-        double height = vertical == LayoutAlignment.Fill ? availableBounds.Height : contentSize.Height;
+        float x = availableBounds.Left;
+        float y = availableBounds.Top;
+        float width = horizontal == LayoutAlignment.Fill ? availableBounds.Width : contentSize.Width;
+        float height = vertical == LayoutAlignment.Fill ? availableBounds.Height : contentSize.Height;
 
         // Horizontal alignment
         switch (horizontal)
@@ -200,7 +195,7 @@ public class SkiaContentPresenter : SkiaView
                 break;
         }
 
-        return new Rect(x, y, width, height);
+        return new SKRect(x, y, x + width, y + height);
     }
 
     public override SkiaView? HitTest(float x, float y)
@@ -233,4 +228,30 @@ public class SkiaContentPresenter : SkiaView
     {
         Content?.OnPointerReleased(e);
     }
+}
+
+/// <summary>
+/// Layout alignment options.
+/// </summary>
+public enum LayoutAlignment
+{
+    /// <summary>
+    /// Fill the available space.
+    /// </summary>
+    Fill,
+
+    /// <summary>
+    /// Align to the start (left or top).
+    /// </summary>
+    Start,
+
+    /// <summary>
+    /// Align to the center.
+    /// </summary>
+    Center,
+
+    /// <summary>
+    /// Align to the end (right or bottom).
+    /// </summary>
+    End
 }

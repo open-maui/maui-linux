@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Controls.Hosting;
-using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Hosting;
-using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
@@ -36,7 +34,7 @@ public static class LinuxProgramHost
     {
         // Build the MAUI application
         var builder = MauiApp.CreateBuilder();
-        LinuxPlatformRegistrar.Register(builder);
+        builder.UseLinux();
         configure?.Invoke(builder);
         builder.UseMauiApp<TApp>();
         var mauiApp = builder.Build();
@@ -45,10 +43,6 @@ public static class LinuxProgramHost
         var options = mauiApp.Services.GetService<LinuxApplicationOptions>()
                      ?? new LinuxApplicationOptions();
         ParseCommandLineOptions(args, options);
-
-        // Initialize GTK for WebView support
-        GtkHostService.Instance.Initialize(options.Title ?? "MAUI Application", options.Width, options.Height);
-        DiagnosticLog.Debug("LinuxProgramHost", "GTK initialized for WebView support");
 
         // Create Linux application
         using var linuxApp = new LinuxApplication();
@@ -79,7 +73,7 @@ public static class LinuxProgramHost
         // Fallback to demo if no application view is available
         if (rootView == null)
         {
-            DiagnosticLog.Warn("LinuxProgramHost", "No application page found. Showing demo UI.");
+            Console.WriteLine("No application page found. Showing demo UI.");
             rootView = CreateDemoView();
         }
 
@@ -94,54 +88,44 @@ public static class LinuxProgramHost
     {
         try
         {
-            // For Applications, get the page via CreateWindow or existing windows
+            // For Applications, we need to create a window
             if (application is Application app)
             {
-                Page? mainPage = null;
+                Page? mainPage = app.MainPage;
 
-                // Check for existing windows first (CreateWindow may have been called during initialization)
-                if (app.Windows.Count > 0)
+                // If no MainPage set, check for windows
+                if (mainPage == null && application.Windows.Count > 0)
                 {
-                    if (app.Windows[0] is Microsoft.Maui.Controls.Window w)
+                    var existingWindow = application.Windows[0];
+                    if (existingWindow.Content is Page page)
                     {
-                        mainPage = w.Page;
-                    }
-                }
-
-                // Try CreateWindow via IApplication interface
-                if (mainPage == null)
-                {
-                    try
-                    {
-                        var appInterface = (IApplication)app;
-                        var mauiWindow = appInterface.CreateWindow(null!) as Microsoft.Maui.Controls.Window;
-                        if (mauiWindow != null)
-                        {
-                            mainPage = mauiWindow.Page;
-                            if (!appInterface.Windows.Contains(mauiWindow))
-                            {
-                                app.OpenWindow(mauiWindow);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        DiagnosticLog.Debug("LinuxProgramHost", $"CreateWindow failed: {ex.Message}");
-                    }
-                }
-
-                // Fall back to MainPage if still no page
-                if (mainPage == null && app.MainPage != null)
-                {
-                    mainPage = app.MainPage;
-                    if (app.Windows.Count == 0)
-                    {
-                        app.OpenWindow(new Microsoft.Maui.Controls.Window(mainPage));
+                        mainPage = page;
                     }
                 }
 
                 if (mainPage != null)
                 {
+                    // Create a MAUI Window and add it to the application
+                    // This ensures Shell.Current works properly (it reads from Application.Current.Windows[0].Page)
+                    if (app.Windows.Count == 0)
+                    {
+                        var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
+
+                        // Try OpenWindow first
+                        app.OpenWindow(mauiWindow);
+
+                        // If that didn't work, use reflection to add directly to _windows
+                        if (app.Windows.Count == 0)
+                        {
+                            var windowsField = typeof(Application).GetField("_windows",
+                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                            if (windowsField?.GetValue(app) is System.Collections.IList windowsList)
+                            {
+                                windowsList.Add(mauiWindow);
+                            }
+                        }
+                    }
+
                     return RenderPage(mainPage, mauiContext);
                 }
             }
@@ -150,8 +134,8 @@ public static class LinuxProgramHost
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("LinuxProgramHost", $"Error rendering application: {ex.Message}");
-            DiagnosticLog.Error("LinuxProgramHost", ex.StackTrace ?? "");
+            Console.WriteLine($"Error rendering application: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
             return null;
         }
     }
@@ -202,33 +186,33 @@ public static class LinuxProgramHost
         {
             Orientation = StackOrientation.Vertical,
             Spacing = 15,
-            BackgroundColor = Color.FromRgb(0xF5, 0xF5, 0xF5)
+            BackgroundColor = new SKColor(0xF5, 0xF5, 0xF5)
         };
-        root.Padding = new Thickness(20, 20, 20, 20);
+        root.Padding = new SKRect(20, 20, 20, 20);
 
         // ========== TITLE ==========
         root.AddChild(new SkiaLabel
         {
             Text = "OpenMaui Linux Control Demo",
             FontSize = 28,
-            TextColor = Color.FromRgb(0x1A, 0x23, 0x7E),
-            FontAttributes = FontAttributes.Bold
+            TextColor = new SKColor(0x1A, 0x23, 0x7E),
+            IsBold = true
         });
         root.AddChild(new SkiaLabel
         {
             Text = "All controls rendered using SkiaSharp on X11",
             FontSize = 14,
-            TextColor = Colors.Gray
+            TextColor = SKColors.Gray
         });
 
         // ========== LABELS SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Labels"));
         var labelSection = new SkiaStackLayout { Orientation = StackOrientation.Vertical, Spacing = 5 };
-        labelSection.AddChild(new SkiaLabel { Text = "Normal Label", FontSize = 16, TextColor = Colors.Black });
-        labelSection.AddChild(new SkiaLabel { Text = "Bold Label", FontSize = 16, TextColor = Colors.Black, FontAttributes = FontAttributes.Bold });
-        labelSection.AddChild(new SkiaLabel { Text = "Italic Label", FontSize = 16, TextColor = Colors.Gray, FontAttributes = FontAttributes.Italic });
-        labelSection.AddChild(new SkiaLabel { Text = "Colored Label (Pink)", FontSize = 16, TextColor = Color.FromRgb(0xE9, 0x1E, 0x63) });
+        labelSection.AddChild(new SkiaLabel { Text = "Normal Label", FontSize = 16, TextColor = SKColors.Black });
+        labelSection.AddChild(new SkiaLabel { Text = "Bold Label", FontSize = 16, TextColor = SKColors.Black, IsBold = true });
+        labelSection.AddChild(new SkiaLabel { Text = "Italic Label", FontSize = 16, TextColor = SKColors.Gray, IsItalic = true });
+        labelSection.AddChild(new SkiaLabel { Text = "Colored Label (Pink)", FontSize = 16, TextColor = new SKColor(0xE9, 0x1E, 0x63) });
         root.AddChild(labelSection);
 
         // ========== BUTTONS SECTION ==========
@@ -237,20 +221,20 @@ public static class LinuxProgramHost
         var buttonSection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
 
         var btnPrimary = new SkiaButton { Text = "Primary", FontSize = 14 };
-        btnPrimary.BackgroundColor = Color.FromRgb(0x21, 0x96, 0xF3);
-        btnPrimary.TextColor = Colors.White;
+        btnPrimary.BackgroundColor = new SKColor(0x21, 0x96, 0xF3);
+        btnPrimary.TextColor = SKColors.White;
         var clickCount = 0;
         btnPrimary.Clicked += (s, e) => { clickCount++; btnPrimary.Text = $"Clicked {clickCount}x"; };
         buttonSection.AddChild(btnPrimary);
 
         var btnSuccess = new SkiaButton { Text = "Success", FontSize = 14 };
-        btnSuccess.BackgroundColor = Color.FromRgb(0x4C, 0xAF, 0x50);
-        btnSuccess.TextColor = Colors.White;
+        btnSuccess.BackgroundColor = new SKColor(0x4C, 0xAF, 0x50);
+        btnSuccess.TextColor = SKColors.White;
         buttonSection.AddChild(btnSuccess);
 
         var btnDanger = new SkiaButton { Text = "Danger", FontSize = 14 };
-        btnDanger.BackgroundColor = Color.FromRgb(0xF4, 0x43, 0x36);
-        btnDanger.TextColor = Colors.White;
+        btnDanger.BackgroundColor = new SKColor(0xF4, 0x43, 0x36);
+        btnDanger.TextColor = SKColors.White;
         buttonSection.AddChild(btnDanger);
 
         root.AddChild(buttonSection);
@@ -265,7 +249,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("SearchBar"));
         var searchBar = new SkiaSearchBar { Placeholder = "Search for items..." };
-        var searchResultLabel = new SkiaLabel { Text = "", FontSize = 12, TextColor = Colors.Gray };
+        var searchResultLabel = new SkiaLabel { Text = "", FontSize = 12, TextColor = SKColors.Gray };
         searchBar.TextChanged += (s, e) => searchResultLabel.Text = $"Searching: {e.NewTextValue}";
         searchBar.SearchButtonPressed += (s, e) => searchResultLabel.Text = $"Search submitted: {searchBar.Text}";
         root.AddChild(searchBar);
@@ -278,7 +262,7 @@ public static class LinuxProgramHost
         {
             Placeholder = "Enter multiple lines of text...",
             FontSize = 14,
-            BackgroundColor = Colors.White
+            BackgroundColor = SKColors.White
         };
         root.AddChild(editor);
 
@@ -340,7 +324,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSectionHeader("ProgressBar"));
         var progress = new SkiaProgressBar { Progress = 0.7f };
         root.AddChild(progress);
-        root.AddChild(new SkiaLabel { Text = "70% Complete", FontSize = 12, TextColor = Colors.Gray });
+        root.AddChild(new SkiaLabel { Text = "70% Complete", FontSize = 12, TextColor = SKColors.Gray });
 
         // ========== ACTIVITYINDICATOR SECTION ==========
         root.AddChild(CreateSeparator());
@@ -348,7 +332,7 @@ public static class LinuxProgramHost
         var activitySection = new SkiaStackLayout { Orientation = StackOrientation.Horizontal, Spacing = 10 };
         var activity = new SkiaActivityIndicator { IsRunning = true };
         activitySection.AddChild(activity);
-        activitySection.AddChild(new SkiaLabel { Text = "Loading...", FontSize = 14, TextColor = Colors.Gray });
+        activitySection.AddChild(new SkiaLabel { Text = "Loading...", FontSize = 14, TextColor = SKColors.Gray });
         root.AddChild(activitySection);
 
         // ========== PICKER SECTION ==========
@@ -356,7 +340,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSectionHeader("Picker (Dropdown)"));
         var picker = new SkiaPicker { Title = "Select an item" };
         picker.SetItems(new[] { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape" });
-        var pickerLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = Colors.Gray };
+        var pickerLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = SKColors.Gray };
         picker.SelectedIndexChanged += (s, e) => pickerLabel.Text = $"Selected: {picker.SelectedItem}";
         root.AddChild(picker);
         root.AddChild(pickerLabel);
@@ -365,7 +349,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("DatePicker"));
         var datePicker = new SkiaDatePicker { Date = DateTime.Today };
-        var dateLabel = new SkiaLabel { Text = $"Date: {DateTime.Today:d}", FontSize = 12, TextColor = Colors.Gray };
+        var dateLabel = new SkiaLabel { Text = $"Date: {DateTime.Today:d}", FontSize = 12, TextColor = SKColors.Gray };
         datePicker.DateSelected += (s, e) => dateLabel.Text = $"Date: {datePicker.Date:d}";
         root.AddChild(datePicker);
         root.AddChild(dateLabel);
@@ -374,7 +358,7 @@ public static class LinuxProgramHost
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("TimePicker"));
         var timePicker = new SkiaTimePicker();
-        var timeLabel = new SkiaLabel { Text = $"Time: {DateTime.Now:t}", FontSize = 12, TextColor = Colors.Gray };
+        var timeLabel = new SkiaLabel { Text = $"Time: {DateTime.Now:t}", FontSize = 12, TextColor = SKColors.Gray };
         timePicker.TimeSelected += (s, e) => timeLabel.Text = $"Time: {DateTime.Today.Add(timePicker.Time):t}";
         root.AddChild(timePicker);
         root.AddChild(timeLabel);
@@ -386,18 +370,18 @@ public static class LinuxProgramHost
         {
             CornerRadius = 8,
             StrokeThickness = 2,
-            Stroke = Color.FromRgb(0x21, 0x96, 0xF3),
-            BackgroundColor = Color.FromRgb(0xE3, 0xF2, 0xFD)
+            Stroke = new SKColor(0x21, 0x96, 0xF3),
+            BackgroundColor = new SKColor(0xE3, 0xF2, 0xFD)
         };
         border.SetPadding(15);
-        border.AddChild(new SkiaLabel { Text = "Content inside a styled Border", FontSize = 14, TextColor = Color.FromRgb(0x1A, 0x23, 0x7E) });
+        border.AddChild(new SkiaLabel { Text = "Content inside a styled Border", FontSize = 14, TextColor = new SKColor(0x1A, 0x23, 0x7E) });
         root.AddChild(border);
 
         // ========== FRAME SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Frame (with shadow)"));
         var frame = new SkiaFrame();
-        frame.BackgroundColor = Colors.White;
+        frame.BackgroundColor = SKColors.White;
         frame.AddChild(new SkiaLabel { Text = "Content inside a Frame with shadow effect", FontSize = 14 });
         root.AddChild(frame);
 
@@ -411,7 +395,7 @@ public static class LinuxProgramHost
             Footer = "End of list"
         };
         collectionView.ItemsSource =(new object[] { "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape", "Honeydew" });
-        var collectionLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = Colors.Gray };
+        var collectionLabel = new SkiaLabel { Text = "Selected: (none)", FontSize = 12, TextColor = SKColors.Gray };
         collectionView.SelectionChanged += (s, e) =>
         {
             var selected = e.CurrentSelection.FirstOrDefault();
@@ -429,15 +413,18 @@ public static class LinuxProgramHost
         var imgBtn = new SkiaImageButton
         {
             CornerRadius = 8,
-            StrokeColor = Color.FromRgb(0x21, 0x96, 0xF3),
+            StrokeColor = new SKColor(0x21, 0x96, 0xF3),
             StrokeThickness = 1,
-            ImageBackgroundColor = Color.FromRgb(0xE3, 0xF2, 0xFD),
-            Padding = new Thickness(10)
+            BackgroundColor = new SKColor(0xE3, 0xF2, 0xFD),
+            PaddingLeft = 10,
+            PaddingRight = 10,
+            PaddingTop = 10,
+            PaddingBottom = 10
         };
         // Generate a simple star icon bitmap
         var iconBitmap = CreateStarIcon(32, new SKColor(0x21, 0x96, 0xF3));
         imgBtn.Bitmap = iconBitmap;
-        var imgBtnLabel = new SkiaLabel { Text = "Click the star!", FontSize = 12, TextColor = Colors.Gray };
+        var imgBtnLabel = new SkiaLabel { Text = "Click the star!", FontSize = 12, TextColor = SKColors.Gray };
         imgBtn.Clicked += (s, e) => imgBtnLabel.Text = "Star clicked!";
         imageButtonSection.AddChild(imgBtn);
         imageButtonSection.AddChild(imgBtnLabel);
@@ -453,7 +440,7 @@ public static class LinuxProgramHost
         var sampleBitmap = CreateSampleImage(80, 60);
         img.Bitmap = sampleBitmap;
         imageSection.AddChild(img);
-        imageSection.AddChild(new SkiaLabel { Text = "Sample generated image", FontSize = 12, TextColor = Colors.Gray });
+        imageSection.AddChild(new SkiaLabel { Text = "Sample generated image", FontSize = 12, TextColor = SKColors.Gray });
         root.AddChild(imageSection);
 
         // ========== FOOTER ==========
@@ -462,14 +449,14 @@ public static class LinuxProgramHost
         {
             Text = "All 25+ controls are interactive - try them all!",
             FontSize = 16,
-            TextColor = Color.FromRgb(0x4C, 0xAF, 0x50),
-            FontAttributes = FontAttributes.Bold
+            TextColor = new SKColor(0x4C, 0xAF, 0x50),
+            IsBold = true
         });
         root.AddChild(new SkiaLabel
         {
             Text = "Scroll down to see more controls",
             FontSize = 12,
-            TextColor = Colors.Gray
+            TextColor = SKColors.Gray
         });
 
         scroll.Content = root;
@@ -482,14 +469,14 @@ public static class LinuxProgramHost
         {
             Text = text,
             FontSize = 18,
-            TextColor = Color.FromRgb(0x37, 0x47, 0x4F),
-            FontAttributes = FontAttributes.Bold
+            TextColor = new SKColor(0x37, 0x47, 0x4F),
+            IsBold = true
         };
     }
 
     private static SkiaView CreateSeparator()
     {
-        var sep = new SkiaLabel { Text = "", BackgroundColor = Color.FromRgb(0xE0, 0xE0, 0xE0), RequestedHeight = 1 };
+        var sep = new SkiaLabel { Text = "", BackgroundColor = new SKColor(0xE0, 0xE0, 0xE0), RequestedHeight = 1 };
         return sep;
     }
 

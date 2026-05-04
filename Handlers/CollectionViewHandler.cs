@@ -5,8 +5,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
-using Microsoft.Maui.Platform.Linux.Hosting;
-using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -125,49 +123,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
     private void OnItemTapped(object? sender, ItemsViewItemTappedEventArgs e)
     {
-        if (VirtualView is null || _isUpdatingSelection) return;
-
-        try
-        {
-            _isUpdatingSelection = true;
-
-            DiagnosticLog.Debug("CollectionViewHandler", $"OnItemTapped index={e.Index}, item={e.Item}, SelectionMode={VirtualView.SelectionMode}");
-
-            // Try to get the item view and process gestures
-            var skiaView = PlatformView?.GetItemView(e.Index);
-            DiagnosticLog.Debug("CollectionViewHandler", $"GetItemView({e.Index}) returned: {skiaView?.GetType().Name ?? "null"}, MauiView={skiaView?.MauiView?.GetType().Name ?? "null"}");
-
-            if (skiaView?.MauiView != null)
-            {
-                DiagnosticLog.Debug("CollectionViewHandler", $"Found MauiView: {skiaView.MauiView.GetType().Name}, GestureRecognizers={skiaView.MauiView.GestureRecognizers?.Count ?? 0}");
-                if (GestureManager.ProcessTap(skiaView.MauiView, 0, 0))
-                {
-                    DiagnosticLog.Debug("CollectionViewHandler", "Gesture processed successfully");
-                    return;
-                }
-            }
-
-            // Handle selection if gesture wasn't processed
-            if (VirtualView.SelectionMode == SelectionMode.Single)
-            {
-                VirtualView.SelectedItem = e.Item;
-            }
-            else if (VirtualView.SelectionMode == SelectionMode.Multiple)
-            {
-                if (VirtualView.SelectedItems.Contains(e.Item))
-                {
-                    VirtualView.SelectedItems.Remove(e.Item);
-                }
-                else
-                {
-                    VirtualView.SelectedItems.Add(e.Item);
-                }
-            }
-        }
-        finally
-        {
-            _isUpdatingSelection = false;
-        }
+        // Item tap is handled through selection
     }
 
     public static void MapItemsSource(CollectionViewHandler handler, CollectionView collectionView)
@@ -192,23 +148,6 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                     var content = template.CreateContent();
                     if (content is View view)
                     {
-                        // Set the parent to the CollectionView so RelativeSource AncestorType
-                        // bindings can walk the visual tree up to the Page.
-                        if (view.Parent == null)
-                        {
-                            try
-                            {
-                                // Use reflection to set the internal Parent property.
-                                // MAUI's Element.Parent setter is public but may trigger
-                                // side effects, so we use the internal SetParent if available.
-                                view.Parent = collectionView;
-                            }
-                            catch
-                            {
-                                // Fallback: some MAUI versions restrict parent assignment.
-                            }
-                        }
-
                         // Set binding context FIRST so bindings evaluate
                         view.BindingContext = item;
 
@@ -219,14 +158,11 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                         // Create handler for the view
                         if (view.Handler == null && handler.MauiContext != null)
                         {
-                            view.Handler = view.ToViewHandler(handler.MauiContext);
+                            view.Handler = view.ToHandler(handler.MauiContext);
                         }
 
                         if (view.Handler?.PlatformView is SkiaView skiaView)
                         {
-                            // Set MauiView so gestures can be processed
-                            skiaView.MauiView = view;
-                            DiagnosticLog.Debug("CollectionViewHandler", $"ItemViewCreator: Set MauiView={view.GetType().Name} on {skiaView.GetType().Name}, GestureRecognizers={view.GestureRecognizers?.Count ?? 0}");
                             return skiaView;
                         }
                     }
@@ -238,7 +174,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
                         {
                             if (cellView.Handler == null && handler.MauiContext != null)
                             {
-                                cellView.Handler = cellView.ToViewHandler(handler.MauiContext);
+                                cellView.Handler = cellView.ToHandler(handler.MauiContext);
                             }
 
                             if (cellView.Handler?.PlatformView is SkiaView skiaView)
@@ -379,7 +315,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
         if (collectionView.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color;
+            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
         }
     }
 
@@ -389,7 +325,7 @@ public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCol
 
         if (collectionView.BackgroundColor is not null)
         {
-            handler.PlatformView.BackgroundColor = collectionView.BackgroundColor;
+            handler.PlatformView.BackgroundColor = collectionView.BackgroundColor.ToSKColor();
         }
     }
 

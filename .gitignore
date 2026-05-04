@@ -47,8 +47,3 @@ coverage*.xml
 
 # Publish output
 publish/
-mauiplan.md
-
-# Development artifacts
-out.xml
-MERGE_TRACKING.md
