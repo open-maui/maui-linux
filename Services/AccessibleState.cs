@@ -1,0 +1,52 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+namespace Microsoft.Maui.Platform.Linux.Services;
+
+public enum AccessibleState
+{
+    Invalid,
+    Active,
+    Armed,
+    Busy,
+    Checked,
+    Collapsed,
+    Defunct,
+    Editable,
+    Enabled,
+    Expandable,
+    Expanded,
+    Focusable,
+    Focused,
+    HasToolTip,
+    Horizontal,
+    Iconified,
+    Modal,
+    MultiLine,
+    Multiselectable,
+    Opaque,
+    Pressed,
+    Resizable,
+    Selectable,
+    Selected,
+    Sensitive,
+    Showing,
+    SingleLine,
+    Stale,
+    Transient,
+    Vertical,
+    Visible,
+    ManagesDescendants,
+    Indeterminate,
+    Required,
+    Truncated,
+    Animated,
+    InvalidEntry,
+    SupportsAutocompletion,
+    SelectableText,
+    IsDefault,
+    Visited,
+    Checkable,
+    HasPopup,
+    ReadOnly
+}
