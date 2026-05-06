@@ -445,6 +445,8 @@ public partial class LinuxApplication
     /// </summary>
     private static void ApplyThemeChange(LinuxApplication linuxApp)
     {
+        DiagnosticLog.Debug("LinuxApplication", $"DBG ApplyThemeChange: rootView={linuxApp._rootView?.GetType().Name ?? "null"}");
+
         // Apply GTK CSS for dialogs, menus, and window decorations.
         GtkThemeService.ApplyTheme();
 
@@ -479,16 +481,16 @@ public partial class LinuxApplication
         // ensures the cached SKColors get updated even in those cases.
         view.RefreshThemeFromMauiView();
 
-        // Standard Children — SkiaLayoutView and SkiaView each have their own
-        // collection (the former hides the base via `new`); accessing .Children
-        // always resolves to the most-derived definition.
-        var children = view.Children;
+        // Resolve Children to the most-derived collection. SkiaLayoutView declares
+        // `public new IReadOnlyList<SkiaView> Children` which hides the base via
+        // `new`; if we access via a SkiaView-typed reference we get the (empty)
+        // base list. The runtime cast picks the layout's actual child list.
+        IReadOnlyList<SkiaView> children = view is SkiaLayoutView layout ? layout.Children : view.Children;
         for (int i = 0; i < children.Count; i++)
             RefreshCachedItemsRecursive(children[i]);
 
         // ExtraContentRoots — content trees in private fields (current page,
-        // back-stack pages, shell sections). NavigationPage and Shell expose
-        // theirs here.
+        // back-stack pages, shell sections, page content).
         foreach (var extra in view.ExtraContentRoots)
             RefreshCachedItemsRecursive(extra);
     }
