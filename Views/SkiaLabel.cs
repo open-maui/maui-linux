@@ -175,7 +175,7 @@ public class SkiaLabel : SkiaView
     /// <summary>
     /// Bindable property for Padding.
     /// </summary>
-    public static new readonly BindableProperty PaddingProperty = BindableProperty.Create(
+    public static readonly BindableProperty PaddingProperty = BindableProperty.Create(
         nameof(Padding),
         typeof(Thickness),
         typeof(SkiaLabel),
