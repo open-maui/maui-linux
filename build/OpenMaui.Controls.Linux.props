@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!--
+    OpenMaui Linux Build Props (runs BEFORE project and MAUI targets)
+
+    Note: SingleProject override is handled in .targets (which runs AFTER the project
+    and MAUI's SingleProject.targets) because the project's explicit <SingleProject>true</SingleProject>
+    would override any value set here in .props.
+  -->
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+</Project>
