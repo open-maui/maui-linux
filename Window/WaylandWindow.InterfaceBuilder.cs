@@ -60,8 +60,9 @@ public partial class WaylandWindow
 
     /// <summary>
     /// Builds a complete wl_interface descriptor (with methods/events tables) and
-    /// returns a pointer to the pinned struct. Idempotent at the call-site level
-    /// when guarded by a "did we build this yet?" check.
+    /// returns a pointer to the unmanaged struct. Uses direct AllocHGlobal +
+    /// StructureToPtr so the layout is exactly what libwayland expects, with no
+    /// boxing or padding from .NET object headers.
     /// </summary>
     private static IntPtr BuildInterface(string name, int version,
         MessageDef[] methods, MessageDef[] events)
@@ -79,9 +80,10 @@ public partial class WaylandWindow
             Events = eventsPtr,
         };
 
-        var ifaceHandle = GCHandle.Alloc(iface, GCHandleType.Pinned);
-        s_pinnedHandles.Add(ifaceHandle);
-        return ifaceHandle.AddrOfPinnedObject();
+        var ptr = Marshal.AllocHGlobal(Marshal.SizeOf<WlInterface>());
+        Marshal.StructureToPtr(iface, ptr, fDeleteOld: false);
+        s_pinnedStrings.Add(ptr); // track for lifetime; never freed
+        return ptr;
     }
 
     private static IntPtr BuildMessageArray(MessageDef[] defs)
@@ -89,26 +91,37 @@ public partial class WaylandWindow
         if (defs.Length == 0)
             return IntPtr.Zero;
 
-        var msgs = new WlMessage[defs.Length];
+        // Allocate a contiguous unmanaged array of wl_message structs so the
+        // wl_interface->methods[opcode] indexing libwayland does is correct.
+        int size = Marshal.SizeOf<WlMessage>();
+        var arr = Marshal.AllocHGlobal(size * defs.Length);
+        s_pinnedStrings.Add(arr);
+
         for (int i = 0; i < defs.Length; i++)
         {
-            msgs[i].Name = AllocPinnedAnsi(defs[i].Name);
-            msgs[i].Signature = AllocPinnedAnsi(defs[i].Signature);
-            msgs[i].Types = PinIntPtrArray(defs[i].Types);
+            var msg = new WlMessage
+            {
+                Name = AllocPinnedAnsi(defs[i].Name),
+                Signature = AllocPinnedAnsi(defs[i].Signature),
+                Types = PinIntPtrArray(defs[i].Types),
+            };
+            Marshal.StructureToPtr(msg, arr + (i * size), fDeleteOld: false);
         }
-
-        var arrHandle = GCHandle.Alloc(msgs, GCHandleType.Pinned);
-        s_pinnedHandles.Add(arrHandle);
-        return arrHandle.AddrOfPinnedObject();
+        return arr;
     }
 
     private static IntPtr PinIntPtrArray(IntPtr[] arr)
     {
         if (arr.Length == 0)
             return IntPtr.Zero;
-        var h = GCHandle.Alloc(arr, GCHandleType.Pinned);
-        s_pinnedHandles.Add(h);
-        return h.AddrOfPinnedObject();
+        // Copy into unmanaged memory so the layout is stable regardless of GC moves.
+        var ptr = Marshal.AllocHGlobal(IntPtr.Size * arr.Length);
+        s_pinnedStrings.Add(ptr);
+        for (int i = 0; i < arr.Length; i++)
+        {
+            Marshal.WriteIntPtr(ptr, i * IntPtr.Size, arr[i]);
+        }
+        return ptr;
     }
 
     private static IntPtr AllocPinnedAnsi(string s)
