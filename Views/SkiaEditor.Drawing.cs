@@ -30,9 +30,18 @@ public partial class SkiaEditor
             UpdateLines();
         }
 
-        // Draw background
-        var bgColor = EditorBackgroundColor != null ? ToSKColor(EditorBackgroundColor) :
-            (IsEnabled ? SkiaTheme.BackgroundWhiteSK : SkiaTheme.Gray100SK);
+        // Draw background. When EditorBackgroundColor is the default Transparent
+        // (Alpha==0) we fall back to the theme-aware surface color so the editor
+        // doesn't appear as a hard-coded white box on a dark page.
+        SKColor bgColor;
+        if (EditorBackgroundColor != null && EditorBackgroundColor.Alpha > 0)
+        {
+            bgColor = ToSKColor(EditorBackgroundColor);
+        }
+        else
+        {
+            bgColor = IsEnabled ? SkiaTheme.CurrentSurfaceSK : SkiaTheme.Gray100SK;
+        }
         using var bgPaint = new SKPaint
         {
             Color = bgColor,
