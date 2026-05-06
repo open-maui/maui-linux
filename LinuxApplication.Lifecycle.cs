@@ -445,8 +445,6 @@ public partial class LinuxApplication
     /// </summary>
     private static void ApplyThemeChange(LinuxApplication linuxApp)
     {
-        DiagnosticLog.Debug("LinuxApplication", $"DBG ApplyThemeChange: rootView={linuxApp._rootView?.GetType().Name ?? "null"}");
-
         // Apply GTK CSS for dialogs, menus, and window decorations.
         GtkThemeService.ApplyTheme();
 
