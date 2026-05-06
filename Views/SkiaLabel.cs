@@ -543,7 +543,7 @@ public class SkiaLabel : SkiaView
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = new SKFont(
-            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
         using var paint = new SKPaint(font);
 
@@ -681,7 +681,7 @@ public class SkiaLabel : SkiaView
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = new SKFont(
-            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
         using var paint = new SKPaint(font)
@@ -825,7 +825,7 @@ public class SkiaLabel : SkiaView
 
         // Get the preferred typeface from the current paint
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
-        var preferredTypeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle())
+        var preferredTypeface = RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle())
                                ?? SKTypeface.Default;
 
         if (CharacterSpacing == 0 || text.Length <= 1)
@@ -972,7 +972,7 @@ public class SkiaLabel : SkiaView
                 isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
 
             using var font = new SKFont(
-                SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(spanFontFamily, fontStyle) ?? SKTypeface.Default,
+                RenderContext?.Resources.GetTypeface(spanFontFamily, fontStyle) ?? SKTypeface.Default,
                 spanFontSize);
 
             var spanColor = span.TextColor ?? TextColor;
@@ -993,7 +993,7 @@ public class SkiaLabel : SkiaView
             }
 
             // Use font fallback for this span
-            var preferredTypeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(spanFontFamily, fontStyle)
+            var preferredTypeface = RenderContext?.Resources.GetTypeface(spanFontFamily, fontStyle)
                                    ?? SKTypeface.Default;
             DrawFormattedSpanWithFallback(canvas, span.Text, x, y, paint, preferredTypeface, spanFontSize);
 
@@ -1172,7 +1172,7 @@ public class SkiaLabel : SkiaView
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = new SKFont(
-            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
         using var paint = new SKPaint(font);
