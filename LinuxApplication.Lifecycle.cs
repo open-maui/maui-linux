@@ -439,21 +439,27 @@ public partial class LinuxApplication
     /// Applies a theme flip across the visible tree. Most properties update
     /// automatically via MauiView.PropertyChanged after the Stage 7 slim-down,
     /// but two cases need help: SkiaItemsView caches its rendered template
-    /// instances (<see cref="SkiaItemsView._itemViewCache"/>), and the active
-    /// SkiaShell needs its color refresher invoked.
+    /// instances, and the active SkiaShell needs its color refresher invoked
+    /// (and its content-tree walked, since Shell holds content in private
+    /// fields not exposed via the standard Children chain).
     /// </summary>
     private static void ApplyThemeChange(LinuxApplication linuxApp)
     {
         // Apply GTK CSS for dialogs, menus, and window decorations.
         GtkThemeService.ApplyTheme();
 
-        // Refresh shell colors (reads bound values via SkiaView).
-        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
+        // Refresh shell colors and rebuild section content trees.
+        var shell = LinuxViewRenderer.CurrentSkiaShell;
+        shell?.RefreshTheme();
 
-        // Walk the active SkiaView tree and clear caches on any view that
-        // holds rendered children (CollectionView, CarouselView, etc.).
+        // Walk every reachable content tree and clear caches on items views.
+        // Standard Children chain handles non-Shell pages; AllContentRoots covers
+        // Shell's _currentContent + navigation stack + per-section content.
         if (linuxApp._rootView != null)
             RefreshCachedItemsRecursive(linuxApp._rootView);
+        if (shell != null)
+            foreach (var root in shell.AllContentRoots)
+                RefreshCachedItemsRecursive(root);
 
         // Invalidate to redraw - use correct method based on mode
         if (linuxApp._useGtk)
@@ -467,8 +473,9 @@ public partial class LinuxApplication
         if (view is SkiaItemsView itemsView)
             itemsView.RefreshTheme();
 
-        // Both SkiaView and SkiaLayoutView expose Children; pick whichever the
-        // runtime gives us. Using the property keeps us compatible with both.
+        // SkiaLayoutView and SkiaView each have their own Children collection
+        // (the former hides the base via `new`); accessing .Children always
+        // resolves to the most-derived definition, so this works for both.
         var children = view.Children;
         for (int i = 0; i < children.Count; i++)
             RefreshCachedItemsRecursive(children[i]);
