@@ -246,6 +246,20 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     }
 
     /// <summary>
+    /// Forces a re-read of theme-affected state from <see cref="MauiView"/>. Called
+    /// by the application's theme-change handler so views in pushed pages and
+    /// other "not currently visible" branches of the tree refresh their cached
+    /// SKColors when MAUI has already re-evaluated the underlying AppThemeBinding.
+    /// Subclasses with additional theme-aware properties (e.g. SkiaBorder.Stroke)
+    /// should override and call <c>base.RefreshThemeFromMauiView()</c>.
+    /// </summary>
+    public virtual void RefreshThemeFromMauiView()
+    {
+        if (_mauiView is VisualElement)
+            OnBackgroundColorChanged();
+    }
+
+    /// <summary>
     /// Gets the effective background color as SKColor for rendering.
     /// </summary>
     protected SKColor GetEffectiveBackgroundColor() => _backgroundColorSK;
