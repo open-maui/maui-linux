@@ -207,11 +207,28 @@ public class X11Window : IDisposable
             }
         }
 
-        // Initialize cursors
-        _arrowCursor = X11.XCreateFontCursor(_display, 68); // XC_left_ptr
-        _handCursor = X11.XCreateFontCursor(_display, 60);  // XC_hand2
-        _textCursor = X11.XCreateFontCursor(_display, 152); // XC_xterm
+        // Initialize cursors. Prefer themed cursors via libXcursor (respects the user's
+        // cursor theme and XCURSOR_SIZE for HiDPI). Fall back to legacy bitmap font cursors
+        // when libXcursor is unavailable or the theme doesn't define a given name.
+        _arrowCursor = LoadCursor("default", 68);  // XC_left_ptr
+        _handCursor = LoadCursor("pointer", 60);   // XC_hand2
+        _textCursor = LoadCursor("text", 152);     // XC_xterm
         _currentCursor = _arrowCursor;
+    }
+
+    private IntPtr LoadCursor(string themeName, uint fontShape)
+    {
+        try
+        {
+            var cursor = Xcursor.XcursorLibraryLoadCursor(_display, themeName);
+            if (cursor != IntPtr.Zero)
+                return cursor;
+        }
+        catch (DllNotFoundException)
+        {
+            // libXcursor not installed; fall through to font cursor.
+        }
+        return X11.XCreateFontCursor(_display, fontShape);
     }
 
     /// <summary>

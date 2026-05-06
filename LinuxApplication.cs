@@ -263,6 +263,15 @@ public partial class LinuxApplication : IDisposable
             }
         }
 
+        // Cursor sizing for X11/XWayland. The default Xcursor size is 24px at 1x;
+        // without this, themed cursors render at native pixel size on HiDPI / fractional
+        // scaling (notably GNOME Wayland via XWayland), making them look tiny.
+        if (Environment.GetEnvironmentVariable("XCURSOR_SIZE") is null)
+        {
+            var cursorSize = (int)Math.Round(24 * Math.Max(1.0f, DpiScale));
+            Environment.SetEnvironmentVariable("XCURSOR_SIZE", cursorSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
         // Apply gesture configuration
         Handlers.GestureManager.SwipeMinDistance = options.SwipeMinDistance;
         Handlers.GestureManager.SwipeMaxTime = options.SwipeMaxTime;
