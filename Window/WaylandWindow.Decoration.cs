@@ -44,32 +44,28 @@ public partial class WaylandWindow
     {
         if (_zxdg_decoration_manager_v1_interface != IntPtr.Zero) return;
 
-        _decorationManagerName = Marshal.StringToHGlobalAnsi("zxdg_decoration_manager_v1");
-        _decorationName = Marshal.StringToHGlobalAnsi("zxdg_toplevel_decoration_v1");
+        // Build the decoration object first so the manager can reference it in
+        // get_toplevel_decoration's types table.
+        _zxdg_toplevel_decoration_v1_interface = BuildInterface("zxdg_toplevel_decoration_v1", 1,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+                new("set_mode", "u", new[] { IntPtr.Zero }),
+                new("unset_mode", "", Array.Empty<IntPtr>()),
+            },
+            events: new MessageDef[]
+            {
+                new("configure", "u", new[] { IntPtr.Zero }),
+            });
 
-        var manager = new WlInterface
-        {
-            Name = _decorationManagerName,
-            Version = 1,
-            MethodCount = 2,   // destroy, get_toplevel_decoration
-            Methods = IntPtr.Zero,
-            EventCount = 0,
-            Events = IntPtr.Zero,
-        };
-        _decorationManagerHandle = GCHandle.Alloc(manager, GCHandleType.Pinned);
-        _zxdg_decoration_manager_v1_interface = _decorationManagerHandle.AddrOfPinnedObject();
-
-        var decoration = new WlInterface
-        {
-            Name = _decorationName,
-            Version = 1,
-            MethodCount = 3,   // destroy, set_mode, unset_mode
-            Methods = IntPtr.Zero,
-            EventCount = 1,    // configure
-            Events = IntPtr.Zero,
-        };
-        _decorationHandle = GCHandle.Alloc(decoration, GCHandleType.Pinned);
-        _zxdg_toplevel_decoration_v1_interface = _decorationHandle.AddrOfPinnedObject();
+        _zxdg_decoration_manager_v1_interface = BuildInterface("zxdg_decoration_manager_v1", 1,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+                new("get_toplevel_decoration", "no",
+                    new[] { _zxdg_toplevel_decoration_v1_interface, _xdg_toplevel_interface }),
+            },
+            events: Array.Empty<MessageDef>());
     }
 
     private void RequestServerSideDecorations()
@@ -143,32 +139,24 @@ public partial class WaylandWindow
     {
         if (_wp_fractional_scale_manager_v1_interface != IntPtr.Zero) return;
 
-        _fractionalScaleManagerName = Marshal.StringToHGlobalAnsi("wp_fractional_scale_manager_v1");
-        _fractionalScaleName = Marshal.StringToHGlobalAnsi("wp_fractional_scale_v1");
+        _wp_fractional_scale_v1_interface = BuildInterface("wp_fractional_scale_v1", 1,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+            },
+            events: new MessageDef[]
+            {
+                new("preferred_scale", "u", new[] { IntPtr.Zero }),
+            });
 
-        var manager = new WlInterface
-        {
-            Name = _fractionalScaleManagerName,
-            Version = 1,
-            MethodCount = 2,   // destroy, get_fractional_scale
-            Methods = IntPtr.Zero,
-            EventCount = 0,
-            Events = IntPtr.Zero,
-        };
-        _fractionalScaleManagerHandle = GCHandle.Alloc(manager, GCHandleType.Pinned);
-        _wp_fractional_scale_manager_v1_interface = _fractionalScaleManagerHandle.AddrOfPinnedObject();
-
-        var scale = new WlInterface
-        {
-            Name = _fractionalScaleName,
-            Version = 1,
-            MethodCount = 1,   // destroy
-            Methods = IntPtr.Zero,
-            EventCount = 1,    // preferred_scale
-            Events = IntPtr.Zero,
-        };
-        _fractionalScaleHandle = GCHandle.Alloc(scale, GCHandleType.Pinned);
-        _wp_fractional_scale_v1_interface = _fractionalScaleHandle.AddrOfPinnedObject();
+        _wp_fractional_scale_manager_v1_interface = BuildInterface("wp_fractional_scale_manager_v1", 1,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+                new("get_fractional_scale", "no",
+                    new[] { _wp_fractional_scale_v1_interface, _wl_surface_interface }),
+            },
+            events: Array.Empty<MessageDef>());
     }
 
     private void RequestFractionalScale()
