@@ -132,8 +132,9 @@ public abstract partial class SkiaView
 
     private static void OnHighContrastChanged(object? sender, HighContrastChangedEventArgs e)
     {
-        // Request a full repaint of the UI
-        SkiaRenderingEngine.Current?.InvalidateAll();
+        // High-contrast is a process-global concern, so we go through the application
+        // singleton rather than per-view RenderContext (we don't have one in scope here).
+        Microsoft.Maui.Platform.Linux.LinuxApplication.Current?.RenderingEngine?.InvalidateAll();
     }
 
     #endregion
