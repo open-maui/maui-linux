@@ -190,6 +190,17 @@ public class SkiaShell : SkiaLayoutView
     private readonly List<ShellSection> _sections = new();
     private SkiaView? _currentContent;
 
+    private void ReadShellThemeColors()
+    {
+        if (MauiShell == null) return;
+        var titleColor = Shell.GetTitleColor(MauiShell) ?? Shell.GetForegroundColor(MauiShell);
+        if (titleColor != null)
+            NavBarTextColor = titleColor;
+        var bgColor = Shell.GetBackgroundColor(MauiShell);
+        if (bgColor != null)
+            NavBarBackgroundColor = bgColor;
+    }
+
     /// <summary>
     /// Theme-refresh walker hook: yield every content tree this shell owns —
     /// the active section's content, every section's pre-rendered content, and
@@ -459,7 +470,33 @@ public class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Reference to the MAUI Shell this view represents.
     /// </summary>
-    public Shell? MauiShell { get; set; }
+    private Shell? _mauiShell;
+    private bool _appThemeSubscribed;
+    public Shell? MauiShell
+    {
+        get => _mauiShell;
+        set
+        {
+            _mauiShell = value;
+            // Subscribe to Application.RequestedThemeChanged once so the Shell's
+            // attached colors (TitleColor, ForegroundColor, BackgroundColor —
+            // which are AppThemeBinding-bound from XAML) get pulled into the
+            // navbar cache after MAUI finishes propagating the new theme. The
+            // standard PropertyMapper doesn't reliably refire for attached props
+            // on theme change, and the cache otherwise lags a toggle behind.
+            if (!_appThemeSubscribed && Application.Current != null)
+            {
+                Application.Current.RequestedThemeChanged += OnApplicationRequestedThemeChanged;
+                _appThemeSubscribed = true;
+            }
+        }
+    }
+
+    private void OnApplicationRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
+    {
+        ReadShellThemeColors();
+        Invalidate();
+    }
 
     /// <summary>
     /// Callback to render content from a ShellContent.
@@ -939,6 +976,18 @@ public class SkiaShell : SkiaLayoutView
         canvas.ClipRect(bounds);
 
         bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
+
+        // Fill the content area with a theme-appropriate background BEFORE drawing
+        // the page content. The Skia surface is cleared to transparent each frame,
+        // so without this any pixels the page doesn't paint (e.g. ContentPage with
+        // no explicit BackgroundColor) end up transparent and the compositor blends
+        // through to the desktop / windows behind. Pages that DO set a background
+        // simply paint over the fill, so this is non-destructive.
+        var contentBg = SkiaTheme.IsDarkMode ? SkiaTheme.DarkBackgroundSK : _contentBackgroundColorSK;
+        using (var bgPaint = new SKPaint { Color = contentBg, Style = SKPaintStyle.Fill })
+        {
+            canvas.DrawRect(bounds, bgPaint);
+        }
 
         // In Locked mode, draw flyout first (it's a permanent panel, not an overlay)
         if (isLocked)
