@@ -721,7 +721,10 @@ public partial class SkiaEntry : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectiveTextColor()
     {
-        return TextColor != null ? ToSKColor(TextColor) : SkiaTheme.TextPrimarySK;
+        // Default to the theme-aware "current" color so entries adapt when the
+        // user toggles dark/light mode. Fixed TextPrimarySK was always the
+        // light-theme primary text and stayed dark text on a dark page.
+        return TextColor != null ? ToSKColor(TextColor) : SkiaTheme.CurrentTextSK;
     }
 
     /// <summary>
@@ -729,7 +732,10 @@ public partial class SkiaEntry : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectivePlaceholderColor()
     {
-        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : SkiaTheme.TextDisabledSK;
+        // Use a theme-aware placeholder so it has reasonable contrast in both
+        // light and dark modes (mid-gray that reads on either background).
+        if (PlaceholderColor != null) return ToSKColor(PlaceholderColor);
+        return SkiaTheme.IsDarkMode ? SkiaTheme.Gray400SK : SkiaTheme.TextDisabledSK;
     }
 
     /// <summary>
