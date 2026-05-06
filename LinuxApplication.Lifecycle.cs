@@ -473,6 +473,12 @@ public partial class LinuxApplication
         if (view is SkiaItemsView itemsView)
             itemsView.RefreshTheme();
 
+        // Force re-read of theme-affected properties from MauiView. MAUI doesn't
+        // always fire PropertyChanged for AppThemeBindings on views that aren't on
+        // the currently-visible page chain (e.g. Border on a pushed page); this
+        // ensures the cached SKColors get updated even in those cases.
+        view.RefreshThemeFromMauiView();
+
         // SkiaLayoutView and SkiaView each have their own Children collection
         // (the former hides the base via `new`); accessing .Children always
         // resolves to the most-derived definition, so this works for both.
