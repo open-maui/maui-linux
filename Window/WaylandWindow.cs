@@ -340,51 +340,83 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     {
         if (_xdg_wm_base_interface != IntPtr.Zero) return;
 
-        // xdg-shell interfaces are NOT in libwayland-client
-        // We need to create minimal interface structs ourselves
-        // The key fields are: name (string ptr), version, method_count, methods, event_count, events
+        // xdg-shell interfaces aren't shipped in libwayland-client; we build full
+        // method/event tables here so libwayland can marshal correctly. We bind at
+        // version 2; method/event counts and signatures match v2 of the stable
+        // xdg-shell protocol (xdg-shell.xml). Higher-version events (configure_bounds,
+        // wm_capabilities) are intentionally absent: a v2-bound proxy will never
+        // receive them, and listing them with stub signatures risks demarshal errors
+        // if the compositor accidentally sends one.
 
-        // Allocate interface names
-        _xdgWmBaseName = Marshal.StringToHGlobalAnsi("xdg_wm_base");
-        _xdgSurfaceName = Marshal.StringToHGlobalAnsi("xdg_surface");
-        _xdgToplevelName = Marshal.StringToHGlobalAnsi("xdg_toplevel");
+        // We don't construct positioners or popups; their interfaces are stubs that
+        // exist only so xdg_surface.get_popup / xdg_wm_base.create_positioner can
+        // reference them in the methods table. Stubs are fine because we never
+        // actually invoke those requests.
+        var positionerStub = BuildInterface("xdg_positioner", 2,
+            new MessageDef[] { new("destroy", "", Array.Empty<IntPtr>()) },
+            Array.Empty<MessageDef>());
+        var popupStub = BuildInterface("xdg_popup", 2,
+            new MessageDef[] { new("destroy", "", Array.Empty<IntPtr>()) },
+            Array.Empty<MessageDef>());
 
-        // Create interface structures
-        var wmBaseInterface = new WlInterface
-        {
-            Name = _xdgWmBaseName,
-            Version = 6,
-            MethodCount = 4,  // destroy, create_positioner, get_xdg_surface, pong
-            Methods = IntPtr.Zero,
-            EventCount = 1,   // ping
-            Events = IntPtr.Zero
-        };
-        _xdgWmBaseInterfaceHandle = GCHandle.Alloc(wmBaseInterface, GCHandleType.Pinned);
-        _xdg_wm_base_interface = _xdgWmBaseInterfaceHandle.AddrOfPinnedObject();
+        // Forward declare addresses so each interface can reference the others.
+        // Order: build wm_base last (it references xdg_surface and xdg_positioner).
+        // Toplevel and surface must be built before wm_base; surface references
+        // toplevel/popup; toplevel references wl_seat and wl_output (from libwayland).
 
-        var surfaceInterface = new WlInterface
-        {
-            Name = _xdgSurfaceName,
-            Version = 6,
-            MethodCount = 5,  // destroy, get_toplevel, get_popup, set_window_geometry, ack_configure
-            Methods = IntPtr.Zero,
-            EventCount = 1,   // configure
-            Events = IntPtr.Zero
-        };
-        _xdgSurfaceInterfaceHandle = GCHandle.Alloc(surfaceInterface, GCHandleType.Pinned);
-        _xdg_surface_interface = _xdgSurfaceInterfaceHandle.AddrOfPinnedObject();
+        // xdg_toplevel — 14 requests, 2 events at v2
+        _xdg_toplevel_interface = BuildInterface("xdg_toplevel", 2,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+                new("set_parent", "?o", new[] { IntPtr.Zero /* xdg_toplevel — self-ref */ }),
+                new("set_title", "s", new[] { IntPtr.Zero }),
+                new("set_app_id", "s", new[] { IntPtr.Zero }),
+                new("show_window_menu", "ouii", new[] { _wl_seat_interface, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero }),
+                new("move", "ou", new[] { _wl_seat_interface, IntPtr.Zero }),
+                new("resize", "ouu", new[] { _wl_seat_interface, IntPtr.Zero, IntPtr.Zero }),
+                new("set_max_size", "ii", NullTypes(2)),
+                new("set_min_size", "ii", NullTypes(2)),
+                new("set_maximized", "", Array.Empty<IntPtr>()),
+                new("unset_maximized", "", Array.Empty<IntPtr>()),
+                new("set_fullscreen", "?o", new[] { IntPtr.Zero /* wl_output — not bound, NULL is fine */ }),
+                new("unset_fullscreen", "", Array.Empty<IntPtr>()),
+                new("set_minimized", "", Array.Empty<IntPtr>()),
+            },
+            events: new MessageDef[]
+            {
+                new("configure", "iia", NullTypes(3)),
+                new("close", "", Array.Empty<IntPtr>()),
+            });
 
-        var toplevelInterface = new WlInterface
-        {
-            Name = _xdgToplevelName,
-            Version = 6,
-            MethodCount = 14, // destroy, set_parent, set_title, set_app_id, etc.
-            Methods = IntPtr.Zero,
-            EventCount = 4,   // configure, close, configure_bounds, wm_capabilities
-            Events = IntPtr.Zero
-        };
-        _xdgToplevelInterfaceHandle = GCHandle.Alloc(toplevelInterface, GCHandleType.Pinned);
-        _xdg_toplevel_interface = _xdgToplevelInterfaceHandle.AddrOfPinnedObject();
+        // xdg_surface — 5 requests, 1 event at v2
+        _xdg_surface_interface = BuildInterface("xdg_surface", 2,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+                new("get_toplevel", "n", new[] { _xdg_toplevel_interface }),
+                new("get_popup", "n?oo", new[] { popupStub, IntPtr.Zero /* xdg_surface — self */, positionerStub }),
+                new("set_window_geometry", "iiii", NullTypes(4)),
+                new("ack_configure", "u", new[] { IntPtr.Zero }),
+            },
+            events: new MessageDef[]
+            {
+                new("configure", "u", new[] { IntPtr.Zero }),
+            });
+
+        // xdg_wm_base — 4 requests, 1 event at v2
+        _xdg_wm_base_interface = BuildInterface("xdg_wm_base", 2,
+            methods: new MessageDef[]
+            {
+                new("destroy", "", Array.Empty<IntPtr>()),
+                new("create_positioner", "n", new[] { positionerStub }),
+                new("get_xdg_surface", "no", new[] { _xdg_surface_interface, _wl_surface_interface }),
+                new("pong", "u", new[] { IntPtr.Zero }),
+            },
+            events: new MessageDef[]
+            {
+                new("ping", "u", new[] { IntPtr.Zero }),
+            });
     }
 
     private static IntPtr xdg_wm_base_get_xdg_surface(IntPtr wmBase, IntPtr surface)
