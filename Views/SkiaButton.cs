@@ -672,7 +672,7 @@ public class SkiaButton : SkiaView, IButtonController
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
         using var font = new SKFont(
-            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
+            RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 
         // Prepare text color
@@ -1015,7 +1015,7 @@ public class SkiaButton : SkiaView, IButtonController
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = new SKFont(
-            SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
+            RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 
         using var paint = new SKPaint(font);

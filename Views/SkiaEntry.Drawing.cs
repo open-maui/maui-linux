@@ -76,7 +76,7 @@ public partial class SkiaEntry
         canvas.ClipRect(contentBounds);
 
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
+        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
@@ -286,7 +286,7 @@ public partial class SkiaEntry
     protected override Size MeasureOverride(Size availableSize)
     {
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
+        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
