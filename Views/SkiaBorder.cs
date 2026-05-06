@@ -344,6 +344,30 @@ public class SkiaBorder : SkiaLayoutView
     /// <summary>
     /// Override to skip rectangular background - OnDraw handles it with the correct shape.
     /// </summary>
+    public override void RefreshThemeFromMauiView()
+    {
+        // Border's Stroke and BackgroundColor often use AppThemeBinding. Re-read
+        // them from MauiView so cached SKColors reflect the new theme even when
+        // MAUI's binding system didn't fire PropertyChanged for views in pushed
+        // pages.
+        base.RefreshThemeFromMauiView();
+        if (MauiView is Microsoft.Maui.Controls.Border border)
+        {
+            // Re-resolve Stroke from MAUI's current brush (after AppThemeBinding eval).
+            if (border.Stroke is Microsoft.Maui.Controls.SolidColorBrush solid && solid.Color is not null)
+            {
+                Stroke = solid.Color;
+            }
+            // Re-read BackgroundColor explicitly (in case the base call missed it
+            // for any reason — Border's MAUI type extends VisualElement).
+            if (border.BackgroundColor is not null)
+            {
+                BackgroundColor = border.BackgroundColor;
+            }
+            Invalidate();
+        }
+    }
+
     protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
     {
         // Don't draw rectangular background - OnDraw draws background with shape path
