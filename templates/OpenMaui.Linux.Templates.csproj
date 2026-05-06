@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageVersion>10.0.50.7</PackageVersion>
+    <PackageId>OpenMaui.Linux.Templates</PackageId>
+    <Title>OpenMaui Linux Project Templates</Title>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Description>Project templates for building .NET MAUI applications on Linux desktop using OpenMaui.
+
+Templates included:
+- openmaui-linux: Basic Linux app with code-based UI
+- openmaui-linux-xaml: Full XAML support with standard MAUI syntax</Description>
+    <PackageTags>dotnet-new;templates;maui;linux;desktop;openmaui;xaml</PackageTags>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <TargetFramework>netstandard2.0</TargetFramework>
+
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Code-based template -->
+    <Content Include="openmaui-linux-app\**\*" Exclude="openmaui-linux-app\**\bin\**;openmaui-linux-app\**\obj\**" />
+    <!-- XAML-based template -->
+    <Content Include="openmaui-linux-xaml-app\**\*" Exclude="openmaui-linux-xaml-app\**\bin\**;openmaui-linux-xaml-app\**\obj\**" />
+    <Compile Remove="**\*" />
+  </ItemGroup>
+
+  <!-- Include icon and README in package -->
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
