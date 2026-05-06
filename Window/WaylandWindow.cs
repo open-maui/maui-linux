@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// Native Wayland window implementation using xdg-shell protocol.
 /// Provides full Wayland support without XWayland dependency.
 /// </summary>
-public partial class WaylandWindow : IDisposable
+public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow
 {
     #region Native Interop - libwayland-client
 
@@ -1222,6 +1222,61 @@ public partial class WaylandWindow : IDisposable
     {
         ResizeBuffer(width, height);
     }
+
+    public void SetCursor(CursorType cursorType)
+    {
+        // wl_pointer.set_cursor + wl_cursor_theme support is implemented in
+        // Stage 2b of the Wayland-native rollout. Compositors substitute the
+        // default cursor until the client sets one, so this is a temporary
+        // no-op rather than broken behavior.
+        _pendingCursor = cursorType;
+    }
+
+    public void SetIcon(string iconPath)
+    {
+        // Wayland has no per-window icon protocol; the desktop file's Icon=
+        // entry (matched via app_id) provides the taskbar/launcher icon.
+        // Kept on the interface for symmetry with X11.
+    }
+
+    public void SetWMClass(string resName, string resClass)
+    {
+        // Wayland's equivalent is xdg_toplevel.set_app_id (single string,
+        // typically the .desktop file basename without extension).
+        if (_xdgToplevel != IntPtr.Zero && !string.IsNullOrEmpty(resName))
+            xdg_toplevel_set_app_id(_xdgToplevel, resName);
+    }
+
+    public void Present(IntPtr pixels, int width, int height, int stride)
+    {
+        if (_pixelData == IntPtr.Zero || pixels == IntPtr.Zero) return;
+
+        // Match the renderer's frame to our wl_shm buffer dimensions; if they
+        // differ (e.g. mid-resize), grow/shrink the buffer first.
+        if (width != _width || height != _height)
+            ResizeBuffer(width, height);
+
+        // Copy line-by-line so that source/destination strides can disagree
+        // without producing a sheared frame.
+        unsafe
+        {
+            byte* src = (byte*)pixels;
+            byte* dst = (byte*)_pixelData;
+            int bytesPerLine = Math.Min(stride, _stride);
+            for (int y = 0; y < height; y++)
+            {
+                Buffer.MemoryCopy(src + y * stride, dst + y * _stride, _stride, bytesPerLine);
+            }
+        }
+
+        CommitFrame();
+    }
+
+    public void FlushDeferredResize() { /* X11-only; no deferred-resize coalescing on Wayland */ }
+
+    public void AcknowledgeSync() { /* X11-only; xdg_surface_ack_configure handles sync for Wayland */ }
+
+    private CursorType _pendingCursor = CursorType.Arrow;
 
     public void ProcessEvents()
     {
