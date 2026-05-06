@@ -783,6 +783,15 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         xdg_toplevel_set_title(_xdgToplevel, _title);
         xdg_toplevel_set_app_id(_xdgToplevel, "com.openmaui.app");
 
+        // Server-side decorations (when offered by the compositor — KDE, Sway,
+        // wlroots-based ones). GNOME announces no decoration manager, so this
+        // simply skips and the window will be undecorated until CSD lands.
+        RequestServerSideDecorations();
+
+        // Fractional scale (when offered). Lets the compositor send us a precise
+        // scale factor instead of forcing us to integer scaling.
+        RequestFractionalScale();
+
         // Commit empty surface to get initial configure
         wl_surface_commit(_surface);
         wl_display_roundtrip(_display);
@@ -929,6 +938,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 window._xdgWmBase = wl_registry_bind(registry, name, _xdg_wm_base_interface, Math.Min(version, 2u));
                 window.SetupXdgWmBase();
                 break;
+            case "zxdg_decoration_manager_v1":
+                LoadDecorationInterfaces();
+                window._decorationManager = wl_registry_bind(registry, name, _zxdg_decoration_manager_v1_interface, 1);
+                break;
+            case "wp_fractional_scale_manager_v1":
+                LoadFractionalScaleInterfaces();
+                window._fractionalScaleManager = wl_registry_bind(registry, name, _wp_fractional_scale_manager_v1_interface, 1);
+                break;
         }
     }
 
@@ -996,6 +1013,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         window._pointerSerial = serial;
         window._pointerX = x / 256.0f;
         window._pointerY = y / 256.0f;
+        // Wayland reverts to the compositor default cursor on every pointer.enter.
+        // Re-apply our last-requested cursor so SetCursor's effect persists across
+        // window re-entry.
+        window.TryApplyCursor(window._pendingCursor);
     }
 
     private static void PointerLeave(IntPtr data, IntPtr pointer, uint serial, IntPtr surface) { }
@@ -1066,7 +1087,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static void KeyboardKeymap(IntPtr data, IntPtr keyboard, uint format, int fd, uint size)
     {
-        close(fd);
+        var handle = GCHandle.FromIntPtr(data);
+        if (!handle.IsAllocated) { close(fd); return; }
+        var window = (WaylandWindow)handle.Target!;
+        window.HandleKeymap(format, fd, size);
     }
 
     private static void KeyboardEnter(IntPtr data, IntPtr keyboard, uint serial, IntPtr surface, IntPtr keys)
@@ -1091,19 +1115,15 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
 
-        // Convert Linux keycode to Key enum (add 8 for X11 compat)
-        var key = KeyMapping.FromLinuxKeycode(keycode + 8);
+        var (key, text) = window.TranslateKey(keycode);
         var modifiers = (KeyModifiers)window._modifiers;
         var args = new KeyEventArgs(key, modifiers);
 
         if (state == WL_KEYBOARD_KEY_STATE_PRESSED)
         {
             window.KeyDown?.Invoke(window, args);
-
-            // Generate text input for printable keys
-            char? ch = KeyMapping.ToChar(key, modifiers);
-            if (ch.HasValue)
-                window.TextInput?.Invoke(window, new TextInputEventArgs(ch.Value.ToString()));
+            if (text is not null)
+                window.TextInput?.Invoke(window, new TextInputEventArgs(text));
         }
         else
         {
@@ -1116,7 +1136,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
-        window._modifiers = modsDepressed | modsLatched;
+        window.HandleModifiers(modsDepressed, modsLatched, modsLocked, group);
     }
 
     private void SetupXdgWmBase()
@@ -1225,11 +1245,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     public void SetCursor(CursorType cursorType)
     {
-        // wl_pointer.set_cursor + wl_cursor_theme support is implemented in
-        // Stage 2b of the Wayland-native rollout. Compositors substitute the
-        // default cursor until the client sets one, so this is a temporary
-        // no-op rather than broken behavior.
         _pendingCursor = cursorType;
+        // The pointer may not be over our surface yet (no serial → can't call
+        // set_cursor). When we get pointer.enter, we re-apply automatically.
+        TryApplyCursor(cursorType);
     }
 
     public void SetIcon(string iconPath)
@@ -1286,6 +1305,19 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         wl_display_flush(_display);
     }
 
+    /// <summary>
+    /// After poll() reports readability on the Wayland fd, call this to read events
+    /// off the wire and dispatch them. Skips the read if the queue is already non-empty
+    /// (which happens when callbacks queue more events synchronously).
+    /// </summary>
+    public void DispatchReadEvents()
+    {
+        if (!_isRunning || _display == IntPtr.Zero) return;
+        // wl_display_dispatch returns immediately if there are queued events; otherwise
+        // it reads from the fd. Safe to call after poll() since fd is known readable.
+        wl_display_dispatch(_display);
+    }
+
     public void Stop()
     {
         _isRunning = false;
@@ -1316,6 +1348,11 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (_disposed) return;
         _disposed = true;
         _isRunning = false;
+
+        DisposeCursor();
+        DisposeXkb();
+        DisposeDecoration();
+        DisposeFractionalScale();
 
         if (_buffer != IntPtr.Zero)
         {
