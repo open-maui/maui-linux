@@ -30,25 +30,20 @@ public partial class SkiaEditor
             UpdateLines();
         }
 
-        // Draw background. When EditorBackgroundColor is the default Transparent
-        // (Alpha==0) we fall back to the theme-aware surface color so the editor
-        // doesn't appear as a hard-coded white box on a dark page.
-        SKColor bgColor;
-        if (EditorBackgroundColor != null && EditorBackgroundColor.Alpha > 0)
+        // Draw background only if EditorBackgroundColor is set to a non-transparent
+        // value. The default Transparent lets the parent (typically a themed Border)
+        // show through, which matches user XAML expectations.
+        var bgColor = ToSKColor(EditorBackgroundColor);
+        if (bgColor.Alpha > 0)
         {
-            bgColor = ToSKColor(EditorBackgroundColor);
+            using var bgPaint = new SKPaint
+            {
+                Color = bgColor,
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
         }
-        else
-        {
-            bgColor = IsEnabled ? SkiaTheme.CurrentSurfaceSK : SkiaTheme.Gray100SK;
-        }
-        using var bgPaint = new SKPaint
-        {
-            Color = bgColor,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), bgPaint);
 
         // Draw border only if BorderColor is not transparent
         if (BorderColor != null && BorderColor != Colors.Transparent && BorderColor.Alpha > 0)
