@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "MarketAlly Pte Ltd",
+  "classifications": ["MAUI", "Linux", "Desktop", "App", "OpenMaui"],
+  "identity": "OpenMaui.Linux.App",
+  "name": "OpenMaui Linux Application",
+  "shortName": "openmaui-linux",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "OpenMauiLinuxApp",
+  "preferNameDirectory": true,
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "net10.0",
+          "description": "Target .NET 10.0"
+        },
+        {
+          "choice": "net9.0",
+          "description": "Target .NET 9.0"
+        }
+      ],
+      "defaultValue": "net10.0",
+      "replaces": "net10.0"
+    },
+    "DisplayServer": {
+      "type": "parameter",
+      "description": "The display server to use.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "auto",
+          "description": "Auto-detect display server"
+        },
+        {
+          "choice": "x11",
+          "description": "Force X11"
+        },
+        {
+          "choice": "wayland",
+          "description": "Force Wayland"
+        }
+      ],
+      "defaultValue": "auto"
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "Skip automatic restore after project creation.",
+      "defaultValue": "false"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "OpenMauiLinuxApp.csproj" }
+  ],
+  "postActions": [
+    {
+      "condition": "(!skipRestore)",
+      "description": "Restore NuGet packages required by this project.",
+      "manualInstructions": [{ "text": "Run 'dotnet restore'" }],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}
