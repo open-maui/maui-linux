@@ -196,6 +196,50 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _wl_keyboard_interface = dlsym(handle, "wl_keyboard_interface");
 
         // Don't close - we need the symbols to remain valid
+
+        // Protocol-extension interfaces (xdg-shell, decoration, fractional-scale)
+        // come from libopenmaui_wl.so, which we generate at build time from the
+        // wayland-protocols XML via wayland-scanner. Doing it that way (instead of
+        // hand-rolled wl_message tables in C#) avoids subtle marshaling bugs since
+        // the C bindings are produced by the same scanner that the rest of the
+        // ecosystem uses.
+        //
+        // The .so is shipped next to OpenMaui.Controls.Linux.dll (CopyToOutput in
+        // the csproj, runtimes/linux-x64/native/ in the NuGet package). Try the
+        // assembly's directory first; fall back to bare name so LD_LIBRARY_PATH
+        // overrides still work.
+        var protoHandle = TryLoadProtocols();
+        if (protoHandle == IntPtr.Zero)
+            throw new InvalidOperationException(
+                "Failed to load libopenmaui_wl.so (Wayland protocol bindings). " +
+                "Expected next to OpenMaui.Controls.Linux.dll. " +
+                "Run native/build.sh in the maui-linux source tree to regenerate.");
+
+        _xdg_wm_base_interface = dlsym(protoHandle, "xdg_wm_base_interface");
+        _xdg_surface_interface = dlsym(protoHandle, "xdg_surface_interface");
+        _xdg_toplevel_interface = dlsym(protoHandle, "xdg_toplevel_interface");
+        _zxdg_decoration_manager_v1_interface = dlsym(protoHandle, "zxdg_decoration_manager_v1_interface");
+        _zxdg_toplevel_decoration_v1_interface = dlsym(protoHandle, "zxdg_toplevel_decoration_v1_interface");
+        _wp_fractional_scale_manager_v1_interface = dlsym(protoHandle, "wp_fractional_scale_manager_v1_interface");
+        _wp_fractional_scale_v1_interface = dlsym(protoHandle, "wp_fractional_scale_v1_interface");
+    }
+
+    private static IntPtr TryLoadProtocols()
+    {
+        // Path next to OpenMaui.Controls.Linux.dll
+        var asmDir = Path.GetDirectoryName(typeof(WaylandWindow).Assembly.Location);
+        if (!string.IsNullOrEmpty(asmDir))
+        {
+            var p = Path.Combine(asmDir, "libopenmaui_wl.so");
+            if (File.Exists(p))
+            {
+                var h = dlopen(p, RTLD_NOW | RTLD_GLOBAL);
+                if (h != IntPtr.Zero) return h;
+            }
+        }
+
+        // Fall back to bare name so LD_LIBRARY_PATH or system install can serve.
+        return dlopen("libopenmaui_wl.so", RTLD_NOW | RTLD_GLOBAL);
     }
 
     // wl_display_get_registry wrapper
@@ -353,6 +397,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static void LoadXdgShellInterfaces()
     {
+        // The interfaces are loaded directly from libopenmaui_wl.so in
+        // LoadInterfaceSymbols above; this stub remains so existing call sites
+        // (and any future ones) can opt-in without ordering concerns.
         if (_xdg_wm_base_interface != IntPtr.Zero) return;
 
         // xdg-shell interfaces aren't shipped in libwayland-client; we build full
@@ -797,20 +844,15 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (_xdgWmBase == IntPtr.Zero)
             throw new InvalidOperationException("xdg_wm_base not found - compositor doesn't support xdg-shell");
 
-        DiagnosticLog.Debug("WaylandWindow", "DBG step 1: about to create wl_surface");
         // Create surface
         _surface = wl_compositor_create_surface(_compositor);
         if (_surface == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create Wayland surface");
-        wl_display_roundtrip(_display);
-        DiagnosticLog.Debug("WaylandWindow", $"DBG step 2: wl_surface created at {_surface:X}, err={wl_display_get_error(_display)}");
 
         // Create xdg_surface
         _xdgSurface = xdg_wm_base_get_xdg_surface(_xdgWmBase, _surface);
         if (_xdgSurface == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create xdg_surface");
-        wl_display_roundtrip(_display);
-        DiagnosticLog.Debug("WaylandWindow", $"DBG step 3: xdg_surface created at {_xdgSurface:X}, err={wl_display_get_error(_display)}");
 
         _xdgSurfaceListener = new XdgSurfaceListener
         {

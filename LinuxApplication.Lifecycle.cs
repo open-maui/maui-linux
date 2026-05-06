@@ -399,11 +399,16 @@ public partial class LinuxApplication
             // expires (animations need ticking even when idle).
             pollFd.Revents = 0;
             int polled = LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
-            if (_loopCounter < 3 || _loopCounter % 100000 == 0)
-                DiagnosticLog.Debug("LinuxApplication", $"DBG poll iter={_loopCounter} ret={polled} revents=0x{pollFd.Revents:X4}");
             if (polled > 0 && (pollFd.Revents & LibcNative.POLLIN) != 0)
             {
                 window.DispatchReadEvents();
+            }
+            else if (polled > 0 && (pollFd.Revents & 0x10) != 0)
+            {
+                // POLLHUP — compositor closed our connection. Stop the event loop
+                // so we don't busy-spin on a dead fd.
+                DiagnosticLog.Warn("LinuxApplication", "Wayland compositor disconnected (POLLHUP); exiting event loop");
+                window.Stop();
             }
         }
         DiagnosticLog.Debug("LinuxApplication", "Wayland event loop ended");
