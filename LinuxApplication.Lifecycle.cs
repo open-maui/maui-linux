@@ -138,17 +138,37 @@ public partial class LinuxApplication
                 // Initialize GTK theme service and apply initial CSS
                 GtkThemeService.ApplyTheme();
 
-                // Handle user-initiated theme changes
-                ((BindableObject)mauiApplication).PropertyChanged += (s, e) =>
+                // Handle theme changes — both user-initiated (UserAppTheme set in code)
+                // and system-initiated (GNOME/KDE dark mode toggle).
+                //
+                // We subscribe to Application.RequestedThemeChanged rather than the
+                // UserAppTheme PropertyChanged event because RequestedThemeChanged
+                // fires AFTER MAUI propagates AppThemeBinding updates to bound
+                // properties. Using PropertyChanged means RefreshThemeFromMauiView
+                // would read stale values (the previous theme's colors), which was
+                // why CollectionView items and themed Borders appeared one toggle
+                // behind on the first switch.
+                mauiApplication.RequestedThemeChanged += (s, e) =>
                 {
-                    if (e.PropertyName == "UserAppTheme")
-                    {
-                        DiagnosticLog.Debug("LinuxApplication", $"User theme changed to: {mauiApplication.UserAppTheme}");
+                    DiagnosticLog.Debug("LinuxApplication", $"RequestedTheme changed to: {e.RequestedTheme}");
+                    // Defer the walker to the next main-loop iteration so MAUI's
+                    // AppThemeBinding subscribers (which also listen to this event)
+                    // finish propagating updated values to bound properties first.
+                    // Note: Dispatcher.Dispatch runs synchronously when called from
+                    // the main thread, which would re-introduce the race; use
+                    // DispatchDelayed(0) to queue onto the GLib main loop.
+                    var dispatcher = mauiApplication.Dispatcher;
+                    if (dispatcher != null)
+                        dispatcher.DispatchDelayed(TimeSpan.Zero, () => ApplyThemeChange(linuxApp));
+                    else
                         ApplyThemeChange(linuxApp);
-                    }
                 };
 
-                // Handle system theme changes (e.g., GNOME/KDE dark mode toggle)
+                // Handle system theme changes (e.g., GNOME/KDE dark mode toggle).
+                // When the user has not pinned a UserAppTheme, mirror the system
+                // theme into UserAppTheme so MAUI's binding pipeline propagates.
+                // Setting UserAppTheme triggers RequestedThemeChanged above, which
+                // is the single entry point for the refresh walker.
                 SystemThemeService.Instance.ThemeChanged += (s, e) =>
                 {
                     DiagnosticLog.Debug("LinuxApplication", $"System theme changed to: {e.NewTheme}");
@@ -156,14 +176,8 @@ public partial class LinuxApplication
                     var newAppTheme = e.NewTheme == SystemTheme.Dark ? AppTheme.Dark : AppTheme.Light;
                     if (mauiApplication.UserAppTheme != newAppTheme)
                     {
-                        // Setting UserAppTheme triggers the PropertyChanged handler which
-                        // calls ApplyThemeChange — single code path.
                         DiagnosticLog.Debug("LinuxApplication", $"Setting UserAppTheme to {newAppTheme} to match system");
                         mauiApplication.UserAppTheme = newAppTheme;
-                    }
-                    else
-                    {
-                        ApplyThemeChange(linuxApp);
                     }
                 };
 

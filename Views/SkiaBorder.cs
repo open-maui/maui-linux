@@ -347,22 +347,22 @@ public class SkiaBorder : SkiaLayoutView
     public override void RefreshThemeFromMauiView()
     {
         // Border's Stroke and BackgroundColor often use AppThemeBinding. Re-read
-        // them from MauiView so cached SKColors reflect the new theme even when
-        // MAUI's binding system didn't fire PropertyChanged for views in pushed
-        // pages.
+        // them from MauiView so cached SKColors reflect the new theme. CRITICAL:
+        // do NOT assign back into a property whose setter routes to ve.SetValue()
+        // (e.g. `BackgroundColor = border.BackgroundColor`). When MauiView is wired
+        // the SkiaView base setter forwards to ve.BackgroundColor, which calls
+        // SetValue at LocalValue specificity — that's higher than Binding specificity,
+        // so the AppThemeBinding's subsequent SetValueCore stores silently and stops
+        // firing PropertyChanged on later toggles. The base call's
+        // OnBackgroundColorChanged() already refreshes the cached SKColor from the
+        // live read; only Stroke (a SkiaBorder-local property whose setter does NOT
+        // round-trip to MauiView) needs an explicit re-resolve here.
         base.RefreshThemeFromMauiView();
         if (MauiView is Microsoft.Maui.Controls.Border border)
         {
-            // Re-resolve Stroke from MAUI's current brush (after AppThemeBinding eval).
             if (border.Stroke is Microsoft.Maui.Controls.SolidColorBrush solid && solid.Color is not null)
             {
                 Stroke = solid.Color;
-            }
-            // Re-read BackgroundColor explicitly (in case the base call missed it
-            // for any reason — Border's MAUI type extends VisualElement).
-            if (border.BackgroundColor is not null)
-            {
-                BackgroundColor = border.BackgroundColor;
             }
             Invalidate();
         }
