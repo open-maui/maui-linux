@@ -19,6 +19,6 @@ internal static partial class LibcNative
         public short Revents;
     }
 
-    [LibraryImport(Libc, EntryPoint = "poll")]
+    [LibraryImport(Libc, EntryPoint = "poll", SetLastError = true)]
     public static partial int Poll(ref PollFd fds, nuint nfds, int timeout);
 }
