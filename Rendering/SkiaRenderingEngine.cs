@@ -265,12 +265,21 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing popup overlays", ex);
         }
 
-        // Draw modal dialogs and context menus on top of everything
+        // Draw modal dialogs and context menus on top of everything. The view
+        // tree is laid out and drawn in *logical* coordinates with the canvas
+        // matrix scaled to DpiScale; dialogs need the same treatment so their
+        // button bounds (cached during Draw and consulted during click hit-test)
+        // are in the same coordinate space as pointer events (which are
+        // divided by DpiScale by ScalePointerArgs).
         try
         {
             if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
             {
-                LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, Width, Height));
+                _canvas.Save();
+                if (DpiScale > 1.0f)
+                    _canvas.Scale(DpiScale);
+                LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, LogicalWidth, LogicalHeight));
+                _canvas.Restore();
             }
         }
         catch (Exception ex)
