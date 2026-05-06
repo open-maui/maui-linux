@@ -453,13 +453,13 @@ public partial class LinuxApplication
         shell?.RefreshTheme();
 
         // Walk every reachable content tree and clear caches on items views.
-        // Standard Children chain handles non-Shell pages; AllContentRoots covers
-        // Shell's _currentContent + navigation stack + per-section content.
+        // Both SkiaShell and SkiaNavigationPage hold their actual content in
+        // private fields outside the standard Children chain; ExtraContentRoots
+        // exposes those so the walker reaches the CollectionView in TodoApp's
+        // NavigationPage(TodoListPage) and the section/nav-stack pages of any
+        // Shell-based app.
         if (linuxApp._rootView != null)
             RefreshCachedItemsRecursive(linuxApp._rootView);
-        if (shell != null)
-            foreach (var root in shell.AllContentRoots)
-                RefreshCachedItemsRecursive(root);
 
         // Invalidate to redraw - use correct method based on mode
         if (linuxApp._useGtk)
@@ -479,12 +479,18 @@ public partial class LinuxApplication
         // ensures the cached SKColors get updated even in those cases.
         view.RefreshThemeFromMauiView();
 
-        // SkiaLayoutView and SkiaView each have their own Children collection
-        // (the former hides the base via `new`); accessing .Children always
-        // resolves to the most-derived definition, so this works for both.
+        // Standard Children — SkiaLayoutView and SkiaView each have their own
+        // collection (the former hides the base via `new`); accessing .Children
+        // always resolves to the most-derived definition.
         var children = view.Children;
         for (int i = 0; i < children.Count; i++)
             RefreshCachedItemsRecursive(children[i]);
+
+        // ExtraContentRoots — content trees in private fields (current page,
+        // back-stack pages, shell sections). NavigationPage and Shell expose
+        // theirs here.
+        foreach (var extra in view.ExtraContentRoots)
+            RefreshCachedItemsRecursive(extra);
     }
 
     private static void DetectScaleAndConfigureCursor()
