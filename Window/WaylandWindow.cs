@@ -143,6 +143,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private const uint WL_SURFACE_ATTACH = 1;
     private const uint WL_SURFACE_DAMAGE = 2;
     private const uint WL_SURFACE_COMMIT = 6;
+    private const uint WL_SURFACE_SET_BUFFER_SCALE = 8;
     private const uint WL_SURFACE_DAMAGE_BUFFER = 9;
 
     // wl_shm opcodes
@@ -222,6 +223,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _zxdg_toplevel_decoration_v1_interface = dlsym(protoHandle, "zxdg_toplevel_decoration_v1_interface");
         _wp_fractional_scale_manager_v1_interface = dlsym(protoHandle, "wp_fractional_scale_manager_v1_interface");
         _wp_fractional_scale_v1_interface = dlsym(protoHandle, "wp_fractional_scale_v1_interface");
+        _wp_viewporter_interface = dlsym(protoHandle, "wp_viewporter_interface");
+        _wp_viewport_interface = dlsym(protoHandle, "wp_viewport_interface");
     }
 
     private static IntPtr TryLoadProtocols()
@@ -690,7 +693,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private IntPtr _shm;
     private IntPtr _seat;
     private IntPtr _xdgWmBase;
+    private IntPtr _viewporter;
+    private IntPtr _viewport;
     private IntPtr _surface;
+    private float _bufferToLogicalScale = 1.0f; // == LinuxApplication.DpiScale; cached on init.
     private IntPtr _xdgSurface;
     private IntPtr _xdgToplevel;
     private IntPtr _pointer;
@@ -874,9 +880,13 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _toplevelListenerHandle = GCHandle.Alloc(_toplevelListener, GCHandleType.Pinned);
         xdg_toplevel_add_listener(_xdgToplevel, _toplevelListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
 
-        // Set title and app_id
+        // Set title and app_id. app_id determines which .desktop file the
+        // compositor matches against for the taskbar icon, so it must align with
+        // the .desktop entry that LinuxApplication.InstallDesktopEntry writes
+        // (basename = process name lowercased) and with the StartupWMClass
+        // (process name as-is). KDE looks up icons by .desktop basename first.
         xdg_toplevel_set_title(_xdgToplevel, _title);
-        xdg_toplevel_set_app_id(_xdgToplevel, "com.openmaui.app");
+        xdg_toplevel_set_app_id(_xdgToplevel, ResolveAppId());
 
         // Server-side decorations (when offered by the compositor — KDE, Sway,
         // wlroots-based ones). GNOME announces no decoration manager, so this
@@ -886,6 +896,30 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // Fractional scale (when offered). Lets the compositor send us a precise
         // scale factor instead of forcing us to integer scaling.
         RequestFractionalScale();
+
+        // wp_viewporter: declare a precise *logical* destination size for the
+        // surface, decoupled from the buffer's pixel size. Without this, the
+        // compositor treats the buffer as being in surface-logical pixels and
+        // applies output scale on top — so a 1400x1050 buffer on a 1.75x display
+        // would become 2450x1838 actual pixels (huge), or with set_buffer_scale=2
+        // we'd get 1225 actual pixels (smaller than X11). With viewporter we
+        // pin destination = logical size (e.g. 800x600), buffer can be 1400x1050,
+        // and the compositor displays at 800*1.75 = 1400 actual pixels — exactly
+        // matching the X11 path.
+        if (LinuxApplication.Current is { DpiScale: > 1.01f } app && _viewporter != IntPtr.Zero)
+        {
+            _bufferToLogicalScale = app.DpiScale;
+            // wp_viewporter.get_viewport: opcode 1, signature "no" (new_id, surface).
+            _viewport = wl_proxy_marshal_constructor(
+                _viewporter, 1, _wp_viewport_interface, IntPtr.Zero, _surface);
+            if (_viewport != IntPtr.Zero)
+            {
+                int logicalW = Math.Max(1, (int)Math.Round(_width / _bufferToLogicalScale));
+                int logicalH = Math.Max(1, (int)Math.Round(_height / _bufferToLogicalScale));
+                // wp_viewport.set_destination: opcode 2, signature "ii".
+                wl_proxy_marshal(_viewport, 2, logicalW, logicalH);
+            }
+        }
 
         // Commit empty surface to get initial configure
         wl_surface_commit(_surface);
@@ -993,11 +1027,15 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private delegate void PointerButtonDelegate(IntPtr data, IntPtr pointer, uint serial, uint time, uint button, uint state);
     private delegate void PointerAxisDelegate(IntPtr data, IntPtr pointer, uint time, uint axis, int value);
     private delegate void PointerFrameDelegate(IntPtr data, IntPtr pointer);
+    private delegate void PointerAxisSourceDelegate(IntPtr data, IntPtr pointer, uint axisSource);
+    private delegate void PointerAxisStopDelegate(IntPtr data, IntPtr pointer, uint time, uint axis);
+    private delegate void PointerAxisDiscreteDelegate(IntPtr data, IntPtr pointer, uint axis, int discrete);
     private delegate void KeyboardKeymapDelegate(IntPtr data, IntPtr keyboard, uint format, int fd, uint size);
     private delegate void KeyboardEnterDelegate(IntPtr data, IntPtr keyboard, uint serial, IntPtr surface, IntPtr keys);
     private delegate void KeyboardLeaveDelegate(IntPtr data, IntPtr keyboard, uint serial, IntPtr surface);
     private delegate void KeyboardKeyDelegate(IntPtr data, IntPtr keyboard, uint serial, uint time, uint key, uint state);
     private delegate void KeyboardModifiersDelegate(IntPtr data, IntPtr keyboard, uint serial, uint modsDepressed, uint modsLatched, uint modsLocked, uint group);
+    private delegate void KeyboardRepeatInfoDelegate(IntPtr data, IntPtr keyboard, int rate, int delay);
     private delegate void XdgWmBasePingDelegate(IntPtr data, IntPtr wmBase, uint serial);
     private delegate void XdgSurfaceConfigureDelegate(IntPtr data, IntPtr xdgSurface, uint serial);
     private delegate void XdgToplevelConfigureDelegate(IntPtr data, IntPtr toplevel, int width, int height, IntPtr states);
@@ -1040,6 +1078,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             case "wp_fractional_scale_manager_v1":
                 LoadFractionalScaleInterfaces();
                 window._fractionalScaleManager = wl_registry_bind(registry, name, _wp_fractional_scale_manager_v1_interface, 1);
+                break;
+            case "wp_viewporter":
+                window._viewporter = wl_registry_bind(registry, name, _wp_viewporter_interface, 1);
                 break;
         }
     }
@@ -1087,6 +1128,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     {
         if (_pointer == IntPtr.Zero) return;
 
+        // wl_pointer events at v5: enter, leave, motion, button, axis, frame,
+        // axis_source, axis_stop, axis_discrete. libwayland aborts when an event
+        // arrives at a NULL slot, so every opcode in the listener struct must
+        // point at SOMETHING — even a no-op for events we don't act on.
         _pointerListener = new WlPointerListener
         {
             Enter = Marshal.GetFunctionPointerForDelegate<PointerEnterDelegate>(PointerEnter),
@@ -1095,6 +1140,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             Button = Marshal.GetFunctionPointerForDelegate<PointerButtonDelegate>(OnPointerButton),
             Axis = Marshal.GetFunctionPointerForDelegate<PointerAxisDelegate>(PointerAxis),
             Frame = Marshal.GetFunctionPointerForDelegate<PointerFrameDelegate>(PointerFrame),
+            AxisSource = Marshal.GetFunctionPointerForDelegate<PointerAxisSourceDelegate>(PointerAxisSource),
+            AxisStop = Marshal.GetFunctionPointerForDelegate<PointerAxisStopDelegate>(PointerAxisStop),
+            AxisDiscrete = Marshal.GetFunctionPointerForDelegate<PointerAxisDiscreteDelegate>(PointerAxisDiscrete),
         };
         _pointerListenerHandle = GCHandle.Alloc(_pointerListener, GCHandleType.Pinned);
         wl_pointer_add_listener(_pointer, _pointerListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1106,8 +1154,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
         window._pointerSerial = serial;
-        window._pointerX = x / 256.0f;
-        window._pointerY = y / 256.0f;
+        // Pointer coords arrive in surface-logical space (wl_fixed = 256ths of a
+        // logical pixel). Hit-test bounds live in buffer pixel space. Multiply
+        // by _bufferToLogicalScale so SkiaView.HitTest sees the right coordinate.
+        var s = window._bufferToLogicalScale;
+        window._pointerX = (x / 256.0f) * s;
+        window._pointerY = (y / 256.0f) * s;
         // Wayland reverts to the compositor default cursor on every pointer.enter.
         // Re-apply our last-requested cursor so SetCursor's effect persists across
         // window re-entry.
@@ -1118,12 +1170,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static void PointerMotion(IntPtr data, IntPtr pointer, uint time, int x, int y)
     {
+        // See PointerEnter for the buffer-vs-logical scaling rationale.
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
 
-        window._pointerX = x / 256.0f;
-        window._pointerY = y / 256.0f;
+        var s = window._bufferToLogicalScale;
+        window._pointerX = (x / 256.0f) * s;
+        window._pointerY = (y / 256.0f) * s;
         window.PointerMoved?.Invoke(window, new PointerEventArgs((int)window._pointerX, (int)window._pointerY));
     }
 
@@ -1164,10 +1218,20 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static void PointerFrame(IntPtr data, IntPtr pointer) { }
 
+    // No-op handlers for v5 wl_pointer events we don't act on. They must exist
+    // so libwayland has a valid function pointer to dispatch to; otherwise it
+    // calls wl_abort() at the first event.
+    private static void PointerAxisSource(IntPtr data, IntPtr pointer, uint axisSource) { }
+    private static void PointerAxisStop(IntPtr data, IntPtr pointer, uint time, uint axis) { }
+    private static void PointerAxisDiscrete(IntPtr data, IntPtr pointer, uint axis, int discrete) { }
+
     private void SetupKeyboard()
     {
         if (_keyboard == IntPtr.Zero) return;
 
+        // Same NULL-slot abort hazard as wl_pointer (see SetupPointer for the
+        // explanation). repeat_info was added in wl_keyboard v4 / wl_seat v4 —
+        // we bind at v5, so we will receive it.
         _keyboardListener = new WlKeyboardListener
         {
             Keymap = Marshal.GetFunctionPointerForDelegate<KeyboardKeymapDelegate>(KeyboardKeymap),
@@ -1175,6 +1239,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             Leave = Marshal.GetFunctionPointerForDelegate<KeyboardLeaveDelegate>(KeyboardLeave),
             Key = Marshal.GetFunctionPointerForDelegate<KeyboardKeyDelegate>(KeyboardKey),
             Modifiers = Marshal.GetFunctionPointerForDelegate<KeyboardModifiersDelegate>(KeyboardModifiers),
+            RepeatInfo = Marshal.GetFunctionPointerForDelegate<KeyboardRepeatInfoDelegate>(KeyboardRepeatInfo),
         };
         _keyboardListenerHandle = GCHandle.Alloc(_keyboardListener, GCHandleType.Pinned);
         wl_keyboard_add_listener(_keyboard, _keyboardListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1234,6 +1299,11 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         window.HandleModifiers(modsDepressed, modsLatched, modsLocked, group);
     }
 
+    // wl_keyboard.repeat_info — fired by the compositor with the user's key-repeat
+    // settings. We don't currently honor it (no auto-repeat) but the slot must be
+    // populated to avoid wl_abort.
+    private static void KeyboardRepeatInfo(IntPtr data, IntPtr keyboard, int rate, int delay) { }
+
     private void SetupXdgWmBase()
     {
         if (_xdgWmBase == IntPtr.Zero) return;
@@ -1279,12 +1349,25 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
         if (width > 0 && height > 0)
         {
-            window._pendingWidth = width;
-            window._pendingHeight = height;
+            // configure event widths/heights are in *logical* pixels. The buffer
+            // we render into is in physical pixels, scaled up by DpiScale so
+            // SkiaRenderingEngine.DpiScale == 1 in surface space. Convert here so
+            // resize math keeps the buffer pre-scaled.
+            int bufferW = (int)Math.Round(width * window._bufferToLogicalScale);
+            int bufferH = (int)Math.Round(height * window._bufferToLogicalScale);
+
+            window._pendingWidth = bufferW;
+            window._pendingHeight = bufferH;
 
             if (window._configured)
             {
-                window.ResizeBuffer(width, height);
+                window.ResizeBuffer(bufferW, bufferH);
+                // Update viewport destination so the compositor still sees the
+                // requested logical size after we re-attach the new-size buffer.
+                if (window._viewport != IntPtr.Zero)
+                {
+                    wl_proxy_marshal(window._viewport, 2, width, height);
+                }
             }
         }
     }
@@ -1359,6 +1442,19 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // typically the .desktop file basename without extension).
         if (_xdgToplevel != IntPtr.Zero && !string.IsNullOrEmpty(resName))
             xdg_toplevel_set_app_id(_xdgToplevel, resName);
+    }
+
+    /// <summary>
+    /// Build the app_id the same way X11Window builds WM_CLASS so the compositor's
+    /// taskbar icon lookup (by .desktop basename) matches the .desktop entry that
+    /// LinuxApplication.InstallDesktopEntry writes during startup.
+    /// </summary>
+    private static string ResolveAppId()
+    {
+        var appName = Environment.GetEnvironmentVariable("APPIMAGE_NAME");
+        if (string.IsNullOrEmpty(appName))
+            appName = System.IO.Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MauiApp");
+        return appName.Replace(" ", "").Replace("_", "");
     }
 
     public void Present(IntPtr pixels, int width, int height, int stride)
@@ -1447,6 +1543,17 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         DisposeCursor();
         DisposeXkb();
         DisposeDecoration();
+
+        if (_viewport != IntPtr.Zero)
+        {
+            wl_proxy_destroy(_viewport);
+            _viewport = IntPtr.Zero;
+        }
+        if (_viewporter != IntPtr.Zero)
+        {
+            wl_proxy_destroy(_viewporter);
+            _viewporter = IntPtr.Zero;
+        }
         DisposeFractionalScale();
 
         if (_buffer != IntPtr.Zero)
