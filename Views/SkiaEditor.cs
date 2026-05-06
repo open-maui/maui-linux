@@ -158,7 +158,7 @@ public partial class SkiaEditor : SkiaView, IInputContext
     /// <summary>
     /// Bindable property for Padding.
     /// </summary>
-    public static new readonly BindableProperty PaddingProperty =
+    public static readonly BindableProperty PaddingProperty =
         BindableProperty.Create(
             nameof(Padding),
             typeof(Thickness),
