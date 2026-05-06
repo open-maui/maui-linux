@@ -714,11 +714,14 @@ public class SkiaItemsView : SkiaView
         var width = availableSize.Width < double.MaxValue ? availableSize.Width : 200;
         var height = availableSize.Height < double.MaxValue ? availableSize.Height : 300;
 
-        // Clear item caches when width changes significantly (items need re-measurement for text wrapping)
+        // Track width changes but don't preemptively clear caches: parent layouts often
+        // probe with two different widths in a single measure pass (e.g. infinite during
+        // Auto-column measure, then constrained during the actual measure), and clearing
+        // here thrashes the cache to "no entries" before DrawItem can ever store the
+        // measured heights. DrawItem updates _itemHeights[i] on every paint when the
+        // measurement changes, so width changes propagate naturally without an eager wipe.
         if (Math.Abs(width - _lastMeasuredWidth) > 5)
         {
-            _itemHeights.Clear();
-            _itemViewCache.Clear();
             _lastMeasuredWidth = (float)width;
         }
 
