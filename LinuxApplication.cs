@@ -299,12 +299,15 @@ public partial class LinuxApplication : IDisposable
 
     private void InitializeX11(LinuxApplicationOptions options)
     {
-        // Display server picked at runtime: Wayland when WAYLAND_DISPLAY is set,
-        // X11/XWayland otherwise. MAUI_PREFER_X11=1 is the user-facing escape hatch.
+        // Display server resolution order:
+        //   1. options.DisplayServer if set to a concrete value (programmatic override)
+        //   2. WAYLAND_DISPLAY env var present and MAUI_PREFER_X11 not set → Wayland
+        //   3. otherwise X11/XWayland
         _mainWindow = DisplayServerFactory.CreateWindow(
             options.Title ?? "MAUI Application",
             options.Width,
-            options.Height);
+            options.Height,
+            options.DisplayServer);
 
         // SkiaWebView reparents WebKitGTK widgets into the host window using raw X11
         // calls; only valid when the main window actually is X11. On native Wayland

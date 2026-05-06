@@ -13,11 +13,12 @@ public class LinuxApplicationOptions
 
     public int Height { get; set; } = 600;
 
-    public bool UseHardwareAcceleration { get; set; } = true;
-
-    public DisplayServerType DisplayServer { get; set; }
-
-    public bool ForceDemo { get; set; }
+    /// <summary>
+    /// Force a specific display server. Default <see cref="DisplayServerType.Auto"/>
+    /// detects from <c>WAYLAND_DISPLAY</c> / <c>DISPLAY</c> / <c>MAUI_PREFER_X11</c>.
+    /// Programmatic override; takes precedence over the env-var heuristics.
+    /// </summary>
+    public DisplayServerType DisplayServer { get; set; } = DisplayServerType.Auto;
 
     public string? IconPath { get; set; }
 
