@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>OpenMaui.Controls.Linux</id>
+    <version>10.0.41</version>
+    <title>OpenMaui Linux Controls</title>
+    <authors>MarketAlly Pte Ltd, David H. Friedel Jr.</authors>
+    <owners>MarketAlly Pte Ltd</owners>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/open-maui/maui-linux</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/open-maui/maui-linux/main/assets/logo_only.png</iconUrl>
+    <description>
+Linux desktop support for .NET MAUI applications. This package enables running MAUI applications on Linux desktop environments using SkiaSharp for rendering.
+
+Features:
+- X11 display server support (primary)
+- Wayland support with XWayland fallback
+- 47+ Skia-rendered controls (Button, Label, Entry, CarouselView, SwipeView, RefreshView, and more)
+- Full input handling (keyboard, mouse, touch, gestures)
+- Platform services (Clipboard, FilePicker, Notifications, DragDrop, GlobalHotkeys)
+- Accessibility support (AT-SPI2, High Contrast)
+- HiDPI and Input Method support
+
+Developed by MarketAlly Pte Ltd. Lead Architect: David H. Friedel Jr.
+    </description>
+    <releaseNotes>
+10.0.41: Upgraded to .NET 10 / MAUI 10.0.41 / SkiaSharp 3.119.2 / HarfBuzzSharp 8.3.1.3. All 541 tests passing. Full feature parity with 9.0.40 release.
+    </releaseNotes>
+    <copyright>Copyright 2025-2026 MarketAlly Pte Ltd</copyright>
+    <tags>maui linux desktop skia gui cross-platform dotnet openmaui</tags>
+    <repository type="git" url="https://github.com/open-maui/maui-linux.git" />
+    <dependencies>
+      <group targetFramework="net10.0">
+        <dependency id="Microsoft.Maui.Controls" version="10.0.41" />
+        <dependency id="SkiaSharp" version="3.119.2" />
+        <dependency id="SkiaSharp.NativeAssets.Linux" version="3.119.2" />
+      </group>
+    </dependencies>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System.Runtime" targetFramework="net10.0" />
+    </frameworkAssemblies>
+  </metadata>
+  <files>
+    <file src="bin/Release/net10.0/OpenMaui.Controls.Linux.dll" target="lib/net10.0" />
+    <file src="bin/Release/net10.0/OpenMaui.Controls.Linux.xml" target="lib/net10.0" />
+    <file src="README.md" target="" />
+  </files>
+</package>

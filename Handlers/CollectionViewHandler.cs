@@ -1,0 +1,438 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
+using SkiaSharp;
+
+namespace Microsoft.Maui.Platform.Linux.Handlers;
+
+/// <summary>
+/// Handler for CollectionView on Linux using Skia rendering.
+/// Maps CollectionView to SkiaCollectionView platform view.
+/// </summary>
+public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCollectionView>
+{
+    private bool _isUpdatingSelection;
+
+    public static IPropertyMapper<CollectionView, CollectionViewHandler> Mapper =
+        new PropertyMapper<CollectionView, CollectionViewHandler>(ViewHandler.ViewMapper)
+        {
+            // ItemsView properties
+            [nameof(ItemsView.ItemsSource)] = MapItemsSource,
+            [nameof(ItemsView.ItemTemplate)] = MapItemTemplate,
+            [nameof(ItemsView.EmptyView)] = MapEmptyView,
+            [nameof(ItemsView.HorizontalScrollBarVisibility)] = MapHorizontalScrollBarVisibility,
+            [nameof(ItemsView.VerticalScrollBarVisibility)] = MapVerticalScrollBarVisibility,
+
+            // SelectableItemsView properties
+            [nameof(SelectableItemsView.SelectedItem)] = MapSelectedItem,
+            [nameof(SelectableItemsView.SelectedItems)] = MapSelectedItems,
+            [nameof(SelectableItemsView.SelectionMode)] = MapSelectionMode,
+
+            // StructuredItemsView properties
+            [nameof(StructuredItemsView.Header)] = MapHeader,
+            [nameof(StructuredItemsView.Footer)] = MapFooter,
+            [nameof(StructuredItemsView.ItemsLayout)] = MapItemsLayout,
+
+            [nameof(IView.Background)] = MapBackground,
+            [nameof(CollectionView.BackgroundColor)] = MapBackgroundColor,
+        };
+
+    public static CommandMapper<CollectionView, CollectionViewHandler> CommandMapper =
+        new(ViewHandler.ViewCommandMapper)
+        {
+            ["ScrollTo"] = MapScrollTo,
+        };
+
+    public CollectionViewHandler() : base(Mapper, CommandMapper)
+    {
+    }
+
+    public CollectionViewHandler(IPropertyMapper? mapper, CommandMapper? commandMapper = null)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
+
+    protected override SkiaCollectionView CreatePlatformView()
+    {
+        return new SkiaCollectionView();
+    }
+
+    protected override void ConnectHandler(SkiaCollectionView platformView)
+    {
+        base.ConnectHandler(platformView);
+        platformView.SelectionChanged += OnSelectionChanged;
+        platformView.Scrolled += OnScrolled;
+        platformView.ItemTapped += OnItemTapped;
+    }
+
+    protected override void DisconnectHandler(SkiaCollectionView platformView)
+    {
+        platformView.SelectionChanged -= OnSelectionChanged;
+        platformView.Scrolled -= OnScrolled;
+        platformView.ItemTapped -= OnItemTapped;
+        base.DisconnectHandler(platformView);
+    }
+
+    private void OnSelectionChanged(object? sender, CollectionSelectionChangedEventArgs e)
+    {
+        if (VirtualView is null || _isUpdatingSelection) return;
+
+        try
+        {
+            _isUpdatingSelection = true;
+
+            // Update virtual view selection
+            if (VirtualView.SelectionMode == SelectionMode.Single)
+            {
+                var newItem = e.CurrentSelection.FirstOrDefault();
+                if (!Equals(VirtualView.SelectedItem, newItem))
+                {
+                    VirtualView.SelectedItem = newItem;
+                }
+            }
+            else if (VirtualView.SelectionMode == SelectionMode.Multiple)
+            {
+                // Clear and update selected items
+                VirtualView.SelectedItems.Clear();
+                foreach (var item in e.CurrentSelection)
+                {
+                    VirtualView.SelectedItems.Add(item);
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
+    }
+
+    private void OnScrolled(object? sender, ItemsScrolledEventArgs e)
+    {
+        VirtualView?.SendScrolled(new ItemsViewScrolledEventArgs
+        {
+            VerticalOffset = e.ScrollOffset,
+            VerticalDelta = 0,
+            HorizontalOffset = 0,
+            HorizontalDelta = 0
+        });
+    }
+
+    private void OnItemTapped(object? sender, ItemsViewItemTappedEventArgs e)
+    {
+        if (VirtualView is null || _isUpdatingSelection) return;
+
+        try
+        {
+            _isUpdatingSelection = true;
+
+            DiagnosticLog.Debug("CollectionViewHandler", $"OnItemTapped index={e.Index}, item={e.Item}, SelectionMode={VirtualView.SelectionMode}");
+
+            // Try to get the item view and process gestures
+            var skiaView = PlatformView?.GetItemView(e.Index);
+            DiagnosticLog.Debug("CollectionViewHandler", $"GetItemView({e.Index}) returned: {skiaView?.GetType().Name ?? "null"}, MauiView={skiaView?.MauiView?.GetType().Name ?? "null"}");
+
+            if (skiaView?.MauiView != null)
+            {
+                DiagnosticLog.Debug("CollectionViewHandler", $"Found MauiView: {skiaView.MauiView.GetType().Name}, GestureRecognizers={skiaView.MauiView.GestureRecognizers?.Count ?? 0}");
+                if (GestureManager.ProcessTap(skiaView.MauiView, 0, 0))
+                {
+                    DiagnosticLog.Debug("CollectionViewHandler", "Gesture processed successfully");
+                    return;
+                }
+            }
+
+            // Handle selection if gesture wasn't processed
+            if (VirtualView.SelectionMode == SelectionMode.Single)
+            {
+                VirtualView.SelectedItem = e.Item;
+            }
+            else if (VirtualView.SelectionMode == SelectionMode.Multiple)
+            {
+                if (VirtualView.SelectedItems.Contains(e.Item))
+                {
+                    VirtualView.SelectedItems.Remove(e.Item);
+                }
+                else
+                {
+                    VirtualView.SelectedItems.Add(e.Item);
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
+    }
+
+    public static void MapItemsSource(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ItemsSource = collectionView.ItemsSource;
+    }
+
+    public static void MapItemTemplate(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null || handler.MauiContext is null) return;
+
+        var template = collectionView.ItemTemplate;
+        if (template != null)
+        {
+            // Set up a renderer that creates views from the DataTemplate
+            handler.PlatformView.ItemViewCreator = (item) =>
+            {
+                try
+                {
+                    // Create view from template
+                    var content = template.CreateContent();
+                    if (content is View view)
+                    {
+                        // Set the parent to the CollectionView so RelativeSource AncestorType
+                        // bindings can walk the visual tree up to the Page.
+                        if (view.Parent == null)
+                        {
+                            try
+                            {
+                                // Use reflection to set the internal Parent property.
+                                // MAUI's Element.Parent setter is public but may trigger
+                                // side effects, so we use the internal SetParent if available.
+                                view.Parent = collectionView;
+                            }
+                            catch
+                            {
+                                // Fallback: some MAUI versions restrict parent assignment.
+                            }
+                        }
+
+                        // Set binding context FIRST so bindings evaluate
+                        view.BindingContext = item;
+
+                        // Force binding evaluation by accessing the visual tree
+                        // This ensures child bindings are evaluated before handler creation
+                        PropagateBindingContext(view, item);
+
+                        // Create handler for the view
+                        if (view.Handler == null && handler.MauiContext != null)
+                        {
+                            view.Handler = view.ToViewHandler(handler.MauiContext);
+                        }
+
+                        if (view.Handler?.PlatformView is SkiaView skiaView)
+                        {
+                            // Set MauiView so gestures can be processed
+                            skiaView.MauiView = view;
+                            DiagnosticLog.Debug("CollectionViewHandler", $"ItemViewCreator: Set MauiView={view.GetType().Name} on {skiaView.GetType().Name}, GestureRecognizers={view.GestureRecognizers?.Count ?? 0}");
+                            return skiaView;
+                        }
+                    }
+                    else if (content is ViewCell cell)
+                    {
+                        cell.BindingContext = item;
+                        var cellView = cell.View;
+                        if (cellView != null)
+                        {
+                            if (cellView.Handler == null && handler.MauiContext != null)
+                            {
+                                cellView.Handler = cellView.ToViewHandler(handler.MauiContext);
+                            }
+
+                            if (cellView.Handler?.PlatformView is SkiaView skiaView)
+                            {
+                                return skiaView;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore template creation errors
+                }
+                return null;
+            };
+        }
+
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapEmptyView(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.EmptyView = collectionView.EmptyView;
+        if (collectionView.EmptyView is string text)
+        {
+            handler.PlatformView.EmptyViewText = text;
+        }
+    }
+
+    public static void MapHorizontalScrollBarVisibility(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.HorizontalScrollBarVisibility = (ScrollBarVisibility)collectionView.HorizontalScrollBarVisibility;
+    }
+
+    public static void MapVerticalScrollBarVisibility(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.VerticalScrollBarVisibility = (ScrollBarVisibility)collectionView.VerticalScrollBarVisibility;
+    }
+
+    public static void MapSelectedItem(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null || handler._isUpdatingSelection) return;
+
+        try
+        {
+            handler._isUpdatingSelection = true;
+            if (!Equals(handler.PlatformView.SelectedItem, collectionView.SelectedItem))
+            {
+                handler.PlatformView.SelectedItem = collectionView.SelectedItem;
+            }
+        }
+        finally
+        {
+            handler._isUpdatingSelection = false;
+        }
+    }
+
+    public static void MapSelectedItems(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null || handler._isUpdatingSelection) return;
+
+        try
+        {
+            handler._isUpdatingSelection = true;
+
+            // Sync selected items
+            var selectedItems = collectionView.SelectedItems;
+            if (selectedItems != null && selectedItems.Count > 0)
+            {
+                handler.PlatformView.SelectedItem = selectedItems.First();
+            }
+        }
+        finally
+        {
+            handler._isUpdatingSelection = false;
+        }
+    }
+
+    public static void MapSelectionMode(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.SelectionMode = collectionView.SelectionMode switch
+        {
+            SelectionMode.None => SkiaSelectionMode.None,
+            SelectionMode.Single => SkiaSelectionMode.Single,
+            SelectionMode.Multiple => SkiaSelectionMode.Multiple,
+            _ => SkiaSelectionMode.None
+        };
+    }
+
+    public static void MapHeader(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Header = collectionView.Header;
+    }
+
+    public static void MapFooter(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Footer = collectionView.Footer;
+    }
+
+    public static void MapItemsLayout(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+
+        var layout = collectionView.ItemsLayout;
+        if (layout is LinearItemsLayout linearLayout)
+        {
+            handler.PlatformView.Orientation = linearLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical
+                ? Platform.ItemsLayoutOrientation.Vertical
+                : Platform.ItemsLayoutOrientation.Horizontal;
+            handler.PlatformView.SpanCount = 1;
+            handler.PlatformView.ItemSpacing = (float)linearLayout.ItemSpacing;
+        }
+        else if (layout is GridItemsLayout gridLayout)
+        {
+            handler.PlatformView.Orientation = gridLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical
+                ? Platform.ItemsLayoutOrientation.Vertical
+                : Platform.ItemsLayoutOrientation.Horizontal;
+            handler.PlatformView.SpanCount = gridLayout.Span;
+            handler.PlatformView.ItemSpacing = (float)gridLayout.VerticalItemSpacing;
+        }
+    }
+
+    public static void MapBackground(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+
+        // Don't override if BackgroundColor is explicitly set
+        if (collectionView.BackgroundColor is not null)
+            return;
+
+        if (collectionView.Background is SolidColorBrush solidBrush)
+        {
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
+        }
+    }
+
+    public static void MapBackgroundColor(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (collectionView.BackgroundColor is not null)
+        {
+            handler.PlatformView.BackgroundColor = collectionView.BackgroundColor;
+        }
+    }
+
+    public static void MapScrollTo(CollectionViewHandler handler, CollectionView collectionView, object? args)
+    {
+        if (handler.PlatformView is null || args is not ScrollToRequestEventArgs scrollArgs)
+            return;
+
+        if (scrollArgs.Mode == ScrollToMode.Position)
+        {
+            handler.PlatformView.ScrollToIndex(scrollArgs.Index, scrollArgs.IsAnimated);
+        }
+        else if (scrollArgs.Item != null)
+        {
+            handler.PlatformView.ScrollToItem(scrollArgs.Item, scrollArgs.IsAnimated);
+        }
+    }
+
+    /// <summary>
+    /// Recursively propagates binding context to all child views to force binding evaluation.
+    /// </summary>
+    private static void PropagateBindingContext(View view, object? bindingContext)
+    {
+        view.BindingContext = bindingContext;
+
+        // Propagate to children
+        if (view is Layout layout)
+        {
+            foreach (var child in layout.Children)
+            {
+                if (child is View childView)
+                {
+                    PropagateBindingContext(childView, bindingContext);
+                }
+            }
+        }
+        else if (view is ContentView contentView && contentView.Content != null)
+        {
+            PropagateBindingContext(contentView.Content, bindingContext);
+        }
+        else if (view is Border border && border.Content is View borderContent)
+        {
+            PropagateBindingContext(borderContent, bindingContext);
+        }
+    }
+}
