@@ -17,124 +17,20 @@ namespace Microsoft.Maui.Platform.Linux.Hosting;
 public class LinuxViewRenderer
 {
     private readonly IMauiContext _mauiContext;
+    private Shell? _mauiShell;
+    private SkiaShell? _skiaShell;
 
     /// <summary>
-    /// Static reference to the current MAUI Shell for navigation support.
-    /// Used when Shell.Current is not available through normal lifecycle.
+    /// Most recently created renderer's SkiaShell. Currently used only by the
+    /// startup theme-refresh hook in <see cref="LinuxApplication"/>; multi-window
+    /// support will replace this with a per-window lookup.
     /// </summary>
-    public static Shell? CurrentMauiShell { get; private set; }
-
-    /// <summary>
-    /// Static reference to the current SkiaShell for navigation updates.
-    /// </summary>
-    public static SkiaShell? CurrentSkiaShell { get; private set; }
-
-    /// <summary>
-    /// Navigate to a route using the SkiaShell directly.
-    /// Use this instead of Shell.Current.GoToAsync on Linux.
-    /// </summary>
-    /// <param name="route">The route to navigate to (e.g., "Buttons" or "//Buttons")</param>
-    /// <returns>True if navigation succeeded</returns>
-    public static bool NavigateToRoute(string route)
-    {
-        if (CurrentSkiaShell == null)
-        {
-            DiagnosticLog.Warn("LinuxViewRenderer", "CurrentSkiaShell is null");
-            return false;
-        }
-
-        // Clean up the route - remove leading // or /
-        var cleanRoute = route.TrimStart('/');
-        DiagnosticLog.Debug("LinuxViewRenderer", $"NavigateToRoute: Navigating to: {cleanRoute}");
-
-        for (int i = 0; i < CurrentSkiaShell.Sections.Count; i++)
-        {
-            var section = CurrentSkiaShell.Sections[i];
-            if (section.Route.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase) ||
-                section.Title.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase))
-            {
-                DiagnosticLog.Debug("LinuxViewRenderer", $"NavigateToRoute: Found section {i}: {section.Title}");
-                CurrentSkiaShell.NavigateToSection(i);
-                return true;
-            }
-        }
-
-        DiagnosticLog.Warn("LinuxViewRenderer", $"NavigateToRoute: Route not found: {cleanRoute}");
-        return false;
-    }
-
-    /// <summary>
-    /// Current renderer instance for page rendering.
-    /// </summary>
-    public static LinuxViewRenderer? CurrentRenderer { get; set; }
-
-    /// <summary>
-    /// Pushes a page onto the navigation stack.
-    /// </summary>
-    /// <param name="page">The page to push</param>
-    /// <returns>True if successful</returns>
-    public static bool PushPage(Page page)
-    {
-        DiagnosticLog.Debug("LinuxViewRenderer", $"PushPage: Pushing page: {page.GetType().Name}");
-
-        if (CurrentSkiaShell == null)
-        {
-            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: CurrentSkiaShell is null");
-            return false;
-        }
-
-        if (CurrentRenderer == null)
-        {
-            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: CurrentRenderer is null");
-            return false;
-        }
-
-        try
-        {
-            // Render the page through the proper handler system
-            // This ensures all properties (including BackgroundColor via AppThemeBinding) are mapped
-            var skiaPage = CurrentRenderer.RenderPage(page);
-
-            if (skiaPage == null)
-            {
-                DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: Failed to render page through handler");
-                return false;
-            }
-
-            // Push onto SkiaShell's navigation stack
-            CurrentSkiaShell.PushAsync(skiaPage, page.Title ?? "Detail");
-            DiagnosticLog.Debug("LinuxViewRenderer", "PushPage: Successfully pushed page via handler system");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("LinuxViewRenderer", "PushPage failed", ex);
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Pops the current page from the navigation stack.
-    /// </summary>
-    /// <returns>True if successful</returns>
-    public static bool PopPage()
-    {
-        DiagnosticLog.Debug("LinuxViewRenderer", "PopPage: Popping page");
-
-        if (CurrentSkiaShell == null)
-        {
-            DiagnosticLog.Warn("LinuxViewRenderer", "PopPage: CurrentSkiaShell is null");
-            return false;
-        }
-
-        return CurrentSkiaShell.PopAsync();
-    }
+    public static SkiaShell? CurrentSkiaShell => s_currentSkiaShell;
+    private static SkiaShell? s_currentSkiaShell;
 
     public LinuxViewRenderer(IMauiContext mauiContext)
     {
         _mauiContext = mauiContext ?? throw new ArgumentNullException(nameof(mauiContext));
-        // Store reference for push/pop navigation
-        CurrentRenderer = this;
     }
 
     /// <summary>
@@ -171,9 +67,9 @@ public class LinuxViewRenderer
     /// </summary>
     private SkiaShell RenderShell(Shell shell)
     {
-        // Store reference for navigation - Shell.Current is computed from Application.Current.Windows
-        // Our platform handles navigation through SkiaShell directly
-        CurrentMauiShell = shell;
+        // Per-instance: each renderer holds its own Shell pair so OnShellNavigated
+        // captures the correct context even with multiple windows in the future.
+        _mauiShell = shell;
 
         var skiaShell = new SkiaShell
         {
@@ -225,8 +121,11 @@ public class LinuxViewRenderer
             ProcessShellItem(skiaShell, item);
         }
 
-        // Store reference to SkiaShell for navigation
-        CurrentSkiaShell = skiaShell;
+        // Per-instance + the static "current" pointer for the legacy theme-refresh
+        // hook in LinuxApplication. Last-write-wins is acceptable today (single
+        // window) and explicit so it can be migrated to a per-window registry later.
+        _skiaShell = skiaShell;
+        s_currentSkiaShell = skiaShell;
 
         // Set up content renderer, color refresher, and icon syncer delegates
         skiaShell.ContentRenderer = CreateShellContentPage;
@@ -361,43 +260,37 @@ public class LinuxViewRenderer
 
     /// <summary>
     /// Handles MAUI Shell navigation events and updates SkiaShell accordingly.
+    /// Instance-bound so the captured shell pair always matches the renderer that
+    /// subscribed — multi-window safe by construction.
     /// </summary>
-    private static void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
+    private void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
     {
-        DiagnosticLog.Debug("LinuxViewRenderer", $"OnShellNavigated called - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"OnShellNavigated - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
 
-        if (CurrentSkiaShell == null || CurrentMauiShell == null)
+        var skiaShell = _skiaShell;
+        var mauiShell = _mauiShell;
+        if (skiaShell == null || mauiShell == null)
         {
-            DiagnosticLog.Warn("LinuxViewRenderer", "CurrentSkiaShell or CurrentMauiShell is null");
+            DiagnosticLog.Warn("LinuxViewRenderer", "Shell pair not initialized; ignoring navigation");
             return;
         }
 
-        // Get the current route from the Shell
-        var currentState = CurrentMauiShell.CurrentState;
-        var location = currentState?.Location?.OriginalString ?? "";
-        DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Location: {location}, Sections: {CurrentSkiaShell.Sections.Count}");
+        var location = mauiShell.CurrentState?.Location?.OriginalString ?? "";
+        DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Location: {location}, Sections: {skiaShell.Sections.Count}");
 
-        // Find the matching section in SkiaShell by route
-        for (int i = 0; i < CurrentSkiaShell.Sections.Count; i++)
+        for (int i = 0; i < skiaShell.Sections.Count; i++)
         {
-            var section = CurrentSkiaShell.Sections[i];
-            DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Checking section {i}: Route='{section.Route}', Title='{section.Title}'");
+            var section = skiaShell.Sections[i];
             if (!string.IsNullOrEmpty(section.Route) && location.Contains(section.Route, StringComparison.OrdinalIgnoreCase))
             {
-                DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Match found by route! Navigating to section {i}");
-                if (i != CurrentSkiaShell.CurrentSectionIndex)
-                {
-                    CurrentSkiaShell.NavigateToSection(i);
-                }
+                if (i != skiaShell.CurrentSectionIndex)
+                    skiaShell.NavigateToSection(i);
                 return;
             }
             if (!string.IsNullOrEmpty(section.Title) && location.Contains(section.Title, StringComparison.OrdinalIgnoreCase))
             {
-                DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Match found by title! Navigating to section {i}");
-                if (i != CurrentSkiaShell.CurrentSectionIndex)
-                {
-                    CurrentSkiaShell.NavigateToSection(i);
-                }
+                if (i != skiaShell.CurrentSectionIndex)
+                    skiaShell.NavigateToSection(i);
                 return;
             }
         }
