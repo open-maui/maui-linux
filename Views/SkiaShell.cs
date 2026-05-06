@@ -189,6 +189,33 @@ public class SkiaShell : SkiaLayoutView
 
     private readonly List<ShellSection> _sections = new();
     private SkiaView? _currentContent;
+
+    /// <summary>
+    /// Enumerate every content view tree currently owned by this shell — the
+    /// active section's content, every section's pre-rendered content, and any
+    /// pages on the navigation stack. Used by the theme-refresh walker so it can
+    /// reach SkiaItemsView (and other cache-holding views) inside templated
+    /// content that isn't part of the regular Children chain.
+    /// </summary>
+    public IEnumerable<SkiaView> AllContentRoots
+    {
+        get
+        {
+            if (_currentContent != null)
+                yield return _currentContent;
+            foreach (var (content, _) in _navigationStack)
+                if (content != null)
+                    yield return content;
+            foreach (var section in _sections)
+            {
+                foreach (var item in section.Items)
+                {
+                    if (item.Content != null && !ReferenceEquals(item.Content, _currentContent))
+                        yield return item.Content;
+                }
+            }
+        }
+    }
     private SkiaView? _pressedTarget;
     private float _flyoutAnimationProgress = 0f;
     private int _selectedSectionIndex = 0;
