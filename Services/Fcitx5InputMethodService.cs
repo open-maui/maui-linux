@@ -9,6 +9,12 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Fcitx5 Input Method service using D-Bus interface.
 /// Provides IME support for systems using Fcitx5 (common on some distros).
+///
+/// Implementation note: this currently shells out to <c>gdbus</c> for method calls
+/// and parses <c>dbus-monitor</c> stdout for signals. A typed Tmds.DBus migration
+/// is tracked as a follow-up; the subprocess approach is kept for now because
+/// Fcitx5's signal text format has been stable and the IME path is exercised
+/// primarily by CJK users we can't validate a rewrite against without their input.
 /// </summary>
 public class Fcitx5InputMethodService : IInputMethodService, IDisposable
 {
