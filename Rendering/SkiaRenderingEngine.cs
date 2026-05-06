@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 /// </summary>
 public class SkiaRenderingEngine : IDisposable
 {
-    private readonly X11Window _window;
+    private readonly IDisplayWindow _window;
     private SKBitmap? _bitmap;
     private SKBitmap? _backBuffer;
     private SKCanvas? _canvas;
@@ -71,7 +71,7 @@ public class SkiaRenderingEngine : IDisposable
         get { lock (_dirtyLock) return _dirtyRegions.Count; }
     }
 
-    public SkiaRenderingEngine(X11Window window)
+    public SkiaRenderingEngine(IDisplayWindow window)
     {
         _window = window;
         ResourceCache = new ResourceCache();
@@ -364,7 +364,7 @@ public class SkiaRenderingEngine : IDisposable
         var pixels = _bitmap.GetPixels();
         if (pixels == IntPtr.Zero) return;
 
-        _window.DrawPixels(pixels, _imageInfo.Width, _imageInfo.Height, _imageInfo.RowBytes);
+        _window.Present(pixels, _imageInfo.Width, _imageInfo.Height, _imageInfo.RowBytes);
     }
 
     public SKCanvas? GetCanvas() => _canvas;
