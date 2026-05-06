@@ -411,7 +411,7 @@ public partial class SkiaEntry
         if (string.IsNullOrEmpty(Text)) return 0;
 
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
+        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
@@ -635,7 +635,7 @@ public partial class SkiaEntry
 
         var screenBounds = ScreenBounds;
         var fontStyle = GetFontStyle();
-        var typeface = SkiaRenderingEngine.Current?.ResourceCache.GetTypeface(GetEffectiveFontFamily(), fontStyle)
+        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
