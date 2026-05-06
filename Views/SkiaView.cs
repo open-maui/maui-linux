@@ -260,6 +260,15 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     }
 
     /// <summary>
+    /// Yields content trees this view owns that aren't part of <see cref="Children"/>.
+    /// Used by recursive walkers (e.g. theme-change refresh) to reach pages/sections
+    /// kept in private fields. SkiaShell yields its current section content + nav stack;
+    /// SkiaNavigationPage yields its current page + back-stack pages. Most views return
+    /// nothing — the standard <see cref="Children"/> chain covers them.
+    /// </summary>
+    public virtual IEnumerable<SkiaView> ExtraContentRoots => Array.Empty<SkiaView>();
+
+    /// <summary>
     /// Gets the effective background color as SKColor for rendering.
     /// </summary>
     protected SKColor GetEffectiveBackgroundColor() => _backgroundColorSK;
