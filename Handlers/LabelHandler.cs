@@ -73,24 +73,19 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
         {
             platformView.LineBreakMode = mauiLabel.LineBreakMode;
         }
-
-        platformView.Tapped += OnPlatformViewTapped;
     }
 
     protected override void DisconnectHandler(SkiaLabel platformView)
     {
-        platformView.Tapped -= OnPlatformViewTapped;
         platformView.MauiView = null;
         base.DisconnectHandler(platformView);
     }
 
-    private void OnPlatformViewTapped(object? sender, EventArgs e)
-    {
-        if (VirtualView is View view)
-        {
-            GestureManager.ProcessTap(view, 0, 0);
-        }
-    }
+    // The SkiaView base class already routes pointer-up through GestureManager
+    // (SkiaView.Input.cs → ProcessPointerUp → ProcessTap), which fires the
+    // user's TapGestureRecognizer. Subscribing to SkiaLabel.Tapped here would
+    // call ProcessTap a second time, double-firing handlers (e.g. opening the
+    // browser twice on link clicks). The subscription is intentionally absent.
 
     public static void MapText(LabelHandler handler, ILabel label)
     {

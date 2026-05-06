@@ -61,10 +61,23 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     {
         base.ConnectHandler(platformView);
 
-        // Explicitly map BackgroundColor since it may be set before handler creation
-        // (e.g., in ItemTemplates for CollectionView)
-        if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        // Wire MauiView so the layout reads BackgroundColor (and other VisualElement
+        // properties) live from the MAUI Layout. Setting MauiView triggers
+        // OnBackgroundColorChanged(), so the cached SKColor reflects the current
+        // MAUI value. CRITICAL: do NOT echo `platformView.BackgroundColor = ve.BackgroundColor`
+        // afterward — when MauiView is wired the BackgroundColor setter routes to
+        // ve.SetValue() at LocalValue specificity, which permanently clobbers any
+        // AppThemeBinding on the layout's BackgroundColor (theme toggles stop
+        // propagating). The OnMauiViewPropertyChanged subscription installed by the
+        // setter already keeps the cache in sync when MAUI updates the binding.
+        if (VirtualView is View view)
         {
+            platformView.MauiView = view;
+            platformView.Invalidate();
+        }
+        else if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
+        {
+            // Fallback for the rare case we don't have a View — use the legacy path.
             platformView.BackgroundColor = ve.BackgroundColor;
             platformView.Invalidate();
         }
@@ -97,6 +110,16 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
             return;
 
+        // When MauiView is wired the platform view reads Background/BackgroundColor
+        // live from the MAUI Layout, and OnMauiViewPropertyChanged refreshes the
+        // cache when bindings update. Echoing back through the public setter would
+        // clobber any AppThemeBinding (LocalValue specificity > Binding specificity).
+        if (handler.PlatformView.MauiView != null)
+        {
+            handler.PlatformView.Invalidate();
+            return;
+        }
+
         var background = layout.Background;
         if (background is SolidColorBrush solidBrush && solidBrush.Color != null)
         {
@@ -107,6 +130,13 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapBackgroundColor(LayoutHandler handler, ILayout layout)
     {
+        // See note above in MapBackground — never echo the BackgroundColor back via
+        // the public setter when MauiView is wired; doing so destroys AppThemeBindings.
+        if (handler.PlatformView.MauiView != null)
+        {
+            handler.PlatformView.Invalidate();
+            return;
+        }
         if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
         {
             handler.PlatformView.BackgroundColor = ve.BackgroundColor;
