@@ -13,6 +13,7 @@ using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Platform.Linux.Dispatching;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Interop;
 using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
@@ -43,8 +44,17 @@ public partial class LinuxApplication
     /// <param name="configure">Optional configuration action.</param>
     public static void Run(MauiApp app, string[] args, Action<LinuxApplicationOptions>? configure)
     {
-        // Force X11 backend for GTK/WebKitGTK - MUST be set before any GTK code runs
-        Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+        // Force X11 backend for GTK/WebKitGTK - MUST be set before any GTK code runs.
+        // Skip if the user has explicitly set GDK_BACKEND (e.g. for native-Wayland testing).
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))
+        {
+            Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+        }
+
+        // Cursor sizing — must happen before gtk_init_check so GTK's own cursor loading
+        // sees the right XCURSOR_SIZE. Detection is cheap; LinuxApplication.Initialize
+        // reuses the result via _earlyDpiScale.
+        DetectScaleAndConfigureCursor();
 
         // Pre-initialize GTK for WebView compatibility (even when using X11 mode)
         int argc = 0;
@@ -299,6 +309,16 @@ public partial class LinuxApplication
         _mainWindow.Show();
         Render();
 
+        // Cap the wait at ~60Hz so animations get a chance to tick even when no input
+        // arrives. When events are pending, poll() returns immediately and the loop
+        // runs as fast as needed; when idle, CPU drops from ~100% to near zero.
+        const int IdleTimeoutMs = 16;
+        var pollFd = new LibcNative.PollFd
+        {
+            Fd = X11.XConnectionNumber(_mainWindow.Display),
+            Events = LibcNative.POLLIN,
+        };
+
         DiagnosticLog.Debug("LinuxApplication", "Starting event loop");
         while (_mainWindow.IsRunning)
         {
@@ -319,7 +339,15 @@ public partial class LinuxApplication
             UpdateAnimations();
             Render();
             _mainWindow.AcknowledgeSync();
-            Thread.Sleep(1);
+
+            // Block until an X event arrives or the frame budget elapses.
+            // Skip the wait if X events are already queued (e.g. compound events
+            // that arrived during the same iteration).
+            if (X11.XPending(_mainWindow.Display) == 0)
+            {
+                pollFd.Revents = 0;
+                LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
+            }
         }
         DiagnosticLog.Debug("LinuxApplication", "Event loop ended");
     }
@@ -523,6 +551,24 @@ public partial class LinuxApplication
                 Current = null;
 
             _disposed = true;
+        }
+    }
+
+    private static float _earlyDpiScale;
+    internal static float? EarlyDpiScale => _earlyDpiScale > 0 ? _earlyDpiScale : null;
+
+    private static void DetectScaleAndConfigureCursor()
+    {
+        var hiDpi = new HiDpiService();
+        hiDpi.Initialize();
+        _earlyDpiScale = hiDpi.ScaleFactor;
+
+        if (Environment.GetEnvironmentVariable("XCURSOR_SIZE") is null)
+        {
+            var cursorSize = (int)Math.Round(24 * Math.Max(1.0f, _earlyDpiScale));
+            Environment.SetEnvironmentVariable(
+                "XCURSOR_SIZE",
+                cursorSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 }
