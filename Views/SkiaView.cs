@@ -24,98 +24,6 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     #region BindableProperties
 
     /// <summary>
-    /// Bindable property for IsVisible.
-    /// </summary>
-    public static readonly BindableProperty IsVisibleProperty =
-        BindableProperty.Create(
-            nameof(IsVisible),
-            typeof(bool),
-            typeof(SkiaView),
-            true,
-            propertyChanged: (b, o, n) => ((SkiaView)b).OnVisibilityChanged());
-
-    /// <summary>
-    /// Bindable property for IsEnabled.
-    /// </summary>
-    public static readonly BindableProperty IsEnabledProperty =
-        BindableProperty.Create(
-            nameof(IsEnabled),
-            typeof(bool),
-            typeof(SkiaView),
-            true,
-            propertyChanged: (b, o, n) => ((SkiaView)b).OnEnabledChanged());
-
-    /// <summary>
-    /// Bindable property for Opacity.
-    /// </summary>
-    public static readonly BindableProperty OpacityProperty =
-        BindableProperty.Create(
-            nameof(Opacity),
-            typeof(float),
-            typeof(SkiaView),
-            1.0f,
-            coerceValue: (b, v) => Math.Clamp((float)v, 0f, 1f),
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for BackgroundColor.
-    /// Uses Microsoft.Maui.Graphics.Color for MAUI compliance.
-    /// </summary>
-    public static readonly BindableProperty BackgroundColorProperty =
-        BindableProperty.Create(
-            nameof(BackgroundColor),
-            typeof(Color),
-            typeof(SkiaView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaView)b).OnBackgroundColorChanged());
-
-    /// <summary>
-    /// Bindable property for WidthRequest.
-    /// </summary>
-    public static readonly BindableProperty WidthRequestProperty =
-        BindableProperty.Create(
-            nameof(WidthRequest),
-            typeof(double),
-            typeof(SkiaView),
-            -1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for HeightRequest.
-    /// </summary>
-    public static readonly BindableProperty HeightRequestProperty =
-        BindableProperty.Create(
-            nameof(HeightRequest),
-            typeof(double),
-            typeof(SkiaView),
-            -1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for MinimumWidthRequest.
-    /// Default is -1 (unset) to match MAUI View.MinimumWidthRequest.
-    /// </summary>
-    public static readonly BindableProperty MinimumWidthRequestProperty =
-        BindableProperty.Create(
-            nameof(MinimumWidthRequest),
-            typeof(double),
-            typeof(SkiaView),
-            -1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for MinimumHeightRequest.
-    /// Default is -1 (unset) to match MAUI View.MinimumHeightRequest.
-    /// </summary>
-    public static readonly BindableProperty MinimumHeightRequestProperty =
-        BindableProperty.Create(
-            nameof(MinimumHeightRequest),
-            typeof(double),
-            typeof(SkiaView),
-            -1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
     /// Bindable property for IsFocusable.
     /// </summary>
     public static readonly BindableProperty IsFocusableProperty =
@@ -126,39 +34,6 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             false);
 
     /// <summary>
-    /// Bindable property for Margin.
-    /// </summary>
-    public static readonly BindableProperty MarginProperty =
-        BindableProperty.Create(
-            nameof(Margin),
-            typeof(Thickness),
-            typeof(SkiaView),
-            default(Thickness),
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for HorizontalOptions.
-    /// </summary>
-    public static readonly BindableProperty HorizontalOptionsProperty =
-        BindableProperty.Create(
-            nameof(HorizontalOptions),
-            typeof(LayoutOptions),
-            typeof(SkiaView),
-            LayoutOptions.Fill,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for VerticalOptions.
-    /// </summary>
-    public static readonly BindableProperty VerticalOptionsProperty =
-        BindableProperty.Create(
-            nameof(VerticalOptions),
-            typeof(LayoutOptions),
-            typeof(SkiaView),
-            LayoutOptions.Fill,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
     /// Bindable property for Name (used for template child lookup).
     /// </summary>
     public static readonly BindableProperty NameProperty =
@@ -167,238 +42,6 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             typeof(string),
             typeof(SkiaView),
             string.Empty);
-
-    /// <summary>
-    /// Bindable property for Scale.
-    /// </summary>
-    public static readonly BindableProperty ScaleProperty =
-        BindableProperty.Create(
-            nameof(Scale),
-            typeof(double),
-            typeof(SkiaView),
-            1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for ScaleX.
-    /// </summary>
-    public static readonly BindableProperty ScaleXProperty =
-        BindableProperty.Create(
-            nameof(ScaleX),
-            typeof(double),
-            typeof(SkiaView),
-            1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for ScaleY.
-    /// </summary>
-    public static readonly BindableProperty ScaleYProperty =
-        BindableProperty.Create(
-            nameof(ScaleY),
-            typeof(double),
-            typeof(SkiaView),
-            1.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for Rotation.
-    /// </summary>
-    public static readonly BindableProperty RotationProperty =
-        BindableProperty.Create(
-            nameof(Rotation),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for RotationX.
-    /// </summary>
-    public static readonly BindableProperty RotationXProperty =
-        BindableProperty.Create(
-            nameof(RotationX),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for RotationY.
-    /// </summary>
-    public static readonly BindableProperty RotationYProperty =
-        BindableProperty.Create(
-            nameof(RotationY),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for TranslationX.
-    /// </summary>
-    public static readonly BindableProperty TranslationXProperty =
-        BindableProperty.Create(
-            nameof(TranslationX),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for TranslationY.
-    /// </summary>
-    public static readonly BindableProperty TranslationYProperty =
-        BindableProperty.Create(
-            nameof(TranslationY),
-            typeof(double),
-            typeof(SkiaView),
-            0.0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for AnchorX.
-    /// </summary>
-    public static readonly BindableProperty AnchorXProperty =
-        BindableProperty.Create(
-            nameof(AnchorX),
-            typeof(double),
-            typeof(SkiaView),
-            0.5,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for AnchorY.
-    /// </summary>
-    public static readonly BindableProperty AnchorYProperty =
-        BindableProperty.Create(
-            nameof(AnchorY),
-            typeof(double),
-            typeof(SkiaView),
-            0.5,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for InputTransparent.
-    /// When true, the view does not receive input events and they pass through to views below.
-    /// </summary>
-    public static readonly BindableProperty InputTransparentProperty =
-        BindableProperty.Create(
-            nameof(InputTransparent),
-            typeof(bool),
-            typeof(SkiaView),
-            false);
-
-    /// <summary>
-    /// Bindable property for FlowDirection.
-    /// Controls the layout direction for RTL language support.
-    /// </summary>
-    public static readonly BindableProperty FlowDirectionProperty =
-        BindableProperty.Create(
-            nameof(FlowDirection),
-            typeof(FlowDirection),
-            typeof(SkiaView),
-            FlowDirection.MatchParent,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for ZIndex.
-    /// Controls the rendering order within a layout.
-    /// </summary>
-    public static readonly BindableProperty ZIndexProperty =
-        BindableProperty.Create(
-            nameof(ZIndex),
-            typeof(int),
-            typeof(SkiaView),
-            0,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Parent?.Invalidate());
-
-    /// <summary>
-    /// Bindable property for MaximumWidthRequest.
-    /// </summary>
-    public static readonly BindableProperty MaximumWidthRequestProperty =
-        BindableProperty.Create(
-            nameof(MaximumWidthRequest),
-            typeof(double),
-            typeof(SkiaView),
-            double.PositiveInfinity,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for MaximumHeightRequest.
-    /// </summary>
-    public static readonly BindableProperty MaximumHeightRequestProperty =
-        BindableProperty.Create(
-            nameof(MaximumHeightRequest),
-            typeof(double),
-            typeof(SkiaView),
-            double.PositiveInfinity,
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for AutomationId.
-    /// Used for UI testing and accessibility.
-    /// </summary>
-    public static readonly BindableProperty AutomationIdProperty =
-        BindableProperty.Create(
-            nameof(AutomationId),
-            typeof(string),
-            typeof(SkiaView),
-            string.Empty);
-
-    /// <summary>
-    /// Bindable property for Padding.
-    /// </summary>
-    public static readonly BindableProperty PaddingProperty =
-        BindableProperty.Create(
-            nameof(Padding),
-            typeof(Thickness),
-            typeof(SkiaView),
-            default(Thickness),
-            propertyChanged: (b, o, n) => ((SkiaView)b).InvalidateMeasure());
-
-    /// <summary>
-    /// Bindable property for Background (Brush).
-    /// </summary>
-    public static readonly BindableProperty BackgroundProperty =
-        BindableProperty.Create(
-            nameof(Background),
-            typeof(Brush),
-            typeof(SkiaView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for Clip geometry.
-    /// </summary>
-    public static readonly BindableProperty ClipProperty =
-        BindableProperty.Create(
-            nameof(Clip),
-            typeof(Geometry),
-            typeof(SkiaView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for Shadow.
-    /// </summary>
-    public static readonly BindableProperty ShadowProperty =
-        BindableProperty.Create(
-            nameof(Shadow),
-            typeof(Shadow),
-            typeof(SkiaView),
-            null,
-            propertyChanged: (b, o, n) => ((SkiaView)b).Invalidate());
-
-    /// <summary>
-    /// Bindable property for Visual.
-    /// </summary>
-    public static readonly BindableProperty VisualProperty =
-        BindableProperty.Create(
-            nameof(Visual),
-            typeof(IVisual),
-            typeof(SkiaView),
-            VisualMarker.Default);
 
     #endregion
 
@@ -476,13 +119,61 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         (float)_bounds.Right,
         (float)_bounds.Bottom);
 
+    // Backing fields for VisualElement-equivalent properties.
+    // These hold defaults when no MauiView is attached. When a MauiView is
+    // attached, the public properties below read live from MauiView so there
+    // is no duplicate state to keep in sync.
+    private bool _isVisible = true;
+    private bool _isEnabled = true;
+    private float _opacity = 1.0f;
+    private Color? _backgroundColor;
+    private SKColor _backgroundColorSK = SKColors.Transparent;
+    private double _widthRequest = -1.0;
+    private double _heightRequest = -1.0;
+    private double _minimumWidthRequest = -1.0;
+    private double _minimumHeightRequest = -1.0;
+    private double _maximumWidthRequest = double.PositiveInfinity;
+    private double _maximumHeightRequest = double.PositiveInfinity;
+    private Thickness _margin;
+    private LayoutOptions _horizontalOptions = LayoutOptions.Fill;
+    private LayoutOptions _verticalOptions = LayoutOptions.Fill;
+    private double _scale = 1.0;
+    private double _scaleX = 1.0;
+    private double _scaleY = 1.0;
+    private double _rotation;
+    private double _rotationX;
+    private double _rotationY;
+    private double _translationX;
+    private double _translationY;
+    private double _anchorX = 0.5;
+    private double _anchorY = 0.5;
+    private bool _inputTransparent;
+    private FlowDirection _flowDirection = FlowDirection.LeftToRight;
+    private int _zIndex;
+    private string _automationId = string.Empty;
+    private Thickness _padding;
+    private Brush? _background;
+    private Geometry? _clip;
+    private Shadow? _shadow;
+    private IVisual _visual = VisualMarker.Default;
+
     /// <summary>
     /// Gets or sets whether this view is visible.
     /// </summary>
     public bool IsVisible
     {
-        get => (bool)GetValue(IsVisibleProperty);
-        set => SetValue(IsVisibleProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.IsVisible;
+            return _isVisible;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.IsVisible = value; return; }
+            if (_isVisible == value) return;
+            _isVisible = value;
+            OnVisibilityChanged();
+        }
     }
 
     /// <summary>
@@ -490,8 +181,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public bool IsEnabled
     {
-        get => (bool)GetValue(IsEnabledProperty);
-        set => SetValue(IsEnabledProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.IsEnabled;
+            return _isEnabled;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.IsEnabled = value; return; }
+            if (_isEnabled == value) return;
+            _isEnabled = value;
+            OnEnabledChanged();
+        }
     }
 
     /// <summary>
@@ -499,19 +200,39 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public float Opacity
     {
-        get => (float)GetValue(OpacityProperty);
-        set => SetValue(OpacityProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return (float)ve.Opacity;
+            return _opacity;
+        }
+        set
+        {
+            var coerced = Math.Clamp(value, 0f, 1f);
+            if (_mauiView is VisualElement ve) { ve.Opacity = coerced; return; }
+            if (_opacity == coerced) return;
+            _opacity = coerced;
+            Invalidate();
+        }
     }
 
     /// <summary>
     /// Gets or sets the background color.
     /// Uses Microsoft.Maui.Graphics.Color for MAUI compliance.
     /// </summary>
-    private SKColor _backgroundColorSK = SKColors.Transparent;
     public Color? BackgroundColor
     {
-        get => (Color?)GetValue(BackgroundColorProperty);
-        set => SetValue(BackgroundColorProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.BackgroundColor;
+            return _backgroundColor;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.BackgroundColor = value; return; }
+            if (EqualityComparer<Color?>.Default.Equals(_backgroundColor, value)) return;
+            _backgroundColor = value;
+            OnBackgroundColorChanged();
+        }
     }
 
     /// <summary>
@@ -534,8 +255,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double WidthRequest
     {
-        get => (double)GetValue(WidthRequestProperty);
-        set => SetValue(WidthRequestProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.WidthRequest;
+            return _widthRequest;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.WidthRequest = value; return; }
+            if (_widthRequest == value) return;
+            _widthRequest = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -543,8 +274,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double HeightRequest
     {
-        get => (double)GetValue(HeightRequestProperty);
-        set => SetValue(HeightRequestProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.HeightRequest;
+            return _heightRequest;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.HeightRequest = value; return; }
+            if (_heightRequest == value) return;
+            _heightRequest = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -552,8 +293,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double MinimumWidthRequest
     {
-        get => (double)GetValue(MinimumWidthRequestProperty);
-        set => SetValue(MinimumWidthRequestProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.MinimumWidthRequest;
+            return _minimumWidthRequest;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.MinimumWidthRequest = value; return; }
+            if (_minimumWidthRequest == value) return;
+            _minimumWidthRequest = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -561,8 +312,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double MinimumHeightRequest
     {
-        get => (double)GetValue(MinimumHeightRequestProperty);
-        set => SetValue(MinimumHeightRequestProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.MinimumHeightRequest;
+            return _minimumHeightRequest;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.MinimumHeightRequest = value; return; }
+            if (_minimumHeightRequest == value) return;
+            _minimumHeightRequest = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -597,8 +358,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public Thickness Margin
     {
-        get => (Thickness)GetValue(MarginProperty);
-        set => SetValue(MarginProperty, value);
+        get
+        {
+            if (_mauiView is View v) return v.Margin;
+            return _margin;
+        }
+        set
+        {
+            if (_mauiView is View v) { v.Margin = value; return; }
+            if (_margin == value) return;
+            _margin = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -606,8 +377,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public LayoutOptions HorizontalOptions
     {
-        get => (LayoutOptions)GetValue(HorizontalOptionsProperty);
-        set => SetValue(HorizontalOptionsProperty, value);
+        get
+        {
+            if (_mauiView is View v) return v.HorizontalOptions;
+            return _horizontalOptions;
+        }
+        set
+        {
+            if (_mauiView is View v) { v.HorizontalOptions = value; return; }
+            if (_horizontalOptions.Equals(value)) return;
+            _horizontalOptions = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -615,8 +396,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public LayoutOptions VerticalOptions
     {
-        get => (LayoutOptions)GetValue(VerticalOptionsProperty);
-        set => SetValue(VerticalOptionsProperty, value);
+        get
+        {
+            if (_mauiView is View v) return v.VerticalOptions;
+            return _verticalOptions;
+        }
+        set
+        {
+            if (_mauiView is View v) { v.VerticalOptions = value; return; }
+            if (_verticalOptions.Equals(value)) return;
+            _verticalOptions = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -633,8 +424,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double Scale
     {
-        get => (double)GetValue(ScaleProperty);
-        set => SetValue(ScaleProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.Scale;
+            return _scale;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.Scale = value; return; }
+            if (_scale == value) return;
+            _scale = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -642,8 +443,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double ScaleX
     {
-        get => (double)GetValue(ScaleXProperty);
-        set => SetValue(ScaleXProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.ScaleX;
+            return _scaleX;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.ScaleX = value; return; }
+            if (_scaleX == value) return;
+            _scaleX = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -651,8 +462,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double ScaleY
     {
-        get => (double)GetValue(ScaleYProperty);
-        set => SetValue(ScaleYProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.ScaleY;
+            return _scaleY;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.ScaleY = value; return; }
+            if (_scaleY == value) return;
+            _scaleY = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -660,8 +481,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double Rotation
     {
-        get => (double)GetValue(RotationProperty);
-        set => SetValue(RotationProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.Rotation;
+            return _rotation;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.Rotation = value; return; }
+            if (_rotation == value) return;
+            _rotation = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -669,8 +500,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double RotationX
     {
-        get => (double)GetValue(RotationXProperty);
-        set => SetValue(RotationXProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.RotationX;
+            return _rotationX;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.RotationX = value; return; }
+            if (_rotationX == value) return;
+            _rotationX = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -678,8 +519,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double RotationY
     {
-        get => (double)GetValue(RotationYProperty);
-        set => SetValue(RotationYProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.RotationY;
+            return _rotationY;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.RotationY = value; return; }
+            if (_rotationY == value) return;
+            _rotationY = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -687,8 +538,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double TranslationX
     {
-        get => (double)GetValue(TranslationXProperty);
-        set => SetValue(TranslationXProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.TranslationX;
+            return _translationX;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.TranslationX = value; return; }
+            if (_translationX == value) return;
+            _translationX = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -696,8 +557,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double TranslationY
     {
-        get => (double)GetValue(TranslationYProperty);
-        set => SetValue(TranslationYProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.TranslationY;
+            return _translationY;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.TranslationY = value; return; }
+            if (_translationY == value) return;
+            _translationY = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -705,8 +576,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double AnchorX
     {
-        get => (double)GetValue(AnchorXProperty);
-        set => SetValue(AnchorXProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.AnchorX;
+            return _anchorX;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.AnchorX = value; return; }
+            if (_anchorX == value) return;
+            _anchorX = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -714,8 +595,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double AnchorY
     {
-        get => (double)GetValue(AnchorYProperty);
-        set => SetValue(AnchorYProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.AnchorY;
+            return _anchorY;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.AnchorY = value; return; }
+            if (_anchorY == value) return;
+            _anchorY = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -724,8 +615,17 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public bool InputTransparent
     {
-        get => (bool)GetValue(InputTransparentProperty);
-        set => SetValue(InputTransparentProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.InputTransparent;
+            return _inputTransparent;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.InputTransparent = value; return; }
+            if (_inputTransparent == value) return;
+            _inputTransparent = value;
+        }
     }
 
     /// <summary>
@@ -733,8 +633,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public FlowDirection FlowDirection
     {
-        get => (FlowDirection)GetValue(FlowDirectionProperty);
-        set => SetValue(FlowDirectionProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.FlowDirection;
+            return _flowDirection;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.FlowDirection = value; return; }
+            if (_flowDirection == value) return;
+            _flowDirection = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -743,8 +653,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public int ZIndex
     {
-        get => (int)GetValue(ZIndexProperty);
-        set => SetValue(ZIndexProperty, value);
+        get
+        {
+            if (_mauiView is View v) return v.ZIndex;
+            return _zIndex;
+        }
+        set
+        {
+            if (_mauiView is View v) { v.ZIndex = value; return; }
+            if (_zIndex == value) return;
+            _zIndex = value;
+            Parent?.Invalidate();
+        }
     }
 
     /// <summary>
@@ -752,8 +672,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double MaximumWidthRequest
     {
-        get => (double)GetValue(MaximumWidthRequestProperty);
-        set => SetValue(MaximumWidthRequestProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.MaximumWidthRequest;
+            return _maximumWidthRequest;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.MaximumWidthRequest = value; return; }
+            if (_maximumWidthRequest == value) return;
+            _maximumWidthRequest = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -761,8 +691,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public double MaximumHeightRequest
     {
-        get => (double)GetValue(MaximumHeightRequestProperty);
-        set => SetValue(MaximumHeightRequestProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.MaximumHeightRequest;
+            return _maximumHeightRequest;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.MaximumHeightRequest = value; return; }
+            if (_maximumHeightRequest == value) return;
+            _maximumHeightRequest = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -770,8 +710,17 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public string AutomationId
     {
-        get => (string)GetValue(AutomationIdProperty);
-        set => SetValue(AutomationIdProperty, value);
+        get
+        {
+            if (_mauiView is Element el) return el.AutomationId ?? string.Empty;
+            return _automationId;
+        }
+        set
+        {
+            if (_mauiView is Element el) { el.AutomationId = value; return; }
+            if (_automationId == value) return;
+            _automationId = value;
+        }
     }
 
     /// <summary>
@@ -779,8 +728,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public Thickness Padding
     {
-        get => (Thickness)GetValue(PaddingProperty);
-        set => SetValue(PaddingProperty, value);
+        get
+        {
+            if (_mauiView is Microsoft.Maui.Controls.Layout layout) return layout.Padding;
+            return _padding;
+        }
+        set
+        {
+            if (_mauiView is Microsoft.Maui.Controls.Layout layout) { layout.Padding = value; return; }
+            if (_padding == value) return;
+            _padding = value;
+            InvalidateMeasure();
+        }
     }
 
     /// <summary>
@@ -788,8 +747,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public Brush? Background
     {
-        get => (Brush?)GetValue(BackgroundProperty);
-        set => SetValue(BackgroundProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.Background as Brush;
+            return _background;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.Background = value; return; }
+            if (ReferenceEquals(_background, value)) return;
+            _background = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -797,8 +766,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public Geometry? Clip
     {
-        get => (Geometry?)GetValue(ClipProperty);
-        set => SetValue(ClipProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.Clip;
+            return _clip;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.Clip = value; return; }
+            if (ReferenceEquals(_clip, value)) return;
+            _clip = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -806,8 +785,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public Shadow? Shadow
     {
-        get => (Shadow?)GetValue(ShadowProperty);
-        set => SetValue(ShadowProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.Shadow;
+            return _shadow;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.Shadow = value; return; }
+            if (ReferenceEquals(_shadow, value)) return;
+            _shadow = value;
+            Invalidate();
+        }
     }
 
     /// <summary>
@@ -815,8 +804,17 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public IVisual Visual
     {
-        get => (IVisual)GetValue(VisualProperty);
-        set => SetValue(VisualProperty, value);
+        get
+        {
+            if (_mauiView is VisualElement ve) return ve.Visual;
+            return _visual;
+        }
+        set
+        {
+            if (_mauiView is VisualElement ve) { ve.Visual = value; return; }
+            if (ReferenceEquals(_visual, value)) return;
+            _visual = value;
+        }
     }
 
     /// <summary>
@@ -826,9 +824,76 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
 
     /// <summary>
     /// Gets or sets the MAUI View this platform view represents.
-    /// Used for gesture processing.
+    /// Used for gesture processing. When set, all VisualElement-equivalent
+    /// properties on this SkiaView read live from the MauiView, eliminating
+    /// duplicate state.
     /// </summary>
-    public View? MauiView { get; set; }
+    private View? _mauiView;
+    public View? MauiView
+    {
+        get => _mauiView;
+        set
+        {
+            if (ReferenceEquals(_mauiView, value)) return;
+            if (_mauiView is BindableObject oldBo)
+                oldBo.PropertyChanged -= OnMauiViewPropertyChanged;
+            _mauiView = value;
+            if (_mauiView is BindableObject newBo)
+                newBo.PropertyChanged += OnMauiViewPropertyChanged;
+
+            // Repaint and remeasure since the view's effective property values
+            // have switched from the backing fields to the new MauiView's values
+            // (or vice versa when clearing).
+            // Refresh the cached SKColor for BackgroundColor as well.
+            OnBackgroundColorChanged();
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
+
+    private void OnMauiViewPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(VisualElement.IsVisible):
+                OnVisibilityChanged();
+                break;
+            case nameof(VisualElement.IsEnabled):
+                OnEnabledChanged();
+                break;
+            case nameof(VisualElement.BackgroundColor):
+                OnBackgroundColorChanged();
+                break;
+            case nameof(VisualElement.Opacity):
+            case nameof(VisualElement.Scale):
+            case nameof(VisualElement.ScaleX):
+            case nameof(VisualElement.ScaleY):
+            case nameof(VisualElement.Rotation):
+            case nameof(VisualElement.RotationX):
+            case nameof(VisualElement.RotationY):
+            case nameof(VisualElement.TranslationX):
+            case nameof(VisualElement.TranslationY):
+            case nameof(VisualElement.AnchorX):
+            case nameof(VisualElement.AnchorY):
+            case nameof(VisualElement.Background):
+            case nameof(VisualElement.Clip):
+            case nameof(VisualElement.Shadow):
+                Invalidate();
+                break;
+            case nameof(VisualElement.WidthRequest):
+            case nameof(VisualElement.HeightRequest):
+            case nameof(VisualElement.MinimumWidthRequest):
+            case nameof(VisualElement.MinimumHeightRequest):
+            case nameof(VisualElement.MaximumWidthRequest):
+            case nameof(VisualElement.MaximumHeightRequest):
+            case nameof(View.Margin):
+            case nameof(View.HorizontalOptions):
+            case nameof(View.VerticalOptions):
+            case nameof(VisualElement.FlowDirection):
+                InvalidateMeasure();
+                break;
+        }
+    }
 
     /// <summary>
     /// Gets or sets whether this view currently has keyboard focus.

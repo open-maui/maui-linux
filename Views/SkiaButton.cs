@@ -133,7 +133,7 @@ public class SkiaButton : SkiaView, IButtonController
     /// <summary>
     /// Bindable property for Padding.
     /// </summary>
-    public static new readonly BindableProperty PaddingProperty = BindableProperty.Create(
+    public static readonly BindableProperty PaddingProperty = BindableProperty.Create(
         nameof(Padding),
         typeof(Thickness),
         typeof(SkiaButton),
