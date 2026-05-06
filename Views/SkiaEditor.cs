@@ -320,7 +320,9 @@ public partial class SkiaEditor : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectiveTextColor()
     {
-        return TextColor != null ? ToSKColor(TextColor) : SkiaTheme.TextPrimarySK;
+        // Theme-aware default so editor text stays readable when the user
+        // toggles dark/light mode without setting an explicit TextColor.
+        return TextColor != null ? ToSKColor(TextColor) : SkiaTheme.CurrentTextSK;
     }
 
     /// <summary>
@@ -328,7 +330,8 @@ public partial class SkiaEditor : SkiaView, IInputContext
     /// </summary>
     private SKColor GetEffectivePlaceholderColor()
     {
-        return PlaceholderColor != null ? ToSKColor(PlaceholderColor) : SkiaTheme.TextPlaceholderSK;
+        if (PlaceholderColor != null) return ToSKColor(PlaceholderColor);
+        return SkiaTheme.IsDarkMode ? SkiaTheme.Gray400SK : SkiaTheme.TextPlaceholderSK;
     }
 
     /// <summary>

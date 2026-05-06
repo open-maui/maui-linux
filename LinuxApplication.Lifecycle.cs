@@ -144,23 +144,7 @@ public partial class LinuxApplication
                     if (e.PropertyName == "UserAppTheme")
                     {
                         DiagnosticLog.Debug("LinuxApplication", $"User theme changed to: {mauiApplication.UserAppTheme}");
-
-                        // Apply GTK CSS for dialogs, menus, and window decorations
-                        GtkThemeService.ApplyTheme();
-
-                        // Refresh shell colors (reads bound values, which now
-                        // come from the MauiView directly via SkiaView).
-                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
-
-                        // Invalidate to redraw - use correct method based on mode
-                        if (linuxApp._useGtk)
-                        {
-                            linuxApp._gtkWindow?.RequestRedraw();
-                        }
-                        else
-                        {
-                            linuxApp._renderingEngine?.InvalidateAll();
-                        }
+                        ApplyThemeChange(linuxApp);
                     }
                 };
 
@@ -169,26 +153,17 @@ public partial class LinuxApplication
                 {
                     DiagnosticLog.Debug("LinuxApplication", $"System theme changed to: {e.NewTheme}");
 
-                    // Update MAUI's UserAppTheme to match system theme
-                    // This will trigger the PropertyChanged handler which does the refresh
                     var newAppTheme = e.NewTheme == SystemTheme.Dark ? AppTheme.Dark : AppTheme.Light;
                     if (mauiApplication.UserAppTheme != newAppTheme)
                     {
+                        // Setting UserAppTheme triggers the PropertyChanged handler which
+                        // calls ApplyThemeChange — single code path.
                         DiagnosticLog.Debug("LinuxApplication", $"Setting UserAppTheme to {newAppTheme} to match system");
                         mauiApplication.UserAppTheme = newAppTheme;
                     }
                     else
                     {
-                        // If UserAppTheme didn't change (user manually set it), still refresh
-                        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
-                        if (linuxApp._useGtk)
-                        {
-                            linuxApp._gtkWindow?.RequestRedraw();
-                        }
-                        else
-                        {
-                            linuxApp._renderingEngine?.InvalidateAll();
-                        }
+                        ApplyThemeChange(linuxApp);
                     }
                 };
 
@@ -459,6 +434,45 @@ public partial class LinuxApplication
 
     private static float _earlyDpiScale;
     internal static float? EarlyDpiScale => _earlyDpiScale > 0 ? _earlyDpiScale : null;
+
+    /// <summary>
+    /// Applies a theme flip across the visible tree. Most properties update
+    /// automatically via MauiView.PropertyChanged after the Stage 7 slim-down,
+    /// but two cases need help: SkiaItemsView caches its rendered template
+    /// instances (<see cref="SkiaItemsView._itemViewCache"/>), and the active
+    /// SkiaShell needs its color refresher invoked.
+    /// </summary>
+    private static void ApplyThemeChange(LinuxApplication linuxApp)
+    {
+        // Apply GTK CSS for dialogs, menus, and window decorations.
+        GtkThemeService.ApplyTheme();
+
+        // Refresh shell colors (reads bound values via SkiaView).
+        LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
+
+        // Walk the active SkiaView tree and clear caches on any view that
+        // holds rendered children (CollectionView, CarouselView, etc.).
+        if (linuxApp._rootView != null)
+            RefreshCachedItemsRecursive(linuxApp._rootView);
+
+        // Invalidate to redraw - use correct method based on mode
+        if (linuxApp._useGtk)
+            linuxApp._gtkWindow?.RequestRedraw();
+        else
+            linuxApp._renderingEngine?.InvalidateAll();
+    }
+
+    private static void RefreshCachedItemsRecursive(SkiaView view)
+    {
+        if (view is SkiaItemsView itemsView)
+            itemsView.RefreshTheme();
+
+        // Both SkiaView and SkiaLayoutView expose Children; pick whichever the
+        // runtime gives us. Using the property keeps us compatible with both.
+        var children = view.Children;
+        for (int i = 0; i < children.Count; i++)
+            RefreshCachedItemsRecursive(children[i]);
+    }
 
     private static void DetectScaleAndConfigureCursor()
     {
