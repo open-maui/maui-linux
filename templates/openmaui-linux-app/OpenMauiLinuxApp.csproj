@@ -2,21 +2,29 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>OpenMauiLinuxApp</RootNamespace>
     <AssemblyName>OpenMauiLinuxApp</AssemblyName>
     <ApplicationTitle>OpenMauiLinuxApp</ApplicationTitle>
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- OpenMaui Linux Platform -->
-    <PackageReference Include="OpenMaui.Controls.Linux" Version="1.0.0-preview.1" />
+    <!-- OpenMaui: UseLinux() stub (safe no-op on non-Linux platforms) -->
+    <PackageReference Include="OpenMaui.Hosting" Version="10.0.*" />
+    <!-- OpenMaui: Full Linux platform (handlers, services, rendering) -->
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="10.0.*" />
 
     <!-- Core MAUI packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.*" />
+  </ItemGroup>
+
+  <!-- Linux platform files: only compiled on Linux -->
+  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Linux'))">
+    <Compile Remove="Platforms\Linux\**" />
   </ItemGroup>
 
   <!-- Embed Resources -->

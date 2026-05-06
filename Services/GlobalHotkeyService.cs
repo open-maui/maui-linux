@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Provides global hotkey registration and handling using X11.
 /// </summary>
-public class GlobalHotkeyService : IDisposable
+public partial class GlobalHotkeyService : IDisposable
 {
     private nint _display;
     private nint _rootWindow;
@@ -76,7 +76,7 @@ public class GlobalHotkeyService : IDisposable
             int result = XGrabKey(_display, keyCode, mask, _rootWindow, true, GrabModeAsync, GrabModeAsync);
             if (result == 0)
             {
-                Console.WriteLine($"Failed to grab key {key} with modifiers {modifiers}");
+                DiagnosticLog.Warn("GlobalHotkeyService", $"Failed to grab key {key} with modifiers {modifiers}");
             }
         }
 
@@ -148,7 +148,7 @@ public class GlobalHotkeyService : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GlobalHotkeyService error: {ex.Message}");
+                DiagnosticLog.Error("GlobalHotkeyService", $"Error: {ex.Message}");
             }
         }
     }
@@ -257,33 +257,33 @@ public class GlobalHotkeyService : IDisposable
         public bool same_screen;
     }
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XOpenDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XOpenDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XCloseDisplay(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XCloseDisplay(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern nint XDefaultRootWindow(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial nint XDefaultRootWindow(nint display);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XKeysymToKeycode(nint display, nint keysym);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XKeysymToKeycode(nint display, nint keysym);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XGrabKey(nint display, int keycode, uint modifiers, nint grabWindow,
-        bool ownerEvents, int pointerMode, int keyboardMode);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XGrabKey(nint display, int keycode, uint modifiers, nint grabWindow,
+        [MarshalAs(UnmanagedType.Bool)] bool ownerEvents, int pointerMode, int keyboardMode);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XUngrabKey(nint display, int keycode, uint modifiers, nint grabWindow);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XUngrabKey(nint display, int keycode, uint modifiers, nint grabWindow);
 
-    [DllImport("libX11.so.6")]
-    private static extern int XPending(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial int XPending(nint display);
 
     [DllImport("libX11.so.6")]
     private static extern int XNextEvent(nint display, ref XEvent xevent);
 
-    [DllImport("libX11.so.6")]
-    private static extern void XFlush(nint display);
+    [LibraryImport("libX11.so.6")]
+    private static partial void XFlush(nint display);
 
     #endregion
 
@@ -295,99 +295,4 @@ public class GlobalHotkeyService : IDisposable
         public HotkeyKey Key { get; set; }
         public HotkeyModifiers ModifierKeys { get; set; }
     }
-}
-
-/// <summary>
-/// Event args for hotkey pressed events.
-/// </summary>
-public class HotkeyEventArgs : EventArgs
-{
-    /// <summary>
-    /// Gets the registration ID.
-    /// </summary>
-    public int Id { get; }
-
-    /// <summary>
-    /// Gets the key.
-    /// </summary>
-    public HotkeyKey Key { get; }
-
-    /// <summary>
-    /// Gets the modifier keys.
-    /// </summary>
-    public HotkeyModifiers Modifiers { get; }
-
-    public HotkeyEventArgs(int id, HotkeyKey key, HotkeyModifiers modifiers)
-    {
-        Id = id;
-        Key = key;
-        Modifiers = modifiers;
-    }
-}
-
-/// <summary>
-/// Hotkey modifier keys.
-/// </summary>
-[Flags]
-public enum HotkeyModifiers
-{
-    None = 0,
-    Shift = 1 << 0,
-    Control = 1 << 1,
-    Alt = 1 << 2,
-    Super = 1 << 3
-}
-
-/// <summary>
-/// Hotkey keys (X11 keysyms).
-/// </summary>
-public enum HotkeyKey : uint
-{
-    // Letters
-    A = 0x61, B = 0x62, C = 0x63, D = 0x64, E = 0x65,
-    F = 0x66, G = 0x67, H = 0x68, I = 0x69, J = 0x6A,
-    K = 0x6B, L = 0x6C, M = 0x6D, N = 0x6E, O = 0x6F,
-    P = 0x70, Q = 0x71, R = 0x72, S = 0x73, T = 0x74,
-    U = 0x75, V = 0x76, W = 0x77, X = 0x78, Y = 0x79,
-    Z = 0x7A,
-
-    // Numbers
-    D0 = 0x30, D1 = 0x31, D2 = 0x32, D3 = 0x33, D4 = 0x34,
-    D5 = 0x35, D6 = 0x36, D7 = 0x37, D8 = 0x38, D9 = 0x39,
-
-    // Function keys
-    F1 = 0xFFBE, F2 = 0xFFBF, F3 = 0xFFC0, F4 = 0xFFC1,
-    F5 = 0xFFC2, F6 = 0xFFC3, F7 = 0xFFC4, F8 = 0xFFC5,
-    F9 = 0xFFC6, F10 = 0xFFC7, F11 = 0xFFC8, F12 = 0xFFC9,
-
-    // Special keys
-    Escape = 0xFF1B,
-    Tab = 0xFF09,
-    Return = 0xFF0D,
-    Space = 0x20,
-    BackSpace = 0xFF08,
-    Delete = 0xFFFF,
-    Insert = 0xFF63,
-    Home = 0xFF50,
-    End = 0xFF57,
-    PageUp = 0xFF55,
-    PageDown = 0xFF56,
-
-    // Arrow keys
-    Left = 0xFF51,
-    Up = 0xFF52,
-    Right = 0xFF53,
-    Down = 0xFF54,
-
-    // Media keys
-    AudioPlay = 0x1008FF14,
-    AudioStop = 0x1008FF15,
-    AudioPrev = 0x1008FF16,
-    AudioNext = 0x1008FF17,
-    AudioMute = 0x1008FF12,
-    AudioRaiseVolume = 0x1008FF13,
-    AudioLowerVolume = 0x1008FF11,
-
-    // Print screen
-    Print = 0xFF61
 }

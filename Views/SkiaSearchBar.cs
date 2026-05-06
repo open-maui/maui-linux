@@ -1,18 +1,28 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using SkiaSharp;
+using System.Windows.Input;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered search bar control.
+/// Implements MAUI ISearchBar interface patterns.
 /// </summary>
 public class SkiaSearchBar : SkiaView
 {
+    #region Fields
+
     private readonly SkiaEntry _entry;
     private bool _showClearButton;
+
+    #endregion
+
+    #region Properties
 
     public string Text
     {
@@ -26,40 +36,81 @@ public class SkiaSearchBar : SkiaView
         set => _entry.Placeholder = value;
     }
 
-    public SKColor TextColor
+    public Color TextColor
     {
         get => _entry.TextColor;
         set => _entry.TextColor = value;
     }
 
-    public SKColor PlaceholderColor
+    public Color PlaceholderColor
     {
         get => _entry.PlaceholderColor;
         set => _entry.PlaceholderColor = value;
     }
 
-    public new SKColor BackgroundColor { get; set; } = new SKColor(0xF5, 0xF5, 0xF5);
-    public SKColor IconColor { get; set; } = new SKColor(0x75, 0x75, 0x75);
-    public SKColor ClearButtonColor { get; set; } = new SKColor(0x9E, 0x9E, 0x9E);
-    public SKColor FocusedBorderColor { get; set; } = new SKColor(0x21, 0x96, 0xF3);
-    public string FontFamily { get; set; } = "Sans";
-    public float FontSize { get; set; } = 14;
-    public float CornerRadius { get; set; } = 8;
-    public float IconSize { get; set; } = 20;
+    public Color SearchBarBackgroundColor { get; set; } = Color.FromRgb(245, 245, 245);
+    public Color IconColor { get; set; } = Color.FromRgb(117, 117, 117);
+    public Color ClearButtonColor { get; set; } = Color.FromRgb(158, 158, 158);
+    public Color FocusedBorderColor { get; set; } = Color.FromRgb(33, 150, 243);
+
+    public string FontFamily
+    {
+        get => _entry.FontFamily;
+        set => _entry.FontFamily = value;
+    }
+
+    public double FontSize
+    {
+        get => _entry.FontSize;
+        set => _entry.FontSize = value;
+    }
+
+    public FontAttributes FontAttributes
+    {
+        get => _entry.FontAttributes;
+        set => _entry.FontAttributes = value;
+    }
+
+    public double CharacterSpacing
+    {
+        get => _entry.CharacterSpacing;
+        set => _entry.CharacterSpacing = value;
+    }
+
+    public TextAlignment HorizontalTextAlignment
+    {
+        get => _entry.HorizontalTextAlignment;
+        set => _entry.HorizontalTextAlignment = value;
+    }
+
+    public double CornerRadius { get; set; } = 8.0;
+    public double IconSize { get; set; } = 20.0;
+
+    public ICommand? SearchCommand { get; set; }
+    public object? SearchCommandParameter { get; set; }
+
+    #endregion
+
+    #region Events
 
     public event EventHandler<TextChangedEventArgs>? TextChanged;
     public event EventHandler? SearchButtonPressed;
+
+    #endregion
+
+    #region Constructor
 
     public SkiaSearchBar()
     {
         _entry = new SkiaEntry
         {
             Placeholder = "Search...",
-            EntryBackgroundColor = SKColors.Transparent,
-            BackgroundColor = SKColors.Transparent,
-            BorderColor = SKColors.Transparent,
-            FocusedBorderColor = SKColors.Transparent,
-            BorderWidth = 0
+            EntryBackgroundColor = Colors.Transparent,
+            BackgroundColor = Colors.Transparent,
+            BorderColor = Colors.Transparent,
+            FocusedBorderColor = Colors.Transparent,
+            BorderWidth = 0,
+            VerticalTextAlignment = TextAlignment.Center
         };
 
         _entry.TextChanged += (s, e) =>
@@ -69,25 +120,44 @@ public class SkiaSearchBar : SkiaView
             Invalidate();
         };
 
-        _entry.Completed += (s, e) => SearchButtonPressed?.Invoke(this, EventArgs.Empty);
+        _entry.Completed += (s, e) =>
+        {
+            SearchButtonPressed?.Invoke(this, EventArgs.Empty);
+            if (SearchCommand?.CanExecute(SearchCommandParameter) == true)
+            {
+                SearchCommand.Execute(SearchCommandParameter);
+            }
+        };
 
         IsFocusable = true;
     }
 
+    #endregion
+
+    #region Drawing
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var iconPadding = 12f;
-        var clearButtonSize = 20f;
+        float iconPadding = 12f;
+        float clearButtonSize = 20f;
+        float cornerRadius = (float)CornerRadius;
+        float iconSize = (float)IconSize;
 
-        // Draw background
+        // Draw background - use theme-aware color if not explicitly set
+        var bgColor = SearchBarBackgroundColor.ToSKColor();
+        // If using default light color, check for dark mode
+        if (SearchBarBackgroundColor.Red > 0.9f && SearchBarBackgroundColor.Green > 0.9f && SearchBarBackgroundColor.Blue > 0.9f)
+        {
+            bgColor = SkiaTheme.InputBackgroundSK;
+        }
         using var bgPaint = new SKPaint
         {
-            Color = BackgroundColor,
+            Color = bgColor,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
 
-        var bgRect = new SKRoundRect(bounds, CornerRadius);
+        var bgRect = new SKRoundRect(bounds, cornerRadius);
         canvas.DrawRoundRect(bgRect, bgPaint);
 
         // Draw focus border
@@ -95,7 +165,7 @@ public class SkiaSearchBar : SkiaView
         {
             using var borderPaint = new SKPaint
             {
-                Color = FocusedBorderColor,
+                Color = FocusedBorderColor.ToSKColor(),
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2
@@ -106,15 +176,15 @@ public class SkiaSearchBar : SkiaView
         // Draw search icon
         var iconX = bounds.Left + iconPadding;
         var iconY = bounds.MidY;
-        DrawSearchIcon(canvas, iconX, iconY, IconSize);
+        DrawSearchIcon(canvas, iconX, iconY, iconSize);
 
         // Calculate entry bounds - leave space for clear button
-        var entryLeft = iconX + IconSize + iconPadding;
+        var entryLeft = iconX + iconSize + iconPadding;
         var entryRight = _showClearButton
             ? bounds.Right - clearButtonSize - iconPadding * 2
             : bounds.Right - iconPadding;
 
-        var entryBounds = new SKRect(entryLeft, bounds.Top, entryRight, bounds.Bottom);
+        var entryBounds = new Rect(entryLeft, bounds.Top, entryRight - entryLeft, bounds.Height);
         _entry.Arrange(entryBounds);
         _entry.Draw(canvas);
 
@@ -131,7 +201,7 @@ public class SkiaSearchBar : SkiaView
     {
         using var paint = new SKPaint
         {
-            Color = IconColor,
+            Color = IconColor.ToSKColor(),
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
@@ -159,7 +229,7 @@ public class SkiaSearchBar : SkiaView
         // Draw circle background
         using var bgPaint = new SKPaint
         {
-            Color = ClearButtonColor.WithAlpha(80),
+            Color = ClearButtonColor.ToSKColor().WithAlpha(80),
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
@@ -168,7 +238,7 @@ public class SkiaSearchBar : SkiaView
         // Draw X
         using var paint = new SKPaint
         {
-            Color = ClearButtonColor,
+            Color = ClearButtonColor.ToSKColor(),
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
@@ -179,6 +249,10 @@ public class SkiaSearchBar : SkiaView
         canvas.DrawLine(x - offset, y - offset, x + offset, y + offset, paint);
         canvas.DrawLine(x + offset, y - offset, x - offset, y + offset, paint);
     }
+
+    #endregion
+
+    #region Input Handling
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
@@ -235,8 +309,14 @@ public class SkiaSearchBar : SkiaView
         _entry.OnKeyUp(e);
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    #endregion
+
+    #region Measurement
+
+    protected override Size MeasureOverride(Size availableSize)
     {
-        return new SKSize(250, 40);
+        return new Size(250, 40);
     }
+
+    #endregion
 }

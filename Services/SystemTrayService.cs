@@ -101,7 +101,7 @@ public class SystemTrayService : IDisposable
         _ = ShowAsync();
     }
 
-    private async Task<bool> TryYadTray()
+    private Task<bool> TryYadTray()
     {
         try
         {
@@ -118,7 +118,7 @@ public class SystemTrayService : IDisposable
             };
 
             _trayProcess = Process.Start(startInfo);
-            if (_trayProcess == null) return false;
+            if (_trayProcess == null) return Task.FromResult(false);
 
             // Start reading output for menu clicks
             _ = Task.Run(async () =>
@@ -134,14 +134,14 @@ public class SystemTrayService : IDisposable
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex) { DiagnosticLog.Debug("SystemTrayService", "Tray output reading failed", ex); }
             });
 
-            return true;
+            return Task.FromResult(true);
         }
         catch
         {
-            return false;
+            return Task.FromResult(false);
         }
     }
 
@@ -267,16 +267,4 @@ public class SystemTrayService : IDisposable
     {
         Dispose();
     }
-}
-
-/// <summary>
-/// Represents a tray menu item.
-/// </summary>
-public class TrayMenuItem
-{
-    public string Text { get; set; } = "";
-    public Action? Action { get; set; }
-    public bool IsSeparator { get; set; }
-    public bool IsEnabled { get; set; } = true;
-    public string? IconPath { get; set; }
 }

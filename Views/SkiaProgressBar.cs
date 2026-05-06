@@ -1,15 +1,31 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered progress bar control with full XAML styling support.
+/// Skia-rendered progress bar control with full MAUI compliance.
+/// Implements IProgress interface requirements:
+/// - Progress property (0.0 to 1.0)
+/// - ProgressColor for the filled portion
 /// </summary>
 public class SkiaProgressBar : SkiaView
 {
+    #region SKColor Helper
+
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return color.ToSKColor();
+    }
+
+    #endregion
+
     #region BindableProperties
 
     /// <summary>
@@ -22,29 +38,31 @@ public class SkiaProgressBar : SkiaView
             typeof(SkiaProgressBar),
             0.0,
             BindingMode.TwoWay,
-            coerceValue: (b, v) => Math.Clamp((double)v, 0, 1),
-            propertyChanged: (b, o, n) => ((SkiaProgressBar)b).OnProgressChanged());
+            coerceValue: (b, v) => Math.Clamp((double)v, 0.0, 1.0),
+            propertyChanged: (b, o, n) => ((SkiaProgressBar)b).OnProgressChanged((double)o, (double)n));
 
     /// <summary>
-    /// Bindable property for TrackColor.
+    /// Bindable property for TrackColor (background track).
     /// </summary>
     public static readonly BindableProperty TrackColorProperty =
         BindableProperty.Create(
             nameof(TrackColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaProgressBar),
-            new SKColor(0xE0, 0xE0, 0xE0),
+            Color.FromRgb(0xE0, 0xE0, 0xE0),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     /// <summary>
-    /// Bindable property for ProgressColor.
+    /// Bindable property for ProgressColor (filled portion).
     /// </summary>
     public static readonly BindableProperty ProgressColorProperty =
         BindableProperty.Create(
             nameof(ProgressColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaProgressBar),
-            new SKColor(0x21, 0x96, 0xF3),
+            Color.FromRgb(0x21, 0x96, 0xF3), // Material Blue
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     /// <summary>
@@ -53,9 +71,10 @@ public class SkiaProgressBar : SkiaView
     public static readonly BindableProperty DisabledColorProperty =
         BindableProperty.Create(
             nameof(DisabledColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaProgressBar),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            Color.FromRgb(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     /// <summary>
@@ -64,9 +83,10 @@ public class SkiaProgressBar : SkiaView
     public static readonly BindableProperty BarHeightProperty =
         BindableProperty.Create(
             nameof(BarHeight),
-            typeof(float),
+            typeof(double),
             typeof(SkiaProgressBar),
-            4f,
+            4.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).InvalidateMeasure());
 
     /// <summary>
@@ -75,9 +95,10 @@ public class SkiaProgressBar : SkiaView
     public static readonly BindableProperty CornerRadiusProperty =
         BindableProperty.Create(
             nameof(CornerRadius),
-            typeof(float),
+            typeof(double),
             typeof(SkiaProgressBar),
-            2f,
+            2.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaProgressBar)b).Invalidate());
 
     #endregion
@@ -94,105 +115,158 @@ public class SkiaProgressBar : SkiaView
     }
 
     /// <summary>
-    /// Gets or sets the track color.
+    /// Gets or sets the track color (background).
     /// </summary>
-    public SKColor TrackColor
+    public Color TrackColor
     {
-        get => (SKColor)GetValue(TrackColorProperty);
+        get => (Color)GetValue(TrackColorProperty);
         set => SetValue(TrackColorProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the progress color.
+    /// Gets or sets the progress color (filled portion).
     /// </summary>
-    public SKColor ProgressColor
+    public Color ProgressColor
     {
-        get => (SKColor)GetValue(ProgressColorProperty);
+        get => (Color)GetValue(ProgressColorProperty);
         set => SetValue(ProgressColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the disabled color.
     /// </summary>
-    public SKColor DisabledColor
+    public Color DisabledColor
     {
-        get => (SKColor)GetValue(DisabledColorProperty);
+        get => (Color)GetValue(DisabledColorProperty);
         set => SetValue(DisabledColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the bar height.
     /// </summary>
-    public float BarHeight
+    public double BarHeight
     {
-        get => (float)GetValue(BarHeightProperty);
+        get => (double)GetValue(BarHeightProperty);
         set => SetValue(BarHeightProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the corner radius.
     /// </summary>
-    public float CornerRadius
+    public double CornerRadius
     {
-        get => (float)GetValue(CornerRadiusProperty);
+        get => (double)GetValue(CornerRadiusProperty);
         set => SetValue(CornerRadiusProperty, value);
     }
 
     #endregion
+
+    #region Events
 
     /// <summary>
     /// Event raised when progress changes.
     /// </summary>
     public event EventHandler<ProgressChangedEventArgs>? ProgressChanged;
 
-    private void OnProgressChanged()
+    #endregion
+
+    #region Event Handlers
+
+    private void OnProgressChanged(double oldValue, double newValue)
     {
-        ProgressChanged?.Invoke(this, new ProgressChangedEventArgs(Progress));
+        ProgressChanged?.Invoke(this, new ProgressChangedEventArgs(oldValue, newValue));
         Invalidate();
     }
 
+    #endregion
+
+    #region Rendering
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var trackY = bounds.MidY;
-        var trackTop = trackY - BarHeight / 2;
-        var trackBottom = trackY + BarHeight / 2;
+        var barHeight = (float)BarHeight;
+        var cornerRadius = (float)CornerRadius;
+
+        // If bounds height is small (HeightRequest was set), use the full bounds height
+        // Otherwise, center the bar vertically within the bounds
+        float trackTop, trackBottom;
+        if (bounds.Height <= barHeight + 4)
+        {
+            // Small bounds - fill the height
+            trackTop = bounds.Top;
+            trackBottom = bounds.Bottom;
+        }
+        else
+        {
+            // Large bounds - center the bar
+            float midY = bounds.MidY;
+            trackTop = midY - barHeight / 2f;
+            trackBottom = midY + barHeight / 2f;
+        }
+
+        // Get colors
+        var trackColorSK = ToSKColor(TrackColor);
+        var progressColorSK = ToSKColor(ProgressColor);
+        var disabledColorSK = ToSKColor(DisabledColor);
 
         // Draw track
         using var trackPaint = new SKPaint
         {
-            Color = IsEnabled ? TrackColor : DisabledColor,
+            Color = IsEnabled ? trackColorSK : disabledColorSK,
             IsAntialias = true,
             Style = SKPaintStyle.Fill
         };
 
         var trackRect = new SKRoundRect(
             new SKRect(bounds.Left, trackTop, bounds.Right, trackBottom),
-            CornerRadius);
+            cornerRadius);
         canvas.DrawRoundRect(trackRect, trackPaint);
 
         // Draw progress
-        if (Progress > 0)
+        if (Progress > 0.0)
         {
-            var progressWidth = bounds.Width * (float)Progress;
+            float progressWidth = bounds.Width * (float)Progress;
 
             using var progressPaint = new SKPaint
             {
-                Color = IsEnabled ? ProgressColor : DisabledColor,
+                Color = IsEnabled ? progressColorSK : disabledColorSK,
                 IsAntialias = true,
                 Style = SKPaintStyle.Fill
             };
 
             var progressRect = new SKRoundRect(
                 new SKRect(bounds.Left, trackTop, bounds.Left + progressWidth, trackBottom),
-                CornerRadius);
+                cornerRadius);
             canvas.DrawRoundRect(progressRect, progressPaint);
         }
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    #endregion
+
+    #region Lifecycle
+
+    protected override void OnEnabledChanged()
     {
-        return new SKSize(200, BarHeight + 8);
+        base.OnEnabledChanged();
+        SkiaVisualStateManager.GoToState(this, IsEnabled
+            ? SkiaVisualStateManager.CommonStates.Normal
+            : SkiaVisualStateManager.CommonStates.Disabled);
     }
+
+    #endregion
+
+    #region Layout
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        // Respect HeightRequest if set, otherwise use BarHeight with padding
+        var height = HeightRequest >= 0 ? HeightRequest : BarHeight + 8;
+        // Respect WidthRequest if set, otherwise use available width or default
+        var width = WidthRequest >= 0 ? WidthRequest : (availableSize.Width > 0 ? availableSize.Width : 200);
+        return new Size(width, height);
+    }
+
+    #endregion
 }
 
 /// <summary>
@@ -200,6 +274,24 @@ public class SkiaProgressBar : SkiaView
 /// </summary>
 public class ProgressChangedEventArgs : EventArgs
 {
-    public double Progress { get; }
-    public ProgressChangedEventArgs(double progress) => Progress = progress;
+    /// <summary>
+    /// Gets the old progress value.
+    /// </summary>
+    public double OldProgress { get; }
+
+    /// <summary>
+    /// Gets the new progress value.
+    /// </summary>
+    public double NewProgress { get; }
+
+    /// <summary>
+    /// Gets the current progress value (same as NewProgress).
+    /// </summary>
+    public double Progress => NewProgress;
+
+    public ProgressChangedEventArgs(double oldProgress, double newProgress)
+    {
+        OldProgress = oldProgress;
+        NewProgress = newProgress;
+    }
 }

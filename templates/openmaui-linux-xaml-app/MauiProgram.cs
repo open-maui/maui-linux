@@ -1,6 +1,6 @@
 using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
-using OpenMaui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Hosting;
 
 namespace OpenMauiXamlApp;
 
@@ -12,7 +12,7 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
-            .UseOpenMauiLinux()  // Enable Linux platform with full XAML support
+            .UseLinux()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

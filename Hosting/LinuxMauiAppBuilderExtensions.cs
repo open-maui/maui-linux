@@ -7,36 +7,64 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.ApplicationModel.Communication;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
-using Microsoft.Maui.Hosting;
-using Microsoft.Maui.Platform.Linux.Services;
-using Microsoft.Maui.Platform.Linux.Converters;
-using Microsoft.Maui.Storage;
-using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Networking;
+using Microsoft.Maui.Platform.Linux.Converters;
+using Microsoft.Maui.Platform.Linux.Dispatching;
+using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Storage;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
 /// <summary>
-/// Extension methods for configuring MAUI applications for Linux.
+/// Called by OpenMaui.Hosting stub via reflection.
+/// This is the well-known entry point that the cross-platform UseLinux() resolves to.
 /// </summary>
-public static class LinuxMauiAppBuilderExtensions
+public static class LinuxPlatformRegistrar
+{
+    public static void Register(MauiAppBuilder builder)
+    {
+        LinuxMauiAppBuilderExtensionsInternal.RegisterLinuxServices(builder, null);
+    }
+}
+
+/// <summary>
+/// Direct extension methods for Linux-only projects that reference OpenMaui.Controls.Linux directly.
+/// For cross-platform projects, use OpenMaui.Hosting's UseLinux() instead.
+/// </summary>
+public static class LinuxMauiAppBuilderExtensionsInternal
 {
     /// <summary>
-    /// Configures the MAUI application to run on Linux.
+    /// Adds Linux platform support with configuration options.
+    /// For cross-platform projects, prefer the parameterless UseLinux() from OpenMaui.Hosting.
     /// </summary>
-    public static MauiAppBuilder UseLinux(this MauiAppBuilder builder)
+    public static MauiAppBuilder UseLinux(this MauiAppBuilder builder, Action<LinuxApplicationOptions> configure)
     {
-        return builder.UseLinux(configure: null);
+        RegisterLinuxServices(builder, configure);
+        return builder;
     }
 
-    /// <summary>
-    /// Configures the MAUI application to run on Linux with options.
-    /// </summary>
-    public static MauiAppBuilder UseLinux(this MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
+    internal static void RegisterLinuxServices(MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
     {
+        // Patch MAUI Essentials stubs before any services use them
+        EssentialsPatches.Apply();
+
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
+
+        // Register dispatcher provider
+        builder.Services.TryAddSingleton<IDispatcherProvider>(LinuxDispatcherProvider.Instance);
+
+        // Register device services
+        builder.Services.TryAddSingleton<IDeviceInfo>(DeviceInfoService.Instance);
+        builder.Services.TryAddSingleton<IDeviceDisplay>(DeviceDisplayService.Instance);
+        builder.Services.TryAddSingleton<IAppInfo>(AppInfoService.Instance);
+        builder.Services.TryAddSingleton<IConnectivity>(ConnectivityService.Instance);
 
         // Register platform services
         builder.Services.TryAddSingleton<ILauncher, LauncherService>();
@@ -50,6 +78,29 @@ public static class LinuxMauiAppBuilderExtensions
         builder.Services.TryAddSingleton<IBrowser, BrowserService>();
         builder.Services.TryAddSingleton<IEmail, EmailService>();
 
+        // Register theming and accessibility services
+        builder.Services.TryAddSingleton<SystemThemeService>();
+        builder.Services.TryAddSingleton<HighContrastService>();
+
+        // Register accessibility service
+        builder.Services.TryAddSingleton<IAccessibilityService>(_ => AccessibilityServiceFactory.Instance);
+
+        // Register input method service
+        builder.Services.TryAddSingleton<IInputMethodService>(_ => InputMethodServiceFactory.Instance);
+
+        // Register font fallback manager
+        builder.Services.TryAddSingleton(_ => FontFallbackManager.Instance);
+
+        // Register additional Linux-specific services
+        builder.Services.TryAddSingleton<FolderPickerService>();
+        builder.Services.TryAddSingleton<NotificationService>();
+        builder.Services.TryAddSingleton<SystemTrayService>();
+        builder.Services.TryAddSingleton(_ => MonitorService.Instance);
+        builder.Services.TryAddSingleton<DragDropService>();
+
+        // Register GTK host service
+        builder.Services.TryAddSingleton(_ => GtkHostService.Instance);
+
         // Register type converters for XAML support
         RegisterTypeConverters();
 
@@ -58,6 +109,14 @@ public static class LinuxMauiAppBuilderExtensions
         {
             // Application handler
             handlers.AddHandler<IApplication, ApplicationHandler>();
+
+            // Shapes
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, EllipseHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Line, LineHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, PolygonHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, PolylineHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Path, PathHandler>();
 
             // Core controls
             handlers.AddHandler<BoxView, BoxViewHandler>();
@@ -77,11 +136,12 @@ public static class LinuxMauiAppBuilderExtensions
             handlers.AddHandler<VerticalStackLayout, StackLayoutHandler>();
             handlers.AddHandler<HorizontalStackLayout, StackLayoutHandler>();
             handlers.AddHandler<AbsoluteLayout, LayoutHandler>();
-            handlers.AddHandler<FlexLayout, LayoutHandler>();
+            handlers.AddHandler<FlexLayout, FlexLayoutHandler>();
             handlers.AddHandler<ScrollView, ScrollViewHandler>();
             handlers.AddHandler<Frame, FrameHandler>();
             handlers.AddHandler<Border, BorderHandler>();
             handlers.AddHandler<ContentView, BorderHandler>();
+            handlers.AddHandler<RefreshView, RefreshViewHandler>();
 
             // Picker controls
             handlers.AddHandler<Picker, PickerHandler>();
@@ -98,12 +158,19 @@ public static class LinuxMauiAppBuilderExtensions
             handlers.AddHandler<ImageButton, ImageButtonHandler>();
             handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
 
-            // Web
-            handlers.AddHandler<WebView, WebViewHandler>();
+            // SkiaSharp native views (LiveCharts, Microcharts, custom drawings)
+            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKCanvasView, SKCanvasViewHandler>();
+            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKGLView, SKGLViewHandler>();
+
+            // Web - use GtkWebViewHandler
+            handlers.AddHandler<WebView, GtkWebViewHandler>();
 
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
             handlers.AddHandler<ListView, CollectionViewHandler>();
+            handlers.AddHandler<CarouselView, CarouselViewHandler>();
+            handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
+            handlers.AddHandler<SwipeView, SwipeViewHandler>();
 
             // Pages & Navigation
             handlers.AddHandler<Page, PageHandler>();
@@ -120,37 +187,13 @@ public static class LinuxMauiAppBuilderExtensions
 
         // Store options for later use
         builder.Services.AddSingleton(options);
-
-        return builder;
     }
 
-    /// <summary>
-    /// Registers custom type converters for Linux platform.
-    /// </summary>
     private static void RegisterTypeConverters()
     {
-        // Register SkiaSharp type converters for XAML styling support
         TypeDescriptor.AddAttributes(typeof(SKColor), new TypeConverterAttribute(typeof(SKColorTypeConverter)));
         TypeDescriptor.AddAttributes(typeof(SKRect), new TypeConverterAttribute(typeof(SKRectTypeConverter)));
         TypeDescriptor.AddAttributes(typeof(SKSize), new TypeConverterAttribute(typeof(SKSizeTypeConverter)));
         TypeDescriptor.AddAttributes(typeof(SKPoint), new TypeConverterAttribute(typeof(SKPointTypeConverter)));
-    }
-}
-
-/// <summary>
-/// Handler registration extensions.
-/// </summary>
-public static class HandlerMappingExtensions
-{
-    /// <summary>
-    /// Adds a handler for the specified view type.
-    /// </summary>
-    public static IMauiHandlersCollection AddHandler<TView, THandler>(
-        this IMauiHandlersCollection handlers)
-        where TView : class
-        where THandler : class
-    {
-        handlers.AddHandler(typeof(TView), typeof(THandler));
-        return handlers;
     }
 }

@@ -5,13 +5,13 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
-using SkiaSharp;
 using System.Collections.Specialized;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for Picker on Linux using Skia rendering.
+/// Maps IPicker interface to SkiaPicker platform view.
 /// </summary>
 public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
 {
@@ -22,10 +22,12 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             [nameof(IPicker.TitleColor)] = MapTitleColor,
             [nameof(IPicker.SelectedIndex)] = MapSelectedIndex,
             [nameof(IPicker.TextColor)] = MapTextColor,
+            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IPicker.CharacterSpacing)] = MapCharacterSpacing,
             [nameof(IPicker.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
             [nameof(IPicker.VerticalTextAlignment)] = MapVerticalTextAlignment,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(IView.IsEnabled)] = MapIsEnabled,
             [nameof(Picker.ItemsSource)] = MapItemsSource,
         };
 
@@ -62,8 +64,17 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             _itemsCollection.CollectionChanged += OnItemsCollectionChanged;
         }
 
-        // Load items
+        // Load items and sync properties
         ReloadItems();
+
+        if (VirtualView != null)
+        {
+            MapTitle(this, VirtualView);
+            MapTitleColor(this, VirtualView);
+            MapTextColor(this, VirtualView);
+            MapSelectedIndex(this, VirtualView);
+            MapIsEnabled(this, VirtualView);
+        }
     }
 
     protected override void DisconnectHandler(SkiaPicker platformView)
@@ -84,11 +95,14 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         ReloadItems();
     }
 
-    private void OnSelectedIndexChanged(object? sender, EventArgs e)
+    private void OnSelectedIndexChanged(object? sender, SelectedIndexChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.SelectedIndex = PlatformView.SelectedIndex;
+        if (VirtualView.SelectedIndex != e.NewIndex)
+        {
+            VirtualView.SelectedIndex = e.NewIndex;
+        }
     }
 
     private void ReloadItems()
@@ -110,14 +124,18 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         if (handler.PlatformView is null) return;
         if (picker.TitleColor is not null)
         {
-            handler.PlatformView.TitleColor = picker.TitleColor.ToSKColor();
+            handler.PlatformView.TitleColor = picker.TitleColor;
         }
     }
 
     public static void MapSelectedIndex(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.SelectedIndex = picker.SelectedIndex;
+
+        if (handler.PlatformView.SelectedIndex != picker.SelectedIndex)
+        {
+            handler.PlatformView.SelectedIndex = picker.SelectedIndex;
+        }
     }
 
     public static void MapTextColor(PickerHandler handler, IPicker picker)
@@ -125,23 +143,49 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
         if (handler.PlatformView is null) return;
         if (picker.TextColor is not null)
         {
-            handler.PlatformView.TextColor = picker.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = picker.TextColor;
         }
+    }
+
+    public static void MapFont(PickerHandler handler, IPicker picker)
+    {
+        if (handler.PlatformView is null) return;
+
+        var font = picker.Font;
+        if (!string.IsNullOrEmpty(font.Family))
+        {
+            handler.PlatformView.FontFamily = font.Family;
+        }
+        if (font.Size > 0)
+        {
+            handler.PlatformView.FontSize = font.Size;
+        }
+
+        // Map FontAttributes from the Font weight
+        var attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        handler.PlatformView.FontAttributes = attrs;
+
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapCharacterSpacing(PickerHandler handler, IPicker picker)
     {
-        // Character spacing could be implemented with custom text rendering
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = picker.CharacterSpacing;
     }
 
     public static void MapHorizontalTextAlignment(PickerHandler handler, IPicker picker)
     {
-        // Text alignment would require changes to SkiaPicker drawing
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.HorizontalTextAlignment = picker.HorizontalTextAlignment;
     }
 
     public static void MapVerticalTextAlignment(PickerHandler handler, IPicker picker)
     {
-        // Text alignment would require changes to SkiaPicker drawing
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.VerticalTextAlignment = picker.VerticalTextAlignment;
     }
 
     public static void MapBackground(PickerHandler handler, IPicker picker)
@@ -150,8 +194,15 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
 
         if (picker.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
+    }
+
+    public static void MapIsEnabled(PickerHandler handler, IPicker picker)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsEnabled = picker.IsEnabled;
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapItemsSource(PickerHandler handler, IPicker picker)

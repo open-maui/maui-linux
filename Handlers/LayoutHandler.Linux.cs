@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -63,7 +65,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         // (e.g., in ItemTemplates for CollectionView)
         if (VirtualView is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
         {
-            platformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            platformView.BackgroundColor = ve.BackgroundColor;
             platformView.Invalidate();
         }
 
@@ -78,7 +80,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
                 {
-                    child.Handler = child.ToHandler(MauiContext);
+                    child.Handler = child.ToViewHandler(MauiContext);
                 }
 
                 if (child.Handler?.PlatformView is SkiaView skiaChild)
@@ -98,7 +100,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         var background = layout.Background;
         if (background is SolidColorBrush solidBrush && solidBrush.Color != null)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
         handler.PlatformView.Invalidate();
     }
@@ -107,7 +109,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     {
         if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.BackgroundColor = ve.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }
@@ -135,7 +137,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
         {
             var childHandler = update.View.Handler;
             if (childHandler?.PlatformView is SkiaView skiaView)
@@ -147,7 +149,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapRemove(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
         {
             handler.PlatformView.RemoveChildAt(update.Index);
         }
@@ -160,7 +162,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapInsert(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
         {
             var childHandler = update.View.Handler;
             if (childHandler?.PlatformView is SkiaView skiaView)
@@ -183,20 +185,8 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     }
 }
 
-/// <summary>
-/// Update information for layout operations.
-/// </summary>
-public class LayoutHandlerUpdate
-{
-    public int Index { get; }
-    public IView View { get; }
-
-    public LayoutHandlerUpdate(int index, IView view)
-    {
-        Index = index;
-        View = view;
-    }
-}
+// NOTE: Layout add/remove/insert commands use Microsoft.Maui.Handlers.LayoutHandlerUpdate
+// from the MAUI framework. Do NOT define a local LayoutHandlerUpdate class here.
 
 /// <summary>
 /// Linux handler for StackLayout.
@@ -278,13 +268,12 @@ public partial class GridHandler : LayoutHandler
 
     protected override void ConnectHandler(SkiaLayoutView platformView)
     {
-        Console.WriteLine($"[GridHandler.ConnectHandler] Called! VirtualView={VirtualView?.GetType().Name}, PlatformView={platformView?.GetType().Name}, MauiContext={(MauiContext != null ? "set" : "null")}");
         base.ConnectHandler(platformView);
 
         // Map definitions on connect
         if (VirtualView is IGridLayout gridLayout && platformView is SkiaGrid grid && MauiContext != null)
         {
-            Console.WriteLine($"[GridHandler.ConnectHandler] Grid has {gridLayout.Count} children, RowDefs={gridLayout.RowDefinitions?.Count ?? 0}");
+            DiagnosticLog.Debug("GridHandler", $"ConnectHandler Grid has {gridLayout.Count} children, RowDefs={gridLayout.RowDefinitions?.Count ?? 0}");
             UpdateRowDefinitions(grid, gridLayout);
             UpdateColumnDefinitions(grid, gridLayout);
 
@@ -294,13 +283,13 @@ public partial class GridHandler : LayoutHandler
                 var child = gridLayout[i];
                 if (child == null) continue;
 
-                Console.WriteLine($"[GridHandler.ConnectHandler] Child[{i}]: {child.GetType().Name}, Handler={child.Handler?.GetType().Name ?? "null"}");
+                DiagnosticLog.Debug("GridHandler", $"ConnectHandler Child[{i}]: {child.GetType().Name}, Handler={child.Handler?.GetType().Name ?? "null"}");
 
                 // Create handler for child if it doesn't exist
                 if (child.Handler == null)
                 {
-                    child.Handler = child.ToHandler(MauiContext);
-                    Console.WriteLine($"[GridHandler.ConnectHandler] Created handler for child[{i}]: {child.Handler?.GetType().Name ?? "failed"}");
+                    child.Handler = child.ToViewHandler(MauiContext);
+                    DiagnosticLog.Debug("GridHandler", $"ConnectHandler Created handler for child[{i}]: {child.Handler?.GetType().Name ?? "failed"}");
                 }
 
                 if (child.Handler?.PlatformView is SkiaView skiaChild)
@@ -314,11 +303,11 @@ public partial class GridHandler : LayoutHandler
                         rowSpan = Microsoft.Maui.Controls.Grid.GetRowSpan(mauiView);
                         columnSpan = Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiView);
                     }
-                    Console.WriteLine($"[GridHandler.ConnectHandler] Adding child[{i}] at row={row}, col={column}");
+                    DiagnosticLog.Debug("GridHandler", $"ConnectHandler Adding child[{i}] at row={row}, col={column}");
                     grid.AddChild(skiaChild, row, column, rowSpan, columnSpan);
                 }
             }
-            Console.WriteLine($"[GridHandler.ConnectHandler] Grid now has {grid.Children.Count} SkiaView children");
+            DiagnosticLog.Debug("GridHandler", $"ConnectHandler Grid now has {grid.Children.Count} SkiaView children");
         }
     }
 
@@ -392,7 +381,7 @@ public partial class GridHandler : LayoutHandler
 
     public static void MapGridAdd(GridHandler handler, ILayout layout, object? arg)
     {
-        if (arg is LayoutHandlerUpdate update && handler.PlatformView is SkiaGrid grid)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update && handler.PlatformView is SkiaGrid grid)
         {
             var childHandler = update.View.Handler;
             if (childHandler?.PlatformView is SkiaView skiaView)

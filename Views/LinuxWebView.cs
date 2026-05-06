@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Platform.Linux.Interop;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -111,7 +112,7 @@ public class LinuxWebView : SkiaView
             _gtkWindow = WebKitGtk.gtk_window_new(0);
             if (_gtkWindow == IntPtr.Zero)
             {
-                Console.WriteLine("[LinuxWebView] Failed to create GTK window");
+                DiagnosticLog.Error("LinuxWebView", "Failed to create GTK window");
                 return;
             }
 
@@ -123,7 +124,7 @@ public class LinuxWebView : SkiaView
             _webView = WebKitGtk.webkit_web_view_new();
             if (_webView == IntPtr.Zero)
             {
-                Console.WriteLine("[LinuxWebView] Failed to create WebKit WebView");
+                DiagnosticLog.Error("LinuxWebView", "Failed to create WebKit WebView");
                 WebKitGtk.gtk_widget_destroy(_gtkWindow);
                 _gtkWindow = IntPtr.Zero;
                 return;
@@ -148,12 +149,12 @@ public class LinuxWebView : SkiaView
             WebKitGtk.gtk_container_add(_gtkWindow, _webView);
 
             _initialized = true;
-            Console.WriteLine("[LinuxWebView] WebKitGTK WebView initialized successfully");
+            DiagnosticLog.Debug("LinuxWebView", "WebKitGTK WebView initialized successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[LinuxWebView] Initialization failed: {ex.Message}");
-            Console.WriteLine($"[LinuxWebView] Make sure WebKitGTK is installed: sudo apt install libwebkit2gtk-4.1-0");
+            DiagnosticLog.Error("LinuxWebView", $"Initialization failed: {ex.Message}", ex);
+            DiagnosticLog.Warn("LinuxWebView", "Make sure WebKitGTK is installed: sudo apt install libwebkit2gtk-4.1-0");
         }
     }
 
@@ -393,7 +394,7 @@ public class LinuxWebView : SkiaView
         // Draw a placeholder rectangle where the WebView will be overlaid
         using var paint = new SKPaint
         {
-            Color = new SKColor(240, 240, 240),
+            Color = SkiaTheme.MenuBackgroundSK,
             Style = SKPaintStyle.Fill
         };
         canvas.DrawRect(bounds, paint);
@@ -401,7 +402,7 @@ public class LinuxWebView : SkiaView
         // Draw border
         using var borderPaint = new SKPaint
         {
-            Color = new SKColor(200, 200, 200),
+            Color = SkiaTheme.BorderMediumSK,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1
         };
@@ -412,7 +413,7 @@ public class LinuxWebView : SkiaView
         {
             using var textPaint = new SKPaint
             {
-                Color = SKColors.Gray,
+                Color = SkiaTheme.TextPlaceholderSK,
                 TextSize = 14,
                 IsAntialias = true
             };

@@ -1,15 +1,31 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Skia-rendered activity indicator (spinner) control with full XAML styling support.
+/// Skia-rendered activity indicator (spinner) control with full MAUI compliance.
+/// Implements IActivityIndicator interface requirements:
+/// - IsRunning property to start/stop animation
+/// - Color property for the indicator color
 /// </summary>
 public class SkiaActivityIndicator : SkiaView
 {
+    #region SKColor Helper
+
+    private static SKColor ToSKColor(Color? color)
+    {
+        if (color == null) return SKColors.Transparent;
+        return color.ToSKColor();
+    }
+
+    #endregion
+
     #region BindableProperties
 
     /// <summary>
@@ -21,6 +37,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(bool),
             typeof(SkiaActivityIndicator),
             false,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).OnIsRunningChanged());
 
     /// <summary>
@@ -29,9 +46,10 @@ public class SkiaActivityIndicator : SkiaView
     public static readonly BindableProperty ColorProperty =
         BindableProperty.Create(
             nameof(Color),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaActivityIndicator),
-            new SKColor(0x21, 0x96, 0xF3),
+            Color.FromRgb(0x21, 0x96, 0xF3), // Material Blue
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
     /// <summary>
@@ -40,9 +58,10 @@ public class SkiaActivityIndicator : SkiaView
     public static readonly BindableProperty DisabledColorProperty =
         BindableProperty.Create(
             nameof(DisabledColor),
-            typeof(SKColor),
+            typeof(Color),
             typeof(SkiaActivityIndicator),
-            new SKColor(0xBD, 0xBD, 0xBD),
+            Color.FromRgb(0xBD, 0xBD, 0xBD),
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
     /// <summary>
@@ -51,9 +70,10 @@ public class SkiaActivityIndicator : SkiaView
     public static readonly BindableProperty SizeProperty =
         BindableProperty.Create(
             nameof(Size),
-            typeof(float),
+            typeof(double),
             typeof(SkiaActivityIndicator),
-            32f,
+            32.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
 
     /// <summary>
@@ -62,9 +82,10 @@ public class SkiaActivityIndicator : SkiaView
     public static readonly BindableProperty StrokeWidthProperty =
         BindableProperty.Create(
             nameof(StrokeWidth),
-            typeof(float),
+            typeof(double),
             typeof(SkiaActivityIndicator),
-            3f,
+            3.0,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).InvalidateMeasure());
 
     /// <summary>
@@ -73,9 +94,10 @@ public class SkiaActivityIndicator : SkiaView
     public static readonly BindableProperty RotationSpeedProperty =
         BindableProperty.Create(
             nameof(RotationSpeed),
-            typeof(float),
+            typeof(double),
             typeof(SkiaActivityIndicator),
-            360f);
+            360.0,
+            BindingMode.TwoWay);
 
     /// <summary>
     /// Bindable property for ArcCount.
@@ -86,6 +108,7 @@ public class SkiaActivityIndicator : SkiaView
             typeof(int),
             typeof(SkiaActivityIndicator),
             12,
+            BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaActivityIndicator)b).Invalidate());
 
     #endregion
@@ -104,45 +127,45 @@ public class SkiaActivityIndicator : SkiaView
     /// <summary>
     /// Gets or sets the indicator color.
     /// </summary>
-    public SKColor Color
+    public Color Color
     {
-        get => (SKColor)GetValue(ColorProperty);
+        get => (Color)GetValue(ColorProperty);
         set => SetValue(ColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the disabled color.
     /// </summary>
-    public SKColor DisabledColor
+    public Color DisabledColor
     {
-        get => (SKColor)GetValue(DisabledColorProperty);
+        get => (Color)GetValue(DisabledColorProperty);
         set => SetValue(DisabledColorProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the indicator size.
     /// </summary>
-    public float Size
+    public double Size
     {
-        get => (float)GetValue(SizeProperty);
+        get => (double)GetValue(SizeProperty);
         set => SetValue(SizeProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the stroke width.
     /// </summary>
-    public float StrokeWidth
+    public double StrokeWidth
     {
-        get => (float)GetValue(StrokeWidthProperty);
+        get => (double)GetValue(StrokeWidthProperty);
         set => SetValue(StrokeWidthProperty, value);
     }
 
     /// <summary>
     /// Gets or sets the rotation speed in degrees per second.
     /// </summary>
-    public float RotationSpeed
+    public double RotationSpeed
     {
-        get => (float)GetValue(RotationSpeedProperty);
+        get => (double)GetValue(RotationSpeedProperty);
         set => SetValue(RotationSpeedProperty, value);
     }
 
@@ -157,8 +180,14 @@ public class SkiaActivityIndicator : SkiaView
 
     #endregion
 
+    #region Private Fields
+
     private float _rotationAngle;
     private DateTime _lastUpdateTime = DateTime.UtcNow;
+
+    #endregion
+
+    #region Event Handlers
 
     private void OnIsRunningChanged()
     {
@@ -169,6 +198,10 @@ public class SkiaActivityIndicator : SkiaView
         Invalidate();
     }
 
+    #endregion
+
+    #region Rendering
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         if (!IsRunning && !IsEnabled)
@@ -176,9 +209,13 @@ public class SkiaActivityIndicator : SkiaView
             return;
         }
 
+        var size = (float)Size;
+        var strokeWidth = (float)StrokeWidth;
+        var rotationSpeed = (float)RotationSpeed;
+
         var centerX = bounds.MidX;
         var centerY = bounds.MidY;
-        var radius = Math.Min(Size / 2, Math.Min(bounds.Width, bounds.Height) / 2) - StrokeWidth;
+        var radius = Math.Min(size / 2, Math.Min(bounds.Width, bounds.Height) / 2) - strokeWidth;
 
         // Update rotation
         if (IsRunning)
@@ -186,27 +223,27 @@ public class SkiaActivityIndicator : SkiaView
             var now = DateTime.UtcNow;
             var elapsed = (now - _lastUpdateTime).TotalSeconds;
             _lastUpdateTime = now;
-            _rotationAngle = (_rotationAngle + (float)(RotationSpeed * elapsed)) % 360;
+            _rotationAngle = (_rotationAngle + (float)(rotationSpeed * elapsed)) % 360;
         }
 
         canvas.Save();
         canvas.Translate(centerX, centerY);
         canvas.RotateDegrees(_rotationAngle);
 
-        var color = IsEnabled ? Color : DisabledColor;
+        var colorSK = ToSKColor(IsEnabled ? Color : DisabledColor);
 
         // Draw arcs with varying opacity
         for (int i = 0; i < ArcCount; i++)
         {
             var alpha = (byte)(255 * (1 - (float)i / ArcCount));
-            var arcColor = color.WithAlpha(alpha);
+            var arcColor = colorSK.WithAlpha(alpha);
 
             using var paint = new SKPaint
             {
                 Color = arcColor,
                 IsAntialias = true,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = StrokeWidth,
+                StrokeWidth = strokeWidth,
                 StrokeCap = SKStrokeCap.Round
             };
 
@@ -231,8 +268,28 @@ public class SkiaActivityIndicator : SkiaView
         }
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    #endregion
+
+    #region Lifecycle
+
+    protected override void OnEnabledChanged()
     {
-        return new SKSize(Size + StrokeWidth * 2, Size + StrokeWidth * 2);
+        base.OnEnabledChanged();
+        SkiaVisualStateManager.GoToState(this, IsEnabled
+            ? SkiaVisualStateManager.CommonStates.Normal
+            : SkiaVisualStateManager.CommonStates.Disabled);
     }
+
+    #endregion
+
+    #region Layout
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        var size = (float)Size;
+        var strokeWidth = (float)StrokeWidth;
+        return new Size(size + strokeWidth * 2, size + strokeWidth * 2);
+    }
+
+    #endregion
 }

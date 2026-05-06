@@ -21,9 +21,11 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
             [nameof(IEditor.Placeholder)] = MapPlaceholder,
             [nameof(IEditor.PlaceholderColor)] = MapPlaceholderColor,
             [nameof(IEditor.TextColor)] = MapTextColor,
+            [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IEditor.CharacterSpacing)] = MapCharacterSpacing,
             [nameof(IEditor.IsReadOnly)] = MapIsReadOnly,
             [nameof(IEditor.IsTextPredictionEnabled)] = MapIsTextPredictionEnabled,
+            [nameof(IEditor.IsSpellCheckEnabled)] = MapIsSpellCheckEnabled,
             [nameof(IEditor.MaxLength)] = MapMaxLength,
             [nameof(IEditor.CursorPosition)] = MapCursorPosition,
             [nameof(IEditor.SelectionLength)] = MapSelectionLength,
@@ -97,7 +99,7 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
         if (handler.PlatformView is null) return;
         if (editor.PlaceholderColor is not null)
         {
-            handler.PlatformView.PlaceholderColor = editor.PlaceholderColor.ToSKColor();
+            handler.PlatformView.PlaceholderColor = editor.PlaceholderColor;
         }
     }
 
@@ -106,13 +108,34 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
         if (handler.PlatformView is null) return;
         if (editor.TextColor is not null)
         {
-            handler.PlatformView.TextColor = editor.TextColor.ToSKColor();
+            handler.PlatformView.TextColor = editor.TextColor;
         }
+    }
+
+    public static void MapFont(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+
+        var font = editor.Font;
+        if (font.Size > 0)
+            handler.PlatformView.FontSize = font.Size;
+
+        if (!string.IsNullOrEmpty(font.Family))
+            handler.PlatformView.FontFamily = font.Family;
+
+        // Convert Font weight/slant to FontAttributes
+        FontAttributes attrs = FontAttributes.None;
+        if (font.Weight >= FontWeight.Bold)
+            attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
+        handler.PlatformView.FontAttributes = attrs;
     }
 
     public static void MapCharacterSpacing(EditorHandler handler, IEditor editor)
     {
-        // Character spacing would require custom text rendering
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = editor.CharacterSpacing;
     }
 
     public static void MapIsReadOnly(EditorHandler handler, IEditor editor)
@@ -123,7 +146,14 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
 
     public static void MapIsTextPredictionEnabled(EditorHandler handler, IEditor editor)
     {
-        // Text prediction not applicable to desktop
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsTextPredictionEnabled = editor.IsTextPredictionEnabled;
+    }
+
+    public static void MapIsSpellCheckEnabled(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsSpellCheckEnabled = editor.IsSpellCheckEnabled;
     }
 
     public static void MapMaxLength(EditorHandler handler, IEditor editor)
@@ -140,22 +170,39 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
 
     public static void MapSelectionLength(EditorHandler handler, IEditor editor)
     {
-        // Selection would need to be added to SkiaEditor
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.SelectionLength = editor.SelectionLength;
     }
 
     public static void MapKeyboard(EditorHandler handler, IEditor editor)
     {
-        // Virtual keyboard type not applicable to desktop
+        // Virtual keyboard type not applicable to desktop - stored for future use
     }
 
     public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor)
     {
-        // Text alignment would require changes to SkiaEditor drawing
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.HorizontalTextAlignment = editor.HorizontalTextAlignment switch
+        {
+            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
+            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
+            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
+            _ => TextAlignment.Start
+        };
     }
 
     public static void MapVerticalTextAlignment(EditorHandler handler, IEditor editor)
     {
-        // Text alignment would require changes to SkiaEditor drawing
+        if (handler.PlatformView is null) return;
+
+        handler.PlatformView.VerticalTextAlignment = editor.VerticalTextAlignment switch
+        {
+            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
+            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
+            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
+            _ => TextAlignment.Start
+        };
     }
 
     public static void MapBackground(EditorHandler handler, IEditor editor)
@@ -164,7 +211,7 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
 
         if (editor.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
-            handler.PlatformView.BackgroundColor = solidPaint.Color.ToSKColor();
+            handler.PlatformView.EditorBackgroundColor = solidPaint.Color;
         }
     }
 
@@ -172,9 +219,9 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
     {
         if (handler.PlatformView is null) return;
 
-        if (editor is VisualElement ve && ve.BackgroundColor != null)
+        if (editor is Editor ve && ve.BackgroundColor != null)
         {
-            handler.PlatformView.BackgroundColor = ve.BackgroundColor.ToSKColor();
+            handler.PlatformView.EditorBackgroundColor = ve.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
     }

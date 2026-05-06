@@ -6,84 +6,7 @@ using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-/// <summary>
-/// Supported hardware video acceleration APIs.
-/// </summary>
-public enum VideoAccelerationApi
-{
-    /// <summary>
-    /// Automatically select the best available API.
-    /// </summary>
-    Auto,
-
-    /// <summary>
-    /// VA-API (Video Acceleration API) - Intel, AMD, and some NVIDIA.
-    /// </summary>
-    VaApi,
-
-    /// <summary>
-    /// VDPAU (Video Decode and Presentation API for Unix) - NVIDIA.
-    /// </summary>
-    Vdpau,
-
-    /// <summary>
-    /// Software decoding fallback.
-    /// </summary>
-    Software
-}
-
-/// <summary>
-/// Video codec profiles supported by hardware acceleration.
-/// </summary>
-public enum VideoProfile
-{
-    H264Baseline,
-    H264Main,
-    H264High,
-    H265Main,
-    H265Main10,
-    Vp8,
-    Vp9Profile0,
-    Vp9Profile2,
-    Av1Main
-}
-
-/// <summary>
-/// Information about a decoded video frame.
-/// </summary>
-public class VideoFrame : IDisposable
-{
-    public int Width { get; init; }
-    public int Height { get; init; }
-    public IntPtr DataY { get; init; }
-    public IntPtr DataU { get; init; }
-    public IntPtr DataV { get; init; }
-    public int StrideY { get; init; }
-    public int StrideU { get; init; }
-    public int StrideV { get; init; }
-    public long Timestamp { get; init; }
-    public bool IsKeyFrame { get; init; }
-
-    private bool _disposed;
-    private Action? _releaseCallback;
-
-    internal void SetReleaseCallback(Action callback) => _releaseCallback = callback;
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _releaseCallback?.Invoke();
-            _disposed = true;
-        }
-    }
-}
-
-/// <summary>
-/// Hardware-accelerated video decoding service using VA-API or VDPAU.
-/// Provides efficient video decode for media playback on Linux.
-/// </summary>
-public class HardwareVideoService : IDisposable
+public partial class HardwareVideoService : IDisposable
 {
     #region VA-API Native Interop
 
@@ -112,20 +35,20 @@ public class HardwareVideoService : IDisposable
     private const uint VA_RT_FORMAT_YUV420 = 0x00000001;
     private const uint VA_RT_FORMAT_YUV420_10 = 0x00000100;
 
-    [DllImport(LibVa)]
-    private static extern IntPtr vaGetDisplayDRM(int fd);
+    [LibraryImport(LibVa)]
+    private static partial IntPtr vaGetDisplayDRM(int fd);
 
-    [DllImport(LibVaX11)]
-    private static extern IntPtr vaGetDisplay(IntPtr x11Display);
+    [LibraryImport(LibVaX11)]
+    private static partial IntPtr vaGetDisplay(IntPtr x11Display);
 
-    [DllImport(LibVa)]
-    private static extern int vaInitialize(IntPtr display, out int majorVersion, out int minorVersion);
+    [LibraryImport(LibVa)]
+    private static partial int vaInitialize(IntPtr display, out int majorVersion, out int minorVersion);
 
-    [DllImport(LibVa)]
-    private static extern int vaTerminate(IntPtr display);
+    [LibraryImport(LibVa)]
+    private static partial int vaTerminate(IntPtr display);
 
-    [DllImport(LibVa)]
-    private static extern IntPtr vaErrorStr(int errorCode);
+    [LibraryImport(LibVa)]
+    private static partial IntPtr vaErrorStr(int errorCode);
 
     [DllImport(LibVa)]
     private static extern int vaQueryConfigProfiles(IntPtr display, [Out] int[] profileList, out int numProfiles);
@@ -133,17 +56,17 @@ public class HardwareVideoService : IDisposable
     [DllImport(LibVa)]
     private static extern int vaQueryConfigEntrypoints(IntPtr display, int profile, [Out] int[] entrypoints, out int numEntrypoints);
 
-    [DllImport(LibVa)]
-    private static extern int vaCreateConfig(IntPtr display, int profile, int entrypoint, IntPtr attribList, int numAttribs, out uint configId);
+    [LibraryImport(LibVa)]
+    private static partial int vaCreateConfig(IntPtr display, int profile, int entrypoint, IntPtr attribList, int numAttribs, out uint configId);
 
-    [DllImport(LibVa)]
-    private static extern int vaDestroyConfig(IntPtr display, uint configId);
+    [LibraryImport(LibVa)]
+    private static partial int vaDestroyConfig(IntPtr display, uint configId);
 
-    [DllImport(LibVa)]
-    private static extern int vaCreateContext(IntPtr display, uint configId, int pictureWidth, int pictureHeight, int flag, IntPtr renderTargets, int numRenderTargets, out uint contextId);
+    [LibraryImport(LibVa)]
+    private static partial int vaCreateContext(IntPtr display, uint configId, int pictureWidth, int pictureHeight, int flag, IntPtr renderTargets, int numRenderTargets, out uint contextId);
 
-    [DllImport(LibVa)]
-    private static extern int vaDestroyContext(IntPtr display, uint contextId);
+    [LibraryImport(LibVa)]
+    private static partial int vaDestroyContext(IntPtr display, uint contextId);
 
     [DllImport(LibVa)]
     private static extern int vaCreateSurfaces(IntPtr display, uint format, uint width, uint height, [Out] uint[] surfaces, uint numSurfaces, IntPtr attribList, uint numAttribs);
@@ -151,20 +74,20 @@ public class HardwareVideoService : IDisposable
     [DllImport(LibVa)]
     private static extern int vaDestroySurfaces(IntPtr display, [In] uint[] surfaces, int numSurfaces);
 
-    [DllImport(LibVa)]
-    private static extern int vaSyncSurface(IntPtr display, uint surfaceId);
+    [LibraryImport(LibVa)]
+    private static partial int vaSyncSurface(IntPtr display, uint surfaceId);
 
-    [DllImport(LibVa)]
-    private static extern int vaMapBuffer(IntPtr display, uint bufferId, out IntPtr data);
+    [LibraryImport(LibVa)]
+    private static partial int vaMapBuffer(IntPtr display, uint bufferId, out IntPtr data);
 
-    [DllImport(LibVa)]
-    private static extern int vaUnmapBuffer(IntPtr display, uint bufferId);
+    [LibraryImport(LibVa)]
+    private static partial int vaUnmapBuffer(IntPtr display, uint bufferId);
 
     [DllImport(LibVa)]
     private static extern int vaDeriveImage(IntPtr display, uint surfaceId, out VaImage image);
 
-    [DllImport(LibVa)]
-    private static extern int vaDestroyImage(IntPtr display, uint imageId);
+    [LibraryImport(LibVa)]
+    private static partial int vaDestroyImage(IntPtr display, uint imageId);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct VaImage
@@ -193,18 +116,18 @@ public class HardwareVideoService : IDisposable
 
     private const string LibVdpau = "libvdpau.so.1";
 
-    [DllImport(LibVdpau)]
-    private static extern int vdp_device_create_x11(IntPtr display, int screen, out IntPtr device, out IntPtr getProcAddress);
+    [LibraryImport(LibVdpau)]
+    private static partial int vdp_device_create_x11(IntPtr display, int screen, out IntPtr device, out IntPtr getProcAddress);
 
     #endregion
 
     #region DRM Interop
 
-    [DllImport("libc", EntryPoint = "open")]
-    private static extern int open([MarshalAs(UnmanagedType.LPStr)] string path, int flags);
+    [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int open(string path, int flags);
 
-    [DllImport("libc", EntryPoint = "close")]
-    private static extern int close(int fd);
+    [LibraryImport("libc", EntryPoint = "close")]
+    private static partial int close(int fd);
 
     private const int O_RDWR = 2;
 
@@ -226,7 +149,7 @@ public class HardwareVideoService : IDisposable
     private VideoProfile _profile;
 
     private readonly HashSet<VideoProfile> _supportedProfiles = new();
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     #endregion
 
@@ -281,7 +204,7 @@ public class HardwareVideoService : IDisposable
                 {
                     _currentApi = VideoAccelerationApi.VaApi;
                     _initialized = true;
-                    Console.WriteLine($"[HardwareVideo] Initialized VA-API with {_supportedProfiles.Count} supported profiles");
+                    DiagnosticLog.Debug("HardwareVideoService", $"Initialized VA-API with {_supportedProfiles.Count} supported profiles");
                     return true;
                 }
             }
@@ -293,12 +216,12 @@ public class HardwareVideoService : IDisposable
                 {
                     _currentApi = VideoAccelerationApi.Vdpau;
                     _initialized = true;
-                    Console.WriteLine("[HardwareVideo] Initialized VDPAU");
+                    DiagnosticLog.Debug("HardwareVideoService", "Initialized VDPAU");
                     return true;
                 }
             }
 
-            Console.WriteLine("[HardwareVideo] No hardware acceleration available, using software");
+            DiagnosticLog.Warn("HardwareVideoService", "No hardware acceleration available, using software");
             _currentApi = VideoAccelerationApi.Software;
             return false;
         }
@@ -338,12 +261,12 @@ public class HardwareVideoService : IDisposable
         }
         catch (DllNotFoundException)
         {
-            Console.WriteLine("[HardwareVideo] VA-API libraries not found");
+            DiagnosticLog.Warn("HardwareVideoService", "VA-API libraries not found");
             return false;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HardwareVideo] VA-API initialization failed: {ex.Message}");
+            DiagnosticLog.Error("HardwareVideoService", $"VA-API initialization failed: {ex.Message}");
             return false;
         }
     }
@@ -353,11 +276,11 @@ public class HardwareVideoService : IDisposable
         int status = vaInitialize(_vaDisplay, out int major, out int minor);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaInitialize failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaInitialize failed: {GetVaError(status)}");
             return false;
         }
 
-        Console.WriteLine($"[HardwareVideo] VA-API {major}.{minor} initialized");
+        DiagnosticLog.Debug("HardwareVideoService", $"VA-API {major}.{minor} initialized");
 
         // Query supported profiles
         int[] profiles = new int[32];
@@ -408,11 +331,11 @@ public class HardwareVideoService : IDisposable
         }
         catch (DllNotFoundException)
         {
-            Console.WriteLine("[HardwareVideo] VDPAU libraries not found");
+            DiagnosticLog.Warn("HardwareVideoService", "VDPAU libraries not found");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[HardwareVideo] VDPAU initialization failed: {ex.Message}");
+            DiagnosticLog.Error("HardwareVideoService", $"VDPAU initialization failed: {ex.Message}");
         }
 
         return false;
@@ -432,7 +355,7 @@ public class HardwareVideoService : IDisposable
 
         if (!_supportedProfiles.Contains(profile))
         {
-            Console.WriteLine($"[HardwareVideo] Profile {profile} not supported");
+            DiagnosticLog.Warn("HardwareVideoService", $"Profile {profile} not supported");
             return false;
         }
 
@@ -460,7 +383,7 @@ public class HardwareVideoService : IDisposable
         int status = vaCreateConfig(_vaDisplay, vaProfile, VAEntrypointVLD, IntPtr.Zero, 0, out _vaConfigId);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaCreateConfig failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaCreateConfig failed: {GetVaError(status)}");
             return false;
         }
 
@@ -473,7 +396,7 @@ public class HardwareVideoService : IDisposable
         status = vaCreateSurfaces(_vaDisplay, format, (uint)width, (uint)height, _vaSurfaces, 8, IntPtr.Zero, 0);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaCreateSurfaces failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaCreateSurfaces failed: {GetVaError(status)}");
             vaDestroyConfig(_vaDisplay, _vaConfigId);
             return false;
         }
@@ -482,13 +405,13 @@ public class HardwareVideoService : IDisposable
         status = vaCreateContext(_vaDisplay, _vaConfigId, width, height, 0, IntPtr.Zero, 0, out _vaContextId);
         if (status != VA_STATUS_SUCCESS)
         {
-            Console.WriteLine($"[HardwareVideo] vaCreateContext failed: {GetVaError(status)}");
+            DiagnosticLog.Error("HardwareVideoService", $"vaCreateContext failed: {GetVaError(status)}");
             vaDestroySurfaces(_vaDisplay, _vaSurfaces, _vaSurfaces.Length);
             vaDestroyConfig(_vaDisplay, _vaConfigId);
             return false;
         }
 
-        Console.WriteLine($"[HardwareVideo] Created decoder: {profile} {width}x{height}");
+        DiagnosticLog.Debug("HardwareVideoService", $"Created decoder: {profile} {width}x{height}");
         return true;
     }
 

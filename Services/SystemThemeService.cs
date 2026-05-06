@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public class SystemThemeService
 {
     private static SystemThemeService? _instance;
-    private static readonly object _lock = new();
+    private static readonly Lock _lock = new();
 
     /// <summary>
     /// Gets the singleton instance of the system theme service.
@@ -56,9 +56,23 @@ public class SystemThemeService
     /// <summary>
     /// System colors based on the current theme.
     /// </summary>
-    public SystemColors Colors { get; private set; }
+    public SystemColors Colors { get; private set; } = new SystemColors
+    {
+        Background = SKColors.White,
+        Surface = new SKColor(0xF5, 0xF5, 0xF5),
+        Primary = new SKColor(0x21, 0x96, 0xF3),
+        OnPrimary = SKColors.White,
+        Text = new SKColor(0x21, 0x21, 0x21),
+        TextSecondary = new SKColor(0x75, 0x75, 0x75),
+        Border = new SKColor(0xE0, 0xE0, 0xE0),
+        Divider = new SKColor(0xE0, 0xE0, 0xE0),
+        Error = new SKColor(0xF4, 0x43, 0x36),
+        Success = new SKColor(0x4C, 0xAF, 0x50)
+    };
 
     private FileSystemWatcher? _settingsWatcher;
+    private Timer? _pollTimer;
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
     private SystemThemeService()
     {
@@ -66,6 +80,7 @@ public class SystemThemeService
         DetectTheme();
         UpdateColors();
         SetupWatcher();
+        SetupPolling();
     }
 
     private void DetectDesktopEnvironment()
@@ -145,7 +160,7 @@ public class SystemThemeService
             if (output.ToLowerInvariant().Contains("dark"))
                 return SystemTheme.Dark;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "GNOME theme detection failed", ex); }
 
         return null;
     }
@@ -171,7 +186,7 @@ public class SystemThemeService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "KDE theme detection failed", ex); }
 
         return null;
     }
@@ -184,7 +199,7 @@ public class SystemThemeService
             if (output.ToLowerInvariant().Contains("dark"))
                 return SystemTheme.Dark;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "XFCE theme detection failed", ex); }
 
         return DetectGtkTheme();
     }
@@ -197,7 +212,7 @@ public class SystemThemeService
             if (output.ToLowerInvariant().Contains("dark"))
                 return SystemTheme.Dark;
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "Cinnamon theme detection failed", ex); }
 
         return null;
     }
@@ -232,7 +247,7 @@ public class SystemThemeService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "GTK theme file read failed", ex); }
 
         return null;
     }
@@ -302,7 +317,7 @@ public class SystemThemeService
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "KDE accent color parsing failed", ex); }
 
         return new SKColor(0x21, 0x96, 0xF3);
     }
@@ -358,7 +373,34 @@ public class SystemThemeService
                 _settingsWatcher.Changed += OnSettingsChanged;
             }
         }
-        catch { }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "Settings watcher setup failed", ex); }
+    }
+
+    private void SetupPolling()
+    {
+        // For GNOME and other desktops that use dconf/gsettings,
+        // file watching doesn't work. Use periodic polling instead.
+        _pollTimer = new Timer(OnPollTimer, null, PollInterval, PollInterval);
+    }
+
+    private void OnPollTimer(object? state)
+    {
+        try
+        {
+            var oldTheme = CurrentTheme;
+            DetectTheme();
+
+            if (oldTheme != CurrentTheme)
+            {
+                DiagnosticLog.Debug("SystemThemeService", $"Theme change detected via polling: {oldTheme} -> {CurrentTheme}");
+                UpdateColors();
+                ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(CurrentTheme));
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SystemThemeService", $"Error in poll timer: {ex.Message}");
+        }
     }
 
     private void OnSettingsChanged(object sender, FileSystemEventArgs e)
@@ -424,58 +466,4 @@ public class SystemThemeService
             ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(CurrentTheme));
         }
     }
-}
-
-/// <summary>
-/// System theme (light or dark mode).
-/// </summary>
-public enum SystemTheme
-{
-    Light,
-    Dark
-}
-
-/// <summary>
-/// Detected desktop environment.
-/// </summary>
-public enum DesktopEnvironment
-{
-    Unknown,
-    GNOME,
-    KDE,
-    XFCE,
-    MATE,
-    Cinnamon,
-    LXQt,
-    LXDE
-}
-
-/// <summary>
-/// Event args for theme changes.
-/// </summary>
-public class ThemeChangedEventArgs : EventArgs
-{
-    public SystemTheme NewTheme { get; }
-
-    public ThemeChangedEventArgs(SystemTheme newTheme)
-    {
-        NewTheme = newTheme;
-    }
-}
-
-/// <summary>
-/// System colors based on the current theme.
-/// </summary>
-public class SystemColors
-{
-    public SKColor Background { get; init; }
-    public SKColor Surface { get; init; }
-    public SKColor Primary { get; init; }
-    public SKColor OnPrimary { get; init; }
-    public SKColor Text { get; init; }
-    public SKColor TextSecondary { get; init; }
-    public SKColor Border { get; init; }
-    public SKColor Divider { get; init; }
-    public SKColor Error { get; init; }
-    public SKColor Success { get; init; }
 }

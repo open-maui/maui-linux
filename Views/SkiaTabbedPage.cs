@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -14,6 +15,18 @@ public class SkiaTabbedPage : SkiaLayoutView
     private int _selectedIndex = 0;
     private float _tabBarHeight = 48f;
     private bool _tabBarOnBottom = false;
+
+    // SKColor fields for rendering
+    private SKColor _tabBarBackgroundColorSK = SkiaTheme.PrimarySK;
+    private SKColor _selectedTabColorSK = SKColors.White;
+    private SKColor _unselectedTabColorSK = SkiaTheme.WhiteSemiTransparentSK;
+    private SKColor _indicatorColorSK = SKColors.White;
+
+    // MAUI Color backing fields
+    private Color _tabBarBackgroundColor = Color.FromRgb(33, 150, 243);
+    private Color _selectedTabColor = Colors.White;
+    private Color _unselectedTabColor = Color.FromRgba(255, 255, 255, 180);
+    private Color _indicatorColor = Colors.White;
 
     /// <summary>
     /// Gets or sets the height of the tab bar.
@@ -80,22 +93,58 @@ public class SkiaTabbedPage : SkiaLayoutView
     /// <summary>
     /// Background color for the tab bar.
     /// </summary>
-    public SKColor TabBarBackgroundColor { get; set; } = new SKColor(33, 150, 243); // Material Blue
+    public Color TabBarBackgroundColor
+    {
+        get => _tabBarBackgroundColor;
+        set
+        {
+            _tabBarBackgroundColor = value;
+            _tabBarBackgroundColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Color for selected tab text/icon.
     /// </summary>
-    public SKColor SelectedTabColor { get; set; } = SKColors.White;
+    public Color SelectedTabColor
+    {
+        get => _selectedTabColor;
+        set
+        {
+            _selectedTabColor = value;
+            _selectedTabColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Color for unselected tab text/icon.
     /// </summary>
-    public SKColor UnselectedTabColor { get; set; } = new SKColor(255, 255, 255, 180);
+    public Color UnselectedTabColor
+    {
+        get => _unselectedTabColor;
+        set
+        {
+            _unselectedTabColor = value;
+            _unselectedTabColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Color of the selection indicator.
     /// </summary>
-    public SKColor IndicatorColor { get; set; } = SKColors.White;
+    public Color IndicatorColor
+    {
+        get => _indicatorColor;
+        set
+        {
+            _indicatorColor = value;
+            _indicatorColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Height of the selection indicator.
@@ -167,11 +216,11 @@ public class SkiaTabbedPage : SkiaLayoutView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Measure the content area (excluding tab bar)
         var contentHeight = availableSize.Height - TabBarHeight;
-        var contentSize = new SKSize(availableSize.Width, contentHeight);
+        var contentSize = new Size(availableSize.Width, contentHeight);
 
         foreach (var tab in _tabs)
         {
@@ -181,25 +230,25 @@ public class SkiaTabbedPage : SkiaLayoutView
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         // Calculate content bounds based on tab bar position
-        SKRect contentBounds;
+        Rect contentBounds;
         if (TabBarOnBottom)
         {
-            contentBounds = new SKRect(
+            contentBounds = new Rect(
                 bounds.Left,
                 bounds.Top,
-                bounds.Right,
-                bounds.Bottom - TabBarHeight);
+                bounds.Width,
+                bounds.Height - TabBarHeight);
         }
         else
         {
-            contentBounds = new SKRect(
+            contentBounds = new Rect(
                 bounds.Left,
                 bounds.Top + TabBarHeight,
-                bounds.Right,
-                bounds.Bottom);
+                bounds.Width,
+                bounds.Height - TabBarHeight);
         }
 
         // Arrange each tab's content to fill the content area
@@ -235,24 +284,24 @@ public class SkiaTabbedPage : SkiaLayoutView
         if (TabBarOnBottom)
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
+                (float)Bounds.Left,
+                (float)Bounds.Bottom - TabBarHeight,
+                (float)Bounds.Right,
+                (float)Bounds.Bottom);
         }
         else
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
+                (float)Bounds.Left,
+                (float)Bounds.Top,
+                (float)Bounds.Right,
+                (float)Bounds.Top + TabBarHeight);
         }
 
         // Draw background
         using var bgPaint = new SKPaint
         {
-            Color = TabBarBackgroundColor,
+            Color = _tabBarBackgroundColorSK,
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
@@ -281,7 +330,7 @@ public class SkiaTabbedPage : SkiaLayoutView
                 tabBarBounds.Bottom);
 
             bool isSelected = i == _selectedIndex;
-            textPaint.Color = isSelected ? SelectedTabColor : UnselectedTabColor;
+            textPaint.Color = isSelected ? _selectedTabColorSK : _unselectedTabColorSK;
             textPaint.FakeBoldText = isSelected;
 
             // Draw tab title centered
@@ -299,7 +348,7 @@ public class SkiaTabbedPage : SkiaLayoutView
         {
             using var indicatorPaint = new SKPaint
             {
-                Color = IndicatorColor,
+                Color = _indicatorColorSK,
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
@@ -328,18 +377,18 @@ public class SkiaTabbedPage : SkiaLayoutView
         if (TabBarOnBottom)
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
+                (float)Bounds.Left,
+                (float)(Bounds.Top + Bounds.Height) - TabBarHeight,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)(Bounds.Top + Bounds.Height));
         }
         else
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
+                (float)Bounds.Left,
+                (float)Bounds.Top,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)Bounds.Top + TabBarHeight);
         }
 
         if (tabBarBounds.Contains(x, y))
@@ -366,18 +415,18 @@ public class SkiaTabbedPage : SkiaLayoutView
         if (TabBarOnBottom)
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Bottom - TabBarHeight,
-                Bounds.Right,
-                Bounds.Bottom);
+                (float)Bounds.Left,
+                (float)(Bounds.Top + Bounds.Height) - TabBarHeight,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)(Bounds.Top + Bounds.Height));
         }
         else
         {
             tabBarBounds = new SKRect(
-                Bounds.Left,
-                Bounds.Top,
-                Bounds.Right,
-                Bounds.Top + TabBarHeight);
+                (float)Bounds.Left,
+                (float)Bounds.Top,
+                (float)(Bounds.Left + Bounds.Width),
+                (float)Bounds.Top + TabBarHeight);
         }
 
         if (tabBarBounds.Contains(e.X, e.Y) && _tabs.Count > 0)
@@ -393,30 +442,4 @@ public class SkiaTabbedPage : SkiaLayoutView
 
         base.OnPointerPressed(e);
     }
-}
-
-/// <summary>
-/// Represents a tab item with title, icon, and content.
-/// </summary>
-public class TabItem
-{
-    /// <summary>
-    /// The title displayed in the tab.
-    /// </summary>
-    public string Title { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Optional icon path for the tab.
-    /// </summary>
-    public string? IconPath { get; set; }
-
-    /// <summary>
-    /// The content view displayed when this tab is selected.
-    /// </summary>
-    public SkiaView Content { get; set; } = null!;
-
-    /// <summary>
-    /// Optional badge text to display on the tab.
-    /// </summary>
-    public string? Badge { get; set; }
 }

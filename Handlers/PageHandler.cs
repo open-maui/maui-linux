@@ -5,6 +5,8 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -19,8 +21,11 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
         {
             [nameof(Page.Title)] = MapTitle,
             [nameof(Page.BackgroundImageSource)] = MapBackgroundImageSource,
+            [nameof(Page.IconImageSource)] = MapIconImageSource,
             [nameof(Page.Padding)] = MapPadding,
+            [nameof(Page.IsBusy)] = MapIsBusy,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(VisualElement.BackgroundColor)] = MapBackgroundColor,
         };
 
     public static CommandMapper<Page, PageHandler> CommandMapper =
@@ -45,6 +50,10 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
     protected override void ConnectHandler(SkiaPage platformView)
     {
         base.ConnectHandler(platformView);
+
+        // Set MauiPage reference for theme refresh support
+        platformView.MauiPage = VirtualView;
+
         platformView.Appearing += OnAppearing;
         platformView.Disappearing += OnDisappearing;
     }
@@ -53,12 +62,13 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
     {
         platformView.Appearing -= OnAppearing;
         platformView.Disappearing -= OnDisappearing;
+        platformView.MauiPage = null;
         base.DisconnectHandler(platformView);
     }
 
     private void OnAppearing(object? sender, EventArgs e)
     {
-        Console.WriteLine($"[PageHandler] OnAppearing received for: {VirtualView?.Title}");
+        DiagnosticLog.Debug("PageHandler", $"OnAppearing received for: {VirtualView?.Title}");
         (VirtualView as IPageController)?.SendAppearing();
     }
 
@@ -97,8 +107,33 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
 
         if (page.Background is SolidColorBrush solidBrush)
         {
-            handler.PlatformView.BackgroundColor = solidBrush.Color.ToSKColor();
+            handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
+    }
+
+    public static void MapBackgroundColor(PageHandler handler, Page page)
+    {
+        if (handler.PlatformView is null) return;
+
+        var backgroundColor = page.BackgroundColor;
+        if (backgroundColor != null && backgroundColor != Colors.Transparent)
+        {
+            handler.PlatformView.BackgroundColor = backgroundColor;
+            DiagnosticLog.Debug("PageHandler", $"MapBackgroundColor: {backgroundColor}");
+        }
+    }
+
+    public static void MapIconImageSource(PageHandler handler, Page page)
+    {
+        // Icon is typically used by navigation containers (Shell, TabbedPage)
+        // Store for later use but don't render directly on the page
+        handler.PlatformView?.Invalidate();
+    }
+
+    public static void MapIsBusy(PageHandler handler, Page page)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsBusy = page.IsBusy;
     }
 }
 
@@ -111,6 +146,7 @@ public partial class ContentPageHandler : PageHandler
         new PropertyMapper<ContentPage, ContentPageHandler>(PageHandler.Mapper)
         {
             [nameof(ContentPage.Content)] = MapContent,
+            [nameof(ContentPage.ToolbarItems)] = MapToolbarItems,
         };
 
     public static new CommandMapper<ContentPage, ContentPageHandler> CommandMapper =
@@ -132,6 +168,17 @@ public partial class ContentPageHandler : PageHandler
         return new SkiaContentPage();
     }
 
+    protected override void ConnectHandler(SkiaPage platformView)
+    {
+        base.ConnectHandler(platformView);
+
+        // Sync toolbar items initially
+        if (VirtualView is ContentPage contentPage && platformView is SkiaContentPage skiaContentPage)
+        {
+            SyncToolbarItems(skiaContentPage, contentPage);
+        }
+    }
+
     public static void MapContent(ContentPageHandler handler, ContentPage page)
     {
         if (handler.PlatformView is null || handler.MauiContext is null) return;
@@ -143,24 +190,58 @@ public partial class ContentPageHandler : PageHandler
             // Create handler for content if it doesn't exist
             if (content.Handler == null)
             {
-                Console.WriteLine($"[ContentPageHandler] Creating handler for content: {content.GetType().Name}");
-                content.Handler = content.ToHandler(handler.MauiContext);
+                DiagnosticLog.Debug("ContentPageHandler", $"Creating handler for content: {content.GetType().Name}");
+                content.Handler = content.ToViewHandler(handler.MauiContext);
             }
 
             // The content's handler should provide the platform view
             if (content.Handler?.PlatformView is SkiaView skiaContent)
             {
-                Console.WriteLine($"[ContentPageHandler] Setting content: {skiaContent.GetType().Name}");
+                DiagnosticLog.Debug("ContentPageHandler", $"Setting content: {skiaContent.GetType().Name}");
                 handler.PlatformView.Content = skiaContent;
             }
             else
             {
-                Console.WriteLine($"[ContentPageHandler] Content handler PlatformView is not SkiaView: {content.Handler?.PlatformView?.GetType().Name ?? "null"}");
+                DiagnosticLog.Warn("ContentPageHandler", $"Content handler PlatformView is not SkiaView: {content.Handler?.PlatformView?.GetType().Name ?? "null"}");
             }
         }
         else
         {
             handler.PlatformView.Content = null;
         }
+    }
+
+    public static void MapToolbarItems(ContentPageHandler handler, ContentPage page)
+    {
+        if (handler.PlatformView is not SkiaContentPage skiaContentPage) return;
+        SyncToolbarItems(skiaContentPage, page);
+    }
+
+    private static void SyncToolbarItems(SkiaContentPage platformView, ContentPage page)
+    {
+        platformView.ToolbarItems.Clear();
+
+        foreach (var item in page.ToolbarItems)
+        {
+            var skiaItem = new SkiaToolbarItem
+            {
+                Text = item.Text ?? "",
+                Command = item.Command,
+                Order = item.Order == ToolbarItemOrder.Primary
+                    ? SkiaToolbarItemOrder.Primary
+                    : SkiaToolbarItemOrder.Secondary
+            };
+
+            // Load icon if present
+            if (item.IconImageSource is FileImageSource fileSource)
+            {
+                // Icon loading would be async - simplified for now
+                DiagnosticLog.Debug("ContentPageHandler", $"Toolbar item icon: {fileSource.File}");
+            }
+
+            platformView.ToolbarItems.Add(skiaItem);
+        }
+
+        platformView.Invalidate();
     }
 }

@@ -137,24 +137,24 @@ public class SkiaSwipeView : SkiaLayoutView
         Invalidate();
     }
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         if (_content != null)
         {
-            _content.Measure(availableSize);
+            _content.Measure(new Size(availableSize.Width, availableSize.Height));
         }
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         if (_content != null)
         {
-            var contentBounds = new SKRect(
+            var contentBounds = new Rect(
                 bounds.Left + _swipeOffset,
                 bounds.Top,
-                bounds.Right + _swipeOffset,
-                bounds.Bottom);
+                bounds.Width,
+                bounds.Height);
             _content.Arrange(contentBounds);
         }
         return bounds;
@@ -202,7 +202,7 @@ public class SkiaSwipeView : SkiaLayoutView
             // Draw background
             using var bgPaint = new SKPaint
             {
-                Color = item.BackgroundColor,
+                Color = item.GetBackgroundColorSK(),
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawRect(itemBounds, bgPaint);
@@ -212,7 +212,7 @@ public class SkiaSwipeView : SkiaLayoutView
             {
                 using var textPaint = new SKPaint
                 {
-                    Color = item.TextColor,
+                    Color = item.GetTextColorSK(),
                     TextSize = 14f,
                     IsAntialias = true,
                     TextAlign = SKTextAlign.Center
@@ -380,90 +380,5 @@ public class SkiaSwipeView : SkiaLayoutView
         _activeDirection = SwipeDirection.None;
 
         base.OnPointerReleased(e);
-    }
-}
-
-/// <summary>
-/// Represents a swipe action item.
-/// </summary>
-public class SwipeItem
-{
-    /// <summary>
-    /// Gets or sets the text.
-    /// </summary>
-    public string Text { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the icon source.
-    /// </summary>
-    public string? IconSource { get; set; }
-
-    /// <summary>
-    /// Gets or sets the background color.
-    /// </summary>
-    public SKColor BackgroundColor { get; set; } = new SKColor(33, 150, 243);
-
-    /// <summary>
-    /// Gets or sets the text color.
-    /// </summary>
-    public SKColor TextColor { get; set; } = SKColors.White;
-
-    /// <summary>
-    /// Event raised when the item is invoked.
-    /// </summary>
-    public event EventHandler? Invoked;
-
-    internal void OnInvoked()
-    {
-        Invoked?.Invoke(this, EventArgs.Empty);
-    }
-}
-
-/// <summary>
-/// Swipe direction.
-/// </summary>
-public enum SwipeDirection
-{
-    None,
-    Left,
-    Right,
-    Up,
-    Down
-}
-
-/// <summary>
-/// Swipe mode.
-/// </summary>
-public enum SwipeMode
-{
-    Reveal,
-    Execute
-}
-
-/// <summary>
-/// Event args for swipe started.
-/// </summary>
-public class SwipeStartedEventArgs : EventArgs
-{
-    public SwipeDirection Direction { get; }
-
-    public SwipeStartedEventArgs(SwipeDirection direction)
-    {
-        Direction = direction;
-    }
-}
-
-/// <summary>
-/// Event args for swipe ended.
-/// </summary>
-public class SwipeEndedEventArgs : EventArgs
-{
-    public SwipeDirection Direction { get; }
-    public bool IsOpen { get; }
-
-    public SwipeEndedEventArgs(SwipeDirection direction, bool isOpen)
-    {
-        Direction = direction;
-        IsOpen = isOpen;
     }
 }

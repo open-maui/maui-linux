@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Graphics;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -21,6 +22,10 @@ public class SkiaFlyoutPage : SkiaLayoutView
     private bool _isDragging = false;
     private float _dragStartX;
     private float _dragCurrentX;
+
+    // ScrimColor backing fields
+    private SKColor _scrimColorSK = SkiaTheme.Overlay40SK;
+    private Color _scrimColor = SkiaTheme.Overlay40;
 
     /// <summary>
     /// Gets or sets the flyout content (menu).
@@ -128,7 +133,16 @@ public class SkiaFlyoutPage : SkiaLayoutView
     /// <summary>
     /// Background color of the scrim when flyout is open.
     /// </summary>
-    public SKColor ScrimColor { get; set; } = new SKColor(0, 0, 0, 100);
+    public Color ScrimColor
+    {
+        get => _scrimColor;
+        set
+        {
+            _scrimColor = value;
+            _scrimColorSK = value.ToSKColor();
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Shadow width for the flyout.
@@ -140,40 +154,36 @@ public class SkiaFlyoutPage : SkiaLayoutView
     /// </summary>
     public event EventHandler? IsPresentedChanged;
 
-    protected override SKSize MeasureOverride(SKSize availableSize)
+    protected override Size MeasureOverride(Size availableSize)
     {
         // Measure flyout
         if (_flyout != null)
         {
-            _flyout.Measure(new SKSize(FlyoutWidth, availableSize.Height));
+            _flyout.Measure(new Size(FlyoutWidth, availableSize.Height));
         }
 
         // Measure detail to full size
         if (_detail != null)
         {
-            _detail.Measure(availableSize);
+            _detail.Measure(new Size(availableSize.Width, availableSize.Height));
         }
 
         return availableSize;
     }
 
-    protected override SKRect ArrangeOverride(SKRect bounds)
+    protected override Rect ArrangeOverride(Rect bounds)
     {
         // Arrange detail to fill the entire area
         if (_detail != null)
         {
-            _detail.Arrange(bounds);
+            _detail.Arrange(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
         }
 
         // Arrange flyout (positioned based on animation progress)
         if (_flyout != null)
         {
-            float flyoutX = bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(
-                flyoutX,
-                bounds.Top,
-                flyoutX + FlyoutWidth,
-                bounds.Bottom);
+            float flyoutX = (float)bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            var flyoutBounds = new Rect(flyoutX, bounds.Top, FlyoutWidth, bounds.Height);
             _flyout.Arrange(flyoutBounds);
         }
 
@@ -194,10 +204,11 @@ public class SkiaFlyoutPage : SkiaLayoutView
             // Draw scrim (semi-transparent overlay)
             using var scrimPaint = new SKPaint
             {
-                Color = ScrimColor.WithAlpha((byte)(ScrimColor.Alpha * _flyoutAnimationProgress)),
+                Color = _scrimColorSK.WithAlpha((byte)(_scrimColorSK.Alpha * _flyoutAnimationProgress)),
                 Style = SKPaintStyle.Fill
             };
-            canvas.DrawRect(Bounds, scrimPaint);
+            var skBounds = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
+            canvas.DrawRect(skBounds, scrimPaint);
 
             // Draw flyout shadow
             if (_flyout != null && ShadowWidth > 0)
@@ -216,19 +227,19 @@ public class SkiaFlyoutPage : SkiaLayoutView
     {
         if (_flyout == null) return;
 
-        float shadowRight = _flyout.Bounds.Right;
+        float shadowRight = (float)(_flyout.Bounds.Left + _flyout.Bounds.Width);
         var shadowRect = new SKRect(
             shadowRight,
-            Bounds.Top,
+            (float)Bounds.Top,
             shadowRight + ShadowWidth,
-            Bounds.Bottom);
+            (float)(Bounds.Top + Bounds.Height));
 
         using var shadowPaint = new SKPaint
         {
             Shader = SKShader.CreateLinearGradient(
                 new SKPoint(shadowRect.Left, shadowRect.MidY),
                 new SKPoint(shadowRect.Right, shadowRect.MidY),
-                new SKColor[] { new SKColor(0, 0, 0, 60), SKColors.Transparent },
+                new SKColor[] { SkiaTheme.Shadow25SK, SKColors.Transparent },
                 null,
                 SKShaderTileMode.Clamp)
         };
@@ -347,35 +358,4 @@ public class SkiaFlyoutPage : SkiaLayoutView
     {
         IsPresented = !IsPresented;
     }
-}
-
-/// <summary>
-/// Defines how the flyout behaves.
-/// </summary>
-public enum FlyoutLayoutBehavior
-{
-    /// <summary>
-    /// Default behavior based on device/window size.
-    /// </summary>
-    Default,
-
-    /// <summary>
-    /// Flyout slides over the detail content.
-    /// </summary>
-    Popover,
-
-    /// <summary>
-    /// Flyout and detail are shown side by side.
-    /// </summary>
-    Split,
-
-    /// <summary>
-    /// Flyout pushes the detail content.
-    /// </summary>
-    SplitOnLandscape,
-
-    /// <summary>
-    /// Flyout is always shown in portrait, side by side in landscape.
-    /// </summary>
-    SplitOnPortrait
 }

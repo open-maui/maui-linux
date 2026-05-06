@@ -91,7 +91,7 @@ public class FilePickerService : IFilePicker
             if (tool == DialogTool.None)
             {
                 // Fall back to console path input
-                Console.WriteLine("No file dialog available. Please enter file path:");
+                DiagnosticLog.Warn("FilePickerService", "No file dialog available. Please enter file path:");
                 var path = Console.ReadLine();
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
@@ -198,15 +198,5 @@ public class FilePickerService : IFilePicker
     private static string EscapeArgument(string arg)
     {
         return arg.Replace("\"", "\\\"").Replace("'", "\\'");
-    }
-}
-
-/// <summary>
-/// Linux-specific FileResult implementation.
-/// </summary>
-internal class LinuxFileResult : FileResult
-{
-    public LinuxFileResult(string fullPath) : base(fullPath)
-    {
     }
 }
