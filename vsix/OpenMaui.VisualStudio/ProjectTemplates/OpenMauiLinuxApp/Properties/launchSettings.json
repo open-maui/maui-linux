@@ -1,0 +1,49 @@
+{
+  "profiles": {
+    "Linux (Local)": {
+      "commandName": "Project",
+      "commandLineArgs": "",
+      "environmentVariables": {
+        "DISPLAY": ":0",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "Linux (WSL)": {
+      "commandName": "Executable",
+      "executablePath": "wsl.exe",
+      "commandLineArgs": "-e dotnet run --project .",
+      "workingDirectory": "${workspaceFolder}",
+      "environmentVariables": {
+        "DISPLAY": ":0",
+        "WAYLAND_DISPLAY": "",
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "Linux (x64 Release)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "run -c Release -r linux-x64",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Production"
+      }
+    },
+    "Linux (ARM64 Release)": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "run -c Release -r linux-arm64",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Production"
+      }
+    },
+    "Publish Linux x64": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "publish -c Release -r linux-x64 --self-contained -o ./publish/linux-x64"
+    },
+    "Publish Linux ARM64": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "publish -c Release -r linux-arm64 --self-contained -o ./publish/linux-arm64"
+    }
+  }
+}
