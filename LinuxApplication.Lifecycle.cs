@@ -148,10 +148,8 @@ public partial class LinuxApplication
                         // Apply GTK CSS for dialogs, menus, and window decorations
                         GtkThemeService.ApplyTheme();
 
-                        // Force property re-evaluation first so AppThemeBindings settle
-                        linuxApp.RefreshPageForThemeChange();
-
-                        // Then refresh shell colors (reads now-updated bound values)
+                        // Refresh shell colors (reads bound values, which now
+                        // come from the MauiView directly via SkiaView).
                         LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
 
                         // Invalidate to redraw - use correct method based on mode
@@ -182,7 +180,6 @@ public partial class LinuxApplication
                     else
                     {
                         // If UserAppTheme didn't change (user manually set it), still refresh
-                        linuxApp.RefreshPageForThemeChange();
                         LinuxViewRenderer.CurrentSkiaShell?.RefreshTheme();
                         if (linuxApp._useGtk)
                         {
@@ -428,165 +425,6 @@ public partial class LinuxApplication
         {
             _rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
             _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
-        }
-    }
-
-    /// <summary>
-    /// Forces all views to refresh their theme-dependent properties.
-    /// This is needed because AppThemeBinding may not automatically trigger
-    /// property mappers on all platforms.
-    /// </summary>
-    private void RefreshPageForThemeChange()
-    {
-        DiagnosticLog.Debug("LinuxApplication", "RefreshPageForThemeChange - forcing property updates");
-
-        // First, try to trigger MAUI's RequestedThemeChanged event using reflection
-        // This ensures AppThemeBinding bindings re-evaluate
-        TriggerMauiThemeChanged();
-
-        if (_rootView == null) return;
-
-        // Traverse the visual tree and force theme-dependent properties to update
-        RefreshViewTheme(_rootView);
-    }
-
-    /// <summary>
-    /// Called after theme change to refresh views.
-    /// Note: MAUI's Application.UserAppTheme setter automatically triggers RequestedThemeChanged
-    /// via WeakEventManager, which AppThemeBinding subscribes to. This method handles
-    /// any additional platform-specific refresh needed.
-    /// </summary>
-    private void TriggerMauiThemeChanged()
-    {
-        var app = Application.Current;
-        if (app == null) return;
-
-        DiagnosticLog.Debug("LinuxApplication", $"Theme is now: {app.UserAppTheme}, RequestedTheme: {app.RequestedTheme}");
-    }
-
-    private void RefreshViewTheme(SkiaView view)
-    {
-        // Get the associated MAUI view and handler
-        var mauiView = view.MauiView;
-        var handler = mauiView?.Handler;
-
-        if (handler != null && mauiView != null)
-        {
-            // Force key properties to be re-mapped
-            // This ensures theme-dependent bindings are re-evaluated
-            try
-            {
-                // Background/BackgroundColor - both need updating for AppThemeBinding
-                handler.UpdateValue(nameof(IView.Background));
-                handler.UpdateValue("BackgroundColor");
-
-                // For ImageButton, force Source to be re-mapped
-                if (mauiView is Microsoft.Maui.Controls.ImageButton)
-                {
-                    handler.UpdateValue(nameof(IImageSourcePart.Source));
-                }
-
-                // For Image, force Source to be re-mapped
-                if (mauiView is Microsoft.Maui.Controls.Image)
-                {
-                    handler.UpdateValue(nameof(IImageSourcePart.Source));
-                }
-
-                // For views with text colors
-                if (mauiView is ITextStyle)
-                {
-                    handler.UpdateValue(nameof(ITextStyle.TextColor));
-                }
-
-                // For Entry/Editor placeholder colors
-                if (mauiView is IPlaceholder)
-                {
-                    handler.UpdateValue(nameof(IPlaceholder.PlaceholderColor));
-                }
-
-                // For Border stroke
-                if (mauiView is IBorderStroke)
-                {
-                    handler.UpdateValue(nameof(IBorderStroke.Stroke));
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error("LinuxApplication", $"Error refreshing theme for {mauiView.GetType().Name}: {ex.Message}");
-            }
-        }
-
-        // Special handling for Shell - force flyout color properties to re-map
-        if (mauiView is Shell && handler != null)
-        {
-            try
-            {
-                handler.UpdateValue(nameof(Shell.FlyoutBackgroundColor));
-                handler.UpdateValue(nameof(Shell.FlyoutBackground));
-                handler.UpdateValue("ForegroundColor");
-                handler.UpdateValue("TitleColor");
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Debug("LinuxApplication", $"Error refreshing Shell flyout colors: {ex.Message}", ex);
-            }
-
-            // Refresh flyout header and footer views (they aren't part of the normal children)
-            if (view is SkiaShell skiaShell)
-            {
-                if (skiaShell.FlyoutHeaderView != null)
-                    RefreshViewTheme(skiaShell.FlyoutHeaderView);
-                if (skiaShell.FlyoutFooterView != null)
-                    RefreshViewTheme(skiaShell.FlyoutFooterView);
-            }
-        }
-
-        // Special handling for ItemsViews (CollectionView, ListView)
-        // Their item views are cached separately and need to be refreshed
-        if (view is SkiaItemsView itemsView)
-        {
-            itemsView.RefreshTheme();
-        }
-
-        // Special handling for NavigationPage - it stores content in _currentPage
-        if (view is SkiaNavigationPage navPage && navPage.CurrentPage != null)
-        {
-            RefreshViewTheme(navPage.CurrentPage);
-            navPage.Invalidate(); // Force redraw of navigation page
-        }
-
-        // Special handling for SkiaPage - refresh via MauiPage handler and process Content
-        if (view is SkiaPage page)
-        {
-            // Refresh page properties via handler if MauiPage is set
-            var pageHandler = page.MauiPage?.Handler;
-            if (pageHandler != null)
-            {
-                try
-                {
-                    DiagnosticLog.Debug("LinuxApplication", $"Refreshing page theme: {page.MauiPage?.GetType().Name}");
-                    pageHandler.UpdateValue(nameof(IView.Background));
-                    pageHandler.UpdateValue("BackgroundColor");
-                }
-                catch (Exception ex)
-                {
-                    DiagnosticLog.Error("LinuxApplication", $"Error refreshing page theme: {ex.Message}");
-                }
-            }
-
-            page.Invalidate(); // Force redraw to pick up theme-aware background
-            if (page.Content != null)
-            {
-                RefreshViewTheme(page.Content);
-            }
-        }
-
-        // Recursively process children
-        // Note: SkiaLayoutView hides SkiaView.Children with 'new', so we need to cast
-        IReadOnlyList<SkiaView> children = view is SkiaLayoutView layout ? layout.Children : view.Children;
-        foreach (var child in children)
-        {
-            RefreshViewTheme(child);
         }
     }
 
