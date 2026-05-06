@@ -182,12 +182,20 @@ public partial class LinuxApplication : IDisposable
         set
         {
             _rootView = value;
-            if (_rootView != null && _mainWindow != null)
+            if (_rootView != null)
             {
-                _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(
-                    0, 0,
-                    _mainWindow.Width,
-                    _mainWindow.Height));
+                // Attach the render context so views in this tree can resolve
+                // typefaces and request invalidation without a global lookup.
+                if (_renderingEngine != null)
+                    _rootView.RenderContext = _renderingEngine;
+
+                if (_mainWindow != null)
+                {
+                    _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(
+                        0, 0,
+                        _mainWindow.Width,
+                        _mainWindow.Height));
+                }
             }
         }
     }
