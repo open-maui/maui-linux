@@ -10,15 +10,9 @@ public static class DisplayServerFactory
     private static DisplayServerType? _cachedServerType;
 
     /// <summary>
-    /// Detects the active display server.
-    ///
-    /// **Default is X11/XWayland** — both on pure-X11 sessions and when running
-    /// under a Wayland compositor (the compositor's XWayland bridge handles us).
-    /// Wayland-native is opt-in via <c>MAUI_PREFER_WAYLAND=1</c> while the native
-    /// path's protocol bindings are stabilized; today's <c>wl_interface</c> stubs
-    /// have NULL methods tables, which segfaults the first request after a global
-    /// is bound. Native-Wayland will become the default once the methods tables
-    /// are populated from the wayland-protocols XML (a follow-up rev).
+    /// Detects the active display server. Wayland is preferred when
+    /// <c>WAYLAND_DISPLAY</c> is set; users can fall back to X11/XWayland by
+    /// setting <c>MAUI_PREFER_X11=1</c>. Pure-X11 sessions transparently use X11.
     /// </summary>
     public static DisplayServerType DetectDisplayServer()
     {
@@ -27,31 +21,27 @@ public static class DisplayServerFactory
 
         var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
         var xDisplay = Environment.GetEnvironmentVariable("DISPLAY");
-        var preferWayland = Environment.GetEnvironmentVariable("MAUI_PREFER_WAYLAND");
+        var preferX11 = Environment.GetEnvironmentVariable("MAUI_PREFER_X11");
 
-        if (!string.IsNullOrEmpty(preferWayland) && !string.IsNullOrEmpty(waylandDisplay))
+        if (!string.IsNullOrEmpty(waylandDisplay))
         {
-            DiagnosticLog.Debug("DisplayServerFactory", "MAUI_PREFER_WAYLAND set; using native Wayland (experimental)");
+            if (!string.IsNullOrEmpty(preferX11) && !string.IsNullOrEmpty(xDisplay))
+            {
+                DiagnosticLog.Debug("DisplayServerFactory", "MAUI_PREFER_X11 set; using X11/XWayland");
+                _cachedServerType = DisplayServerType.X11;
+                return DisplayServerType.X11;
+            }
+
+            DiagnosticLog.Debug("DisplayServerFactory", "Wayland session detected");
             _cachedServerType = DisplayServerType.Wayland;
             return DisplayServerType.Wayland;
         }
 
         if (!string.IsNullOrEmpty(xDisplay))
         {
-            DiagnosticLog.Debug("DisplayServerFactory",
-                !string.IsNullOrEmpty(waylandDisplay)
-                    ? "Wayland session detected; using XWayland (set MAUI_PREFER_WAYLAND=1 for native)"
-                    : "X11 session detected");
+            DiagnosticLog.Debug("DisplayServerFactory", "X11 session detected");
             _cachedServerType = DisplayServerType.X11;
             return DisplayServerType.X11;
-        }
-
-        if (!string.IsNullOrEmpty(waylandDisplay))
-        {
-            // No XWayland available; native Wayland is the only option.
-            DiagnosticLog.Warn("DisplayServerFactory", "Pure-Wayland session (no DISPLAY); using native Wayland");
-            _cachedServerType = DisplayServerType.Wayland;
-            return DisplayServerType.Wayland;
         }
 
         DiagnosticLog.Warn("DisplayServerFactory", "No display server detected, defaulting to X11");
