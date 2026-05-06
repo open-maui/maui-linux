@@ -39,10 +39,20 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     [LibraryImport(LibWaylandClient)]
     private static partial int wl_display_get_fd(IntPtr display);
 
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_get_error(IntPtr display);
+
     // Low-level proxy API (actually exported - used to implement protocol wrappers)
     [LibraryImport(LibWaylandClient)]
     private static partial IntPtr wl_proxy_marshal_constructor(
         IntPtr proxy, uint opcode, IntPtr iface, IntPtr arg);
+
+    // Overload for signatures like "no" (new_id + object) — libwayland's variadic
+    // walker reads one slot per signature char, so we must provide a NULL
+    // placeholder for the 'n' arg followed by the actual object pointer for 'o'.
+    [LibraryImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal_constructor")]
+    private static partial IntPtr wl_proxy_marshal_constructor(
+        IntPtr proxy, uint opcode, IntPtr iface, IntPtr arg1, IntPtr arg2);
 
     [LibraryImport(LibWaylandClient)]
     private static partial IntPtr wl_proxy_marshal_constructor_versioned(
@@ -209,9 +219,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static IntPtr wl_registry_bind(IntPtr registry, uint name, IntPtr iface, uint version)
     {
-        // For registry bind, we need to use marshal_flags with the interface
+        // wl_registry.bind has a generic new_id arg — its wire signature expands to
+        // (uint name, string interface_name, uint version, new_id). The first
+        // variadic slot for the string MUST be the interface name `char*`, not the
+        // wl_interface struct pointer. The wl_interface->name is at offset 0 of the
+        // struct, so we read the first IntPtr of `iface` to get the name string ptr.
+        var ifaceName = Marshal.ReadIntPtr(iface);
         return wl_proxy_marshal_flags(registry, WL_REGISTRY_BIND, iface, version, 0,
-            name, iface, version);
+            name, ifaceName, version);
     }
 
     // wl_compositor_create_surface wrapper
@@ -421,8 +436,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static IntPtr xdg_wm_base_get_xdg_surface(IntPtr wmBase, IntPtr surface)
     {
+        // Signature "no" → IntPtr.Zero placeholder for the new_id, then the surface object.
         return wl_proxy_marshal_constructor(wmBase, XDG_WM_BASE_GET_XDG_SURFACE,
-            _xdg_surface_interface, surface);
+            _xdg_surface_interface, IntPtr.Zero, surface);
     }
 
     private static void xdg_wm_base_pong(IntPtr wmBase, uint serial)
@@ -781,15 +797,20 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (_xdgWmBase == IntPtr.Zero)
             throw new InvalidOperationException("xdg_wm_base not found - compositor doesn't support xdg-shell");
 
+        DiagnosticLog.Debug("WaylandWindow", "DBG step 1: about to create wl_surface");
         // Create surface
         _surface = wl_compositor_create_surface(_compositor);
         if (_surface == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create Wayland surface");
+        wl_display_roundtrip(_display);
+        DiagnosticLog.Debug("WaylandWindow", $"DBG step 2: wl_surface created at {_surface:X}, err={wl_display_get_error(_display)}");
 
         // Create xdg_surface
         _xdgSurface = xdg_wm_base_get_xdg_surface(_xdgWmBase, _surface);
         if (_xdgSurface == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create xdg_surface");
+        wl_display_roundtrip(_display);
+        DiagnosticLog.Debug("WaylandWindow", $"DBG step 3: xdg_surface created at {_xdgSurface:X}, err={wl_display_get_error(_display)}");
 
         _xdgSurfaceListener = new XdgSurfaceListener
         {

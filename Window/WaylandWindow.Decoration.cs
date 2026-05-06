@@ -73,11 +73,12 @@ public partial class WaylandWindow
         if (_decorationManager == IntPtr.Zero || _xdgToplevel == IntPtr.Zero)
             return;
 
-        // get_toplevel_decoration: marshal_constructor with the toplevel as the only arg
+        // get_toplevel_decoration: signature "no" → NULL placeholder for new_id, then the toplevel object.
         _toplevelDecoration = wl_proxy_marshal_constructor(
             _decorationManager,
             ZXDG_DECORATION_MANAGER_V1_GET_TOPLEVEL_DECORATION,
             _zxdg_toplevel_decoration_v1_interface,
+            IntPtr.Zero,
             _xdgToplevel);
 
         if (_toplevelDecoration == IntPtr.Zero) return;
@@ -164,10 +165,12 @@ public partial class WaylandWindow
         if (_fractionalScaleManager == IntPtr.Zero || _surface == IntPtr.Zero)
             return;
 
+        // get_fractional_scale: signature "no" → NULL placeholder for new_id, then the surface.
         _fractionalScale = wl_proxy_marshal_constructor(
             _fractionalScaleManager,
             WP_FRACTIONAL_SCALE_MANAGER_V1_GET_FRACTIONAL_SCALE,
             _wp_fractional_scale_v1_interface,
+            IntPtr.Zero,
             _surface);
 
         if (_fractionalScale == IntPtr.Zero) return;
