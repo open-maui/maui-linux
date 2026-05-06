@@ -124,7 +124,10 @@ public class DeviceDisplayService : IDeviceDisplay
         try
         {
             string action = inhibit ? "suspend" : "resume";
-            IntPtr windowHandle = LinuxApplication.Current?.MainWindow?.Handle ?? IntPtr.Zero;
+            // xdg-screensaver requires an X11 window ID; on Wayland the call is skipped
+            // (the compositor handles idle inhibit via the idle-inhibit-unstable-v1 protocol,
+            // wired up in a follow-up).
+            IntPtr windowHandle = (LinuxApplication.Current?.MainWindow as IX11Surface)?.Handle ?? IntPtr.Zero;
             if (windowHandle != IntPtr.Zero)
             {
                 long windowId = windowHandle.ToInt64();

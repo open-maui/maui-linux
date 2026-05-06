@@ -273,7 +273,7 @@ public class GpuRenderingEngine : IDisposable
             var pixels = _softwareBitmap.GetPixels();
             if (pixels != IntPtr.Zero)
             {
-                _window.DrawPixels(pixels, Width, Height, _softwareBitmap.RowBytes);
+                _window.Present(pixels, Width, Height, _softwareBitmap.RowBytes);
             }
         }
     }
