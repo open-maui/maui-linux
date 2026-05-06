@@ -11,6 +11,11 @@ public static class MauiProgram
 
         builder
             .UseMauiApp<App>()
+            // Backend selection (use ONE of UseLinux / UseX11 / UseWayland):
+            //   .UseLinux()    auto-detect from session (current default)
+            //   .UseX11()      force X11/XWayland — most stable, recommended for WebView-heavy apps
+            //   .UseWayland()  prefer native Wayland, auto-fallback to X11 if unavailable
+            // All three are no-ops on Windows/Android/iOS, so this stays cross-platform safe.
             .UseLinux();
 
         return builder.Build();
