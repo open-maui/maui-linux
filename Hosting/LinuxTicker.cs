@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Animations;
+using Microsoft.Maui.Platform.Linux.Dispatching;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
@@ -42,6 +43,17 @@ internal class LinuxTicker : ITicker
 
     private void OnTimerCallback(object? state)
     {
-        Fire?.Invoke();
+        var fire = Fire;
+        if (fire is null)
+            return;
+
+        // Tick fires on a thread pool thread. Animations mutate SkiaView state, which
+        // must only happen on the GTK/main thread; dispatch through LinuxDispatcher
+        // so consumers don't race the render loop.
+        var dispatcher = LinuxDispatcher.Main;
+        if (dispatcher is null || !dispatcher.IsDispatchRequired)
+            fire();
+        else
+            dispatcher.Dispatch(fire);
     }
 }
