@@ -114,6 +114,9 @@ public partial class WaylandWindow
 
     private static IntPtr _wp_fractional_scale_manager_v1_interface;
     private static IntPtr _wp_fractional_scale_v1_interface;
+
+    internal static IntPtr _wp_viewporter_interface;
+    internal static IntPtr _wp_viewport_interface;
     private static GCHandle _fractionalScaleManagerHandle;
     private static GCHandle _fractionalScaleHandle;
     private static IntPtr _fractionalScaleManagerName;
