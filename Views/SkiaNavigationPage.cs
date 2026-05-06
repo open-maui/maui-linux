@@ -19,6 +19,21 @@ public class SkiaNavigationPage : SkiaView
 {
     private readonly Stack<SkiaPage> _navigationStack = new();
     private SkiaPage? _currentPage;
+
+    /// <summary>
+    /// Theme-refresh walker hook: yield the current page and every page on the
+    /// back stack. NavigationPage keeps these in private fields rather than
+    /// the standard Children list, so the walker needs an explicit pointer.
+    /// </summary>
+    public override IEnumerable<SkiaView> ExtraContentRoots
+    {
+        get
+        {
+            if (_currentPage != null) yield return _currentPage;
+            foreach (var page in _navigationStack)
+                if (page != null) yield return page;
+        }
+    }
     private bool _isAnimating;
     private float _animationProgress;
     private SkiaPage? _incomingPage;

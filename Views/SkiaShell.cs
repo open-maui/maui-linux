@@ -191,13 +191,12 @@ public class SkiaShell : SkiaLayoutView
     private SkiaView? _currentContent;
 
     /// <summary>
-    /// Enumerate every content view tree currently owned by this shell — the
-    /// active section's content, every section's pre-rendered content, and any
-    /// pages on the navigation stack. Used by the theme-refresh walker so it can
-    /// reach SkiaItemsView (and other cache-holding views) inside templated
-    /// content that isn't part of the regular Children chain.
+    /// Theme-refresh walker hook: yield every content tree this shell owns —
+    /// the active section's content, every section's pre-rendered content, and
+    /// any pages on the navigation stack. These live in private fields rather
+    /// than the standard Children chain.
     /// </summary>
-    public IEnumerable<SkiaView> AllContentRoots
+    public override IEnumerable<SkiaView> ExtraContentRoots
     {
         get
         {
