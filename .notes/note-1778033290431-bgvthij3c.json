@@ -1,0 +1,8 @@
+{
+  "id": "note-1778033290431-bgvthij3c",
+  "title": "followup",
+  "content": "Open follow-ups for after this rev\n                                                                                                              \n  - CSD for GNOME: implement client-side decoration (titlebar with min/max/close buttons, drag-to-move, edge  \n  resize). ~1-2 weeks.                                                          \n  - Wire wp_fractional_scale_v1 into HiDpiService: fractional scale events currently log but don't propagate. \n  Pure quality, not correctness.                                                   \n  - text-input-v3 for native Wayland IME: ~3-5 days.                                                          \n  - Native libwayland clipboard via wl_data_device_manager: replace the wl-copy/wl-paste subprocesses. Pure\n  architectural cleanup.   \n\n",
+  "createdAt": 1778033290425,
+  "updatedAt": 1778033299773,
+  "tags": []
+}
