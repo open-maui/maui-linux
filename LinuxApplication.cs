@@ -36,7 +36,7 @@ public partial class LinuxApplication : IDisposable
     private static int _isRedrawing;
     private static int _loopCounter = 0;
 
-    private X11Window? _mainWindow;
+    private IDisplayWindow? _mainWindow;
     private GtkHostWindow? _gtkWindow;
     private SkiaRenderingEngine? _renderingEngine;
     private SkiaView? _rootView;
@@ -166,7 +166,7 @@ public partial class LinuxApplication : IDisposable
     /// <summary>
     /// Gets the main window.
     /// </summary>
-    public X11Window? MainWindow => _mainWindow;
+    public IDisplayWindow? MainWindow => _mainWindow;
 
     /// <summary>
     /// Gets the rendering engine.
@@ -299,15 +299,23 @@ public partial class LinuxApplication : IDisposable
 
     private void InitializeX11(LinuxApplicationOptions options)
     {
-        _mainWindow = new X11Window(
+        // Display server picked at runtime: Wayland when WAYLAND_DISPLAY is set,
+        // X11/XWayland otherwise. MAUI_PREFER_X11=1 is the user-facing escape hatch.
+        _mainWindow = DisplayServerFactory.CreateWindow(
             options.Title ?? "MAUI Application",
             options.Width,
             options.Height);
 
-        // Set up WebView main window
-        SkiaWebView.SetMainWindow(_mainWindow.Display, _mainWindow.Handle);
+        // SkiaWebView reparents WebKitGTK widgets into the host window using raw X11
+        // calls; only valid when the main window actually is X11. On native Wayland
+        // the WebView falls back to its own toplevel via GTK.
+        if (_mainWindow is IX11Surface x11)
+        {
+            SkiaWebView.SetMainWindow(x11.Display, x11.Handle);
+        }
 
-        // Set window icon (X11 _NET_WM_ICON + GTK default icon + .desktop file for GNOME)
+        // Set window icon (X11 _NET_WM_ICON + GTK default icon + .desktop file for GNOME).
+        // SetIcon is a no-op on Wayland; the .desktop entry is what GNOME/KDE actually use.
         string? iconPath = ResolveIconPath(options.IconPath);
         if (!string.IsNullOrEmpty(iconPath))
         {
@@ -321,7 +329,6 @@ public partial class LinuxApplication : IDisposable
             {
                 DiagnosticLog.Debug("LinuxApplication", "Failed to set GTK default icon", ex);
             }
-            // Create/update .desktop file so GNOME/Wayland can match WM_CLASS to icon
             InstallDesktopEntry(iconPath);
         }
 
