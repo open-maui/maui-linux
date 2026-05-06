@@ -12,7 +12,8 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// <summary>
 /// X11 window implementation for Linux.
 /// </summary>
-public class X11Window : IDisposable
+public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
+                        Microsoft.Maui.Platform.Linux.Services.IX11Surface
 {
     private IntPtr _display;
     private IntPtr _window;
@@ -752,12 +753,9 @@ public class X11Window : IDisposable
     }
 
     /// <summary>
-    /// Draws pixel data to the window.
+    /// Presents an ARGB32 pixel buffer to the window via XPutImage.
     /// </summary>
-    /// <summary>
-    /// Draws pixel data to the window.
-    /// </summary>
-    public void DrawPixels(IntPtr pixels, int width, int height, int stride)
+    public void Present(IntPtr pixels, int width, int height, int stride)
     {
         if (_display == IntPtr.Zero || _window == IntPtr.Zero) return;
 
