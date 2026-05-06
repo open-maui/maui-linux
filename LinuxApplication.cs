@@ -33,7 +33,7 @@ public partial class LinuxApplication : IDisposable
     private static int _gtkThreadId;
     public static int GtkThreadId => _gtkThreadId;
     private static DateTime _lastCounterReset = DateTime.Now;
-    private static bool _isRedrawing;
+    private static int _isRedrawing;
     private static int _loopCounter = 0;
 
     private X11Window? _mainWindow;
@@ -118,7 +118,8 @@ public partial class LinuxApplication : IDisposable
     public static void RequestRedraw()
     {
         LogRequestRedraw();
-        if (_isRedrawing)
+        // Fast-path peek (advisory only; the atomic claim happens in RequestRedrawInternal).
+        if (Volatile.Read(ref _isRedrawing) != 0)
             return;
 
         // Check if we're on the GTK thread
@@ -139,10 +140,12 @@ public partial class LinuxApplication : IDisposable
 
     private static void RequestRedrawInternal()
     {
-        if (_isRedrawing)
+        // Atomic claim: only one caller proceeds; the rest see we're already redrawing
+        // and bail. Using CompareExchange instead of a plain bool eliminates the TOCTOU
+        // window between the check and the assignment.
+        if (Interlocked.CompareExchange(ref _isRedrawing, 1, 0) != 0)
             return;
 
-        _isRedrawing = true;
         try
         {
             if (Current != null && Current._useGtk)
@@ -156,7 +159,7 @@ public partial class LinuxApplication : IDisposable
         }
         finally
         {
-            _isRedrawing = false;
+            Volatile.Write(ref _isRedrawing, 0);
         }
     }
 
@@ -243,14 +246,22 @@ public partial class LinuxApplication : IDisposable
     /// </summary>
     public void Initialize(LinuxApplicationOptions options)
     {
-        // Detect HiDPI scale factor and apply to window dimensions
-        var hiDpi = new HiDpiService();
-        hiDpi.Initialize();
-        DpiScale = hiDpi.ScaleFactor;
+        // Reuse the scale detected before gtk_init_check (XCURSOR_SIZE setup happens there).
+        // Fall back to a fresh detection if Initialize is called outside the Run flow.
+        if (EarlyDpiScale is float earlyScale)
+        {
+            DpiScale = earlyScale;
+        }
+        else
+        {
+            var hiDpi = new HiDpiService();
+            hiDpi.Initialize();
+            DpiScale = hiDpi.ScaleFactor;
+        }
 
         if (DpiScale > 1.0f)
         {
-            DiagnosticLog.Debug("LinuxApplication", $"HiDPI detected: scale={DpiScale:F2}, dpi={hiDpi.Dpi:F0}");
+            DiagnosticLog.Debug("LinuxApplication", $"HiDPI detected: scale={DpiScale:F2}");
 
             // Only apply HiDPI scaling for X11 mode. GTK mode uses native widgets
             // (e.g., WebKitGTK) that handle their own rendering at physical pixels,
@@ -261,15 +272,6 @@ public partial class LinuxApplication : IDisposable
                 options.Height = (int)(options.Height * DpiScale);
                 DiagnosticLog.Debug("LinuxApplication", $"Scaled window to {options.Width}x{options.Height}");
             }
-        }
-
-        // Cursor sizing for X11/XWayland. The default Xcursor size is 24px at 1x;
-        // without this, themed cursors render at native pixel size on HiDPI / fractional
-        // scaling (notably GNOME Wayland via XWayland), making them look tiny.
-        if (Environment.GetEnvironmentVariable("XCURSOR_SIZE") is null)
-        {
-            var cursorSize = (int)Math.Round(24 * Math.Max(1.0f, DpiScale));
-            Environment.SetEnvironmentVariable("XCURSOR_SIZE", cursorSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         // Apply gesture configuration
