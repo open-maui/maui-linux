@@ -63,17 +63,14 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         }
         platformView.Tapped += OnPlatformViewTapped;
 
-        // Explicitly map properties since they may be set before handler creation
+        // Explicitly map size requests since they may be set before handler creation.
+        // Background/BackgroundColor are deliberately NOT echoed here: when MauiView
+        // is wired (above) the SkiaBorder reads them live and OnMauiViewPropertyChanged
+        // refreshes the cached SKColor on changes. Echoing through the public setter
+        // would route to ve.SetValue() at LocalValue specificity and permanently
+        // override any AppThemeBinding on the Border's BackgroundColor.
         if (VirtualView is VisualElement ve)
         {
-            if (ve.BackgroundColor != null)
-            {
-                platformView.BackgroundColor = ve.BackgroundColor;
-            }
-            else if (ve.Background is SolidColorBrush brush && brush.Color != null)
-            {
-                platformView.BackgroundColor = brush.Color;
-            }
             if (ve.WidthRequest >= 0)
             {
                 platformView.WidthRequest = ve.WidthRequest;
@@ -144,6 +141,16 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
     {
         if (handler.PlatformView is null) return;
 
+        // When MauiView is wired the SkiaBorder reads Background/BackgroundColor
+        // live and OnMauiViewPropertyChanged refreshes the cache on bind updates.
+        // Echoing back via the public setter would route to ve.SetValue() at
+        // LocalValue specificity and clobber any AppThemeBinding on the property.
+        if (handler.PlatformView.MauiView != null)
+        {
+            handler.PlatformView.Invalidate();
+            return;
+        }
+
         if (border.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color;
@@ -154,10 +161,17 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
     {
         if (handler.PlatformView is null) return;
 
+        // See note in MapBackground — never echo BackgroundColor back when MauiView
+        // is wired; doing so destroys AppThemeBindings on the Border's BackgroundColor.
+        if (handler.PlatformView.MauiView != null)
+        {
+            handler.PlatformView.Invalidate();
+            return;
+        }
+
         if (border is VisualElement ve)
         {
             var bgColor = ve.BackgroundColor;
-            DiagnosticLog.Debug("BorderHandler", $"MapBackgroundColor: {bgColor}");
             if (bgColor != null)
             {
                 handler.PlatformView.BackgroundColor = bgColor;

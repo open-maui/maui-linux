@@ -55,10 +55,18 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         // Create handlers for all children and add them to the platform view
         if (VirtualView == null || MauiContext == null) return;
 
-        // Explicitly map properties that may be set before handler creation
+        // Wire MauiView so the layout reads BackgroundColor live from the MAUI Layout.
+        // CRITICAL: do NOT echo `platformView.BackgroundColor = ve.BackgroundColor`
+        // when MauiView is wired — that setter routes back to ve.SetValue() at
+        // LocalValue specificity, which is higher than Binding specificity, and
+        // permanently clobbers AppThemeBinding so theme toggles stop firing
+        // PropertyChanged after the first one.
+        if (VirtualView is View view)
+            platformView.MauiView = view;
+
         if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)
         {
-            if (ve.BackgroundColor != null)
+            if (platformView.MauiView is null && ve.BackgroundColor != null)
                 platformView.BackgroundColor = ve.BackgroundColor;
             if (ve.WidthRequest >= 0)
                 platformView.WidthRequest = ve.WidthRequest;
@@ -103,6 +111,16 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     {
         if (handler.PlatformView is null) return;
 
+        // When MauiView is wired the platform view reads Background/BackgroundColor
+        // live and OnMauiViewPropertyChanged refreshes the cache on bind updates.
+        // Echoing back via the public setter routes through ve.SetValue() at
+        // LocalValue specificity and clobbers AppThemeBindings on the property.
+        if (handler.PlatformView.MauiView != null)
+        {
+            handler.PlatformView.Invalidate();
+            return;
+        }
+
         if (layout.Background is SolidPaint solidPaint && solidPaint.Color is not null)
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color;
@@ -116,6 +134,13 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
     public static void MapBackgroundColor(LayoutHandler handler, ILayout layout)
     {
         if (handler.PlatformView is null) return;
+
+        // See note in MapBackground.
+        if (handler.PlatformView.MauiView != null)
+        {
+            handler.PlatformView.Invalidate();
+            return;
+        }
 
         if (layout is Microsoft.Maui.Controls.VisualElement ve && ve.BackgroundColor is not null)
         {
@@ -301,10 +326,18 @@ public partial class GridHandler : LayoutHandler
 
             DiagnosticLog.Debug("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols, VirtualView={VirtualView.GetType().Name}");
 
-            // Explicitly map properties that may be set before handler creation
+            // Wire MauiView so SkiaGrid reads BackgroundColor live from the MAUI Grid.
+            // CRITICAL: do NOT echo `platformView.BackgroundColor = ve.BackgroundColor`
+            // when MauiView is wired — that setter routes back to ve.SetValue() at
+            // LocalValue specificity, which is higher than Binding specificity, and
+            // permanently clobbers any AppThemeBinding on the Grid's BackgroundColor
+            // (theme toggles stop firing PropertyChanged after the first one).
+            if (VirtualView is View view)
+                platformView.MauiView = view;
+
             if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)
             {
-                if (ve.BackgroundColor != null)
+                if (platformView.MauiView is null && ve.BackgroundColor != null)
                     platformView.BackgroundColor = ve.BackgroundColor;
                 if (ve.WidthRequest >= 0)
                     platformView.WidthRequest = ve.WidthRequest;
