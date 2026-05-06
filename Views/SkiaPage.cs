@@ -13,6 +13,20 @@ namespace Microsoft.Maui.Platform;
 public class SkiaPage : SkiaView
 {
     private SkiaView? _content;
+
+    /// <summary>
+    /// Theme-refresh walker hook: yield this page's <see cref="Content"/>. The
+    /// content lives in a private field rather than the standard Children list,
+    /// so without this override the walker can't reach the page's view tree
+    /// (e.g. the CollectionView inside TodoApp's TodoListPage).
+    /// </summary>
+    public override IEnumerable<SkiaView> ExtraContentRoots
+    {
+        get
+        {
+            if (_content != null) yield return _content;
+        }
+    }
     private string _title = "";
     protected SKColor _titleBarColor = SkiaTheme.PrimarySK;
     protected SKColor _titleTextColor = SKColors.White;
