@@ -21,16 +21,89 @@ public class LinuxViewRenderer
     private SkiaShell? _skiaShell;
 
     /// <summary>
-    /// Most recently created renderer's SkiaShell. Currently used only by the
-    /// startup theme-refresh hook in <see cref="LinuxApplication"/>; multi-window
-    /// support will replace this with a per-window lookup.
+    /// Most recently created renderer's SkiaShell. Used by the theme-refresh
+    /// hook and by sample apps for direct navigation; multi-window support
+    /// will replace this with a per-window lookup.
     /// </summary>
     public static SkiaShell? CurrentSkiaShell => s_currentSkiaShell;
     private static SkiaShell? s_currentSkiaShell;
+    private static LinuxViewRenderer? s_currentRenderer;
+
+    /// <summary>
+    /// Navigates the current shell to a route. Pass either a section route
+    /// (e.g. "Buttons") or a leading-slash form ("//Buttons"). Returns true if
+    /// a matching section was found.
+    /// </summary>
+    public static bool NavigateToRoute(string route)
+    {
+        var shell = s_currentSkiaShell;
+        if (shell == null)
+        {
+            DiagnosticLog.Warn("LinuxViewRenderer", "NavigateToRoute: no current shell");
+            return false;
+        }
+
+        var cleanRoute = route.TrimStart('/');
+        for (int i = 0; i < shell.Sections.Count; i++)
+        {
+            var section = shell.Sections[i];
+            if (section.Route.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase) ||
+                section.Title.Equals(cleanRoute, StringComparison.OrdinalIgnoreCase))
+            {
+                shell.NavigateToSection(i);
+                return true;
+            }
+        }
+        DiagnosticLog.Warn("LinuxViewRenderer", $"NavigateToRoute: route not found: {cleanRoute}");
+        return false;
+    }
+
+    /// <summary>
+    /// Renders a MAUI Page through the current renderer and pushes it onto
+    /// the shell's navigation stack.
+    /// </summary>
+    public static bool PushPage(Page page)
+    {
+        var shell = s_currentSkiaShell;
+        var renderer = s_currentRenderer;
+        if (shell == null || renderer == null)
+        {
+            DiagnosticLog.Warn("LinuxViewRenderer", "PushPage: no current shell/renderer");
+            return false;
+        }
+
+        try
+        {
+            var skiaPage = renderer.RenderPage(page);
+            if (skiaPage == null) return false;
+            shell.PushAsync(skiaPage, page.Title ?? "Detail");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("LinuxViewRenderer", "PushPage failed", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Pops the top page from the current shell's navigation stack.
+    /// </summary>
+    public static bool PopPage()
+    {
+        var shell = s_currentSkiaShell;
+        if (shell == null)
+        {
+            DiagnosticLog.Warn("LinuxViewRenderer", "PopPage: no current shell");
+            return false;
+        }
+        return shell.PopAsync();
+    }
 
     public LinuxViewRenderer(IMauiContext mauiContext)
     {
         _mauiContext = mauiContext ?? throw new ArgumentNullException(nameof(mauiContext));
+        s_currentRenderer = this;
     }
 
     /// <summary>
