@@ -380,14 +380,22 @@ public partial class LinuxApplication
             if (_loopCounter % 1000 == 0)
                 DiagnosticLog.Debug("LinuxApplication", $"Loop iteration {_loopCounter}");
 
+            // Drain any events callbacks queued during the previous frame, then flush
+            // outgoing requests so the compositor sees what we did.
             window.ProcessEvents();
             GLibNative.ProcessPendingEvents();
             SkiaWebView.ProcessGtkEvents();
             UpdateAnimations();
             Render();
 
+            // Block until the compositor has something for us, or our frame budget
+            // expires (animations need ticking even when idle).
             pollFd.Revents = 0;
-            LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
+            int polled = LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
+            if (polled > 0 && (pollFd.Revents & LibcNative.POLLIN) != 0)
+            {
+                window.DispatchReadEvents();
+            }
         }
         DiagnosticLog.Debug("LinuxApplication", "Wayland event loop ended");
     }
