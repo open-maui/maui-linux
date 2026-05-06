@@ -399,8 +399,8 @@ public partial class LinuxApplication
             // expires (animations need ticking even when idle).
             pollFd.Revents = 0;
             int polled = LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
-            if (_loopCounter < 5)
-                DiagnosticLog.Debug("LinuxApplication", $"DBG poll returned {polled}, revents=0x{pollFd.Revents:X4}, fd={pollFd.Fd}, errno={System.Runtime.InteropServices.Marshal.GetLastPInvokeError()}");
+            if (_loopCounter < 3 || _loopCounter % 100000 == 0)
+                DiagnosticLog.Debug("LinuxApplication", $"DBG poll iter={_loopCounter} ret={polled} revents=0x{pollFd.Revents:X4}");
             if (polled > 0 && (pollFd.Revents & LibcNative.POLLIN) != 0)
             {
                 window.DispatchReadEvents();
