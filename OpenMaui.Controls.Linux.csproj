@@ -65,6 +65,19 @@
     <None Include="assets/logo_only.png" Pack="true" PackagePath="" />
   </ItemGroup>
 
+  <!-- Wayland protocol bindings — generated from wayland-protocols XML via
+       wayland-scanner and compiled into a small shared library. Shipped as a
+       runtime native asset so consuming apps don't need wayland-scanner at
+       build time. See native/build.sh for regeneration. -->
+  <ItemGroup>
+    <None Include="native/libopenmaui_wl.so" Condition="Exists('native/libopenmaui_wl.so')">
+      <Pack>true</Pack>
+      <PackagePath>runtimes/linux-x64/native/libopenmaui_wl.so</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libopenmaui_wl.so</Link>
+    </None>
+  </ItemGroup>
+
   <!-- Include build props and targets in package - auto-imports when package is referenced -->
   <!-- .props runs BEFORE the project (sets SingleProject=false, RuntimeIdentifiers) -->
   <!-- .targets runs AFTER the project (manages platform folder exclusions, copies assets) -->
