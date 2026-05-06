@@ -56,6 +56,21 @@ public partial class LinuxApplication
         // reuses the result via _earlyDpiScale.
         DetectScaleAndConfigureCursor();
 
+        // Resolve options once; we need them both for the GtkHostService bring-up
+        // (below) and for the LinuxApplication initialization further down.
+        var options = app.Services.GetService<LinuxApplicationOptions>() ?? new LinuxApplicationOptions();
+        configure?.Invoke(options);
+        ParseCommandLineOptions(args, options);
+
+        // Initialize the GTK host service early. Idempotent: when X11 mode is selected,
+        // SkiaWebView still needs a backing GTK widget hierarchy via this hidden host
+        // window; when GTK mode is selected, InitializeGtk reuses this same instance
+        // through GetOrCreateHostWindow, so we never create two host windows.
+        GtkHostService.Instance.Initialize(
+            options.Title ?? "MAUI Application",
+            options.Width,
+            options.Height);
+
         // Pre-initialize GTK for WebView compatibility (even when using X11 mode)
         int argc = 0;
         IntPtr argv = IntPtr.Zero;
@@ -84,11 +99,6 @@ public partial class LinuxApplication
         LinuxDispatcher.Initialize();
         DispatcherProvider.SetCurrent(LinuxDispatcherProvider.Instance);
         DiagnosticLog.Debug("LinuxApplication", "Dispatcher initialized");
-
-        var options = app.Services.GetService<LinuxApplicationOptions>()
-                      ?? new LinuxApplicationOptions();
-        configure?.Invoke(options);
-        ParseCommandLineOptions(args, options);
 
         var linuxApp = new LinuxApplication();
         try
