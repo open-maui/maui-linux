@@ -13,8 +13,13 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 /// <summary>
 /// Manages Skia rendering to an X11 window with dirty region optimization.
 /// </summary>
-public class SkiaRenderingEngine : IDisposable
+public class SkiaRenderingEngine : IDisposable, IRenderContext
 {
+    // IRenderContext.Resources alias: existing internals keep using ResourceCache
+    // by name; new code (and views post-Stage-5) prefer the interface's Resources.
+    ResourceCache IRenderContext.Resources => ResourceCache;
+    void IRenderContext.Invalidate() => InvalidateAll();
+
     private readonly IDisplayWindow _window;
     private SKBitmap? _bitmap;
     private SKBitmap? _backBuffer;
@@ -36,7 +41,6 @@ public class SkiaRenderingEngine : IDisposable
     /// </summary>
     public static float RegionMergeThreshold { get; set; } = 0.3f;
 
-    public static SkiaRenderingEngine? Current { get; private set; }
     public ResourceCache ResourceCache { get; }
     public int Width => _imageInfo.Width;
     public int Height => _imageInfo.Height;
@@ -75,7 +79,6 @@ public class SkiaRenderingEngine : IDisposable
     {
         _window = window;
         ResourceCache = new ResourceCache();
-        Current = this;
 
         CreateSurface(window.Width, window.Height);
 
@@ -381,7 +384,6 @@ public class SkiaRenderingEngine : IDisposable
                 _bitmap?.Dispose();
                 _backBuffer?.Dispose();
                 ResourceCache.Dispose();
-                if (Current == this) Current = null;
             }
             _disposed = true;
         }
