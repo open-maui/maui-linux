@@ -406,6 +406,26 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     private Rect _bounds;
     private SkiaView? _parent;
     private readonly List<SkiaView> _children = new();
+    private IRenderContext? _renderContext;
+
+    /// <summary>
+    /// Per-tree rendering context, set when this view is attached to a render
+    /// engine (or directly in tests). Replaces the prior global
+    /// <c>SkiaRenderingEngine.Current</c> static; assignment propagates
+    /// recursively to existing children, and <see cref="AddChild"/> /
+    /// <see cref="InsertChild"/> propagate it to incoming children.
+    /// </summary>
+    public IRenderContext? RenderContext
+    {
+        get => _renderContext;
+        set
+        {
+            if (ReferenceEquals(_renderContext, value)) return;
+            _renderContext = value;
+            for (int i = 0; i < _children.Count; i++)
+                _children[i].RenderContext = value;
+        }
+    }
 
     /// <summary>
     /// Gets the absolute bounds of this view in screen coordinates.
@@ -920,6 +940,11 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             SetInheritedBindingContext(child, BindingContext);
         }
 
+        // Propagate render context so the child (and its subtree) can resolve
+        // typefaces and request invalidation against the right engine.
+        if (_renderContext != null)
+            child.RenderContext = _renderContext;
+
         InvalidateMeasure();
         Invalidate();
     }
@@ -954,6 +979,10 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         {
             SetInheritedBindingContext(child, BindingContext);
         }
+
+        // Propagate render context (see AddChild for the rationale).
+        if (_renderContext != null)
+            child.RenderContext = _renderContext;
 
         InvalidateMeasure();
         Invalidate();
@@ -1003,7 +1032,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         // Notify rendering engine of dirty region
         if (Bounds.Width > 0 && Bounds.Height > 0)
         {
-            SkiaRenderingEngine.Current?.InvalidateRegion(new SKRect(
+            RenderContext?.InvalidateRegion(new SKRect(
                 (float)Bounds.Left, (float)Bounds.Top,
                 (float)Bounds.Right, (float)Bounds.Bottom));
         }
