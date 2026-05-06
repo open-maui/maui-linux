@@ -16,11 +16,12 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 ### Key Features
 
 - **Full Control Library**: 50+ controls including Button, Label, Entry, Shapes, CarouselView, RefreshView, SwipeView, and more
-- **Native Integration**: X11 and Wayland display server support
+- **Native Integration**: First-class X11 *and* native Wayland support (xdg-shell, wp_viewporter, fractional-scale-v1, zxdg_decoration_manager_v1) — programmatically selectable or auto-detected
 - **Accessibility**: AT-SPI2 screen reader support and high contrast mode
 - **Platform Services**: Clipboard, file picker, notifications, global hotkeys, drag & drop
 - **Input Methods**: IBus and XIM support for international text input
-- **High DPI**: Automatic scale factor detection for GNOME, KDE, and X11
+- **High DPI**: Automatic scale factor detection for GNOME, KDE, and X11; fractional scale handled via Wayland viewporter for pixel-exact rendering at non-integer scales (1.25x, 1.5x, 1.75x)
+- **Theming**: AppThemeBinding live propagation across the entire view tree — CollectionView items, pushed pages, Shell content, and flyout regions all flip on theme toggle
 
 ## Quick Start
 
@@ -67,8 +68,22 @@ OpenMaui fully supports standard .NET MAUI XAML syntax. Use the familiar XAML wo
 var builder = MauiApp.CreateBuilder();
 builder
     .UseMauiApp<App>()
-    .UseOpenMauiLinux();  // Enable Linux with XAML support
+    .UseLinux();  // Enable Linux with XAML support (auto-detects X11/Wayland)
 ```
+
+## Backend Selection (X11 / Wayland)
+
+Pick exactly one — calls are no-ops on Windows/Android/iOS so they're safe in cross-platform `MauiProgram.cs`:
+
+```csharp
+builder
+    .UseMauiApp<App>()
+    .UseLinux();      // auto-detect from session (default)
+    // .UseX11();     // force X11/XWayland — most stable, recommended for WebView-heavy apps
+    // .UseWayland(); // prefer native Wayland; auto-falls back to X11 if Wayland unavailable
+```
+
+Native Wayland uses xdg-shell + wp_viewporter for fractional-scale rendering and ssd via zxdg_decoration_manager_v1. The X11 path remains the default fallback and is fully supported. Environment overrides (`MAUI_PREFER_X11=1`, `GDK_BACKEND=x11`) still work and take effect before the builder runs.
 
 ## Supported Controls
 
@@ -166,7 +181,7 @@ using Microsoft.Maui.Platform.Linux.Hosting;
 var builder = MauiApp.CreateBuilder();
 builder
     .UseMauiApp<App>()
-    .UseOpenMauiLinux();
+    .UseLinux();   // or .UseX11() / .UseWayland() to force a backend
 
 var app = builder.Build();
 LinuxApplication.Run(app, args);
@@ -276,7 +291,12 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Dark mode for all picker popups
 - [x] DPI-aware popup rendering with edge detection
 - [x] MAUI Shapes (Ellipse, Line, Rectangle, Polygon, Polyline, Path)
-- [ ] Complete Wayland support
+- [x] Native Wayland backend (xdg-shell, wp_viewporter, fractional-scale-v1, decoration-manager)
+- [x] Programmatic backend selection (`UseX11()` / `UseWayland()`)
+- [x] AppThemeBinding live propagation through Shell, NavigationPage, and CollectionView item trees
+- [ ] Client-side decorations for GNOME-Wayland sessions
+- [ ] Native `wl_data_device_manager` clipboard (replaces wl-copy/wl-paste subprocess)
+- [ ] text-input-v3 IME support on Wayland
 - [ ] Hardware video acceleration
 - [ ] GTK4 interop layer
 

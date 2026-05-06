@@ -31,6 +31,21 @@ public static class LinuxPlatformRegistrar
     {
         LinuxMauiAppBuilderExtensionsInternal.RegisterLinuxServices(builder, null);
     }
+
+    /// <summary>
+    /// Cross-platform stub entry point used by <c>UseX11()</c> / <c>UseWayland()</c> to
+    /// pre-set the display server before the main registration runs. <paramref name="serverName"/>
+    /// is the case-insensitive enum name (e.g. "X11", "Wayland").
+    /// </summary>
+    public static void RegisterWithDisplayServer(MauiAppBuilder builder, string serverName)
+    {
+        var server = Enum.TryParse<DisplayServerType>(serverName, ignoreCase: true, out var parsed)
+            ? parsed
+            : DisplayServerType.Auto;
+        LinuxMauiAppBuilderExtensionsInternal.RegisterLinuxServices(
+            builder,
+            options => options.DisplayServer = server);
+    }
 }
 
 /// <summary>
@@ -46,6 +61,38 @@ public static class LinuxMauiAppBuilderExtensionsInternal
     public static MauiAppBuilder UseLinux(this MauiAppBuilder builder, Action<LinuxApplicationOptions> configure)
     {
         RegisterLinuxServices(builder, configure);
+        return builder;
+    }
+
+    /// <summary>
+    /// Adds Linux platform support and forces the X11/XWayland backend, even on a Wayland
+    /// session. Use this as a drop-in replacement for <see cref="UseLinux(MauiAppBuilder)"/>
+    /// — call one or the other, not both. Optional <paramref name="configure"/> runs after
+    /// the display-server preset so additional option tweaks still apply.
+    /// </summary>
+    public static MauiAppBuilder UseX11(this MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure = null)
+    {
+        RegisterLinuxServices(builder, options =>
+        {
+            options.DisplayServer = DisplayServerType.X11;
+            configure?.Invoke(options);
+        });
+        return builder;
+    }
+
+    /// <summary>
+    /// Adds Linux platform support and forces the native Wayland backend. Falls back to
+    /// X11/XWayland automatically if the Wayland connection cannot be opened (e.g.
+    /// libwayland-client missing, or running under a pure X11 session). Use as a drop-in
+    /// replacement for <see cref="UseLinux(MauiAppBuilder)"/>.
+    /// </summary>
+    public static MauiAppBuilder UseWayland(this MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure = null)
+    {
+        RegisterLinuxServices(builder, options =>
+        {
+            options.DisplayServer = DisplayServerType.Wayland;
+            configure?.Invoke(options);
+        });
         return builder;
     }
 
