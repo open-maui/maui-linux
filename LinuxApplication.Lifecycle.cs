@@ -294,19 +294,26 @@ public partial class LinuxApplication
         if (_useGtk)
         {
             RunGtk();
+            return;
+        }
+
+        if (_mainWindow is X11Window x11)
+        {
+            RunX11(x11);
+        }
+        else if (_mainWindow is WaylandWindow wl)
+        {
+            RunWayland(wl);
         }
         else
         {
-            RunX11();
+            throw new InvalidOperationException("No display window available");
         }
     }
 
-    private void RunX11()
+    private void RunX11(X11Window window)
     {
-        if (_mainWindow == null)
-            throw new InvalidOperationException("Application not initialized");
-
-        _mainWindow.Show();
+        window.Show();
         Render();
 
         // Cap the wait at ~60Hz so animations get a chance to tick even when no input
@@ -315,12 +322,12 @@ public partial class LinuxApplication
         const int IdleTimeoutMs = 16;
         var pollFd = new LibcNative.PollFd
         {
-            Fd = X11.XConnectionNumber(_mainWindow.Display),
+            Fd = X11.XConnectionNumber(window.Display),
             Events = LibcNative.POLLIN,
         };
 
-        DiagnosticLog.Debug("LinuxApplication", "Starting event loop");
-        while (_mainWindow.IsRunning)
+        DiagnosticLog.Debug("LinuxApplication", "Starting X11 event loop");
+        while (window.IsRunning)
         {
             _loopCounter++;
             if (_loopCounter % 1000 == 0)
@@ -328,8 +335,8 @@ public partial class LinuxApplication
                 DiagnosticLog.Debug("LinuxApplication", $"Loop iteration {_loopCounter}");
             }
 
-            _mainWindow.ProcessEvents();
-            _mainWindow.FlushDeferredResize();
+            window.ProcessEvents();
+            window.FlushDeferredResize();
             // Process GLib events (idle callbacks, timeouts) so that
             // MainThread.BeginInvokeOnMainThread dispatches execute.
             // This is required for libraries like LiveCharts that use
@@ -338,18 +345,51 @@ public partial class LinuxApplication
             SkiaWebView.ProcessGtkEvents();
             UpdateAnimations();
             Render();
-            _mainWindow.AcknowledgeSync();
+            window.AcknowledgeSync();
 
             // Block until an X event arrives or the frame budget elapses.
-            // Skip the wait if X events are already queued (e.g. compound events
-            // that arrived during the same iteration).
-            if (X11.XPending(_mainWindow.Display) == 0)
+            // Skip the wait if X events are already queued.
+            if (X11.XPending(window.Display) == 0)
             {
                 pollFd.Revents = 0;
                 LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
             }
         }
-        DiagnosticLog.Debug("LinuxApplication", "Event loop ended");
+        DiagnosticLog.Debug("LinuxApplication", "X11 event loop ended");
+    }
+
+    private void RunWayland(WaylandWindow window)
+    {
+        // Wayland event loop with non-blocking dispatch and frame-rate cap.
+        // Full subsystem support (cursor, keyboard via xkbcommon, clipboard, IME,
+        // fractional scale) is layered in across Stage 2b–2f.
+        window.Show();
+        Render();
+
+        const int IdleTimeoutMs = 16;
+        var pollFd = new LibcNative.PollFd
+        {
+            Fd = window.GetFileDescriptor(),
+            Events = LibcNative.POLLIN,
+        };
+
+        DiagnosticLog.Debug("LinuxApplication", "Starting Wayland event loop");
+        while (window.IsRunning)
+        {
+            _loopCounter++;
+            if (_loopCounter % 1000 == 0)
+                DiagnosticLog.Debug("LinuxApplication", $"Loop iteration {_loopCounter}");
+
+            window.ProcessEvents();
+            GLibNative.ProcessPendingEvents();
+            SkiaWebView.ProcessGtkEvents();
+            UpdateAnimations();
+            Render();
+
+            pollFd.Revents = 0;
+            LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
+        }
+        DiagnosticLog.Debug("LinuxApplication", "Wayland event loop ended");
     }
 
     private void RunGtk()
