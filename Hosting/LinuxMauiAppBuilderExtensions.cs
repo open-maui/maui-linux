@@ -78,9 +78,12 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.TryAddSingleton<IBrowser, BrowserService>();
         builder.Services.TryAddSingleton<IEmail, EmailService>();
 
-        // Register theming and accessibility services
-        builder.Services.TryAddSingleton<SystemThemeService>();
-        builder.Services.TryAddSingleton<HighContrastService>();
+        // Register theming services. SystemThemeService has a private constructor and
+        // a single canonical instance — DI returns the same object as
+        // SystemThemeService.Instance so consumers don't see a divergent second copy.
+        // (HighContrastService is constructed directly by SkiaView.Accessibility — see
+        // the static field there — so we don't register it here.)
+        builder.Services.TryAddSingleton(_ => SystemThemeService.Instance);
 
         // Register accessibility service
         builder.Services.TryAddSingleton<IAccessibilityService>(_ => AccessibilityServiceFactory.Instance);
