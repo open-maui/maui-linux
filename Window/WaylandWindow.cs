@@ -76,6 +76,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     [LibraryImport(LibWaylandClient)]
     private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, uint arg1);
 
+    // xdg_toplevel.move: (object seat, uint serial)
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, uint arg2);
+
+    // xdg_toplevel.resize: (object seat, uint serial, uint edge)
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, uint arg2, uint arg3);
+
     [DllImport(LibWaylandClient)]
     private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode,
         [MarshalAs(UnmanagedType.LPStr)] string arg1);
@@ -173,6 +181,23 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private const uint XDG_TOPLEVEL_DESTROY = 0;
     private const uint XDG_TOPLEVEL_SET_TITLE = 2;
     private const uint XDG_TOPLEVEL_SET_APP_ID = 3;
+    private const uint XDG_TOPLEVEL_MOVE = 5;
+    private const uint XDG_TOPLEVEL_RESIZE = 6;
+    private const uint XDG_TOPLEVEL_SET_MAXIMIZED = 9;
+    private const uint XDG_TOPLEVEL_UNSET_MAXIMIZED = 10;
+    private const uint XDG_TOPLEVEL_SET_MINIMIZED = 13;
+
+    // xdg_toplevel.resize edge enum (from xdg-shell.xml). The compositor uses
+    // this to choose the right cursor and to know which corner to anchor.
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_NONE = 0;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_TOP = 1;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM = 2;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_LEFT = 4;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT = 5;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT = 6;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_RIGHT = 8;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT = 9;
+    internal const uint XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT = 10;
 
     #endregion
 
@@ -533,6 +558,35 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         wl_proxy_marshal(toplevel, XDG_TOPLEVEL_SET_APP_ID, appId);
     }
 
+    // Interactive move. Compositor takes over until the user releases the button.
+    // serial MUST come from a fresh pointer-button press; reusing a stale serial
+    // (e.g. from pointer-enter) makes the compositor silently ignore the request.
+    private static void xdg_toplevel_move(IntPtr toplevel, IntPtr seat, uint serial)
+    {
+        wl_proxy_marshal(toplevel, XDG_TOPLEVEL_MOVE, seat, serial);
+    }
+
+    // Interactive resize. edge is one of XDG_TOPLEVEL_RESIZE_EDGE_*.
+    private static void xdg_toplevel_resize(IntPtr toplevel, IntPtr seat, uint serial, uint edge)
+    {
+        wl_proxy_marshal(toplevel, XDG_TOPLEVEL_RESIZE, seat, serial, edge);
+    }
+
+    private static void xdg_toplevel_set_maximized(IntPtr toplevel)
+    {
+        wl_proxy_marshal(toplevel, XDG_TOPLEVEL_SET_MAXIMIZED);
+    }
+
+    private static void xdg_toplevel_unset_maximized(IntPtr toplevel)
+    {
+        wl_proxy_marshal(toplevel, XDG_TOPLEVEL_UNSET_MAXIMIZED);
+    }
+
+    private static void xdg_toplevel_set_minimized(IntPtr toplevel)
+    {
+        wl_proxy_marshal(toplevel, XDG_TOPLEVEL_SET_MINIMIZED);
+    }
+
     private static int xdg_toplevel_add_listener(IntPtr toplevel, IntPtr listener, IntPtr data)
     {
         return wl_proxy_add_listener(toplevel, listener, data);
@@ -760,6 +814,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     public bool IsRunning => _isRunning;
     public IntPtr PixelData => _pixelData;
     public int Stride => _stride;
+    public string Title => _title;
+    public float BufferToLogicalScale => _bufferToLogicalScale;
 
     #endregion
 
@@ -1187,6 +1243,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
 
+        // Capture the freshest input serial — xdg_toplevel.move/resize require
+        // a recent pointer-button serial; pointer-enter's serial is too stale.
+        window._pointerSerial = serial;
+
         var ptrButton = button switch
         {
             BTN_LEFT => Microsoft.Maui.Platform.PointerButton.Left,
@@ -1198,9 +1258,28 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var args = new PointerEventArgs((int)window._pointerX, (int)window._pointerY, ptrButton);
 
         if (state == WL_POINTER_BUTTON_STATE_PRESSED)
+        {
+            // CSD mode: titlebar/edge clicks become compositor-side move/resize/buttons
+            // and are NOT forwarded to MAUI views. ptrButton == Left only, since
+            // right/middle should always reach views (context menus etc.).
+            //
+            // _pointerX/Y are in BUFFER pixels (logical * DpiScale); convert back to
+            // logical for the CSD hit-test since titlebar height + button bounds
+            // are stored in logical coords.
+            if (window._useCsd && ptrButton == Microsoft.Maui.Platform.PointerButton.Left)
+            {
+                float invScale = window._bufferToLogicalScale > 0f ? 1f / window._bufferToLogicalScale : 1f;
+                float logicalX = window._pointerX * invScale;
+                float logicalY = window._pointerY * invScale;
+                if (window.HandleCsdPointerDown(logicalX, logicalY, serial))
+                    return;
+            }
             window.PointerPressed?.Invoke(window, args);
+        }
         else
+        {
             window.PointerReleased?.Invoke(window, args);
+        }
     }
 
     private static void PointerAxis(IntPtr data, IntPtr pointer, uint time, uint axis, int value)
@@ -1341,11 +1420,49 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         }
     }
 
+    // xdg_toplevel.state enum (subset we care about for the CSD maximize toggle).
+    private const uint XDG_TOPLEVEL_STATE_MAXIMIZED = 1;
+    private const uint XDG_TOPLEVEL_STATE_FULLSCREEN = 2;
+    private const uint XDG_TOPLEVEL_STATE_ACTIVATED = 4;
+
+    private bool _isMaximized;
+    public bool IsMaximized => _isMaximized;
+
     private static void XdgToplevelConfigure(IntPtr data, IntPtr toplevel, int width, int height, IntPtr states)
     {
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
+
+        // Parse the states wl_array — it's a list of uint32 state flags. The
+        // CSD maximize button needs to know whether to draw "restore" vs
+        // "maximize" and to call the right toggle. wl_array layout:
+        //   size_t size, size_t alloc, void* data
+        // Read size (bytes), then iterate uint32_t entries from data.
+        bool wasMaximized = window._isMaximized;
+        bool seeMaximized = false;
+        if (states != IntPtr.Zero)
+        {
+            // wl_array is { nuint size; nuint alloc; void* data; } — size is in bytes.
+            var arraySize = (ulong)Marshal.ReadIntPtr(states).ToInt64();
+            var dataPtr = Marshal.ReadIntPtr(states, IntPtr.Size * 2);
+            var count = (int)(arraySize / sizeof(uint));
+            for (int i = 0; i < count; i++)
+            {
+                uint state = (uint)Marshal.ReadInt32(dataPtr, i * sizeof(uint));
+                if (state == XDG_TOPLEVEL_STATE_MAXIMIZED)
+                {
+                    seeMaximized = true;
+                    break;
+                }
+            }
+        }
+        if (wasMaximized != seeMaximized)
+        {
+            window._isMaximized = seeMaximized;
+            // Trigger a redraw so the CSD maximize-button glyph swaps.
+            window.Exposed?.Invoke(window, EventArgs.Empty);
+        }
 
         if (width > 0 && height > 0)
         {
