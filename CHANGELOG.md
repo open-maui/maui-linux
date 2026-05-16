@@ -4,6 +4,63 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.60.13] - 2026-05-16
+
+> MediaElement / video playback via opt-in `OpenMaui.Controls.Linux.MediaElement` sibling package.
+
+### Added
+- New NuGet package **`OpenMaui.Controls.Linux.MediaElement`** that adds a Linux backend for `CommunityToolkit.Maui.MediaElement`. Backed by GStreamer (playbin + appsink → BGRA → SKImage). Opt-in: install only when your app uses MediaElement.
+- `UseLinuxMediaElement()` builder extension (no-op on non-Linux for cross-platform `MauiProgram.cs` parity).
+- `MediaDemo` sample in `maui-linux-samples` demonstrating play/pause/stop/seek/volume/mute and arbitrary URL/file loading.
+- Hardware-accelerated decode auto-negotiated via VAAPI (Intel/AMD) or NVDEC (NVIDIA) when the corresponding GStreamer plugin packages are installed.
+- Frame backpressure on the appsink callback — only one decoded frame is in flight to the main thread at a time, so seeks don't flood the renderer with stale frames.
+
+### Known limitations
+- HTTP-streamed backward seeks can land 1-2 seconds off the requested position (byte-range re-request + decode-and-discard latency). Local files seek frame-accurately. Documented in the MediaDemo README.
+- Variable playback rate (`Speed`) and `ShouldShowPlaybackControls` are stubbed for v1.
+
+## [10.0.60.12] - 2026-05-16
+
+> Native `zwp_text_input_v3` IME for the Wayland-native path.
+
+### Added
+- `WaylandTextInputV3Service` implements `IInputMethodService` over the `zwp_text_input_v3` protocol. Routes compositor-mediated IMEs (GNOME Pinyin/Hangul/Anthy, native Fcitx5) directly without going through IBus over DBus.
+- `InputMethodServiceFactory` prefers `text-input-v3` when on a native Wayland session with the protocol bindable; falls back to IBus/Fcitx5/XIM otherwise.
+- `MAUI_INPUT_METHOD=wayland` env-var override forces the native path.
+
+### Changed
+- `LinuxApplication.Lifecycle`: skip setting `XCURSOR_SIZE` on native Wayland — modern compositors handle cursor scaling via `wp_cursor_shape_v1` natively and the pre-set caused visibly oversized cursors at fractional scale.
+
+### Fixed
+- `WaylandWindow.Keyboard.HandleModifiers`: xkb modifier bitmask was raw-cast to MAUI `KeyModifiers`, which has different numeric values. Ctrl appeared as Alt across the entire Wayland keyboard path (Ctrl+C / Ctrl+V did nothing). Now uses `xkb_state_mod_name_is_active` to map by canonical name.
+
+## [10.0.60.11] - 2026-05-16
+
+> Native `wl_data_device_manager` clipboard.
+
+### Added
+- `Window/WaylandWindow.Clipboard.cs`: binds `wl_data_device_manager` + per-seat `wl_data_device`. `TrySetClipboardText` / `TryGetClipboardTextAsync` for native copy/paste. No more `wl-copy` / `wl-paste` subprocess overhead and no requirement on the `wl-clipboard` system package.
+- `ClipboardService` and `SystemClipboard` prefer the native path on Wayland; fall back to wl-paste/wl-copy/xclip/xsel subprocesses when the native path isn't ready.
+- Self-paste short-circuit: when our own source owns the clipboard, return buffered text directly instead of round-tripping through wayland (avoids a deadlock with the main thread).
+- Per-seat input-serial capture from `wl_keyboard.key` events alongside the existing pointer-button capture so `set_selection` works for Ctrl+C as well as menu-driven copy.
+
+### Architectural invariant
+- Owned `wl_data_source` instances are kept alive in a dictionary until the compositor fires `cancelled()`. Destroying them synchronously when replacing the selection races with the new `set_selection` and the compositor clears the clipboard (`selection: NULL`).
+
+## [10.0.60.10] - 2026-05-16
+
+> Client-side decorations for GNOME-Wayland (and other compositors that refuse SSD).
+
+### Added
+- `Window/WaylandCsdRenderer.cs`: draws a 32px logical titlebar in Skia with theme-aware background, window title, and right-aligned minimize / maximize-or-restore / close buttons. Cached button bounds for hit-test.
+- `WaylandWindow.Decoration.cs` listens for `zxdg_toplevel_decoration_v1.configure` and flips `_useCsd` true when the compositor returns `client_side` (Mutter / GNOME) or when the decoration manager isn't advertised at all.
+- `LinuxApplication.Input` adjusts pointer Y by `CsdTitlebarHeightLogical` when CSD is active, so view-tree hit-tests stay in their own coordinate space.
+- `xdg_toplevel.move` / `xdg_toplevel.resize` (with all 8 edge enums) / `xdg_toplevel.set_maximized` / `xdg_toplevel.unset_maximized` / `xdg_toplevel.set_minimized` request methods.
+- `MAUI_PREFER_CSD=1` env var forces CSD on for testing under compositors that would otherwise honor SSD.
+
+### Validated
+- KDE-Wayland (SSD unchanged), GNOME-Wayland (CSD active automatically), X11 (unchanged). Theme toggle redraws CSD bg/text correctly.
+
 ## [10.0.60.9] - 2026-05-05
 
 > Major rev. Aligned with MAUI 10.0.60 and added native Wayland support alongside the existing X11/XWayland path.
