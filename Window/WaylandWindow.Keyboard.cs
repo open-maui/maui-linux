@@ -46,6 +46,26 @@ public partial class WaylandWindow
     private static partial int xkb_state_key_get_utf8(
         IntPtr state, uint keycode, IntPtr buffer, nuint size);
 
+    // Portable modifier check by name. xkb modifier bitmask bit positions vary
+    // by keymap (xkb's "Mod1"..."Mod5" can be remapped), so consulting by
+    // canonical name is the only reliable way to tell which physical modifier
+    // is active. Returns 1 if the named modifier is currently active.
+    [LibraryImport(LibXkbCommon, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int xkb_state_mod_name_is_active(
+        IntPtr state, string name, uint type);
+
+    // xkb_state_component flags for xkb_state_mod_name_is_active's `type`.
+    private const uint XKB_STATE_MODS_DEPRESSED = 1;
+    private const uint XKB_STATE_MODS_LATCHED = 2;
+
+    // Canonical xkb modifier names.
+    private const string XKB_MOD_NAME_SHIFT = "Shift";
+    private const string XKB_MOD_NAME_CTRL = "Control";
+    private const string XKB_MOD_NAME_ALT = "Mod1";
+    private const string XKB_MOD_NAME_LOGO = "Mod4";
+    private const string XKB_MOD_NAME_CAPS = "Lock";
+    private const string XKB_MOD_NAME_NUM = "Mod2";
+
     private const uint XKB_KEYMAP_FORMAT_TEXT_V1 = 1;
     private const uint XKB_KEYMAP_COMPILE_NO_FLAGS = 0;
     private const uint XKB_CONTEXT_NO_FLAGS = 0;
@@ -117,14 +137,30 @@ public partial class WaylandWindow
 
     private void HandleModifiers(uint modsDepressed, uint modsLatched, uint modsLocked, uint group)
     {
-        // Track raw bits for KeyModifiers fallback before xkbcommon parses them.
-        _modifiers = modsDepressed | modsLatched;
-
         if (_xkbState != IntPtr.Zero)
         {
             xkb_state_update_mask(_xkbState,
                 modsDepressed, modsLatched, modsLocked,
                 0, 0, group);
+
+            // Map xkb modifier state → MAUI KeyModifiers via canonical names.
+            // Casting the raw bitmask directly is wrong: xkb bit positions are
+            // keymap-defined (Mod1 = Alt by convention but not guaranteed) and
+            // the MAUI KeyModifiers enum has a totally different value layout
+            // (Control = 2, Alt = 4) so a direct cast turned Ctrl into Alt.
+            uint flags = 0;
+            const uint t = XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED;
+            if (xkb_state_mod_name_is_active(_xkbState, XKB_MOD_NAME_SHIFT, t) > 0) flags |= (uint)KeyModifiers.Shift;
+            if (xkb_state_mod_name_is_active(_xkbState, XKB_MOD_NAME_CTRL, t) > 0) flags |= (uint)KeyModifiers.Control;
+            if (xkb_state_mod_name_is_active(_xkbState, XKB_MOD_NAME_ALT, t) > 0) flags |= (uint)KeyModifiers.Alt;
+            if (xkb_state_mod_name_is_active(_xkbState, XKB_MOD_NAME_LOGO, t) > 0) flags |= (uint)KeyModifiers.Super;
+            _modifiers = flags;
+        }
+        else
+        {
+            // No keymap yet — leave _modifiers at zero rather than the raw bits,
+            // which would mis-cast as before.
+            _modifiers = 0;
         }
     }
 
