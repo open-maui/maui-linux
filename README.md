@@ -18,10 +18,12 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **Full Control Library**: 50+ controls including Button, Label, Entry, Shapes, CarouselView, RefreshView, SwipeView, and more
 - **Native Integration**: First-class X11 *and* native Wayland support (xdg-shell, wp_viewporter, fractional-scale-v1, zxdg_decoration_manager_v1) — programmatically selectable or auto-detected
 - **Accessibility**: AT-SPI2 screen reader support and high contrast mode
-- **Platform Services**: Clipboard, file picker, notifications, global hotkeys, drag & drop
-- **Input Methods**: IBus and XIM support for international text input
+- **Platform Services**: Native `wl_data_device_manager` clipboard (no `wl-clipboard` subprocess required), file picker, notifications, global hotkeys, drag & drop
+- **Input Methods**: IBus / XIM on X11 + native `zwp_text_input_v3` on Wayland for compositor-integrated IMEs (GNOME Pinyin/Hangul/Anthy, native Fcitx5)
 - **High DPI**: Automatic scale factor detection for GNOME, KDE, and X11; fractional scale handled via Wayland viewporter for pixel-exact rendering at non-integer scales (1.25x, 1.5x, 1.75x)
 - **Theming**: AppThemeBinding live propagation across the entire view tree — CollectionView items, pushed pages, Shell content, and flyout regions all flip on theme toggle
+- **Window decorations**: Server-side decorations (KDE/Sway) or client-side titlebar drawn in Skia with full drag/resize/close/maximize/minimize (GNOME/Mutter)
+- **MediaElement**: Opt-in `OpenMaui.Controls.Linux.MediaElement` package backs `CommunityToolkit.Maui.MediaElement` with GStreamer (playbin + appsink → Skia), automatic VAAPI/NVDEC hardware decode when plugins installed
 
 ## Quick Start
 
@@ -44,6 +46,39 @@ dotnet run
 ```bash
 dotnet add package OpenMaui.Controls.Linux
 ```
+
+### Optional: MediaElement (video / audio playback)
+
+`CommunityToolkit.Maui.MediaElement` on Linux requires the opt-in sibling package that adds the GStreamer-backed handler:
+
+```bash
+dotnet add package CommunityToolkit.Maui.MediaElement
+dotnet add package OpenMaui.Controls.Linux.MediaElement
+```
+
+Then in your `MauiProgram.cs`:
+
+```csharp
+builder
+    .UseMauiApp<App>()
+    .UseMauiCommunityToolkitMediaElement(isAndroidForegroundServiceEnabled: false)
+    .UseLinux()
+    .UseLinuxMediaElement();   // Linux backend; no-op on Windows/Android/iOS/macCatalyst
+```
+
+System dependencies (GStreamer + plugin sets):
+
+```bash
+# Fedora
+sudo dnf install gstreamer1-plugins-good gstreamer1-plugins-bad-free \
+                 gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-vaapi
+
+# Ubuntu/Debian
+sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+                 gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-vaapi
+```
+
+`gstreamer1-vaapi` enables hardware-accelerated decode on Intel/AMD GPUs; substitute the nvdec plugin for NVIDIA. Software decode works without either.
 
 ## XAML Support
 
@@ -159,6 +194,7 @@ Full sample applications are available in the [maui-linux-samples](https://githu
 | **[TodoApp](https://github.com/open-maui/maui-linux-samples/tree/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
 | **[ShellDemo](https://github.com/open-maui/maui-linux-samples/tree/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
 | **[WebViewDemo](https://github.com/open-maui/maui-linux-samples/tree/main/WebViewDemo)** | Web browser with WebView, navigation controls, and XAML UI |
+| **[MediaDemo](https://github.com/open-maui/maui-linux-samples/tree/main/MediaDemo)** | Video/audio player with `CommunityToolkit.Maui.MediaElement` on Linux (GStreamer backend); play/pause/seek/volume/mute, HTTP streams and local files |
 
 ## Distribution
 
@@ -295,10 +331,12 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Programmatic backend selection (`UseX11()` / `UseWayland()`)
 - [x] AppThemeBinding live propagation through Shell, NavigationPage, and CollectionView item trees
 - [x] GTK4 interop layer (`Gtk4InteropService` with GTK3 fallback)
-- [ ] Client-side decorations for GNOME-Wayland sessions
-- [ ] Native `wl_data_device_manager` clipboard (replaces wl-copy/wl-paste subprocess)
-- [ ] text-input-v3 IME support on Wayland
-- [ ] MediaElement / video support (with hardware acceleration where available)
+- [x] Client-side decorations for GNOME-Wayland sessions (10.0.60.10)
+- [x] Native `wl_data_device_manager` clipboard — zero subprocess overhead, works without `wl-clipboard` (10.0.60.11)
+- [x] `zwp_text_input_v3` IME for native Wayland (Fcitx5 / GNOME Pinyin) (10.0.60.12)
+- [x] MediaElement / video support via GStreamer — opt-in `OpenMaui.Controls.Linux.MediaElement` sibling package (10.0.60.13)
+- [ ] Hardware video acceleration (auto-negotiated via VAAPI/NVDEC when plugins installed; explicit pipeline tuning is a follow-up)
+- [ ] Frame-accurate scrubbing on HTTP-streamed video (byte-range re-request latency on backward seeks)
 
 ## License
 
