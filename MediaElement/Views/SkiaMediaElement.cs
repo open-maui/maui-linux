@@ -46,6 +46,15 @@ public class SkiaMediaElement : SkiaView, IDisposable
     private readonly object _frameLock = new();
     private SKImage? _latestFrame;
 
+    /// <summary>
+    /// Fires ~4× per second whenever a pipeline is active. The handler
+    /// subscribes to push current Position + Duration into the MAUI
+    /// MediaElement; without it the toolkit's bound sliders never update
+    /// because we don't poll from the managed side otherwise.
+    /// </summary>
+    public event Action? StatusTick;
+    private System.Threading.Timer? _statusTimer;
+
     // Current state mirror, kept in sync with playbin's state via the bus drain.
     private string? _currentUri;
     private bool _isPlaying;
@@ -96,6 +105,47 @@ public class SkiaMediaElement : SkiaView, IDisposable
         if (_playbin == IntPtr.Zero) return;
         gst_element_set_state(_playbin, GstState.Playing);
         _isPlaying = true;
+
+        // Drain initial bus messages on a background thread so any terminal
+        // error (codec missing, network 4xx, etc.) makes it into the log
+        // instead of being swallowed. Only runs once per Play() — bus
+        // monitoring during the steady state isn't needed; flushing seeks
+        // post pre-roll errors are vanishingly rare.
+        Task.Run(DrainBusMessages);
+    }
+
+    private void DrainBusMessages()
+    {
+        if (_bus == IntPtr.Zero) return;
+        try
+        {
+            // Pull up to ~3s of messages, stopping if we see a terminal one.
+            for (int i = 0; i < 30; i++)
+            {
+                var msg = gst_bus_timed_pop_filtered(_bus, 100_000_000UL,
+                    GstMessageType.Error | GstMessageType.Eos);
+                if (msg == IntPtr.Zero) continue;
+                try
+                {
+                    var t = GstMessageGetType(msg);
+                    if (t == GstMessageType.Error)
+                    {
+                        gst_message_parse_error(msg, out var err, out var dbg);
+                        var errMsg = GErrorGetMessage(err);
+                        DiagnosticLog.Error("SkiaMediaElement", $"GStreamer error: {errMsg}");
+                        if (err != IntPtr.Zero) g_error_free(err);
+                        if (dbg != IntPtr.Zero) g_free(dbg);
+                        return;
+                    }
+                    if (t == GstMessageType.Eos) return;
+                }
+                finally { gst_message_unref(msg); }
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaMediaElement", $"Bus drain failed: {ex.Message}");
+        }
     }
 
     /// <summary>Pause playback (keeps the current frame visible).</summary>
@@ -119,8 +169,31 @@ public class SkiaMediaElement : SkiaView, IDisposable
     public void SeekTo(TimeSpan position)
     {
         if (_playbin == IntPtr.Zero) return;
-        long ns = position.Ticks * 100L; // TimeSpan ticks are 100ns each, GStreamer wants nanoseconds.
-        gst_element_seek_simple(_playbin, GstFormat.Time, GstSeekFlags.Flush | GstSeekFlags.KeyUnit, ns);
+
+        // seek_simple silently returns true even when the pipeline is in NULL
+        // or READY, so confirm we're at least PAUSED before issuing. If not,
+        // transition to PAUSED first (up to 5s) so the seek has a frame to
+        // land on. Without this guard early seeks (before pre-roll completes)
+        // succeed-on-paper but have no visible effect.
+        gst_element_get_state(_playbin, out var current, out _, 0);
+        if (current != GstState.Paused && current != GstState.Playing)
+        {
+            gst_element_set_state(_playbin, GstState.Paused);
+            gst_element_get_state(_playbin, out current, out _, 5_000_000_000UL);
+        }
+
+        long ns = position.Ticks * 100L;
+        // FLUSH | KEY_UNIT | ACCURATE.
+        // - FLUSH: discard buffered frames so the seek shows immediately.
+        // - KEY_UNIT + ACCURATE: land precisely at the requested timestamp
+        //   (decode-and-discard from the previous keyframe). KEY_UNIT alone
+        //   lands on the nearest keyframe which is fine forward but offsets
+        //   backward seeks by several seconds.
+        // NOTE: do NOT drain the bus here — the synchronous drain blocks the
+        // main thread for up to 3 seconds per seek, freezing the UI and
+        // queueing rapid scrubs. Bus errors are surfaced during Play().
+        gst_element_seek_simple(_playbin, GstFormat.Time,
+            GstSeekFlags.Flush | GstSeekFlags.KeyUnit | GstSeekFlags.Accurate, ns);
     }
 
     public TimeSpan Position
@@ -215,14 +288,40 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
         _bus = gst_element_get_bus(_playbin);
         gst_element_set_state(_playbin, GstState.Ready);
+
+        // Start the status pump (250ms cadence). System.Threading.Timer runs
+        // on a ThreadPool thread; we marshal each tick onto the main thread
+        // via LinuxDispatcher.Main so handler callbacks can touch UI state
+        // safely. 250ms is responsive enough for a smooth slider without
+        // burning CPU.
+        _statusTimer?.Dispose();
+        _statusTimer = new System.Threading.Timer(_ =>
+        {
+            LinuxDispatcher.Main?.Dispatch(() => StatusTick?.Invoke());
+        }, null, 250, 250);
     }
 
+    // Backpressure: only one frame is allowed in the main-thread queue at a
+    // time. After a seek the streaming thread can emit dozens of buffered
+    // frames in milliseconds; without this gate they all queue via Dispatch
+    // and the main thread spends the next several seconds catching up on
+    // already-stale frames. Dropping them is correct — the user only ever
+    // sees the most recent one.
+    private int _framePending; // 0 = main thread idle, 1 = pending install
     private GstFlowReturn OnNewSample(IntPtr appsink, IntPtr userData)
     {
         // Called on a GStreamer streaming thread — keep work minimal:
         // pull → map → copy bytes → unmap → dispatch to main thread.
         var sample = gst_app_sink_pull_sample(appsink);
         if (sample == IntPtr.Zero) return GstFlowReturn.Error;
+
+        // If a previous frame is still queued for install on the main thread,
+        // drop this one. The next sample will be picked up shortly anyway.
+        if (System.Threading.Interlocked.CompareExchange(ref _framePending, 1, 0) != 0)
+        {
+            gst_sample_unref(sample);
+            return GstFlowReturn.Ok;
+        }
 
         try
         {
@@ -246,7 +345,11 @@ public class SkiaMediaElement : SkiaView, IDisposable
                 var bytes = new byte[(int)info.Size];
                 Marshal.Copy(info.Data, bytes, 0, bytes.Length);
 
-                LinuxDispatcher.Main?.Dispatch(() => InstallFrame(bytes, width, height, stride));
+                LinuxDispatcher.Main?.Dispatch(() =>
+                {
+                    try { InstallFrame(bytes, width, height, stride); }
+                    finally { System.Threading.Interlocked.Exchange(ref _framePending, 0); }
+                });
             }
             finally
             {
@@ -343,6 +446,9 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     private void DisposePipeline()
     {
+        _statusTimer?.Dispose();
+        _statusTimer = null;
+
         if (_playbin != IntPtr.Zero)
         {
             gst_element_set_state(_playbin, GstState.Null);
