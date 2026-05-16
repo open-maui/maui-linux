@@ -4,11 +4,20 @@
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Microsoft.Maui.Platform.Linux.Window;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Linux clipboard implementation using xclip/xsel command line tools.
+/// Linux clipboard implementation.
+///
+/// Backend preference:
+///   1. Native wl_data_device_manager (when WaylandWindow has wired it).
+///      Zero subprocess overhead and works without `wl-clipboard` installed.
+///   2. wl-paste / wl-copy subprocess (Wayland fallback for compositors that
+///      don't expose wl_data_device_manager, or when the WaylandWindow hasn't
+///      initialized the data device yet).
+///   3. xclip → xsel (X11).
 /// </summary>
 public class ClipboardService : IClipboard
 {
@@ -34,7 +43,17 @@ public class ClipboardService : IClipboard
 
     public async Task<string?> GetTextAsync()
     {
-        // Try Wayland first (wl-paste) if running under Wayland
+        // Native Wayland path — only available once WaylandWindow has bound
+        // wl_data_device_manager and the seat. Zero subprocess overhead.
+        if (WaylandWindow.NativeClipboardAvailable)
+        {
+            var native = await WaylandWindow.TryGetClipboardTextAsync();
+            if (native != null) return native;
+            // Fall through to wl-paste only if native returned no result
+            // (no offer, no matching MIME, or read timed out).
+        }
+
+        // Wayland subprocess fallback
         if (IsWayland)
         {
             var result = await TryGetWithWlPaste();
@@ -61,8 +80,15 @@ public class ClipboardService : IClipboard
 
         bool success = false;
 
-        // Try Wayland first (wl-copy) if running under Wayland
-        if (IsWayland)
+        // Native Wayland path first.
+        if (WaylandWindow.NativeClipboardAvailable)
+        {
+            success = WaylandWindow.TrySetClipboardText(text);
+        }
+
+        // Wayland subprocess fallback (when native path is unavailable or
+        // failed — e.g. compositor doesn't expose wl_data_device_manager).
+        if (!success && IsWayland)
         {
             success = await TrySetWithWlCopy(text);
         }
