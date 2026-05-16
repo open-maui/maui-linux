@@ -46,7 +46,11 @@ jobs:
         # Opt-in sibling: depends on the main package + CommunityToolkit.Maui.MediaElement.
         # Shipped separately so consumers who don't need video playback don't pull in the
         # toolkit's ~140KB MediaElement DLL.
-        run: dotnet pack MediaElement/OpenMaui.Controls.Linux.MediaElement.csproj --configuration Release --no-build -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+        #
+        # No --no-build: the root `dotnet build` step builds only the main
+        # OpenMaui.Controls.Linux project; MediaElement is an independent
+        # sibling and must be built by this pack step.
+        run: dotnet pack MediaElement/OpenMaui.Controls.Linux.MediaElement.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Pack Templates package
         run: dotnet pack templates/OpenMaui.Linux.Templates.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}

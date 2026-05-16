@@ -36,7 +36,11 @@ jobs:
         run: dotnet pack --configuration Release --no-build -o ./nupkg
 
       - name: Pack OpenMaui.Controls.Linux.MediaElement
-        run: dotnet pack MediaElement/OpenMaui.Controls.Linux.MediaElement.csproj --configuration Release --no-build -o ./nupkg
+        # No --no-build: the root `dotnet build` step only builds the main
+        # OpenMaui.Controls.Linux project and its ProjectReferences. The
+        # MediaElement sibling is an independent project, not in the root
+        # build graph, so pack must build it itself.
+        run: dotnet pack MediaElement/OpenMaui.Controls.Linux.MediaElement.csproj --configuration Release -o ./nupkg
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v3
