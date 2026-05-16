@@ -2,12 +2,19 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
+using Microsoft.Maui.Platform.Linux.Window;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Static helper for system clipboard access using xclip/xsel.
-/// Provides synchronous access for use in UI event handlers.
+/// Static helper for system clipboard access. Used directly by SkiaEntry / SkiaEditor
+/// Ctrl+C / Ctrl+V handlers, which need a synchronous API rather than the
+/// Task-returning IClipboard.
+///
+/// Backend preference matches ClipboardService:
+///   1. Native wl_data_device_manager when WaylandWindow has wired it (zero
+///      subprocess overhead, works without wl-clipboard package).
+///   2. wl-paste / wl-copy / xclip / xsel subprocess fallbacks.
 /// </summary>
 public static class SystemClipboard
 {
@@ -16,15 +23,31 @@ public static class SystemClipboard
     /// </summary>
     public static string? GetText()
     {
-        // Try xclip first
+        // Native Wayland path — synchronous wrapper around the async native call.
+        // Safe to block here: the pipe read runs on a thread-pool thread and the
+        // compositor writes asynchronously, so the main thread isn't deadlocked.
+        if (WaylandWindow.NativeClipboardAvailable)
+        {
+            try
+            {
+                var native = WaylandWindow.TryGetClipboardTextAsync().GetAwaiter().GetResult();
+                if (native != null) return native;
+            }
+            catch
+            {
+                // Fall through to subprocess paths
+            }
+        }
+
+        // Try xclip first (X11)
         var result = TryGetWithXclip();
         if (result != null) return result;
 
-        // Try xsel as fallback
+        // Try xsel as fallback (X11)
         result = TryGetWithXsel();
         if (result != null) return result;
 
-        // Try wl-paste for Wayland
+        // Try wl-paste for Wayland (when native path failed or isn't ready yet)
         return TryGetWithWlPaste();
     }
 
@@ -39,13 +62,26 @@ public static class SystemClipboard
             return;
         }
 
-        // Try xclip first
+        // Native Wayland path
+        if (WaylandWindow.NativeClipboardAvailable)
+        {
+            try
+            {
+                if (WaylandWindow.TrySetClipboardText(text)) return;
+            }
+            catch
+            {
+                // Fall through to subprocess paths
+            }
+        }
+
+        // Try xclip first (X11)
         if (TrySetWithXclip(text)) return;
 
-        // Try xsel as fallback
+        // Try xsel as fallback (X11)
         if (TrySetWithXsel(text)) return;
 
-        // Try wl-copy for Wayland
+        // Try wl-copy for Wayland (when native path failed or isn't ready yet)
         TrySetWithWlCopy(text);
     }
 
