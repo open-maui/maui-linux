@@ -202,9 +202,16 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         if (_canvas == null || _bitmap == null)
             return;
 
+        // CSD reserves a titlebar strip at the top of the surface. Views see a
+        // smaller window (height minus titlebar) and are drawn translated down
+        // by the titlebar height inside RenderRegion. The titlebar itself is
+        // drawn after the view passes, in the strip the view tree doesn't cover.
+        bool csdActive = _window is Window.WaylandWindow waylandCsd && waylandCsd.UseCsd;
+        float csdInsetLogical = csdActive ? Window.WaylandWindow.CsdTitlebarHeightLogical : 0f;
+
         // Measure and arrange at logical pixel dimensions
         var logicalWidth = (double)LogicalWidth;
-        var logicalHeight = (double)LogicalHeight;
+        var logicalHeight = (double)LogicalHeight - csdInsetLogical;
         var availableSize = new Size(logicalWidth, logicalHeight);
         try
         {
@@ -246,11 +253,35 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         {
             try
             {
-                RenderRegion(rootView, region, isFullRedraw);
+                RenderRegion(rootView, region, isFullRedraw, csdInsetLogical);
             }
             catch (Exception ex)
             {
                 DiagnosticLog.Error("SkiaRenderingEngine", $"Exception rendering region {region}", ex);
+            }
+        }
+
+        // CSD titlebar: draw after view tree so it sits on top of any pixels
+        // the view tree (or its background fill) may have leaked into the
+        // titlebar strip. Drawn in logical coords matching the DpiScale matrix
+        // used everywhere else in this method.
+        if (csdActive && _window is Window.WaylandWindow waylandCsdDraw)
+        {
+            try
+            {
+                _canvas.Save();
+                if (DpiScale > 1.0f)
+                    _canvas.Scale(DpiScale);
+                Window.WaylandCsdRenderer.DrawTitlebar(
+                    _canvas,
+                    waylandCsdDraw,
+                    LogicalWidth,
+                    waylandCsdDraw.Title ?? string.Empty);
+                _canvas.Restore();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing CSD titlebar", ex);
             }
         }
 
@@ -293,7 +324,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         PresentToWindow();
     }
 
-    private void RenderRegion(SkiaView rootView, SKRect region, bool isFullRedraw)
+    private void RenderRegion(SkiaView rootView, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f)
     {
         if (_canvas == null) return;
 
@@ -316,6 +347,13 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         {
             _canvas.Scale(DpiScale);
         }
+
+        // CSD: shift the view tree down by the titlebar inset (in logical px,
+        // because we just scaled the canvas to DpiScale above so 1 unit == 1
+        // logical pixel from here on). Done as a translate rather than a
+        // resized clip so the views' own bounds math stays unchanged.
+        if (csdInsetLogical > 0f)
+            _canvas.Translate(0f, csdInsetLogical);
 
         // Draw the view tree (views will naturally clip to their bounds)
         try
