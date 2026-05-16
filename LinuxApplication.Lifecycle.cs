@@ -513,6 +513,22 @@ public partial class LinuxApplication
         hiDpi.Initialize();
         _earlyDpiScale = hiDpi.ScaleFactor;
 
+        // Native Wayland: leave cursor sizing to the compositor. wp_cursor_shape_v1
+        // (advertised by every modern compositor) handles HiDPI scaling natively
+        // and respects the user's gsettings/KDE config. Pre-setting XCURSOR_SIZE
+        // here forces a base of 24*DpiScale, which then sometimes gets rescaled
+        // by the cursor theme — producing a visibly larger cursor than the rest
+        // of the desktop.
+        var waylandDisplay = Environment.GetEnvironmentVariable("WAYLAND_DISPLAY");
+        var preferX11 = Environment.GetEnvironmentVariable("MAUI_PREFER_X11");
+        bool nativeWayland = !string.IsNullOrEmpty(waylandDisplay)
+                             && string.IsNullOrEmpty(preferX11);
+        if (nativeWayland)
+            return;
+
+        // X11 / XWayland: cursor themes don't scale automatically, so set
+        // XCURSOR_SIZE to the DPI-adjusted value (still respecting any
+        // user-provided env var override).
         if (Environment.GetEnvironmentVariable("XCURSOR_SIZE") is null)
         {
             var cursorSize = (int)Math.Round(24 * Math.Max(1.0f, _earlyDpiScale));

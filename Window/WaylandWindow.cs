@@ -76,6 +76,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     [LibraryImport(LibWaylandClient)]
     private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, uint arg1);
 
+    // zwp_text_input_v3.set_content_type: (uint hint, uint purpose)
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, uint arg1, uint arg2);
+
     // xdg_toplevel.move: (object seat, uint serial)
     [LibraryImport(LibWaylandClient)]
     private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, uint arg2);
@@ -267,6 +271,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _wp_fractional_scale_v1_interface = dlsym(protoHandle, "wp_fractional_scale_v1_interface");
         _wp_viewporter_interface = dlsym(protoHandle, "wp_viewporter_interface");
         _wp_viewport_interface = dlsym(protoHandle, "wp_viewport_interface");
+        _zwp_text_input_manager_v3_interface = dlsym(protoHandle, "zwp_text_input_manager_v3_interface");
+        _zwp_text_input_v3_interface = dlsym(protoHandle, "zwp_text_input_v3_interface");
     }
 
     private static IntPtr TryLoadProtocols()
@@ -1165,6 +1171,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 // hasn't arrived yet (SetupSeat will retry once seat is bound).
                 window.SetupClipboard();
                 break;
+            case "zwp_text_input_manager_v3":
+                // v1 of the manager interface; the per-seat text_input is the v3 protocol.
+                window._textInputManager = wl_registry_bind(registry, name, _zwp_text_input_manager_v3_interface, 1);
+                // Per-seat; retry from SetupSeat if seat arrives later.
+                window.SetupTextInput();
+                break;
         }
     }
 
@@ -1188,6 +1200,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // wl_data_device is per-seat; try wiring now in case the data device
         // manager arrived before the seat did (registry binding order varies).
         SetupClipboard();
+        // Same pattern for text-input-v3.
+        SetupTextInput();
     }
 
     private static void SeatCapabilities(IntPtr data, IntPtr seat, uint capabilities)
@@ -1695,6 +1709,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         DisposeCursor();
         DisposeXkb();
         DisposeClipboard();
+        DisposeTextInput();
         DisposeDecoration();
 
         if (_viewport != IntPtr.Zero)
