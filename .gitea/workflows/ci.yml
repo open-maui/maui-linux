@@ -35,6 +35,9 @@ jobs:
       - name: Pack OpenMaui.Controls.Linux
         run: dotnet pack --configuration Release --no-build -o ./nupkg
 
+      - name: Pack OpenMaui.Controls.Linux.MediaElement
+        run: dotnet pack MediaElement/OpenMaui.Controls.Linux.MediaElement.csproj --configuration Release --no-build -o ./nupkg
+
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v3
         with:
