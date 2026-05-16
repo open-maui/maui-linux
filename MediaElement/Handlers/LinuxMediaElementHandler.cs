@@ -11,12 +11,23 @@ namespace Microsoft.Maui.Platform.Linux.MediaElement.Handlers;
 /// <summary>
 /// Linux backend for CommunityToolkit.Maui.MediaElement. Subclasses the
 /// upstream toolkit's net10.0 stub (which throws NotImplementedException on
-/// every Map* call) with a Skia + GStreamer implementation.
+/// every Map* call) and routes property/command changes into the GStreamer
+/// pipeline owned by SkiaMediaElement.
 ///
-/// Property mappers below scaffold the routing; the actual pipeline wiring
-/// lands in S4.2 (GStreamer P/Invoke) and S4.4 (mapper implementations).
-/// For now the handler creates a SkiaMediaElement so MAUI can lay out and
-/// draw the empty video surface without throwing.
+/// Property mapping is straightforward — each MAUI property has a matching
+/// setter on SkiaMediaElement that translates into a g_object_set or pipeline
+/// state change. The toolkit's mapper pipeline calls these on every change.
+///
+/// Two property mapping subtleties to keep in mind for future maintainers:
+///   1. MAUI doesn't have a "MediaSourceChanged" notification for the
+///      `MediaSource.Uri` BindableProperty — the toolkit raises an internal
+///      SourceChanged event on the MediaSource. Re-mapping via MapSource each
+///      time the URL changes is the simplest approach since SetSource is a
+///      no-op when the URI is unchanged.
+///   2. ShouldShowPlaybackControls is intentionally unimplemented — drawing
+///      controls in Skia is a larger feature (overlay buttons, progress bar
+///      with hit-test, time labels). Until then the app is expected to render
+///      its own controls around the MediaElement (see MediaDemo).
 /// </summary>
 public class LinuxMediaElementHandler : MediaElementHandler
 {
@@ -47,28 +58,127 @@ public class LinuxMediaElementHandler : MediaElementHandler
     public LinuxMediaElementHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
         : base(mapper ?? PropertyMapper, commandMapper ?? CommandMapper) { }
 
-    protected override object CreatePlatformView()
+    protected override object CreatePlatformView() => new SkiaMediaElement();
+
+    // ----- helpers -----------------------------------------------------------
+
+    private static SkiaMediaElement? GetSkia(object handler)
+        => (handler as LinuxMediaElementHandler)?.PlatformView as SkiaMediaElement;
+
+    /// <summary>
+    /// Resolve a MediaSource into a URI playbin can consume.
+    /// - UriMediaSource → its Uri.AbsoluteUri (http/https/rtsp/file pass through).
+    /// - FileMediaSource → "file://" + absolute path.
+    /// - ResourceMediaSource → resolve relative to the executable's directory
+    ///   (toolkit's stub returns null on Linux without a platform resolver;
+    ///   we approximate by mapping to the app base directory).
+    /// </summary>
+    private static string? ResolveSourceUri(MediaSource? source)
     {
-        // SkiaMediaElement owns the GStreamer pipeline and renders the latest
-        // decoded frame. Construction is cheap; the pipeline starts when
-        // MapSource fires with a non-null Source.
-        return new SkiaMediaElement();
+        if (source == null) return null;
+        switch (source)
+        {
+            case UriMediaSource uriSrc:
+                return uriSrc.Uri?.AbsoluteUri;
+            case FileMediaSource fileSrc when !string.IsNullOrEmpty(fileSrc.Path):
+                var p = fileSrc.Path!;
+                if (!Path.IsPathRooted(p))
+                    p = Path.Combine(AppContext.BaseDirectory, p);
+                return new Uri(p).AbsoluteUri;
+            case ResourceMediaSource resSrc when !string.IsNullOrEmpty(resSrc.Path):
+                var rp = Path.Combine(AppContext.BaseDirectory, "Resources", "Raw", resSrc.Path!);
+                return File.Exists(rp) ? new Uri(rp).AbsoluteUri : null;
+            default:
+                return null;
+        }
     }
 
-    // Concrete mapper implementations land in S4.4 — placeholder no-ops here
-    // override the toolkit's NotImplementedException stubs so the app doesn't
-    // throw the first time MAUI's mapper pipeline runs against the handler.
-    public new static void MapAspect(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
-    public new static void MapSource(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
-    public new static void MapSpeed(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
-    public new static void MapVolume(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
-    public new static void MapShouldMute(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
-    public new static void MapShouldShowPlaybackControls(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
-    public new static void MapShouldKeepScreenOn(object handler, CommunityToolkit.Maui.Views.MediaElement media) { /* TODO S4.4 */ }
+    // ----- property mappers --------------------------------------------------
 
-    public new static void MapStatusUpdated(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args) { /* TODO S4.4 */ }
-    public new static void MapPlayRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args) { /* TODO S4.4 */ }
-    public new static void MapPauseRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args) { /* TODO S4.4 */ }
-    public new static void MapSeekRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args) { /* TODO S4.4 */ }
-    public new static void MapStopRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args) { /* TODO S4.4 */ }
+    public new static void MapAspect(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        if (GetSkia(handler) is { } skia) skia.Aspect = media.Aspect;
+    }
+
+    public new static void MapSource(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        if (GetSkia(handler) is not { } skia) return;
+        var uri = ResolveSourceUri(media.Source);
+        skia.SetSource(uri);
+        // ShouldAutoPlay triggers immediate playback once the source is set.
+        if (uri != null && media.ShouldAutoPlay)
+            skia.Play();
+    }
+
+    public new static void MapSpeed(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        // Variable playback rate requires gst_element_seek with a rate parameter,
+        // which is more involved than seek_simple. Stub for now; v2 implements
+        // proper variable-rate seek + audio pitch correction (which is fairly
+        // platform-specific — playbin will speed-up audio noticeably).
+    }
+
+    public new static void MapVolume(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        if (GetSkia(handler) is { } skia) skia.SetVolume(media.Volume);
+    }
+
+    public new static void MapShouldMute(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        if (GetSkia(handler) is { } skia) skia.SetMute(media.ShouldMute);
+    }
+
+    public new static void MapShouldShowPlaybackControls(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        // Skia-drawn overlay controls (play/pause/seekbar/time) are a v2
+        // feature — for now the app supplies its own controls (see MediaDemo).
+    }
+
+    public new static void MapShouldKeepScreenOn(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        // Screen-wake inhibit needs zxdg_idle_inhibit on Wayland or org.freedesktop.ScreenSaver
+        // over DBus on X11. Stubbed; the typical desktop user has a generous
+        // idle timeout so this is rarely user-blocking. v2 wires both paths.
+    }
+
+    // ----- command mappers ---------------------------------------------------
+
+    public new static void MapPlayRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
+    {
+        if (GetSkia(handler) is { } skia) skia.Play();
+    }
+
+    public new static void MapPauseRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
+    {
+        if (GetSkia(handler) is { } skia) skia.Pause();
+    }
+
+    public new static void MapStopRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
+    {
+        if (GetSkia(handler) is { } skia) skia.Stop();
+    }
+
+    public new static void MapSeekRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
+    {
+        if (GetSkia(handler) is not { } skia || args == null) return;
+        // MediaSeekRequestedEventArgs is internal in the toolkit so we read its
+        // RequestedPosition via reflection — the property is stable across
+        // toolkit versions, and avoiding a reference to an internal type keeps
+        // us out of binary-compat headaches when toolkit ships major bumps.
+        var pos = args.GetType().GetProperty("RequestedPosition")?.GetValue(args);
+        if (pos is TimeSpan ts)
+            skia.SeekTo(ts);
+    }
+
+    public new static void MapStatusUpdated(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
+    {
+        if (GetSkia(handler) is not { } skia) return;
+        // Surface current position to the MediaElement so PositionChanged event
+        // listeners (sliders, time labels) see live updates. IMediaElement.Position
+        // has an internal setter; we route around it via reflection rather than
+        // requiring InternalsVisibleTo from the toolkit.
+        var iface = typeof(CommunityToolkit.Maui.Core.IMediaElement);
+        var positionProp = iface.GetProperty("Position");
+        positionProp?.GetSetMethod(nonPublic: true)?.Invoke(media, new object[] { skia.Position });
+    }
 }
