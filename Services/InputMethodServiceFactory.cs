@@ -44,6 +44,7 @@ public static class InputMethodServiceFactory
         {
             return imePreference.ToLowerInvariant() switch
             {
+                "wayland" or "text-input-v3" => CreateWaylandTextInputV3Service(),
                 "ibus" => CreateIBusService(),
                 "fcitx" or "fcitx5" => CreateFcitx5Service(),
                 "xim" => CreateXIMService(),
@@ -57,6 +58,16 @@ public static class InputMethodServiceFactory
 
     private static IInputMethodService CreateAutoService()
     {
+        // On native Wayland, prefer text-input-v3 — it's the protocol the
+        // compositor expects, and it's the only path to compositor-integrated
+        // IMEs (GNOME Pinyin/Hangul/Anthy, Fcitx5-on-Wayland-natively). Falls
+        // back automatically if our WaylandWindow hasn't wired it yet.
+        if (WaylandTextInputV3Service.IsAvailable())
+        {
+            DiagnosticLog.Debug("InputMethodServiceFactory", "Using zwp_text_input_v3 (native Wayland)");
+            return CreateWaylandTextInputV3Service();
+        }
+
         // Check GTK_IM_MODULE for hint
         var imModule = Environment.GetEnvironmentVariable("GTK_IM_MODULE")?.ToLowerInvariant();
 
@@ -91,6 +102,19 @@ public static class InputMethodServiceFactory
         // No IME available
         DiagnosticLog.Warn("InputMethodServiceFactory", "No IME available, using null service");
         return new NullInputMethodService();
+    }
+
+    private static IInputMethodService CreateWaylandTextInputV3Service()
+    {
+        try
+        {
+            return new WaylandTextInputV3Service();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create WaylandTextInputV3 service - {ex.Message}");
+            return new NullInputMethodService();
+        }
     }
 
     private static IInputMethodService CreateIBusService()
