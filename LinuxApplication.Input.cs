@@ -19,21 +19,36 @@ public partial class LinuxApplication
     private float ToLogical(double physicalCoord) => (float)(physicalCoord / DpiScale);
 
     /// <summary>
-    /// Creates a new PointerEventArgs with coordinates scaled to logical pixels.
+    /// When CSD is active on Wayland, the view tree is rendered translated down
+    /// by the titlebar height. View bounds therefore live in a coordinate space
+    /// whose y=0 is *below* the titlebar; pointer events arrive in window-relative
+    /// coords (y=0 = top of surface = top of titlebar). This shift puts them in
+    /// view-tree space. Returns 0 on backends without CSD.
+    /// </summary>
+    private float CsdPointerInsetLogical =>
+        _mainWindow is WaylandWindow w && w.UseCsd ? WaylandWindow.CsdTitlebarHeightLogical : 0f;
+
+    /// <summary>
+    /// Creates a new PointerEventArgs with coordinates scaled to logical pixels
+    /// and (on Wayland CSD) offset so the view tree sees y=0 at the top of its
+    /// content area rather than the top of the titlebar.
     /// </summary>
     private PointerEventArgs ScalePointerArgs(PointerEventArgs e)
     {
-        if (DpiScale <= 1.0f) return e;
-        return new PointerEventArgs(ToLogical(e.X), ToLogical(e.Y), e.Button);
+        float inset = CsdPointerInsetLogical;
+        if (DpiScale <= 1.0f && inset <= 0f) return e;
+        return new PointerEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.Button);
     }
 
     /// <summary>
     /// Creates a new ScrollEventArgs with coordinates scaled to logical pixels.
+    /// CSD inset applied for the same reason as ScalePointerArgs.
     /// </summary>
     private ScrollEventArgs ScaleScrollArgs(ScrollEventArgs e)
     {
-        if (DpiScale <= 1.0f) return e;
-        return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y), e.DeltaX, e.DeltaY);
+        float inset = CsdPointerInsetLogical;
+        if (DpiScale <= 1.0f && inset <= 0f) return e;
+        return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.DeltaX, e.DeltaY);
     }
 
     private void UpdateAnimations()
