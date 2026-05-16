@@ -58,7 +58,46 @@ public class LinuxMediaElementHandler : MediaElementHandler
     public LinuxMediaElementHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
         : base(mapper ?? PropertyMapper, commandMapper ?? CommandMapper) { }
 
-    protected override object CreatePlatformView() => new SkiaMediaElement();
+    // Periodic position/duration pump. 250ms cadence matches what the toolkit's
+    // iOS/Android backends use; responsive enough for slider scrub-to-position
+    // feedback without burning CPU. Driven by SkiaMediaElement's own timer
+    // (started when a pipeline is active) and fired on the main thread.
+    private TimeSpan _lastDuration = TimeSpan.MinValue;
+
+    protected override object CreatePlatformView()
+    {
+        var platform = new SkiaMediaElement();
+        // SkiaMediaElement runs a 250ms timer for the duration of any active
+        // pipeline and fires StatusTick on the main thread. We push the
+        // current Position + Duration onto the toolkit MediaElement here so
+        // its bound sliders / labels see live updates.
+        platform.StatusTick += PumpStatus;
+        return platform;
+    }
+
+    private void PumpStatus()
+    {
+        if (PlatformView is not SkiaMediaElement skia) return;
+        if (VirtualView is not CommunityToolkit.Maui.Views.MediaElement media) return;
+
+        // Position has an internal setter on the interface — go through it via
+        // reflection rather than requiring InternalsVisibleTo from the toolkit.
+        var iface = typeof(CommunityToolkit.Maui.Core.IMediaElement);
+        iface.GetProperty("Position")?.GetSetMethod(nonPublic: true)
+            ?.Invoke(media, new object[] { skia.Position });
+
+        // Duration's setter is on the IMediaElement interface (not the
+        // concrete class, which exposes it read-only). Cast through the
+        // interface so we hit the public setter. Only push on change — bound
+        // sliders re-fire NotifyPropertyChanged on every assignment and we
+        // don't want to thrash the UI 4 times per second.
+        var dur = skia.Duration;
+        if (dur != _lastDuration)
+        {
+            _lastDuration = dur;
+            ((CommunityToolkit.Maui.Core.IMediaElement)media).Duration = dur;
+        }
+    }
 
     // ----- helpers -----------------------------------------------------------
 
@@ -105,9 +144,13 @@ public class LinuxMediaElementHandler : MediaElementHandler
         if (GetSkia(handler) is not { } skia) return;
         var uri = ResolveSourceUri(media.Source);
         skia.SetSource(uri);
-        // ShouldAutoPlay triggers immediate playback once the source is set.
         if (uri != null && media.ShouldAutoPlay)
             skia.Play();
+    }
+
+    public new static void MapPlayRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
+    {
+        if (GetSkia(handler) is { } skia) skia.Play();
     }
 
     public new static void MapSpeed(object handler, CommunityToolkit.Maui.Views.MediaElement media)
@@ -143,11 +186,6 @@ public class LinuxMediaElementHandler : MediaElementHandler
 
     // ----- command mappers ---------------------------------------------------
 
-    public new static void MapPlayRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
-    {
-        if (GetSkia(handler) is { } skia) skia.Play();
-    }
-
     public new static void MapPauseRequested(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
     {
         if (GetSkia(handler) is { } skia) skia.Pause();
@@ -168,6 +206,18 @@ public class LinuxMediaElementHandler : MediaElementHandler
         var pos = args.GetType().GetProperty("RequestedPosition")?.GetValue(args);
         if (pos is TimeSpan ts)
             skia.SeekTo(ts);
+
+        // CRITICAL: SeekTo on the toolkit's MediaElement awaits a
+        // TaskCompletionSource that the PLATFORM HANDLER is contractually
+        // required to complete after issuing the seek. The TCS is exposed via
+        // IAsynchronousMediaElementHandler.SeekCompletedTCS. Without
+        // TrySetResult here, the first SeekTo() never returns, the awaiter
+        // hangs, the internal semaphore stays held, and every subsequent seek
+        // request queues behind a Task that will never finish. (Calling the
+        // event-raising IMediaElement.SeekCompleted() is NOT enough — it only
+        // fires the public SeekCompleted event, doesn't complete the TCS.)
+        ((CommunityToolkit.Maui.Core.IAsynchronousMediaElementHandler)media)
+            .SeekCompletedTCS.TrySetResult();
     }
 
     public new static void MapStatusUpdated(MediaElementHandler handler, CommunityToolkit.Maui.Views.MediaElement media, object? args)
