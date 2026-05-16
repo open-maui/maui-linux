@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Microsoft.Maui.Platform.Linux.MediaElement</RootNamespace>
+    <AssemblyName>OpenMaui.Controls.Linux.MediaElement</AssemblyName>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>OpenMaui.Controls.Linux.MediaElement</PackageId>
+    <Version>10.0.60.13</Version>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Product>OpenMaui MediaElement (Linux)</Product>
+    <Description>Linux backend for CommunityToolkit.Maui.MediaElement. Adds .UseLinuxMediaElement() to your MAUI app builder; renders video frames via GStreamer (playbin + appsink) into a SkiaSharp surface. Requires GStreamer 1.x + plugin sets installed on the host (gstreamer1-plugins-good/bad/ugly/libav; gstreamer1-vaapi for HW decode). Opt-in: install this package only if your app uses MediaElement on Linux.</Description>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>maui;linux;openmaui;mediaelement;video;audio;gstreamer;communitytoolkit</PackageTags>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Main package — the Linux handler subclasses SkiaView and depends on
+         the Skia rendering infrastructure shipped there. -->
+    <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
+
+    <!-- Upstream MediaElement control + interface + no-op handler base. -->
+    <PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="9.0.0" />
+  </ItemGroup>
+
+  <!-- Include icon and README in package -->
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

@@ -57,6 +57,14 @@
 
     <!-- Harmony for patching MAUI Essentials stubs with Linux implementations -->
     <PackageReference Include="Lib.Harmony" Version="2.4.2" />
+
+    <!-- Note: MediaElement support lives in the sibling package
+         OpenMaui.Controls.Linux.MediaElement, NOT here. Adding the
+         CommunityToolkit.Maui.MediaElement reference to this package
+         would force every consumer to pull ~140KB of MediaElement DLL even
+         if they never use it. The opt-in sibling references both this
+         package and the toolkit, ships the LinuxMediaElementHandler + Skia
+         + GStreamer wiring, and exposes `UseLinuxMediaElement()`. -->
   </ItemGroup>
 
   <!-- Include README and icon in package -->
@@ -90,6 +98,7 @@
   <ItemGroup>
     <Compile Remove="Hosting.Abstractions/**/*.cs" />
     <Compile Remove="Handlers/*.Linux.cs" />
+    <Compile Remove="MediaElement/**/*.cs" />
     <Compile Remove="samples/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
     <Compile Remove="templates/**/*.cs" />
