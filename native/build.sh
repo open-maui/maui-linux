@@ -21,15 +21,16 @@ wayland-scanner private-code "$WP/stable/xdg-shell/xdg-shell.xml"               
 wayland-scanner private-code "$WP/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml" xdg-decoration.c
 wayland-scanner private-code "$WP/staging/fractional-scale/fractional-scale-v1.xml"     fractional-scale.c
 wayland-scanner private-code "$WP/stable/viewporter/viewporter.xml"                     viewporter.c
+wayland-scanner private-code "$WP/unstable/text-input/text-input-unstable-v3.xml"       text-input-v3.c
 
 # wayland-scanner emits __attribute__((visibility("hidden"))) on every interface
 # definition; we strip it so the symbols are dlsym-able from C#.
 sed -i 's/__attribute__ ((visibility("hidden")))//g' \
-    xdg-shell.c xdg-decoration.c fractional-scale.c viewporter.c
+    xdg-shell.c xdg-decoration.c fractional-scale.c viewporter.c text-input-v3.c
 
 gcc -shared -fPIC -fvisibility=default -O2 \
     -o libopenmaui_wl.so \
-    xdg-shell.c xdg-decoration.c fractional-scale.c viewporter.c \
+    xdg-shell.c xdg-decoration.c fractional-scale.c viewporter.c text-input-v3.c \
     -lwayland-client
 
 echo "Built $(ls -la libopenmaui_wl.so | awk '{print $5}') byte library:"
