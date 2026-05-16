@@ -88,6 +88,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode,
         [MarshalAs(UnmanagedType.LPStr)] string arg1);
 
+    // wl_data_offer.receive: (string mime_type, fd). The fd is transferred via
+    // SCM_RIGHTS automatically by libwayland based on the message signature 'h'.
+    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal")]
+    private static extern void wl_proxy_marshal_string_fd(IntPtr proxy, uint opcode,
+        [MarshalAs(UnmanagedType.LPStr)] string arg1, int fd);
+
     [LibraryImport(LibWaylandClient)]
     private static partial IntPtr wl_proxy_marshal_array_constructor(
         IntPtr proxy, uint opcode, IntPtr args, IntPtr iface);
@@ -119,6 +125,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private static IntPtr _wl_seat_interface;
     private static IntPtr _wl_pointer_interface;
     private static IntPtr _wl_keyboard_interface;
+    private static IntPtr _wl_data_device_manager_interface;
+    private static IntPtr _wl_data_device_interface;
+    private static IntPtr _wl_data_offer_interface;
+    private static IntPtr _wl_data_source_interface;
 
     // dlsym for loading interface symbols
     [LibraryImport("libdl.so.2", EntryPoint = "dlopen", StringMarshalling = StringMarshalling.Utf8)]
@@ -220,6 +230,13 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _wl_seat_interface = dlsym(handle, "wl_seat_interface");
         _wl_pointer_interface = dlsym(handle, "wl_pointer_interface");
         _wl_keyboard_interface = dlsym(handle, "wl_keyboard_interface");
+
+        // Data transfer / clipboard interfaces (all in libwayland-client).
+        // wl_data_device_manager → wl_data_device → wl_data_offer / wl_data_source.
+        _wl_data_device_manager_interface = dlsym(handle, "wl_data_device_manager_interface");
+        _wl_data_device_interface = dlsym(handle, "wl_data_device_interface");
+        _wl_data_offer_interface = dlsym(handle, "wl_data_offer_interface");
+        _wl_data_source_interface = dlsym(handle, "wl_data_source_interface");
 
         // Don't close - we need the symbols to remain valid
 
@@ -776,6 +793,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private float _pointerX;
     private float _pointerY;
     private uint _pointerSerial;
+    private uint _keyboardSerial;
     private uint _modifiers;
 
     // Delegates to prevent GC
@@ -1138,6 +1156,15 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             case "wp_viewporter":
                 window._viewporter = wl_registry_bind(registry, name, _wp_viewporter_interface, 1);
                 break;
+            case "wl_data_device_manager":
+                // v3 is the highest stable revision and what every modern compositor
+                // ships. v2 added per-MIME action support, v3 added DnD finish/actions.
+                // We only use selection-related parts so v3 is more than enough.
+                window._dataDeviceManager = wl_registry_bind(registry, name, _wl_data_device_manager_interface, Math.Min(version, 3u));
+                // wl_data_device is per-seat; try wiring now, will no-op if seat
+                // hasn't arrived yet (SetupSeat will retry once seat is bound).
+                window.SetupClipboard();
+                break;
         }
     }
 
@@ -1157,6 +1184,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         };
         _seatListenerHandle = GCHandle.Alloc(_seatListener, GCHandleType.Pinned);
         wl_seat_add_listener(_seat, _seatListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
+
+        // wl_data_device is per-seat; try wiring now in case the data device
+        // manager arrived before the seat did (registry binding order varies).
+        SetupClipboard();
     }
 
     private static void SeatCapabilities(IntPtr data, IntPtr seat, uint capabilities)
@@ -1353,6 +1384,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
+
+        // Track the freshest input serial — set_selection (clipboard write) and
+        // other "user-initiated" requests need a recent serial.
+        window._keyboardSerial = serial;
 
         var (key, text) = window.TranslateKey(keycode);
         var modifiers = (KeyModifiers)window._modifiers;
@@ -1659,6 +1694,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
         DisposeCursor();
         DisposeXkb();
+        DisposeClipboard();
         DisposeDecoration();
 
         if (_viewport != IntPtr.Zero)
