@@ -161,18 +161,16 @@ public static partial class GStreamerInterop
     [LibraryImport(LibGst, EntryPoint = "gst_message_unref")]
     public static partial void gst_message_unref(IntPtr message);
 
-    /// <summary>Read the GstMessageType field of a GstMessage. The struct layout starts with mini_object then the type field at offset 0x10 (8 bytes for refcount-etc + GstObject* src).</summary>
+    /// <summary>Read the GstMessageType field of a GstMessage. On x86_64,
+    /// GstMiniObject is 64 bytes (type:8 + refcount:4 + lockstate:4 + flags:4 +
+    /// priv_uint:4 + copy:8 + dispose:8 + free:8 + n_qdata:4 + pad:4 + qdata:8),
+    /// so the inline GstMessageType field that follows lives at byte offset 64.
+    /// An earlier version guessed offset 32 — that lands inside the dispose
+    /// function pointer and returns garbage like 0xD982_4070 which the enum
+    /// switch can't match.</summary>
     public static GstMessageType GstMessageGetType(IntPtr message)
     {
-        // GstMessage struct layout (gstreamer 1.x):
-        //   GstMiniObject mini_object;   // ~32 bytes
-        //   GstMessageType type;         // uint
-        //   guint64 timestamp;
-        //   GstObject *src;
-        //   guint32 seqnum;
-        //   ...
-        // mini_object size is 32 bytes on x86_64 (GTypeInstance + flags + lockcount + refcount + dispose_notify + n_qdata + qdata).
-        const int OFFSET_TYPE = 32;
+        const int OFFSET_TYPE = 64;
         return (GstMessageType)(uint)Marshal.ReadInt32(message, OFFSET_TYPE);
     }
 
