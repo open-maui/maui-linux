@@ -294,11 +294,11 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Native Wayland backend (xdg-shell, wp_viewporter, fractional-scale-v1, decoration-manager)
 - [x] Programmatic backend selection (`UseX11()` / `UseWayland()`)
 - [x] AppThemeBinding live propagation through Shell, NavigationPage, and CollectionView item trees
+- [x] GTK4 interop layer (`Gtk4InteropService` with GTK3 fallback)
 - [ ] Client-side decorations for GNOME-Wayland sessions
 - [ ] Native `wl_data_device_manager` clipboard (replaces wl-copy/wl-paste subprocess)
 - [ ] text-input-v3 IME support on Wayland
-- [ ] Hardware video acceleration
-- [ ] GTK4 interop layer
+- [ ] MediaElement / video support (with hardware acceleration where available)
 
 ## License
 
