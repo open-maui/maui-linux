@@ -27,9 +27,12 @@
     <Compile Remove="Platforms\Linux\**" />
   </ItemGroup>
 
-  <!-- Embed Resources -->
+  <!-- Resources: use MAUI item types so they get processed properly. A blanket
+       EmbeddedResource glob will collide with MauiXaml-embedded resource IDs
+       when consumers add XAML files under Resources/. -->
   <ItemGroup>
-    <EmbeddedResource Include="Resources\**\*" />
+    <MauiFont Include="Resources\Fonts\*" />
+    <MauiImage Include="Resources\Images\*" Exclude="Resources\Images\*.md;Resources\Images\.gitkeep" />
   </ItemGroup>
 
 </Project>

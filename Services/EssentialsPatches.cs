@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using Microsoft.Maui.Devices;
@@ -40,6 +41,17 @@ internal static class EssentialsPatches
         try { PatchLauncher(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Launcher patch failed: {ex.Message}", ex); }
 
+        // Register AppInfo and DeviceInfo FIRST — other services (e.g. Preferences,
+        // FilePicker) read AppInfo.Current.Name in their constructors. If we leave
+        // the portable AppInfoImplementation in place, those getters throw
+        // NotImplementedInReferenceAssemblyException before we get a chance to
+        // replace them.
+        try { RegisterEssential<Microsoft.Maui.ApplicationModel.IAppInfo>("com.openmaui.essentials.appinfo", "Microsoft.Maui.ApplicationModel.AppInfo", "Microsoft.Maui.ApplicationModel.AppInfoImplementation", AppInfoService.Instance); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"AppInfo registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Devices.IDeviceInfo>("com.openmaui.essentials.deviceinfo", "Microsoft.Maui.Devices.DeviceInfo", "Microsoft.Maui.Devices.DeviceInfoImplementation", DeviceInfoService.Instance); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"DeviceInfo registration failed: {ex.Message}", ex); }
+
         try { RegisterPreferences(); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Preferences registration failed: {ex.Message}", ex); }
 
@@ -63,12 +75,6 @@ internal static class EssentialsPatches
 
         try { RegisterEssential<Microsoft.Maui.Networking.IConnectivity>("com.openmaui.essentials.connectivity", "Microsoft.Maui.Networking.Connectivity", "Microsoft.Maui.Networking.ConnectivityImplementation", ConnectivityService.Instance); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Connectivity registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.ApplicationModel.IAppInfo>("com.openmaui.essentials.appinfo", "Microsoft.Maui.ApplicationModel.AppInfo", "Microsoft.Maui.ApplicationModel.AppInfoImplementation", AppInfoService.Instance); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"AppInfo registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.Devices.IDeviceInfo>("com.openmaui.essentials.deviceinfo", "Microsoft.Maui.Devices.DeviceInfo", "Microsoft.Maui.Devices.DeviceInfoImplementation", DeviceInfoService.Instance); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"DeviceInfo registration failed: {ex.Message}", ex); }
 
         try { RegisterEssential<Microsoft.Maui.ApplicationModel.IVersionTracking>("com.openmaui.essentials.versiontracking", "Microsoft.Maui.ApplicationModel.VersionTracking", "Microsoft.Maui.ApplicationModel.VersionTrackingImplementation", new VersionTrackingService()); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"VersionTracking registration failed: {ex.Message}", ex); }
@@ -269,37 +275,8 @@ internal static class EssentialsPatches
 
     private static void RegisterPreferences()
     {
-        // Patch the PreferencesImplementation constructor to not throw on Linux.
-        // Then set the defaultImplementation field to our Linux service.
-        var harmony = new Harmony("com.openmaui.essentials.preferences");
         var asm = typeof(Microsoft.Maui.Storage.IPreferences).Assembly;
-
-        var implType = asm.GetType("Microsoft.Maui.Storage.PreferencesImplementation");
-        if (implType != null)
-        {
-            // Patch the constructor so it doesn't throw NotImplementedInReferenceAssemblyException.
-            var ctor = implType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-            if (ctor != null)
-            {
-                harmony.Patch(ctor, prefix: new HarmonyMethod(typeof(EssentialsPatches), nameof(SuppressConstructor_Prefix)));
-            }
-        }
-
-        // Now safely access the Preferences type — the cctor will create
-        // PreferencesImplementation without throwing.
-        var prefsType = asm.GetType("Microsoft.Maui.Storage.Preferences");
-        var field = prefsType?.GetField("defaultImplementation",
-            BindingFlags.Static | BindingFlags.NonPublic);
-
-        if (field != null)
-        {
-            field.SetValue(null, new PreferencesService());
-            DiagnosticLog.Debug("EssentialsPatches", "Registered Preferences (Linux)");
-        }
-        else
-        {
-            DiagnosticLog.Error("EssentialsPatches", "Preferences.defaultImplementation field not found");
-        }
+        TrySetEssential(asm, "Microsoft.Maui.Storage.Preferences", new PreferencesService());
     }
 
     // -----------------------------------------------------------------------
@@ -308,32 +285,8 @@ internal static class EssentialsPatches
 
     private static void RegisterSecureStorage()
     {
-        var harmony = new Harmony("com.openmaui.essentials.securestorage");
         var asm = typeof(Microsoft.Maui.Storage.ISecureStorage).Assembly;
-
-        var implType = asm.GetType("Microsoft.Maui.Storage.SecureStorageImplementation");
-        if (implType != null)
-        {
-            var ctor = implType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-            if (ctor != null)
-            {
-                harmony.Patch(ctor, prefix: new HarmonyMethod(typeof(EssentialsPatches), nameof(SuppressConstructor_Prefix)));
-            }
-        }
-
-        var secType = asm.GetType("Microsoft.Maui.Storage.SecureStorage");
-        var field = secType?.GetField("defaultImplementation",
-            BindingFlags.Static | BindingFlags.NonPublic);
-
-        if (field != null)
-        {
-            field.SetValue(null, new SecureStorageService());
-            DiagnosticLog.Debug("EssentialsPatches", "Registered SecureStorage (Linux)");
-        }
-        else
-        {
-            DiagnosticLog.Error("EssentialsPatches", "SecureStorage.defaultImplementation field not found");
-        }
+        TrySetEssential(asm, "Microsoft.Maui.Storage.SecureStorage", new SecureStorageService());
     }
 
     // -----------------------------------------------------------------------
@@ -342,32 +295,8 @@ internal static class EssentialsPatches
 
     private static void RegisterClipboard()
     {
-        var harmony = new Harmony("com.openmaui.essentials.clipboard");
         var asm = typeof(Microsoft.Maui.ApplicationModel.DataTransfer.IClipboard).Assembly;
-
-        var implType = asm.GetType("Microsoft.Maui.ApplicationModel.DataTransfer.ClipboardImplementation");
-        if (implType != null)
-        {
-            var ctor = implType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-            if (ctor != null)
-            {
-                harmony.Patch(ctor, prefix: new HarmonyMethod(typeof(EssentialsPatches), nameof(SuppressConstructor_Prefix)));
-            }
-        }
-
-        var clipType = asm.GetType("Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard");
-        var field = clipType?.GetField("defaultImplementation",
-            BindingFlags.Static | BindingFlags.NonPublic);
-
-        if (field != null)
-        {
-            field.SetValue(null, new ClipboardService());
-            DiagnosticLog.Debug("EssentialsPatches", "Registered Clipboard (Linux)");
-        }
-        else
-        {
-            DiagnosticLog.Error("EssentialsPatches", "Clipboard.defaultImplementation field not found");
-        }
+        TrySetEssential(asm, "Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard", new ClipboardService());
     }
 
     // -----------------------------------------------------------------------
@@ -375,38 +304,68 @@ internal static class EssentialsPatches
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Generic helper to register a Linux Essentials implementation.
-    /// Patches the *Implementation constructor to not throw, then sets
-    /// the static defaultImplementation field to our Linux service.
+    /// Registers a Linux Essentials implementation on the static facade type.
+    /// <paramref name="harmonyId"/> and <paramref name="implTypeName"/> are
+    /// accepted for API symmetry but unused — the portable *Implementation
+    /// constructors are empty no-ops; only the methods throw, and once the
+    /// facade's backing field points at our Linux service, those methods are
+    /// never invoked.
     /// </summary>
     private static void RegisterEssential<TInterface>(string harmonyId, string staticTypeName, string implTypeName, object linuxInstance)
     {
-        var harmony = new Harmony(harmonyId);
         var asm = typeof(TInterface).Assembly;
+        TrySetEssential(asm, staticTypeName, linuxInstance);
+    }
 
-        var implType = asm.GetType(implTypeName);
-        if (implType != null)
+    /// <summary>
+    /// Sets the static backing implementation on a MAUI Essentials facade type.
+    /// MAUI 10 uses two naming conventions side-by-side: <c>SetDefault</c> /
+    /// <c>defaultImplementation</c> (Preferences, Browser, Launcher, ...) and
+    /// <c>SetCurrent</c> / <c>currentImplementation</c> (Connectivity, AppInfo,
+    /// DeviceInfo, AppActions). Prefer the public setter — it tolerates future
+    /// renames of the private field — then fall back to reflecting either field
+    /// name directly so we still work on older Essentials assemblies.
+    /// </summary>
+    private static void TrySetEssential(Assembly essentialsAsm, string staticTypeName, object linuxInstance)
+    {
+        var staticType = essentialsAsm.GetType(staticTypeName);
+        if (staticType == null)
         {
-            var ctor = implType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-            if (ctor != null)
+            DiagnosticLog.Error("EssentialsPatches", $"{staticTypeName} type not found");
+            return;
+        }
+
+        // Preferred: public SetDefault(T) / SetCurrent(T)
+        foreach (var setterName in new[] { "SetDefault", "SetCurrent" })
+        {
+            var setter = staticType
+                .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                .FirstOrDefault(m => m.Name == setterName
+                    && m.GetParameters().Length == 1
+                    && m.GetParameters()[0].ParameterType.IsInstanceOfType(linuxInstance));
+
+            if (setter != null)
             {
-                harmony.Patch(ctor, prefix: new HarmonyMethod(typeof(EssentialsPatches), nameof(SuppressConstructor_Prefix)));
+                setter.Invoke(null, new[] { linuxInstance });
+                DiagnosticLog.Debug("EssentialsPatches", $"Registered {staticTypeName} via {setterName} (Linux)");
+                return;
             }
         }
 
-        var staticType = asm.GetType(staticTypeName);
-        var field = staticType?.GetField("defaultImplementation",
-            BindingFlags.Static | BindingFlags.NonPublic);
+        // Fallback: private static field, either naming convention.
+        foreach (var fieldName in new[] { "defaultImplementation", "currentImplementation" })
+        {
+            var field = staticType.GetField(fieldName, BindingFlags.Static | BindingFlags.NonPublic);
+            if (field != null)
+            {
+                field.SetValue(null, linuxInstance);
+                DiagnosticLog.Debug("EssentialsPatches", $"Registered {staticTypeName} via {fieldName} field (Linux)");
+                return;
+            }
+        }
 
-        if (field != null)
-        {
-            field.SetValue(null, linuxInstance);
-            DiagnosticLog.Debug("EssentialsPatches", $"Registered {staticTypeName} (Linux)");
-        }
-        else
-        {
-            DiagnosticLog.Error("EssentialsPatches", $"{staticTypeName}.defaultImplementation field not found");
-        }
+        DiagnosticLog.Error("EssentialsPatches",
+            $"{staticTypeName}: no SetDefault/SetCurrent method and no defaultImplementation/currentImplementation field");
     }
 
     /// <summary>
