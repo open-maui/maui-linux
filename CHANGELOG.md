@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.70.2] - unreleased
+
+> Roadmap follow-up: complete the Wayland IME/text loop, ship the Linux primary-selection clipboard, native Wayland drag-and-drop, hardware video acceleration tuning, system tray menus, CUPS printing, and an OpenStreetMap-backed maps backend.
+
+### Added
+- **`IInputContext.DeleteSurrounding(int beforeChars, int afterChars)`.** Completes the Wayland `zwp_text_input_v3` IME loop — `WaylandTextInputV3Service` now applies `delete_surrounding_text` batches before commits and routes them into the focused `SkiaEntry` / `SkiaEditor`. The Wayland protocol counts in UTF-8 bytes; the service does the byte→char-count conversion (clamping on multi-byte boundaries, handling surrogate pairs) so the input control's implementation just works in UTF-16 indices. Also fixed a sibling gap: the service previously raised events but never called back into `_context` — now matches `IBusInputMethodService`.
+- **`PrimarySelectionService`** — public Linux service for the X11/Wayland *primary selection* (middle-click paste), backed by a fresh `zwp_primary_selection_v1` Wayland binding (new partial `WaylandWindow.PrimarySelection.cs`, parallels the `wl_data_device_manager` clipboard) with `wl-paste --primary` / `xclip -selection primary` / `xsel --primary` subprocess fallbacks for older compositors and X11. `SkiaEntry` and `SkiaEditor` now push the selected range to the primary on drag-end, and middle-click pastes at the click position — matches every native Linux toolkit's behavior.
+
+### Changed
+- Generated `primary-selection-unstable-v1` bindings into the `libopenmaui_wl.so` shim (`native/build.sh`). The four new `zwp_primary_selection_*_interface` symbols are dlsym'd alongside the existing protocols at startup.
+
 ## [10.0.70.1] - 2026-06-02
 
 > MAUI 10.0.70 alignment + default-template fixes (gitea #26).
