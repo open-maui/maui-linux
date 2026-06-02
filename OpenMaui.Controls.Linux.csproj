@@ -99,6 +99,7 @@
     <Compile Remove="Hosting.Abstractions/**/*.cs" />
     <Compile Remove="Handlers/*.Linux.cs" />
     <Compile Remove="MediaElement/**/*.cs" />
+    <Compile Remove="Maps/**/*.cs" />
     <Compile Remove="samples/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
     <Compile Remove="templates/**/*.cs" />
