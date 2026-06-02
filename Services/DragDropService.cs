@@ -11,6 +11,13 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public partial class DragDropService : IDisposable
 {
+    // Process-wide singleton. Both the X11 and Wayland backends push events into
+    // this instance; app code subscribes once and gets DnD events regardless of
+    // which display server is in use. DI can still resolve a separate instance
+    // when the consumer prefers it — Default just covers the common case.
+    private static readonly Lazy<DragDropService> s_default = new(() => new DragDropService());
+    public static DragDropService Default => s_default.Value;
+
     private nint _display;
     private nint _window;
     private bool _isDragging;
@@ -345,6 +352,43 @@ public partial class DragDropService : IDisposable
     {
         _isDragging = false;
         _currentDragData = null;
+    }
+
+    // ---- Backend push API ----
+    // Wayland (and any future backend that doesn't go through ProcessClientMessage)
+    // calls these to drive the public events. Kept internal so app code can only
+    // subscribe to the events, not synthesize them.
+
+    internal DragEventArgs RaiseDragEnter(DragData data, int x, int y)
+    {
+        var args = new DragEventArgs(data, x, y);
+        _isDragging = true;
+        _currentDragData = data;
+        DragEnter?.Invoke(this, args);
+        return args;
+    }
+
+    internal DragEventArgs RaiseDragOver(DragData data, int x, int y)
+    {
+        var args = new DragEventArgs(data, x, y);
+        DragOver?.Invoke(this, args);
+        return args;
+    }
+
+    internal void RaiseDragLeave()
+    {
+        _isDragging = false;
+        _currentDragData = null;
+        DragLeave?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal DropEventArgs RaiseDrop(DragData data, string? text)
+    {
+        var args = new DropEventArgs(data, text);
+        Drop?.Invoke(this, args);
+        _isDragging = false;
+        _currentDragData = null;
+        return args;
     }
 
     public void Dispose()
