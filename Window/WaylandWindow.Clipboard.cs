@@ -313,12 +313,32 @@ public partial class WaylandWindow
         wl_proxy_add_listener(offer, pinned.AddrOfPinnedObject(), GCHandle.ToIntPtr(window._thisHandle));
     }
 
-    // DnD events (not used by clipboard) — implemented as no-ops because libwayland
-    // requires non-NULL function pointers in the listener struct.
-    private static void OnDataDeviceEnter(IntPtr data, IntPtr device, uint serial, IntPtr surface, int x, int y, IntPtr offer) { }
-    private static void OnDataDeviceLeave(IntPtr data, IntPtr device) { }
-    private static void OnDataDeviceMotion(IntPtr data, IntPtr device, uint time, int x, int y) { }
-    private static void OnDataDeviceDrop(IntPtr data, IntPtr device) { }
+    // wl_data_device DnD events. Implemented in WaylandWindow.DragDrop.cs.
+    // Forwarded through to per-window instance handlers.
+    private static void OnDataDeviceEnter(IntPtr data, IntPtr device, uint serial, IntPtr surface, int x, int y, IntPtr offer)
+    {
+        var handle = GCHandle.FromIntPtr(data);
+        if (!handle.IsAllocated) return;
+        ((WaylandWindow)handle.Target!).HandleDnDEnter(serial, surface, x, y, offer);
+    }
+    private static void OnDataDeviceLeave(IntPtr data, IntPtr device)
+    {
+        var handle = GCHandle.FromIntPtr(data);
+        if (!handle.IsAllocated) return;
+        ((WaylandWindow)handle.Target!).HandleDnDLeave();
+    }
+    private static void OnDataDeviceMotion(IntPtr data, IntPtr device, uint time, int x, int y)
+    {
+        var handle = GCHandle.FromIntPtr(data);
+        if (!handle.IsAllocated) return;
+        ((WaylandWindow)handle.Target!).HandleDnDMotion(time, x, y);
+    }
+    private static void OnDataDeviceDrop(IntPtr data, IntPtr device)
+    {
+        var handle = GCHandle.FromIntPtr(data);
+        if (!handle.IsAllocated) return;
+        ((WaylandWindow)handle.Target!).HandleDnDDrop();
+    }
 
     private static void OnDataDeviceSelection(IntPtr data, IntPtr device, IntPtr offer)
     {
