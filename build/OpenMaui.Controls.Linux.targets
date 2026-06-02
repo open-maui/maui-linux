@@ -54,6 +54,29 @@
     <MauiXaml Remove="Platforms\Linux\**" />
   </ItemGroup>
 
+  <!--
+    Deploy the Wayland protocol shim (libopenmaui_wl.so) next to the consuming
+    app's assemblies. The WaylandWindow loader does an explicit dlopen() on the
+    path adjacent to OpenMaui.Controls.Linux.dll; the SDK's normal "runtimes/
+    <RID>/native/" probing only services NativeLibrary/DllImport callers, so
+    without this copy a framework-dependent build fails with
+    "Failed to load libopenmaui_wl.so".
+
+    $(MSBuildThisFileDirectory) resolves to <pkg>/build/ at consumer build time,
+    so ../runtimes/linux-x64/native/libopenmaui_wl.so points at the packaged
+    native asset. The Exists guard means non-Linux RIDs / older packages no-op
+    cleanly.
+  -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) AND Exists('$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libopenmaui_wl.so')">
+    <None Include="$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libopenmaui_wl.so">
+      <Link>libopenmaui_wl.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Visible>false</Visible>
+      <Pack>false</Pack>
+    </None>
+  </ItemGroup>
+
   <!-- Copy MauiImage items to output directory after Build -->
   <Target Name="CopyMauiImagesToOutput" AfterTargets="Build" Condition="@(MauiImage) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to output..." />

@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.60.14</Version>
+    <Version>10.0.70.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -39,9 +39,9 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.60" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.60" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.60" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.70" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.70" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.70" />
 
     <!-- SkiaSharp for rendering (3.x with SKFont API) -->
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
