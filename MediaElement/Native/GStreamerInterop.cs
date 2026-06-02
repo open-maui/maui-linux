@@ -108,6 +108,26 @@ public static partial class GStreamerInterop
     [LibraryImport(LibGst, EntryPoint = "gst_element_factory_make", StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr gst_element_factory_make(string factoryName, string? name);
 
+    // Plugin/feature registry — used for hardware-acceleration tuning. Bumping
+    // the rank of a HW decoder factory above the SW alternatives forces playbin
+    // (via decodebin) to pick it when negotiating decoders for the stream caps.
+    [LibraryImport(LibGst, EntryPoint = "gst_registry_get")]
+    public static partial IntPtr gst_registry_get();
+
+    [LibraryImport(LibGst, EntryPoint = "gst_registry_lookup_feature", StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr gst_registry_lookup_feature(IntPtr registry, string name);
+
+    [LibraryImport(LibGst, EntryPoint = "gst_plugin_feature_set_rank")]
+    public static partial void gst_plugin_feature_set_rank(IntPtr feature, uint rank);
+
+    // Ranks GStreamer recognises. Anything ≥ Primary outranks the standard
+    // SW decoders; Marginal keeps the factory available but ranked behind
+    // anything else.
+    public const uint GST_RANK_NONE = 0;
+    public const uint GST_RANK_MARGINAL = 64;
+    public const uint GST_RANK_SECONDARY = 128;
+    public const uint GST_RANK_PRIMARY = 256;
+
     [LibraryImport(LibGst, EntryPoint = "gst_element_set_state")]
     public static partial GstStateChangeReturn gst_element_set_state(IntPtr element, GstState state);
 
