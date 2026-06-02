@@ -92,6 +92,19 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode,
         [MarshalAs(UnmanagedType.LPStr)] string arg1);
 
+    // wl_data_offer.accept: (uint serial, ?string mime_type). Null/empty mime
+    // signals rejection.
+    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal")]
+    private static extern void wl_proxy_marshal_uint_string(IntPtr proxy, uint opcode,
+        uint arg1, [MarshalAs(UnmanagedType.LPStr)] string arg2);
+
+    // wl_data_device.start_drag: (?source, origin_surface, ?icon_surface, serial).
+    // origin must be one of our surfaces; icon may be null. serial is the most
+    // recent pointer button-press serial.
+    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal")]
+    private static extern void wl_proxy_marshal_obj_obj_obj_uint(IntPtr proxy, uint opcode,
+        IntPtr arg1, IntPtr arg2, IntPtr arg3, uint arg4);
+
     // wl_data_offer.receive: (string mime_type, fd). The fd is transferred via
     // SCM_RIGHTS automatically by libwayland based on the message signature 'h'.
     [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal")]
