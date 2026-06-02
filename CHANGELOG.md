@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.70.1] - 2026-06-02
+
+> MAUI 10.0.70 alignment + default-template fixes (gitea #26).
+
+### Changed
+- Bumped `Microsoft.Maui.Controls` / `Microsoft.Maui.Graphics` / `Microsoft.Maui.Graphics.Skia` references from 10.0.60 to 10.0.70.
+
+### Fixed
+- **Default Linux template no longer fails with CS1508.** The XAML template's csproj had `<EmbeddedResource Include="Resources\**\*" />` alongside `<MauiXaml Update="**/*.xaml" />`, which re-embedded `Resources/Styles/Colors.xaml` and `Styles.xaml` under the same manifest resource ID that the XAML compiler had already produced. Replaced the broad embedded-resource glob with proper `MauiFont` / `MauiImage` item groups in both `openmaui-linux-app` and `openmaui-linux-xaml-app` templates.
+- **Wayland protocol shim now loads in framework-dependent builds.** The NuGet runtime asset graph places `libopenmaui_wl.so` under `runtimes/linux-x64/native/`, which services DllImport probing but not the explicit `dlopen()` the Wayland window does. Two-pronged fix: (a) `build/OpenMaui.Controls.Linux.targets` now declares the native asset as `<None CopyToOutputDirectory="PreserveNewest">` so it lands next to `OpenMaui.Controls.Linux.dll` in the consumer's output, and (b) `WaylandWindow.TryLoadProtocols()` additionally probes `runtimes/linux-x64/native/` and `runtimes/linux-arm64/native/` under the assembly directory, so it succeeds in either deployment layout.
+- **MAUI Essentials platform implementations now register correctly on Linux.** MAUI 10 uses two static-field/setter naming conventions side-by-side — `SetDefault` / `defaultImplementation` (Preferences, SecureStorage, Browser, Launcher, Battery, …) and `SetCurrent` / `currentImplementation` (Connectivity, AppInfo, DeviceInfo, AppActions). `EssentialsPatches` only checked `defaultImplementation` and silently failed for the second set, leaving the portable stubs in place. Replaced the registration helpers with a `TrySetEssential` that prefers the public `Set*` setter (renames-tolerant) and falls back to either field name.
+- **`PreferencesService` constructor no longer throws.** It used to call `AppInfo.Current?.Name` to derive the XDG config path, which on the portable Essentials assembly returns a stub whose property getters throw `NotImplementedInReferenceAssemblyException`. Made the path lazy and reordered `EssentialsPatches.Apply()` to register AppInfo/DeviceInfo before Preferences and FilePicker.
+
 ## [10.0.60.13] - 2026-05-16
 
 > MediaElement / video playback via opt-in `OpenMaui.Controls.Linux.MediaElement` sibling package.
