@@ -97,6 +97,40 @@ public partial class SkiaEntry
         Invalidate();
     }
 
+    /// <summary>
+    /// IME asked us to retract <paramref name="beforeChars"/> code units before
+    /// the caret and <paramref name="afterChars"/> after. Common during
+    /// preedit-reanchoring on word-suggestion IMEs (e.g. compositor finalizes a
+    /// suggestion and trims the dictionary fragment that was peeking past the
+    /// caret).
+    /// </summary>
+    public void DeleteSurrounding(int beforeChars, int afterChars)
+    {
+        if (IsReadOnly) return;
+        if (beforeChars <= 0 && afterChars <= 0) return;
+
+        // Clamp to what's actually available in either direction so a buggy IME
+        // can't drive us out of bounds.
+        var current = Text ?? string.Empty;
+        var before = Math.Min(Math.Max(beforeChars, 0), _cursorPosition);
+        var after = Math.Min(Math.Max(afterChars, 0), current.Length - _cursorPosition);
+        if (before == 0 && after == 0) return;
+
+        var newCursor = _cursorPosition - before;
+        Text = current.Remove(newCursor, before + after);
+        _cursorPosition = newCursor;
+        _selectionStart = newCursor;
+        _selectionLength = 0;
+
+        // delete_surrounding_text always precedes a fresh preedit batch — drop
+        // any leftover composition so we don't render it at the wrong offset.
+        _preEditText = string.Empty;
+        _preEditCursorPosition = 0;
+
+        ResetCursorBlink();
+        Invalidate();
+    }
+
     #endregion
 
     public override void OnTextInput(TextInputEventArgs e)
@@ -291,6 +325,24 @@ public partial class SkiaEntry
     {
         if (!IsEnabled) return;
 
+        // Linux convention: middle-click pastes from the *primary* selection at
+        // the click position. Distinct from Ctrl+V which goes through the
+        // explicit clipboard. We move the caret to the click position first
+        // so the insert lands where the user actually pointed.
+        if (e.Button == PointerButton.Middle)
+        {
+            if (!IsReadOnly)
+            {
+                var middleScreenBounds = ScreenBounds;
+                var middleClickX = e.X - (float)middleScreenBounds.Left - (float)Padding.Left + _scrollOffset;
+                _cursorPosition = GetCharacterIndexAtX(middleClickX);
+                _selectionStart = _cursorPosition;
+                _selectionLength = 0;
+                _ = PastePrimarySelectionAtCaretAsync();
+            }
+            return;
+        }
+
         // Handle right-click context menu
         if (e.Button == PointerButton.Right)
         {
@@ -403,7 +455,78 @@ public partial class SkiaEntry
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
+        var wasSelecting = _isSelecting;
         _isSelecting = false;
+
+        // Linux convention: end of drag-selection pushes the selected text to
+        // the X11/Wayland *primary* selection so middle-click pastes it in
+        // another app. No effect on the explicit clipboard (Ctrl+C).
+        if (wasSelecting && _selectionLength != 0)
+            PushSelectionToPrimary();
+    }
+
+    private void PushSelectionToPrimary()
+    {
+        try
+        {
+            var (s, e) = GetOrderedSelection();
+            var selected = (Text ?? string.Empty).Substring(s, e - s);
+            if (string.IsNullOrEmpty(selected)) return;
+            // Fire and forget — primary selection writes are best-effort; a
+            // failed subprocess fallback shouldn't block input handling.
+            _ = PrimarySelectionService.Default.SetTextAsync(selected);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaEntry", $"Primary-selection write failed: {ex.Message}");
+        }
+    }
+
+    private (int start, int end) GetOrderedSelection()
+    {
+        var a = _selectionStart;
+        var b = _selectionStart + _selectionLength;
+        return a < b ? (a, b) : (b, a);
+    }
+
+    private async Task PastePrimarySelectionAtCaretAsync()
+    {
+        try
+        {
+            var text = await PrimarySelectionService.Default.GetTextAsync();
+            if (string.IsNullOrEmpty(text)) return;
+
+            void Apply()
+            {
+                if (IsReadOnly) return;
+                var current = Text ?? string.Empty;
+                var pos = Math.Clamp(_cursorPosition, 0, current.Length);
+                var insert = text;
+                if (MaxLength > 0 && current.Length + insert.Length > MaxLength)
+                {
+                    var slack = MaxLength - current.Length;
+                    if (slack <= 0) return;
+                    insert = insert.Substring(0, slack);
+                }
+                Text = current.Insert(pos, insert);
+                _cursorPosition = pos + insert.Length;
+                _selectionStart = _cursorPosition;
+                _selectionLength = 0;
+                ResetCursorBlink();
+                Invalidate();
+            }
+
+            // Marshal back to the UI thread — primary-selection reads dispatch
+            // on a background task (Wayland pipe read, subprocess wait).
+            if (Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
+                Apply();
+            else
+                Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main?.Dispatch(Apply);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaEntry", $"Primary-selection paste failed: {ex.Message}");
+        }
     }
 
     private int GetCharacterIndexAtX(float x)
