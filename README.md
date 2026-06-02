@@ -335,8 +335,17 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Native `wl_data_device_manager` clipboard — zero subprocess overhead, works without `wl-clipboard` (10.0.60.11)
 - [x] `zwp_text_input_v3` IME for native Wayland (Fcitx5 / GNOME Pinyin) (10.0.60.12)
 - [x] MediaElement / video support via GStreamer — opt-in `OpenMaui.Controls.Linux.MediaElement` sibling package (10.0.60.13)
-- [ ] Hardware video acceleration (auto-negotiated via VAAPI/NVDEC when plugins installed; explicit pipeline tuning is a follow-up)
-- [ ] Frame-accurate scrubbing on HTTP-streamed video (byte-range re-request latency on backward seeks)
+- [x] MAUI 10.0.70 alignment — default-template CS1508 fix, Wayland-shim deployment fix, Essentials registration fix for MAUI 10's split `SetDefault`/`SetCurrent` naming (10.0.70.1)
+
+### Up next (10.0.70.2 target)
+
+- [ ] Maps integration (OpenStreetMap)
+- [ ] Printing support (CUPS)
+- [ ] System tray menus (StatusNotifierItem / `_NET_WM_SYSTEM_TRAY` fallback)
+- [ ] `IInputContext.DeleteSurrounding` — let IMEs retract characters around the caret
+- [ ] Primary-selection clipboard (`zwp_primary_selection_v1`, middle-click paste)
+- [ ] Native `wl_data_device_manager` drag-and-drop — replaces the XDND-only path
+- [ ] Hardware video acceleration tuning (auto-negotiated via VAAPI/NVDEC works today; explicit pipeline tuning is the follow-up)
 
 ## License
 
