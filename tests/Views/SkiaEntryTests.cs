@@ -188,4 +188,62 @@ public class SkiaEntryTests
         // Assert
         entry.SelectionLength.Should().Be(11);
     }
+
+    // --- IInputContext.DeleteSurrounding ---
+    // Exercises the surface IME services call when the compositor sends
+    // zwp_text_input_v3.delete_surrounding_text. Counts here are UTF-16 char
+    // counts (the byte→char conversion happens inside
+    // WaylandTextInputV3Service before reaching the entry).
+
+    [Fact]
+    public void DeleteSurrounding_RemovesCharsAroundCaret()
+    {
+        // Text: h e l l o _ w o r l d  (caret=6, between space and 'w')
+        // Delete 2 before  → drops 'o' and ' '       → "hell" + "world"
+        // Delete 3 after   → drops 'w' 'o' 'r'        → "hell" + "ld" = "hellld"
+        // Caret lands at the new boundary, 6 - 2 = 4.
+        var entry = new SkiaEntry { Text = "hello world" };
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition = 6;
+
+        entry.DeleteSurrounding(beforeChars: 2, afterChars: 3);
+
+        entry.Text.Should().Be("hellld");
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition.Should().Be(4);
+    }
+
+    [Fact]
+    public void DeleteSurrounding_ClampsToTextBounds()
+    {
+        // IME asks for more than there is on each side — must not throw.
+        var entry = new SkiaEntry { Text = "abc" };
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition = 1;
+
+        entry.DeleteSurrounding(beforeChars: 5, afterChars: 5);
+
+        entry.Text.Should().BeEmpty();
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition.Should().Be(0);
+    }
+
+    [Fact]
+    public void DeleteSurrounding_NoOpWhenReadOnly()
+    {
+        var entry = new SkiaEntry { Text = "abc", IsReadOnly = true };
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition = 2;
+
+        entry.DeleteSurrounding(beforeChars: 1, afterChars: 1);
+
+        entry.Text.Should().Be("abc");
+    }
+
+    [Fact]
+    public void DeleteSurrounding_NoOpWhenBothCountsZero()
+    {
+        var entry = new SkiaEntry { Text = "abc" };
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition = 2;
+
+        entry.DeleteSurrounding(0, 0);
+
+        entry.Text.Should().Be("abc");
+        ((Microsoft.Maui.Platform.Linux.Services.IInputContext)entry).CursorPosition.Should().Be(2);
+    }
 }
