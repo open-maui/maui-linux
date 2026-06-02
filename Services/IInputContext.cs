@@ -18,4 +18,14 @@ public interface IInputContext
     void OnPreEditChanged(string preEditText, int cursorPosition);
 
     void OnPreEditEnded();
+
+    /// <summary>
+    /// IME asked us to remove characters from the caret's immediate surroundings
+    /// (Wayland <c>zwp_text_input_v3.delete_surrounding_text</c> or the equivalent
+    /// IBus signal). Counts are UTF-16 code units in <see cref="Text"/> — the
+    /// input-method service is responsible for converting protocol-level UTF-8
+    /// byte counts before calling this. Default no-op so external IInputContext
+    /// implementations don't break when this method is added.
+    /// </summary>
+    void DeleteSurrounding(int beforeChars, int afterChars) { }
 }
