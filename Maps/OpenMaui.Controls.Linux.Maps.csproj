@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Microsoft.Maui.Platform.Linux.Maps</RootNamespace>
+    <AssemblyName>OpenMaui.Controls.Linux.Maps</AssemblyName>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>OpenMaui.Controls.Linux.Maps</PackageId>
+    <Version>10.0.70.1</Version>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Product>OpenMaui Maps (Linux)</Product>
+    <Description>Linux backend for Microsoft.Maui.Controls.Maps. Adds .UseLinuxMaps() to your MAUI app builder; renders OpenStreetMap raster tiles into a SkiaSharp surface with pan/zoom, pin and polyline overlays. Also exposes a standalone SkiaMap view for code-first map UI. Tiles are fetched from tile.openstreetmap.org and cached under $XDG_CACHE_HOME. Opt-in: install this package only if your app uses Maps on Linux.</Description>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>maui;linux;openmaui;maps;openstreetmap;osm;skia;tiles</PackageTags>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Main package — SkiaMap subclasses SkiaView and depends on the Skia
+         rendering infrastructure shipped there. -->
+    <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
+
+    <!-- Upstream Maps control + IMapHandler + Pin/Polyline types. -->
+    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.70" />
+  </ItemGroup>
+
+  <!-- Include icon and README in package -->
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
