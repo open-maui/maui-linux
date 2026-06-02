@@ -97,6 +97,39 @@ public partial class SkiaEditor
         Invalidate();
     }
 
+    /// <summary>
+    /// IME asked us to retract <paramref name="beforeChars"/> code units before
+    /// the caret and <paramref name="afterChars"/> after. Counts are in
+    /// <see cref="Text"/>'s UTF-16 indexing — the input-method service has
+    /// already converted from the Wayland UTF-8 byte counts.
+    /// </summary>
+    public void DeleteSurrounding(int beforeChars, int afterChars)
+    {
+        if (IsReadOnly) return;
+        if (beforeChars <= 0 && afterChars <= 0) return;
+
+        var current = Text ?? string.Empty;
+        var before = Math.Min(Math.Max(beforeChars, 0), _cursorPosition);
+        var after = Math.Min(Math.Max(afterChars, 0), current.Length - _cursorPosition);
+        if (before == 0 && after == 0) return;
+
+        var newCursor = _cursorPosition - before;
+        Text = current.Remove(newCursor, before + after);
+        _cursorPosition = newCursor;
+        _selectionStart = newCursor;
+        _selectionLength = 0;
+
+        // delete_surrounding_text always precedes a fresh preedit batch — drop
+        // any leftover composition so we don't render it at the wrong offset.
+        _preEditText = string.Empty;
+        _preEditCursorPosition = 0;
+
+        UpdateLines();
+        EnsureCursorVisible();
+        ResetCursorBlink();
+        Invalidate();
+    }
+
     #endregion
 
     private void UpdateLines()
@@ -221,6 +254,21 @@ public partial class SkiaEditor
         DiagnosticLog.Debug("SkiaEditor", $"OnPointerPressed: Button={e.Button}, IsEnabled={IsEnabled}");
         if (!IsEnabled) return;
 
+        // Linux convention: middle-click pastes from the *primary* selection at
+        // the click position.
+        if (e.Button == PointerButton.Middle)
+        {
+            if (!IsReadOnly)
+            {
+                IsFocused = true;
+                PositionCursorAtClick(e);
+                _selectionStart = _cursorPosition;
+                _selectionLength = 0;
+                _ = PastePrimarySelectionAtCaretAsync();
+            }
+            return;
+        }
+
         // Handle right-click context menu
         if (e.Button == PointerButton.Right)
         {
@@ -331,7 +379,100 @@ public partial class SkiaEditor
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
+        var wasSelecting = _isSelecting;
         _isSelecting = false;
+
+        // End-of-drag-selection → push selected text to X11/Wayland primary
+        // selection so a middle-click in another app pastes it. Linux UX
+        // convention; Ctrl+C/Ctrl+V remain untouched.
+        if (wasSelecting && _selectionLength != 0)
+            PushSelectionToPrimary();
+    }
+
+    private (int start, int end) GetOrderedSelection()
+    {
+        var a = _selectionStart;
+        var b = _selectionStart + _selectionLength;
+        return a < b ? (a, b) : (b, a);
+    }
+
+    private void PushSelectionToPrimary()
+    {
+        try
+        {
+            var (s, e) = GetOrderedSelection();
+            var selected = (Text ?? string.Empty).Substring(s, e - s);
+            if (string.IsNullOrEmpty(selected)) return;
+            _ = PrimarySelectionService.Default.SetTextAsync(selected);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaEditor", $"Primary-selection write failed: {ex.Message}");
+        }
+    }
+
+    private void PositionCursorAtClick(PointerEventArgs e)
+    {
+        var screenBounds = ScreenBounds;
+        var paddingLeft = (float)Padding.Left;
+        var paddingTop = (float)Padding.Top;
+        var contentX = e.X - screenBounds.Left - paddingLeft;
+        var contentY = e.Y - screenBounds.Top - paddingTop + _scrollOffsetY;
+
+        var fontSize = (float)FontSize;
+        var lineSpacing = fontSize * (float)LineHeight;
+        var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
+
+        using var font = new SKFont(SKTypeface.Default, fontSize);
+        var line = _lines[clickedLine];
+        var clickedCol = 0;
+        for (int i = 0; i <= line.Length; i++)
+        {
+            var charX = MeasureText(line.Substring(0, i), font);
+            if (charX > contentX) { clickedCol = i > 0 ? i - 1 : 0; break; }
+            clickedCol = i;
+        }
+        _cursorPosition = GetPosition(clickedLine, clickedCol);
+    }
+
+    private async Task PastePrimarySelectionAtCaretAsync()
+    {
+        try
+        {
+            var text = await PrimarySelectionService.Default.GetTextAsync();
+            if (string.IsNullOrEmpty(text)) return;
+
+            void Apply()
+            {
+                if (IsReadOnly) return;
+                var current = Text ?? string.Empty;
+                var pos = Math.Clamp(_cursorPosition, 0, current.Length);
+                var insert = text;
+                if (MaxLength > 0 && current.Length + insert.Length > MaxLength)
+                {
+                    var slack = MaxLength - current.Length;
+                    if (slack <= 0) return;
+                    insert = insert.Substring(0, slack);
+                }
+                Text = current.Insert(pos, insert);
+                _cursorPosition = pos + insert.Length;
+                _selectionStart = _cursorPosition;
+                _selectionLength = 0;
+                UpdateLines();
+                EnsureCursorVisible();
+                ResetCursorBlink();
+                Invalidate();
+            }
+
+            if (Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
+                Apply();
+            else
+                Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main?.Dispatch(Apply);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaEditor", $"Primary-selection paste failed: {ex.Message}");
+        }
     }
 
     public override void OnKeyDown(KeyEventArgs e)
