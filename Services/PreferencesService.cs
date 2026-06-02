@@ -13,25 +13,43 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class PreferencesService : IPreferences
 {
-    private readonly string _preferencesPath;
+    private string? _preferencesPath;
     private readonly Lock _lock = new();
     private Dictionary<string, Dictionary<string, object?>> _preferences = new();
     private bool _loaded;
 
     public PreferencesService()
     {
-        // Use XDG config directory
-        var configHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-        if (string.IsNullOrEmpty(configHome))
+        // Intentionally empty — see PreferencesPath. We can't touch
+        // MauiAppInfo.Current here because EssentialsPatches.Apply() constructs
+        // PreferencesService while the AppInfo facade may still be backed by
+        // the portable assembly stub whose property getters throw.
+    }
+
+    private string PreferencesPath
+    {
+        get
         {
-            configHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+            if (_preferencesPath != null) return _preferencesPath;
+
+            // Use XDG config directory
+            var configHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+            if (string.IsNullOrEmpty(configHome))
+            {
+                configHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+            }
+
+            // AppInfo.Current is safe by the time anyone calls into us: the
+            // Linux backend has been fully wired up before any preference read.
+            string appName;
+            try { appName = MauiAppInfo.Current?.Name ?? "MauiApp"; }
+            catch { appName = "MauiApp"; }
+
+            var appDir = Path.Combine(configHome, appName);
+            Directory.CreateDirectory(appDir);
+
+            return _preferencesPath = Path.Combine(appDir, "preferences.json");
         }
-
-        var appName = MauiAppInfo.Current?.Name ?? "MauiApp";
-        var appDir = Path.Combine(configHome, appName);
-        Directory.CreateDirectory(appDir);
-
-        _preferencesPath = Path.Combine(appDir, "preferences.json");
     }
 
     private void EnsureLoaded()
@@ -44,9 +62,10 @@ public class PreferencesService : IPreferences
 
             try
             {
-                if (File.Exists(_preferencesPath))
+                var path = PreferencesPath;
+                if (File.Exists(path))
                 {
-                    var json = File.ReadAllText(_preferencesPath);
+                    var json = File.ReadAllText(path);
                     _preferences = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object?>>>(json)
                                    ?? new();
                 }
@@ -70,7 +89,7 @@ public class PreferencesService : IPreferences
                 {
                     WriteIndented = true
                 });
-                File.WriteAllText(_preferencesPath, json);
+                File.WriteAllText(PreferencesPath, json);
             }
             catch
             {
