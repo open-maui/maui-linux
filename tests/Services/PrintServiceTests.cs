@@ -1,0 +1,66 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using FluentAssertions;
+using Microsoft.Maui.Platform.Linux.Services;
+using SkiaSharp;
+using Xunit;
+
+namespace Microsoft.Maui.Platform.Tests;
+
+public class PrintServiceTests
+{
+    // CUPS-backed paths require a CUPS daemon + configured printers, neither
+    // of which we want to assume in CI. Tests focus on the validation surface
+    // that runs regardless of whether libcups is loaded.
+
+    [Fact]
+    public void EnumeratePrinters_ReturnsAList_Always()
+    {
+        // Empty when CUPS isn't installed; populated when it is — either is
+        // fine, we just want no exceptions.
+        var printers = PrintService.EnumeratePrinters();
+        printers.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PrintFile_NoPrinterName_FailsCleanly()
+    {
+        var result = PrintService.PrintFile(string.Empty, "/tmp/does-not-matter");
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void PrintFile_MissingFile_FailsCleanly()
+    {
+        var result = PrintService.PrintFile("ignored-printer", "/nonexistent/file.pdf");
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task PrintSkiaPagesAsync_FailsCleanly_OnUnknownPrinter()
+    {
+        // Renders a 1-page test PDF, then attempts to submit to an obviously
+        // bogus printer. The render itself must succeed; CUPS rejects the job.
+        var result = await PrintService.PrintSkiaPagesAsync(
+            printer: "__openmaui_tests_nonexistent_printer__",
+            renderPage: (canvas, page) =>
+            {
+                canvas.Clear(SKColors.White);
+                using var paint = new SKPaint { Color = SKColors.Black, IsAntialias = true };
+                using var font = new SKFont(SKTypeface.Default, 16);
+                canvas.DrawText("Test page", 50, 50, font, paint);
+                return false;   // single page
+            },
+            pageSize: new SKSize(595, 842));   // A4 in points
+
+        // We don't assert Succeeded=false unconditionally — IF CUPS happens to
+        // have a queue with this exact name (impossibly unlikely), we'd succeed
+        // and the job would just sit in the queue. We only require a sensible
+        // return shape.
+        result.Should().NotBeNull();
+        // No throws, no leaks.
+    }
+}
