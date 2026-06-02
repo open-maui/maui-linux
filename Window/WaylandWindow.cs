@@ -273,6 +273,13 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _wp_viewport_interface = dlsym(protoHandle, "wp_viewport_interface");
         _zwp_text_input_manager_v3_interface = dlsym(protoHandle, "zwp_text_input_manager_v3_interface");
         _zwp_text_input_v3_interface = dlsym(protoHandle, "zwp_text_input_v3_interface");
+        // primary-selection-unstable-v1: middle-click paste. Optional — older
+        // compositors may not expose the global; the dlsym just gives us the
+        // interface table, the registry probe decides whether to bind.
+        _zwp_primary_selection_device_manager_v1_interface = dlsym(protoHandle, "zwp_primary_selection_device_manager_v1_interface");
+        _zwp_primary_selection_device_v1_interface = dlsym(protoHandle, "zwp_primary_selection_device_v1_interface");
+        _zwp_primary_selection_source_v1_interface = dlsym(protoHandle, "zwp_primary_selection_source_v1_interface");
+        _zwp_primary_selection_offer_v1_interface = dlsym(protoHandle, "zwp_primary_selection_offer_v1_interface");
     }
 
     private static IntPtr TryLoadProtocols()
@@ -1187,6 +1194,16 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 // Per-seat; retry from SetupSeat if seat arrives later.
                 window.SetupTextInput();
                 break;
+            case "zwp_primary_selection_device_manager_v1":
+                // Middle-click paste. Older compositors may not export this — the
+                // null-check on the interface table prevents binding without the
+                // shim symbols. Per-seat; SetupSeat retries when seat lands.
+                if (_zwp_primary_selection_device_manager_v1_interface != IntPtr.Zero)
+                {
+                    window._primarySelectionDeviceManager = wl_registry_bind(registry, name, _zwp_primary_selection_device_manager_v1_interface, 1);
+                    window.SetupPrimarySelection();
+                }
+                break;
         }
     }
 
@@ -1212,6 +1229,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         SetupClipboard();
         // Same pattern for text-input-v3.
         SetupTextInput();
+        // And primary-selection (optional — compositor may not advertise).
+        SetupPrimarySelection();
     }
 
     private static void SeatCapabilities(IntPtr data, IntPtr seat, uint capabilities)
@@ -1720,6 +1739,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         DisposeXkb();
         DisposeClipboard();
         DisposeTextInput();
+        DisposePrimarySelection();
         DisposeDecoration();
 
         if (_viewport != IntPtr.Zero)
