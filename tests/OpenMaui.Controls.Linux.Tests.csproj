@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OpenMaui.Controls.Linux.csproj" />
+    <ProjectReference Include="..\Maps\OpenMaui.Controls.Linux.Maps.csproj" />
   </ItemGroup>
 
 </Project>
