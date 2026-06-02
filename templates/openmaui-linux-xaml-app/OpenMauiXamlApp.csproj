@@ -35,9 +35,16 @@
     <MauiXaml Update="**/*.xaml" />
   </ItemGroup>
 
-  <!-- Embedded Resources -->
+  <!--
+    Resources. MAUI item types (MauiFont, MauiImage) get processed for fonts and
+    image assets. The .xaml files under Resources/Styles are already embedded by
+    the XAML compiler via MauiXaml — a blanket EmbeddedResource glob over
+    Resources/** would re-embed them under the same manifest resource ID and
+    cause CS1508 ("resource identifier already used").
+  -->
   <ItemGroup>
-    <EmbeddedResource Include="Resources\**\*" />
+    <MauiFont Include="Resources\Fonts\*" />
+    <MauiImage Include="Resources\Images\*" Exclude="Resources\Images\*.md;Resources\Images\.gitkeep" />
   </ItemGroup>
 
 </Project>

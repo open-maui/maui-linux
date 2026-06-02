@@ -277,15 +277,25 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private static IntPtr TryLoadProtocols()
     {
-        // Path next to OpenMaui.Controls.Linux.dll
         var asmDir = Path.GetDirectoryName(typeof(WaylandWindow).Assembly.Location);
         if (!string.IsNullOrEmpty(asmDir))
         {
-            var p = Path.Combine(asmDir, "libopenmaui_wl.so");
-            if (File.Exists(p))
+            // Source builds and our .targets copy land the .so next to the
+            // assembly. NuGet's runtime asset graph instead drops it under
+            // runtimes/<RID>/native/ — that location services DllImport probing
+            // but NOT explicit dlopen(), so we have to look there ourselves.
+            foreach (var candidate in new[]
             {
-                var h = dlopen(p, RTLD_NOW | RTLD_GLOBAL);
-                if (h != IntPtr.Zero) return h;
+                Path.Combine(asmDir, "libopenmaui_wl.so"),
+                Path.Combine(asmDir, "runtimes", "linux-x64", "native", "libopenmaui_wl.so"),
+                Path.Combine(asmDir, "runtimes", "linux-arm64", "native", "libopenmaui_wl.so"),
+            })
+            {
+                if (File.Exists(candidate))
+                {
+                    var h = dlopen(candidate, RTLD_NOW | RTLD_GLOBAL);
+                    if (h != IntPtr.Zero) return h;
+                }
             }
         }
 
