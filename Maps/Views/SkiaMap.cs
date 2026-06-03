@@ -321,38 +321,43 @@ public class SkiaMap : SkiaView
     /// whose head bounding-box contains the point, or null. Iterates pins in
     /// reverse so later-added pins (drawn last → on top) win hit-testing.
     /// </summary>
-    private MapPin? HitTestPin(float screenX, float screenY)
+    private MapPin? HitTestPin(float clickX, float clickY)
     {
         if (Pins.Count == 0) return null;
-        var bounds = Bounds;
-        var screenBounds = ScreenBounds;
-        // Translate screen coords into our local content frame, same as
-        // ScreenBounds-based calculations in DrawPins.
-        var localX = screenX - (float)screenBounds.Left + (float)bounds.Left;
-        var localY = screenY - (float)screenBounds.Top + (float)bounds.Top;
 
+        // DrawPins puts each pin at `bounds.Left + (px - originX)`; the
+        // SkiaView render path runs OnDraw without translating the canvas, so
+        // that's an absolute on-screen position. Pointer events reach
+        // OnPointerPressed in screen coords too, so we compare them directly.
+        var bounds = Bounds;
         var (centerPx, centerPy) = MercatorProjection.LatLonToGlobalPixel(_centerLatitude, _centerLongitude, _zoom);
         var halfW = bounds.Width / 2f;
         var halfH = bounds.Height / 2f;
         var originX = centerPx - halfW;
         var originY = centerPy - halfH;
 
+        // The teardrop spans from the tip up to the head's top: the head
+        // sits with center at tipY − 0.75*Size and radius Size/2. Hit-area
+        // is the head circle plus the connecting triangle down to the tip.
         for (int i = Pins.Count - 1; i >= 0; i--)
         {
             var pin = Pins[i];
             var (px, py) = MercatorProjection.LatLonToGlobalPixel(pin.Latitude, pin.Longitude, _zoom);
-            var tipX = bounds.Left + (float)(px - originX);
-            var tipY = bounds.Top + (float)(py - originY);
+            var tipX = (float)bounds.Left + (float)(px - originX);
+            var tipY = (float)bounds.Top + (float)(py - originY);
 
-            // Head center sits 0.75 × Size above the tip; radius is Size / 2.
             var radius = pin.Size / 2f;
-            var cx = tipX;
-            var cy = tipY - pin.Size * 0.75f;
+            var headCx = tipX;
+            var headCy = tipY - pin.Size * 0.75f;
 
-            var dx = localX - cx;
-            var dy = localY - cy;
-            if (dx * dx + dy * dy <= radius * radius)
-                return pin;
+            // Head circle…
+            var dx = clickX - headCx;
+            var dy = clickY - headCy;
+            if (dx * dx + dy * dy <= radius * radius) return pin;
+
+            // …or anywhere in the tip extension box (head bottom → tip).
+            if (clickX >= headCx - radius && clickX <= headCx + radius
+                && clickY >= headCy && clickY <= tipY) return pin;
         }
         return null;
     }
