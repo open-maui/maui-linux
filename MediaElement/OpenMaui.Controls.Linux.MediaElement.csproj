@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.MediaElement</PackageId>
-    <Version>10.0.70.2</Version>
+    <Version>10.0.70.3</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui MediaElement (Linux)</Product>
