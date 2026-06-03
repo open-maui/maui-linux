@@ -43,6 +43,10 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
     public static CommandMapper<IMap, IMapHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
     {
         [nameof(IMapHandler.UpdateMapElement)] = MapUpdateMapElement,
+        // MoveToRegion arrives as a handler command (not a property change) when
+        // app code calls Map.MoveToRegion(span). Without this entry, button-
+        // driven jumps silently no-op while drag-pan still works.
+        ["MoveToRegion"] = MapMoveToRegion,
     };
 
     public LinuxMapHandler() : base(Mapper, CommandMapper) { }
@@ -103,14 +107,24 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
     {
         if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
         self.PlatformView.Pins.Clear();
-        foreach (var pin in map.Pins)
+        foreach (var virtualPin in map.Pins)
         {
-            self.PlatformView.Pins.Add(new MapPin
+            var skiaPin = new MapPin
             {
-                Latitude = pin.Location.Latitude,
-                Longitude = pin.Location.Longitude,
-                Label = pin.Label,
-            });
+                Latitude = virtualPin.Location.Latitude,
+                Longitude = virtualPin.Location.Longitude,
+                Label = virtualPin.Label,
+                Tag = virtualPin,
+            };
+            // Bubble SkiaMap's per-pin click into MAUI's MarkerClicked /
+            // InfoWindowClicked. Apps subscribe via `pin.MarkerClicked +=` and
+            // expect the handler to fire those exactly once per click.
+            skiaPin.Clicked += (_, _) =>
+            {
+                virtualPin.SendMarkerClick();
+                virtualPin.SendInfoWindowClick();
+            };
+            self.PlatformView.Pins.Add(skiaPin);
         }
         self.PlatformView.Invalidate();
     }
@@ -141,6 +155,22 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
         // Recompute the polyline collection; simplest implementation, fine
         // because real-world map element counts are small.
         MapElements(handler, map);
+    }
+
+    /// <summary>
+    /// Handle <c>Map.MoveToRegion(MapSpan)</c> command. MAUI invokes this via
+    /// the command mapper when app code calls <c>Map.MoveToRegion(span)</c>;
+    /// the <paramref name="arg"/> is the <see cref="MapSpan"/>. Translates the
+    /// span's center + visible degrees into a center coordinate + integer zoom
+    /// for <see cref="SkiaMap"/>.
+    /// </summary>
+    public static void MapMoveToRegion(IMapHandler handler, IMap map, object? arg)
+    {
+        if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
+        if (arg is not MapSpan span) return;
+        var center = span.Center;
+        var zoom = ZoomLevelFromMapSpan(span);
+        self.PlatformView.MoveTo(center.Latitude, center.Longitude, zoom);
     }
 
     /// <summary>
