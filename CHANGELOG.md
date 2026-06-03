@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.70.2] - unreleased
+## [10.0.70.3] - unreleased
+
+> Re-release of the 10.0.70.2 work to include the `OpenMaui.Controls.Linux.Maps` sibling package, which was authored alongside the rest of 10.0.70.2 but missing from the release workflow's pack step. Added pack steps for Maps in `.gitea/workflows/release.yml` + `.gitea/workflows/ci.yml`, and brought the `.github` workflows in line (they previously packed only the main package — Hosting, MediaElement, Maps, and Templates are now explicit pack steps there too). No code changes vs. 10.0.70.2.
+
+## [10.0.70.2] - 2026-06-02
 
 > Roadmap follow-up: complete the Wayland IME/text loop, ship the Linux primary-selection clipboard, native Wayland drag-and-drop, hardware video acceleration tuning, system tray menus, CUPS printing, and an OpenStreetMap-backed maps backend.
 

@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Shipped (10.0.50 → 10.0.70.2)
+## Shipped (10.0.50 → 10.0.70.3)
 
 ### Core platform
 
@@ -104,7 +104,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.50.x | .NET 10 / MAUI 10.0.50 | Q1 2026 | ✅ Released |
 | v10.0.60.x | .NET 10 / MAUI 10.0.60 | Q2 2026 | ✅ Released |
 | v10.0.70.1 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released |
-| v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | 🚀 Pending release |
+| v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released (Maps sibling missing — see 10.0.70.3) |
+| v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | 🚀 Pending release |
 | v10.0.70.x | .NET 10 / MAUI 10.0.70 | Q2-Q3 2026 | 🚀 Active |
 
 ## Feedback
