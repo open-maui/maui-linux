@@ -297,13 +297,64 @@ public class SkiaMap : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        if (!IsEnabled || !AllowPan) return;
-        if (e.Button == PointerButton.Left)
+        if (!IsEnabled) return;
+        if (e.Button != PointerButton.Left) return;
+
+        // Hit-test pins first (frontmost wins). Each pin's hit-box covers the
+        // teardrop's circle head — we approximate with the bounding square
+        // around the head. If a pin is hit, fire its Clicked event AND skip
+        // pan start so dragging-on-pin doesn't accidentally scroll the map.
+        if (HitTestPin(e.X, e.Y) is { } hit)
         {
-            _isPanning = true;
-            _panLastX = e.X;
-            _panLastY = e.Y;
+            hit.RaiseClicked();
+            return;
         }
+
+        if (!AllowPan) return;
+        _isPanning = true;
+        _panLastX = e.X;
+        _panLastY = e.Y;
+    }
+
+    /// <summary>
+    /// Convert screen coords to pin-relative test. Returns the topmost pin
+    /// whose head bounding-box contains the point, or null. Iterates pins in
+    /// reverse so later-added pins (drawn last → on top) win hit-testing.
+    /// </summary>
+    private MapPin? HitTestPin(float screenX, float screenY)
+    {
+        if (Pins.Count == 0) return null;
+        var bounds = Bounds;
+        var screenBounds = ScreenBounds;
+        // Translate screen coords into our local content frame, same as
+        // ScreenBounds-based calculations in DrawPins.
+        var localX = screenX - (float)screenBounds.Left + (float)bounds.Left;
+        var localY = screenY - (float)screenBounds.Top + (float)bounds.Top;
+
+        var (centerPx, centerPy) = MercatorProjection.LatLonToGlobalPixel(_centerLatitude, _centerLongitude, _zoom);
+        var halfW = bounds.Width / 2f;
+        var halfH = bounds.Height / 2f;
+        var originX = centerPx - halfW;
+        var originY = centerPy - halfH;
+
+        for (int i = Pins.Count - 1; i >= 0; i--)
+        {
+            var pin = Pins[i];
+            var (px, py) = MercatorProjection.LatLonToGlobalPixel(pin.Latitude, pin.Longitude, _zoom);
+            var tipX = bounds.Left + (float)(px - originX);
+            var tipY = bounds.Top + (float)(py - originY);
+
+            // Head center sits 0.75 × Size above the tip; radius is Size / 2.
+            var radius = pin.Size / 2f;
+            var cx = tipX;
+            var cy = tipY - pin.Size * 0.75f;
+
+            var dx = localX - cx;
+            var dy = localY - cy;
+            if (dx * dx + dy * dy <= radius * radius)
+                return pin;
+        }
+        return null;
     }
 
     public override void OnPointerMoved(PointerEventArgs e)

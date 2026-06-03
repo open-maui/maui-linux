@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Shipped (10.0.50 → 10.0.70.1)
+## Shipped (10.0.50 → 10.0.70.2)
 
 ### Core platform
 
@@ -33,6 +33,7 @@ This document outlines the development roadmap for the OpenMaui Linux platform.
 | Package | Description |
 |---------|-------------|
 | **`OpenMaui.Controls.Linux.MediaElement`** *(10.0.60.13)* | Linux backend for `CommunityToolkit.Maui.MediaElement` via GStreamer (playbin + appsink → Skia); auto VAAPI/NVDEC hardware decode when plugins installed |
+| **`OpenMaui.Controls.Linux.Maps`** *(10.0.70.2)* | Linux backend for `Microsoft.Maui.Controls.Maps` — OpenStreetMap raster tile renderer in Skia, pin & polyline overlays, pan/zoom, XDG-cached tile fetch. Also exposes a standalone `SkiaMap` view for code-first map UI |
 
 ### MAUI 10.0.70 alignment + default-template fixes *(10.0.70.1)*
 
@@ -43,29 +44,32 @@ This document outlines the development roadmap for the OpenMaui Linux platform.
 | Wayland shim deployment | `libopenmaui_wl.so` now lands next to the consumer assembly via `.targets`, and the loader also probes `runtimes/<RID>/native/` so framework-dependent builds work without extra setup |
 | Essentials registration on MAUI 10 | `EssentialsPatches` now prefers `SetDefault`/`SetCurrent` static setters and tolerates both `defaultImplementation` and `currentImplementation` field naming — Connectivity, AppInfo, DeviceInfo, AppActions, etc. now route through Linux services instead of the portable stubs |
 
-## Planned
-
-### Next release (10.0.70.2 target)
-
-User-prioritized work for the next push. Frame-accurate HTTP scrubbing is *intentionally deferred* — playback works fine, and the backward-seek drift is a deep-layer GStreamer/HTTP byte-range problem that doesn't justify the effort right now.
+### Wayland / desktop integration round-out *(10.0.70.2)*
 
 | Feature | Description |
 |---------|-------------|
-| Maps integration | OpenStreetMap-based mapping (`Microsoft.Maui.Controls.Maps` Linux backend) |
-| Printing support | CUPS printing integration |
-| System tray menus | Rich tray icon interactions (StatusNotifierItem / `org.kde.StatusNotifierWatcher` with `_NET_WM_SYSTEM_TRAY` fallback) |
-| `IInputContext.DeleteSurrounding` | Wire up `delete_surrounding_text` end-to-end so IMEs can retract text around the caret |
-| Primary-selection clipboard | `zwp_primary_selection_v1` for middle-click paste |
-| Native `wl_data_device_manager` drag-and-drop | Replace XDND-only path; works on both X11 and Wayland |
+| `IInputContext.DeleteSurrounding` | `zwp_text_input_v3.delete_surrounding_text` events now route into `SkiaEntry` / `SkiaEditor` with full UTF-8 byte → UTF-16 char conversion (handles surrogate pairs and mid-codepoint clamping). Also closed a sibling gap where `WaylandTextInputV3Service` was raising events but never calling back into `_context` |
+| Primary-selection clipboard | New `zwp_primary_selection_v1` binding in `libopenmaui_wl.so` + `PrimarySelectionService` with subprocess fallbacks (`wl-paste --primary` / `xclip -selection primary` / `xsel --primary`). `SkiaEntry` and `SkiaEditor` push selection on drag-end and paste on middle-click — full standard Linux UX |
+| Native `wl_data_device_manager` drag-and-drop | First functional Linux DnD path (the XDND scaffolding in `DragDropService` was never wired). New `WaylandWindow.DragDrop.cs` partial implements the `wl_data_device` enter/leave/motion/drop handlers (previously no-ops), `wl_data_offer.accept`/`set_actions`/`finish` protocol v3, pipe-based drop receive, and outgoing `wl_data_device.start_drag`. File drops auto-decode `file://` URIs onto `DragData.FilePaths` |
+| Hardware video acceleration tuning | New `MediaHardwareAcceleration` enum (`Auto` / `Prefer` / `Disable`) for `OpenMaui.Controls.Linux.MediaElement`. `MediaHardwareAccelerationService` boosts GStreamer registry ranks of known HW decoder factories (VA-API, NVDEC, V4L2 stateless, Intel MediaSDK / oneVPL). `EnumerateAvailableHardwareDecoders()` for introspection |
+| System tray icons | New `TrayIcon` / `TrayIconService` over libappindicator3 / libayatana-appindicator3 (StatusNotifierItem). Mutable menu, icon/title/tooltip, Activated event. Probe falls back through ayatana → app-indicator → no-op |
+| CUPS printing | New `PrintService` with `EnumeratePrinters()`, `PrintFile(...)` (PDF/PS/image/text auto-filtered by CUPS), and `PrintSkiaPagesAsync(...)` for Skia-rendered multi-page jobs via `SKDocument.CreatePdf`. `IsAvailable=false` and graceful failure when libcups is missing |
+| Maps (OpenStreetMap) | New sibling package **`OpenMaui.Controls.Linux.Maps`** (mirrors the MediaElement opt-in pattern). `LinuxMapHandler` wires `Microsoft.Maui.Controls.Maps.Map` to a `SkiaMap` view with OSM raster tiles, pin/polyline overlays, pan/zoom, persistent XDG tile cache, swappable tile URL template, and an attribution overlay per the OSM tile usage policy |
+
+## Planned
 
 ### Medium-term
 
 | Feature | Description |
 |---------|-------------|
 | `set_surrounding_text` for text-input-v3 | Pass focused entry's text + caret to IME for better word suggestions |
-| Hardware video acceleration tuning | Currently auto-negotiated via playbin; explicit pipeline construction for direct compositor-surface (zero-copy) playback |
+| Hardware video acceleration zero-copy | Explicit pipeline construction for direct compositor-surface (zero-copy) playback — `Prefer` mode already covers decoder selection |
 | XAML Hot Reload | Live XAML editing during debugging |
 | Live Visual Tree | Debug tool for inspecting UI hierarchy |
+| Tray icon XEmbed fallback | `_NET_WM_SYSTEM_TRAY` for desktops without an SNI host (currently falls back to a no-op when no AppIndicator is installed) |
+| Maps satellite / hybrid layers | OSM raster only renders a single style today; satellite + hybrid would need a secondary tile source and a layer-stacking renderer |
+| CUPS print preview dialog | Today `PrintService` enumerates + submits; a GTK-backed print preview & options dialog is the natural follow-up |
+| Map polygon / circle overlays | `LinuxMapHandler` currently routes `IGeoPathMapElement` only; full `IFilledMapElement` / `ICircleMapElement` coverage |
 | `Tmds.DBus` migration | Replace `dbus-monitor` subprocess in `Fcitx5InputMethodService` |
 
 ### Long-term
@@ -100,6 +104,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.50.x | .NET 10 / MAUI 10.0.50 | Q1 2026 | ✅ Released |
 | v10.0.60.x | .NET 10 / MAUI 10.0.60 | Q2 2026 | ✅ Released |
 | v10.0.70.1 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released |
+| v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | 🚀 Pending release |
 | v10.0.70.x | .NET 10 / MAUI 10.0.70 | Q2-Q3 2026 | 🚀 Active |
 
 ## Feedback
