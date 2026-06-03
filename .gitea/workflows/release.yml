@@ -52,6 +52,15 @@ jobs:
         # sibling and must be built by this pack step.
         run: dotnet pack MediaElement/OpenMaui.Controls.Linux.MediaElement.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
+      - name: Pack OpenMaui.Controls.Linux.Maps package
+        # Opt-in sibling for Microsoft.Maui.Controls.Maps — OSM raster tiles in
+        # Skia, pin/polyline overlays, standalone SkiaMap view. Shipped separately
+        # because Microsoft.Maui.Controls.Maps is itself a separate NuGet, so
+        # consumers who don't render maps shouldn't pull in either dependency.
+        # Same independent-sibling reasoning as MediaElement: must be built by
+        # this pack step.
+        run: dotnet pack Maps/OpenMaui.Controls.Linux.Maps.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
       - name: Pack Templates package
         run: dotnet pack templates/OpenMaui.Linux.Templates.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
