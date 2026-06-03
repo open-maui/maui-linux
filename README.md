@@ -16,14 +16,15 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 ### Key Features
 
 - **Full Control Library**: 50+ controls including Button, Label, Entry, Shapes, CarouselView, RefreshView, SwipeView, and more
-- **Native Integration**: First-class X11 *and* native Wayland support (xdg-shell, wp_viewporter, fractional-scale-v1, zxdg_decoration_manager_v1) — programmatically selectable or auto-detected
+- **Native Integration**: First-class X11 *and* native Wayland support (xdg-shell, wp_viewporter, fractional-scale-v1, zxdg_decoration_manager_v1, zwp_primary_selection_v1) — programmatically selectable or auto-detected
 - **Accessibility**: AT-SPI2 screen reader support and high contrast mode
-- **Platform Services**: Native `wl_data_device_manager` clipboard (no `wl-clipboard` subprocess required), file picker, notifications, global hotkeys, drag & drop
-- **Input Methods**: IBus / XIM on X11 + native `zwp_text_input_v3` on Wayland for compositor-integrated IMEs (GNOME Pinyin/Hangul/Anthy, native Fcitx5)
+- **Platform Services**: Native `wl_data_device_manager` clipboard *and* drag-and-drop (no `wl-clipboard` subprocess required), `zwp_primary_selection_v1` middle-click paste, file picker, notifications, global hotkeys, CUPS printing, system tray icons via StatusNotifierItem
+- **Input Methods**: IBus / XIM on X11 + native `zwp_text_input_v3` on Wayland with full `delete_surrounding_text` round-trip for compositor-integrated IMEs (GNOME Pinyin/Hangul/Anthy, native Fcitx5)
 - **High DPI**: Automatic scale factor detection for GNOME, KDE, and X11; fractional scale handled via Wayland viewporter for pixel-exact rendering at non-integer scales (1.25x, 1.5x, 1.75x)
 - **Theming**: AppThemeBinding live propagation across the entire view tree — CollectionView items, pushed pages, Shell content, and flyout regions all flip on theme toggle
 - **Window decorations**: Server-side decorations (KDE/Sway) or client-side titlebar drawn in Skia with full drag/resize/close/maximize/minimize (GNOME/Mutter)
-- **MediaElement**: Opt-in `OpenMaui.Controls.Linux.MediaElement` package backs `CommunityToolkit.Maui.MediaElement` with GStreamer (playbin + appsink → Skia), automatic VAAPI/NVDEC hardware decode when plugins installed
+- **MediaElement**: Opt-in `OpenMaui.Controls.Linux.MediaElement` package backs `CommunityToolkit.Maui.MediaElement` with GStreamer (playbin + appsink → Skia). `MediaHardwareAcceleration.Prefer` boosts VA-API / NVDEC / V4L2 / MediaSDK decoder ranks when those plugins are installed
+- **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
 
 ## Quick Start
 
@@ -79,6 +80,54 @@ sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
 ```
 
 `gstreamer1-vaapi` enables hardware-accelerated decode on Intel/AMD GPUs; substitute the nvdec plugin for NVIDIA. Software decode works without either.
+
+To explicitly bias playbin toward the hardware decoders when they are installed:
+
+```csharp
+using Microsoft.Maui.Platform.Linux.MediaElement.Services;
+
+builder.UseLinuxMediaElement(MediaHardwareAcceleration.Prefer);
+```
+
+`Auto` keeps the default behavior, `Prefer` bumps HW decoder factory ranks above SW, and `Disable` demotes them.
+
+### Optional: Maps (OpenStreetMap)
+
+`Microsoft.Maui.Controls.Maps` on Linux uses the opt-in sibling package that adds an OSM raster-tile renderer:
+
+```bash
+dotnet add package Microsoft.Maui.Controls.Maps
+dotnet add package OpenMaui.Controls.Linux.Maps
+```
+
+Then in your `MauiProgram.cs`:
+
+```csharp
+builder
+    .UseMauiApp<App>()
+    .UseMauiMaps()
+    .UseLinux()
+    .UseLinuxMaps();   // Linux backend; no-op on Windows/Android/iOS/macCatalyst
+```
+
+Tiles are fetched from `tile.openstreetmap.org` on first view and cached under `$XDG_CACHE_HOME/openmaui/osm-tiles`. To use a self-hosted or commercial tile server, override the URL template at startup:
+
+```csharp
+using Microsoft.Maui.Platform.Linux.Maps.Services;
+
+OsmTileService.Default.UrlTemplate = "https://my-tiles.example.com/{z}/{x}/{y}.png";
+```
+
+For code-first map UI without `Microsoft.Maui.Controls.Maps`, the package also exposes a standalone `SkiaMap` view that subclasses `SkiaView`:
+
+```csharp
+using Microsoft.Maui.Platform.Linux.Maps.Views;
+
+var map = new SkiaMap { CenterLatitude = 35.68, CenterLongitude = 139.65, ZoomLevel = 11 };
+map.Pins.Add(new MapPin { Latitude = 35.68, Longitude = 139.65, Label = "Tokyo" });
+```
+
+OSM's tile usage policy requires displaying attribution; `SkiaMap` renders the credit overlay automatically (toggle with `ShowAttribution`).
 
 ## XAML Support
 
@@ -336,16 +385,24 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] `zwp_text_input_v3` IME for native Wayland (Fcitx5 / GNOME Pinyin) (10.0.60.12)
 - [x] MediaElement / video support via GStreamer — opt-in `OpenMaui.Controls.Linux.MediaElement` sibling package (10.0.60.13)
 - [x] MAUI 10.0.70 alignment — default-template CS1508 fix, Wayland-shim deployment fix, Essentials registration fix for MAUI 10's split `SetDefault`/`SetCurrent` naming (10.0.70.1)
+- [x] `IInputContext.DeleteSurrounding` — `zwp_text_input_v3.delete_surrounding_text` round-trips into SkiaEntry / SkiaEditor with full UTF-8 byte → UTF-16 char conversion (10.0.70.2)
+- [x] Primary-selection clipboard — `zwp_primary_selection_v1` binding + `PrimarySelectionService`, SkiaEntry / SkiaEditor push on drag-end and paste on middle-click (10.0.70.2)
+- [x] Native `wl_data_device_manager` drag-and-drop — first functional Linux DnD path, file-drop URI decoding, source-side `start_drag` (10.0.70.2)
+- [x] Hardware video acceleration tuning — `MediaHardwareAcceleration.Prefer` boosts VA-API / NVDEC / V4L2 / MediaSDK decoder ranks (10.0.70.2)
+- [x] System tray icons — `TrayIcon` over libappindicator3 / libayatana-appindicator3 (StatusNotifierItem on the session bus) (10.0.70.2)
+- [x] CUPS printing — `PrintService` enumerates printers, submits files, renders Skia pages to PDF via `SKDocument` and prints (10.0.70.2)
+- [x] Maps integration (OpenStreetMap) — opt-in `OpenMaui.Controls.Linux.Maps` sibling package backs `Microsoft.Maui.Controls.Maps` with OSM raster tiles, pin / polyline overlays, persistent XDG tile cache (10.0.70.2)
 
-### Up next (10.0.70.2 target)
+### Up next
 
-- [ ] Maps integration (OpenStreetMap)
-- [ ] Printing support (CUPS)
-- [ ] System tray menus (StatusNotifierItem / `_NET_WM_SYSTEM_TRAY` fallback)
-- [ ] `IInputContext.DeleteSurrounding` — let IMEs retract characters around the caret
-- [ ] Primary-selection clipboard (`zwp_primary_selection_v1`, middle-click paste)
-- [ ] Native `wl_data_device_manager` drag-and-drop — replaces the XDND-only path
-- [ ] Hardware video acceleration tuning (auto-negotiated via VAAPI/NVDEC works today; explicit pipeline tuning is the follow-up)
+- [ ] `set_surrounding_text` for `text-input-v3` — pass focused entry text + caret to IME for better word suggestions
+- [ ] Hardware video decode zero-copy — explicit pipeline construction for direct compositor-surface playback (`Prefer` mode already covers decoder selection)
+- [ ] XAML Hot Reload
+- [ ] Live Visual Tree debug tool
+- [ ] Tray icon `_NET_WM_SYSTEM_TRAY` fallback for desktops without an SNI host
+- [ ] Maps satellite / hybrid layers and filled-shape (polygon / circle) overlays
+- [ ] CUPS print preview / options dialog
+- [ ] `Tmds.DBus` migration to replace the `dbus-monitor` subprocess in `Fcitx5InputMethodService`
 
 ## License
 
