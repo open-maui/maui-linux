@@ -8,7 +8,10 @@ public class DragEventArgs : EventArgs
     public DragData Data { get; }
     public int X { get; }
     public int Y { get; }
-    public bool Accepted { get; set; }
+    // Default-accept: the drop is delivered unless a DragEnter/DragOver handler
+    // explicitly sets this false. Consumers that only subscribe to Drop still
+    // receive data.
+    public bool Accepted { get; set; } = true;
     public DragAction AllowedAction { get; set; }
     public DragAction AcceptedAction { get; set; } = DragAction.Copy;
 

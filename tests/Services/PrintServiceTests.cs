@@ -52,7 +52,7 @@ public class PrintServiceTests
                 using var paint = new SKPaint { Color = SKColors.Black, IsAntialias = true };
                 using var font = new SKFont(SKTypeface.Default, 16);
                 canvas.DrawText("Test page", 50, 50, font, paint);
-                return false;   // single page
+                return page < 2;   // commit page 1; false on the second call stops without adding a page
             },
             pageSize: new SKSize(595, 842));   // A4 in points
 

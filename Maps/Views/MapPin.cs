@@ -30,10 +30,18 @@ public sealed class MapPin
     public object? Tag { get; set; }
 
     /// <summary>
-    /// Raised by <see cref="SkiaMap"/> when the user clicks this pin's marker.
-    /// Apps using SkiaMap directly can subscribe here; the MAUI handler uses
-    /// <see cref="Tag"/> instead to fan out to <c>IMapPin.SendMarkerClick</c>.
+    /// Raised by <see cref="SkiaMap"/> when the user clicks this pin's marker
+    /// while it is not the currently selected pin (the first tap selects it).
     /// </summary>
     public event EventHandler? Clicked;
     internal void RaiseClicked() => Clicked?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Raised by <see cref="SkiaMap"/> when the user clicks a pin that is
+    /// already selected — the closest Linux analogue to tapping the info
+    /// window on the mobile platforms, where the first marker tap opens the
+    /// info bubble and a subsequent tap "clicks" it.
+    /// </summary>
+    public event EventHandler? InfoWindowClicked;
+    internal void RaiseInfoWindowClicked() => InfoWindowClicked?.Invoke(this, EventArgs.Empty);
 }
