@@ -27,6 +27,10 @@ public static class GestureManager
         public bool IsPressed { get; set; }
         public bool IsPinching { get; set; }
         public double PinchScale { get; set; } = 1.0;
+        // Set once the press+move threshold has offered this gesture to the
+        // drag path — whether or not a native drag actually started — so a
+        // cancelled/empty DragStarting doesn't retrigger on every move.
+        public bool DragStarted { get; set; }
     }
 
     private enum PointerEventType
@@ -49,7 +53,23 @@ public static class GestureManager
         object recognizerInstance,
         View view,
         Func<MethodInfo, object[]> buildArgs)
+        => InvokeGestureMethod(ref cached, recognizerType, methodName, recognizerInstance, view, buildArgs, out _);
+
+    /// <summary>
+    /// Overload exposing the invoked method's return value — SendDragStarting
+    /// returns the DragStartingEventArgs the drag path needs (Cancel + Data).
+    /// </summary>
+    private static bool InvokeGestureMethod(
+        ref MethodInfo? cached,
+        Type recognizerType,
+        string methodName,
+        object recognizerInstance,
+        View view,
+        Func<MethodInfo, object[]> buildArgs,
+        out object? result)
     {
+        result = null;
+
         if (cached == null)
         {
             var methods = recognizerType.GetMethods(
@@ -79,7 +99,7 @@ public static class GestureManager
         try
         {
             var args = buildArgs(cached);
-            cached.Invoke(recognizerInstance, args);
+            result = cached.Invoke(recognizerInstance, args);
             return true;
         }
         catch (Exception ex)
@@ -109,9 +129,9 @@ public static class GestureManager
             }
             else if (pType.Name.Contains("Func"))
             {
-                // Position resolver: Func<IElement, Point?>
-                Func<IElement, Point?> getPosition = (_) => new Point(x, y);
-                args[i] = getPosition;
+                // GetPosition resolver — see CreatePositionResolver for the
+                // coordinate-space contract and null semantics.
+                args[i] = CreateResolverForParameter(pType, x, y)!;
             }
             else if (extraIdx < extras.Length && (pType == extras[extraIdx].type || pType.IsAssignableFrom(extras[extraIdx].type)))
             {
@@ -131,6 +151,100 @@ public static class GestureManager
         return args;
     }
 
+    #region GetPosition resolvers
+
+    /// <summary>
+    /// Builds the GetPosition resolver MAUI event args invoke lazily.
+    ///
+    /// COORDINATE-SPACE CONTRACT: every x/y GestureManager receives is in
+    /// window-logical space — physical pixels divided by DpiScale with the
+    /// Wayland CSD titlebar inset removed (ScalePointerArgs in
+    /// LinuxApplication.Input) — which is the same space SkiaView Bounds,
+    /// ScreenBounds and HitTest operate in, so no further DPI/CSD adjustment
+    /// happens here.
+    ///
+    /// MAUI GetPosition semantics:
+    ///   GetPosition(null)    → the point in window coordinates.
+    ///   GetPosition(element) → the point relative to the element's top-left,
+    ///                          via the platform view's ScreenBounds (not
+    ///                          Bounds) so ancestor scroll offsets are
+    ///                          respected.
+    ///   unresolvable element → null (no handler / no platform SkiaView).
+    /// Never throws — MAUI calls the resolver lazily from app handlers,
+    /// possibly after the gesture completed.
+    /// </summary>
+    internal static Func<IElement?, Point?> CreatePositionResolver(double x, double y)
+        => relativeTo => ResolvePosition(x, y, relativeTo);
+
+    private static Point? ResolvePosition(double x, double y, IElement? relativeTo)
+    {
+        try
+        {
+            if (relativeTo == null)
+                return new Point(x, y);
+
+            if (relativeTo.Handler?.PlatformView is Microsoft.Maui.Platform.SkiaView platformView)
+                return ResolvePositionCore(x, y, platformView.ScreenBounds);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug(Tag, $"GetPosition resolver failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    // Pure translation math, split out for headless tests: a window-logical
+    // point becomes element-relative given the element's ScreenBounds; null
+    // bounds = element not realized → null per the MAUI contract.
+    internal static Point? ResolvePositionCore(double x, double y, Microsoft.Maui.Graphics.Rect? elementScreenBounds)
+    {
+        if (elementScreenBounds is not { } bounds)
+            return null;
+        return new Point(x - bounds.Left, y - bounds.Top);
+    }
+
+    /// <summary>
+    /// Adapt the resolver to whatever Func&lt;TElement, Point?&gt; the reflected
+    /// MAUI signature asks for (IElement? vs Element vs VisualElement across
+    /// versions). Returns null when the parameter isn't a compatible Func —
+    /// the invocation then proceeds with a null resolver, which MAUI treats
+    /// as "position unavailable".
+    /// </summary>
+    private static object? CreateResolverForParameter(Type funcParameterType, double x, double y)
+    {
+        try
+        {
+            var resolver = CreatePositionResolver(x, y);
+            if (funcParameterType.IsInstanceOfType(resolver))
+                return resolver;
+
+            if (!funcParameterType.IsGenericType
+                || funcParameterType.GetGenericTypeDefinition() != typeof(Func<,>))
+                return null;
+
+            var genericArgs = funcParameterType.GetGenericArguments();
+            if (genericArgs[1] != typeof(Point?))
+                return null;
+
+            return typeof(GestureManager)
+                .GetMethod(nameof(MakeTypedResolver), BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(genericArgs[0])
+                .Invoke(null, new object[] { resolver });
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug(Tag, $"Position resolver adaptation failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static Func<T, Point?> MakeTypedResolver<T>(Func<IElement?, Point?> resolver) where T : class
+        => arg => resolver(arg as IElement);
+
+    #endregion
+
     // Cached reflection MethodInfo for internal MAUI methods
     private static MethodInfo? _sendTappedMethod;
     private static MethodInfo? _sendSwipedMethod;
@@ -138,6 +252,7 @@ public static class GestureManager
     private static MethodInfo? _sendPinchMethod;
     private static MethodInfo? _sendDragStartingMethod;
     private static MethodInfo? _sendDragOverMethod;
+    private static MethodInfo? _sendDragLeaveMethod;
     private static MethodInfo? _sendDropMethod;
     private static readonly Dictionary<PointerEventType, MethodInfo?> _pointerMethodCache = new();
 
@@ -359,10 +474,38 @@ public static class GestureManager
         double deltaY = y - state.StartY;
         if (Math.Sqrt(deltaX * deltaX + deltaY * deltaY) >= PanMinDistance)
         {
+            // Press-then-move on a view with an enabled DragGestureRecognizer
+            // starts a native drag instead of a pan. Offered exactly once per
+            // press; if the handler cancels or supplies no payload we fall
+            // through to normal panning.
+            if (!state.DragStarted && !state.IsPanning && HasEnabledDragRecognizer(view))
+            {
+                state.DragStarted = true;
+                if (StartDrag(view, x, y))
+                {
+                    // The native session (compositor grab on Wayland, pointer
+                    // grab on X11) now owns the pointer; motion and release
+                    // stop reaching this view, so don't begin a pan.
+                    return;
+                }
+            }
+
             ProcessPanGesture(view, deltaX, deltaY, (GestureStatus)(state.IsPanning ? 1 : 0));
             state.IsPanning = true;
         }
         ProcessPointerEvent(view, x, y, PointerEventType.Moved);
+    }
+
+    private static bool HasEnabledDragRecognizer(View view)
+    {
+        var recognizers = view.GestureRecognizers;
+        if (recognizers == null) return false;
+        foreach (var r in recognizers)
+        {
+            if (r is DragGestureRecognizer { CanDrag: true })
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -834,103 +977,351 @@ public static class GestureManager
     }
 
     /// <summary>
-    /// Initiates a drag operation from the specified view.
+    /// Initiates a drag operation from the specified view: raises MAUI's
+    /// DragStarting (DragGestureRecognizer.SendDragStarting), and — unless the
+    /// handler cancelled — starts a native drag session carrying the
+    /// DataPackage's text via <see cref="DragDropService.TryStartDrag(string)"/>
+    /// (Wayland wl_data_device or X11 XDND, chosen by session type). Returns
+    /// true when a native drag session actually started.
     /// </summary>
-    public static void StartDrag(View? view, double x, double y)
+    public static bool StartDrag(View? view, double x, double y)
     {
-        if (view == null) return;
+        if (view == null) return false;
 
         var recognizers = view.GestureRecognizers;
-        if (recognizers == null) return;
+        if (recognizers == null) return false;
 
         foreach (var item in recognizers)
         {
             if (item is not DragGestureRecognizer dragRecognizer) continue;
+            if (!dragRecognizer.CanDrag) continue;
 
             DiagnosticLog.Debug(Tag, $"Starting drag from {view.GetType().Name}");
 
+            object? result;
             try
             {
-                bool invoked = InvokeGestureMethod(
-                    ref _sendDragStartingMethod,
-                    typeof(DragGestureRecognizer),
-                    "SendDragStarting",
-                    dragRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, x, y));
-                if (invoked)
-                    DiagnosticLog.Debug(Tag, "SendDragStarting invoked successfully");
+                if (!InvokeGestureMethod(
+                        ref _sendDragStartingMethod,
+                        typeof(DragGestureRecognizer),
+                        "SendDragStarting",
+                        dragRecognizer,
+                        view,
+                        method => BuildAdaptiveArgs(method, view, x, y),
+                        out result))
+                    continue;
             }
             catch (Exception ex)
             {
                 DiagnosticLog.Error(Tag, "SendDragStarting failed", ex);
+                continue;
+            }
+
+            // SendDragStarting returns the DragStartingEventArgs — honor the
+            // handler's cancellation, then feed the DataPackage into the
+            // native drag path.
+            if (result is not DragStartingEventArgs args)
+            {
+                DiagnosticLog.Debug(Tag, "SendDragStarting returned no DragStartingEventArgs; native drag not started");
+                continue;
+            }
+
+            if (args.Cancel)
+            {
+                DiagnosticLog.Debug(Tag, "DragStarting cancelled by handler");
+                continue;
+            }
+
+            var text = ExtractDragText(args.Data);
+            if (string.IsNullOrEmpty(text))
+            {
+                // TODO: source file/image payloads (DataPackage.Image, file
+                // lists) once the native sources offer more than text MIMEs.
+                DiagnosticLog.Debug(Tag, "DataPackage has no text payload; native drag not started");
+                continue;
+            }
+
+            if (DragDropService.Default.TryStartDrag(text))
+            {
+                DiagnosticLog.Debug(Tag, "Native drag session started");
+                return true;
+            }
+
+            DiagnosticLog.Debug(Tag, "Native drag unavailable (backend not ready or no recent press serial)");
+        }
+
+        return false;
+    }
+
+    // Pull the text payload out of a DataPackage: DataPackage.Text first, then
+    // common Properties conventions — a "Text" key (any casing), else the
+    // first string value.
+    private static string? ExtractDragText(DataPackage? data)
+    {
+        if (data == null) return null;
+        if (!string.IsNullOrEmpty(data.Text)) return data.Text;
+
+        string? firstString = null;
+        foreach (var kvp in data.Properties)
+        {
+            if (kvp.Value is not string s || s.Length == 0) continue;
+            if (string.Equals(kvp.Key, "Text", StringComparison.OrdinalIgnoreCase))
+                return s;
+            firstString ??= s;
+        }
+        return firstString;
+    }
+
+    #region Incoming native DnD → DropGestureRecognizer adapter
+
+    // MAUI's DropGestureRecognizer plumbing is internal: SendDragOver /
+    // SendDragLeave / SendDrop, plus the DragEventArgs/DropEventArgs and
+    // DataPackageView construction paths, vary across versions. Everything
+    // below goes through the same cached-reflection machinery as the rest of
+    // this file and degrades to debug logs — it must NEVER throw into the
+    // input path.
+
+    private static ConstructorInfo? _controlsDragEventArgsCtor;
+    private static ConstructorInfo? _controlsDropEventArgsCtor;
+    private static PropertyInfo? _dataPackageViewProperty;
+
+    /// <summary>
+    /// Conventional key under which dropped file paths are exposed on
+    /// <see cref="DataPackage.Properties"/> — MAUI's DataPackage has no
+    /// first-class file member.
+    /// </summary>
+    public const string FilePathsPropertyKey = "FilePaths";
+
+    /// <summary>
+    /// Resolve the MAUI-level drop target for a hit-tested view: the view
+    /// itself or its nearest ancestor carrying an enabled (AllowDrop)
+    /// DropGestureRecognizer. Null when nothing in the chain accepts drops.
+    /// </summary>
+    public static View? FindDropTarget(View? view)
+    {
+        for (var current = view; current != null; current = current.Parent as View)
+        {
+            var recognizers = current.GestureRecognizers;
+            if (recognizers == null) continue;
+            foreach (var r in recognizers)
+            {
+                if (r is DropGestureRecognizer { AllowDrop: true })
+                    return current;
             }
         }
+        return null;
     }
 
     /// <summary>
-    /// Processes a drag enter event on the specified view.
+    /// Raises MAUI DragOver on the view's enabled DropGestureRecognizers.
+    /// Returns null when no recognizer participated (leave native accept
+    /// unchanged), true when at least one left AcceptedOperation != None,
+    /// false when every participating recognizer set None (explicit reject).
     /// </summary>
-    public static void ProcessDragEnter(View? view, double x, double y, object? data)
+    public static bool? ProcessDragOver(View? view, double x, double y)
     {
-        if (view == null) return;
+        if (view?.GestureRecognizers == null) return null;
 
-        var recognizers = view.GestureRecognizers;
-        if (recognizers == null) return;
+        bool sawRecognizer = false;
+        bool accepted = false;
 
-        foreach (var item in recognizers)
+        foreach (var item in view.GestureRecognizers)
         {
-            if (item is not DropGestureRecognizer dropRecognizer) continue;
+            if (item is not DropGestureRecognizer { AllowDrop: true } dropRecognizer) continue;
 
-            DiagnosticLog.Debug(Tag, $"Drag enter on {view.GetType().Name}");
+            var args = BuildControlsDragEventArgs(x, y);
+            if (args == null) return null; // MAUI internals shifted — degrade gracefully
 
-            try
-            {
-                InvokeGestureMethod(
+            if (!InvokeGestureMethod(
                     ref _sendDragOverMethod,
                     typeof(DropGestureRecognizer),
                     "SendDragOver",
                     dropRecognizer,
                     view,
-                    method => BuildAdaptiveArgs(method, view, x, y));
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error(Tag, "SendDragOver failed", ex);
-            }
+                    method => BuildAdaptiveArgs(method, view, x, y,
+                        (typeof(Microsoft.Maui.Controls.DragEventArgs), args))))
+                continue;
+
+            sawRecognizer = true;
+            if (args.AcceptedOperation != DataPackageOperation.None)
+                accepted = true;
+        }
+
+        return sawRecognizer ? accepted : null;
+    }
+
+    /// <summary>
+    /// Raises MAUI DragLeave on the view's enabled DropGestureRecognizers.
+    /// </summary>
+    public static void ProcessDragLeave(View? view)
+    {
+        if (view?.GestureRecognizers == null) return;
+
+        foreach (var item in view.GestureRecognizers)
+        {
+            if (item is not DropGestureRecognizer { AllowDrop: true } dropRecognizer) continue;
+
+            var args = BuildControlsDragEventArgs(0, 0);
+            if (args == null) return;
+
+            InvokeGestureMethod(
+                ref _sendDragLeaveMethod,
+                typeof(DropGestureRecognizer),
+                "SendDragLeave",
+                dropRecognizer,
+                view,
+                method => BuildAdaptiveArgs(method, view, 0, 0,
+                    (typeof(Microsoft.Maui.Controls.DragEventArgs), args)));
         }
     }
 
     /// <summary>
-    /// Processes a drop event on the specified view.
+    /// Raises MAUI Drop on the view's enabled DropGestureRecognizers with a
+    /// DataPackage carrying the dropped text and file paths (the latter under
+    /// <see cref="FilePathsPropertyKey"/> in Properties). SendDrop returns a
+    /// Task in MAUI — faults are observed with a logged continuation; the
+    /// input path is never blocked on it.
     /// </summary>
-    public static void ProcessDrop(View? view, double x, double y, object? data)
+    public static void ProcessDrop(View? view, double x, double y, string? text, string[]? filePaths)
     {
-        if (view == null) return;
+        if (view?.GestureRecognizers == null) return;
 
-        var recognizers = view.GestureRecognizers;
-        if (recognizers == null) return;
-
-        foreach (var item in recognizers)
+        foreach (var item in view.GestureRecognizers)
         {
-            if (item is not DropGestureRecognizer dropRecognizer) continue;
+            if (item is not DropGestureRecognizer { AllowDrop: true } dropRecognizer) continue;
 
             DiagnosticLog.Debug(Tag, $"Drop on {view.GetType().Name}");
 
-            try
-            {
-                InvokeGestureMethod(
+            var dropArgs = BuildControlsDropEventArgs(x, y, text, filePaths);
+            if (dropArgs == null) return;
+
+            if (!InvokeGestureMethod(
                     ref _sendDropMethod,
                     typeof(DropGestureRecognizer),
                     "SendDrop",
                     dropRecognizer,
                     view,
-                    method => BuildAdaptiveArgs(method, view, x, y));
-            }
-            catch (Exception ex)
+                    method => BuildAdaptiveArgs(method, view, x, y,
+                        (typeof(Microsoft.Maui.Controls.DropEventArgs), dropArgs)),
+                    out var result))
+                continue;
+
+            if (result is System.Threading.Tasks.Task task)
             {
-                DiagnosticLog.Error(Tag, "SendDrop failed", ex);
+                task.ContinueWith(
+                    t => DiagnosticLog.Error(Tag, "Drop handler faulted", t.Exception!),
+                    System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
         }
     }
+
+    private static DataPackage BuildDataPackage(string? text, string[]? filePaths)
+    {
+        var package = new DataPackage();
+        if (!string.IsNullOrEmpty(text))
+            package.Text = text;
+        if (filePaths is { Length: > 0 })
+            package.Properties[FilePathsPropertyKey] = filePaths;
+        return package;
+    }
+
+    private static Microsoft.Maui.Controls.DragEventArgs? BuildControlsDragEventArgs(double x, double y)
+    {
+        try
+        {
+            // The payload isn't readable until drop on either backend, so the
+            // over/leave args carry an empty DataPackage.
+            var package = BuildDataPackage(null, null);
+            _controlsDragEventArgsCtor ??= SelectCtor(typeof(Microsoft.Maui.Controls.DragEventArgs), typeof(DataPackage));
+            if (_controlsDragEventArgsCtor == null)
+            {
+                DiagnosticLog.Warn(Tag, "No usable Controls.DragEventArgs constructor found");
+                return null;
+            }
+            return (Microsoft.Maui.Controls.DragEventArgs?)InvokeCtorAdaptive(_controlsDragEventArgsCtor, package, x, y);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error(Tag, "BuildControlsDragEventArgs failed", ex);
+            return null;
+        }
+    }
+
+    private static Microsoft.Maui.Controls.DropEventArgs? BuildControlsDropEventArgs(double x, double y, string? text, string[]? filePaths)
+    {
+        try
+        {
+            var package = BuildDataPackage(text, filePaths);
+
+            // DropEventArgs wants a DataPackageView; both its constructor and
+            // DataPackage.View are internal.
+            _dataPackageViewProperty ??= typeof(DataPackage).GetProperty(
+                "View", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var packageView = _dataPackageViewProperty?.GetValue(package);
+            if (packageView == null)
+            {
+                DiagnosticLog.Warn(Tag, "DataPackage.View unavailable; drop not delivered to recognizer");
+                return null;
+            }
+
+            _controlsDropEventArgsCtor ??= SelectCtor(typeof(Microsoft.Maui.Controls.DropEventArgs), packageView.GetType());
+            if (_controlsDropEventArgsCtor == null)
+            {
+                DiagnosticLog.Warn(Tag, "No usable Controls.DropEventArgs constructor found");
+                return null;
+            }
+            return (Microsoft.Maui.Controls.DropEventArgs?)InvokeCtorAdaptive(_controlsDropEventArgsCtor, packageView, x, y);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error(Tag, "BuildControlsDropEventArgs failed", ex);
+            return null;
+        }
+    }
+
+    // Pick a constructor whose first parameter accepts the payload type,
+    // PREFERRING one with a Func parameter — that's the GetPosition resolver
+    // slot (MAUI 10: DragEventArgs(DataPackage, Func<IElement, Point?>,
+    // PlatformDragEventArgs)); the resolver-less overload would silently lose
+    // positions. Among equals, fewest parameters wins.
+    private static ConstructorInfo? SelectCtor(Type type, Type firstArgType)
+    {
+        return type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(c =>
+            {
+                var p = c.GetParameters();
+                return p.Length > 0 && p[0].ParameterType.IsAssignableFrom(firstArgType);
+            })
+            .OrderByDescending(c => c.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
+            .ThenBy(c => c.GetParameters().Length)
+            .FirstOrDefault();
+    }
+
+    // First param = payload; Func params get a position resolver; anything
+    // else gets null/default — the same adaptive shape BuildAdaptiveArgs uses.
+    private static object? InvokeCtorAdaptive(ConstructorInfo ctor, object firstArg, double x, double y)
+    {
+        var parameters = ctor.GetParameters();
+        var args = new object?[parameters.Length];
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            var pType = parameters[i].ParameterType;
+            if (i == 0)
+            {
+                args[i] = firstArg;
+            }
+            else if (pType.Name.Contains("Func"))
+            {
+                // Same shared GetPosition resolver as BuildAdaptiveArgs.
+                args[i] = CreateResolverForParameter(pType, x, y);
+            }
+            else
+            {
+                args[i] = pType.IsValueType ? Activator.CreateInstance(pType) : null;
+            }
+        }
+        return ctor.Invoke(args);
+    }
+
+    #endregion
 }
