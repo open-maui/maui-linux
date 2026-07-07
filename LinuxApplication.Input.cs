@@ -245,6 +245,22 @@ public partial class LinuxApplication
         }
     }
 
+    /// <summary>
+    /// Wraps a window input-event handler so an exception thrown by view code
+    /// is logged instead of unwinding through the native (Wayland/X11) dispatch
+    /// frame that invoked it — which would abort the whole process (SIGABRT). A
+    /// misbehaving control must never crash the app via the input path. All
+    /// input subscriptions in <c>LinuxApplication</c> route through this.
+    /// </summary>
+    private EventHandler<T> Guarded<T>(string name, EventHandler<T> handler) => (s, e) =>
+    {
+        try { handler(s, e); }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("LinuxApplication", $"Unhandled exception in {name} handler", ex);
+        }
+    };
+
     private void OnScroll(object? sender, ScrollEventArgs e)
     {
         e = ScaleScrollArgs(e);
