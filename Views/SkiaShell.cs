@@ -213,7 +213,7 @@ public class SkiaShell : SkiaLayoutView
         {
             if (_currentContent != null)
                 yield return _currentContent;
-            foreach (var (content, _) in _navigationStack)
+            foreach (var (content, _, _) in _navigationStack)
                 if (content != null)
                     yield return content;
             foreach (var section in _sections)
@@ -232,7 +232,50 @@ public class SkiaShell : SkiaLayoutView
     private int _selectedItemIndex = 0;
 
     // Navigation stack for push/pop navigation
-    private readonly Stack<(SkiaView Content, string Title)> _navigationStack = new();
+    private readonly Stack<(SkiaView Content, string Title, Microsoft.Maui.Controls.Page? MauiPage)> _navigationStack = new();
+
+    // The MAUI page whose Appearing has been sent and Disappearing hasn't.
+    // SkiaShell owns page transitions (MAUI's Shell never sees them), so it
+    // must send the lifecycle events itself — pages commonly subscribe/
+    // unsubscribe event handlers in OnAppearing/OnDisappearing.
+    private Microsoft.Maui.Controls.Page? _lifecyclePage;
+
+    private void SendPageLifecycle(Microsoft.Maui.Controls.Page? newPage)
+    {
+        if (ReferenceEquals(_lifecyclePage, newPage)) return;
+        try
+        {
+            DiagnosticLog.Debug("SkiaShell", $"lifecycle: {_lifecyclePage?.GetType().Name ?? "(none)"} -> {newPage?.GetType().Name ?? "(null)"}");
+            (_lifecyclePage as Microsoft.Maui.Controls.IPageController)?.SendDisappearing();
+            _lifecyclePage = newPage;
+            (newPage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaShell", "Page lifecycle handler threw", ex);
+        }
+    }
+
+    /// <summary>
+    /// Re-issues SendAppearing for the current lifecycle page. MAUI's
+    /// Page.SendAppearing silently no-ops until the page's parent chain
+    /// reaches an Application-attached Window, and the initial
+    /// NavigateToSection can run before that chain is complete — the host
+    /// calls this once the shell is fully attached. Safe to call repeatedly
+    /// (MAUI guards with _hasAppeared).
+    /// </summary>
+    public void ResendPendingAppearing() =>
+        (_lifecyclePage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
+
+    private static Microsoft.Maui.Controls.Page? ResolveMauiPage(ShellContent item)
+    {
+        if (item.MauiShellContent == null) return null;
+        // MAUI's own cache is only populated when the page was created through
+        // IShellContentController — our renderer creates pages itself, so fall
+        // through to its ShellContent → Page table.
+        return (item.MauiShellContent as Microsoft.Maui.Controls.IShellContentController)?.Page as Microsoft.Maui.Controls.Page
+            ?? Microsoft.Maui.Platform.Linux.Hosting.LinuxViewRenderer.GetShellContentPage(item.MauiShellContent);
+    }
 
     private float _flyoutScrollOffset;
     private readonly Dictionary<string, Func<SkiaView?>> _registeredRoutes = new(StringComparer.OrdinalIgnoreCase);
@@ -561,6 +604,7 @@ public class SkiaShell : SkiaLayoutView
         var item = section.Items[itemIndex];
         SetCurrentContent(item.Content);
         Title = item.Title;
+        SendPageLifecycle(ResolveMauiPage(item));
 
         Navigated?.Invoke(this, new ShellNavigationEventArgs(section, item));
         Invalidate();
@@ -614,6 +658,9 @@ public class SkiaShell : SkiaLayoutView
             {
                 var item = section.Items[_selectedItemIndex];
                 SetCurrentContent(item.Content);
+                // Re-render created a fresh Page instance; move the lifecycle
+                // to it so its OnAppearing subscriptions are live.
+                SendPageLifecycle(ResolveMauiPage(item));
             }
         }
         // Clear icon cache so icons reload with new theme paths
@@ -868,19 +915,22 @@ public class SkiaShell : SkiaLayoutView
     public int NavigationStackDepth => _navigationStack.Count;
 
     /// <summary>
-    /// Pushes a new page onto the navigation stack.
+    /// Pushes a new page onto the navigation stack. <paramref name="mauiPage"/>
+    /// is the MAUI page the view renders (when known) — it receives Appearing,
+    /// and the page it covers receives Disappearing.
     /// </summary>
-    public void PushAsync(SkiaView page, string title)
+    public void PushAsync(SkiaView page, string title, Microsoft.Maui.Controls.Page? mauiPage = null)
     {
         // Save current content to stack
         if (_currentContent != null)
         {
-            _navigationStack.Push((_currentContent, Title));
+            _navigationStack.Push((_currentContent, Title, _lifecyclePage));
         }
 
         // Set new content
         SetCurrentContent(page);
         Title = title;
+        SendPageLifecycle(mauiPage);
         Invalidate();
     }
 
@@ -891,9 +941,10 @@ public class SkiaShell : SkiaLayoutView
     {
         if (_navigationStack.Count == 0) return false;
 
-        var (previousContent, previousTitle) = _navigationStack.Pop();
+        var (previousContent, previousTitle, previousPage) = _navigationStack.Pop();
         SetCurrentContent(previousContent);
         Title = previousTitle;
+        SendPageLifecycle(previousPage);
         Invalidate();
         return true;
     }
@@ -906,7 +957,7 @@ public class SkiaShell : SkiaLayoutView
         if (_navigationStack.Count == 0) return;
 
         // Get the root content
-        (SkiaView Content, string Title) root = default;
+        (SkiaView Content, string Title, Microsoft.Maui.Controls.Page? MauiPage) root = default;
         while (_navigationStack.Count > 0)
         {
             root = _navigationStack.Pop();
@@ -914,6 +965,7 @@ public class SkiaShell : SkiaLayoutView
 
         SetCurrentContent(root.Content);
         Title = root.Title ?? string.Empty;
+        SendPageLifecycle(root.MauiPage);
         Invalidate();
     }
 
