@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using FluentAssertions;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Maps.Views;
 using Xunit;
 
@@ -52,5 +54,47 @@ public class SkiaMapTests
         map.Polylines.Add(line);
         map.Polylines.Should().HaveCount(1);
         map.Polylines[0].Points.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void ViewportChanged_RaisedByMoveTo()
+    {
+        var map = new SkiaMap();
+        int raised = 0;
+        map.ViewportChanged += (_, _) => raised++;
+        map.MoveTo(10, 20, 5);
+        raised.Should().Be(1);
+    }
+
+    [Fact]
+    public void PinClick_FirstTapFiresClicked_TapOnSelectedFiresInfoWindow()
+    {
+        var map = new SkiaMap();
+        map.Bounds = new Rect(0, 0, 512, 512);
+        map.MoveTo(0, 0, 2);
+
+        var pin = new MapPin { Latitude = 0, Longitude = 0 };
+        int clicked = 0, infoClicked = 0;
+        pin.Clicked += (_, _) => clicked++;
+        pin.InfoWindowClicked += (_, _) => infoClicked++;
+        map.Pins.Add(pin);
+
+        // Pin tip sits at the viewport center (256, 256); the marker head
+        // center is 0.75 * Size above the tip.
+        var headY = 256f - pin.Size * 0.75f;
+
+        map.OnPointerPressed(new PointerEventArgs(256f, headY, PointerButton.Left));
+        clicked.Should().Be(1);
+        infoClicked.Should().Be(0);
+
+        map.OnPointerPressed(new PointerEventArgs(256f, headY, PointerButton.Left));
+        clicked.Should().Be(1);
+        infoClicked.Should().Be(1);
+
+        // Clicking empty map deselects; the next pin tap is a marker click again.
+        map.OnPointerPressed(new PointerEventArgs(10f, 10f, PointerButton.Left));
+        map.OnPointerPressed(new PointerEventArgs(256f, headY, PointerButton.Left));
+        clicked.Should().Be(2);
+        infoClicked.Should().Be(1);
     }
 }

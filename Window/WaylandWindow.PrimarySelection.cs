@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.InteropServices;
-using System.Text;
 using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Window;
@@ -94,9 +93,13 @@ public partial class WaylandWindow
         public IntPtr Cancelled;
     }
 
-    // Cached delegate references — same pattern as wl_data_device. One set per
-    // window, reused across each offer/source instance.
+    // Rooted delegate references — same pattern as wl_data_device. One set per
+    // window, reused across each offer/source instance. The listener structs
+    // only store raw function pointers; these fields keep the delegates (and
+    // their native thunks) alive.
     private PrimaryDeviceListener _primaryDeviceListener;
+    private PrimaryDeviceDataOfferDelegate? _primaryDeviceDataOfferDelegate;
+    private PrimaryDeviceSelectionDelegate? _primaryDeviceSelectionDelegate;
     private PrimaryOfferOfferDelegate? _primaryOfferOfferDelegate;
     private PrimaryOfferListener _primaryOfferListenerTemplate;
     private PrimarySourceSendDelegate? _primarySourceSendDelegate;
@@ -131,10 +134,15 @@ public partial class WaylandWindow
             return;
         }
 
+        // Root the delegates in fields first — GetFunctionPointerForDelegate
+        // does not keep its delegate alive, and libwayland holds these pointers
+        // for the lifetime of the device.
+        _primaryDeviceDataOfferDelegate = OnPrimaryDeviceDataOffer;
+        _primaryDeviceSelectionDelegate = OnPrimaryDeviceSelection;
         _primaryDeviceListener = new PrimaryDeviceListener
         {
-            DataOffer = Marshal.GetFunctionPointerForDelegate<PrimaryDeviceDataOfferDelegate>(OnPrimaryDeviceDataOffer),
-            Selection = Marshal.GetFunctionPointerForDelegate<PrimaryDeviceSelectionDelegate>(OnPrimaryDeviceSelection),
+            DataOffer = Marshal.GetFunctionPointerForDelegate(_primaryDeviceDataOfferDelegate),
+            Selection = Marshal.GetFunctionPointerForDelegate(_primaryDeviceSelectionDelegate),
         };
         _primaryDeviceListenerHandle = GCHandle.Alloc(_primaryDeviceListener, GCHandleType.Pinned);
         wl_proxy_add_listener(_primarySelectionDevice, _primaryDeviceListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -254,29 +262,13 @@ public partial class WaylandWindow
         if (!handle.IsAllocated) { try { libc_close(fd); } catch { } return; }
         var window = (WaylandWindow)handle.Target!;
 
-        try
-        {
-            if (!window._ownedPrimarySourceTexts.TryGetValue(source, out var text))
-                text = string.Empty;
-            var bytes = Encoding.UTF8.GetBytes(text);
-            int offset = 0;
-            while (offset < bytes.Length)
-            {
-                var chunk = new byte[bytes.Length - offset];
-                Array.Copy(bytes, offset, chunk, 0, chunk.Length);
-                var written = libc_write(fd, chunk, (nuint)chunk.Length);
-                if (written <= 0) break;
-                offset += (int)written;
-            }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("WaylandWindow", $"OnPrimarySourceSend write failed: {ex.Message}");
-        }
-        finally
-        {
-            libc_close(fd);
-        }
+        // Look up the text on the dispatch thread, then write on a background
+        // thread — a slow/stalled paste client would otherwise block the GLib
+        // main loop once the text exceeds the pipe buffer. The helper closes
+        // the fd in its finally.
+        if (!window._ownedPrimarySourceTexts.TryGetValue(source, out var text))
+            text = string.Empty;
+        Task.Run(() => WriteAllToFdAndClose(fd, text));
     }
 
     private static void OnPrimarySourceCancelled(IntPtr data, IntPtr source)
@@ -323,6 +315,29 @@ public partial class WaylandWindow
         && s_activePrimarySelectionWindow._primarySelectionDevice != IntPtr.Zero;
 
     /// <summary>
+    /// Non-blocking probe: true when we own the primary selection with
+    /// non-empty text, or the current offer advertises a text MIME. Answers
+    /// purely from already-tracked state — no pipe I/O, no subprocesses — so
+    /// it is safe to call on the main thread (a blocking read here can
+    /// deadlock against our own source's send event).
+    /// </summary>
+    public static bool NativePrimarySelectionHasText
+    {
+        get
+        {
+            var w = s_activePrimarySelectionWindow;
+            if (w == null) return false;
+            if (w._ownedPrimarySource != IntPtr.Zero
+                && w._ownedPrimarySourceTexts.TryGetValue(w._ownedPrimarySource, out var own))
+                return own.Length > 0;
+            if (w._currentPrimaryOffer == IntPtr.Zero) return false;
+            foreach (var m in s_textMimeTypes)
+                if (w._currentPrimaryOfferMimes.Contains(m)) return true;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Push <paramref name="text"/> to the primary selection. Mirrors text
     /// selection in most desktop apps — middle-click in any cooperating app
     /// will paste this. Returns false when the native path is unavailable.
@@ -332,6 +347,9 @@ public partial class WaylandWindow
         var w = s_activePrimarySelectionWindow;
         if (w == null || w._primarySelectionDevice == IntPtr.Zero || w._primarySelectionDeviceManager == IntPtr.Zero) return false;
         if (w._seat == IntPtr.Zero) return false;
+        // Guard against a partial dlsym failure — creating a proxy with a NULL
+        // interface table crashes inside libwayland.
+        if (_zwp_primary_selection_source_v1_interface == IntPtr.Zero) return false;
 
         var source = wl_proxy_marshal_constructor(
             w._primarySelectionDeviceManager,
@@ -360,6 +378,23 @@ public partial class WaylandWindow
     }
 
     /// <summary>
+    /// Clear the primary selection (set_selection with a NULL source). Our own
+    /// outstanding source, if any, is destroyed by its cancelled callback once
+    /// the compositor processes the clear. Returns false when the native path
+    /// is unavailable.
+    /// </summary>
+    public static bool TryClearPrimarySelection()
+    {
+        var w = s_activePrimarySelectionWindow;
+        if (w == null || w._primarySelectionDevice == IntPtr.Zero) return false;
+
+        var serial = Math.Max(w._pointerSerial, w._keyboardSerial);
+        wl_proxy_marshal(w._primarySelectionDevice, ZWP_PRIMARY_SELECTION_DEVICE_V1_SET_SELECTION, IntPtr.Zero, serial);
+        wl_display_flush(w._display);
+        return true;
+    }
+
+    /// <summary>
     /// Read whatever's currently in the primary selection. Returns null when
     /// nothing is offered or the native path is unavailable.
     /// </summary>
@@ -369,11 +404,14 @@ public partial class WaylandWindow
         if (w == null) return Task.FromResult<string?>(null);
 
         // Self-paste short-circuit — same reasoning as the clipboard path: if
-        // we'd block waiting for our own source.send to fulfil, return buffered.
+        // we'd block waiting for our own source.send to fulfil, return the
+        // buffered text. Unlike the clipboard, this must NOT require a current
+        // offer: the compositor only mirrors the selection offer to us while we
+        // hold keyboard focus, and the canonical primary-selection flow (select
+        // here, middle-click elsewhere, come back) leaves us without one even
+        // though we still own the selection.
         if (w._ownedPrimarySource != IntPtr.Zero
-            && w._ownedPrimarySourceTexts.TryGetValue(w._ownedPrimarySource, out var ownText)
-            && w._currentPrimaryOffer != IntPtr.Zero
-            && SelectionLooksLikeOurs(w._currentPrimaryOfferMimes))
+            && w._ownedPrimarySourceTexts.TryGetValue(w._ownedPrimarySource, out var ownText))
         {
             return Task.FromResult<string?>(ownText);
         }
@@ -392,21 +430,12 @@ public partial class WaylandWindow
         }
         if (chosen == null) return Task.FromResult<string?>(null);
 
-        var fds = new int[2];
-        if (libc_pipe(fds) != 0)
-        {
-            DiagnosticLog.Warn("WaylandWindow", "pipe() failed for primary-selection receive");
-            return Task.FromResult<string?>(null);
-        }
-        int readFd = fds[0], writeFd = fds[1];
-
-        libc_fcntl(readFd, F_SETFL, O_NONBLOCK);
-
-        wl_proxy_marshal_string_fd(w._currentPrimaryOffer, ZWP_PRIMARY_SELECTION_OFFER_V1_RECEIVE, chosen, writeFd);
-        libc_close(writeFd);
-        wl_display_flush(w._display);
-
-        return Task.Run(() => ReadAllFromFd(readFd));
+        // Marshal receive() on the main thread (re-validating the offer there)
+        // and read the pipe on a background task — see ReceiveOfferTextAsync.
+        var offer = w._currentPrimaryOffer;
+        return ReceiveOfferTextAsync(
+            () => w._currentPrimaryOffer == offer ? offer : IntPtr.Zero,
+            ZWP_PRIMARY_SELECTION_OFFER_V1_RECEIVE, chosen, w._display);
     }
 
     #endregion
