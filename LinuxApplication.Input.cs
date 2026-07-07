@@ -272,6 +272,11 @@ public partial class LinuxApplication
 
     private void OnCloseRequested(object? sender, EventArgs e)
     {
+        // Drop any tracked drag target — the view tree is going away.
+        var left = _dropTargetTracker.Clear();
+        if (left != null)
+            Handlers.GestureManager.ProcessDragLeave(left);
+
         _mainWindow?.Stop();
     }
 
@@ -574,4 +579,90 @@ public partial class LinuxApplication
         if ((state & 8) != 0) modifiers |= KeyModifiers.Alt;
         return modifiers;
     }
+
+    #region Native drag-and-drop → DropGestureRecognizer routing
+
+    // Current MAUI-level drop target (the view owning the enabled
+    // DropGestureRecognizer), tracked across positions so per-view
+    // enter/leave transitions fire as the drag moves between views. This
+    // routing is ADDITIVE: DragDropService.Default's own events keep firing
+    // for direct subscribers (the samples use those) unchanged.
+    private readonly DropTargetTracker<View> _dropTargetTracker = new();
+
+    private void WireDragDropRouting()
+    {
+        DragDropService.Default.DragEnter += OnNativeDragEnter;
+        DragDropService.Default.DragOver += OnNativeDragOver;
+        DragDropService.Default.DragLeave += OnNativeDragLeave;
+        DragDropService.Default.Drop += OnNativeDrop;
+    }
+
+    /// <summary>
+    /// Convert a drag event's window-physical position to the logical space
+    /// pointer dispatch hit-tests in (same scaling + CSD inset as
+    /// ScalePointerArgs), and resolve the MAUI drop target under it. The
+    /// shared HitTest entry point handles scroll-offset views internally, so
+    /// coordinates stay consistent with regular pointer routing.
+    /// </summary>
+    private View? ResolveDropTarget(int physicalX, int physicalY)
+    {
+        if (_rootView == null) return null;
+        float x = ToLogical(physicalX);
+        float y = ToLogical(physicalY) - CsdPointerInsetLogical;
+        var hit = SkiaView.GetPopupOwnerAt(x, y) ?? _rootView.HitTest(x, y);
+        return Handlers.GestureManager.FindDropTarget(hit?.MauiView);
+    }
+
+    private void OnNativeDragEnter(object? sender, Services.DragEventArgs e)
+    {
+        // View targeting is driven from DragOver: X11 enter carries no
+        // position (it only becomes known at the first XdndPosition), so a
+        // window-level enter just resets any stale target.
+        var left = _dropTargetTracker.Clear();
+        if (left != null)
+            Handlers.GestureManager.ProcessDragLeave(left);
+    }
+
+    private void OnNativeDragOver(object? sender, Services.DragEventArgs e)
+    {
+        var target = ResolveDropTarget(e.X, e.Y);
+
+        var (leftView, current) = _dropTargetTracker.Update(target);
+        if (leftView != null)
+            Handlers.GestureManager.ProcessDragLeave(leftView);
+
+        if (current != null)
+        {
+            float x = ToLogical(e.X);
+            float y = ToLogical(e.Y) - CsdPointerInsetLogical;
+            // MAUI fires DragOver repeatedly on the current target.
+            var accepted = Handlers.GestureManager.ProcessDragOver(current, x, y);
+            // A recognizer that set AcceptedOperation.None flips the native
+            // accept; no participating recognizer (null) leaves the window's
+            // default-accept intact for plain DragDropService consumers.
+            if (accepted == false)
+                e.Accepted = false;
+        }
+    }
+
+    private void OnNativeDragLeave(object? sender, EventArgs e)
+    {
+        var left = _dropTargetTracker.Clear();
+        if (left != null)
+            Handlers.GestureManager.ProcessDragLeave(left);
+    }
+
+    private void OnNativeDrop(object? sender, Services.DropEventArgs e)
+    {
+        // Prefer the tracked target; fall back to hit-testing the drop
+        // position (covers a drop with no preceding positioned DragOver).
+        var target = _dropTargetTracker.Clear() ?? ResolveDropTarget(e.X, e.Y);
+        if (target == null) return;
+
+        float x = ToLogical(e.X);
+        float y = ToLogical(e.Y) - CsdPointerInsetLogical;
+        Handlers.GestureManager.ProcessDrop(target, x, y, e.DroppedData, e.Data.FilePaths);
+    }
+
+    #endregion
 }

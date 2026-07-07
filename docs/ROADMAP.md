@@ -74,6 +74,7 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Feature | Description |
 |---------|-------------|
 | Full X11 XDND drag-and-drop | Incoming drops (async `SelectionNotify` transfer, INCR-capable) and outgoing drags via backend-agnostic `DragDropService.TryStartDrag` (native Wayland first, XDND source fallback: selection ownership, target discovery, Status negotiation, `SelectionRequest` delivery, Escape cancel) |
+| MAUI drag/drop gesture recognizers | `DragGestureRecognizer` starts native drags (drag-gesture detection added to `GestureManager`; `DragStarting`/`Cancel` honored); `DropGestureRecognizer` receives native drops with per-view enter/leave/over transitions, text + file paths, and `AllowDrop`/`AcceptedOperation` feedback to the native accept on both backends. Additive to the `DragDropService.Default` events |
 | IME surrounding text | `zwp_text_input_v3.set_surrounding_text` + `set_text_change_cause` — focused entry text/caret/anchor windowed to ≤4000 UTF-8 bytes, coalesced per frame, password fields excluded; same seam feeds IBus (`set_surrounding_text`, code-point offsets). Completes the Wayland IME loop |
 | Map polygon / circle overlays | `IFilledMapElement` / `ICircleMapElement` routed end-to-end; Mercator meters-per-pixel radius projection; world-wrap aware; `SkiaMap.Polygons` / `Circles` for code-first use |
 | GTK print dialog | `PrintService.ShowPrintDialogAsync` — GtkPrintUnixDialog with printer/copies/ranges/duplex/PPD options returned CUPS-ready; graceful null when GTK missing; `PrintJobStatus` adds a `NothingToPrint` state |
@@ -89,7 +90,7 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | XAML Hot Reload | Live XAML editing during debugging |
 | Live Visual Tree | Debug tool for inspecting UI hierarchy |
 | Maps satellite / hybrid layers | OSM raster only renders a single style today; satellite + hybrid would need a secondary tile source and a layer-stacking renderer |
-| `DragGestureRecognizer` wiring | MAUI's drag gesture plumbing doesn't invoke `DragDropService.TryStartDrag` yet; connect recognizer payloads to the native drag paths |
+| Drag payload types | Outgoing drags source text only today; file/image `DataPackage` payloads (and outgoing INCR on X11) are the follow-up |
 | `Tmds.DBus` migration | Replace `dbus-monitor` subprocess in `Fcitx5InputMethodService` |
 
 ### Long-term

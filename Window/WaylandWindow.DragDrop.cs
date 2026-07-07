@@ -161,6 +161,8 @@ public partial class WaylandWindow
         // used from here on.
         var offer = _currentDnDOffer;
         var acceptedMime = _dndAcceptedMime;
+        var dropX = _dndX;
+        var dropY = _dndY;
         _currentDnDOffer = IntPtr.Zero;
         _dndAcceptedMime = null;
 
@@ -227,7 +229,7 @@ public partial class WaylandWindow
                             if (paths.Count > 0) data.FilePaths = paths.ToArray();
                         }
                     }
-                    DragDropService.Default.RaiseDrop(data, text);
+                    DragDropService.Default.RaiseDrop(data, text, dropX, dropY);
                 }
                 finally
                 {
