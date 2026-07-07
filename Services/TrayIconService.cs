@@ -32,9 +32,16 @@ public sealed class TrayIcon : IDisposable
     /// <summary>Menu items shown when the user activates the icon.</summary>
     public List<TrayMenuItem> MenuItems { get; } = new();
 
-    /// <summary>Fires on left-click when the backend exposes that signal.</summary>
+    /// <summary>
+    /// Fires on left-click when the backend exposes that signal. The
+    /// AppIndicator backend never raises this: StatusNotifierItem left-click
+    /// opens the menu by design and libappindicator exposes no activation
+    /// signal. The event exists for future backends (e.g. an XEmbed fallback).
+    /// </summary>
     public event EventHandler? Activated;
 
+    // Not called by the AppIndicator backend (see Activated). Kept for future
+    // backends that do surface an activation signal.
     internal void RaiseActivated()
     {
         if (LinuxDispatcher.IsMainThread)
