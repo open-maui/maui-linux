@@ -172,6 +172,13 @@ public static class PrintService
     }
 
     /// <summary>
+    /// Async wrapper for <see cref="EnumeratePrinters"/>. The enumeration is a
+    /// blocking round-trip to cupsd — prefer this overload from UI code.
+    /// </summary>
+    public static Task<IReadOnlyList<PrinterInfo>> EnumeratePrintersAsync()
+        => Task.Run(EnumeratePrinters);
+
+    /// <summary>
     /// Submit <paramref name="filePath"/> as a print job to
     /// <paramref name="printer"/>. CUPS sniffs the file's MIME type and runs
     /// the matching filters (PDF, PostScript, PNG/JPEG, plain text…) so any
@@ -216,10 +223,22 @@ public static class PrintService
     }
 
     /// <summary>
+    /// Async wrapper for <see cref="PrintFile"/>. cupsPrintFile2 synchronously
+    /// streams the whole document to cupsd — prefer this overload from UI code
+    /// so large jobs don't freeze the main thread.
+    /// </summary>
+    public static Task<PrintJobResult> PrintFileAsync(string printer, string filePath, string jobTitle = "OpenMaui Print Job", IReadOnlyDictionary<string, string>? options = null)
+        => Task.Run(() => PrintFile(printer, filePath, jobTitle, options));
+
+    /// <summary>
     /// Render Skia drawing operations to a multi-page PDF in a temp file, then
     /// hand the file to CUPS. <paramref name="renderPage"/> is invoked once per
     /// page with an <see cref="SkiaSharp.SKCanvas"/> and the page number
-    /// (1-based) — return <c>false</c> when there are no more pages.
+    /// (1-based). Return <c>true</c> to commit that page and be called again;
+    /// return <c>false</c> to stop — anything drawn during a <c>false</c> call
+    /// is discarded, so <c>false</c> on the first call prints nothing and no
+    /// job is submitted. Rendering and job submission both run off the
+    /// caller's thread.
     /// </summary>
     public static async Task<PrintJobResult> PrintSkiaPagesAsync(
         string printer,
@@ -231,27 +250,54 @@ public static class PrintService
         var tempPath = Path.Combine(Path.GetTempPath(), $"openmaui-print-{Guid.NewGuid():N}.pdf");
         try
         {
-            await Task.Run(() =>
+            var hasPages = await Task.Run(() =>
             {
+                // SKFileWStream can't set a file mode, so create the inode
+                // owner-only first; its fopen("wb") truncates but keeps the
+                // mode, so the spooled document isn't world-readable in /tmp.
+                new FileStream(tempPath, new FileStreamOptions
+                {
+                    Mode = FileMode.CreateNew,
+                    Access = FileAccess.Write,
+                    UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
+                }).Dispose();
+
                 using var stream = new SkiaSharp.SKFileWStream(tempPath);
                 using var document = SkiaSharp.SKDocument.CreatePdf(stream);
                 if (document == null) throw new InvalidOperationException("SKDocument.CreatePdf returned null");
 
+                var bounds = SkiaSharp.SKRect.Create(pageSize.Width, pageSize.Height);
                 int page = 1;
                 while (true)
                 {
-                    var canvas = document.BeginPage(pageSize.Width, pageSize.Height);
-                    if (canvas == null) break;
-                    bool keepGoing;
-                    try { keepGoing = renderPage(canvas, page); }
-                    finally { document.EndPage(); }
-                    if (!keepGoing) break;
+                    // Record the page first: renderPage's return decides
+                    // whether this call produced a page at all, and a begun
+                    // SKDocument page can't be discarded once EndPage runs.
+                    using var recorder = new SkiaSharp.SKPictureRecorder();
+                    var isPage = renderPage(recorder.BeginRecording(bounds), page);
+                    using var picture = recorder.EndRecording();
+                    if (!isPage) break;
+
+                    var pageCanvas = document.BeginPage(pageSize.Width, pageSize.Height);
+                    if (pageCanvas == null) break;
+                    pageCanvas.DrawPicture(picture);
+                    document.EndPage();
                     page++;
                 }
+
+                if (page == 1)
+                {
+                    document.Abort();   // no pages — caller had nothing to print
+                    return false;
+                }
                 document.Close();
+                return true;
             });
 
-            return PrintFile(printer, tempPath, jobTitle, options);
+            if (!hasPages)
+                return new PrintJobResult { ErrorMessage = "renderPage returned false on the first page — nothing to print" };
+
+            return await PrintFileAsync(printer, tempPath, jobTitle, options);
         }
         catch (Exception ex)
         {

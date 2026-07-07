@@ -92,11 +92,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode,
         [MarshalAs(UnmanagedType.LPStr)] string arg1);
 
-    // wl_data_offer.accept: (uint serial, ?string mime_type). Null/empty mime
-    // signals rejection.
+    // wl_data_offer.accept: (uint serial, ?string mime_type). Only a NULL mime
+    // signals rejection — an empty string is a real (accepted) mime type, so
+    // rejection must pass null here (marshalled as a NULL pointer).
     [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal")]
     private static extern void wl_proxy_marshal_uint_string(IntPtr proxy, uint opcode,
-        uint arg1, [MarshalAs(UnmanagedType.LPStr)] string arg2);
+        uint arg1, [MarshalAs(UnmanagedType.LPStr)] string? arg2);
 
     // wl_data_device.start_drag: (?source, origin_surface, ?icon_surface, serial).
     // origin must be one of our surfaces; icon may be null. serial is the most
@@ -829,10 +830,16 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private float _pointerX;
     private float _pointerY;
     private uint _pointerSerial;
+    // Serial of the most recent pointer button PRESS. Distinct from
+    // _pointerSerial, which PointerEnter also overwrites — start_drag needs
+    // the serial of the button-down that initiated the gesture, not whatever
+    // input event happened last.
+    private uint _pointerButtonSerial;
     private uint _keyboardSerial;
     private uint _modifiers;
 
-    // Delegates to prevent GC
+    // Listener structs hold only raw function pointers — the delegate instances
+    // behind them are rooted separately below.
     private WlRegistryListener _registryListener;
     private WlSeatListener _seatListener;
     private WlPointerListener _pointerListener;
@@ -841,6 +848,35 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private XdgSurfaceListener _xdgSurfaceListener;
     private XdgToplevelListener _toplevelListener;
     private WlBufferListener _bufferListener;
+
+    // Rooted delegate instances for the pointer/keyboard listeners. The function
+    // pointers stored in the listener structs above do NOT keep their delegates
+    // alive — without these fields the GC frees the reverse-P/Invoke thunks and
+    // the next native event jumps into freed memory.
+    private PointerEnterDelegate? _pointerEnterDelegate;
+    private PointerLeaveDelegate? _pointerLeaveDelegate;
+    private PointerMotionDelegate? _pointerMotionDelegate;
+    private PointerButtonDelegate? _pointerButtonDelegate;
+    private PointerAxisDelegate? _pointerAxisDelegate;
+    private PointerFrameDelegate? _pointerFrameDelegate;
+    private PointerAxisSourceDelegate? _pointerAxisSourceDelegate;
+    private PointerAxisStopDelegate? _pointerAxisStopDelegate;
+    private PointerAxisDiscreteDelegate? _pointerAxisDiscreteDelegate;
+    private KeyboardKeymapDelegate? _keyboardKeymapDelegate;
+    private KeyboardEnterDelegate? _keyboardEnterDelegate;
+    private KeyboardLeaveDelegate? _keyboardLeaveDelegate;
+    private KeyboardKeyDelegate? _keyboardKeyDelegate;
+    private KeyboardModifiersDelegate? _keyboardModifiersDelegate;
+    private KeyboardRepeatInfoDelegate? _keyboardRepeatInfoDelegate;
+    private RegistryGlobalDelegate? _registryGlobalDelegate;
+    private RegistryGlobalRemoveDelegate? _registryGlobalRemoveDelegate;
+    private SeatCapabilitiesDelegate? _seatCapabilitiesDelegate;
+    private SeatNameDelegate? _seatNameDelegate;
+    private XdgSurfaceConfigureDelegate? _xdgSurfaceConfigureDelegate;
+    private XdgToplevelConfigureDelegate? _xdgToplevelConfigureDelegate;
+    private XdgToplevelCloseDelegate? _xdgToplevelCloseDelegate;
+    private XdgWmBasePingDelegate? _xdgWmBasePingDelegate;
+    private BufferReleaseDelegate? _bufferReleaseDelegate;
 
     // GCHandles for listener structs to prevent GC
     private GCHandle _registryListenerHandle;
@@ -940,11 +976,15 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             throw new InvalidOperationException("Failed to get Wayland registry");
         }
 
-        // Set up registry listener
+        // Set up registry listener. Root the delegates in fields first —
+        // GetFunctionPointerForDelegate does not keep its delegate alive, and
+        // libwayland holds these pointers for the lifetime of the proxy.
+        _registryGlobalDelegate = RegistryGlobal;
+        _registryGlobalRemoveDelegate = RegistryGlobalRemove;
         _registryListener = new WlRegistryListener
         {
-            Global = Marshal.GetFunctionPointerForDelegate<RegistryGlobalDelegate>(RegistryGlobal),
-            GlobalRemove = Marshal.GetFunctionPointerForDelegate<RegistryGlobalRemoveDelegate>(RegistryGlobalRemove)
+            Global = Marshal.GetFunctionPointerForDelegate(_registryGlobalDelegate),
+            GlobalRemove = Marshal.GetFunctionPointerForDelegate(_registryGlobalRemoveDelegate)
         };
         _registryListenerHandle = GCHandle.Alloc(_registryListener, GCHandleType.Pinned);
         wl_registry_add_listener(_registry, _registryListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -970,9 +1010,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (_xdgSurface == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create xdg_surface");
 
+        _xdgSurfaceConfigureDelegate = XdgSurfaceConfigure; // rooted; see registry listener
         _xdgSurfaceListener = new XdgSurfaceListener
         {
-            Configure = Marshal.GetFunctionPointerForDelegate<XdgSurfaceConfigureDelegate>(XdgSurfaceConfigure)
+            Configure = Marshal.GetFunctionPointerForDelegate(_xdgSurfaceConfigureDelegate)
         };
         _xdgSurfaceListenerHandle = GCHandle.Alloc(_xdgSurfaceListener, GCHandleType.Pinned);
         xdg_surface_add_listener(_xdgSurface, _xdgSurfaceListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -982,10 +1023,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (_xdgToplevel == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create xdg_toplevel");
 
+        _xdgToplevelConfigureDelegate = XdgToplevelConfigure; // rooted; see registry listener
+        _xdgToplevelCloseDelegate = XdgToplevelClose;
         _toplevelListener = new XdgToplevelListener
         {
-            Configure = Marshal.GetFunctionPointerForDelegate<XdgToplevelConfigureDelegate>(XdgToplevelConfigure),
-            Close = Marshal.GetFunctionPointerForDelegate<XdgToplevelCloseDelegate>(XdgToplevelClose)
+            Configure = Marshal.GetFunctionPointerForDelegate(_xdgToplevelConfigureDelegate),
+            Close = Marshal.GetFunctionPointerForDelegate(_xdgToplevelCloseDelegate)
         };
         _toplevelListenerHandle = GCHandle.Alloc(_toplevelListener, GCHandleType.Pinned);
         xdg_toplevel_add_listener(_xdgToplevel, _toplevelListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1092,9 +1135,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         }
 
         // Listen for buffer release
+        _bufferReleaseDelegate = BufferRelease; // rooted; see registry listener
         _bufferListener = new WlBufferListener
         {
-            Release = Marshal.GetFunctionPointerForDelegate<BufferReleaseDelegate>(BufferRelease)
+            Release = Marshal.GetFunctionPointerForDelegate(_bufferReleaseDelegate)
         };
         if (_bufferListenerHandle.IsAllocated) _bufferListenerHandle.Free();
         _bufferListenerHandle = GCHandle.Alloc(_bufferListener, GCHandleType.Pinned);
@@ -1193,10 +1237,11 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 window._viewporter = wl_registry_bind(registry, name, _wp_viewporter_interface, 1);
                 break;
             case "wl_data_device_manager":
-                // v3 is the highest stable revision and what every modern compositor
-                // ships. v2 added per-MIME action support, v3 added DnD finish/actions.
-                // We only use selection-related parts so v3 is more than enough.
-                window._dataDeviceManager = wl_registry_bind(registry, name, _wl_data_device_manager_interface, Math.Min(version, 3u));
+                // Bind at min(advertised, 3). v3 added DnD finish/set_actions —
+                // requests that are protocol errors on lower versions, so the DnD
+                // path gates them on _dataDeviceManagerVersion.
+                window._dataDeviceManagerVersion = Math.Min(version, 3u);
+                window._dataDeviceManager = wl_registry_bind(registry, name, _wl_data_device_manager_interface, window._dataDeviceManagerVersion);
                 // wl_data_device is per-seat; try wiring now, will no-op if seat
                 // hasn't arrived yet (SetupSeat will retry once seat is bound).
                 window.SetupClipboard();
@@ -1229,10 +1274,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     {
         if (_seat == IntPtr.Zero) return;
 
+        _seatCapabilitiesDelegate = SeatCapabilities; // rooted; see registry listener
+        _seatNameDelegate = SeatName;
         _seatListener = new WlSeatListener
         {
-            Capabilities = Marshal.GetFunctionPointerForDelegate<SeatCapabilitiesDelegate>(SeatCapabilities),
-            Name = Marshal.GetFunctionPointerForDelegate<SeatNameDelegate>(SeatName)
+            Capabilities = Marshal.GetFunctionPointerForDelegate(_seatCapabilitiesDelegate),
+            Name = Marshal.GetFunctionPointerForDelegate(_seatNameDelegate)
         };
         _seatListenerHandle = GCHandle.Alloc(_seatListener, GCHandleType.Pinned);
         wl_seat_add_listener(_seat, _seatListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1275,17 +1322,29 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // axis_source, axis_stop, axis_discrete. libwayland aborts when an event
         // arrives at a NULL slot, so every opcode in the listener struct must
         // point at SOMETHING — even a no-op for events we don't act on.
+        // Root the delegates in fields first — GetFunctionPointerForDelegate does
+        // not keep its delegate alive, and libwayland holds these pointers for
+        // the lifetime of the proxy.
+        _pointerEnterDelegate = PointerEnter;
+        _pointerLeaveDelegate = PointerLeave;
+        _pointerMotionDelegate = PointerMotion;
+        _pointerButtonDelegate = OnPointerButton;
+        _pointerAxisDelegate = PointerAxis;
+        _pointerFrameDelegate = PointerFrame;
+        _pointerAxisSourceDelegate = PointerAxisSource;
+        _pointerAxisStopDelegate = PointerAxisStop;
+        _pointerAxisDiscreteDelegate = PointerAxisDiscrete;
         _pointerListener = new WlPointerListener
         {
-            Enter = Marshal.GetFunctionPointerForDelegate<PointerEnterDelegate>(PointerEnter),
-            Leave = Marshal.GetFunctionPointerForDelegate<PointerLeaveDelegate>(PointerLeave),
-            Motion = Marshal.GetFunctionPointerForDelegate<PointerMotionDelegate>(PointerMotion),
-            Button = Marshal.GetFunctionPointerForDelegate<PointerButtonDelegate>(OnPointerButton),
-            Axis = Marshal.GetFunctionPointerForDelegate<PointerAxisDelegate>(PointerAxis),
-            Frame = Marshal.GetFunctionPointerForDelegate<PointerFrameDelegate>(PointerFrame),
-            AxisSource = Marshal.GetFunctionPointerForDelegate<PointerAxisSourceDelegate>(PointerAxisSource),
-            AxisStop = Marshal.GetFunctionPointerForDelegate<PointerAxisStopDelegate>(PointerAxisStop),
-            AxisDiscrete = Marshal.GetFunctionPointerForDelegate<PointerAxisDiscreteDelegate>(PointerAxisDiscrete),
+            Enter = Marshal.GetFunctionPointerForDelegate(_pointerEnterDelegate),
+            Leave = Marshal.GetFunctionPointerForDelegate(_pointerLeaveDelegate),
+            Motion = Marshal.GetFunctionPointerForDelegate(_pointerMotionDelegate),
+            Button = Marshal.GetFunctionPointerForDelegate(_pointerButtonDelegate),
+            Axis = Marshal.GetFunctionPointerForDelegate(_pointerAxisDelegate),
+            Frame = Marshal.GetFunctionPointerForDelegate(_pointerFrameDelegate),
+            AxisSource = Marshal.GetFunctionPointerForDelegate(_pointerAxisSourceDelegate),
+            AxisStop = Marshal.GetFunctionPointerForDelegate(_pointerAxisStopDelegate),
+            AxisDiscrete = Marshal.GetFunctionPointerForDelegate(_pointerAxisDiscreteDelegate),
         };
         _pointerListenerHandle = GCHandle.Alloc(_pointerListener, GCHandleType.Pinned);
         wl_pointer_add_listener(_pointer, _pointerListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1333,6 +1392,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // Capture the freshest input serial — xdg_toplevel.move/resize require
         // a recent pointer-button serial; pointer-enter's serial is too stale.
         window._pointerSerial = serial;
+        if (state == WL_POINTER_BUTTON_STATE_PRESSED)
+            window._pointerButtonSerial = serial; // start_drag needs the press serial
 
         var ptrButton = button switch
         {
@@ -1398,14 +1459,21 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // Same NULL-slot abort hazard as wl_pointer (see SetupPointer for the
         // explanation). repeat_info was added in wl_keyboard v4 / wl_seat v4 —
         // we bind at v5, so we will receive it.
+        // Root the delegates in fields first — see SetupPointer for why.
+        _keyboardKeymapDelegate = KeyboardKeymap;
+        _keyboardEnterDelegate = KeyboardEnter;
+        _keyboardLeaveDelegate = KeyboardLeave;
+        _keyboardKeyDelegate = KeyboardKey;
+        _keyboardModifiersDelegate = KeyboardModifiers;
+        _keyboardRepeatInfoDelegate = KeyboardRepeatInfo;
         _keyboardListener = new WlKeyboardListener
         {
-            Keymap = Marshal.GetFunctionPointerForDelegate<KeyboardKeymapDelegate>(KeyboardKeymap),
-            Enter = Marshal.GetFunctionPointerForDelegate<KeyboardEnterDelegate>(KeyboardEnter),
-            Leave = Marshal.GetFunctionPointerForDelegate<KeyboardLeaveDelegate>(KeyboardLeave),
-            Key = Marshal.GetFunctionPointerForDelegate<KeyboardKeyDelegate>(KeyboardKey),
-            Modifiers = Marshal.GetFunctionPointerForDelegate<KeyboardModifiersDelegate>(KeyboardModifiers),
-            RepeatInfo = Marshal.GetFunctionPointerForDelegate<KeyboardRepeatInfoDelegate>(KeyboardRepeatInfo),
+            Keymap = Marshal.GetFunctionPointerForDelegate(_keyboardKeymapDelegate),
+            Enter = Marshal.GetFunctionPointerForDelegate(_keyboardEnterDelegate),
+            Leave = Marshal.GetFunctionPointerForDelegate(_keyboardLeaveDelegate),
+            Key = Marshal.GetFunctionPointerForDelegate(_keyboardKeyDelegate),
+            Modifiers = Marshal.GetFunctionPointerForDelegate(_keyboardModifiersDelegate),
+            RepeatInfo = Marshal.GetFunctionPointerForDelegate(_keyboardRepeatInfoDelegate),
         };
         _keyboardListenerHandle = GCHandle.Alloc(_keyboardListener, GCHandleType.Pinned);
         wl_keyboard_add_listener(_keyboard, _keyboardListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1478,9 +1546,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     {
         if (_xdgWmBase == IntPtr.Zero) return;
 
+        _xdgWmBasePingDelegate = XdgWmBasePing; // rooted; see registry listener
         _wmBaseListener = new XdgWmBaseListener
         {
-            Ping = Marshal.GetFunctionPointerForDelegate<XdgWmBasePingDelegate>(XdgWmBasePing)
+            Ping = Marshal.GetFunctionPointerForDelegate(_xdgWmBasePingDelegate)
         };
         _wmBaseListenerHandle = GCHandle.Alloc(_wmBaseListener, GCHandleType.Pinned);
         xdg_wm_base_add_listener(_xdgWmBase, _wmBaseListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
