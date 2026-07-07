@@ -396,12 +396,21 @@ public partial class WaylandWindow
 
     /// <summary>
     /// Read whatever's currently in the primary selection. Returns null when
-    /// nothing is offered or the native path is unavailable.
+    /// nothing is offered or the native path is unavailable. The read decision
+    /// runs on the main thread so pending compositor events (in particular a
+    /// cancelled() revoking our ownership) are observed first.
     /// </summary>
     public static Task<string?> TryGetPrimarySelectionTextAsync()
     {
         var w = s_activePrimarySelectionWindow;
         if (w == null) return Task.FromResult<string?>(null);
+        return RunGetterOnMainThread(w.GetPrimarySelectionTextCore);
+    }
+
+    private Task<string?> GetPrimarySelectionTextCore()
+    {
+        // Observe any pending cancelled() before trusting ownership below.
+        SyncSelectionStateOnMainThread();
 
         // Self-paste short-circuit — same reasoning as the clipboard path: if
         // we'd block waiting for our own source.send to fulfil, return the
@@ -410,19 +419,19 @@ public partial class WaylandWindow
         // hold keyboard focus, and the canonical primary-selection flow (select
         // here, middle-click elsewhere, come back) leaves us without one even
         // though we still own the selection.
-        if (w._ownedPrimarySource != IntPtr.Zero
-            && w._ownedPrimarySourceTexts.TryGetValue(w._ownedPrimarySource, out var ownText))
+        if (_ownedPrimarySource != IntPtr.Zero
+            && _ownedPrimarySourceTexts.TryGetValue(_ownedPrimarySource, out var ownText))
         {
             return Task.FromResult<string?>(ownText);
         }
 
-        if (w._currentPrimaryOffer == IntPtr.Zero)
+        if (_currentPrimaryOffer == IntPtr.Zero)
             return Task.FromResult<string?>(null);
 
         string? chosen = null;
         foreach (var preferred in s_textMimeTypes)
         {
-            if (w._currentPrimaryOfferMimes.Contains(preferred))
+            if (_currentPrimaryOfferMimes.Contains(preferred))
             {
                 chosen = preferred;
                 break;
@@ -430,12 +439,12 @@ public partial class WaylandWindow
         }
         if (chosen == null) return Task.FromResult<string?>(null);
 
-        // Marshal receive() on the main thread (re-validating the offer there)
-        // and read the pipe on a background task — see ReceiveOfferTextAsync.
-        var offer = w._currentPrimaryOffer;
+        // receive() is issued on this (main) thread; the pipe is read on a
+        // background task — see ReceiveOfferTextAsync.
+        var offer = _currentPrimaryOffer;
         return ReceiveOfferTextAsync(
-            () => w._currentPrimaryOffer == offer ? offer : IntPtr.Zero,
-            ZWP_PRIMARY_SELECTION_OFFER_V1_RECEIVE, chosen, w._display);
+            () => _currentPrimaryOffer == offer ? offer : IntPtr.Zero,
+            ZWP_PRIMARY_SELECTION_OFFER_V1_RECEIVE, chosen, _display);
     }
 
     #endregion
