@@ -206,6 +206,10 @@ internal sealed class XEmbedTrayBackend : ITrayBackend
         X11.XFlush(_display);
     });
 
+    // XEmbed can genuinely remove an icon window at runtime, so hide and
+    // permanent teardown are the same operation; Create re-docks a fresh window.
+    public void Destroy(TrayIcon icon) => Remove(icon);
+
     private void Post(Action action)
     {
         if (_dead) return;
