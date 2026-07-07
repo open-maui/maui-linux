@@ -13,6 +13,11 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// asynchronously via selection conversion (with INCR support for large
 /// transfers). On Wayland, WaylandWindow pushes events in via the internal
 /// Raise* methods.
+///
+/// Event coordinates are window-physical pixels (the same space the backends
+/// report pointer events in). LinuxApplication additionally routes these
+/// events to MAUI DropGestureRecognizers — that routing is additive: direct
+/// subscribers to <see cref="Default"/> keep receiving every event unchanged.
 /// </summary>
 public partial class DragDropService : IDisposable
 {
@@ -67,6 +72,12 @@ public partial class DragDropService : IDisposable
     private long _dropDeadline; // Environment.TickCount64 deadline
     private bool _incrActive;
     private MemoryStream? _incrBuffer;
+
+    // Window-local position of the drag, captured at each XdndPosition. The
+    // XdndDrop ClientMessage carries no coordinates, so the eventual (async)
+    // Drop event reports the last tracked position.
+    private int _lastDragX;
+    private int _lastDragY;
 
     /// <summary>
     /// Gets whether a drag operation is in progress.
@@ -212,8 +223,22 @@ public partial class DragDropService : IDisposable
     {
         if (_currentDragData == null) return false;
 
-        int x = (int)((data[2] >> 16) & 0xFFFF);
-        int y = (int)(data[2] & 0xFFFF);
+        // XdndPosition carries ROOT coordinates; convert to window-local so
+        // drag events land in the same window-physical space the X11 pointer
+        // path reports (X11Window raises raw window coords; the app layer
+        // applies the shared logical scaling before hit-testing).
+        int xRoot = (int)((data[2] >> 16) & 0xFFFF);
+        int yRoot = (int)(data[2] & 0xFFFF);
+        int x = xRoot, y = yRoot;
+        if (XTranslateCoordinates(_display, XDefaultRootWindow(_display), _window,
+                xRoot, yRoot, out int localX, out int localY, out _))
+        {
+            x = localX;
+            y = localY;
+        }
+        _lastDragX = x;
+        _lastDragY = y;
+
         nint action = data[4];
 
         var eventArgs = new DragEventArgs(_currentDragData, x, y)
@@ -371,7 +396,8 @@ public partial class DragDropService : IDisposable
             }
         }
 
-        var eventArgs = new DropEventArgs(dragData, text);
+        // Position captured at the last XdndPosition (drop carries none).
+        var eventArgs = new DropEventArgs(dragData, text, _lastDragX, _lastDragY);
         Drop?.Invoke(this, eventArgs);
 
         // Honest finish: report accepted only when data actually arrived —
@@ -923,9 +949,9 @@ public partial class DragDropService : IDisposable
         DragLeave?.Invoke(this, EventArgs.Empty);
     }
 
-    internal DropEventArgs RaiseDrop(DragData data, string? text)
+    internal DropEventArgs RaiseDrop(DragData data, string? text, int x = 0, int y = 0)
     {
-        var args = new DropEventArgs(data, text);
+        var args = new DropEventArgs(data, text, x, y);
         Drop?.Invoke(this, args);
         _isDragging = false;
         _currentDragData = null;
