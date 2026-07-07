@@ -45,6 +45,11 @@ public partial class SkiaEntry
     int IInputContext.SelectionLength => _selectionLength;
 
     /// <summary>
+    /// Passwords must never reach the input method as surrounding text.
+    /// </summary>
+    bool IInputContext.IsSurroundingTextSensitive => IsPassword;
+
+    /// <summary>
     /// Called when IME commits text.
     /// </summary>
     public void OnTextCommitted(string text)
@@ -319,6 +324,12 @@ public partial class SkiaEntry
                 e.Handled = true;
                 break;
         }
+
+        // Caret/selection-only keys (arrows, Home/End, Ctrl+A) don't touch
+        // Text, so the property-changed path won't fire — refresh the IME
+        // surrounding snapshot here.
+        if (e.Handled)
+            NotifyImeSurroundingChanged();
     }
 
     public override void OnPointerPressed(PointerEventArgs e)
@@ -338,6 +349,7 @@ public partial class SkiaEntry
                 _cursorPosition = GetCharacterIndexAtX(middleClickX);
                 _selectionStart = _cursorPosition;
                 _selectionLength = 0;
+                NotifyImeSurroundingChanged();
                 _ = PastePrimarySelectionAtCaretAsync();
             }
             return;
@@ -405,6 +417,7 @@ public partial class SkiaEntry
             _lastClickX = e.X;
         }
 
+        NotifyImeSurroundingChanged();
         ResetCursorBlink();
         Invalidate();
     }
@@ -448,6 +461,7 @@ public partial class SkiaEntry
         {
             _cursorPosition = newPosition;
             _selectionLength = _cursorPosition - _selectionStart;
+            NotifyImeSurroundingChanged();
             ResetCursorBlink();
             Invalidate();
         }
@@ -608,6 +622,7 @@ public partial class SkiaEntry
         _selectionStart = 0;
         _cursorPosition = Text.Length;
         _selectionLength = Text.Length;
+        NotifyImeSurroundingChanged();
         Invalidate();
     }
 
@@ -773,5 +788,16 @@ public partial class SkiaEntry
         int height = (int)FontSize;
 
         _inputMethodService.SetCursorLocation(x, y, 2, height);
+    }
+
+    /// <summary>
+    /// Pushes a fresh text/caret/selection snapshot to the IME so
+    /// surrounding-text-aware input methods keep their suggestions accurate.
+    /// Cheap to over-call: the service coalesces and dedupes.
+    /// </summary>
+    private void NotifyImeSurroundingChanged()
+    {
+        if (IsFocused)
+            _inputMethodService?.NotifySurroundingTextChanged();
     }
 }
