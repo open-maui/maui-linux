@@ -76,7 +76,7 @@ public class LinuxViewRenderer
         {
             var skiaPage = renderer.RenderPage(page);
             if (skiaPage == null) return false;
-            shell.PushAsync(skiaPage, page.Title ?? "Detail");
+            shell.PushAsync(skiaPage, page.Title ?? "Detail", page);
             return true;
         }
         catch (Exception ex)
@@ -214,6 +214,12 @@ public class LinuxViewRenderer
         {
             DiagnosticLog.Debug("LinuxViewRenderer", $"Section {i}: Route='{skiaShell.Sections[i].Route}', Title='{skiaShell.Sections[i].Title}'");
         }
+
+        // The initial NavigateToSection ran mid-build, possibly before the
+        // page's parent chain reached the Window — in which case MAUI's
+        // SendAppearing no-op'd. Everything is parented now; re-issue (no-op
+        // when the first attempt landed).
+        skiaShell.ResendPendingAppearing();
 
         return skiaShell;
     }
@@ -481,6 +487,21 @@ public class LinuxViewRenderer
         }
     }
 
+    // Maps a MAUI ShellContent to the Page instance CreateShellContentPage
+    // built for it. Weak on both sides so recycled shell items don't pin pages.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Controls.ShellContent, Page> s_shellContentPages = new();
+
+    // ShellContent.ContentCache (internal) — cached PropertyInfo for parenting
+    // created pages into the Shell hierarchy.
+    private static System.Reflection.PropertyInfo? s_contentCacheProperty;
+
+    /// <summary>
+    /// The Page instance most recently rendered for <paramref name="content"/>,
+    /// or null when the content has not been rendered yet.
+    /// </summary>
+    internal static Page? GetShellContentPage(Controls.ShellContent content) =>
+        s_shellContentPages.TryGetValue(content, out var page) ? page : null;
+
     /// <summary>
     /// Creates the page content for a ShellContent.
     /// </summary>
@@ -524,6 +545,36 @@ public class LinuxViewRenderer
             if (page == null && content.Content is Page contentPage)
             {
                 page = contentPage;
+            }
+
+            // Record which Page instance renders this ShellContent. The page is
+            // created here (DI/template), never through IShellContentController,
+            // so MAUI's own Page cache stays null — SkiaShell resolves through
+            // this table to send Appearing/Disappearing. Re-renders (theme
+            // refresh) replace the entry so lifecycle always targets the live
+            // instance.
+            if (page != null)
+            {
+                // Parent the page into MAUI's Shell hierarchy the way Shell
+                // itself does: ShellContent.ContentCache's setter calls
+                // AddLogicalChild, which gives the page the Window-rooted
+                // parent chain Page.SendAppearing requires — it silently
+                // no-ops on unparented pages (Page.cs checks
+                // FindParentOfType<IWindow>()?.Parent). Also makes
+                // IShellContentController.Page resolve for lifecycle lookups.
+                s_contentCacheProperty ??= typeof(Controls.ShellContent).GetProperty("ContentCache",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                try
+                {
+                    s_contentCacheProperty?.SetValue(content, page);
+                }
+                catch (Exception cacheEx)
+                {
+                    DiagnosticLog.Debug("LinuxViewRenderer", $"ContentCache set failed: {cacheEx.Message}");
+                }
+
+                s_shellContentPages.Remove(content);
+                s_shellContentPages.Add(content, page);
             }
 
             if (page is ContentPage cp && cp.Content != null)
