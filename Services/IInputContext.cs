@@ -13,6 +13,14 @@ public interface IInputContext
 
     int SelectionLength { get; }
 
+    /// <summary>
+    /// True when the content must never be shared with the input method as
+    /// surrounding text (password / sensitive entries). Services skip
+    /// set_surrounding_text-style updates for sensitive contexts. Default
+    /// false so existing IInputContext implementations don't break.
+    /// </summary>
+    bool IsSurroundingTextSensitive => false;
+
     void OnTextCommitted(string text);
 
     void OnPreEditChanged(string preEditText, int cursorPosition);

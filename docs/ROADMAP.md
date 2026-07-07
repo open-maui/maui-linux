@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Shipped (10.0.50 → 10.0.70.3)
+## Shipped (10.0.50 → 10.0.70.4)
 
 ### Core platform
 
@@ -56,20 +56,40 @@ This document outlines the development roadmap for the OpenMaui Linux platform.
 | CUPS printing | New `PrintService` with `EnumeratePrinters()`, `PrintFile(...)` (PDF/PS/image/text auto-filtered by CUPS), and `PrintSkiaPagesAsync(...)` for Skia-rendered multi-page jobs via `SKDocument.CreatePdf`. `IsAvailable=false` and graceful failure when libcups is missing |
 | Maps (OpenStreetMap) | New sibling package **`OpenMaui.Controls.Linux.Maps`** (mirrors the MediaElement opt-in pattern). `LinuxMapHandler` wires `Microsoft.Maui.Controls.Maps.Map` to a `SkiaMap` view with OSM raster tiles, pin/polyline overlays, pan/zoom, persistent XDG tile cache, swappable tile URL template, and an attribution overlay per the OSM tile usage policy |
 
+### Stability / correctness hardening *(10.0.70.4)*
+
+Deep code review of the 10.0.70.x surfaces; no new features, but several crash-class fixes. See CHANGELOG for the full list.
+
+| Area | Highlights |
+|---------|-------------|
+| Wayland core | All listener callback delegates rooted (GC could previously free native thunks → segfault); drag sources destroyed on `dnd_finished` (leak + clipboard corruption); `DragEventArgs.Accepted` defaults to accept; NULL-mime rejection, wl_fixed coordinate scaling, version-gated v3 requests, drop-race fixes; self-paste deadlock fixes in `HasText` for both clipboard and primary selection; primary selection now clearable |
+| X11 | First working XDND drop path — `XdndAware` announced, `ClientMessage`/`SelectionNotify` routed, real `XConvertSelection` data transfer with INCR support, honest `XdndFinished` reporting |
+| Maps | Tile-cache dispose race fixed; viewport-aware `MoveToRegion` zoom; `VisibleRegion` write-back; marker vs info-window click semantics; OSM tile-policy compliance (2-connection cap, negative caching); true LRU + provider-keyed + size-bounded caches; HiDPI tiles (zoom+1 at scale ≥ 1.5); world-wrap for overlays; live pin mutation |
+| Tray icons | Correct 3-arg `set_icon_full`/`set_label` bindings (was undefined behavior on every update); GTK-owned callback lifetime; indicator unref on remove; main-thread marshaling |
+| Printing | CUPS submit off the UI thread + async API variants; page-commit contract via `SKPicture`; owner-only temp PDFs |
+| MediaElement | `gst_is_initialized` guard; decoder rank snapshot/restore makes `Auto` a true reset |
+
+### Desktop integration round-out II *(10.0.70.4)*
+
+| Feature | Description |
+|---------|-------------|
+| Full X11 XDND drag-and-drop | Incoming drops (async `SelectionNotify` transfer, INCR-capable) and outgoing drags via backend-agnostic `DragDropService.TryStartDrag` (native Wayland first, XDND source fallback: selection ownership, target discovery, Status negotiation, `SelectionRequest` delivery, Escape cancel) |
+| IME surrounding text | `zwp_text_input_v3.set_surrounding_text` + `set_text_change_cause` — focused entry text/caret/anchor windowed to ≤4000 UTF-8 bytes, coalesced per frame, password fields excluded; same seam feeds IBus (`set_surrounding_text`, code-point offsets). Completes the Wayland IME loop |
+| Map polygon / circle overlays | `IFilledMapElement` / `ICircleMapElement` routed end-to-end; Mercator meters-per-pixel radius projection; world-wrap aware; `SkiaMap.Polygons` / `Circles` for code-first use |
+| GTK print dialog | `PrintService.ShowPrintDialogAsync` — GtkPrintUnixDialog with printer/copies/ranges/duplex/PPD options returned CUPS-ready; graceful null when GTK missing; `PrintJobStatus` adds a `NothingToPrint` state |
+| Tray icon XEmbed fallback | freedesktop System Tray Protocol backend when no SNI host exists (probe: ayatana → appindicator → XEmbed → no-op); left-click `Activated`, GTK right-click menu, auto re-dock on panel restart |
+
 ## Planned
 
 ### Medium-term
 
 | Feature | Description |
 |---------|-------------|
-| `set_surrounding_text` for text-input-v3 | Pass focused entry's text + caret to IME for better word suggestions |
 | Hardware video acceleration zero-copy | Explicit pipeline construction for direct compositor-surface (zero-copy) playback — `Prefer` mode already covers decoder selection |
 | XAML Hot Reload | Live XAML editing during debugging |
 | Live Visual Tree | Debug tool for inspecting UI hierarchy |
-| Tray icon XEmbed fallback | `_NET_WM_SYSTEM_TRAY` for desktops without an SNI host (currently falls back to a no-op when no AppIndicator is installed) |
 | Maps satellite / hybrid layers | OSM raster only renders a single style today; satellite + hybrid would need a secondary tile source and a layer-stacking renderer |
-| CUPS print preview dialog | Today `PrintService` enumerates + submits; a GTK-backed print preview & options dialog is the natural follow-up |
-| Map polygon / circle overlays | `LinuxMapHandler` currently routes `IGeoPathMapElement` only; full `IFilledMapElement` / `ICircleMapElement` coverage |
+| `DragGestureRecognizer` wiring | MAUI's drag gesture plumbing doesn't invoke `DragDropService.TryStartDrag` yet; connect recognizer payloads to the native drag paths |
 | `Tmds.DBus` migration | Replace `dbus-monitor` subprocess in `Fcitx5InputMethodService` |
 
 ### Long-term
@@ -105,7 +125,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.60.x | .NET 10 / MAUI 10.0.60 | Q2 2026 | ✅ Released |
 | v10.0.70.1 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released |
 | v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released (Maps sibling missing — see 10.0.70.3) |
-| v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | 🚀 Pending release |
+| v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released |
+| v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | 🚀 Pending release |
 | v10.0.70.x | .NET 10 / MAUI 10.0.70 | Q2-Q3 2026 | 🚀 Active |
 
 ## Feedback
@@ -114,5 +135,5 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 ---
 
-*Last updated: June 2026*
+*Last updated: July 2026*
 *Copyright 2025-2026 MarketAlly Pte Ltd*

@@ -5,6 +5,7 @@ using System.ComponentModel;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Maps.Handlers;
+using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Maps.Native;
 using Microsoft.Maui.Platform.Linux.Maps.Views;
 // IMap is ambiguous between Microsoft.Maui.ApplicationModel (the launcher
@@ -14,6 +15,8 @@ using IMap = Microsoft.Maui.Maps.IMap;
 using IMapPin = Microsoft.Maui.Maps.IMapPin;
 using IMapElement = Microsoft.Maui.Maps.IMapElement;
 using IGeoPathMapElement = Microsoft.Maui.Maps.IGeoPathMapElement;
+using IFilledMapElement = Microsoft.Maui.Maps.IFilledMapElement;
+using ICircleMapElement = Microsoft.Maui.Maps.ICircleMapElement;
 
 namespace Microsoft.Maui.Platform.Linux.Maps.Handlers;
 
@@ -182,27 +185,68 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
     public static void MapElements(IMapHandler handler, IMap map)
     {
         if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
-        // For v1 we render IGeoPathMapElement entries as polylines. Circles /
-        // polygons / filled shapes can be added as needed; the property mapper
-        // re-runs whenever the Elements collection mutates.
-        self.PlatformView.Polylines.Clear();
+        // Route every IMapElement flavor MAUI Maps ships: circles, filled
+        // geo-paths (polygons), and plain geo-paths (polylines). The property
+        // mapper re-runs whenever the Elements collection mutates.
+        // Order matters: Controls.Maps.Polygon is BOTH IGeoPathMapElement and
+        // IFilledMapElement, so the filled check must precede the plain one.
+        var platformView = self.PlatformView;
+        platformView.Polylines.Clear();
+        platformView.Polygons.Clear();
+        platformView.Circles.Clear();
         foreach (var element in map.Elements)
         {
-            // IGeoPathMapElement extends IList<Location> directly; iterate it.
-            if (element is IGeoPathMapElement geo)
+            if (element is ICircleMapElement circleElement)
             {
+                var circle = new MapCircle
+                {
+                    Latitude = circleElement.Center.Latitude,
+                    Longitude = circleElement.Center.Longitude,
+                    RadiusMeters = circleElement.Radius.Meters,
+                };
+                if (element is IFilledMapElement filledCircle
+                    && filledCircle.Fill.ToSKColorOrNull() is { } circleFill)
+                    circle.FillColor = circleFill;
+                if (element.Stroke.ToSKColorOrNull() is { } circleStroke)
+                    circle.StrokeColor = circleStroke;
+                if (element.StrokeThickness > 0)
+                    circle.StrokeWidth = (float)element.StrokeThickness;
+                platformView.Circles.Add(circle);
+            }
+            else if (element is IGeoPathMapElement filledGeo && element is IFilledMapElement filled)
+            {
+                var polygon = new MapPolygon();
+                foreach (var location in filledGeo)
+                    polygon.Points.Add((location.Latitude, location.Longitude));
+                if (filled.Fill.ToSKColorOrNull() is { } polygonFill)
+                    polygon.FillColor = polygonFill;
+                if (element.Stroke.ToSKColorOrNull() is { } polygonStroke)
+                    polygon.StrokeColor = polygonStroke;
+                if (element.StrokeThickness > 0)
+                    polygon.StrokeWidth = (float)element.StrokeThickness;
+                platformView.Polygons.Add(polygon);
+            }
+            else if (element is IGeoPathMapElement geo)
+            {
+                // IGeoPathMapElement extends IList<Location> directly; iterate it.
                 var line = new MapPolyline();
                 foreach (var location in geo)
                     line.Points.Add((location.Latitude, location.Longitude));
-                self.PlatformView.Polylines.Add(line);
+                if (element.Stroke.ToSKColorOrNull() is { } lineStroke)
+                    line.StrokeColor = lineStroke;
+                if (element.StrokeThickness > 0)
+                    line.StrokeWidth = (float)element.StrokeThickness;
+                if (element.StrokeDashPattern is { Length: > 0 } dash)
+                    line.DashPattern = dash;
+                platformView.Polylines.Add(line);
             }
         }
-        self.PlatformView.Invalidate();
+        platformView.Invalidate();
     }
 
     public static void MapUpdateMapElement(IMapHandler handler, IMap map, object? arg)
     {
-        // Recompute the polyline collection; simplest implementation, fine
+        // Recompute all overlay collections; simplest implementation, fine
         // because real-world map element counts are small.
         MapElements(handler, map);
     }

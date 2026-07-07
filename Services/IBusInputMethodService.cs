@@ -3,6 +3,7 @@
 
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Maui.Platform.Linux.Native;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -19,6 +20,8 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
     private int _preEditCursorPosition;
     private bool _isActive;
     private bool _disposed;
+    private bool _surroundingPushScheduled;
+    private (string Text, int Cursor, int Anchor)? _lastSurrounding;
 
     // Callback delegates (prevent GC)
     private IBusCommitTextCallback? _commitCallback;
@@ -208,18 +211,73 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
     public void SetFocus(IInputContext? context)
     {
         _currentContext = context;
+        _lastSurrounding = null;
 
         if (_context != IntPtr.Zero)
         {
             if (context != null)
             {
                 ibus_input_context_focus_in(_context);
+                PushSurroundingText();
             }
             else
             {
                 ibus_input_context_focus_out(_context);
             }
         }
+    }
+
+    public void NotifySurroundingTextChanged()
+    {
+        if (_disposed || _context == IntPtr.Zero || _currentContext == null) return;
+        if (_surroundingPushScheduled) return;
+
+        // Coalesce via a one-shot idle: a single UI action often mutates Text
+        // and the caret in separate steps (the Text setter raises change
+        // notifications before the control updates its cursor field), so defer
+        // the snapshot read to the next main-loop iteration.
+        _surroundingPushScheduled = true;
+        GLibNative.IdleAdd(() =>
+        {
+            _surroundingPushScheduled = false;
+            PushSurroundingText();
+            return false;
+        });
+    }
+
+    private void PushSurroundingText()
+    {
+        if (_disposed || _context == IntPtr.Zero || _currentContext == null) return;
+        if (_currentContext.IsSurroundingTextSensitive) return;
+
+        var text = _currentContext.Text ?? string.Empty;
+        var caret = Math.Clamp(_currentContext.CursorPosition, 0, text.Length);
+        var anchor = _currentContext.SelectionLength != 0
+            ? Math.Clamp(_currentContext.SelectionStart, 0, text.Length)
+            : caret;
+
+        var snapshot = (text, caret, anchor);
+        if (snapshot == _lastSurrounding) return;
+        _lastSurrounding = snapshot;
+
+        // IBus counts positions in Unicode code points, not UTF-16 units.
+        nint ibusText = ibus_text_new_from_string(text);
+        if (ibusText == IntPtr.Zero) return;
+        // set_surrounding_text ref-sinks the (floating) IBusText, so no unref here.
+        ibus_input_context_set_surrounding_text(_context, ibusText,
+            (uint)CodePointCountBefore(text, caret), (uint)CodePointCountBefore(text, anchor));
+    }
+
+    private static int CodePointCountBefore(string text, int index)
+    {
+        int count = 0;
+        int i = 0;
+        while (i < index)
+        {
+            i += char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]) ? 2 : 1;
+            count++;
+        }
+        return count;
     }
 
     public void SetCursorLocation(int x, int y, int width, int height)
@@ -345,6 +403,12 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
 
     [LibraryImport("libibus-1.0.so.5")]
     private static partial void ibus_input_context_set_cursor_location(nint context, int x, int y, int w, int h);
+
+    [LibraryImport("libibus-1.0.so.5", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint ibus_text_new_from_string(string str);
+
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_set_surrounding_text(nint context, nint text, uint cursorPos, uint anchorPos);
 
     [LibraryImport("libibus-1.0.so.5")]
     [return: MarshalAs(UnmanagedType.Bool)]
