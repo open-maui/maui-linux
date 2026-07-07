@@ -57,6 +57,25 @@ public class SkiaMapTests
     }
 
     [Fact]
+    public void PolygonsAndCircles_AreMutableCollections()
+    {
+        var map = new SkiaMap();
+
+        var polygon = new MapPolygon();
+        polygon.Points.Add((0, 0));
+        polygon.Points.Add((0, 1));
+        polygon.Points.Add((1, 1));
+        map.Polygons.Add(polygon);
+
+        map.Circles.Add(new MapCircle { Latitude = 48.8584, Longitude = 2.2945, RadiusMeters = 500 });
+
+        map.Polygons.Should().HaveCount(1);
+        map.Polygons[0].Points.Should().HaveCount(3);
+        map.Circles.Should().HaveCount(1);
+        map.Circles[0].RadiusMeters.Should().Be(500);
+    }
+
+    [Fact]
     public void ViewportChanged_RaisedByMoveTo()
     {
         var map = new SkiaMap();

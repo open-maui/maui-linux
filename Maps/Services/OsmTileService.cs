@@ -328,6 +328,8 @@ public sealed class OsmTileService : IDisposable
         var root = new DirectoryInfo(CacheRoot);
         if (!root.Exists) return;
 
+        CleanupLegacyCacheLayout(root);
+
         var files = root.EnumerateFiles("*.png", SearchOption.AllDirectories).ToList();
         var total = files.Sum(f => f.Length);
         if (total <= DiskCacheLimitBytes) return;
@@ -344,6 +346,25 @@ public sealed class OsmTileService : IDisposable
                 total -= len;
             }
             catch { /* file in use or already gone — skip */ }
+        }
+    }
+
+    /// <summary>
+    /// Delete tiles cached by the pre-provider-hash layout, which stored zoom
+    /// directories directly under the root (<c>osm-tiles/{z}/{x}/{y}.png</c>).
+    /// The current layout nests everything under an 8-hex-char template hash,
+    /// so a top-level directory whose name parses as a small integer can only
+    /// be a legacy zoom level — anything else is left alone.
+    /// </summary>
+    private static void CleanupLegacyCacheLayout(DirectoryInfo root)
+    {
+        foreach (var dir in root.EnumerateDirectories())
+        {
+            if (int.TryParse(dir.Name, out var zoom) && zoom >= 0 && zoom <= 22)
+            {
+                try { dir.Delete(recursive: true); }
+                catch { /* best effort — retried on the next sweep */ }
+            }
         }
     }
 
