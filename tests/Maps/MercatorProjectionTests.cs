@@ -68,4 +68,25 @@ public class MercatorProjectionTests
         var (x2, _) = MercatorProjection.LatLonToTile(0, 90, 2);
         (x2 / x1).Should().BeApproximately(2.0, 1e-6);
     }
+
+    [Fact]
+    public void MetersPerPixel_EquatorZoomZero_IsCircumferenceOver256()
+    {
+        MercatorProjection.MetersPerPixel(0, 0)
+            .Should().BeApproximately(MercatorProjection.EarthCircumferenceMeters / 256.0, 1e-6);
+    }
+
+    [Fact]
+    public void MetersPerPixel_ShrinksWithCosLatitude_AndHalvesPerZoom()
+    {
+        // Mercator stretches toward the poles: at 60°N one pixel covers
+        // cos(60°) = half the ground distance it covers at the equator.
+        var atEquator = MercatorProjection.MetersPerPixel(0, 10);
+        var at60 = MercatorProjection.MetersPerPixel(60, 10);
+        (at60 / atEquator).Should().BeApproximately(0.5, 1e-9);
+
+        // And each zoom level doubles the pixel density.
+        var nextZoom = MercatorProjection.MetersPerPixel(0, 11);
+        (atEquator / nextZoom).Should().BeApproximately(2.0, 1e-9);
+    }
 }

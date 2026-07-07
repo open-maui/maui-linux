@@ -264,6 +264,7 @@ public partial class SkiaEditor
                 PositionCursorAtClick(e);
                 _selectionStart = _cursorPosition;
                 _selectionLength = 0;
+                NotifyImeSurroundingChanged();
                 _ = PastePrimarySelectionAtCaretAsync();
             }
             return;
@@ -330,6 +331,7 @@ public partial class SkiaEditor
             _lastClickY = e.Y;
         }
 
+        NotifyImeSurroundingChanged();
         _cursorVisible = true;
         _lastCursorBlink = DateTime.Now;
 
@@ -371,6 +373,7 @@ public partial class SkiaEditor
         {
             _cursorPosition = newPosition;
             _selectionLength = _cursorPosition - _selectionStart;
+            NotifyImeSurroundingChanged();
             _cursorVisible = true;
             _lastCursorBlink = DateTime.Now;
             Invalidate();
@@ -614,6 +617,12 @@ public partial class SkiaEditor
                 break;
         }
 
+        // Caret/selection-only keys (arrows, Home/End, Ctrl+A) don't touch
+        // Text, so the property-changed path won't fire — refresh the IME
+        // surrounding snapshot here.
+        if (e.Handled)
+            NotifyImeSurroundingChanged();
+
         Invalidate();
     }
 
@@ -727,6 +736,7 @@ public partial class SkiaEditor
         _selectionStart = 0;
         _cursorPosition = Text.Length;
         _selectionLength = Text.Length;
+        NotifyImeSurroundingChanged();
         Invalidate();
     }
 
@@ -893,5 +903,16 @@ public partial class SkiaEditor
         int height = (int)fontSize;
 
         _inputMethodService.SetCursorLocation(x, y, 2, height);
+    }
+
+    /// <summary>
+    /// Pushes a fresh text/caret/selection snapshot to the IME so
+    /// surrounding-text-aware input methods keep their suggestions accurate.
+    /// Cheap to over-call: the service coalesces and dedupes.
+    /// </summary>
+    private void NotifyImeSurroundingChanged()
+    {
+        if (IsFocused)
+            _inputMethodService?.NotifySurroundingTextChanged();
     }
 }
