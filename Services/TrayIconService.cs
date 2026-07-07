@@ -95,7 +95,8 @@ public sealed class TrayIcon : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        Hide();
+        _backend.Destroy(this);
+        _shown = false;
     }
 }
 
@@ -109,7 +110,10 @@ internal interface ITrayBackend
     void Create(TrayIcon icon);
     void Update(TrayIcon icon);
     void UpdateMenu(TrayIcon icon);
+    // Hide the icon but keep the platform object alive so Show can restore it.
     void Remove(TrayIcon icon);
+    // Permanently tear down the platform object (called on Dispose).
+    void Destroy(TrayIcon icon);
 }
 
 /// <summary>
@@ -184,6 +188,7 @@ internal sealed class NullTrayBackend : ITrayBackend
     public void Update(TrayIcon icon) { }
     public void UpdateMenu(TrayIcon icon) { }
     public void Remove(TrayIcon icon) { }
+    public void Destroy(TrayIcon icon) { }
 }
 
 /// <summary>
@@ -309,7 +314,14 @@ internal sealed class AppIndicatorBackend : ITrayBackend
 
     public void Create(TrayIcon icon) => RunOnMain(() =>
     {
-        if (_indicators.ContainsKey(icon)) return;
+        // Re-showing a previously hidden icon: the indicator was kept alive
+        // (Remove only sets it Passive), so just re-activate it.
+        if (_indicators.TryGetValue(icon, out var existing))
+        {
+            UpdateCore(icon, existing);
+            _setStatus(existing, StatusActive);
+            return;
+        }
 
         var native = _new(icon.Id, icon.IconPath ?? string.Empty, CategoryApplicationStatus);
         if (native == IntPtr.Zero)
@@ -385,14 +397,26 @@ internal sealed class AppIndicatorBackend : ITrayBackend
         _setMenu(indicator, menu);
     }
 
+    // Hide by setting the indicator Passive rather than destroying it. This is
+    // the portable "hidden" state: GNOME's AppIndicator host hides the icon
+    // entirely, KDE Plasma moves it to the hidden/expander area. Destroying the
+    // indicator here does NOT help — libappindicator + Plasma only drop an SNI
+    // when the owning process exits, so a destroy-per-hide leaves a dead cached
+    // entry in Plasma's tray AND blocks a clean re-show. Keeping the object live
+    // lets Create() re-activate it instantly.
     public void Remove(TrayIcon icon) => RunOnMain(() =>
     {
-        if (!_indicators.TryGetValue(icon, out var native)) return;
+        if (_indicators.TryGetValue(icon, out var native))
+            _setStatus(native, StatusPassive);
+    });
+
+    // Permanent teardown (Dispose). On GNOME this removes the icon; on KDE the
+    // entry lingers until process exit (a Plasma/libappindicator limitation) —
+    // set Passive first so it is at least hidden from the main tray meanwhile.
+    public void Destroy(TrayIcon icon) => RunOnMain(() =>
+    {
+        if (!_indicators.Remove(icon, out var native)) return;
         _setStatus(native, StatusPassive);
-        _indicators.Remove(icon);
-        // Drop the ref app_indicator_new gave us. The indicator releases its
-        // menu ref in dispose; menu-item closure destruction then frees the
-        // action GCHandles via s_menuItemDestroyed.
         g_object_unref(native);
     });
 }
