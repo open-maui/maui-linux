@@ -120,6 +120,9 @@ public static partial class GStreamerInterop
     [LibraryImport(LibGst, EntryPoint = "gst_plugin_feature_set_rank")]
     public static partial void gst_plugin_feature_set_rank(IntPtr feature, uint rank);
 
+    [LibraryImport(LibGst, EntryPoint = "gst_plugin_feature_get_rank")]
+    public static partial uint gst_plugin_feature_get_rank(IntPtr feature);
+
     // Ranks GStreamer recognises. Anything ≥ Primary outranks the standard
     // SW decoders; Marginal keeps the factory available but ranked behind
     // anything else.

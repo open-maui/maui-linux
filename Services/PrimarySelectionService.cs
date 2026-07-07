@@ -31,15 +31,16 @@ public class PrimarySelectionService
     /// <summary>Shared instance — the same one MAUI handlers/services use.</summary>
     public static PrimarySelectionService Default => s_default.Value;
 
-    /// <summary>True when there's text currently in the primary selection.</summary>
-    public bool HasText
-    {
-        get
-        {
-            try { return !string.IsNullOrEmpty(GetTextAsync().GetAwaiter().GetResult()); }
-            catch { return false; }
-        }
-    }
+    /// <summary>
+    /// True when there's text currently in the primary selection. Answers from
+    /// the native backend's already-tracked state only — no pipe I/O, no
+    /// subprocesses — because a sync-over-async read here would block the GLib
+    /// main loop and can deadlock against our own selection source. Returns
+    /// false when only the subprocess backends are available (they cannot be
+    /// probed without blocking).
+    /// </summary>
+    public bool HasText =>
+        WaylandWindow.NativePrimarySelectionAvailable && WaylandWindow.NativePrimarySelectionHasText;
 
     /// <summary>Read the primary selection. Returns null on any failure.</summary>
     public async Task<string?> GetTextAsync()
@@ -68,7 +69,18 @@ public class PrimarySelectionService
     /// </summary>
     public async Task SetTextAsync(string? text)
     {
-        if (string.IsNullOrEmpty(text)) return;
+        if (string.IsNullOrEmpty(text))
+        {
+            // Null/empty clears the selection: set_selection with a NULL source
+            // natively, --clear flags on the subprocess fallbacks (xclip has no
+            // clear operation, so it is skipped).
+            if (WaylandWindow.NativePrimarySelectionAvailable && WaylandWindow.TryClearPrimarySelection())
+                return;
+            if (IsWayland && await RunFeedStdin("wl-copy", "--primary --clear", string.Empty))
+                return;
+            await RunFeedStdin("xsel", "--primary --clear", string.Empty);
+            return;
+        }
 
         bool ok = false;
         if (WaylandWindow.NativePrimarySelectionAvailable)

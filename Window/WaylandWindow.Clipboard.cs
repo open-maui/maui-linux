@@ -59,6 +59,9 @@ public partial class WaylandWindow
     #region State
 
     private IntPtr _dataDeviceManager;
+    // Actual bound version (min(advertised, 3)) — set in the registry handler.
+    // DnD finish/set_actions are v3+ requests and must be skipped below that.
+    private uint _dataDeviceManagerVersion;
     private IntPtr _dataDevice;
 
     // Most-recently-received offer from a wl_data_device.selection event.
@@ -155,9 +158,18 @@ public partial class WaylandWindow
         public IntPtr Action;
     }
 
-    // Cached, pinned delegate instances (one set per WaylandWindow). Re-used
-    // across each new wl_data_offer / wl_data_source so we don't churn GCHandles
-    // on hot paths.
+    // Rooted delegate instances (one set per WaylandWindow). The listener
+    // structs only store raw function pointers — these fields are what keep
+    // the delegates (and their native thunks) alive for libwayland. Re-used
+    // across each new wl_data_offer / wl_data_source so we don't churn
+    // GCHandles on hot paths.
+    private WlDataDeviceDataOfferDelegate? _deviceDataOfferDelegate;
+    private WlDataDeviceEnterDelegate? _deviceEnterDelegate;
+    private WlDataDeviceLeaveDelegate? _deviceLeaveDelegate;
+    private WlDataDeviceMotionDelegate? _deviceMotionDelegate;
+    private WlDataDeviceDropDelegate? _deviceDropDelegate;
+    private WlDataDeviceSelectionDelegate? _deviceSelectionDelegate;
+
     private WlDataOfferOfferDelegate? _offerOfferDelegate;
     private WlDataOfferSourceActionsDelegate? _offerSourceActionsDelegate;
     private WlDataOfferActionDelegate? _offerActionDelegate;
@@ -223,14 +235,23 @@ public partial class WaylandWindow
             return;
         }
 
+        // Root the delegates in fields first — GetFunctionPointerForDelegate
+        // does not keep its delegate alive, and libwayland holds these pointers
+        // for the lifetime of the data device.
+        _deviceDataOfferDelegate = OnDataDeviceDataOffer;
+        _deviceEnterDelegate = OnDataDeviceEnter;
+        _deviceLeaveDelegate = OnDataDeviceLeave;
+        _deviceMotionDelegate = OnDataDeviceMotion;
+        _deviceDropDelegate = OnDataDeviceDrop;
+        _deviceSelectionDelegate = OnDataDeviceSelection;
         _dataDeviceListener = new WlDataDeviceListener
         {
-            DataOffer = Marshal.GetFunctionPointerForDelegate<WlDataDeviceDataOfferDelegate>(OnDataDeviceDataOffer),
-            Enter = Marshal.GetFunctionPointerForDelegate<WlDataDeviceEnterDelegate>(OnDataDeviceEnter),
-            Leave = Marshal.GetFunctionPointerForDelegate<WlDataDeviceLeaveDelegate>(OnDataDeviceLeave),
-            Motion = Marshal.GetFunctionPointerForDelegate<WlDataDeviceMotionDelegate>(OnDataDeviceMotion),
-            Drop = Marshal.GetFunctionPointerForDelegate<WlDataDeviceDropDelegate>(OnDataDeviceDrop),
-            Selection = Marshal.GetFunctionPointerForDelegate<WlDataDeviceSelectionDelegate>(OnDataDeviceSelection),
+            DataOffer = Marshal.GetFunctionPointerForDelegate(_deviceDataOfferDelegate),
+            Enter = Marshal.GetFunctionPointerForDelegate(_deviceEnterDelegate),
+            Leave = Marshal.GetFunctionPointerForDelegate(_deviceLeaveDelegate),
+            Motion = Marshal.GetFunctionPointerForDelegate(_deviceMotionDelegate),
+            Drop = Marshal.GetFunctionPointerForDelegate(_deviceDropDelegate),
+            Selection = Marshal.GetFunctionPointerForDelegate(_deviceSelectionDelegate),
         };
         _dataDeviceListenerHandle = GCHandle.Alloc(_dataDeviceListener, GCHandleType.Pinned);
         wl_proxy_add_listener(_dataDevice, _dataDeviceListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -251,7 +272,10 @@ public partial class WaylandWindow
         _sourceSendDelegate = OnDataSourceSend;
         _sourceCancelledDelegate = OnDataSourceCancelled;
         _sourceDndDropPerformedDelegate = OnDataSourceDndNoOp;
-        _sourceDndFinishedDelegate = OnDataSourceDndNoOp;
+        // dnd_finished is the SUCCESS terminal event for a drag source —
+        // cancelled only fires for failed drags — so it must destroy the
+        // source or every successful drag leaks it.
+        _sourceDndFinishedDelegate = OnDataSourceDndFinished;
         _sourceActionDelegate = OnDataSourceAction;
         _sourceListenerTemplate = new WlDataSourceListener
         {
@@ -406,13 +430,25 @@ public partial class WaylandWindow
         if (!handle.IsAllocated) { try { libc_close(fd); } catch { } return; }
         var window = (WaylandWindow)handle.Target!;
 
+        // Pull the text for THIS specific source (the latest copy may have
+        // superseded it but its cancelled event hasn't fired yet — pasting
+        // apps may still be reading from the older selection). Clipboard and
+        // drag sources are tracked separately; check both. The dict lookup
+        // happens here on the dispatch thread — only the write moves off it.
+        if (!window._ownedSourceTexts.TryGetValue(source, out var text)
+            && !window._dragSourceTexts.TryGetValue(source, out text))
+            text = string.Empty;
+
+        // Write on a background thread: a paste client that reads slowly (or
+        // not at all) would otherwise block the GLib main loop once the text
+        // exceeds the pipe buffer.
+        Task.Run(() => WriteAllToFdAndClose(fd, text));
+    }
+
+    private static void WriteAllToFdAndClose(int fd, string text)
+    {
         try
         {
-            // Pull the text for THIS specific source (the latest copy may have
-            // superseded it but its cancelled event hasn't fired yet — pasting
-            // apps may still be reading from the older selection).
-            if (!window._ownedSourceTexts.TryGetValue(source, out var text))
-                text = string.Empty;
             var bytes = Encoding.UTF8.GetBytes(text);
             int offset = 0;
             while (offset < bytes.Length)
@@ -426,7 +462,7 @@ public partial class WaylandWindow
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("WaylandWindow", $"OnDataSourceSend write failed: {ex.Message}");
+            DiagnosticLog.Error("WaylandWindow", $"source send write failed: {ex.Message}");
         }
         finally
         {
@@ -443,6 +479,20 @@ public partial class WaylandWindow
         window.DestroySource(source);
         if (window._ownedDataSource == source)
             window._ownedDataSource = IntPtr.Zero;
+        if (window._activeDragSource == source)
+            window._activeDragSource = IntPtr.Zero;
+    }
+
+    // Successful-drag terminal event; see the listener wiring comment above.
+    private static void OnDataSourceDndFinished(IntPtr data, IntPtr source)
+    {
+        var handle = GCHandle.FromIntPtr(data);
+        if (!handle.IsAllocated) return;
+        var window = (WaylandWindow)handle.Target!;
+
+        window.DestroySource(source);
+        if (window._activeDragSource == source)
+            window._activeDragSource = IntPtr.Zero;
     }
 
     private void DestroySource(IntPtr source)
@@ -451,17 +501,22 @@ public partial class WaylandWindow
         if (_sourceListenerHandles.Remove(source, out var pinned) && pinned.IsAllocated)
             pinned.Free();
         _ownedSourceTexts.Remove(source);
+        _dragSourceTexts.Remove(source);
         wl_proxy_marshal(source, WL_DATA_SOURCE_DESTROY);
         wl_proxy_destroy(source);
     }
 
     private void DropOwnedSource()
     {
-        // Destroy ALL outstanding owned sources. Called only from Dispose; during
-        // normal operation we let OnDataSourceCancelled clean up individual ones.
+        // Destroy ALL outstanding sources (clipboard and drag). Called only from
+        // Dispose; during normal operation OnDataSourceCancelled /
+        // OnDataSourceDndFinished clean up individual ones.
         foreach (var ptr in _ownedSourceTexts.Keys.ToArray())
             DestroySource(ptr);
+        foreach (var ptr in _dragSourceTexts.Keys.ToArray())
+            DestroySource(ptr);
         _ownedDataSource = IntPtr.Zero;
+        _activeDragSource = IntPtr.Zero;
     }
 
     #endregion
@@ -493,6 +548,29 @@ public partial class WaylandWindow
     /// </summary>
     public static bool NativeClipboardAvailable =>
         s_activeClipboardWindow != null && s_activeClipboardWindow._dataDevice != IntPtr.Zero;
+
+    /// <summary>
+    /// Non-blocking probe: true when we own the clipboard with non-empty text,
+    /// or the current selection offer advertises a text MIME. Answers purely
+    /// from already-tracked state — no pipe I/O, no subprocesses — so it is
+    /// safe to call on the main thread (a blocking read here can deadlock
+    /// against our own source's send event).
+    /// </summary>
+    public static bool NativeClipboardHasText
+    {
+        get
+        {
+            var w = s_activeClipboardWindow;
+            if (w == null) return false;
+            if (w._ownedDataSource != IntPtr.Zero
+                && w._ownedSourceTexts.TryGetValue(w._ownedDataSource, out var own))
+                return own.Length > 0;
+            if (w._currentClipboardOffer == IntPtr.Zero) return false;
+            foreach (var m in s_textMimeTypes)
+                if (w._currentOfferMimes.Contains(m)) return true;
+            return false;
+        }
+    }
 
     /// <summary>
     /// Set clipboard text natively via wl_data_source.
@@ -583,50 +661,107 @@ public partial class WaylandWindow
         }
         if (chosen == null) return Task.FromResult<string?>(null);
 
-        // Create a pipe; give the write-end to the compositor via receive(),
-        // read the read-end ourselves on a background task.
-        var fds = new int[2];
-        if (libc_pipe(fds) != 0)
-        {
-            DiagnosticLog.Warn("WaylandWindow", "pipe() failed for clipboard receive");
-            return Task.FromResult<string?>(null);
-        }
-        int readFd = fds[0], writeFd = fds[1];
-
-        // Non-blocking read so a buggy source can't deadlock us forever.
-        libc_fcntl(readFd, F_SETFL, O_NONBLOCK);
-
-        wl_proxy_marshal_string_fd(w._currentClipboardOffer, WL_DATA_OFFER_RECEIVE, chosen, writeFd);
-        // The compositor takes ownership of writeFd; close our copy so EOF
-        // arrives at readFd when the source side closes its end.
-        libc_close(writeFd);
-        wl_display_flush(w._display);
-
-        return Task.Run(() => ReadAllFromFd(readFd));
+        var offer = w._currentClipboardOffer;
+        return ReceiveOfferTextAsync(
+            () => w._currentClipboardOffer == offer ? offer : IntPtr.Zero,
+            WL_DATA_OFFER_RECEIVE, chosen, w._display);
     }
 
+    /// <summary>
+    /// Issue offer.receive(mime, fd) on the main thread — offers are created and
+    /// destroyed there, so marshalling from another thread races their
+    /// destruction — then read the pipe on a background task. The
+    /// <paramref name="resolveOffer"/> callback runs on the main thread and
+    /// re-validates that the offer is still current, returning IntPtr.Zero to
+    /// abort. Used by both the clipboard and primary-selection paste paths.
+    /// </summary>
+    private static Task<string?> ReceiveOfferTextAsync(
+        Func<IntPtr> resolveOffer, uint receiveOpcode, string mime, IntPtr display)
+    {
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void IssueReceive()
+        {
+            try
+            {
+                var offer = resolveOffer();
+                if (offer == IntPtr.Zero)
+                {
+                    tcs.TrySetResult(null);
+                    return;
+                }
+
+                // Create a pipe; give the write-end to the compositor via
+                // receive(), read the read-end ourselves on a background task.
+                var fds = new int[2];
+                if (libc_pipe(fds) != 0)
+                {
+                    DiagnosticLog.Warn("WaylandWindow", "pipe() failed for offer receive");
+                    tcs.TrySetResult(null);
+                    return;
+                }
+                int readFd = fds[0], writeFd = fds[1];
+
+                // Non-blocking read so a buggy source can't deadlock us forever.
+                libc_fcntl(readFd, F_SETFL, O_NONBLOCK);
+
+                wl_proxy_marshal_string_fd(offer, receiveOpcode, mime, writeFd);
+                // The compositor takes ownership of writeFd; close our copy so
+                // EOF arrives at readFd when the source side closes its end.
+                libc_close(writeFd);
+                wl_display_flush(display);
+
+                Task.Run(() => tcs.TrySetResult(ReadAllFromFd(readFd)));
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("WaylandWindow", $"offer receive failed: {ex.Message}");
+                tcs.TrySetResult(null);
+            }
+        }
+
+        if (Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread
+            || Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main is not { } dispatcher)
+            IssueReceive();
+        else
+            dispatcher.Dispatch(IssueReceive);
+
+        return tcs.Task;
+    }
+
+    /// <summary>
+    /// Drain a receive pipe. Returns null — not "" — when the source never
+    /// closed its end (idle timeout), so callers treat it as a failure and fall
+    /// through to their subprocess fallbacks instead of pasting empty/truncated
+    /// text.
+    /// </summary>
     private static string? ReadAllFromFd(int fd)
     {
         try
         {
             var buffer = new byte[4096];
             var ms = new MemoryStream();
-            const int timeoutMs = 250;
-            var start = Environment.TickCount;
+            const int idleTimeoutMs = 250;
+            var lastProgress = Environment.TickCount;
+            bool eof = false;
 
-            while (Environment.TickCount - start < timeoutMs)
+            while (Environment.TickCount - lastProgress < idleTimeoutMs)
             {
                 var n = libc_read(fd, buffer, (nuint)buffer.Length);
                 if (n > 0)
                 {
                     ms.Write(buffer, 0, (int)n);
+                    // Idle timeout, not total: a large-but-active transfer
+                    // keeps extending its own deadline.
+                    lastProgress = Environment.TickCount;
                     continue;
                 }
-                if (n == 0) break; // EOF — source closed its end
+                if (n == 0) { eof = true; break; } // EOF — source closed its end
                 // n < 0 → EAGAIN under non-blocking; spin briefly waiting for more.
                 System.Threading.Thread.Sleep(2);
             }
 
+            if (!eof) return null; // timed out — treat as failure, not empty text
             return Encoding.UTF8.GetString(ms.ToArray());
         }
         catch (Exception ex)
