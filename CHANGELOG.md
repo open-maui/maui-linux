@@ -4,7 +4,59 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.70.3] - unreleased
+## [10.0.70.4] - unreleased
+
+> Two-part release. First, stability and correctness hardening across the 10.0.70.x surfaces, driven by a deep code review of the newest subsystems — several crash-class and data-corruption-class bugs fixed. Second, a desktop-integration round-out: full X11 XDND drag-and-drop in both directions, IME surrounding-text, map polygon/circle overlays, a GTK print dialog, and an XEmbed tray fallback.
+
+### Added
+
+- **Outgoing drags on X11, and a backend-agnostic entry point.** `DragDropService.TryStartDrag(text)` routes to the native Wayland data-device drag when available and otherwise runs a full XDND source: XdndSelection ownership, pointer grab, `XdndAware` target discovery under the cursor, Enter/Position/Status negotiation, drop + `SelectionRequest` data delivery (`TARGETS`, `UTF8_STRING`, `text/plain` variants), Escape cancel, and 2 s finish timeouts. (Incoming X11 drops are under Fixed below.)
+- **`set_surrounding_text` — the IME loop is complete.** The focused `SkiaEntry`/`SkiaEditor`'s text, caret, and selection anchor are now pushed to the compositor via `zwp_text_input_v3` (≤4000-byte UTF-8 window centered on the caret, cut on code-point boundaries; spec-correct `set_text_change_cause`; pushes coalesced per frame and deduped; password entries excluded). The same read seam also feeds IBus via `ibus_input_context_set_surrounding_text` (code-point offsets), so X11 IME users benefit too.
+- **Map polygon and circle overlays.** `LinuxMapHandler` now routes `IFilledMapElement` (polygons) and `ICircleMapElement` (circles) in addition to polylines — fill + stroke honored, circle radius projected through Mercator meters-per-pixel at the center latitude, world-wrap aware. `SkiaMap` gains `Polygons`/`Circles` collections (new `MapPolygon`/`MapCircle` types) for code-first use.
+- **GTK print dialog.** `PrintService.ShowPrintDialogAsync()` shows a `GtkPrintUnixDialog` (printer, copies, page ranges, duplex, collate, scale, number-up, plus the printer's PPD driver options via GTK's CUPS backend) and returns the selection as CUPS-ready options for `PrintFile`. Non-blocking on the GLib loop; returns null with one warning when GTK isn't loadable. The Preview button surfaces as `PreviewRequested = true` for the app to render and open (GTK's automatic preview handoff only exists inside `GtkPrintOperation`). Note: GTK's virtual "Print to File" printer is not a CUPS destination — check the returned name against `EnumeratePrinters()`.
+- **`PrintJobResult.Status`** (`Submitted` / `NothingToPrint` / `Failed`) so "nothing to print" is distinguishable from a real failure; `Succeeded` semantics unchanged.
+- **XEmbed system-tray fallback.** When no StatusNotifierItem host exists, `TrayIcon` now docks a real XEmbed icon per the freedesktop System Tray Protocol (probe order: ayatana → appindicator → XEmbed → no-op). Left-click raises `Activated` (this backend supports it), right-click shows the menu via GTK (falling back to `Activated`), and icons re-dock automatically after a panel restart. Installs a process-global X error handler (chaining to any prior one) so a dying tray manager can't terminate the app.
+- Legacy map tile-cache directories (pre-provider-keyed layout) are deleted by the startup sweep instead of lingering until the size cap reaches them.
+
+### Fixed — Wayland core
+
+- **All Wayland listener callback delegates are now rooted in fields.** Every listener registration (registry, seat, xdg_surface/toplevel, wm_base, buffer, decoration, fractional-scale, text-input, pointer, keyboard, data-device, primary-selection device) previously passed unrooted delegate temporaries to `Marshal.GetFunctionPointerForDelegate`; after any GC the native thunk was freed and the next compositor event jumped into freed memory. Repo-wide sweep; zero unrooted callback sites remain.
+- **Drag sources are destroyed on `dnd_finished`.** A successful outgoing drag previously never cleaned up its `wl_data_source` — leaking the proxy and, worse, leaving the clipboard's self-paste short-circuit pointing at the dragged text (copy "A", drag "B", paste → "B"). Drag sources now have their own tracking, fully separate from clipboard selection bookkeeping.
+- **`DragEventArgs.Accepted` now defaults to `true`.** Drops were silently rejected unless a `DragEnter` handler explicitly opted in, making DnD inert out of the box on both backends.
+- **DnD protocol correctness:** rejection now sends a NULL mime (empty string is a *real* accept on the wire and could make source apps delete "moved" data); enter with a null offer no longer crashes; enter/motion coordinates are converted from `wl_fixed_t` and DPI-scaled (were 256× too large); `set_actions`/`finish` are gated on the actually-bound `wl_data_device_manager` version; `start_drag` uses the button-press serial (stale serials made compositors silently ignore drags); drop processing captures the offer and accepted mime before clearing shared state, closing races with late `leave` events and back-to-back drags.
+- **Self-paste deadlock fixes:** `PrimarySelectionService.HasText` and `ClipboardService.HasText` were sync-over-async — freezing the GLib loop and, when our own process owned the selection, deadlocking permanently. Both are now zero-I/O probes of tracked native state. Pipe writes to paste requesters moved off the main thread; `receive()` reads re-validate the offer on the main thread and read on a background thread with an idle-based timeout that returns failure (engaging fallbacks) instead of silently-empty text. The self-paste short-circuits also dispatch pending events first, so a just-lost selection isn't answered with stale text.
+- Primary selection can now be **cleared** (`SetTextAsync(null)` → `set_selection(NULL)`), and `TrySetPrimarySelectionText` fails gracefully when protocol symbols are missing.
+
+### Fixed — X11
+
+- **First working XDND drop path.** The XDND handlers existed but were never driven; `RequestDropData` was a stub that returned null while acking success — a source app performing a Move could delete the user's file with nothing delivered. The X11 window now announces `XdndAware`, routes `ClientMessage`/`SelectionNotify` into `DragDropService`, and implements the real transfer: `XConvertSelection` → `SelectionNotify` → property read (INCR-capable for large payloads) → `XdndFinished` reporting success only when data actually arrived.
+
+### Fixed — Maps
+
+- **Tile-cache images can no longer be disposed while the renderer is drawing them** — eviction/replacement disposal is deferred to a future main-loop iteration.
+- **`MoveToRegion` now lands on the requested span.** The span→zoom conversion ignored viewport size (correct only for a 256-px-wide map; a 1280-px window under-zoomed by ~2.3 levels). Pre-layout calls are deferred until first layout.
+- **`Map.VisibleRegion` is now written back** after pan/zoom (was permanently null), with reentrancy guards; `VisibleRegion` removed from the input property mapper.
+- Marker vs info-window click semantics now match other platforms (first tap selects + `MarkerClicked`; tapping the selected pin fires `InfoWindowClicked`); pin hit-testing works inside scrolled containers; pins/polylines render (and hit-test) in wrapped world copies across the antimeridian; pan clamps at the Mercator latitude limit instead of sticking past the pole; mutating a `Pin` in place (Location/Label) now updates its marker.
+- **Tile service hardening:** downloads capped at 2 concurrent connections per the OSM tile policy; failed fetches negatively cached (15 s retry window) instead of re-requested every frame; at most one redraw per in-flight tile; inflight dedup via `Lazy` (no double downloads/leaked images); true LRU memory cache; disk cache keyed by tile-server template (switching providers can't serve stale styles — note: tiles cached under the old layout are orphaned until swept) and bounded at 256 MB with oldest-first pruning; `Dispose` on the shared `Default` singleton is a safe no-op; cache-dir failure degrades to memory-only.
+- **HiDPI:** at device scale ≥ 1.5, tiles are fetched one zoom level deeper and rendered at half logical size — crisp maps on HiDPI displays.
+
+### Fixed — Tray icons
+
+- `app_indicator_set_icon_full` and `app_indicator_set_label` were bound with a missing third parameter, passing a garbage pointer on every icon/tooltip update (undefined behavior on all desktops). Correct 3-arg signatures now.
+- Menu-item callback lifetime is now GTK-owned via `GClosureNotify` — the old code freed delegate `GCHandle`s on menu rebuild while a popped-open old menu could still invoke them (use-after-free), and `Remove` leaked the indicator (now `g_object_unref`'d, also fixing duplicate StatusNotifierItem registrations on Hide/Show cycles).
+- All GTK/appindicator calls marshal to the GLib main thread; `TrayIcon.Activated` docs now state plainly that the AppIndicator backend cannot raise it (SNI left-click opens the menu by design).
+
+### Fixed — Printing
+
+- The blocking CUPS submit no longer runs on the UI thread; new `EnumeratePrintersAsync`/`PrintFileAsync` variants, and the sync APIs warn once when called on the main thread.
+- `PrintSkiaPagesAsync` pages are committed only after `renderPage` confirms them (via `SKPicture` replay), so returning `false` on the first page prints nothing instead of a blank page; the temp PDF is created owner-only (0600).
+
+### Fixed — MediaElement
+
+- `MediaHardwareAccelerationService.Apply` guards on `gst_is_initialized()` (an empty pre-init registry previously produced misleading "install gstreamer1-vaapi" advice and silently did nothing).
+- Original decoder ranks are snapshotted before modification and `Apply(Auto)` restores them — toggling `Prefer`/`Disable` at runtime is now fully reversible. Rank changes remain process-global (documented).
+
+## [10.0.70.3] - 2026-06-03
 
 > Re-release of the 10.0.70.2 work to include the `OpenMaui.Controls.Linux.Maps` sibling package, which was authored alongside the rest of 10.0.70.2 but missing from the release workflow's pack step. Added pack steps for Maps in `.gitea/workflows/release.yml` + `.gitea/workflows/ci.yml`, and brought the `.github` workflows in line (they previously packed only the main package — Hosting, MediaElement, Maps, and Templates are now explicit pack steps there too). No code changes vs. 10.0.70.2.
 

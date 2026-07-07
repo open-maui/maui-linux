@@ -776,6 +776,7 @@ public partial class SkiaEntry : SkiaView, IInputContext
         _scrollOffset = 0; // Reset scroll when text changes externally
         _selectionLength = 0;
         TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, newText ?? ""));
+        NotifyImeSurroundingChanged();
         Invalidate();
     }
 
