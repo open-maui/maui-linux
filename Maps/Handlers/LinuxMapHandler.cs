@@ -8,6 +8,7 @@ using Microsoft.Maui.Maps.Handlers;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Maps.Native;
 using Microsoft.Maui.Platform.Linux.Maps.Views;
+using Microsoft.Maui.Platform.Linux.Services;
 // IMap is ambiguous between Microsoft.Maui.ApplicationModel (the launcher
 // service) and Microsoft.Maui.Maps (the control contract). The handler always
 // means the Maps one.
@@ -196,6 +197,22 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
         platformView.Circles.Clear();
         foreach (var element in map.Elements)
         {
+            // A single element MAUI hasn't fully implemented (see the
+            // StrokeDashPattern note below) must not blank the entire map.
+            try
+            {
+                AddMapElement(platformView, element);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("LinuxMapHandler", $"Skipping map element {element.GetType().Name}: {ex.Message}");
+            }
+        }
+        platformView.Invalidate();
+    }
+
+    private static void AddMapElement(SkiaMap platformView, IMapElement element)
+    {
             if (element is ICircleMapElement circleElement)
             {
                 var circle = new MapCircle
@@ -236,12 +253,20 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
                     line.StrokeColor = lineStroke;
                 if (element.StrokeThickness > 0)
                     line.StrokeWidth = (float)element.StrokeThickness;
-                if (element.StrokeDashPattern is { Length: > 0 } dash)
+                // Microsoft.Maui.Controls.Maps.MapElement declares IStroke but
+                // throws NotImplementedException from StrokeDashPattern's getter
+                // (verified on MAUI 10.0.70), so it must be read defensively —
+                // an unguarded access blanks the whole map.
+                if (TryGetDashPattern(element) is { Length: > 0 } dash)
                     line.DashPattern = dash;
                 platformView.Polylines.Add(line);
             }
-        }
-        platformView.Invalidate();
+    }
+
+    private static float[]? TryGetDashPattern(IMapElement element)
+    {
+        try { return element.StrokeDashPattern; }
+        catch (NotImplementedException) { return null; }
     }
 
     public static void MapUpdateMapElement(IMapHandler handler, IMap map, object? arg)
@@ -328,6 +353,23 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
         var (topLat, _) = MercatorProjection.GlobalPixelToLatLon(centerPx, centerPy - height / 2.0, zoom);
         var (bottomLat, _) = MercatorProjection.GlobalPixelToLatLon(centerPx, centerPy + height / 2.0, zoom);
         var latDegrees = Math.Abs(topLat - bottomLat);
+
+        // At the minimum zoom on a tall (HiDPI) viewport the world is smaller
+        // than the window, so the edge pixels project past the poles and
+        // latDegrees can reach ~180. MapSpan's span degrees are bounded — clamp
+        // both spans and bail on any non-finite value so we never hand MAUI an
+        // out-of-range span (which throws, and here would crash the app since
+        // this runs inside the input callback).
+        if (!double.IsFinite(lat) || !double.IsFinite(lon)
+            || !double.IsFinite(latDegrees) || !double.IsFinite(lonDegrees))
+            return;
+        latDegrees = Math.Clamp(latDegrees, 1e-6, 180.0);
+        lonDegrees = Math.Clamp(lonDegrees, 1e-6, 360.0);
+        // The map pans horizontally without bound, so the center longitude can
+        // wrap past ±180. MAUI's Location constructor rejects anything outside
+        // [-180, 180], so normalize into that range before building the span.
+        lon = ((lon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+        lat = Math.Clamp(lat, -90.0, 90.0);
 
         var current = map.VisibleRegion;
         if (current != null
