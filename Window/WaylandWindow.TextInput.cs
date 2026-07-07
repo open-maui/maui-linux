@@ -79,9 +79,17 @@ public partial class WaylandWindow
     public bool ImeEnabled => _imeEnabled;
     public bool NativeTextInputAvailable => _textInput != IntPtr.Zero;
 
-    // Listener storage.
+    // Listener storage. The struct only stores raw function pointers; the
+    // delegate fields below are what keep the delegates (and their native
+    // thunks) alive for libwayland.
     private TextInputV3Listener _textInputListener;
     private GCHandle _textInputListenerHandle;
+    private TextInputEnterDelegate? _textInputEnterDelegate;
+    private TextInputLeaveDelegate? _textInputLeaveDelegate;
+    private TextInputPreeditStringDelegate? _textInputPreeditStringDelegate;
+    private TextInputCommitStringDelegate? _textInputCommitStringDelegate;
+    private TextInputDeleteSurroundingTextDelegate? _textInputDeleteSurroundingTextDelegate;
+    private TextInputDoneDelegate? _textInputDoneDelegate;
 
     #endregion
 
@@ -136,14 +144,23 @@ public partial class WaylandWindow
             return;
         }
 
+        // Root the delegates in fields first — GetFunctionPointerForDelegate
+        // does not keep its delegate alive, and libwayland holds these pointers
+        // for the lifetime of the text_input proxy.
+        _textInputEnterDelegate = OnTextInputEnter;
+        _textInputLeaveDelegate = OnTextInputLeave;
+        _textInputPreeditStringDelegate = OnTextInputPreeditString;
+        _textInputCommitStringDelegate = OnTextInputCommitString;
+        _textInputDeleteSurroundingTextDelegate = OnTextInputDeleteSurroundingText;
+        _textInputDoneDelegate = OnTextInputDone;
         _textInputListener = new TextInputV3Listener
         {
-            Enter = Marshal.GetFunctionPointerForDelegate<TextInputEnterDelegate>(OnTextInputEnter),
-            Leave = Marshal.GetFunctionPointerForDelegate<TextInputLeaveDelegate>(OnTextInputLeave),
-            PreeditString = Marshal.GetFunctionPointerForDelegate<TextInputPreeditStringDelegate>(OnTextInputPreeditString),
-            CommitString = Marshal.GetFunctionPointerForDelegate<TextInputCommitStringDelegate>(OnTextInputCommitString),
-            DeleteSurroundingText = Marshal.GetFunctionPointerForDelegate<TextInputDeleteSurroundingTextDelegate>(OnTextInputDeleteSurroundingText),
-            Done = Marshal.GetFunctionPointerForDelegate<TextInputDoneDelegate>(OnTextInputDone),
+            Enter = Marshal.GetFunctionPointerForDelegate(_textInputEnterDelegate),
+            Leave = Marshal.GetFunctionPointerForDelegate(_textInputLeaveDelegate),
+            PreeditString = Marshal.GetFunctionPointerForDelegate(_textInputPreeditStringDelegate),
+            CommitString = Marshal.GetFunctionPointerForDelegate(_textInputCommitStringDelegate),
+            DeleteSurroundingText = Marshal.GetFunctionPointerForDelegate(_textInputDeleteSurroundingTextDelegate),
+            Done = Marshal.GetFunctionPointerForDelegate(_textInputDoneDelegate),
         };
         _textInputListenerHandle = GCHandle.Alloc(_textInputListener, GCHandleType.Pinned);
         wl_proxy_add_listener(_textInput, _textInputListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
