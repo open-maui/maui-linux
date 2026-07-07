@@ -20,6 +20,8 @@ namespace Microsoft.Maui.Platform.Linux.Maps.Views;
 ///   - Zoom with scroll wheel (toward cursor).
 ///   - Pin overlays in <see cref="Pins"/>.
 ///   - Polyline overlays in <see cref="Polylines"/>.
+///   - Polygon overlays in <see cref="Polygons"/>.
+///   - Circle overlays in <see cref="Circles"/>.
 ///   - Attribution overlay (lower-right) when <see cref="ShowAttribution"/> is true.
 ///
 /// Tiles are fetched and cached by <see cref="OsmTileService.Default"/> — see
@@ -66,6 +68,12 @@ public class SkiaMap : SkiaView
 
     /// <summary>Mutable polyline collection.</summary>
     public List<MapPolyline> Polylines { get; } = new();
+
+    /// <summary>Mutable polygon collection (filled + stroked, closed automatically).</summary>
+    public List<MapPolygon> Polygons { get; } = new();
+
+    /// <summary>Mutable circle collection (geographic center + radius in meters).</summary>
+    public List<MapCircle> Circles { get; } = new();
 
     public bool ShowAttribution { get; set; } = true;
     public bool AllowPan { get; set; } = true;
@@ -141,7 +149,10 @@ public class SkiaMap : SkiaView
         canvas.Save();
         canvas.ClipRect(bounds);
 
+        // Filled shapes under strokes, pins on top.
         DrawTiles(canvas, bounds);
+        DrawPolygons(canvas, bounds);
+        DrawCircles(canvas, bounds);
         DrawPolylines(canvas, bounds);
         DrawPins(canvas, bounds);
 
@@ -298,6 +309,113 @@ public class SkiaMap : SkiaView
                     else path.LineTo(sx, sy);
                 }
                 canvas.DrawPath(path, paint);
+            }
+        }
+    }
+
+    private void DrawPolygons(SKCanvas canvas, SKRect bounds)
+    {
+        if (Polygons.Count == 0) return;
+
+        var (centerPx, centerPy) = MercatorProjection.LatLonToGlobalPixel(_centerLatitude, _centerLongitude, _zoom);
+        var halfW = bounds.Width / 2f;
+        var halfH = bounds.Height / 2f;
+        var originX = centerPx - halfW;
+        var originY = centerPy - halfH;
+        var (kMin, kMax, worldWidth) = VisibleWorldCopies(originX, bounds.Width);
+
+        foreach (var polygon in Polygons)
+        {
+            if (polygon.Points.Count < 3) continue;
+
+            using var fill = new SKPaint
+            {
+                Color = polygon.FillColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+            };
+            using var stroke = new SKPaint
+            {
+                Color = polygon.StrokeColor,
+                StrokeWidth = polygon.StrokeWidth,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+                StrokeJoin = SKStrokeJoin.Round,
+            };
+
+            // Same technique as DrawPolylines: project once, then emit a
+            // closed path per visible world copy with the copy offset folded
+            // into the double-precision origin.
+            var projected = new List<(double Px, double Py)>(polygon.Points.Count);
+            foreach (var (lat, lon) in polygon.Points)
+                projected.Add(MercatorProjection.LatLonToGlobalPixel(lat, lon, _zoom));
+
+            for (int k = kMin; k <= kMax; k++)
+            {
+                var copyOriginX = originX - k * worldWidth;
+                using var path = new SKPath();
+                bool started = false;
+                foreach (var (px, py) in projected)
+                {
+                    var sx = bounds.Left + (float)(px - copyOriginX);
+                    var sy = bounds.Top + (float)(py - originY);
+                    if (!started) { path.MoveTo(sx, sy); started = true; }
+                    else path.LineTo(sx, sy);
+                }
+                path.Close();
+                canvas.DrawPath(path, fill);
+                if (polygon.StrokeWidth > 0)
+                    canvas.DrawPath(path, stroke);
+            }
+        }
+    }
+
+    private void DrawCircles(SKCanvas canvas, SKRect bounds)
+    {
+        if (Circles.Count == 0) return;
+
+        var (centerPx, centerPy) = MercatorProjection.LatLonToGlobalPixel(_centerLatitude, _centerLongitude, _zoom);
+        var halfW = bounds.Width / 2f;
+        var halfH = bounds.Height / 2f;
+        var originX = centerPx - halfW;
+        var originY = centerPy - halfH;
+        var (kMin, kMax, worldWidth) = VisibleWorldCopies(originX, bounds.Width);
+
+        foreach (var circle in Circles)
+        {
+            // Flat-circle approximation: pixel radius from the Mercator
+            // meters-per-pixel at the circle's center latitude (matches the
+            // other platforms; geodesic accuracy isn't required).
+            var radiusPx = circle.RadiusMeters / MercatorProjection.MetersPerPixel(circle.Latitude, _zoom);
+            if (radiusPx <= 0) continue;
+            var r = (float)radiusPx;
+
+            var (px, py) = MercatorProjection.LatLonToGlobalPixel(circle.Latitude, circle.Longitude, _zoom);
+            var sy = bounds.Top + (float)(py - originY);
+            if (sy + r < bounds.Top || sy - r > bounds.Bottom) continue;
+
+            using var fill = new SKPaint
+            {
+                Color = circle.FillColor,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill,
+            };
+            using var stroke = new SKPaint
+            {
+                Color = circle.StrokeColor,
+                StrokeWidth = circle.StrokeWidth,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke,
+            };
+
+            for (int k = kMin; k <= kMax; k++)
+            {
+                var sx = bounds.Left + (float)(px + k * worldWidth - originX);
+                if (sx + r < bounds.Left || sx - r > bounds.Right) continue;
+
+                canvas.DrawCircle(sx, sy, r, fill);
+                if (circle.StrokeWidth > 0)
+                    canvas.DrawCircle(sx, sy, r, stroke);
             }
         }
     }

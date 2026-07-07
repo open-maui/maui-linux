@@ -34,4 +34,19 @@ public struct XEvent
 
     [FieldOffset(0)]
     public XFocusChangeEvent FocusChangeEvent;
+
+    [FieldOffset(0)]
+    public XSelectionEvent SelectionEvent;
+
+    [FieldOffset(0)]
+    public XSelectionRequestEvent SelectionRequestEvent;
+
+    [FieldOffset(0)]
+    public XSelectionClearEvent SelectionClearEvent;
+
+    [FieldOffset(0)]
+    public XPropertyEvent PropertyEvent;
+
+    [FieldOffset(0)]
+    public XDestroyWindowEvent DestroyWindowEvent;
 }

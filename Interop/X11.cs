@@ -45,6 +45,21 @@ internal static partial class X11
     [LibraryImport(LibX11)]
     public static partial IntPtr XDefaultColormap(IntPtr display, int screenNumber);
 
+    // Returns an XVisualInfo* array (free with XFree); mask selects which
+    // template fields to match (VisualIDMask = 0x1, ...).
+    [LibraryImport(LibX11)]
+    public static partial IntPtr XGetVisualInfo(IntPtr display, long visualInfoMask, ref XVisualInfo template, out int nitemsReturn);
+
+    [LibraryImport(LibX11)]
+    public static partial IntPtr XCreateColormap(IntPtr display, IntPtr window, IntPtr visual, int alloc);
+
+    [LibraryImport(LibX11)]
+    public static partial int XFreeColormap(IntPtr display, IntPtr colormap);
+
+    // Process-global; returns the previously installed handler (NULL = Xlib default).
+    [LibraryImport(LibX11)]
+    public static partial IntPtr XSetErrorHandler(IntPtr handler);
+
     [LibraryImport(LibX11)]
     public static partial int XFlush(IntPtr display);
 
