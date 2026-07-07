@@ -14,5 +14,8 @@ public static class XEventMask
     public const long PointerMotionMask = 64L;
     public const long ExposureMask = 32768L;
     public const long StructureNotifyMask = 131072L;
+    // Needed for XDND INCR transfers: the drag source signals each chunk by a
+    // PropertyNotify on our window.
+    public const long PropertyChangeMask = 4194304L; // 1L << 22
     public const long FocusChangeMask = 2097152L;
 }

@@ -75,6 +75,16 @@ public partial class WaylandWindow
     private uint _pendingDeleteAfterBytes;
     private bool _batchHasData;
 
+    // set_surrounding_text / set_text_change_cause are double-buffered: stage
+    // them here and flush in CommitTextInput() so they ride whatever commit
+    // goes out next (enable, cursor-rectangle, or their own) instead of
+    // forcing an extra commit per update.
+    private string _stagedSurroundingText = string.Empty;
+    private int _stagedSurroundingCursorBytes;
+    private int _stagedSurroundingAnchorBytes;
+    private TextInputChangeCause _stagedChangeCause;
+    private bool _surroundingTextDirty;
+
     private bool _imeEnabled;
     public bool ImeEnabled => _imeEnabled;
     public bool NativeTextInputAvailable => _textInput != IntPtr.Zero;
@@ -320,6 +330,10 @@ public partial class WaylandWindow
     public void DisableTextInput()
     {
         if (_textInput == IntPtr.Zero || !_imeEnabled) return;
+        // disable resets all double-buffered state compositor-side; drop any
+        // staged surrounding text so it can't leak into a later enable.
+        _surroundingTextDirty = false;
+        _stagedSurroundingText = string.Empty;
         wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_DISABLE);
         CommitTextInput();
         _imeEnabled = false;
@@ -338,8 +352,35 @@ public partial class WaylandWindow
         CommitTextInput();
     }
 
+    /// <summary>
+    /// Stage the focused control's surrounding text for the IME.
+    /// <paramref name="cursorBytes"/> and <paramref name="anchorBytes"/> are
+    /// byte offsets into the UTF-8 encoding of <paramref name="text"/>; the
+    /// caller windows the text to stay under the 4096-byte wire cap. Rides the
+    /// next commit(): auto-commits when the IME is already enabled, and when
+    /// staged just before EnableTextInput the enable's own commit carries it.
+    /// </summary>
+    public void SetSurroundingText(string text, int cursorBytes, int anchorBytes, TextInputChangeCause cause)
+    {
+        if (_textInput == IntPtr.Zero) return;
+        _stagedSurroundingText = text;
+        _stagedSurroundingCursorBytes = cursorBytes;
+        _stagedSurroundingAnchorBytes = anchorBytes;
+        _stagedChangeCause = cause;
+        _surroundingTextDirty = true;
+        if (_imeEnabled)
+            CommitTextInput();
+    }
+
     private void CommitTextInput()
     {
+        if (_surroundingTextDirty)
+        {
+            wl_proxy_marshal_string_int_int(_textInput, ZWP_TEXT_INPUT_V3_SET_SURROUNDING_TEXT,
+                _stagedSurroundingText, _stagedSurroundingCursorBytes, _stagedSurroundingAnchorBytes);
+            wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_SET_TEXT_CHANGE_CAUSE, (uint)_stagedChangeCause);
+            _surroundingTextDirty = false;
+        }
         unchecked { _textInputCommitSerial++; }
         wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_COMMIT);
         wl_display_flush(_display);
@@ -359,3 +400,14 @@ public readonly record struct TextInputBatch(
     string PreeditText,
     int PreeditCursorBegin,
     int PreeditCursorEnd);
+
+/// <summary>
+/// zwp_text_input_v3.change_cause — who changed the text since the last
+/// set_surrounding_text: the input method's own commit/delete batch, or
+/// anything else (user typing, caret moves, programmatic updates).
+/// </summary>
+public enum TextInputChangeCause : uint
+{
+    InputMethod = 0,
+    Other = 1,
+}
