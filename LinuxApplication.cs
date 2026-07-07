@@ -356,6 +356,10 @@ public partial class LinuxApplication : IDisposable
         _mainWindow.PointerReleased += OnPointerReleased;
         _mainWindow.Scroll += OnScroll;
         _mainWindow.CloseRequested += OnCloseRequested;
+
+        // Route native drag-and-drop into MAUI DropGestureRecognizers
+        // (additive — DragDropService.Default subscribers are unaffected).
+        WireDragDropRouting();
     }
 
     private void InitializeGtk(LinuxApplicationOptions options)
