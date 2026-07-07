@@ -72,6 +72,9 @@ public partial class WaylandWindow
     }
 
     private ToplevelDecorationListener _decorationListener;
+    // Rooted delegate — the listener struct only stores a raw function pointer,
+    // which does not keep the delegate (and its native thunk) alive.
+    private ZxdgToplevelDecorationV1ConfigureDelegate? _decorationConfigureDelegate;
     private GCHandle _decorationListenerHandle;
 
     private static void LoadDecorationInterfaces()
@@ -147,9 +150,10 @@ public partial class WaylandWindow
         // Subscribe to configure so we can detect when the compositor downgrades
         // to client-side (Mutter/GNOME always does). The event fires on every
         // mode change, including the first response to our set_mode request.
+        _decorationConfigureDelegate = OnDecorationConfigure; // rooted; see field comment
         _decorationListener = new ToplevelDecorationListener
         {
-            Configure = Marshal.GetFunctionPointerForDelegate<ZxdgToplevelDecorationV1ConfigureDelegate>(OnDecorationConfigure),
+            Configure = Marshal.GetFunctionPointerForDelegate(_decorationConfigureDelegate),
         };
         _decorationListenerHandle = GCHandle.Alloc(_decorationListener, GCHandleType.Pinned);
         wl_proxy_add_listener(_toplevelDecoration, _decorationListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -227,6 +231,8 @@ public partial class WaylandWindow
     }
 
     private FractionalScaleListener _fractionalScaleListener;
+    // Rooted delegate — same reasoning as _decorationConfigureDelegate.
+    private FractionalScalePreferredDelegate? _fractionalScalePreferredDelegate;
     private GCHandle _fractionalScaleListenerHandle;
 
     private static void LoadFractionalScaleInterfaces()
@@ -268,9 +274,10 @@ public partial class WaylandWindow
 
         if (_fractionalScale == IntPtr.Zero) return;
 
+        _fractionalScalePreferredDelegate = OnFractionalScalePreferred; // rooted; see field comment
         _fractionalScaleListener = new FractionalScaleListener
         {
-            PreferredScale = Marshal.GetFunctionPointerForDelegate<FractionalScalePreferredDelegate>(OnFractionalScalePreferred),
+            PreferredScale = Marshal.GetFunctionPointerForDelegate(_fractionalScalePreferredDelegate),
         };
         _fractionalScaleListenerHandle = GCHandle.Alloc(_fractionalScaleListener, GCHandleType.Pinned);
         wl_proxy_add_listener(_fractionalScale, _fractionalScaleListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));

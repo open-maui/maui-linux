@@ -57,6 +57,18 @@ public partial class WaylandWindow
 
     #endregion
 
+    #region Outgoing DnD state
+
+    // Drag sources are tracked separately from clipboard sources: the clipboard
+    // self-paste short-circuit consults _ownedDataSource/_ownedSourceTexts and
+    // must never see drag payloads. Sources are destroyed only in their
+    // cancelled (failed drag) or dnd_finished (successful drag) callbacks —
+    // never synchronously.
+    private IntPtr _activeDragSource;
+    private readonly Dictionary<IntPtr, string> _dragSourceTexts = new();
+
+    #endregion
+
     #region Per-instance event handlers (called from the static thunks in
     //        WaylandWindow.Clipboard.cs)
 
@@ -64,12 +76,25 @@ public partial class WaylandWindow
     {
         _dndEnterSerial = serial;
         _currentDnDOffer = offer;
-        _dndX = x; _dndY = y;
+        // x/y arrive as wl_fixed (256ths of a logical pixel); convert to buffer
+        // pixels the same way PointerEnter does.
+        var scale = _bufferToLogicalScale;
+        _dndX = (int)((x / 256.0f) * scale);
+        _dndY = (int)((y / 256.0f) * scale);
+
+        _dndAcceptedMime = null;
+
+        // A null offer is legal (a drag carrying no data): nothing to accept or
+        // negotiate — just raise DragEnter so enter/leave stay paired.
+        if (offer == IntPtr.Zero)
+        {
+            DragDropService.Default.RaiseDragEnter(MakeDragData(IntPtr.Zero), _dndX, _dndY);
+            return;
+        }
 
         // Pick the first MIME we recognize — same precedence table the clipboard
         // uses. text/uri-list takes top spot when present because file drops
         // (the most common cross-app DnD) deliver it.
-        _dndAcceptedMime = null;
         if (_offerMimesByOffer.TryGetValue(offer, out var mimes))
         {
             string[] preferred = { "text/uri-list", "text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING" };
@@ -78,31 +103,35 @@ public partial class WaylandWindow
         }
 
         // Tell the compositor whether we accept and which action we prefer.
-        // Empty mime here is the protocol-defined "reject" signal.
-        wl_proxy_marshal_uint_string(offer, WL_DATA_OFFER_ACCEPT, serial, _dndAcceptedMime ?? string.Empty);
-        wl_proxy_marshal(offer, WL_DATA_OFFER_SET_ACTIONS,
-            WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE,
-            WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
+        // A NULL mime (not empty string — that's a real mime) is the
+        // protocol-defined "reject" signal. set_actions is v3+ only.
+        wl_proxy_marshal_uint_string(offer, WL_DATA_OFFER_ACCEPT, serial, _dndAcceptedMime);
+        if (_dataDeviceManagerVersion >= 3)
+            wl_proxy_marshal(offer, WL_DATA_OFFER_SET_ACTIONS,
+                WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE,
+                WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY);
 
-        // Raise DragEnter so consumers can decide whether to accept. If they
-        // refuse, we'll re-accept with null mime in HandleDnDMotion. Most
-        // consumers leave Accepted=true and the default-Copy action stands.
-        var args = DragDropService.Default.RaiseDragEnter(MakeDragData(offer), x, y);
+        // Raise DragEnter so consumers can veto. Accepted defaults to true, so
+        // the acceptance above stands unless a handler explicitly opts out.
+        var args = DragDropService.Default.RaiseDragEnter(MakeDragData(offer), _dndX, _dndY);
         if (!args.Accepted)
         {
             _dndAcceptedMime = null;
-            wl_proxy_marshal_uint_string(offer, WL_DATA_OFFER_ACCEPT, serial, string.Empty);
+            wl_proxy_marshal_uint_string(offer, WL_DATA_OFFER_ACCEPT, serial, null);
         }
     }
 
     private void HandleDnDMotion(uint time, int x, int y)
     {
-        _dndX = x; _dndY = y;
+        // Same wl_fixed → buffer-pixel conversion as HandleDnDEnter.
+        var scale = _bufferToLogicalScale;
+        _dndX = (int)((x / 256.0f) * scale);
+        _dndY = (int)((y / 256.0f) * scale);
         if (_currentDnDOffer == IntPtr.Zero) return;
 
         // Re-raise DragOver — gives the consumer a chance to flip Accepted on
         // a per-position basis (e.g. drop only allowed in certain regions).
-        var args = DragDropService.Default.RaiseDragOver(MakeDragData(_currentDnDOffer), x, y);
+        var args = DragDropService.Default.RaiseDragOver(MakeDragData(_currentDnDOffer), _dndX, _dndY);
         // We don't re-issue accept/set_actions on every motion — the compositor
         // remembers the last value from enter. Only flip when Accepted changes.
         // (Apps that flicker the accepted state would need an extra cached
@@ -111,13 +140,12 @@ public partial class WaylandWindow
 
     private void HandleDnDLeave()
     {
+        // After a drop, ownership of the offer has transferred to HandleDnDDrop
+        // and _currentDnDOffer is already zero — a trailing leave from the
+        // compositor must not double-destroy it.
         if (_currentDnDOffer != IntPtr.Zero)
         {
-            wl_proxy_marshal(_currentDnDOffer, WL_DATA_OFFER_DESTROY);
-            wl_proxy_destroy(_currentDnDOffer);
-            if (_offerListenerHandles.Remove(_currentDnDOffer, out var pinned) && pinned.IsAllocated)
-                pinned.Free();
-            _offerMimesByOffer.Remove(_currentDnDOffer);
+            DestroyDnDOffer(_currentDnDOffer, sendFinish: false);
             _currentDnDOffer = IntPtr.Zero;
         }
         _dndAcceptedMime = null;
@@ -126,11 +154,22 @@ public partial class WaylandWindow
 
     private void HandleDnDDrop()
     {
-        if (_currentDnDOffer == IntPtr.Zero || _dndAcceptedMime == null)
+        // Capture and clear the shared state up front: ownership of the offer
+        // transfers to this drop routine, so a leave or a new drag's enter
+        // arriving while the pipe read is in flight can neither double-destroy
+        // the offer nor clobber the accepted mime. Only the captured locals are
+        // used from here on.
+        var offer = _currentDnDOffer;
+        var acceptedMime = _dndAcceptedMime;
+        _currentDnDOffer = IntPtr.Zero;
+        _dndAcceptedMime = null;
+
+        if (offer == IntPtr.Zero || acceptedMime == null)
         {
-            // User dropped on us but we rejected. Spec requires finish anyway
-            // for v3+; for safety, just destroy.
-            HandleDnDLeave();
+            // Dropped on us but nothing was accepted — destroy without finish
+            // (finish on an unaccepted offer is a protocol error).
+            DestroyDnDOffer(offer, sendFinish: false);
+            DragDropService.Default.RaiseDragLeave();
             return;
         }
 
@@ -138,21 +177,20 @@ public partial class WaylandWindow
         var fds = new int[2];
         if (libc_pipe(fds) != 0)
         {
-            HandleDnDLeave();
+            DestroyDnDOffer(offer, sendFinish: false);
+            DragDropService.Default.RaiseDragLeave();
             return;
         }
         int readFd = fds[0], writeFd = fds[1];
         libc_fcntl(readFd, F_SETFL, O_NONBLOCK);
 
-        wl_proxy_marshal_string_fd(_currentDnDOffer, WL_DATA_OFFER_RECEIVE, _dndAcceptedMime, writeFd);
+        wl_proxy_marshal_string_fd(offer, WL_DATA_OFFER_RECEIVE, acceptedMime, writeFd);
         libc_close(writeFd);
         wl_display_flush(_display);
 
         // Read on a background task — same pattern as clipboard receive — and
         // marshal the resulting drop event back to the UI thread.
-        var offer = _currentDnDOffer;
         var data = MakeDragData(offer);
-        var x = _dndX; var y = _dndY;
         Task.Run(() =>
         {
             var text = ReadAllFromFd(readFd);
@@ -170,7 +208,7 @@ public partial class WaylandWindow
                         // comments per RFC 2483. Surface decoded file:// paths
                         // on DragData.FilePaths so consumers don't have to
                         // re-parse.
-                        if (_dndAcceptedMime == "text/uri-list")
+                        if (acceptedMime == "text/uri-list")
                         {
                             var paths = new List<string>();
                             foreach (var raw in text.Split('\n'))
@@ -193,35 +231,44 @@ public partial class WaylandWindow
                 }
                 finally
                 {
-                    // wl_data_offer.finish + destroy. Required on v3+.
-                    if (offer != IntPtr.Zero)
-                    {
-                        try { wl_proxy_marshal(offer, WL_DATA_OFFER_FINISH); } catch { }
-                        try { wl_proxy_marshal(offer, WL_DATA_OFFER_DESTROY); } catch { }
-                        try { wl_proxy_destroy(offer); } catch { }
-                        if (_offerListenerHandles.Remove(offer, out var pinned) && pinned.IsAllocated)
-                            pinned.Free();
-                        _offerMimesByOffer.Remove(offer);
-                        if (_currentDnDOffer == offer) _currentDnDOffer = IntPtr.Zero;
-                    }
-                    _dndAcceptedMime = null;
+                    // wl_data_offer.finish + destroy (finish is v3+; gated in
+                    // DestroyDnDOffer).
+                    DestroyDnDOffer(offer, sendFinish: true);
                     wl_display_flush(_display);
                 }
             }
 
-            if (Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
-                RaiseAndFinish();
+            // Marshal back to the main thread; with no dispatcher (teardown)
+            // run inline rather than leak the offer.
+            if (Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main is { } dispatcher)
+                dispatcher.Dispatch(RaiseAndFinish);
             else
-                Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main?.Dispatch(RaiseAndFinish);
+                RaiseAndFinish();
         });
     }
 
-    private static DragData MakeDragData(IntPtr offer)
+    /// <summary>
+    /// Release a DnD offer: optionally send finish (v3+ only, and only legal
+    /// after an accepted drop), then destroy the proxy and free its listener
+    /// handle and MIME bookkeeping.
+    /// </summary>
+    private void DestroyDnDOffer(IntPtr offer, bool sendFinish)
     {
-        var dd = new DragData
-        {
-            SourceWindow = offer,    // we have no X11 window ptr here, repurpose for the offer
-        };
+        if (offer == IntPtr.Zero) return;
+        if (sendFinish && _dataDeviceManagerVersion >= 3)
+            try { wl_proxy_marshal(offer, WL_DATA_OFFER_FINISH); } catch { }
+        try { wl_proxy_marshal(offer, WL_DATA_OFFER_DESTROY); } catch { }
+        try { wl_proxy_destroy(offer); } catch { }
+        if (_offerListenerHandles.Remove(offer, out var pinned) && pinned.IsAllocated)
+            pinned.Free();
+        _offerMimesByOffer.Remove(offer);
+    }
+
+    private DragData MakeDragData(IntPtr offer)
+    {
+        var dd = new DragData { WaylandOffer = offer };
+        if (offer != IntPtr.Zero && _offerMimesByOffer.TryGetValue(offer, out var mimes))
+            dd.SupportedMimeTypes = mimes.ToArray();
         return dd;
     }
 
@@ -242,8 +289,9 @@ public partial class WaylandWindow
     {
         var w = s_activeClipboardWindow;
         if (w == null || w._dataDevice == IntPtr.Zero || w._dataDeviceManager == IntPtr.Zero) return false;
-        if (w._seat == IntPtr.Zero || w._pointerSerial == 0) return false;
+        if (w._seat == IntPtr.Zero || w._pointerButtonSerial == 0) return false;
         if (w._surface == IntPtr.Zero) return false;
+        if (_wl_data_source_interface == IntPtr.Zero) return false;
 
         var source = wl_proxy_marshal_constructor(
             w._dataDeviceManager,
@@ -252,8 +300,11 @@ public partial class WaylandWindow
             IntPtr.Zero);
         if (source == IntPtr.Zero) return false;
 
-        w._ownedDataSource = source;
-        w._ownedSourceTexts[source] = text ?? string.Empty;
+        // Track drag sources separately from clipboard sources — a drag source
+        // must never become _ownedDataSource, or the clipboard's self-paste
+        // short-circuit would return the dragged text instead of the clipboard.
+        w._activeDragSource = source;
+        w._dragSourceTexts[source] = text ?? string.Empty;
 
         // Source listeners are shared with clipboard — wire up the same template.
         var pinned = System.Runtime.InteropServices.GCHandle.Alloc(w._sourceListenerTemplate, System.Runtime.InteropServices.GCHandleType.Pinned);
@@ -265,16 +316,20 @@ public partial class WaylandWindow
         // accepted actions.
         foreach (var mime in s_textMimeTypes)
             wl_proxy_marshal(source, WL_DATA_SOURCE_OFFER, mime);
-        // wl_data_source.set_actions opcode is 2 in v3+. Skip on v1 — older
-        // compositors would protocol-error on it, but since we bind v3 in the
-        // registry handler this is safe.
-        wl_proxy_marshal(source, /*WL_DATA_SOURCE_SET_ACTIONS*/ 2u,
-            WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE);
+        // wl_data_source.set_actions (opcode 2) is v3+ only — on a lower bound
+        // version it is a protocol error, so gate on the actual bound version.
+        if (w._dataDeviceManagerVersion >= 3)
+            wl_proxy_marshal(source, /*WL_DATA_SOURCE_SET_ACTIONS*/ 2u,
+                WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY | WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE);
 
         // start_drag(source, origin_surface, icon_surface (null), serial).
         // Icon surface is optional; passing null gives the compositor's default
         // (or no) drag icon. A future enhancement could render a thumbnail.
-        wl_proxy_marshal_obj_obj_obj_uint(w._dataDevice, WL_DATA_DEVICE_START_DRAG, source, w._surface, IntPtr.Zero, w._pointerSerial);
+        // The serial must be the button PRESS that initiated the gesture —
+        // _pointerButtonSerial — not _pointerSerial, which pointer-enter also
+        // overwrites; a stale serial makes the compositor silently ignore the
+        // drag and the source would leak.
+        wl_proxy_marshal_obj_obj_obj_uint(w._dataDevice, WL_DATA_DEVICE_START_DRAG, source, w._surface, IntPtr.Zero, w._pointerButtonSerial);
 
         wl_display_flush(w._display);
         return true;
