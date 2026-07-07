@@ -167,7 +167,8 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         string wmClass = appName.Replace(" ", "").Replace("_", "");
         SetWMClass(wmClass, wmClass);
 
-        // Select input events
+        // Select input events. PropertyChangeMask is required for XDND INCR
+        // transfers (chunk arrival is signalled by PropertyNotify).
         X11.XSelectInput(_display, _window,
             XEventMask.KeyPressMask |
             XEventMask.KeyReleaseMask |
@@ -178,7 +179,13 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
             XEventMask.LeaveWindowMask |
             XEventMask.ExposureMask |
             XEventMask.StructureNotifyMask |
+            XEventMask.PropertyChangeMask |
             XEventMask.FocusChangeMask);
+
+        // Wire drag-and-drop: interns the XDND atoms and announces XdndAware
+        // on the window so drags from other apps are offered to us. XDND
+        // events are routed into the service from HandleEvent below.
+        DragDropService.Default.Initialize(_display, _window);
 
         // Set up WM protocols
         _wmDeleteMessage = X11.XInternAtom(_display, "WM_DELETE_WINDOW", false);
@@ -508,6 +515,11 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 HandleEvent(ref xEvent);
             }
         }
+
+        // Bound pending XDND drop transfers without blocking the loop — the
+        // pump runs every frame, so a dead drag source is aborted (and an
+        // honest XdndFinished(false) sent) within the service's timeout.
+        DragDropService.Default.CheckPendingDropTimeout();
     }
 
     /// <summary>
@@ -544,14 +556,24 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 break;
 
             case XEventType.ButtonPress:
+                // XDND source ops (selection ownership, grabs, XdndDrop) need
+                // a real event timestamp — record it from every input event.
+                DragDropService.Default.NoteInputTime(xEvent.ButtonEvent.Time);
                 HandleButtonPress(ref xEvent.ButtonEvent);
                 break;
 
             case XEventType.ButtonRelease:
+                // Consumed while an outgoing XDND drag is in progress (drop/cancel).
+                if (DragDropService.Default.ProcessSourceButtonRelease(xEvent.ButtonEvent.Time))
+                    break;
                 HandleButtonRelease(ref xEvent.ButtonEvent);
                 break;
 
             case XEventType.MotionNotify:
+                // Consumed while an outgoing XDND drag tracks the pointer.
+                if (DragDropService.Default.ProcessSourceMotion(
+                        xEvent.MotionEvent.XRoot, xEvent.MotionEvent.YRoot, xEvent.MotionEvent.Time))
+                    break;
                 HandleMotion(ref xEvent.MotionEvent);
                 break;
 
@@ -587,13 +609,67 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                         | ((long)xEvent.ClientMessageEvent.Data.L3 << 32);
                     _syncPending = true;
                 }
+                else
+                {
+                    // XDND (XdndEnter/Position/Leave/Drop) and other protocol
+                    // client messages route to the drag-and-drop service; it
+                    // ignores message types it doesn't own.
+                    DragDropService.Default.ProcessClientMessage(
+                        xEvent.ClientMessageEvent.MessageType,
+                        new nint[]
+                        {
+                            (nint)xEvent.ClientMessageEvent.Data.L0,
+                            (nint)xEvent.ClientMessageEvent.Data.L1,
+                            (nint)xEvent.ClientMessageEvent.Data.L2,
+                            (nint)xEvent.ClientMessageEvent.Data.L3,
+                            (nint)xEvent.ClientMessageEvent.Data.L4,
+                        });
+                }
+                break;
+
+            case XEventType.SelectionNotify:
+                // Reply to the XConvertSelection issued for an XDND drop.
+                DragDropService.Default.ProcessSelectionNotify(
+                    xEvent.SelectionEvent.Selection,
+                    xEvent.SelectionEvent.Target,
+                    xEvent.SelectionEvent.Property);
+                break;
+
+            case XEventType.PropertyNotify:
+                // INCR chunk arrival for a large XDND transfer.
+                DragDropService.Default.ProcessPropertyNotify(
+                    xEvent.PropertyEvent.Atom,
+                    xEvent.PropertyEvent.State);
+                break;
+
+            case XEventType.SelectionRequest:
+                // A drop target pulling the payload of our outgoing XDND drag.
+                DragDropService.Default.ProcessSelectionRequest(
+                    xEvent.SelectionRequestEvent.Requestor,
+                    xEvent.SelectionRequestEvent.Selection,
+                    xEvent.SelectionRequestEvent.Target,
+                    xEvent.SelectionRequestEvent.Property,
+                    xEvent.SelectionRequestEvent.Time);
+                break;
+
+            case XEventType.SelectionClear:
+                // We lost the XDND selection — cancels an outgoing drag.
+                DragDropService.Default.ProcessSelectionClear(
+                    xEvent.SelectionClearEvent.Selection);
                 break;
         }
     }
 
     private void HandleKeyPress(ref XKeyEvent keyEvent)
     {
+        DragDropService.Default.NoteInputTime(keyEvent.Time);
+
         var keysym = KeyMapping.GetKeysym(_display, keyEvent.Keycode, (keyEvent.State & 0x01) != 0);
+
+        // Escape cancels an outgoing XDND drag; the key is consumed.
+        if (DragDropService.Default.ProcessSourceKey((ulong)keysym))
+            return;
+
         var key = KeyMapping.FromKeysym(keysym);
         var modifiers = KeyMapping.GetModifiers(keyEvent.State);
 

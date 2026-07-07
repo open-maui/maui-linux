@@ -624,12 +624,71 @@ public partial class WaylandWindow
     /// <summary>
     /// Read clipboard text natively via wl_data_offer.receive on the current
     /// selection. Returns null if no clipboard offer is present or no text MIME
-    /// matched; the caller then falls back to wl-paste.
+    /// matched; the caller then falls back to wl-paste. The read decision runs
+    /// on the main thread so pending compositor events (in particular a
+    /// cancelled() revoking our selection ownership) are observed first.
     /// </summary>
     public static Task<string?> TryGetClipboardTextAsync()
     {
         var w = s_activeClipboardWindow;
         if (w == null) return Task.FromResult<string?>(null);
+        return RunGetterOnMainThread(w.GetClipboardTextCore);
+    }
+
+    /// <summary>
+    /// Run a selection getter's decision phase on the main thread — offer and
+    /// ownership state are only mutated there, and the pre-read event pump
+    /// (see <see cref="SyncSelectionStateOnMainThread"/>) must run there too.
+    /// Shared by the clipboard and primary-selection paths.
+    /// </summary>
+    private static Task<string?> RunGetterOnMainThread(Func<Task<string?>> core)
+    {
+        if (Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread
+            || Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main is not { } dispatcher)
+            return core();
+
+        var tcs = new TaskCompletionSource<Task<string?>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        dispatcher.Dispatch(() =>
+        {
+            try { tcs.TrySetResult(core()); }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("WaylandWindow", $"selection getter failed: {ex.Message}");
+                tcs.TrySetResult(Task.FromResult<string?>(null));
+            }
+        });
+        return tcs.Task.Unwrap();
+    }
+
+    /// <summary>
+    /// Ensure compositor events already queued (or still on the wire) have
+    /// been dispatched, so a pending cancelled() on our selection source has
+    /// been observed before we trust "we own the selection". Main thread only.
+    /// No-ops when called from inside a Wayland event callback — re-entering
+    /// dispatch there is not allowed, and mid-dispatch state is by definition
+    /// current.
+    /// </summary>
+    private void SyncSelectionStateOnMainThread()
+    {
+        if (_inWaylandDispatch || _display == IntPtr.Zero) return;
+        _inWaylandDispatch = true;
+        try
+        {
+            // Roundtrip rather than dispatch_pending: a cancelled() the
+            // compositor sent but that we haven't read off the socket yet is
+            // exactly the stale case being closed here.
+            wl_display_roundtrip(_display);
+        }
+        finally
+        {
+            _inWaylandDispatch = false;
+        }
+    }
+
+    private Task<string?> GetClipboardTextCore()
+    {
+        // Observe any pending cancelled() before trusting ownership below.
+        SyncSelectionStateOnMainThread();
 
         // Self-paste short-circuit: if WE own the current clipboard (we wrote it
         // with TrySetClipboardText), reading back through the wayland pipe would
@@ -638,22 +697,22 @@ public partial class WaylandWindow
         // the buffered text directly. The "we own it" check is: we have an active
         // owned source AND the current selection's MIMEs match what we offered
         // (compositor mirrors our offered MIMEs in the new selection).
-        if (w._ownedDataSource != IntPtr.Zero
-            && w._ownedSourceTexts.TryGetValue(w._ownedDataSource, out var ownText)
-            && w._currentClipboardOffer != IntPtr.Zero
-            && SelectionLooksLikeOurs(w._currentOfferMimes))
+        if (_ownedDataSource != IntPtr.Zero
+            && _ownedSourceTexts.TryGetValue(_ownedDataSource, out var ownText)
+            && _currentClipboardOffer != IntPtr.Zero
+            && SelectionLooksLikeOurs(_currentOfferMimes))
         {
             return Task.FromResult<string?>(ownText);
         }
 
-        if (w._currentClipboardOffer == IntPtr.Zero)
+        if (_currentClipboardOffer == IntPtr.Zero)
             return Task.FromResult<string?>(null);
 
         // Find the best MIME match.
         string? chosen = null;
         foreach (var preferred in s_textMimeTypes)
         {
-            if (w._currentOfferMimes.Contains(preferred))
+            if (_currentOfferMimes.Contains(preferred))
             {
                 chosen = preferred;
                 break;
@@ -661,10 +720,10 @@ public partial class WaylandWindow
         }
         if (chosen == null) return Task.FromResult<string?>(null);
 
-        var offer = w._currentClipboardOffer;
+        var offer = _currentClipboardOffer;
         return ReceiveOfferTextAsync(
-            () => w._currentClipboardOffer == offer ? offer : IntPtr.Zero,
-            WL_DATA_OFFER_RECEIVE, chosen, w._display);
+            () => _currentClipboardOffer == offer ? offer : IntPtr.Zero,
+            WL_DATA_OFFER_RECEIVE, chosen, _display);
     }
 
     /// <summary>

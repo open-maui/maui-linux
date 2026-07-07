@@ -55,6 +55,16 @@ public interface IInputMethodService
     bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown);
 
     /// <summary>
+    /// Notifies the IME that the focused control's text, caret, or selection
+    /// changed. Services that support surrounding text (Wayland
+    /// zwp_text_input_v3.set_surrounding_text, IBus SetSurroundingText) push a
+    /// fresh snapshot read from the focused <see cref="IInputContext"/> so the
+    /// input method's suggestions stay accurate. Default no-op for backends
+    /// without a surrounding-text concept (X11 XIM, null service).
+    /// </summary>
+    void NotifySurroundingTextChanged() { }
+
+    /// <summary>
     /// Resets the IME state, canceling any composition.
     /// </summary>
     void Reset();
