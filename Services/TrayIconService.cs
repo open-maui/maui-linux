@@ -176,15 +176,12 @@ internal sealed class AppIndicatorBackend : ITrayBackend
 
     private readonly IntPtr _libHandle;
     private readonly Dictionary<TrayIcon, IntPtr> _indicators = new();
-    // Keep GCHandles for click delegates so the GC doesn't collect them while
-    // GTK still holds a function-pointer reference.
-    private readonly Dictionary<IntPtr, List<GCHandle>> _delegateHandles = new();
 
     private readonly NewDelegate _new;
     private readonly SetStatusDelegate _setStatus;
-    private readonly SetStringDelegate _setIcon;
+    private readonly SetTwoStringsDelegate _setIcon;
     private readonly SetStringDelegate _setTitle;
-    private readonly SetStringDelegate _setLabel;
+    private readonly SetTwoStringsDelegate _setLabel;
     private readonly SetMenuDelegate _setMenu;
 
     public bool IsAvailable => true;
@@ -197,6 +194,11 @@ internal sealed class AppIndicatorBackend : ITrayBackend
     private delegate void SetStatusDelegate(IntPtr self, int status);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     private delegate void SetStringDelegate(IntPtr self, string value);
+    // app_indicator_set_icon_full(self, icon_name, icon_desc) and
+    // app_indicator_set_label(self, label, guide) both take a second string
+    // (nullable in C).
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    private delegate void SetTwoStringsDelegate(IntPtr self, string value, string? second);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void SetMenuDelegate(IntPtr self, IntPtr menu);
 
@@ -215,24 +217,70 @@ internal sealed class AppIndicatorBackend : ITrayBackend
 
     [DllImport(LibGObject, CharSet = CharSet.Ansi, EntryPoint = "g_signal_connect_data")]
     private static extern ulong g_signal_connect_data(IntPtr instance, string detailedSignal, IntPtr cHandler, IntPtr data, IntPtr destroyData, int connectFlags);
+    [DllImport(LibGObject)] private static extern void g_object_unref(IntPtr obj);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void GtkActivateDelegate(IntPtr widget, IntPtr userData);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void GClosureNotifyDelegate(IntPtr data, IntPtr closure);
+
+    // One static activate handler + one destroy-notify shared by every menu
+    // item. The per-item Action travels as user_data (a GCHandle), and GTK
+    // calls the notify when it destroys the closure — i.e. when the menu item
+    // itself dies, however long a popped-open old menu keeps it alive. That
+    // makes GTK the owner of the handle's lifetime, so we never free one that
+    // a live widget can still call through. Rooted in static fields so the
+    // function pointers stay valid for the process lifetime.
+    private static readonly GtkActivateDelegate s_menuItemActivate = OnMenuItemActivate;
+    private static readonly GClosureNotifyDelegate s_menuItemDestroyed = OnMenuItemClosureDestroyed;
+    private static readonly IntPtr s_menuItemActivatePtr = Marshal.GetFunctionPointerForDelegate(s_menuItemActivate);
+    private static readonly IntPtr s_menuItemDestroyedPtr = Marshal.GetFunctionPointerForDelegate(s_menuItemDestroyed);
+
+    private static void OnMenuItemActivate(IntPtr widget, IntPtr userData)
+    {
+        if (GCHandle.FromIntPtr(userData).Target is not Action action) return;
+        try
+        {
+            if (LinuxDispatcher.IsMainThread) action();
+            else LinuxDispatcher.Main?.Dispatch(action);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("TrayIconService", $"Menu item handler threw: {ex.Message}");
+        }
+    }
+
+    private static void OnMenuItemClosureDestroyed(IntPtr data, IntPtr closure)
+    {
+        var handle = GCHandle.FromIntPtr(data);
+        if (handle.IsAllocated) handle.Free();
+    }
+
+    // GTK and libappindicator are not thread-safe; everything below must run
+    // on the GLib main loop. Callers may be on any thread (e.g. after an
+    // await that resumed on the pool), so marshal here rather than trusting
+    // them. Before the dispatcher exists the app is single-threaded startup
+    // code, so inline is safe.
+    private static void RunOnMain(Action action)
+    {
+        if (LinuxDispatcher.IsMainThread || LinuxDispatcher.Main is not { } main) action();
+        else main.Dispatch(action);
+    }
 
     public AppIndicatorBackend(IntPtr libHandle, string libName)
     {
         _libHandle = libHandle;
         _new = Marshal.GetDelegateForFunctionPointer<NewDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_new"));
         _setStatus = Marshal.GetDelegateForFunctionPointer<SetStatusDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_status"));
-        _setIcon = Marshal.GetDelegateForFunctionPointer<SetStringDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_icon_full"));
+        _setIcon = Marshal.GetDelegateForFunctionPointer<SetTwoStringsDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_icon_full"));
         _setTitle = Marshal.GetDelegateForFunctionPointer<SetStringDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_title"));
-        _setLabel = Marshal.GetDelegateForFunctionPointer<SetStringDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_label"));
+        _setLabel = Marshal.GetDelegateForFunctionPointer<SetTwoStringsDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_label"));
         _setMenu = Marshal.GetDelegateForFunctionPointer<SetMenuDelegate>(NativeLibrary.GetExport(libHandle, "app_indicator_set_menu"));
 
         DiagnosticLog.Debug("TrayIconService", $"AppIndicator backend ready ({libName})");
     }
 
-    public void Create(TrayIcon icon)
+    public void Create(TrayIcon icon) => RunOnMain(() =>
     {
         if (_indicators.ContainsKey(icon)) return;
 
@@ -243,47 +291,46 @@ internal sealed class AppIndicatorBackend : ITrayBackend
             return;
         }
         _indicators[icon] = native;
-        _delegateHandles[native] = new List<GCHandle>();
 
         // libappindicator requires a menu to be set before most
         // StatusNotifierWatcher hosts will draw the icon. Build an initial one
         // and apply property values.
         BuildMenu(icon, native);
-        Update(icon);
+        UpdateCore(icon, native);
         _setStatus(native, StatusActive);
-    }
+    });
 
-    public void Update(TrayIcon icon)
+    public void Update(TrayIcon icon) => RunOnMain(() =>
     {
-        if (!_indicators.TryGetValue(icon, out var native)) return;
+        if (_indicators.TryGetValue(icon, out var native))
+            UpdateCore(icon, native);
+    });
 
+    private void UpdateCore(TrayIcon icon, IntPtr native)
+    {
         if (!string.IsNullOrEmpty(icon.IconPath))
-            _setIcon(native, icon.IconPath);
+            _setIcon(native, icon.IconPath, icon.Title.Length > 0 ? icon.Title : icon.Id);
         if (!string.IsNullOrEmpty(icon.Title))
             _setTitle(native, icon.Title);
         // Tooltip → "label" on the indicator (text drawn alongside the icon on
-        // desktops that show one).
+        // desktops that show one). The guide is used for width reservation;
+        // the label itself is a fine guide.
         if (!string.IsNullOrEmpty(icon.Tooltip))
-            _setLabel(native, icon.Tooltip);
+            _setLabel(native, icon.Tooltip, icon.Tooltip);
     }
 
-    public void UpdateMenu(TrayIcon icon)
+    public void UpdateMenu(TrayIcon icon) => RunOnMain(() =>
     {
         if (!_indicators.TryGetValue(icon, out var native)) return;
         BuildMenu(icon, native);
-    }
+    });
 
     private void BuildMenu(TrayIcon icon, IntPtr indicator)
     {
-        // Free previously-pinned delegate handles for this indicator. The old
-        // GtkMenu is unref'd when we set_menu the new one — libappindicator
-        // takes the ref.
-        if (_delegateHandles.TryGetValue(indicator, out var oldHandles))
-        {
-            foreach (var h in oldHandles) if (h.IsAllocated) h.Free();
-            oldHandles.Clear();
-        }
-
+        // The previous GtkMenu is unref'd by set_menu below; its items'
+        // closures are destroyed with it (or once a popped-open copy closes),
+        // and each destruction frees that item's action GCHandle via
+        // s_menuItemDestroyed.
         var menu = gtk_menu_new();
         foreach (var item in icon.MenuItems)
         {
@@ -299,23 +346,9 @@ internal sealed class AppIndicatorBackend : ITrayBackend
 
                 if (item.Action != null)
                 {
-                    var capturedAction = item.Action;
-                    GtkActivateDelegate handler = (w, _) =>
-                    {
-                        try
-                        {
-                            if (LinuxDispatcher.IsMainThread) capturedAction();
-                            else LinuxDispatcher.Main?.Dispatch(capturedAction);
-                        }
-                        catch (Exception ex)
-                        {
-                            DiagnosticLog.Error("TrayIconService", $"Menu item handler threw: {ex.Message}");
-                        }
-                    };
-                    var ptr = Marshal.GetFunctionPointerForDelegate(handler);
-                    var pinned = GCHandle.Alloc(handler);
-                    _delegateHandles[indicator].Add(pinned);
-                    g_signal_connect_data(widget, "activate", ptr, IntPtr.Zero, IntPtr.Zero, 0);
+                    var handle = GCHandle.Alloc(item.Action);
+                    g_signal_connect_data(widget, "activate", s_menuItemActivatePtr,
+                        GCHandle.ToIntPtr(handle), s_menuItemDestroyedPtr, 0);
                 }
             }
             gtk_widget_show(widget);
@@ -325,16 +358,14 @@ internal sealed class AppIndicatorBackend : ITrayBackend
         _setMenu(indicator, menu);
     }
 
-    public void Remove(TrayIcon icon)
+    public void Remove(TrayIcon icon) => RunOnMain(() =>
     {
         if (!_indicators.TryGetValue(icon, out var native)) return;
         _setStatus(native, StatusPassive);
-        // app_indicator gets g_object_unref'd implicitly when we drop our last
-        // reference. Releasing it explicitly is tricky because AppIndicator
-        // owns a g_object_ref on its menu; the safer path is to let the GTK
-        // main loop reap it.
         _indicators.Remove(icon);
-        if (_delegateHandles.Remove(native, out var handles))
-            foreach (var h in handles) if (h.IsAllocated) h.Free();
-    }
+        // Drop the ref app_indicator_new gave us. The indicator releases its
+        // menu ref in dispose; menu-item closure destruction then frees the
+        // action GCHandles via s_menuItemDestroyed.
+        g_object_unref(native);
+    });
 }
