@@ -23,21 +23,14 @@ public class ClipboardService : IClipboard
 {
     private string? _lastSetText;
 
-    public bool HasText
-    {
-        get
-        {
-            try
-            {
-                var result = GetTextAsync().GetAwaiter().GetResult();
-                return !string.IsNullOrEmpty(result);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-    }
+    // Non-blocking: answers from the native backend's tracked state (or the
+    // last text we set ourselves on subprocess backends). A sync-over-async
+    // read here would block the GLib main loop and can deadlock against our
+    // own selection source's send event.
+    public bool HasText =>
+        WaylandWindow.NativeClipboardAvailable
+            ? WaylandWindow.NativeClipboardHasText
+            : !string.IsNullOrEmpty(_lastSetText);
 
     public event EventHandler<EventArgs>? ClipboardContentChanged;
 

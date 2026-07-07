@@ -40,9 +40,17 @@ public enum MediaHardwareAcceleration
 /// <summary>
 /// Applies <see cref="MediaHardwareAcceleration"/> to the GStreamer registry.
 /// Run once at <c>UseLinuxMediaElement()</c> time; idempotent across pipelines.
+/// Factory ranks are process-global GStreamer state — a change here affects
+/// every pipeline in the process (including e.g. WebView-embedded media), not
+/// just MediaElement.
 /// </summary>
 public static class MediaHardwareAccelerationService
 {
+    // Original rank of every factory we've modified, keyed by factory name,
+    // so Apply(Auto) can restore stock behavior. Guarded by s_lock.
+    private static readonly Dictionary<string, uint> s_originalRanks = new();
+    private static readonly Lock s_lock = new();
+
     // Well-known HW decoder factory names. Each entry covers one stack; not
     // every plugin will be installed (and that's fine — we look up by name and
     // silently skip what's not registered). The bin variants (vaapidecodebin,
@@ -77,50 +85,92 @@ public static class MediaHardwareAccelerationService
     /// <summary>
     /// Apply the requested acceleration mode by tweaking factory ranks in the
     /// GStreamer registry. Safe to call repeatedly — gst_init must already
-    /// have run.
+    /// have run (a no-op with a warning otherwise). <see
+    /// cref="MediaHardwareAcceleration.Auto"/> restores the stock rank of any
+    /// factory a previous call modified.
     /// </summary>
     public static void Apply(MediaHardwareAcceleration mode)
     {
-        if (mode == MediaHardwareAcceleration.Auto) return;
+        // gst_registry_get() lazily creates an *empty* registry before
+        // gst_init, so a null check alone can't catch call-order mistakes —
+        // we'd silently tweak nothing and lose the intent when the real init
+        // populates the registry with default ranks.
+        if (!gst_is_initialized())
+        {
+            DiagnosticLog.Warn("MediaHardwareAccelerationService", "gst_init has not run — registry is unpopulated, ignoring Apply()");
+            return;
+        }
 
         var registry = gst_registry_get();
         if (registry == IntPtr.Zero)
         {
-            DiagnosticLog.Warn("MediaHardwareAccelerationService", "gst_registry_get() returned null — gst_init may not have run yet");
+            DiagnosticLog.Warn("MediaHardwareAccelerationService", "gst_registry_get() returned null");
             return;
         }
 
-        uint targetRank = mode switch
+        lock (s_lock)
         {
-            MediaHardwareAcceleration.Prefer => GST_RANK_PRIMARY + 64,   // edges out the SW factories' GST_RANK_PRIMARY
-            MediaHardwareAcceleration.Disable => GST_RANK_NONE,
-            _ => GST_RANK_PRIMARY,
-        };
+            if (mode == MediaHardwareAcceleration.Auto)
+            {
+                RestoreOriginalRanks(registry);
+                return;
+            }
 
-        int adjusted = 0;
-        var found = new List<string>();
-        foreach (var name in s_hwDecoderFactories)
+            uint targetRank = mode switch
+            {
+                MediaHardwareAcceleration.Prefer => GST_RANK_PRIMARY + 64,   // edges out the SW factories' GST_RANK_PRIMARY
+                MediaHardwareAcceleration.Disable => GST_RANK_NONE,
+                _ => GST_RANK_PRIMARY,
+            };
+
+            int adjusted = 0;
+            var found = new List<string>();
+            foreach (var name in s_hwDecoderFactories)
+            {
+                var feature = gst_registry_lookup_feature(registry, name);
+                if (feature == IntPtr.Zero) continue;
+
+                // Snapshot the stock rank the first time we touch a factory so
+                // Apply(Auto) can undo Prefer/Disable.
+                if (!s_originalRanks.ContainsKey(name))
+                    s_originalRanks[name] = gst_plugin_feature_get_rank(feature);
+
+                gst_plugin_feature_set_rank(feature, targetRank);
+                gst_object_unref(feature);   // lookup_feature transfers a ref to us
+                found.Add(name);
+                adjusted++;
+            }
+
+            var verb = mode == MediaHardwareAcceleration.Prefer ? "boosted" : "demoted";
+            if (adjusted == 0)
+            {
+                DiagnosticLog.Debug("MediaHardwareAccelerationService",
+                    $"No HW decoder factories found to {verb}. Install gstreamer1-vaapi (Intel/AMD), nvidia-gst-plugins (NVIDIA), or similar.");
+            }
+            else
+            {
+                DiagnosticLog.Debug("MediaHardwareAccelerationService",
+                    $"{verb} {adjusted} HW decoder factor{(adjusted == 1 ? "y" : "ies")}: {string.Join(", ", found)}");
+            }
+        }
+    }
+
+    private static void RestoreOriginalRanks(IntPtr registry)
+    {
+        if (s_originalRanks.Count == 0) return;   // nothing was ever modified
+
+        int restored = 0;
+        foreach (var (name, rank) in s_originalRanks)
         {
             var feature = gst_registry_lookup_feature(registry, name);
             if (feature == IntPtr.Zero) continue;
-
-            gst_plugin_feature_set_rank(feature, targetRank);
-            gst_object_unref(feature);   // lookup_feature transfers a ref to us
-            found.Add(name);
-            adjusted++;
+            gst_plugin_feature_set_rank(feature, rank);
+            gst_object_unref(feature);
+            restored++;
         }
-
-        var verb = mode == MediaHardwareAcceleration.Prefer ? "boosted" : "demoted";
-        if (adjusted == 0)
-        {
-            DiagnosticLog.Debug("MediaHardwareAccelerationService",
-                $"No HW decoder factories found to {verb}. Install gstreamer1-vaapi (Intel/AMD), nvidia-gst-plugins (NVIDIA), or similar.");
-        }
-        else
-        {
-            DiagnosticLog.Debug("MediaHardwareAccelerationService",
-                $"{verb} {adjusted} HW decoder factor{(adjusted == 1 ? "y" : "ies")}: {string.Join(", ", found)}");
-        }
+        s_originalRanks.Clear();
+        DiagnosticLog.Debug("MediaHardwareAccelerationService",
+            $"Restored stock rank on {restored} HW decoder factor{(restored == 1 ? "y" : "ies")}");
     }
 
     /// <summary>
