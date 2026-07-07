@@ -348,13 +348,16 @@ public partial class LinuxApplication : IDisposable
 
         _mainWindow.Resized += OnWindowResized;
         _mainWindow.Exposed += OnWindowExposed;
-        _mainWindow.KeyDown += OnKeyDown;
-        _mainWindow.KeyUp += OnKeyUp;
-        _mainWindow.TextInput += OnTextInput;
-        _mainWindow.PointerMoved += OnPointerMoved;
-        _mainWindow.PointerPressed += OnPointerPressed;
-        _mainWindow.PointerReleased += OnPointerReleased;
-        _mainWindow.Scroll += OnScroll;
+        // All input handlers run synchronously inside native (Wayland/X11)
+        // event callbacks; route them through Guarded so a view exception is
+        // logged instead of aborting the process through the native frame.
+        _mainWindow.KeyDown += Guarded<KeyEventArgs>("key-down", OnKeyDown);
+        _mainWindow.KeyUp += Guarded<KeyEventArgs>("key-up", OnKeyUp);
+        _mainWindow.TextInput += Guarded<TextInputEventArgs>("text-input", OnTextInput);
+        _mainWindow.PointerMoved += Guarded<PointerEventArgs>("pointer-moved", OnPointerMoved);
+        _mainWindow.PointerPressed += Guarded<PointerEventArgs>("pointer-pressed", OnPointerPressed);
+        _mainWindow.PointerReleased += Guarded<PointerEventArgs>("pointer-released", OnPointerReleased);
+        _mainWindow.Scroll += Guarded<ScrollEventArgs>("scroll", OnScroll);
         _mainWindow.CloseRequested += OnCloseRequested;
 
         // Route native drag-and-drop into MAUI DropGestureRecognizers
@@ -378,13 +381,13 @@ public partial class LinuxApplication : IDisposable
         if (_gtkWindow.SkiaSurface != null)
         {
             _gtkWindow.SkiaSurface.DrawRequested += OnGtkDrawRequested;
-            _gtkWindow.SkiaSurface.PointerPressed += OnGtkPointerPressed;
-            _gtkWindow.SkiaSurface.PointerReleased += OnGtkPointerReleased;
-            _gtkWindow.SkiaSurface.PointerMoved += OnGtkPointerMoved;
-            _gtkWindow.SkiaSurface.KeyPressed += OnGtkKeyPressed;
-            _gtkWindow.SkiaSurface.KeyReleased += OnGtkKeyReleased;
-            _gtkWindow.SkiaSurface.Scrolled += OnGtkScrolled;
-            _gtkWindow.SkiaSurface.TextInput += OnGtkTextInput;
+            _gtkWindow.SkiaSurface.PointerPressed += Guarded<(double X, double Y, int Button)>("gtk-pointer-pressed", OnGtkPointerPressed);
+            _gtkWindow.SkiaSurface.PointerReleased += Guarded<(double X, double Y, int Button)>("gtk-pointer-released", OnGtkPointerReleased);
+            _gtkWindow.SkiaSurface.PointerMoved += Guarded<(double X, double Y)>("gtk-pointer-moved", OnGtkPointerMoved);
+            _gtkWindow.SkiaSurface.KeyPressed += Guarded<(uint KeyVal, uint KeyCode, uint State)>("gtk-key-pressed", OnGtkKeyPressed);
+            _gtkWindow.SkiaSurface.KeyReleased += Guarded<(uint KeyVal, uint KeyCode, uint State)>("gtk-key-released", OnGtkKeyReleased);
+            _gtkWindow.SkiaSurface.Scrolled += Guarded<(double X, double Y, double DeltaX, double DeltaY, uint State)>("gtk-scroll", OnGtkScrolled);
+            _gtkWindow.SkiaSurface.TextInput += Guarded<string>("gtk-text-input", OnGtkTextInput);
         }
         _gtkWindow.Resized += OnGtkResized;
     }
