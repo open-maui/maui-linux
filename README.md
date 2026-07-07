@@ -395,6 +395,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Maps integration (OpenStreetMap) — opt-in `OpenMaui.Controls.Linux.Maps` sibling package backs `Microsoft.Maui.Controls.Maps` with OSM raster tiles, pin / polyline overlays, persistent XDG tile cache (10.0.70.2)
 - [x] Stability / correctness hardening from deep code review — Wayland listener-delegate rooting (crash-class), DnD protocol fixes with default-accept drops, self-paste deadlock fixes, first working X11 XDND drop path (INCR-capable), Maps tile-cache race + `MoveToRegion` zoom + `VisibleRegion` write-back + OSM tile-policy compliance + HiDPI tiles, tray binding/lifetime fixes, off-UI-thread printing, reversible HW-decode ranking (10.0.70.4)
 - [x] Full X11 XDND drag-and-drop — outgoing drags via backend-agnostic `DragDropService.TryStartDrag` (Wayland-first, XDND source fallback) (10.0.70.4)
+- [x] MAUI `DragGestureRecognizer` / `DropGestureRecognizer` wired to the native drag paths — `DragStarting` starts real drags; drops route to recognizer views with `AllowDrop`/`AcceptedOperation` feedback (10.0.70.4)
 - [x] `set_surrounding_text` for `text-input-v3` — focused entry text + caret + anchor pushed to the IME (also feeds IBus); completes the Wayland IME loop (10.0.70.4)
 - [x] Map polygon / circle overlays — `IFilledMapElement` / `ICircleMapElement` routed end-to-end with Mercator-correct circle radii (10.0.70.4)
 - [x] GTK print dialog — `PrintService.ShowPrintDialogAsync` (GtkPrintUnixDialog: printer, copies, ranges, duplex, PPD options → CUPS-ready) (10.0.70.4)
@@ -406,7 +407,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [ ] XAML Hot Reload
 - [ ] Live Visual Tree debug tool
 - [ ] Maps satellite / hybrid layers — secondary tile source + layer-stacking renderer
-- [ ] MAUI `DragGestureRecognizer` → native drag wiring (`TryStartDrag` exists; the gesture plumbing doesn't call it yet)
+- [ ] Drag payload types — outgoing drags source text only; file/image `DataPackage` payloads and outgoing INCR on X11
 - [ ] `Tmds.DBus` migration to replace the `dbus-monitor` subprocess in `Fcitx5InputMethodService`
 
 ## License
