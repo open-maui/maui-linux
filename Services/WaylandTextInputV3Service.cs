@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Text;
+using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Window;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -18,6 +19,8 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 ///   App side                       This service                    WaylandWindow
 ///   SetFocus(entry)            →   EnableTextInput()           →   text_input.enable+commit
 ///   SetCursorLocation(x,y,w,h) →   SetCursorRectangle(...)     →   text_input.set_cursor_rectangle+commit
+///   NotifySurroundingText-     →   SetSurroundingText(...)     →   text_input.set_surrounding_text
+///   Changed()                                                      +set_text_change_cause+commit
 ///   SetFocus(null)             →   DisableTextInput()          →   text_input.disable+commit
 ///                                  TextInputBatchApplied event ←   done(serial) handler
 ///   PreEditChanged, TextCommitted (raised on the main thread; subscribers
@@ -28,6 +31,15 @@ public class WaylandTextInputV3Service : IInputMethodService
 {
     private IInputContext? _context;
     private WaylandWindow? _wlWindow;
+
+    // Surrounding-text plumbing. _applyingBatch marks re-entrant context
+    // mutations caused by our own done()-batch handlers so the resulting
+    // surrounding update goes out with cause=input_method; _lastSurrounding
+    // dedupes identical snapshots (drag-selection fires per pointer move).
+    private bool _applyingBatch;
+    private bool _surroundingChangedDuringBatch;
+    private bool _surroundingPushScheduled;
+    private (string Text, int CursorBytes, int AnchorBytes)? _lastSurrounding;
 
     public bool IsActive => _wlWindow?.ImeEnabled ?? false;
     public string PreEditText { get; private set; } = string.Empty;
@@ -72,15 +84,68 @@ public class WaylandTextInputV3Service : IInputMethodService
         if (_wlWindow == null) return;
 
         _context = context;
+        _lastSurrounding = null;
         if (context != null)
+        {
+            // Stage the initial surrounding snapshot first: set_surrounding_text
+            // is double-buffered, so staging before EnableTextInput lets it
+            // ride the enable's own commit instead of costing a second one.
+            PushSurroundingText(TextInputChangeCause.Other);
             _wlWindow.EnableTextInput();
+        }
         else
+        {
             _wlWindow.DisableTextInput();
+        }
     }
 
     public void SetCursorLocation(int x, int y, int width, int height)
     {
         _wlWindow?.SetCursorRectangle(x, y, width, height);
+    }
+
+    public void NotifySurroundingTextChanged()
+    {
+        if (_wlWindow == null || _context == null) return;
+        if (_applyingBatch)
+        {
+            // Our own batch handlers mutate the control several times (delete,
+            // then commit); one snapshot goes out at the end of the batch with
+            // cause=input_method instead.
+            _surroundingChangedDuringBatch = true;
+            return;
+        }
+        if (_surroundingPushScheduled) return;
+
+        // Coalesce via a one-shot idle: a single UI action often mutates Text
+        // and the caret in separate steps (the Text setter raises change
+        // notifications before the control updates its cursor field), so defer
+        // the snapshot read to the next main-loop iteration and send a single
+        // final-state update per action.
+        _surroundingPushScheduled = true;
+        GLibNative.IdleAdd(() =>
+        {
+            _surroundingPushScheduled = false;
+            PushSurroundingText(TextInputChangeCause.Other);
+            return false;
+        });
+    }
+
+    private void PushSurroundingText(TextInputChangeCause cause)
+    {
+        if (_wlWindow == null || _context == null) return;
+        if (_context.IsSurroundingTextSensitive) return;
+
+        var text = _context.Text ?? string.Empty;
+        var caret = Math.Clamp(_context.CursorPosition, 0, text.Length);
+        var anchor = _context.SelectionLength != 0
+            ? Math.Clamp(_context.SelectionStart, 0, text.Length)
+            : caret;
+
+        var snapshot = BuildSurroundingWindow(text, caret, anchor);
+        if (snapshot == _lastSurrounding) return;
+        _lastSurrounding = snapshot;
+        _wlWindow.SetSurroundingText(snapshot.Text, snapshot.CursorBytes, snapshot.AnchorBytes, cause);
     }
 
     /// <summary>
@@ -101,7 +166,13 @@ public class WaylandTextInputV3Service : IInputMethodService
         {
             _wlWindow.DisableTextInput();
             if (_context != null)
+            {
+                // Re-enable resets compositor-side state; re-stage surrounding
+                // so it rides the enable's commit.
+                _lastSurrounding = null;
+                PushSurroundingText(TextInputChangeCause.Other);
                 _wlWindow.EnableTextInput();
+            }
         }
         PreEditText = string.Empty;
         PreEditCursorPosition = 0;
@@ -118,11 +189,28 @@ public class WaylandTextInputV3Service : IInputMethodService
             _wlWindow = null;
         }
         _context = null;
+        _lastSurrounding = null;
         PreEditText = string.Empty;
         PreEditCursorPosition = 0;
     }
 
     private void OnTextInputBatchApplied(object? sender, TextInputBatch batch)
+    {
+        _applyingBatch = true;
+        _surroundingChangedDuringBatch = false;
+        try
+        {
+            ApplyTextInputBatch(batch);
+        }
+        finally
+        {
+            _applyingBatch = false;
+            if (_surroundingChangedDuringBatch)
+                PushSurroundingText(TextInputChangeCause.InputMethod);
+        }
+    }
+
+    private void ApplyTextInputBatch(TextInputBatch batch)
     {
         // Spec-defined order: delete_surrounding_text first, then commit_string,
         // then preedit_string. Delete trims the anchor around the caret, commit
@@ -163,6 +251,50 @@ public class WaylandTextInputV3Service : IInputMethodService
                 _context?.OnPreEditEnded();
             }
         }
+    }
+
+    // The Wayland wire format caps messages at 4096 bytes including headers;
+    // ~4000 bytes of payload is the conventional set_surrounding_text budget
+    // (same window GTK uses).
+    internal const int MaxSurroundingBytes = 4000;
+
+    /// <summary>
+    /// Window <paramref name="text"/> to at most <see cref="MaxSurroundingBytes"/>
+    /// UTF-8 bytes around the caret, cut on code-point boundaries, and convert
+    /// the UTF-16 caret/anchor indices to byte offsets within the window's
+    /// UTF-8 encoding — the shape zwp_text_input_v3.set_surrounding_text wants.
+    /// An anchor that falls outside the window can't be expressed, so it clamps
+    /// to the nearest window edge (the selection is truncated, not invalid).
+    /// </summary>
+    internal static (string Text, int CursorBytes, int AnchorBytes) BuildSurroundingWindow(string text, int cursorChars, int anchorChars)
+    {
+        text ??= string.Empty;
+        cursorChars = Math.Clamp(cursorChars, 0, text.Length);
+        anchorChars = Math.Clamp(anchorChars, 0, text.Length);
+
+        int start = 0, end = text.Length;
+        if (Encoding.UTF8.GetByteCount(text) > MaxSurroundingBytes)
+        {
+            // Center on the caret: reserve half the budget behind it, hand
+            // whatever that side doesn't use to the side ahead, then re-expand
+            // the behind side into any remaining slack (matters when the caret
+            // sits near either end of the buffer).
+            int beforeChars = Utf8BytesToCharsBeforeCaret(text, cursorChars, MaxSurroundingBytes / 2);
+            int beforeBytes = Encoding.UTF8.GetByteCount(text.AsSpan(cursorChars - beforeChars, beforeChars));
+            int afterChars = Utf8BytesToCharsAfterCaret(text, cursorChars, MaxSurroundingBytes - beforeBytes);
+            int afterBytes = Encoding.UTF8.GetByteCount(text.AsSpan(cursorChars, afterChars));
+            beforeChars = Utf8BytesToCharsBeforeCaret(text, cursorChars, MaxSurroundingBytes - afterBytes);
+
+            start = cursorChars - beforeChars;
+            end = cursorChars + afterChars;
+        }
+
+        var window = text.Substring(start, end - start);
+        int cursorBytes = Encoding.UTF8.GetByteCount(text.AsSpan(start, cursorChars - start));
+        int anchorBytes = anchorChars <= start ? 0
+            : anchorChars >= end ? Encoding.UTF8.GetByteCount(window)
+            : Encoding.UTF8.GetByteCount(text.AsSpan(start, anchorChars - start));
+        return (window, cursorBytes, anchorBytes);
     }
 
     /// <summary>

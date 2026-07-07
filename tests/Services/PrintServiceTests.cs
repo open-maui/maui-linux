@@ -61,6 +61,25 @@ public class PrintServiceTests
         // and the job would just sit in the queue. We only require a sensible
         // return shape.
         result.Should().NotBeNull();
+        result.Status.Should().NotBe(PrintJobStatus.NothingToPrint);   // a page was committed
         // No throws, no leaks.
+    }
+
+    [Fact]
+    public async Task PrintSkiaPagesAsync_ReturnsNothingToPrint_WhenFirstPageDeclined()
+    {
+        // False on the very first call means zero pages: no job is submitted
+        // (this path never reaches CUPS, so it's fully deterministic in CI)
+        // and the result is the benign NothingToPrint state, not a failure.
+        var result = await PrintService.PrintSkiaPagesAsync(
+            printer: "__openmaui_tests_nonexistent_printer__",
+            renderPage: (canvas, page) => false,
+            pageSize: new SKSize(595, 842));
+
+        result.Should().NotBeNull();
+        result.Status.Should().Be(PrintJobStatus.NothingToPrint);
+        result.Succeeded.Should().BeFalse();
+        result.JobId.Should().Be(0);
+        result.ErrorMessage.Should().BeNull();
     }
 }

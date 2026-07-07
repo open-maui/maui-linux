@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Maps</PackageId>
-    <Version>10.0.70.3</Version>
+    <Version>10.0.70.4</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Maps (Linux)</Product>
