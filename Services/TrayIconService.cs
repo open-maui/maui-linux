@@ -9,8 +9,10 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// System tray icon. Backed by libappindicator3 / libayatana-appindicator3
 /// (StatusNotifierItem) on modern desktops — GNOME with the AppIndicator
-/// extension, KDE, Cinnamon, MATE, XFCE all show it. Apps create one per
-/// process and call <see cref="Show"/>.
+/// extension, KDE, Cinnamon, MATE, XFCE all show it. On X11 sessions without
+/// those libraries, a legacy freedesktop System Tray (XEmbed) fallback docks
+/// into old-style trays. Apps create one per process and call
+/// <see cref="Show"/>.
 ///
 /// Property changes apply immediately. Disposing or calling <see cref="Hide"/>
 /// removes the icon. <see cref="MenuItems"/> is mutable; replacing entries and
@@ -36,12 +38,13 @@ public sealed class TrayIcon : IDisposable
     /// Fires on left-click when the backend exposes that signal. The
     /// AppIndicator backend never raises this: StatusNotifierItem left-click
     /// opens the menu by design and libappindicator exposes no activation
-    /// signal. The event exists for future backends (e.g. an XEmbed fallback).
+    /// signal. The XEmbed fallback backend does raise it — on left-click, and
+    /// on any click when no menu can be shown.
     /// </summary>
     public event EventHandler? Activated;
 
-    // Not called by the AppIndicator backend (see Activated). Kept for future
-    // backends that do surface an activation signal.
+    // Not called by the AppIndicator backend (see Activated); the XEmbed
+    // backend raises it from its event thread.
     internal void RaiseActivated()
     {
         if (LinuxDispatcher.IsMainThread)
@@ -113,7 +116,9 @@ internal interface ITrayBackend
 /// Factory + backend probe. Order of preference:
 ///   1. libayatana-appindicator3.so.1 (Ubuntu/Debian + most modern installs)
 ///   2. libappindicator3.so.1         (Fedora, older distros)
-///   3. NullTrayBackend                (no tray available — Show/Hide no-op)
+///   3. XEmbedTrayBackend              (X11 sessions with a legacy freedesktop
+///                                      tray manager and no SNI host)
+///   4. NullTrayBackend                (no tray available — Show/Hide no-op)
 /// </summary>
 public static class TrayIconService
 {
@@ -147,6 +152,21 @@ public static class TrayIconService
                     NativeLibrary.Free(handle);
                 }
             }
+        }
+
+        // No StatusNotifierItem library — fall back to the legacy freedesktop
+        // System Tray Protocol (XEmbed) on X11 sessions, including XWayland.
+        try
+        {
+            if (XEmbedTrayBackend.TryCreate() is { } xembed)
+            {
+                DiagnosticLog.Debug("TrayIconService", "XEmbed tray backend ready");
+                return xembed;
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("TrayIconService", $"XEmbed backend init failed: {ex.Message}");
         }
 
         DiagnosticLog.Warn("TrayIconService", "No supported tray backend found — TrayIcon will be a no-op");

@@ -60,4 +60,68 @@ public class WaylandTextInputV3ServiceTests
         WaylandTextInputV3Service.Utf8BytesToCharsAfterCaret(text, caret: 1, byteCount: 4)
             .Should().Be(2);
     }
+
+    // set_surrounding_text sends UTF-8 text with BYTE offsets for cursor/anchor,
+    // windowed to stay under the 4096-byte Wayland message cap. These tests pin
+    // the window math: passthrough for short text, caret-centered windowing with
+    // budget redistribution near the buffer ends, code-point-boundary cuts for
+    // multi-byte text, and edge-clamping for anchors that fall outside the window.
+
+    [Fact]
+    public void BuildSurroundingWindow_ShortText_PassesThroughWithByteOffsets()
+    {
+        // "héllo": h=1 byte, é=2 bytes → caret after 'é' (char index 2) = byte 3.
+        var (text, cursor, anchor) = WaylandTextInputV3Service.BuildSurroundingWindow("héllo", 2, 5);
+        text.Should().Be("héllo");
+        cursor.Should().Be(3);
+        anchor.Should().Be(6);   // whole string is 6 UTF-8 bytes
+    }
+
+    [Fact]
+    public void BuildSurroundingWindow_LongText_CentersWindowOnCaret()
+    {
+        var (window, cursor, anchor) = WaylandTextInputV3Service.BuildSurroundingWindow(new string('a', 6000), 3000, 3000);
+        window.Length.Should().Be(WaylandTextInputV3Service.MaxSurroundingBytes);
+        cursor.Should().Be(WaylandTextInputV3Service.MaxSurroundingBytes / 2);
+        anchor.Should().Be(cursor);
+    }
+
+    [Fact]
+    public void BuildSurroundingWindow_CaretAtEnd_ReclaimsUnusedForwardBudget()
+    {
+        var (window, cursor, _) = WaylandTextInputV3Service.BuildSurroundingWindow(new string('a', 6000), 6000, 6000);
+        window.Length.Should().Be(WaylandTextInputV3Service.MaxSurroundingBytes);
+        cursor.Should().Be(WaylandTextInputV3Service.MaxSurroundingBytes);
+    }
+
+    [Fact]
+    public void BuildSurroundingWindow_CaretAtStart_ReclaimsUnusedBackwardBudget()
+    {
+        var (window, cursor, _) = WaylandTextInputV3Service.BuildSurroundingWindow(new string('a', 6000), 0, 0);
+        window.Length.Should().Be(WaylandTextInputV3Service.MaxSurroundingBytes);
+        cursor.Should().Be(0);
+    }
+
+    [Fact]
+    public void BuildSurroundingWindow_MultiByte_CutsOnCodepointBoundaries()
+    {
+        // 2000 × 中 (3 UTF-8 bytes each) = 6000 bytes, caret mid-buffer.
+        // 4000-byte budget → 666 chars behind (1998 B) + 667 ahead (2001 B).
+        var (window, cursor, _) = WaylandTextInputV3Service.BuildSurroundingWindow(new string('中', 2000), 1000, 1000);
+        System.Text.Encoding.UTF8.GetByteCount(window)
+            .Should().BeLessThanOrEqualTo(WaylandTextInputV3Service.MaxSurroundingBytes);
+        window.Length.Should().Be(1333);
+        cursor.Should().Be(1998);
+    }
+
+    [Fact]
+    public void BuildSurroundingWindow_AnchorOutsideWindow_ClampsToEdge()
+    {
+        // Caret near the end, anchor at 0 — anchor can't be expressed inside
+        // the window so it clamps to the window start.
+        var (window, cursor, anchor) = WaylandTextInputV3Service.BuildSurroundingWindow(new string('a', 6000), 5000, 0);
+        window.Length.Should().Be(WaylandTextInputV3Service.MaxSurroundingBytes);
+        cursor.Should().Be(3000);   // window covers chars 2000..6000
+        anchor.Should().Be(0);
+    }
 }

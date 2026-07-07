@@ -16,6 +16,21 @@ public static class MercatorProjection
 {
     public const double MaxLatitude = 85.05112878;
 
+    /// <summary>WGS84 equatorial circumference — the width of the Mercator world in meters.</summary>
+    public const double EarthCircumferenceMeters = 40075016.686;
+
+    /// <summary>
+    /// Ground meters covered by one pixel of the global 256px-tile Mercator
+    /// grid at the given latitude and zoom. Mercator stretches toward the
+    /// poles, hence the cos(latitude) factor. Used to convert real-world
+    /// radii (e.g. circle overlays) into pixel radii.
+    /// </summary>
+    public static double MetersPerPixel(double latitude, int zoom)
+    {
+        latitude = Math.Clamp(latitude, -MaxLatitude, MaxLatitude);
+        return EarthCircumferenceMeters * Math.Cos(latitude * Math.PI / 180.0) / (256.0 * (1L << zoom));
+    }
+
     /// <summary>
     /// Continuous tile-grid coordinate (fractional X, Y) at the given zoom.
     /// Integer parts identify the tile; fractional parts give the position

@@ -112,6 +112,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private static extern void wl_proxy_marshal_string_fd(IntPtr proxy, uint opcode,
         [MarshalAs(UnmanagedType.LPStr)] string arg1, int fd);
 
+    // zwp_text_input_v3.set_surrounding_text: (?string text, int cursor, int anchor).
+    // cursor/anchor are byte offsets into the UTF-8 text, so the string must be
+    // marshalled as UTF-8 explicitly (LPStr is UTF-8 on Linux only by platform
+    // convention; offsets computed against UTF-8 make it load-bearing here).
+    [DllImport(LibWaylandClient, EntryPoint = "wl_proxy_marshal")]
+    private static extern void wl_proxy_marshal_string_int_int(IntPtr proxy, uint opcode,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string arg1, int arg2, int arg3);
+
     [LibraryImport(LibWaylandClient)]
     private static partial IntPtr wl_proxy_marshal_array_constructor(
         IntPtr proxy, uint opcode, IntPtr args, IntPtr iface);
@@ -1765,11 +1773,20 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     private CursorType _pendingCursor = CursorType.Arrow;
 
+    // True while we are inside a libwayland dispatch (event callbacks are
+    // running). Re-entering dispatch from within a callback is not allowed;
+    // code that wants to pump events first (e.g. the clipboard ownership
+    // check) consults this and skips — inside dispatch the state is by
+    // definition current.
+    private bool _inWaylandDispatch;
+
     public void ProcessEvents()
     {
         if (!_isRunning || _display == IntPtr.Zero) return;
 
-        wl_display_dispatch_pending(_display);
+        _inWaylandDispatch = true;
+        try { wl_display_dispatch_pending(_display); }
+        finally { _inWaylandDispatch = false; }
         wl_display_flush(_display);
     }
 
@@ -1783,7 +1800,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (!_isRunning || _display == IntPtr.Zero) return;
         // wl_display_dispatch returns immediately if there are queued events; otherwise
         // it reads from the fd. Safe to call after poll() since fd is known readable.
-        wl_display_dispatch(_display);
+        _inWaylandDispatch = true;
+        try { wl_display_dispatch(_display); }
+        finally { _inWaylandDispatch = false; }
     }
 
     public void Stop()

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.InteropServices;
+using Microsoft.Maui.Platform.Linux.Dispatching;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -22,16 +23,50 @@ public sealed class PrinterInfo
         string.IsNullOrEmpty(InstanceName) ? Name : $"{Name}/{InstanceName}";
 }
 
+/// <summary>Outcome category of a print request.</summary>
+public enum PrintJobStatus
+{
+    /// <summary>The job could not be submitted — <see cref="PrintJobResult.ErrorMessage"/> says why.</summary>
+    Failed,
+
+    /// <summary>CUPS accepted the job; <see cref="PrintJobResult.JobId"/> identifies it.</summary>
+    Submitted,
+
+    /// <summary>
+    /// There was no content to print (e.g. the render callback produced zero
+    /// pages), so nothing was submitted. Not an error — <see
+    /// cref="PrintJobResult.ErrorMessage"/> is null.
+    /// </summary>
+    NothingToPrint,
+}
+
 /// <summary>
-/// Result of submitting a print job. <see cref="JobId"/> is 0 when CUPS refused
-/// the job (printer unknown, file missing, permission denied, …); the matching
-/// <see cref="ErrorMessage"/> carries the libcups error string.
+/// Result of submitting a print job. <see cref="JobId"/> is 0 when nothing was
+/// submitted; check <see cref="Status"/> to tell a real failure (printer
+/// unknown, file missing, permission denied, … — <see cref="ErrorMessage"/>
+/// carries the libcups error string) apart from a benign no-op
+/// (<see cref="PrintJobStatus.NothingToPrint"/>).
 /// </summary>
 public sealed class PrintJobResult
 {
     public int JobId { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>True only when a job was actually submitted.</summary>
     public bool Succeeded => JobId > 0;
+
+    private readonly PrintJobStatus? _status;
+
+    /// <summary>
+    /// Defaults to <see cref="PrintJobStatus.Submitted"/> when <see cref="JobId"/>
+    /// is set and <see cref="PrintJobStatus.Failed"/> otherwise; no-op paths set
+    /// <see cref="PrintJobStatus.NothingToPrint"/> explicitly.
+    /// </summary>
+    public PrintJobStatus Status
+    {
+        get => _status ?? (JobId > 0 ? PrintJobStatus.Submitted : PrintJobStatus.Failed);
+        init => _status = value;
+    }
 }
 
 /// <summary>
@@ -42,6 +77,8 @@ public sealed class PrintJobResult
 ///   <item>Submit a file (PDF, PostScript, image, or raw) to a queue (<see cref="PrintFile"/>).</item>
 ///   <item>Render a Skia surface to PDF and print it (<see cref="PrintSkiaPagesAsync"/>) —
 ///         the high-level path most apps want.</item>
+///   <item>Show the native GTK print options dialog (<see cref="ShowPrintDialogAsync"/>)
+///         to let the user pick the printer and options first.</item>
 /// </list>
 ///
 /// libcups is part of every desktop Linux install (Fedora ships it in the base
@@ -91,6 +128,19 @@ public static class PrintService
 
     private static bool? s_available;
 
+    // One warning per sync API when it's used on the GLib main thread, where
+    // the blocking cupsd round-trip freezes the UI.
+    private static bool s_warnedEnumerateOnMainThread;
+    private static bool s_warnedPrintFileOnMainThread;
+
+    private static void WarnIfMainThread(ref bool warned, string api, string asyncApi)
+    {
+        if (warned || !LinuxDispatcher.IsMainThread) return;
+        warned = true;
+        DiagnosticLog.Warn("PrintService",
+            $"{api} called on the main thread — it blocks on cupsd I/O and can freeze the UI. Use {asyncApi} from UI code.");
+    }
+
     /// <summary>True when libcups is present and queryable.</summary>
     public static bool IsAvailable
     {
@@ -116,8 +166,13 @@ public static class PrintService
     /// and any per-user instances saved with <c>lpoptions</c>.
     /// Returns an empty list when CUPS isn't installed.
     /// </summary>
+    /// <remarks>
+    /// Performs a blocking round-trip to cupsd on the calling thread. UI code
+    /// should use <see cref="EnumeratePrintersAsync"/> instead.
+    /// </remarks>
     public static IReadOnlyList<PrinterInfo> EnumeratePrinters()
     {
+        WarnIfMainThread(ref s_warnedEnumerateOnMainThread, nameof(EnumeratePrinters), nameof(EnumeratePrintersAsync));
         if (!IsAvailable) return Array.Empty<PrinterInfo>();
 
         IntPtr destsPtr = IntPtr.Zero;
@@ -186,8 +241,14 @@ public static class PrintService
     /// maps directly onto IPP options — common keys: <c>media</c>, <c>copies</c>,
     /// <c>sides</c>, <c>print-color-mode</c>, <c>orientation-requested</c>.
     /// </summary>
+    /// <remarks>
+    /// Blocks the calling thread while cupsPrintFile2 streams the whole
+    /// document to cupsd. UI code should use <see cref="PrintFileAsync"/>
+    /// instead.
+    /// </remarks>
     public static PrintJobResult PrintFile(string printer, string filePath, string jobTitle = "OpenMaui Print Job", IReadOnlyDictionary<string, string>? options = null)
     {
+        WarnIfMainThread(ref s_warnedPrintFileOnMainThread, nameof(PrintFile), nameof(PrintFileAsync));
         if (!IsAvailable)
             return new PrintJobResult { ErrorMessage = "CUPS (libcups.so.2) not installed on this system" };
         if (string.IsNullOrWhiteSpace(printer))
@@ -236,9 +297,9 @@ public static class PrintService
     /// page with an <see cref="SkiaSharp.SKCanvas"/> and the page number
     /// (1-based). Return <c>true</c> to commit that page and be called again;
     /// return <c>false</c> to stop — anything drawn during a <c>false</c> call
-    /// is discarded, so <c>false</c> on the first call prints nothing and no
-    /// job is submitted. Rendering and job submission both run off the
-    /// caller's thread.
+    /// is discarded, so <c>false</c> on the first call submits nothing and the
+    /// result has <see cref="PrintJobStatus.NothingToPrint"/>. Rendering and
+    /// job submission both run off the caller's thread.
     /// </summary>
     public static async Task<PrintJobResult> PrintSkiaPagesAsync(
         string printer,
@@ -295,7 +356,7 @@ public static class PrintService
             });
 
             if (!hasPages)
-                return new PrintJobResult { ErrorMessage = "renderPage returned false on the first page — nothing to print" };
+                return new PrintJobResult { Status = PrintJobStatus.NothingToPrint };
 
             return await PrintFileAsync(printer, tempPath, jobTitle, options);
         }
@@ -308,4 +369,18 @@ public static class PrintService
             try { File.Delete(tempPath); } catch { }
         }
     }
+
+    /// <summary>
+    /// Show the native GTK print options dialog (GtkPrintUnixDialog): printer
+    /// selection, copies, page range, duplex, per-printer driver options, and
+    /// a Preview button. Resolves to the user's selection — with
+    /// <see cref="PrintDialogResult.Options"/> in the exact shape
+    /// <see cref="PrintFile"/> expects and a printer name matching the CUPS
+    /// destination names from <see cref="EnumeratePrinters"/> — or null on
+    /// cancel / when GTK isn't available. GTK is only needed for this dialog;
+    /// <see cref="PrintFile"/> and <see cref="EnumeratePrinters"/> never
+    /// require it.
+    /// </summary>
+    public static Task<PrintDialogResult?> ShowPrintDialogAsync(string title = "Print", IntPtr parentWindow = default)
+        => GtkPrintDialog.ShowAsync(title, parentWindow);
 }
