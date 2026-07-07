@@ -211,8 +211,10 @@ public partial class DragDropService : IDisposable
         var eventArgs = new DropEventArgs(_currentDragData, droppedData);
         Drop?.Invoke(this, eventArgs);
 
-        // Send XdndFinished
-        SendXdndFinished(eventArgs.Handled);
+        // Only report success when data was actually transferred — claiming
+        // success on a null transfer would let a Move-drag source delete the
+        // original data our consumer never received.
+        SendXdndFinished(droppedData != null && eventArgs.Handled);
 
         _currentDragData = null;
         _dragSource = IntPtr.Zero;
@@ -305,10 +307,11 @@ public partial class DragDropService : IDisposable
         XConvertSelection(_display, _xdndSelection, targetType, _xdndSelection, _window, timestamp);
         XFlush(_display);
 
-        // In a real implementation, we would wait for SelectionNotify event
-        // and then get the data. For simplicity, we return null here.
-        // The actual data retrieval requires an event loop integration.
-
+        // TODO (followup feature): integrate with the X11 event loop, wait for
+        // SelectionNotify and read the converted property so X11 drops actually
+        // deliver data. Until then this returns null and HandleXdndDrop reports
+        // the drop as NOT accepted (XdndFinished accepted=false) so Move-drag
+        // sources never delete an original we never received.
         return null;
     }
 

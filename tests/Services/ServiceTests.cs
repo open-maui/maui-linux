@@ -396,7 +396,8 @@ public class LinuxDragEventArgsTests
         Assert.Equal(dragData, args.Data);
         Assert.Equal(100, args.X);
         Assert.Equal(200, args.Y);
-        Assert.False(args.Accepted);
+        // Default-accept: drops are delivered unless a handler opts out.
+        Assert.True(args.Accepted);
     }
 
     [Fact]
@@ -404,9 +405,9 @@ public class LinuxDragEventArgsTests
     {
         var args = new Microsoft.Maui.Platform.Linux.Services.DragEventArgs(new DragData(), 0, 0);
 
-        args.Accepted = true;
+        args.Accepted = false;
 
-        Assert.True(args.Accepted);
+        Assert.False(args.Accepted);
     }
 
     [Fact]
