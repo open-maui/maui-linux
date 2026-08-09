@@ -411,15 +411,18 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Map polygon / circle overlays — `IFilledMapElement` / `ICircleMapElement` routed end-to-end with Mercator-correct circle radii (10.0.70.4)
 - [x] GTK print dialog — `PrintService.ShowPrintDialogAsync` (GtkPrintUnixDialog: printer, copies, ranges, duplex, PPD options → CUPS-ready) (10.0.70.4)
 - [x] Tray icon XEmbed fallback — freedesktop System Tray Protocol backend for desktops without an SNI host; left-click `Activated` works here (10.0.70.4)
+- [x] MAUI 10.0.90 alignment — bumped Controls/Graphics/Graphics.Skia/Controls.Maps 10.0.70 → 10.0.90 (10.0.90.1)
+- [x] Drag payload types — `DragPayload` (text/files/image) drives `TryStartDrag`; per-payload MIMEs, outgoing X11 INCR, `DataPackage` file/image extraction (10.0.90.1)
+- [x] Maps satellite / hybrid layers — `SkiaMap.LayerType` + MAUI `Map.MapType`; `TileSource` abstraction with keyless OSM/Esri defaults, layer-stacking hybrid, layer-keyed cache (10.0.90.1)
+- [x] `Tmds.DBus` migration — Fcitx5 transport off the `dbus-monitor` subprocess to typed Tmds.DBus proxies (10.0.90.1)
+- [x] Live Visual Tree — `Diagnostics/VisualTreeInspector`: tree snapshot, highlight overlay, click-to-pick, text dump; opt-in Ctrl+Shift+D (10.0.90.1)
+- [x] Hot Reload — `dotnet watch` C#/XAML edits re-render the current page (Shell-rooted apps); see `docs/HOT_RELOAD.md` (10.0.90.1)
 
 ### Up next
 
 - [ ] Hardware video decode zero-copy — explicit pipeline construction for direct compositor-surface playback (`Prefer` mode already covers decoder selection)
-- [ ] XAML Hot Reload
-- [ ] Live Visual Tree debug tool
-- [ ] Maps satellite / hybrid layers — secondary tile source + layer-stacking renderer
-- [ ] Drag payload types — outgoing drags source text only; file/image `DataPackage` payloads and outgoing INCR on X11
-- [ ] `Tmds.DBus` migration to replace the `dbus-monitor` subprocess in `Fcitx5InputMethodService`
+- [ ] Non-Shell-root XAML Hot Reload — structural reload when the window page is a raw `ContentPage`/`NavigationPage` (Shell roots already work)
+- [ ] Drag payload sourcing polish — async `StreamImageSource` images for outgoing drags (currently `FileImageSource` / raw bytes only)
 
 ## License
 
