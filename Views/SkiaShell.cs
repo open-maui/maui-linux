@@ -631,6 +631,28 @@ public class SkiaShell : SkiaLayoutView
         {
             _flyoutTextColorSK = SkiaTheme.CurrentTextSK;
         }
+        ReRenderContentTrees();
+
+        // Clear icon cache so icons reload with new theme paths
+        ClearIconCache();
+
+        // Re-sync flyout item icon paths from MAUI Shell
+        IconSyncer?.Invoke(this);
+
+        InvalidateMeasure();
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Rebuilds every section's content tree from its MAUI ShellContent and
+    /// re-swaps the active page. Each rebuild goes through ContentRenderer
+    /// (CreateShellContentPage), which creates a fresh Page instance — so a
+    /// fresh <c>InitializeComponent</c> runs and any hot-reloaded XAML/C# is
+    /// picked up. Shared by <see cref="RefreshTheme"/> (theme flip) and the
+    /// hot-reload re-render path.
+    /// </summary>
+    public void ReRenderContentTrees()
+    {
         if (ContentRenderer != null)
         {
             foreach (var section in _sections)
@@ -663,11 +685,6 @@ public class SkiaShell : SkiaLayoutView
                 SendPageLifecycle(ResolveMauiPage(item));
             }
         }
-        // Clear icon cache so icons reload with new theme paths
-        ClearIconCache();
-
-        // Re-sync flyout item icon paths from MAUI Shell
-        IconSyncer?.Invoke(this);
 
         InvalidateMeasure();
         Invalidate();

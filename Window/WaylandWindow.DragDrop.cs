@@ -65,7 +65,10 @@ public partial class WaylandWindow
     // cancelled (failed drag) or dnd_finished (successful drag) callbacks —
     // never synchronously.
     private IntPtr _activeDragSource;
-    private readonly Dictionary<IntPtr, string> _dragSourceTexts = new();
+    // Per-source outgoing payload — a drag may carry text, files, and/or an
+    // image, so OnDataSourceSend resolves bytes per requested MIME rather than
+    // always writing text.
+    private readonly Dictionary<IntPtr, DragPayload> _dragSourcePayloads = new();
 
     #endregion
 
@@ -279,7 +282,8 @@ public partial class WaylandWindow
     #region Outgoing DnD — start a drag from this window
 
     /// <summary>
-    /// Begin a Wayland drag-and-drop carrying <paramref name="text"/>. Returns
+    /// Begin a Wayland drag-and-drop carrying <paramref name="text"/>.
+    /// Convenience wrapper over the <see cref="DragPayload"/> overload. Returns
     /// false if the wl_data_device isn't ready, the seat hasn't been bound, or
     /// the most recent pointer serial isn't usable. The drag remains live until
     /// the compositor fires <c>wl_data_source.cancelled</c> or
@@ -288,7 +292,19 @@ public partial class WaylandWindow
     /// for the lifetime contract).
     /// </summary>
     public static bool TryStartDrag(string text)
+        => TryStartDrag(DragPayload.FromText(text ?? string.Empty));
+
+    /// <summary>
+    /// Begin a Wayland drag carrying an arbitrary <see cref="DragPayload"/>
+    /// (any combination of text, files, and one image). The source advertises
+    /// exactly the MIMEs the payload can produce; <c>wl_data_source.send</c>
+    /// resolves bytes per requested MIME. Same lifetime contract as the text
+    /// overload.
+    /// </summary>
+    public static bool TryStartDrag(DragPayload payload)
     {
+        if (payload == null || payload.IsEmpty) return false;
+
         var w = s_activeClipboardWindow;
         if (w == null || w._dataDevice == IntPtr.Zero || w._dataDeviceManager == IntPtr.Zero) return false;
         if (w._seat == IntPtr.Zero || w._pointerButtonSerial == 0) return false;
@@ -306,17 +322,17 @@ public partial class WaylandWindow
         // must never become _ownedDataSource, or the clipboard's self-paste
         // short-circuit would return the dragged text instead of the clipboard.
         w._activeDragSource = source;
-        w._dragSourceTexts[source] = text ?? string.Empty;
+        w._dragSourcePayloads[source] = payload;
 
         // Source listeners are shared with clipboard — wire up the same template.
         var pinned = System.Runtime.InteropServices.GCHandle.Alloc(w._sourceListenerTemplate, System.Runtime.InteropServices.GCHandleType.Pinned);
         w._sourceListenerHandles[source] = pinned;
         wl_proxy_add_listener(source, pinned.AddrOfPinnedObject(), System.Runtime.InteropServices.GCHandle.ToIntPtr(w._thisHandle));
 
-        // Offer the same text MIMEs the clipboard does. set_actions advertises
-        // what we can produce; the compositor matches against the destination's
-        // accepted actions.
-        foreach (var mime in s_textMimeTypes)
+        // Offer exactly the MIMEs this payload can produce (image → uri-list →
+        // text variants). set_actions advertises what we can produce; the
+        // compositor matches against the destination's accepted actions.
+        foreach (var mime in payload.MimeTypes)
             wl_proxy_marshal(source, WL_DATA_SOURCE_OFFER, mime);
         // wl_data_source.set_actions (opcode 2) is v3+ only — on a lower bound
         // version it is a protocol error, so gate on the actual bound version.
