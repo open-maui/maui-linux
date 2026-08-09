@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.Maui.Controls;
+using Microsoft.Maui.Platform.Linux.Diagnostics;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Window;
@@ -83,6 +84,10 @@ public partial class LinuxApplication
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
+        // Live Visual Tree inspector: consume Escape while picking (no-op otherwise).
+        if (VisualTreeInspector.Instance.HandleKeyDown(e.Key))
+            return;
+
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
         {
@@ -122,6 +127,11 @@ public partial class LinuxApplication
     private void OnPointerMoved(object? sender, PointerEventArgs e)
     {
         e = ScalePointerArgs(e);
+
+        // Live Visual Tree inspector pick mode: track the hovered node and
+        // suppress normal routing while active (no-op when inactive).
+        if (VisualTreeInspector.Instance.HandlePointerMoved(e.X, e.Y))
+            return;
 
         // Route to context menu if one is active
         if (LinuxDialogService.HasContextMenu)
@@ -170,6 +180,11 @@ public partial class LinuxApplication
     {
         e = ScalePointerArgs(e);
         DiagnosticLog.Debug("LinuxApplication", $"OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
+
+        // Live Visual Tree inspector pick mode: commit the element under the
+        // cursor as the selection and consume the press (no-op when inactive).
+        if (VisualTreeInspector.Instance.HandlePointerPressed(e.X, e.Y))
+            return;
 
         // Route to context menu if one is active
         if (LinuxDialogService.HasContextMenu)

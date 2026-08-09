@@ -110,12 +110,23 @@ builder
     .UseLinuxMaps();   // Linux backend; no-op on Windows/Android/iOS/macCatalyst
 ```
 
-Tiles are fetched from `tile.openstreetmap.org` on first view and cached under `$XDG_CACHE_HOME/openmaui/osm-tiles`. To use a self-hosted or commercial tile server, override the URL template at startup:
+Tiles are fetched on first view and cached under `$XDG_CACHE_HOME/openmaui/osm-tiles`.
+
+`Map.MapType` selects the layer style:
+
+- **Street** — OpenStreetMap standard raster (`© OpenStreetMap contributors`).
+- **Satellite** — Esri "World Imagery" (keyless aerial basemap).
+- **Hybrid** — the satellite base with an Esri transparent labels/boundaries overlay.
+
+The active layer's attribution is drawn in the on-map overlay. The Esri layers are keyless but governed by [Esri's terms of use](https://www.esri.com/en-us/legal/terms/full-master-agreement), not the OSM tile policy — confirm those terms for production use, or redirect the sources at your own imagery.
+
+Each layer is a `TileSource` with a settable URL template (the `{z}/{x}/{y}` placeholder position sets the axis order — OSM uses `{z}/{x}/{y}`, ArcGIS uses `{z}/{y}/{x}`). To use a self-hosted or commercial tile server, redirect a layer at startup:
 
 ```csharp
 using Microsoft.Maui.Platform.Linux.Maps.Services;
 
-OsmTileService.Default.UrlTemplate = "https://my-tiles.example.com/{z}/{x}/{y}.png";
+MapTileLayers.Street.UrlTemplate = "https://my-tiles.example.com/{z}/{x}/{y}.png";
+// (OsmTileService.Default.UrlTemplate still works as a shortcut for the Street layer.)
 ```
 
 For code-first map UI without `Microsoft.Maui.Controls.Maps`, the package also exposes a standalone `SkiaMap` view that subclasses `SkiaView`:
