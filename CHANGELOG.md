@@ -4,7 +4,26 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.70.4] - unreleased
+## [10.0.90.1] - unreleased
+
+> MAUI 10.0.90 alignment + the next roadmap set. Bumped `Microsoft.Maui.Controls` / `Microsoft.Maui.Graphics` / `Microsoft.Maui.Graphics.Skia` / `Microsoft.Maui.Controls.Maps` from 10.0.70 to 10.0.90 (no source changes required for the jump), then added file/image drag payloads, satellite/hybrid map layers, a Tmds.DBus Fcitx5 transport, a Live Visual Tree inspector, and Hot Reload.
+
+### Changed
+
+- **Aligned to .NET MAUI 10.0.90.** All five packages moved to `10.0.90.1` in lockstep; the three minor-version jump (10.0.71/.80/.90) required no source changes — full build clean, all tests green.
+
+### Added
+
+- **Drag payload types — files and images, not just text.** New `DragPayload` model (`Text` / `FilePaths` / `ImageBytes`+`ImageMime`, with `FromText`/`FromFiles`/`FromImage` factories) is the input to a new `DragDropService.TryStartDrag(DragPayload)` / `WaylandWindow.TryStartDrag(DragPayload)` (the `string` overloads still work). Wayland source advertises the right MIMEs per payload (`text/uri-list` for files via RFC 2483, `image/png` for images, plus text variants) and resolves per-MIME bytes on `send`. **Outgoing X11 INCR** is now implemented (was a TODO): a `SelectionRequest` for a target over 64 KB switches to the INCR protocol — reply with an `INCR`-typed size property, then stream ≤64 KB chunks via the requestor's `PropertyNotify` deletes, zero-length terminator. `GestureManager` extracts files and images from MAUI's `DataPackage` (file paths via the `Properties` convention — 10.0.90's `DataPackage` has no first-class file member; images from a `FileImageSource` or the `ImageBytes`/`ImageMime` convention) so `DragGestureRecognizer` sources rich payloads too.
+- **Satellite and hybrid map layers.** `SkiaMap.LayerType` (`Street` / `Satellite` / `Hybrid`) and MAUI's `Map.MapType` are now wired end-to-end. A new `TileSource` abstraction (URL template + attribution + max zoom, axis order encoded by `{x}`/`{y}` placeholder position) replaces the single hardcoded OSM template; `MapTileLayers` ships keyless defaults — OSM for Street, Esri World Imagery for Satellite, and a satellite + Esri reference-overlay stack for Hybrid — all overridable. Hybrid draws two stacked tile layers in one pass; the disk/memory cache is keyed by layer so switching styles can't serve stale tiles; per-layer attribution renders in the on-map overlay. HiDPI deep-tiles and world-wrap apply to every layer. (Esri imagery is subject to Esri's terms of use, noted in the package description/README.)
+- **Live Visual Tree inspector** (`Diagnostics/VisualTreeInspector`). A developer tool that walks the live SkiaView tree into a read-only snapshot (type, bounds, text, background, visibility, children), draws a highlight overlay for the selected/hovered node, and supports a click-to-pick mode and a `DumpTree()` text dump. Reuses the existing popup-overlay draw hook (no rendering-engine or Shell edits); input hooks sit inside the `Guarded` wrapper so they can't crash the app. Activation is programmatic (`Enable`/`Disable`/`Toggle`/`EnablePickMode`), with an opt-in Ctrl+Shift+D hotkey via the X11 global-hotkey service.
+- **Hot Reload** (`Diagnostics/HotReloadService`). Registers a `[MetadataUpdateHandler]`; on a `dotnet watch` delta it marshals to the main thread and re-renders the current page's SkiaView tree (reusing the same render path as theme refresh, via a new `SkiaShell.ReRenderContentTrees()` seam), preserving navigation state. C# method-body edits and XAML edits both take effect for Shell-rooted apps. Inert in Release / when no hot-reload agent is attached; never throws into the reload callback. See `docs/HOT_RELOAD.md` for `dotnet watch` usage. *Limitation:* structural XAML reload for a non-Shell root (a raw `ContentPage`/`NavigationPage` window page) does C#-reload + redraw only — documented with the exact MAUI seam that's missing; the workaround is a Shell root.
+
+### Changed — Input method
+
+- **Fcitx5 transport migrated to Tmds.DBus** (0.94.2). `Fcitx5InputMethodService` no longer shells out to `dbus-monitor` — it connects the session bus with typed proxies for `org.fcitx.Fcitx.InputMethod1` / `InputContext1`, binding the `CommitString` and `UpdateFormattedPreedit` signals (marshaled to the GLib main thread) and the focus/key/cursor methods. Availability detection, fallback behavior, and the `IInputMethodService` surface are unchanged. Fixed a latent bug uncovered during the port: the old code passed the key-release flag as `isKeyDown` (inverted) and OR'd a stray bit into the modifier state, which would have suppressed the commit/preedit signals.
+
+## [10.0.70.4] - 2026-07-07
 
 > Two-part release. First, stability and correctness hardening across the 10.0.70.x surfaces, driven by a deep code review of the newest subsystems — several crash-class and data-corruption-class bugs fixed. Second, a desktop-integration round-out: full X11 XDND drag-and-drop in both directions, IME surrounding-text, map polygon/circle overlays, a GTK print dialog, and an XEmbed tray fallback.
 
