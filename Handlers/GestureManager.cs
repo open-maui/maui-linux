@@ -1032,16 +1032,14 @@ public static class GestureManager
                 continue;
             }
 
-            var text = ExtractDragText(args.Data);
-            if (string.IsNullOrEmpty(text))
+            var payload = ExtractDragPayload(args.Data);
+            if (payload == null || payload.IsEmpty)
             {
-                // TODO: source file/image payloads (DataPackage.Image, file
-                // lists) once the native sources offer more than text MIMEs.
-                DiagnosticLog.Debug(Tag, "DataPackage has no text payload; native drag not started");
+                DiagnosticLog.Debug(Tag, "DataPackage carried no representable payload; native drag not started");
                 continue;
             }
 
-            if (DragDropService.Default.TryStartDrag(text))
+            if (DragDropService.Default.TryStartDrag(payload))
             {
                 DiagnosticLog.Debug(Tag, "Native drag session started");
                 return true;
@@ -1053,9 +1051,46 @@ public static class GestureManager
         return false;
     }
 
-    // Pull the text payload out of a DataPackage: DataPackage.Text first, then
-    // common Properties conventions — a "Text" key (any casing), else the
-    // first string value.
+    // Conventional Properties keys — DataPackage in MAUI 10.0.90 exposes only
+    // Text, Image, Properties and View, so file lists and raw image bytes ride
+    // in Properties.
+    public const string ImageBytesPropertyKey = "ImageBytes";
+    public const string ImageMimePropertyKey = "ImageMime";
+
+    /// <summary>
+    /// Map a MAUI <see cref="DataPackage"/> onto a backend <see cref="DragPayload"/>:
+    /// text, a file list (from the <see cref="FilePathsPropertyKey"/> convention),
+    /// and one image (a <see cref="FileImageSource"/>, or raw bytes supplied via
+    /// the <see cref="ImageBytesPropertyKey"/>/<see cref="ImageMimePropertyKey"/>
+    /// convention). Never throws — returns null on any failure.
+    /// </summary>
+    internal static DragPayload? ExtractDragPayload(DataPackage? data)
+    {
+        if (data == null) return null;
+        try
+        {
+            var payload = new DragPayload { Text = ExtractDragText(data) };
+
+            var files = ExtractFilePaths(data);
+            if (files is { Length: > 0 }) payload.FilePaths = files;
+
+            if (TryExtractImage(data, out var imageBytes, out var imageMime))
+            {
+                payload.ImageBytes = imageBytes;
+                payload.ImageMime = imageMime;
+            }
+
+            return payload;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug(Tag, $"ExtractDragPayload failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    // DataPackage.Text first, then Properties conventions — a "Text" key (any
+    // casing), else the first string value.
     private static string? ExtractDragText(DataPackage? data)
     {
         if (data == null) return null;
@@ -1070,6 +1105,77 @@ public static class GestureManager
             firstString ??= s;
         }
         return firstString;
+    }
+
+    // File paths from the FilePaths convention key (matching the incoming
+    // adapter); accepts string[] or IEnumerable<string>.
+    private static string[]? ExtractFilePaths(DataPackage data)
+    {
+        foreach (var kvp in data.Properties)
+        {
+            if (!string.Equals(kvp.Key, FilePathsPropertyKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+            return kvp.Value switch
+            {
+                string[] arr => arr,
+                IEnumerable<string> seq => seq.ToArray(),
+                string single => new[] { single },
+                _ => null,
+            };
+        }
+        return null;
+    }
+
+    // An image the native source can carry: raw bytes + MIME via Properties, or
+    // a FileImageSource we can read off disk. StreamImageSource is async-only,
+    // so it is skipped (the gesture path must not block).
+    private static bool TryExtractImage(DataPackage data, out byte[]? bytes, out string? mime)
+    {
+        bytes = null;
+        mime = null;
+
+        // Convention: raw bytes + explicit mime in Properties.
+        byte[]? propBytes = null;
+        string? propMime = null;
+        foreach (var kvp in data.Properties)
+        {
+            if (string.Equals(kvp.Key, ImageBytesPropertyKey, StringComparison.OrdinalIgnoreCase)
+                && kvp.Value is byte[] b)
+                propBytes = b;
+            else if (string.Equals(kvp.Key, ImageMimePropertyKey, StringComparison.OrdinalIgnoreCase)
+                && kvp.Value is string m)
+                propMime = m;
+        }
+        if (propBytes is { Length: > 0 })
+        {
+            bytes = propBytes;
+            mime = string.IsNullOrEmpty(propMime) ? "image/png" : propMime;
+            return true;
+        }
+
+        // FileImageSource → read bytes and infer mime from the extension.
+        if (data.Image is FileImageSource { File: { Length: > 0 } file } && System.IO.File.Exists(file))
+        {
+            bytes = System.IO.File.ReadAllBytes(file);
+            mime = MimeFromExtension(file);
+            return bytes.Length > 0;
+        }
+
+        return false;
+    }
+
+    private static string MimeFromExtension(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream",
+        };
     }
 
     #region Incoming native DnD → DropGestureRecognizer adapter
