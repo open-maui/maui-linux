@@ -18,22 +18,23 @@ using IMapElement = Microsoft.Maui.Maps.IMapElement;
 using IGeoPathMapElement = Microsoft.Maui.Maps.IGeoPathMapElement;
 using IFilledMapElement = Microsoft.Maui.Maps.IFilledMapElement;
 using ICircleMapElement = Microsoft.Maui.Maps.ICircleMapElement;
+using MapType = Microsoft.Maui.Maps.MapType;
 
 namespace Microsoft.Maui.Platform.Linux.Maps.Handlers;
 
 /// <summary>
 /// Linux <see cref="IMapHandler"/> that backs <c>Microsoft.Maui.Controls.Maps.Map</c>
 /// with a <see cref="SkiaMap"/> render target. Property mappers wire MAUI's
-/// IMap (IsScrollEnabled, IsZoomEnabled, Pins, Elements) onto SkiaMap and
-/// trigger redraws. <c>VisibleRegion</c> is treated the way the other
+/// IMap (MapType, IsScrollEnabled, IsZoomEnabled, Pins, Elements) onto SkiaMap
+/// and trigger redraws. <c>VisibleRegion</c> is treated the way the other
 /// platforms treat it — as platform-reported OUTPUT: after every pan/zoom/
 /// layout the handler recomputes the visible span and pushes it to the Map;
 /// <c>MoveToRegion</c> (a handler command) is the input path.
 ///
-/// Three MAUI-Map features have no clean Linux backend yet and are documented
-/// as no-ops:
-///   - <c>MapType</c> (Street / Satellite / Hybrid) — OSM raster has only one
-///     style; consumers can swap tile URL via <c>OsmTileService.Default.UrlTemplate</c>.
+/// <c>MapType</c> (Street / Satellite / Hybrid) maps onto <see cref="SkiaMap.LayerType"/>
+/// — street uses OSM raster, satellite/hybrid use the keyless Esri sources in
+/// <c>MapTileLayers</c>. Two MAUI-Map features still have no clean Linux
+/// backend and are documented as no-ops:
 ///   - <c>IsShowingUser</c> — would need GeolocationService wiring + a "blue dot"
 ///     overlay; deferred.
 ///   - <c>IsTrafficEnabled</c> — needs a traffic data source we don't ship.
@@ -42,6 +43,7 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
 {
     public static IPropertyMapper<IMap, IMapHandler> Mapper = new PropertyMapper<IMap, IMapHandler>(ViewHandler.ViewMapper)
     {
+        [nameof(IMap.MapType)] = MapMapType,
         [nameof(IMap.IsScrollEnabled)] = MapIsScrollEnabled,
         [nameof(IMap.IsZoomEnabled)] = MapIsZoomEnabled,
         [nameof(IMap.Pins)] = MapPins,
@@ -49,7 +51,7 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
         // VisibleRegion is deliberately NOT mapped: it is platform-reported
         // state this handler writes back, and treating it as an input would
         // let the write-back re-enter the mapper. MoveToRegion is the input.
-        // MapType / IsShowingUser / IsTrafficEnabled: see class doc — no-op.
+        // IsShowingUser / IsTrafficEnabled: see class doc — no-op.
     };
 
     public static CommandMapper<IMap, IMapHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -95,6 +97,7 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
         platformView.ViewportChanged += OnViewportChanged;
         if (VirtualView == null) return;
 
+        MapMapType(this, VirtualView);
         MapIsScrollEnabled(this, VirtualView);
         MapIsZoomEnabled(this, VirtualView);
         MapPins(this, VirtualView);
@@ -110,6 +113,20 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
     }
 
     // --- Property mappers ---
+
+    public static void MapMapType(IMapHandler handler, IMap map)
+    {
+        if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
+        self.PlatformView.LayerType = ToLayerType(map.MapType);
+    }
+
+    /// <summary>Translate MAUI's <see cref="MapType"/> to the SkiaMap layer style.</summary>
+    public static MapLayerType ToLayerType(MapType mapType) => mapType switch
+    {
+        MapType.Satellite => MapLayerType.Satellite,
+        MapType.Hybrid => MapLayerType.Hybrid,
+        _ => MapLayerType.Street,
+    };
 
     public static void MapIsScrollEnabled(IMapHandler handler, IMap map)
     {
