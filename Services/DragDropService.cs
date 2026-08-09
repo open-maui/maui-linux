@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -140,6 +141,21 @@ public partial class DragDropService : IDisposable
         _xdndProxy = XInternAtom(_display, "XdndProxy", false);
         _incr = XInternAtom(_display, "INCR", false);
     }
+
+    // Intern (and cache both directions) the atom for a MIME string. Drags
+    // offer whatever MIMEs the payload produces — including arbitrary image
+    // types — so atoms are resolved on demand rather than from a fixed set.
+    private nint AtomForMime(string mime)
+    {
+        if (_atomByMime.TryGetValue(mime, out var atom)) return atom;
+        atom = XInternAtom(_display, mime, false);
+        _atomByMime[mime] = atom;
+        _mimeByAtom[atom] = mime;
+        return atom;
+    }
+
+    private string? MimeForAtom(nint atom)
+        => _mimeByAtom.TryGetValue(atom, out var mime) ? mime : null;
 
     private void SetXdndAware()
     {
@@ -342,9 +358,15 @@ public partial class DragDropService : IDisposable
     /// INCR chunks for a pending drop transfer; a zero-length chunk ends the
     /// transfer. Returns false when the event is not ours.
     /// </summary>
-    public bool ProcessPropertyNotify(nint atom, int state)
+    public bool ProcessPropertyNotify(nint window, nint atom, int state)
     {
-        if (!_dropPending || !_incrActive) return false;
+        // Outgoing-INCR: the requestor deleting a tracked property asks for the
+        // next chunk (its window, not ours).
+        if (state == PropertyDelete && AdvanceOutgoingIncr(window, atom))
+            return true;
+
+        // Receive-side INCR: chunks arrive as new values on our own window.
+        if (window != _window || !_dropPending || !_incrActive) return false;
         if (atom != _xdndSelection || state != PropertyNewValue) return false;
 
         var chunk = ReadPropertyBytes(_xdndSelection, out _);
@@ -375,6 +397,17 @@ public partial class DragDropService : IDisposable
 
         if (_sourceDropSent && Environment.TickCount64 >= _sourceFinishDeadline)
             CleanupSourceDrag(releaseSelection: true);
+
+        // Drop outgoing INCR transfers whose requestor stopped pulling chunks.
+        if (_outgoingIncr.Count > 0)
+        {
+            var now = Environment.TickCount64;
+            foreach (var key in _outgoingIncr.Keys.ToArray())
+            {
+                if (now >= _outgoingIncr[key].Deadline)
+                    _outgoingIncr.Remove(key);
+            }
+        }
     }
 
     private void CompleteDropTransfer(byte[]? bytes)
@@ -560,7 +593,8 @@ public partial class DragDropService : IDisposable
     // ClientMessages, SelectionRequest and SelectionClear into the methods
     // below; no nested event loops.
     private bool _sourceDragActive;
-    private string? _sourceDragText;
+    private DragPayload? _sourcePayload;
+    private nint[] _sourceOfferedAtoms = Array.Empty<nint>(); // targets advertised this drag
     private nint _sourceTarget;          // current XdndAware toplevel under the pointer
     private int _sourceTargetVersion;
     private bool _sourceTargetAccepts;
@@ -568,8 +602,34 @@ public partial class DragDropService : IDisposable
     private long _sourceFinishDeadline;  // Environment.TickCount64, armed after XdndDrop
     private ulong _lastInputTime;        // most recent X input event timestamp
 
+    // MIME <-> atom caches (both directions), populated as MIMEs are offered.
+    private readonly Dictionary<string, nint> _atomByMime = new();
+    private readonly Dictionary<nint, string> _mimeByAtom = new();
+
+    // Outgoing INCR transfers in flight, keyed by (requestor window, property).
+    // Large payloads (images) can't fit one property, so they're streamed in
+    // chunks driven by PropertyNotify(Delete) on the requestor's window.
+    private sealed class OutgoingIncrTransfer
+    {
+        public nint Requestor;
+        public nint Property;
+        public nint TargetType;
+        public byte[] Data = Array.Empty<byte>();
+        public int Offset;
+        public bool TerminatorSent;
+        public long Deadline;
+    }
+    private readonly Dictionary<(nint Requestor, nint Property), OutgoingIncrTransfer> _outgoingIncr = new();
+
+    // Payloads at/under this size go in one property; larger ones use INCR.
+    // 64KB stays well under the typical ~256KB max-request-size limit.
+    private const int IncrThresholdBytes = 65536;
+    private const int IncrChunkBytes = 65536;
+
     private const int XdndVersion = 5;
     private const ulong XK_Escape = 0xFF1B;
+    private const long PropertyChangeMask = 1L << 22;
+    private const int PropertyDelete = 1;
 
     /// <summary>
     /// Most recent input-event timestamp, maintained by X11Window's event
@@ -588,16 +648,35 @@ public partial class DragDropService : IDisposable
     /// or a drag already in flight).
     /// </summary>
     public bool TryStartDrag(string text)
+        => !string.IsNullOrEmpty(text) && TryStartDrag(DragPayload.FromText(text));
+
+    /// <summary>
+    /// Backend-agnostic entry point carrying an arbitrary <see cref="DragPayload"/>
+    /// (any combination of text, files, and one image). Routes to the native
+    /// Wayland data-device drag when a Wayland window is active, otherwise to
+    /// the X11 XDND source. Returns false when no backend can start a drag.
+    /// </summary>
+    public bool TryStartDrag(DragPayload payload)
     {
-        if (string.IsNullOrEmpty(text)) return false;
-        if (Microsoft.Maui.Platform.Linux.Window.WaylandWindow.TryStartDrag(text)) return true;
-        return TryStartX11Drag(text);
+        if (payload == null || payload.IsEmpty) return false;
+        if (Microsoft.Maui.Platform.Linux.Window.WaylandWindow.TryStartDrag(payload)) return true;
+        return TryStartX11Drag(payload);
     }
 
-    private bool TryStartX11Drag(string text)
+    private bool TryStartX11Drag(DragPayload payload)
     {
         if (_display == IntPtr.Zero || _window == IntPtr.Zero) return false; // X11 backend not wired
         if (_sourceDragActive) return false;
+
+        // Resolve the target atoms for the MIMEs this payload can produce and
+        // publish them in XdndTypeList so targets can read the full set (the
+        // XdndEnter message only carries the first three).
+        var atoms = payload.MimeTypes.Select(AtomForMime).ToArray();
+        if (atoms.Length == 0) return false;
+        _sourceOfferedAtoms = atoms;
+        var atomLongs = atoms.Select(a => (long)a).ToArray();
+        XChangePropertyAtoms(_display, _window, _xdndTypeList, XA_ATOM, 32,
+            PropModeReplace, atomLongs, atomLongs.Length);
 
         // Own the XDND selection — the drop target pulls the payload from us
         // via SelectionRequest / SelectionNotify (see ProcessSelectionRequest).
@@ -617,7 +696,7 @@ public partial class DragDropService : IDisposable
         }
 
         _sourceDragActive = true;
-        _sourceDragText = text;
+        _sourcePayload = payload;
         _sourceTarget = IntPtr.Zero;
         _sourceTargetVersion = 0;
         _sourceTargetAccepts = false;
@@ -650,11 +729,17 @@ public partial class DragDropService : IDisposable
 
             if (target != IntPtr.Zero)
             {
-                // XdndEnter: l[1] carries the protocol version in the top byte;
-                // bit 0 clear = the (≤3) targets are in l[2..4], no XdndTypeList.
+                // XdndEnter: l[1] top byte = protocol version; bit 0 set when
+                // we offer more than three targets (full set is in the
+                // XdndTypeList property published at drag start). l[2..4] carry
+                // the first three targets regardless.
+                var atoms = _sourceOfferedAtoms;
                 long flags = (long)_sourceTargetVersion << 24;
+                if (atoms.Length > 3) flags |= 1;
                 SendXdndSourceMessage(target, _xdndEnter, _window, flags,
-                    _utf8String, _textPlainUtf8, _textPlain);
+                    atoms.Length > 0 ? atoms[0] : 0,
+                    atoms.Length > 1 ? atoms[1] : 0,
+                    atoms.Length > 2 ? atoms[2] : 0);
             }
         }
 
@@ -735,35 +820,52 @@ public partial class DragDropService : IDisposable
 
     /// <summary>
     /// Routed from X11Window on SelectionRequest — the drop target pulling the
-    /// dragged payload. Converts to the requested text target (or TARGETS) and
-    /// replies with SelectionNotify; property None signals an unsupported
-    /// target. Returns false when the request isn't for the XDND selection.
+    /// dragged payload. Serves TARGETS (the full offered set) or any offered
+    /// MIME's bytes, switching to INCR for payloads larger than
+    /// <see cref="IncrThresholdBytes"/>; replies with SelectionNotify, property
+    /// None for an unsupported target. Returns false when the request isn't for
+    /// the XDND selection.
     /// </summary>
     public bool ProcessSelectionRequest(nint requestor, nint selection, nint target, nint property, nint time)
     {
-        if (selection != _xdndSelection || _sourceDragText == null) return false;
+        if (selection != _xdndSelection || _sourcePayload == null) return false;
 
         // Obsolete clients may pass property None; the convention is to fall
         // back to the target atom as the property name.
         if (property == IntPtr.Zero) property = target;
 
-        bool converted = false;
+        bool converted;
         if (target == _targets)
         {
-            // TARGETS introspection: the same three text targets XdndEnter offered.
-            var atoms = new long[] { _utf8String, _textPlainUtf8, _textPlain };
+            // TARGETS introspection: the full offered set (same atoms as
+            // XdndTypeList), plus TARGETS itself per ICCCM convention.
+            var atoms = new long[_sourceOfferedAtoms.Length + 1];
+            atoms[0] = _targets;
+            for (int i = 0; i < _sourceOfferedAtoms.Length; i++)
+                atoms[i + 1] = _sourceOfferedAtoms[i];
             XChangePropertyAtoms(_display, requestor, property, XA_ATOM, 32,
                 PropModeReplace, atoms, atoms.Length);
             converted = true;
         }
-        else if (target == _utf8String || target == _textPlainUtf8 || target == _textPlain)
+        else
         {
-            // TODO: outgoing INCR for payloads beyond the X max-request size.
-            // Our text drags are small, so a single ChangeProperty suffices.
-            var bytes = Encoding.UTF8.GetBytes(_sourceDragText);
-            XChangePropertyBytes(_display, requestor, property, target, 8,
-                PropModeReplace, bytes, bytes.Length);
-            converted = true;
+            var mime = MimeForAtom(target);
+            var bytes = mime != null ? _sourcePayload.GetBytes(mime) : null;
+            if (bytes == null)
+            {
+                converted = false; // unsupported target → property None
+            }
+            else if (bytes.Length > IncrThresholdBytes)
+            {
+                BeginOutgoingIncr(requestor, property, target, bytes);
+                converted = true; // reply now; data streams via PropertyNotify
+            }
+            else
+            {
+                XChangePropertyBytes(_display, requestor, property, target, 8,
+                    PropModeReplace, bytes, bytes.Length);
+                converted = true;
+            }
         }
 
         var reply = new XSelectionNotifyEvent
@@ -779,6 +881,79 @@ public partial class DragDropService : IDisposable
         XSendEvent(_display, requestor, false, 0, ref reply);
         XFlush(_display);
         return true;
+    }
+
+    /// <summary>
+    /// Start an outgoing INCR transfer for a payload too large for one
+    /// property. Per ICCCM: select PropertyChangeMask on the requestor, write
+    /// the INCR property (type INCR, one CARDINAL = the byte count), then reply
+    /// with SelectionNotify. The requestor deletes the INCR property to request
+    /// each subsequent chunk, which arrives here as PropertyNotify(Delete).
+    /// </summary>
+    private void BeginOutgoingIncr(nint requestor, nint property, nint target, byte[] data)
+    {
+        XSelectInput(_display, requestor, PropertyChangeMask);
+
+        long[] size = { data.Length };
+        XChangePropertyAtoms(_display, requestor, property, _incr, 32,
+            PropModeReplace, size, 1);
+
+        _outgoingIncr[(requestor, property)] = new OutgoingIncrTransfer
+        {
+            Requestor = requestor,
+            Property = property,
+            TargetType = target,
+            Data = data,
+            Offset = 0,
+            Deadline = Environment.TickCount64 + DropTimeoutMs,
+        };
+    }
+
+    // Write the next INCR chunk (or the zero-length terminator) in response to
+    // the requestor deleting the property. Returns true when the event was a
+    // tracked outgoing-INCR delete.
+    private bool AdvanceOutgoingIncr(nint requestor, nint property)
+    {
+        if (!_outgoingIncr.TryGetValue((requestor, property), out var t))
+            return false;
+
+        var (chunkLength, newOffset, terminator) = NextIncrChunk(t.Data.Length, t.Offset, IncrChunkBytes);
+        if (!terminator)
+        {
+            var chunk = new byte[chunkLength];
+            Array.Copy(t.Data, t.Offset, chunk, 0, chunkLength);
+            XChangePropertyBytes(_display, requestor, property, t.TargetType, 8,
+                PropModeReplace, chunk, chunkLength);
+            t.Offset = newOffset;
+            t.Deadline = Environment.TickCount64 + DropTimeoutMs;
+        }
+        else
+        {
+            // Zero-length property = end of transfer.
+            XChangePropertyBytes(_display, requestor, property, t.TargetType, 8,
+                PropModeReplace, Array.Empty<byte>(), 0);
+            t.TerminatorSent = true;
+            _outgoingIncr.Remove((requestor, property));
+        }
+        XFlush(_display);
+        return true;
+    }
+
+    /// <summary>
+    /// INCR chunking math (pure, unit-tested): given the total byte count, the
+    /// bytes already sent, and the chunk size, return the next chunk's length,
+    /// the advanced offset, and whether this step is the zero-length
+    /// terminator (all data already sent).
+    /// </summary>
+    internal static (int chunkLength, int newOffset, bool terminator) NextIncrChunk(int dataLength, int offset, int chunkSize)
+    {
+        int remaining = dataLength - offset;
+        if (remaining > 0)
+        {
+            int n = Math.Min(chunkSize, remaining);
+            return (n, offset + n, false);
+        }
+        return (0, offset, true);
     }
 
     /// <summary>
@@ -804,7 +979,11 @@ public partial class DragDropService : IDisposable
         _sourceTarget = IntPtr.Zero;
         _sourceTargetVersion = 0;
         _sourceTargetAccepts = false;
-        _sourceDragText = null;
+        // Keep _sourcePayload alive until any in-flight outgoing INCR transfers
+        // (which copied their bytes at BeginOutgoingIncr) are irrelevant — the
+        // payload itself is no longer needed once the drag ends.
+        _sourcePayload = null;
+        _sourceOfferedAtoms = Array.Empty<nint>();
         _isDragging = false;
         if (releaseSelection)
             XSetSelectionOwner(_display, _xdndSelection, IntPtr.Zero, _lastInputTime);
@@ -1060,6 +1239,11 @@ public partial class DragDropService : IDisposable
 
     [LibraryImport("libX11.so.6")]
     private static partial nint XDefaultRootWindow(nint display);
+
+    // ICCCM requires the selection owner to watch PropertyNotify on a
+    // requestor's window during an INCR transfer.
+    [LibraryImport("libX11.so.6")]
+    private static partial int XSelectInput(nint display, nint window, long eventMask);
 
     [LibraryImport("libX11.so.6")]
     private static partial int XConvertSelection(nint display, nint selection, nint target, nint property, nint requestor, uint time);
