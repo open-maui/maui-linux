@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.Maui.Platform.Linux.Dispatching;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
@@ -11,49 +9,43 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform.Linux.Maps.Services;
 
 /// <summary>
-/// Raster-tile fetcher for an OpenStreetMap-style tile server. Caches each
-/// tile to <c>$XDG_CACHE_HOME/openmaui/osm-tiles/{template-hash}/{zoom}/{x}/{y}.png</c>
+/// Raster-tile fetcher for OSM-style / ArcGIS-style tile servers. Each request
+/// names the <see cref="TileSource"/> it wants (street, satellite, hybrid
+/// overlay, or an app-supplied one); the fetcher is layer-agnostic. Tiles are
+/// cached to <c>$XDG_CACHE_HOME/openmaui/osm-tiles/{source-hash}/{zoom}/{x}/{y}.png</c>
 /// so repeated zoom/pan operations don't re-hit the network. An LRU in-memory
 /// layer on top of the disk cache keeps the most recently used decoded
 /// SKImages around so the same tile in successive frames doesn't pay disk I/O
-/// either. Cache keys include a hash of <see cref="UrlTemplate"/> so switching
-/// tile providers can never serve tiles cached from the previous one.
+/// either. Cache keys include <see cref="TileSource.Key"/> (a hash of the
+/// source URL template) so switching layers/providers can never serve tiles
+/// from the previous one.
 ///
-/// <para>OSM's <a href="https://operations.osmfoundation.org/policies/tiles/">tile usage policy</a>
-/// requires:</para>
+/// <para><a href="https://operations.osmfoundation.org/policies/tiles/">OSM's tile usage policy</a>
+/// (and other providers' comparable terms) require:</para>
 /// <list type="bullet">
 ///   <item>A descriptive User-Agent (we send "OpenMaui-Linux/{version}").</item>
-///   <item>Caching on the client — done; one disk hit per (zoom, x, y).</item>
+///   <item>Caching on the client — done; one disk hit per (source, zoom, x, y).</item>
 ///   <item>Limited concurrency — downloads are capped at 2 in parallel.</item>
-///   <item>Attribution displayed prominently — SkiaMap renders the credit overlay.</item>
+///   <item>Attribution displayed prominently — SkiaMap renders the active layer's credit overlay.</item>
 /// </list>
 ///
-/// Apps that produce significant load are expected to host their own tile
-/// server (or use a commercial provider) and point <see cref="UrlTemplate"/> at
-/// it. The template uses <c>{z}/{x}/{y}</c> placeholders, matching every
-/// raster service that exists.
+/// Apps that produce significant load are expected to host their own tiles and
+/// point a <see cref="TileSource.UrlTemplate"/> at them (see <c>MapTileLayers</c>).
 /// </summary>
 public sealed class OsmTileService : IDisposable
 {
     private static readonly Lazy<OsmTileService> s_default = new(() => new OsmTileService());
     public static OsmTileService Default => s_default.Value;
 
-    private const string DefaultUrlTemplate = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-
-    private string _urlTemplate = DefaultUrlTemplate;
-    private volatile string _templateHash = HashTemplate(DefaultUrlTemplate);
-
+    /// <summary>
+    /// Backward-compatible escape hatch: proxies the Street layer's URL
+    /// template. Prefer setting <c>MapTileLayers.Street/Satellite/…UrlTemplate</c>
+    /// directly, which the newer layered API exposes per source.
+    /// </summary>
     public string UrlTemplate
     {
-        get => _urlTemplate;
-        set
-        {
-            if (_urlTemplate == value) return;
-            _urlTemplate = value;
-            // Cache keys embed this hash, so tiles fetched from the previous
-            // provider are simply never matched again — no eviction needed.
-            _templateHash = HashTemplate(value);
-        }
+        get => MapTileLayers.Street.UrlTemplate;
+        set => MapTileLayers.Street.UrlTemplate = value;
     }
 
     /// <summary>
@@ -123,15 +115,16 @@ public sealed class OsmTileService : IDisposable
     }
 
     /// <summary>
-    /// Fetch tile (zoom, x, y). Returns the cached SKImage when present,
+    /// Fetch tile (source, zoom, x, y). Returns the cached SKImage when present,
     /// otherwise reads from disk, otherwise fetches from the network and
     /// caches both. Returns null when offline and the tile isn't in any cache;
     /// failures are negatively cached for <see cref="FailureRetryWindow"/> so
-    /// callers redrawing every frame don't hammer the server.
+    /// callers redrawing every frame don't hammer the server. The cache key is
+    /// namespaced by <see cref="TileSource.Key"/> so each layer is isolated.
     /// </summary>
-    public Task<SKImage?> GetTileAsync(int zoom, int x, int y, CancellationToken ct = default)
+    public Task<SKImage?> GetTileAsync(TileSource source, int zoom, int x, int y, CancellationToken ct = default)
     {
-        var key = (_templateHash, zoom, x, y);
+        var key = (source.Key, zoom, x, y);
 
         if (TryGetFromMemory(key) is { } cached)
             return Task.FromResult<SKImage?>(cached);
@@ -149,7 +142,7 @@ public sealed class OsmTileService : IDisposable
         // cancelling must not fail the rest; WaitAsync detaches just this
         // caller instead.
         var task = _inflight.GetOrAdd(key, k => new Lazy<Task<SKImage?>>(
-            () => FetchAsync(k, zoom, x, y),
+            () => FetchAsync(source, k, zoom, x, y),
             LazyThreadSafetyMode.ExecutionAndPublication)).Value;
         return ct.CanBeCanceled ? task.WaitAsync(ct) : task;
     }
@@ -216,7 +209,7 @@ public sealed class OsmTileService : IDisposable
         }
     }
 
-    private async Task<SKImage?> FetchAsync((string T, int Z, int X, int Y) key, int zoom, int x, int y)
+    private async Task<SKImage?> FetchAsync(TileSource source, (string T, int Z, int X, int Y) key, int zoom, int x, int y)
     {
         try
         {
@@ -244,10 +237,8 @@ public sealed class OsmTileService : IDisposable
 
             if (image == null)
             {
-                var url = UrlTemplate
-                    .Replace("{z}", zoom.ToString())
-                    .Replace("{x}", x.ToString())
-                    .Replace("{y}", y.ToString());
+                // Axis order (x/y vs y/x) is baked into the source's template.
+                var url = source.BuildUrl(zoom, x, y);
 
                 byte[]? bytes = null;
                 await _downloadGate.WaitAsync().ConfigureAwait(false);
@@ -366,12 +357,6 @@ public sealed class OsmTileService : IDisposable
                 catch { /* best effort — retried on the next sweep */ }
             }
         }
-    }
-
-    private static string HashTemplate(string template)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(template));
-        return Convert.ToHexString(bytes, 0, 4).ToLowerInvariant();
     }
 
     public void Dispose()

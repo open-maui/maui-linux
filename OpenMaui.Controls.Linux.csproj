@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.70.4</Version>
+    <Version>10.0.90.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -39,9 +39,9 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.70" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.70" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.70" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.90" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.90" />
 
     <!-- SkiaSharp for rendering (3.x with SKFont API) -->
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
@@ -57,6 +57,10 @@
 
     <!-- Harmony for patching MAUI Essentials stubs with Linux implementations -->
     <PackageReference Include="Lib.Harmony" Version="2.4.2" />
+
+    <!-- Managed D-Bus client for the Fcitx5 input-method frontend (typed
+         proxies + signal watchers; replaces the dbus-monitor subprocess) -->
+    <PackageReference Include="Tmds.DBus" Version="0.94.2" />
 
     <!-- Note: MediaElement support lives in the sibling package
          OpenMaui.Controls.Linux.MediaElement, NOT here. Adding the

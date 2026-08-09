@@ -253,6 +253,13 @@ public partial class LinuxApplication
             }
 
             linuxApp.RootView = rootView;
+
+            // Bridge .NET Hot Reload to the Skia render pipeline. Registration is
+            // via an assembly attribute (see Diagnostics.HotReloadService); this
+            // call only logs the active state and is a no-op unless launched under
+            // a hot-reload agent (e.g. `dotnet watch`).
+            Diagnostics.HotReloadService.Initialize();
+
             linuxApp.Run();
         }
         finally
