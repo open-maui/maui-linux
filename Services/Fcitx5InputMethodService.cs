@@ -1,30 +1,42 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
-using System.Text;
+using System.Linq;
+using Microsoft.Maui.Platform.Linux.Dispatching;
+using Tmds.DBus;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Fcitx5 Input Method service using D-Bus interface.
-/// Provides IME support for systems using Fcitx5 (common on some distros).
+/// Fcitx5 Input Method service over the session bus.
 ///
-/// Implementation note: this currently shells out to <c>gdbus</c> for method calls
-/// and parses <c>dbus-monitor</c> stdout for signals. A typed Tmds.DBus migration
-/// is tracked as a follow-up; the subprocess approach is kept for now because
-/// Fcitx5's signal text format has been stable and the IME path is exercised
-/// primarily by CJK users we can't validate a rewrite against without their input.
+/// Talks to Fcitx5's D-Bus frontend (<c>org.fcitx.Fcitx5</c>) with typed
+/// <see cref="Tmds.DBus"/> proxies: <c>org.fcitx.Fcitx.InputMethod1</c> creates
+/// an input context and <c>org.fcitx.Fcitx.InputContext1</c> carries method
+/// calls (FocusIn/FocusOut, ProcessKeyEvent, SetCursorRect, Reset, Destroy) and
+/// the composition signals (<c>CommitString</c>, <c>UpdateFormattedPreedit</c>,
+/// <c>ForwardKey</c>). This replaces the earlier <c>gdbus</c>/<c>dbus-monitor</c>
+/// subprocess implementation — there is no <c>Process.Start</c> in this path
+/// anymore.
+///
+/// Signals arrive on the D-Bus connection's own thread; every callback is
+/// marshalled to the GLib main thread via <see cref="LinuxDispatcher"/> before
+/// touching service state or raising events, matching the rest of the platform.
 /// </summary>
 public class Fcitx5InputMethodService : IInputMethodService, IDisposable
 {
+    private const string Fcitx5Service = "org.fcitx.Fcitx5";
+    private const string InputMethodPath = "/org/freedesktop/portal/inputmethod";
+
     private IInputContext? _currentContext;
     private string _preEditText = string.Empty;
     private int _preEditCursorPosition;
     private bool _isActive;
     private bool _disposed;
-    private Process? _dBusMonitor;
-    private string? _inputContextPath;
+
+    private Connection? _connection;
+    private IFcitxInputContext1? _inputContext;
+    private readonly List<IDisposable> _signalWatchers = new();
 
     public bool IsActive => _isActive;
     public string PreEditText => _preEditText;
@@ -38,30 +50,14 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
     {
         try
         {
-            // Create input context via D-Bus
-            var output = RunDBusCommand(
-                "call --session " +
-                "--dest org.fcitx.Fcitx5 " +
-                "--object-path /org/freedesktop/portal/inputmethod " +
-                "--method org.fcitx.Fcitx.InputMethod1.CreateInputContext " +
-                "\"maui-linux\" \"\"");
-
-            if (!string.IsNullOrEmpty(output) && output.Contains("/"))
-            {
-                // Parse the object path from output like: (objectpath '/org/fcitx/...',)
-                var start = output.IndexOf("'/");
-                var end = output.IndexOf("'", start + 1);
-                if (start >= 0 && end > start)
-                {
-                    _inputContextPath = output.Substring(start + 1, end - start - 1);
-                    DiagnosticLog.Debug("Fcitx5InputMethodService", $"Created context at {_inputContextPath}");
-                    StartMonitoring();
-                }
-            }
-            else
-            {
-                DiagnosticLog.Error("Fcitx5InputMethodService", "Failed to create input context");
-            }
+            // The IInputMethodService contract is synchronous and callers expect
+            // the context to be usable once Initialize returns, so bridge the
+            // async connect/handshake with a bounded wait. Run it off the calling
+            // thread to avoid any interaction with the installed
+            // LinuxSynchronizationContext; Tmds.DBus continuations run on the
+            // thread pool regardless.
+            if (!Task.Run(InitializeAsync).Wait(TimeSpan.FromSeconds(2)))
+                DiagnosticLog.Error("Fcitx5InputMethodService", "Initialization timed out connecting to Fcitx5");
         }
         catch (Exception ex)
         {
@@ -69,154 +65,133 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
         }
     }
 
-    private void StartMonitoring()
+    private async Task InitializeAsync()
     {
-        if (string.IsNullOrEmpty(_inputContextPath)) return;
-
-        Task.Run(async () =>
+        var address = Address.Session;
+        if (string.IsNullOrEmpty(address))
         {
-            try
-            {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "dbus-monitor",
-                    Arguments = $"--session \"path='{_inputContextPath}'\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                };
+            DiagnosticLog.Error("Fcitx5InputMethodService", "No session bus address; Fcitx5 unavailable");
+            return;
+        }
 
-                _dBusMonitor = Process.Start(startInfo);
-                if (_dBusMonitor == null) return;
+        var connection = new Connection(address);
+        await connection.ConnectAsync();
+        _connection = connection;
 
-                var reader = _dBusMonitor.StandardOutput;
-                while (!_disposed && !_dBusMonitor.HasExited)
-                {
-                    var line = await reader.ReadLineAsync();
-                    if (line == null) break;
+        // Create an input context. Fcitx5's portal frontend takes a(ss) of
+        // client hints and returns (object-path, uuid). We only need the path.
+        var inputMethod = connection.CreateProxy<IFcitxInputMethod1>(Fcitx5Service, InputMethodPath);
+        var (icPath, _) = await inputMethod.CreateInputContextAsync(new[] { ("program", "maui-linux") });
 
-                    // Parse signals for commit and preedit
-                    if (line.Contains("CommitString"))
-                    {
-                        await ProcessCommitSignal(reader);
-                    }
-                    else if (line.Contains("UpdatePreedit"))
-                    {
-                        await ProcessPreeditSignal(reader);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error("Fcitx5InputMethodService", $"Monitor error - {ex.Message}");
-            }
+        var inputContext = connection.CreateProxy<IFcitxInputContext1>(Fcitx5Service, icPath);
+        _inputContext = inputContext;
+
+        // Subscribe to the composition signals. Handlers marshal onto the main
+        // thread before doing anything observable.
+        _signalWatchers.Add(await inputContext.WatchCommitStringAsync(OnCommitString, OnSignalError));
+        _signalWatchers.Add(await inputContext.WatchUpdateFormattedPreeditAsync(OnUpdateFormattedPreedit, OnSignalError));
+        _signalWatchers.Add(await inputContext.WatchForwardKeyAsync(OnForwardKey, OnSignalError));
+
+        DiagnosticLog.Debug("Fcitx5InputMethodService", $"Created context at {icPath}");
+    }
+
+    // Run an action on the GLib main thread. Signal callbacks land on the D-Bus
+    // reader thread; Dispatch queues them onto the main loop (GLibNative.IdleAdd)
+    // from any background thread. If the dispatcher doesn't exist yet we're in
+    // single-threaded startup and inline is safe.
+    private static void Post(Action action)
+    {
+        if (LinuxDispatcher.IsMainThread || LinuxDispatcher.Main is not { } main) action();
+        else main.Dispatch(action);
+    }
+
+    private static void OnSignalError(Exception ex)
+        => DiagnosticLog.Debug("Fcitx5InputMethodService", $"Signal watch error - {ex.Message}");
+
+    private void OnCommitString(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        Post(() =>
+        {
+            if (_disposed) return;
+            _preEditText = string.Empty;
+            _preEditCursorPosition = 0;
+            _isActive = false;
+
+            TextCommitted?.Invoke(this, new TextCommittedEventArgs(text));
+            _currentContext?.OnTextCommitted(text);
         });
     }
 
-    private async Task ProcessCommitSignal(StreamReader reader)
+    private void OnUpdateFormattedPreedit(((string Text, int Format)[] Segments, int Cursor) preedit)
     {
-        try
+        // UpdateFormattedPreedit carries the composition as a list of formatted
+        // segments; the visible pre-edit is their concatenation. (The per-segment
+        // format flags select underline/highlight styling — not surfaced here, to
+        // preserve the previous behavior which only tracked the plain string.)
+        var text = string.Concat(preedit.Segments.Select(s => s.Text));
+        Post(() =>
         {
-            for (int i = 0; i < 5; i++)
-            {
-                var line = await reader.ReadLineAsync();
-                if (line == null) break;
+            if (_disposed) return;
+            _preEditText = text;
+            _isActive = !string.IsNullOrEmpty(text);
 
-                if (line.Contains("string"))
-                {
-                    var match = System.Text.RegularExpressions.Regex.Match(line, @"string\s+""([^""]*)""");
-                    if (match.Success)
-                    {
-                        var text = match.Groups[1].Value;
-                        _preEditText = string.Empty;
-                        _preEditCursorPosition = 0;
-                        _isActive = false;
-
-                        TextCommitted?.Invoke(this, new TextCommittedEventArgs(text));
-                        _currentContext?.OnTextCommitted(text);
-                        break;
-                    }
-                }
-            }
-        }
-        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "Commit signal processing failed", ex); }
+            PreEditChanged?.Invoke(this, new PreEditChangedEventArgs(_preEditText, _preEditCursorPosition, new List<PreEditAttribute>()));
+            _currentContext?.OnPreEditChanged(_preEditText, _preEditCursorPosition);
+        });
     }
 
-    private async Task ProcessPreeditSignal(StreamReader reader)
+    private void OnForwardKey((uint Keyval, uint State, bool IsRelease) key)
     {
-        try
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                var line = await reader.ReadLineAsync();
-                if (line == null) break;
-
-                if (line.Contains("string"))
-                {
-                    var match = System.Text.RegularExpressions.Regex.Match(line, @"string\s+""([^""]*)""");
-                    if (match.Success)
-                    {
-                        _preEditText = match.Groups[1].Value;
-                        _isActive = !string.IsNullOrEmpty(_preEditText);
-
-                        PreEditChanged?.Invoke(this, new PreEditChangedEventArgs(_preEditText, _preEditCursorPosition, new List<PreEditAttribute>()));
-                        _currentContext?.OnPreEditChanged(_preEditText, _preEditCursorPosition);
-                        break;
-                    }
-                }
-            }
-        }
-        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "Preedit signal processing failed", ex); }
+        // Fcitx5 forwards keys it chose not to consume back to the client. The
+        // previous subprocess implementation ignored these entirely; we bind the
+        // signal (so nothing is silently dropped at the transport level) but keep
+        // the same observable behavior for now.
+        // TODO: route forwarded keys back into the app's key-input pipeline
+        // (there is no IInputContext hook for raw key injection yet).
+        DiagnosticLog.Debug("Fcitx5InputMethodService", $"ForwardKey ignored (keyval={key.Keyval}, release={key.IsRelease})");
     }
 
     public void SetFocus(IInputContext? context)
     {
         _currentContext = context;
 
-        if (!string.IsNullOrEmpty(_inputContextPath))
-        {
-            if (context != null)
-            {
-                RunDBusCommand(
-                    $"call --session --dest org.fcitx.Fcitx5 " +
-                    $"--object-path {_inputContextPath} " +
-                    $"--method org.fcitx.Fcitx.InputContext1.FocusIn");
-            }
-            else
-            {
-                RunDBusCommand(
-                    $"call --session --dest org.fcitx.Fcitx5 " +
-                    $"--object-path {_inputContextPath} " +
-                    $"--method org.fcitx.Fcitx.InputContext1.FocusOut");
-            }
-        }
+        var ic = _inputContext;
+        if (ic == null) return;
+
+        if (context != null)
+            FireAndForget(ic.FocusInAsync(), "FocusIn");
+        else
+            FireAndForget(ic.FocusOutAsync(), "FocusOut");
     }
 
     public void SetCursorLocation(int x, int y, int width, int height)
     {
-        if (string.IsNullOrEmpty(_inputContextPath)) return;
-
-        RunDBusCommand(
-            $"call --session --dest org.fcitx.Fcitx5 " +
-            $"--object-path {_inputContextPath} " +
-            $"--method org.fcitx.Fcitx.InputContext1.SetCursorRect " +
-            $"{x} {y} {width} {height}");
+        var ic = _inputContext;
+        if (ic == null) return;
+        FireAndForget(ic.SetCursorRectAsync(x, y, width, height), "SetCursorRect");
     }
 
     public bool ProcessKeyEvent(uint keyCode, KeyModifiers modifiers, bool isKeyDown)
     {
-        if (string.IsNullOrEmpty(_inputContextPath)) return false;
+        var ic = _inputContext;
+        if (ic == null) return false;
 
         uint state = ConvertModifiers(modifiers);
-        if (!isKeyDown) state |= 0x40000000; // Release flag
-
-        var result = RunDBusCommand(
-            $"call --session --dest org.fcitx.Fcitx5 " +
-            $"--object-path {_inputContextPath} " +
-            $"--method org.fcitx.Fcitx.InputContext1.ProcessKeyEvent " +
-            $"{keyCode} {keyCode} {state} {(isKeyDown ? "true" : "false")} 0");
-
-        return result?.Contains("true") == true;
+        try
+        {
+            // The contract is synchronous: the caller needs to know whether the
+            // IME consumed the key to decide on fallback handling. Bound the wait
+            // so a stalled IME can't freeze input; treat a timeout as "not
+            // handled". (isRelease is the release flag — true on key up.)
+            var task = ic.ProcessKeyEventAsync(keyCode, keyCode, state, !isKeyDown, 0);
+            return task.Wait(TimeSpan.FromMilliseconds(200)) && task.Result;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("Fcitx5InputMethodService", $"ProcessKeyEvent failed - {ex.Message}");
+            return false;
+        }
     }
 
     private uint ConvertModifiers(KeyModifiers modifiers)
@@ -232,13 +207,9 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
 
     public void Reset()
     {
-        if (!string.IsNullOrEmpty(_inputContextPath))
-        {
-            RunDBusCommand(
-                $"call --session --dest org.fcitx.Fcitx5 " +
-                $"--object-path {_inputContextPath} " +
-                $"--method org.fcitx.Fcitx.InputContext1.Reset");
-        }
+        var ic = _inputContext;
+        if (ic != null)
+            FireAndForget(ic.ResetAsync(), "Reset");
 
         _preEditText = string.Empty;
         _preEditCursorPosition = 0;
@@ -253,31 +224,11 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
         Dispose();
     }
 
-    private string? RunDBusCommand(string args)
+    private static void FireAndForget(Task task, string op)
     {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "gdbus",
-                Arguments = args,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return null;
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(1000);
-            return output;
-        }
-        catch
-        {
-            return null;
-        }
+        task.ContinueWith(
+            t => DiagnosticLog.Debug("Fcitx5InputMethodService", $"{op} failed - {t.Exception?.GetBaseException().Message}"),
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     public void Dispose()
@@ -285,48 +236,87 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
         if (_disposed) return;
         _disposed = true;
 
+        foreach (var watcher in _signalWatchers)
+        {
+            try { watcher.Dispose(); }
+            catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", $"Signal watcher cleanup failed - {ex.Message}"); }
+        }
+        _signalWatchers.Clear();
+
         try
         {
-            _dBusMonitor?.Kill();
-            _dBusMonitor?.Dispose();
+            // Best-effort Destroy before tearing the connection down.
+            if (_inputContext != null)
+                _inputContext.DestroyAsync().Wait(TimeSpan.FromMilliseconds(200));
         }
-        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", "D-Bus monitor cleanup failed", ex); }
+        catch (Exception ex) { DiagnosticLog.Debug("Fcitx5InputMethodService", $"Destroy failed - {ex.Message}"); }
 
-        if (!string.IsNullOrEmpty(_inputContextPath))
-        {
-            RunDBusCommand(
-                $"call --session --dest org.fcitx.Fcitx5 " +
-                $"--object-path {_inputContextPath} " +
-                $"--method org.fcitx.Fcitx.InputContext1.Destroy");
-        }
+        _inputContext = null;
+        _connection?.Dispose();
+        _connection = null;
     }
 
     /// <summary>
-    /// Checks if Fcitx5 is available on the system.
+    /// Checks whether Fcitx5 is reachable on the session bus. Returns false
+    /// (never throws) when there's no session bus or Fcitx5 isn't running, so
+    /// the factory can fall back to another IME.
     /// </summary>
     public static bool IsAvailable()
     {
         try
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "gdbus",
-                Arguments = "introspect --session --dest org.fcitx.Fcitx5 --object-path /org/freedesktop/portal/inputmethod",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return false;
-
-            process.WaitForExit(1000);
-            return process.ExitCode == 0;
+            var task = Task.Run(IsAvailableAsync);
+            return task.Wait(TimeSpan.FromSeconds(1)) && task.Result;
         }
         catch
         {
             return false;
         }
     }
+
+    private static async Task<bool> IsAvailableAsync()
+    {
+        var address = Address.Session;
+        if (string.IsNullOrEmpty(address)) return false;
+
+        using var connection = new Connection(address);
+        await connection.ConnectAsync();
+        var services = await connection.ListServicesAsync();
+        return services.Contains(Fcitx5Service);
+    }
+}
+
+// --- Fcitx5 D-Bus proxy interfaces -----------------------------------------
+// Typed Tmds.DBus proxies for the two Fcitx5 frontend interfaces we use. Method
+// and signal shapes mirror Fcitx5's introspection XML.
+
+/// <summary>org.fcitx.Fcitx.InputMethod1 — factory for input contexts.</summary>
+[DBusInterface("org.fcitx.Fcitx.InputMethod1")]
+internal interface IFcitxInputMethod1 : IDBusObject
+{
+    // CreateInputContext(in a(ss) args, out o path, out ay uuid)
+    Task<(ObjectPath path, byte[] uuid)> CreateInputContextAsync((string, string)[] args);
+}
+
+/// <summary>org.fcitx.Fcitx.InputContext1 — a single input context.</summary>
+[DBusInterface("org.fcitx.Fcitx.InputContext1")]
+internal interface IFcitxInputContext1 : IDBusObject
+{
+    Task FocusInAsync();
+    Task FocusOutAsync();
+    Task ResetAsync();
+    Task DestroyAsync();
+    Task SetCursorRectAsync(int X, int Y, int W, int H);
+
+    // ProcessKeyEvent(in u keyval, u keycode, u state, b isRelease, u time, out b handled)
+    Task<bool> ProcessKeyEventAsync(uint Keyval, uint Keycode, uint State, bool IsRelease, uint Time);
+
+    // CommitString(s str)
+    Task<IDisposable> WatchCommitStringAsync(Action<string> handler, Action<Exception>? onError = null);
+
+    // UpdateFormattedPreedit(a(si) str, i cursorpos)
+    Task<IDisposable> WatchUpdateFormattedPreeditAsync(Action<((string, int)[] str, int cursorpos)> handler, Action<Exception>? onError = null);
+
+    // ForwardKey(u keyval, u state, b isRelease)
+    Task<IDisposable> WatchForwardKeyAsync(Action<(uint keyval, uint state, bool isRelease)> handler, Action<Exception>? onError = null);
 }
