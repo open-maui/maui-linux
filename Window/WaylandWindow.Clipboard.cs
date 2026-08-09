@@ -430,26 +430,39 @@ public partial class WaylandWindow
         if (!handle.IsAllocated) { try { libc_close(fd); } catch { } return; }
         var window = (WaylandWindow)handle.Target!;
 
-        // Pull the text for THIS specific source (the latest copy may have
-        // superseded it but its cancelled event hasn't fired yet — pasting
-        // apps may still be reading from the older selection). Clipboard and
-        // drag sources are tracked separately; check both. The dict lookup
-        // happens here on the dispatch thread — only the write moves off it.
-        if (!window._ownedSourceTexts.TryGetValue(source, out var text)
-            && !window._dragSourceTexts.TryGetValue(source, out text))
-            text = string.Empty;
+        // Resolve the bytes for THIS specific source and the requested MIME.
+        // Clipboard sources hold text (mime-agnostic — every text variant maps
+        // to the same string); drag sources hold a DragPayload that resolves
+        // text / uri-list / image bytes per MIME. Both dicts are consulted
+        // here on the dispatch thread; only the write moves off it.
+        byte[] bytes;
+        if (window._ownedSourceTexts.TryGetValue(source, out var text))
+        {
+            bytes = Encoding.UTF8.GetBytes(text);
+        }
+        else if (window._dragSourcePayloads.TryGetValue(source, out var payload))
+        {
+            var mime = Marshal.PtrToStringUTF8(mimePtr) ?? string.Empty;
+            bytes = payload.GetBytes(mime) ?? Array.Empty<byte>();
+        }
+        else
+        {
+            bytes = Array.Empty<byte>();
+        }
 
-        // Write on a background thread: a paste client that reads slowly (or
-        // not at all) would otherwise block the GLib main loop once the text
-        // exceeds the pipe buffer.
-        Task.Run(() => WriteAllToFdAndClose(fd, text));
+        // Write on a background thread: a client that reads slowly (or not at
+        // all) would otherwise block the GLib main loop once the payload
+        // exceeds the pipe buffer (images routinely do).
+        Task.Run(() => WriteAllToFdAndClose(fd, bytes));
     }
 
     private static void WriteAllToFdAndClose(int fd, string text)
+        => WriteAllToFdAndClose(fd, Encoding.UTF8.GetBytes(text));
+
+    private static void WriteAllToFdAndClose(int fd, byte[] bytes)
     {
         try
         {
-            var bytes = Encoding.UTF8.GetBytes(text);
             int offset = 0;
             while (offset < bytes.Length)
             {
@@ -501,7 +514,7 @@ public partial class WaylandWindow
         if (_sourceListenerHandles.Remove(source, out var pinned) && pinned.IsAllocated)
             pinned.Free();
         _ownedSourceTexts.Remove(source);
-        _dragSourceTexts.Remove(source);
+        _dragSourcePayloads.Remove(source);
         wl_proxy_marshal(source, WL_DATA_SOURCE_DESTROY);
         wl_proxy_destroy(source);
     }
@@ -513,7 +526,7 @@ public partial class WaylandWindow
         // OnDataSourceDndFinished clean up individual ones.
         foreach (var ptr in _ownedSourceTexts.Keys.ToArray())
             DestroySource(ptr);
-        foreach (var ptr in _dragSourceTexts.Keys.ToArray())
+        foreach (var ptr in _dragSourcePayloads.Keys.ToArray())
             DestroySource(ptr);
         _ownedDataSource = IntPtr.Zero;
         _activeDragSource = IntPtr.Zero;

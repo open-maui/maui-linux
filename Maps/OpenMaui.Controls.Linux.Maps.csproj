@@ -10,11 +10,11 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Maps</PackageId>
-    <Version>10.0.70.4</Version>
+    <Version>10.0.90.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Maps (Linux)</Product>
-    <Description>Linux backend for Microsoft.Maui.Controls.Maps. Adds .UseLinuxMaps() to your MAUI app builder; renders OpenStreetMap raster tiles into a SkiaSharp surface with pan/zoom, pin and polyline overlays. Also exposes a standalone SkiaMap view for code-first map UI. Tiles are fetched from tile.openstreetmap.org and cached under $XDG_CACHE_HOME. Opt-in: install this package only if your app uses Maps on Linux.</Description>
+    <Description>Linux backend for Microsoft.Maui.Controls.Maps. Adds .UseLinuxMaps() to your MAUI app builder; renders raster tiles into a SkiaSharp surface with pan/zoom, pin/polyline/polygon/circle overlays and Street/Satellite/Hybrid map types. Also exposes a standalone SkiaMap view for code-first map UI. Street tiles come from OpenStreetMap; Satellite/Hybrid use keyless Esri World Imagery + reference layers (subject to Esri's terms of use) and are redirectable to your own tiles. Tiles are cached under $XDG_CACHE_HOME. Opt-in: install this package only if your app uses Maps on Linux.</Description>
     <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
@@ -33,7 +33,7 @@
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
 
     <!-- Upstream Maps control + IMapHandler + Pin/Polyline types. -->
-    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.70" />
+    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.90" />
   </ItemGroup>
 
   <!-- Include icon and README in package -->
