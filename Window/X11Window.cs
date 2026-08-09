@@ -636,8 +636,11 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 break;
 
             case XEventType.PropertyNotify:
-                // INCR chunk arrival for a large XDND transfer.
+                // INCR chunk flow: incoming chunks arrive as new values on our
+                // window; outgoing chunk requests arrive as property deletes on
+                // the requestor's window. The service disambiguates by window.
                 DragDropService.Default.ProcessPropertyNotify(
+                    xEvent.PropertyEvent.Window,
                     xEvent.PropertyEvent.Atom,
                     xEvent.PropertyEvent.State);
                 break;

@@ -22,11 +22,13 @@ namespace Microsoft.Maui.Platform.Linux.Maps.Views;
 ///   - Polyline overlays in <see cref="Polylines"/>.
 ///   - Polygon overlays in <see cref="Polygons"/>.
 ///   - Circle overlays in <see cref="Circles"/>.
+///   - Street / Satellite / Hybrid styles via <see cref="LayerType"/>.
 ///   - Attribution overlay (lower-right) when <see cref="ShowAttribution"/> is true.
 ///
-/// Tiles are fetched and cached by <see cref="OsmTileService.Default"/> — see
-/// that class to override the URL template (e.g. for a self-hosted tile server)
-/// or the cache root.
+/// Tiles are fetched and cached by <see cref="OsmTileService.Default"/>; the
+/// per-layer tile sources (URL template, attribution, max zoom) live in
+/// <see cref="MapTileLayers"/> and are settable to redirect a layer at your own
+/// tile server.
 /// </summary>
 public class SkiaMap : SkiaView
 {
@@ -36,7 +38,9 @@ public class SkiaMap : SkiaView
     private double _centerLatitude;
     private double _centerLongitude;
     private int _zoom = 2;
-    private string _attributionText = "© OpenStreetMap contributors";
+    private MapLayerType _layerType = MapLayerType.Street;
+    // Null = show the active layer's own attribution; non-null = app override.
+    private string? _attributionOverride;
 
     /// <summary>Map center latitude in WGS84 degrees [-85.05, 85.05].</summary>
     public double CenterLatitude
@@ -80,14 +84,44 @@ public class SkiaMap : SkiaView
     public bool AllowZoom { get; set; } = true;
 
     /// <summary>
+    /// Map layer style (street / satellite / hybrid). Satellite and hybrid pull
+    /// from the keyless Esri raster sources in <see cref="MapTileLayers"/>;
+    /// hybrid stacks a transparent labels overlay over satellite imagery.
+    /// Changing this also refreshes <see cref="AttributionText"/> unless the app
+    /// has set an explicit override.
+    /// </summary>
+    public MapLayerType LayerType
+    {
+        get => _layerType;
+        set { if (_layerType != value) { _layerType = value; Invalidate(); } }
+    }
+
+    /// <summary>
     /// Attribution credit drawn in the lower-right when
-    /// <see cref="ShowAttribution"/> is true. Override when using a non-OSM
-    /// tile source so the appropriate credit appears.
+    /// <see cref="ShowAttribution"/> is true. Defaults to the active layer's
+    /// provider attribution (OSM for street, Esri for satellite/hybrid). Set it
+    /// to pin a specific credit (e.g. when redirecting a source to your own
+    /// tiles); assigning <c>null</c> restores the automatic per-layer credit.
     /// </summary>
     public string AttributionText
     {
-        get => _attributionText;
-        set { _attributionText = value ?? string.Empty; Invalidate(); }
+        get => _attributionOverride ?? ComposeAttribution();
+        set { _attributionOverride = value; Invalidate(); }
+    }
+
+    /// <summary>Join the distinct attributions of the active layer's tile sources.</summary>
+    private string ComposeAttribution()
+    {
+        string? single = null;
+        List<string>? many = null;
+        foreach (var source in MapTileLayers.ForLayer(_layerType))
+        {
+            var a = source.Attribution;
+            if (string.IsNullOrEmpty(a)) continue;
+            if (single == null) single = a;
+            else if (a != single && !(many?.Contains(a) ?? false)) (many ??= new() { single }).Add(a);
+        }
+        return many != null ? string.Join("  •  ", many) : single ?? string.Empty;
     }
 
     // --- Pan/zoom state ---
@@ -102,8 +136,9 @@ public class SkiaMap : SkiaView
 
     // Tiles that already have a redraw continuation attached to their fetch,
     // so each in-flight tile triggers at most one Invalidate no matter how
-    // many frames observe it pending. Mutated on the main thread only.
-    private readonly HashSet<(int Zoom, int X, int Y)> _pendingTileRedraws = new();
+    // many frames observe it pending. Keyed by source too, since hybrid draws
+    // two layers. Mutated on the main thread only.
+    private readonly HashSet<(string Source, int Zoom, int X, int Y)> _pendingTileRedraws = new();
 
     /// <summary>
     /// Raised whenever the visible viewport changes: pan completes, zoom
@@ -158,8 +193,9 @@ public class SkiaMap : SkiaView
 
         canvas.Restore();
 
-        if (ShowAttribution && !string.IsNullOrEmpty(_attributionText))
-            DrawAttribution(canvas, bounds);
+        var attribution = AttributionText;
+        if (ShowAttribution && !string.IsNullOrEmpty(attribution))
+            DrawAttribution(canvas, bounds, attribution);
     }
 
     // Linear filtering: tiles normally blit 1:1, but the HiDPI path (and any
@@ -168,6 +204,19 @@ public class SkiaMap : SkiaView
 
     private void DrawTiles(SKCanvas canvas, SKRect bounds)
     {
+        // Draw each source in the active layer's stack bottom-to-top: for
+        // hybrid that's the opaque satellite base then the transparent labels
+        // overlay. Every layer shares the same projection/HiDPI/world-wrap
+        // logic in DrawTileLayer.
+        foreach (var source in MapTileLayers.ForLayer(_layerType))
+            DrawTileLayer(canvas, bounds, source);
+    }
+
+    private void DrawTileLayer(SKCanvas canvas, SKRect bounds, TileSource source)
+    {
+        // This source doesn't serve the current zoom — nothing to draw for it.
+        if (_zoom > source.MaxZoom) return;
+
         // Convert the map center to global pixel space, then figure out which
         // tile-grid coordinates cover the viewport.
         var (centerPx, centerPy) = MercatorProjection.LatLonToGlobalPixel(_centerLatitude, _centerLongitude, _zoom);
@@ -176,9 +225,10 @@ public class SkiaMap : SkiaView
         // logical size, so a 256px tile maps ~1:1 to device pixels instead of
         // being upscaled blurry. The logical pixel grid at _zoom is identical
         // to the (zoom+1) grid with 128-logical-px tiles, so all center/pin
-        // math is unaffected.
+        // math is unaffected. Gated on the source's own max zoom.
         var deviceScale = LinuxApplication.Current?.DpiScale ?? 1.0f;
-        var useDeepTiles = deviceScale >= 1.5f && _zoom < MaxZoom;
+        var deepLimit = Math.Min(MaxZoom, source.MaxZoom);
+        var useDeepTiles = deviceScale >= 1.5f && _zoom < deepLimit;
         var fetchZoom = useDeepTiles ? _zoom + 1 : _zoom;
         var tileSize = useDeepTiles ? 128.0 : 256.0;   // logical px per fetched tile
 
@@ -207,26 +257,26 @@ public class SkiaMap : SkiaView
                 var destY = bounds.Top + (float)(ty * tileSize - topPy);
                 var dest = new SKRect(destX, destY, destX + (float)tileSize, destY + (float)tileSize);
 
-                var image = TryGetCachedOrSchedule(fetchZoom, wrappedTx, ty);
+                var image = TryGetCachedOrSchedule(source, fetchZoom, wrappedTx, ty);
                 if (image != null)
                     canvas.DrawImage(image, dest, s_tileSampling);
             }
         }
     }
 
-    private SKImage? TryGetCachedOrSchedule(int zoom, int x, int y)
+    private SKImage? TryGetCachedOrSchedule(TileSource source, int zoom, int x, int y)
     {
         var svc = OsmTileService.Default;
         // Quick path: if the tile is already in the in-memory cache (or is
         // negatively cached after a failed fetch), the task completes
         // synchronously — no frame-late draw cycle for a cache hit.
-        var task = svc.GetTileAsync(zoom, x, y);
+        var task = svc.GetTileAsync(source, zoom, x, y);
         if (task.IsCompletedSuccessfully) return task.Result;
 
         // Slow path: trigger fetch and schedule a redraw when it lands. Attach
         // at most one continuation per in-flight tile regardless of how many
         // frames observe it pending.
-        var key = (zoom, x, y);
+        var key = (source.Key, zoom, x, y);
         if (!_pendingTileRedraws.Add(key))
             return null;
 
@@ -483,11 +533,11 @@ public class SkiaMap : SkiaView
         canvas.DrawCircle(tipX, circleCenterY, radius * 0.32f, dot);
     }
 
-    private void DrawAttribution(SKCanvas canvas, SKRect bounds)
+    private static void DrawAttribution(SKCanvas canvas, SKRect bounds, string attribution)
     {
         using var font = new SKFont(SKTypeface.Default, 11);
         using var textPaint = new SKPaint { Color = SKColors.Black, IsAntialias = true };
-        var textWidth = font.MeasureText(_attributionText);
+        var textWidth = font.MeasureText(attribution);
         var pad = 6f;
         var boxRect = new SKRect(
             bounds.Right - textWidth - pad * 2,
@@ -497,7 +547,7 @@ public class SkiaMap : SkiaView
 
         using var bgPaint = new SKPaint { Color = new SKColor(0xFF, 0xFF, 0xFF, 0xCC), Style = SKPaintStyle.Fill };
         canvas.DrawRect(boxRect, bgPaint);
-        canvas.DrawText(_attributionText, boxRect.Right - pad, boxRect.Bottom - 5, SKTextAlign.Right, font, textPaint);
+        canvas.DrawText(attribution, boxRect.Right - pad, boxRect.Bottom - 5, SKTextAlign.Right, font, textPaint);
     }
 
     // --- Input ---
