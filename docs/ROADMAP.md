@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Shipped (10.0.50 → 10.0.70.4)
+## Shipped (10.0.50 → 10.0.90.1)
 
 ### Core platform
 
@@ -80,6 +80,17 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | GTK print dialog | `PrintService.ShowPrintDialogAsync` — GtkPrintUnixDialog with printer/copies/ranges/duplex/PPD options returned CUPS-ready; graceful null when GTK missing; `PrintJobStatus` adds a `NothingToPrint` state |
 | Tray icon XEmbed fallback | freedesktop System Tray Protocol backend when no SNI host exists (probe: ayatana → appindicator → XEmbed → no-op); left-click `Activated`, GTK right-click menu, auto re-dock on panel restart |
 
+### MAUI 10.0.90 alignment + roadmap set *(10.0.90.1)*
+
+| Feature | Description |
+|---------|-------------|
+| MAUI 10.0.90 alignment | Bumped `Microsoft.Maui.Controls` / `Graphics` / `Graphics.Skia` / `Controls.Maps` 10.0.70 → 10.0.90; no source changes required, all packages to 10.0.90.1 |
+| Drag payload types | `DragPayload` (text / files / image) drives `TryStartDrag`; Wayland offers per-payload MIMEs (`text/uri-list`, `image/png`, text); **outgoing X11 INCR** implemented for >64 KB targets; `GestureManager` extracts files + images from MAUI `DataPackage` |
+| Maps satellite / hybrid layers | `SkiaMap.LayerType` + MAUI `Map.MapType` wired; `TileSource` abstraction with keyless defaults (OSM, Esri World Imagery, Esri reference overlay); layer-stacking hybrid render; layer-keyed cache; per-layer attribution |
+| `Tmds.DBus` migration | Fcitx5 transport moved off the `dbus-monitor` subprocess to typed Tmds.DBus 0.94.2 proxies (`InputMethod1` / `InputContext1`, commit + preedit signals); fixed a latent inverted-key-event bug |
+| Live Visual Tree | `Diagnostics/VisualTreeInspector` — read-only tree snapshot, highlight overlay, click-to-pick, text dump; reuses the popup-overlay draw hook; opt-in Ctrl+Shift+D hotkey |
+| Hot Reload | `[MetadataUpdateHandler]` → main-thread re-render of the current page (`SkiaShell.ReRenderContentTrees`); C# + XAML edits for Shell-rooted apps under `dotnet watch`; non-Shell-root structural XAML reload deferred (see `docs/HOT_RELOAD.md`) |
+
 ## Planned
 
 ### Medium-term
@@ -87,11 +98,8 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Feature | Description |
 |---------|-------------|
 | Hardware video acceleration zero-copy | Explicit pipeline construction for direct compositor-surface (zero-copy) playback — `Prefer` mode already covers decoder selection |
-| XAML Hot Reload | Live XAML editing during debugging |
-| Live Visual Tree | Debug tool for inspecting UI hierarchy |
-| Maps satellite / hybrid layers | OSM raster only renders a single style today; satellite + hybrid would need a secondary tile source and a layer-stacking renderer |
-| Drag payload types | Outgoing drags source text only today; file/image `DataPackage` payloads (and outgoing INCR on X11) are the follow-up |
-| `Tmds.DBus` migration | Replace `dbus-monitor` subprocess in `Fcitx5InputMethodService` |
+| Non-Shell-root XAML Hot Reload | Structural XAML reload when the window page is a raw `ContentPage`/`NavigationPage` (Shell roots already work); needs retaining the root page Type + `IMauiContext` to rebuild and re-swap |
+| Drag payload sourcing polish | `StreamImageSource` (async) images for outgoing drags — currently only `FileImageSource` / raw `ImageBytes` are sourced synchronously |
 
 ### Long-term
 
@@ -119,16 +127,17 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 | Milestone | .NET / MAUI | Target | Status |
 |-----------|-------------|--------|--------|
-| v9.0.40 | .NET 9 / MAUI 9.0.40 | Q1 2026 | ✅ Released |
-| v9.0.x | .NET 9 / MAUI 9.0.x | Q1-Q2 2026 | 🔧 Maintenance |
-| v10.0.41 | .NET 10 / MAUI 10.0.41 | Q1 2026 | ✅ Released |
-| v10.0.50.x | .NET 10 / MAUI 10.0.50 | Q1 2026 | ✅ Released |
-| v10.0.60.x | .NET 10 / MAUI 10.0.60 | Q2 2026 | ✅ Released |
-| v10.0.70.1 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released |
-| v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released (Maps sibling missing — see 10.0.70.3) |
-| v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | ✅ Released |
-| v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | 🚀 Pending release |
-| v10.0.70.x | .NET 10 / MAUI 10.0.70 | Q2-Q3 2026 | 🚀 Active |
+| v9.0.40 | .NET 9 / MAUI 9.0.40 | Q1 2026 | Released |
+| v9.0.x | .NET 9 / MAUI 9.0.x | Q1-Q2 2026 | Maintenance |
+| v10.0.41 | .NET 10 / MAUI 10.0.41 | Q1 2026 | Released |
+| v10.0.50.x | .NET 10 / MAUI 10.0.50 | Q1 2026 | Released |
+| v10.0.60.x | .NET 10 / MAUI 10.0.60 | Q2 2026 | Released |
+| v10.0.70.1 | .NET 10 / MAUI 10.0.70 | Q2 2026 | Released |
+| v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | Released (Maps sibling missing — see 10.0.70.3) |
+| v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | Released |
+| v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | Released |
+| v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | In development |
+| v10.0.90.x | .NET 10 / MAUI 10.0.90 | Q3 2026 | Active |
 
 ## Feedback
 
