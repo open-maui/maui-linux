@@ -313,11 +313,10 @@ public class SkiaTabbedPage : SkiaLayoutView
         float tabWidth = tabBarBounds.Width / _tabs.Count;
 
         // Draw tabs
+        using var textFont = new SKFont(SKTypeface.Default, 14f);
         using var textPaint = new SKPaint
         {
-            IsAntialias = true,
-            TextSize = 14f,
-            Typeface = SKTypeface.Default
+            IsAntialias = true
         };
 
         for (int i = 0; i < _tabs.Count; i++)
@@ -331,16 +330,15 @@ public class SkiaTabbedPage : SkiaLayoutView
 
             bool isSelected = i == _selectedIndex;
             textPaint.Color = isSelected ? _selectedTabColorSK : _unselectedTabColorSK;
-            textPaint.FakeBoldText = isSelected;
+            textFont.Embolden = isSelected;
 
             // Draw tab title centered
-            var textBounds = new SKRect();
-            textPaint.MeasureText(tab.Title, ref textBounds);
+            textFont.MeasureText(tab.Title, out var textBounds);
 
             float textX = tabBounds.MidX - textBounds.MidX;
             float textY = tabBounds.MidY - textBounds.MidY;
 
-            canvas.DrawText(tab.Title, textX, textY, textPaint);
+            canvas.DrawText(tab.Title, textX, textY, SKTextAlign.Left, textFont, textPaint);
         }
 
         // Draw selection indicator

@@ -419,12 +419,12 @@ public static class LinuxProgramHost
 
         // Draw "IMG" text
         using var font = new SKFont(SKTypeface.Default, 12);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = SKColors.White,
             IsAntialias = true
         };
-        canvas.DrawText("IMG", 10, height - 8, textPaint);
+        canvas.DrawText("IMG", 10, height - 8, SKTextAlign.Left, font, textPaint);
 
         return bitmap;
     }

@@ -479,7 +479,7 @@ public class SkiaPicker : SkiaView
         }
 
         using var font = new SKFont(typeface, fontSize);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             IsAntialias = true
         };
@@ -500,8 +500,7 @@ public class SkiaPicker : SkiaView
             textPaint.Color = titleColorSK;
         }
 
-        var textBounds = new SKRect();
-        textPaint.MeasureText(displayText, ref textBounds);
+        font.MeasureText(displayText, out var textBounds);
 
         // Calculate horizontal position based on alignment
         float arrowWidth = 24f; // Reserve space for dropdown arrow
@@ -521,7 +520,7 @@ public class SkiaPicker : SkiaView
             _ => bounds.MidY - textBounds.MidY // Center alignment
         };
 
-        canvas.DrawText(displayText, textX, textY, textPaint);
+        canvas.DrawText(displayText, textX, textY, SKTextAlign.Left, font, textPaint);
 
         // Draw dropdown arrow
         DrawDropdownArrow(canvas, bounds, textColorSK);
@@ -634,7 +633,7 @@ public class SkiaPicker : SkiaView
 
         // Draw items
         using var font = new SKFont(SKTypeface.Default, fontSize);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = textColorSK,
             IsAntialias = true
@@ -668,12 +667,11 @@ public class SkiaPicker : SkiaView
             }
 
             // Draw item text
-            var textBounds = new SKRect();
-            textPaint.MeasureText(_items[i], ref textBounds);
+            font.MeasureText(_items[i], out var textBounds);
 
             var textX = itemRect.Left + 12;
             var textY = itemRect.MidY - textBounds.MidY;
-            canvas.DrawText(_items[i], textX, textY, textPaint);
+            canvas.DrawText(_items[i], textX, textY, SKTextAlign.Left, font, textPaint);
         }
 
         canvas.Restore();

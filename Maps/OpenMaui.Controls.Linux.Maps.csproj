@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Maps</PackageId>
-    <Version>10.0.90.1</Version>
+    <Version>10.0.101.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Maps (Linux)</Product>
@@ -33,7 +33,7 @@
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
 
     <!-- Upstream Maps control + IMapHandler + Pin/Polyline types. -->
-    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.90" />
+    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.101" />
   </ItemGroup>
 
   <!-- Include icon and README in package -->

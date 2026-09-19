@@ -80,7 +80,7 @@ public partial class SkiaEntry
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
-        using var paint = new SKPaint(font) { IsAntialias = true };
+        using var paint = new SKPaint { IsAntialias = true };
 
         var displayText = GetDisplayText();
         // Append pre-edit text at cursor position for IME composition display
@@ -96,7 +96,7 @@ public partial class SkiaEntry
 
             // Measure text to cursor position for scrolling
             var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));
-            var cursorX = paint.MeasureText(textToCursor);
+            var cursorX = font.MeasureText(textToCursor);
 
             // Auto-scroll to keep cursor visible
             if (cursorX - _scrollOffset > contentBounds.Width - 10)
@@ -111,12 +111,11 @@ public partial class SkiaEntry
             // Draw selection (check != 0 to handle both forward and backward selection)
             if (IsFocused && _selectionLength != 0)
             {
-                DrawSelection(canvas, paint, displayText, contentBounds);
+                DrawSelection(canvas, font, displayText, contentBounds);
             }
 
             // Calculate text position based on vertical alignment
-            var textBounds = new SKRect();
-            paint.MeasureText(displayText, ref textBounds);
+            font.MeasureText(displayText, out var textBounds);
 
             float x = contentBounds.Left - _scrollOffset;
             float y = VerticalTextAlignment switch
@@ -132,13 +131,13 @@ public partial class SkiaEntry
             // Draw underline for pre-edit (composition) text
             if (!string.IsNullOrEmpty(_preEditText))
             {
-                DrawPreEditUnderline(canvas, paint, displayText, x, y, contentBounds);
+                DrawPreEditUnderline(canvas, paint, font, displayText, x, y, contentBounds);
             }
 
             // Draw cursor
             if (IsFocused && !IsReadOnly && _cursorVisible)
             {
-                DrawCursor(canvas, paint, displayText, contentBounds);
+                DrawCursor(canvas, font, displayText, contentBounds);
             }
         }
         else if (!string.IsNullOrEmpty(Placeholder))
@@ -146,18 +145,17 @@ public partial class SkiaEntry
             // Draw placeholder
             paint.Color = GetEffectivePlaceholderColor();
 
-            var textBounds = new SKRect();
-            paint.MeasureText(Placeholder, ref textBounds);
+            font.MeasureText(Placeholder, out var textBounds);
 
             float x = contentBounds.Left;
             float y = contentBounds.MidY - textBounds.MidY;
 
-            canvas.DrawText(Placeholder, x, y, paint);
+            canvas.DrawText(Placeholder, x, y, SKTextAlign.Left, font, paint);
         }
         else if (IsFocused && !IsReadOnly && _cursorVisible)
         {
             // Draw cursor even with no text
-            DrawCursor(canvas, paint, "", contentBounds);
+            DrawCursor(canvas, font, "", contentBounds);
         }
 
         canvas.Restore();
@@ -213,7 +211,7 @@ public partial class SkiaEntry
         canvas.DrawLine(centerX - offset, centerY + offset, centerX + offset, centerY - offset, xPaint);
     }
 
-    private void DrawSelection(SKCanvas canvas, SKPaint paint, string displayText, SKRect bounds)
+    private void DrawSelection(SKCanvas canvas, SKFont font, string displayText, SKRect bounds)
     {
         var selStart = Math.Min(_selectionStart, _selectionStart + _selectionLength);
         var selEnd = Math.Max(_selectionStart, _selectionStart + _selectionLength);
@@ -221,8 +219,8 @@ public partial class SkiaEntry
         var textToStart = displayText.Substring(0, selStart);
         var textToEnd = displayText.Substring(0, selEnd);
 
-        var startX = bounds.Left - _scrollOffset + paint.MeasureText(textToStart);
-        var endX = bounds.Left - _scrollOffset + paint.MeasureText(textToEnd);
+        var startX = bounds.Left - _scrollOffset + font.MeasureText(textToStart);
+        var endX = bounds.Left - _scrollOffset + font.MeasureText(textToEnd);
 
         using var selPaint = new SKPaint
         {
@@ -233,10 +231,10 @@ public partial class SkiaEntry
         canvas.DrawRect(startX, bounds.Top, endX - startX, bounds.Height, selPaint);
     }
 
-    private void DrawCursor(SKCanvas canvas, SKPaint paint, string displayText, SKRect bounds)
+    private void DrawCursor(SKCanvas canvas, SKFont font, string displayText, SKRect bounds)
     {
         var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));
-        var cursorX = bounds.Left - _scrollOffset + paint.MeasureText(textToCursor);
+        var cursorX = bounds.Left - _scrollOffset + font.MeasureText(textToCursor);
 
         using var cursorPaint = new SKPaint
         {
@@ -257,8 +255,8 @@ public partial class SkiaEntry
     /// <summary>
     /// Draws underline for IME pre-edit (composition) text.
     /// </summary>
-    private void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, string displayText, float x, float y, SKRect bounds)
-        => TextRenderingHelper.DrawPreEditUnderline(canvas, paint, displayText, _cursorPosition, _preEditText, x, y);
+    private void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, SKFont font, string displayText, float x, float y, SKRect bounds)
+        => TextRenderingHelper.DrawPreEditUnderline(canvas, paint, font, displayText, _cursorPosition, _preEditText, x, y);
 
     private void ResetCursorBlink()
     {

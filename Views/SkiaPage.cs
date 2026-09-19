@@ -244,18 +244,17 @@ public class SkiaPage : SkiaView
         if (!string.IsNullOrEmpty(_title))
         {
             using var font = new SKFont(SKTypeface.Default, 20);
-            using var textPaint = new SKPaint(font)
+            using var textPaint = new SKPaint
             {
                 Color = _titleTextColor,
                 IsAntialias = true
             };
 
-            var textBounds = new SKRect();
-            textPaint.MeasureText(_title, ref textBounds);
+            font.MeasureText(_title, out var textBounds);
 
             var x = bounds.Left + 16;
             var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(_title, x, y, textPaint);
+            canvas.DrawText(_title, x, y, font, textPaint);
         }
 
         // Draw shadow
@@ -421,18 +420,17 @@ public class SkiaContentPage : SkiaPage
         if (!string.IsNullOrEmpty(Title))
         {
             using var font = new SKFont(SKTypeface.Default, 20);
-            using var textPaint = new SKPaint(font)
+            using var textPaint = new SKPaint
             {
                 Color = _titleTextColor,
                 IsAntialias = true
             };
 
-            var textBounds = new SKRect();
-            textPaint.MeasureText(Title, ref textBounds);
+            font.MeasureText(Title, out var textBounds);
 
             var x = bounds.Left + 56; // Leave space for back button
             var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(Title, x, y, textPaint);
+            canvas.DrawText(Title, x, y, font, textPaint);
         }
 
         // Draw toolbar items on the right
@@ -455,7 +453,7 @@ public class SkiaContentPage : SkiaPage
         if (primaryItems.Count == 0) return;
 
         using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = _titleTextColor,
             IsAntialias = true
@@ -490,8 +488,7 @@ public class SkiaContentPage : SkiaPage
             else
             {
                 // Text-based toolbar item (fallback)
-                var textBounds = new SKRect();
-                textPaint.MeasureText(item.Text, ref textBounds);
+                font.MeasureText(item.Text, out var textBounds);
 
                 itemWidth = textBounds.Width + 24;
                 itemLeft = rightEdge - itemWidth;
@@ -502,7 +499,7 @@ public class SkiaContentPage : SkiaPage
                 // Draw text
                 var x = itemLeft + 12;
                 var y = navBarBounds.MidY - textBounds.MidY;
-                canvas.DrawText(item.Text, x, y, textPaint);
+                canvas.DrawText(item.Text, x, y, font, textPaint);
             }
 
             DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
