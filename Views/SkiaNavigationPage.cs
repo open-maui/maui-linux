@@ -135,6 +135,11 @@ public class SkiaNavigationPage : SkiaView
             _isPushAnimation = true;
             _animationProgress = 0;
             _isAnimating = true;
+            // Fire OnAppearing BEFORE the first frame that presents the page,
+            // matching other platforms where OnAppearing completes before the
+            // page becomes visible. Any state the handler/app sets up in
+            // OnAppearing is then reflected from the first animation frame.
+            _incomingPage.OnAppearing();
             AnimatePush();
         }
         else
@@ -171,6 +176,12 @@ public class SkiaNavigationPage : SkiaView
             _isPushAnimation = false;
             _animationProgress = 0;
             _isAnimating = true;
+            // Fire OnAppearing BEFORE the first frame that presents the restored
+            // page (matching other platforms). Apps commonly refresh state here
+            // (e.g. resetting a CollectionView's ItemsSource); doing it before the
+            // animation means the page never paints stale content that is then
+            // visibly replaced after the animation settles.
+            _incomingPage.OnAppearing();
             AnimatePop(poppedPage);
         }
         else
@@ -248,7 +259,7 @@ public class SkiaNavigationPage : SkiaView
         _currentPage = _incomingPage;
         _incomingPage = null;
         _isAnimating = false;
-        _currentPage?.OnAppearing();
+        // OnAppearing already fired in Push() before the animation started.
         Invalidate();
     }
 
@@ -269,7 +280,7 @@ public class SkiaNavigationPage : SkiaView
         _currentPage = _incomingPage;
         _incomingPage = null;
         _isAnimating = false;
-        _currentPage?.OnAppearing();
+        // OnAppearing already fired in Pop() before the animation started.
         outgoingPage.Parent = null;
         Invalidate();
     }

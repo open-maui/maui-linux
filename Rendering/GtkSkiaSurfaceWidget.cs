@@ -30,6 +30,9 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate bool ScrollEventCallback(IntPtr widget, IntPtr eventData, IntPtr userData);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void DestroyCallback(IntPtr widget, IntPtr userData);
+
     private struct GdkEventButton
     {
         public int type;
@@ -98,6 +101,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
     private ulong _keyPressSignalId;
     private ulong _keyReleaseSignalId;
     private ulong _scrollSignalId;
+    private ulong _destroySignalId;
     private bool _isTransparent;
     private readonly ButtonEventCallback _buttonPressCallback;
     private readonly ButtonEventCallback _buttonReleaseCallback;
@@ -105,6 +109,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
     private readonly KeyEventCallback _keyPressCallback;
     private readonly KeyEventCallback _keyReleaseCallback;
     private readonly ScrollEventCallback _scrollCallback;
+    private readonly DestroyCallback _destroyCallback;
 
     public IntPtr Widget => _widget;
     public SKCanvas? Canvas => _canvas;
@@ -146,6 +151,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
         _keyPressCallback = OnKeyPress;
         _keyReleaseCallback = OnKeyRelease;
         _scrollCallback = OnScroll;
+        _destroyCallback = OnWidgetDestroyed;
 
         // Connect signals
         _drawSignalId = GtkNative.g_signal_connect_data(_widget, "draw", Marshal.GetFunctionPointerForDelegate(_drawCallback), IntPtr.Zero, IntPtr.Zero, 0);
@@ -157,7 +163,29 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
         _keyReleaseSignalId = GtkNative.g_signal_connect_data(_widget, "key-release-event", Marshal.GetFunctionPointerForDelegate(_keyReleaseCallback), IntPtr.Zero, IntPtr.Zero, 0);
         _scrollSignalId = GtkNative.g_signal_connect_data(_widget, "scroll-event", Marshal.GetFunctionPointerForDelegate(_scrollCallback), IntPtr.Zero, IntPtr.Zero, 0);
 
+        // "destroy" zeroes the widget pointer at the authoritative moment (the
+        // parent window's gtk_widget_destroy tears children down); any managed
+        // call arriving afterwards (queue_draw, grab_focus) then no-ops instead
+        // of touching freed GTK memory.
+        _destroySignalId = GtkNative.g_signal_connect_data(_widget, "destroy", Marshal.GetFunctionPointerForDelegate(_destroyCallback), IntPtr.Zero, IntPtr.Zero, 0);
+
         DiagnosticLog.Debug("GtkSkiaSurfaceWidget", $"Created with size {width}x{height}");
+    }
+
+    private void OnWidgetDestroyed(IntPtr widget, IntPtr userData)
+    {
+        // GTK disconnects all handlers itself during destroy; just drop our
+        // pointer and ids so no managed path calls into the freed widget.
+        _widget = IntPtr.Zero;
+        _drawSignalId = 0;
+        _configureSignalId = 0;
+        _buttonPressSignalId = 0;
+        _buttonReleaseSignalId = 0;
+        _motionSignalId = 0;
+        _keyPressSignalId = 0;
+        _keyReleaseSignalId = 0;
+        _scrollSignalId = 0;
+        _destroySignalId = 0;
     }
 
     private void CreateBuffer(int width, int height)
@@ -200,7 +228,7 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
 
     public void RenderFrame(Action<SKCanvas, SKImageInfo> render)
     {
-        if (_canvas != null && _bitmap != null)
+        if (_widget != IntPtr.Zero && _canvas != null && _bitmap != null)
         {
             render(_canvas, _imageInfo);
             _canvas.Flush();
@@ -212,7 +240,10 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
 
     public void Invalidate()
     {
-        GtkNative.gtk_widget_queue_draw(_widget);
+        if (_widget != IntPtr.Zero)
+        {
+            GtkNative.gtk_widget_queue_draw(_widget);
+        }
     }
 
     public void SetTransparent(bool transparent)
@@ -383,7 +414,10 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
 
     public void GrabFocus()
     {
-        GtkNative.gtk_widget_grab_focus(_widget);
+        if (_widget != IntPtr.Zero)
+        {
+            GtkNative.gtk_widget_grab_focus(_widget);
+        }
     }
 
     public void Dispose()
@@ -399,6 +433,10 @@ public sealed class GtkSkiaSurfaceWidget : IDisposable
             if (_keyPressSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _keyPressSignalId);
             if (_keyReleaseSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _keyReleaseSignalId);
             if (_scrollSignalId != 0) GtkNative.g_signal_handler_disconnect(_widget, _scrollSignalId);
+            // Keep the "destroy" handler connected: the widget itself is
+            // destroyed by its parent window AFTER this Dispose runs (see
+            // GtkHostWindow.Dispose ordering), and that handler is what zeroes
+            // _widget for anyone still holding this instance.
         }
 
         _canvas?.Dispose();
