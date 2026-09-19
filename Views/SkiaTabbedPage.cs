@@ -337,7 +337,7 @@ public class SkiaTabbedPage : SkiaLayoutView
             textFont.MeasureText(tab.Title, out var textBounds);
 
             float textX = tabBounds.MidX - textBounds.MidX;
-            float textY = tabBounds.MidY - textBounds.MidY;
+            float textY = TextRenderingHelper.BaselineForVerticalCenter(textFont, tabBounds.MidY);
 
             canvas.DrawText(tab.Title, textX, textY, SKTextAlign.Left, textFont, textPaint);
         }

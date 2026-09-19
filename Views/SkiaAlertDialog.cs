@@ -209,7 +209,7 @@ public class SkiaAlertDialog : SkiaView
         font.MeasureText(text, out var textBounds);
 
         var x = bounds.MidX - textBounds.MidX;
-        var y = bounds.MidY - textBounds.MidY;
+        var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
         canvas.DrawText(text, x, y, font, textPaint);
     }
 

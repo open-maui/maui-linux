@@ -484,10 +484,9 @@ public class SkiaCollectionView : SkiaItemsView
         };
 
         var text = item?.ToString() ?? "";
-        font.MeasureText(text, out var textBounds);
 
         var x = bounds.Left + 16f;
-        var y = bounds.MidY - textBounds.MidY;
+        var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
         canvas.DrawText(text, x, y, font, textPaint);
 
         if (isSelected && SelectionMode == SkiaSelectionMode.Multiple)
@@ -744,10 +743,8 @@ public class SkiaCollectionView : SkiaItemsView
                 IsAntialias = true
             };
 
-            font.MeasureText(text, out var textBounds);
-
             var x = bounds.Left + 16f;
-            var y = bounds.MidY - textBounds.MidY;
+            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
             canvas.DrawText(text, x, y, font, textPaint);
         }
 
@@ -790,7 +787,7 @@ public class SkiaCollectionView : SkiaItemsView
             font.MeasureText(text, out var textBounds);
 
             var x = bounds.MidX - textBounds.MidX;
-            var y = bounds.MidY - textBounds.MidY;
+            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
             canvas.DrawText(text, x, y, font, textPaint);
         }
     }

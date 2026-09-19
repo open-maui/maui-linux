@@ -1218,7 +1218,7 @@ public class SkiaShell : SkiaLayoutView
             textFont.MeasureText(item.Title, out var textBounds);
 
             float textX = tabBarBounds.Left + i * tabWidth + tabWidth / 2 - textBounds.MidX;
-            float textY = tabBarBounds.MidY - textBounds.MidY;
+            float textY = TextRenderingHelper.BaselineForVerticalCenter(textFont, tabBarBounds.MidY);
 
             canvas.DrawText(item.Title, textX, textY, textFont, textPaint);
         }
