@@ -318,8 +318,7 @@ public class SkiaImageButton : SkiaView
 
                 using var paint = new SKPaint
                 {
-                    IsAntialias = true,
-                    FilterQuality = SKFilterQuality.High
+                    IsAntialias = true
                 };
 
                 // Apply opacity when disabled
@@ -328,7 +327,8 @@ public class SkiaImageButton : SkiaView
                     paint.Color = paint.Color.WithAlpha(128);
                 }
 
-                canvas.DrawImage(_image, destRect, paint);
+                // SKFilterQuality.High equivalent in SkiaSharp 4: cubic (Mitchell) resampling
+                canvas.DrawImage(_image, destRect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint);
             }
         }
 

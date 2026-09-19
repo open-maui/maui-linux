@@ -413,7 +413,9 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
         var srcRect = new SKRect(0, 0, frame.Width, frame.Height);
         var dstRect = ComputeAspectRect(bounds, frame.Width, frame.Height);
-        canvas.DrawImage(frame, srcRect, dstRect);
+        // SKSamplingOptions.Default matches what the sampling-less overload used
+        // (nearest); explicit to avoid the SkiaSharp 4 deprecation warning.
+        canvas.DrawImage(frame, srcRect, dstRect, SKSamplingOptions.Default);
     }
 
     private SKRect ComputeAspectRect(SKRect bounds, int srcW, int srcH)

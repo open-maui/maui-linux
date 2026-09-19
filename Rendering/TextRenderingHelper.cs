@@ -31,7 +31,8 @@ public static class TextRenderingHelper
         if (runs.Count <= 1)
         {
             // Single run or no fallback needed - draw directly
-            canvas.DrawText(text, x, y, paint);
+            using var font = new SKFont(preferredTypeface, fontSize);
+            canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
             return;
         }
 
@@ -40,14 +41,14 @@ public static class TextRenderingHelper
         foreach (var run in runs)
         {
             using var runFont = new SKFont(run.Typeface, fontSize);
-            using var runPaint = new SKPaint(runFont)
+            using var runPaint = new SKPaint
             {
                 Color = paint.Color,
                 IsAntialias = true
             };
 
-            canvas.DrawText(run.Text, currentX, y, runPaint);
-            currentX += runPaint.MeasureText(run.Text);
+            canvas.DrawText(run.Text, currentX, y, SKTextAlign.Left, runFont, runPaint);
+            currentX += runFont.MeasureText(run.Text, runPaint);
         }
     }
 
@@ -55,12 +56,12 @@ public static class TextRenderingHelper
     /// Draws underline for IME pre-edit (composition) text.
     /// Renders a dashed underline beneath the pre-edit text region.
     /// </summary>
-    public static void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, string displayText, int cursorPosition, string preEditText, float x, float y)
+    public static void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, SKFont font, string displayText, int cursorPosition, string preEditText, float x, float y)
     {
         // Calculate pre-edit text position
         var textToCursor = displayText.Substring(0, Math.Min(cursorPosition, displayText.Length));
-        var preEditStartX = x + paint.MeasureText(textToCursor);
-        var preEditEndX = preEditStartX + paint.MeasureText(preEditText);
+        var preEditStartX = x + font.MeasureText(textToCursor, paint);
+        var preEditEndX = preEditStartX + font.MeasureText(preEditText, paint);
 
         // Draw dotted underline to indicate composition
         using var underlinePaint = new SKPaint

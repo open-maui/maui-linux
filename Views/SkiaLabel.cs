@@ -545,12 +545,11 @@ public class SkiaLabel : SkiaView
         using var font = new SKFont(
             RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
-        using var paint = new SKPaint(font);
 
         for (int i = 0; i <= text.Length; i++)
         {
             var substring = text.Substring(0, i);
-            var width = paint.MeasureText(substring);
+            var width = font.MeasureText(substring);
             if (CharacterSpacing != 0 && i > 0)
             {
                 width += (float)(CharacterSpacing * i);
@@ -684,7 +683,7 @@ public class SkiaLabel : SkiaView
             RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
-        using var paint = new SKPaint(font)
+        using var paint = new SKPaint
         {
             Color = ToSKColor(TextColor),
             IsAntialias = true
@@ -702,14 +701,13 @@ public class SkiaLabel : SkiaView
         }
         else
         {
-            DrawSingleLineText(canvas, paint, contentBounds, displayText);
+            DrawSingleLineText(canvas, paint, font, contentBounds, displayText);
         }
     }
 
-    private void DrawSingleLineText(SKCanvas canvas, SKPaint paint, SKRect bounds, string text)
+    private void DrawSingleLineText(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds, string text)
     {
-        var textBounds = new SKRect();
-        paint.MeasureText(text, ref textBounds);
+        font.MeasureText(text, out var textBounds);
 
         // Apply truncation if needed
         string displayText = text;
@@ -717,8 +715,8 @@ public class SkiaLabel : SkiaView
 
         if (textBounds.Width > availableWidth && LineBreakMode != LineBreakMode.NoWrap)
         {
-            displayText = TruncateText(text, paint, availableWidth, LineBreakMode);
-            paint.MeasureText(displayText, ref textBounds);
+            displayText = TruncateText(text, font, availableWidth, LineBreakMode);
+            font.MeasureText(displayText, out textBounds);
         }
 
         // Account for character spacing in measurement
@@ -742,14 +740,14 @@ public class SkiaLabel : SkiaView
         // Draw selection highlight if applicable
         if (_selectionStart >= 0 && _selectionLength != 0)
         {
-            DrawSelectionHighlight(canvas, paint, x, y, displayText, textBounds);
+            DrawSelectionHighlight(canvas, font, x, y, displayText, textBounds);
         }
 
-        DrawTextWithSpacing(canvas, displayText, x, y, paint);
+        DrawTextWithSpacing(canvas, displayText, x, y, font, paint);
         DrawTextDecorations(canvas, paint, x, y, textBounds);
     }
 
-    private void DrawSelectionHighlight(SKCanvas canvas, SKPaint paint, float x, float y, string text, SKRect textBounds)
+    private void DrawSelectionHighlight(SKCanvas canvas, SKFont font, float x, float y, string text, SKRect textBounds)
     {
         var selStart = Math.Min(_selectionStart, _selectionStart + _selectionLength);
         var selEnd = Math.Max(_selectionStart, _selectionStart + _selectionLength);
@@ -763,8 +761,8 @@ public class SkiaLabel : SkiaView
         var textToStart = text.Substring(0, selStart);
         var textToEnd = text.Substring(0, selEnd);
 
-        float startX = x + paint.MeasureText(textToStart);
-        float endX = x + paint.MeasureText(textToEnd);
+        float startX = x + font.MeasureText(textToStart);
+        float endX = x + font.MeasureText(textToEnd);
 
         if (CharacterSpacing != 0)
         {
@@ -791,15 +789,14 @@ public class SkiaLabel : SkiaView
         float y = bounds.Top;
         int lineCount = 0;
 
-        var lines = WrapText(text, paint, bounds.Width);
+        var lines = WrapText(text, font, bounds.Width);
 
         foreach (var line in lines)
         {
             if (MaxLines > 0 && lineCount >= MaxLines) break;
             if (y + lineHeight > bounds.Bottom && MaxLines == 0) break;
 
-            var textBounds = new SKRect();
-            paint.MeasureText(line, ref textBounds);
+            font.MeasureText(line, out var textBounds);
 
             float textWidth = textBounds.Width;
             if (CharacterSpacing != 0 && line.Length > 1)
@@ -811,7 +808,7 @@ public class SkiaLabel : SkiaView
             float x = GetHorizontalPosition(HorizontalTextAlignment, bounds.Left, bounds.Right, textWidth);
 
             float textY = y - textBounds.Top;
-            DrawTextWithSpacing(canvas, line, x, textY, paint);
+            DrawTextWithSpacing(canvas, line, x, textY, font, paint);
             DrawTextDecorations(canvas, paint, x, textY, textBounds);
 
             y += lineHeight;
@@ -819,7 +816,7 @@ public class SkiaLabel : SkiaView
         }
     }
 
-    private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKPaint paint)
+    private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint paint)
     {
         if (string.IsNullOrEmpty(text)) return;
 
@@ -849,14 +846,14 @@ public class SkiaLabel : SkiaView
             {
                 string charStr = c.ToString();
                 using var charFont = new SKFont(run.Typeface, fontSize);
-                using var charPaint = new SKPaint(charFont)
+                using var charPaint = new SKPaint
                 {
                     Color = paint.Color,
                     IsAntialias = true
                 };
 
-                canvas.DrawText(charStr, currentX, y, charPaint);
-                currentX += charPaint.MeasureText(charStr) + (float)CharacterSpacing;
+                canvas.DrawText(charStr, currentX, y, charFont, charPaint);
+                currentX += charFont.MeasureText(charStr) + (float)CharacterSpacing;
             }
         }
     }
@@ -883,7 +880,8 @@ public class SkiaLabel : SkiaView
         if (runs.Count <= 1)
         {
             // Single run or no fallback needed - draw directly
-            canvas.DrawText(text, x, y, paint);
+            using var directFont = new SKFont(preferredTypeface, fontSize);
+            canvas.DrawText(text, x, y, directFont, paint);
             return;
         }
 
@@ -893,14 +891,14 @@ public class SkiaLabel : SkiaView
         foreach (var run in runs)
         {
             using var runFont = new SKFont(run.Typeface, fontSize);
-            using var runPaint = new SKPaint(runFont)
+            using var runPaint = new SKPaint
             {
                 Color = paint.Color,
                 IsAntialias = true
             };
 
-            canvas.DrawText(run.Text, currentX, y, runPaint);
-            currentX += runPaint.MeasureText(run.Text);
+            canvas.DrawText(run.Text, currentX, y, runFont, runPaint);
+            currentX += runFont.MeasureText(run.Text);
         }
     }
 
@@ -948,8 +946,7 @@ public class SkiaLabel : SkiaView
 
         // Calculate baseline for first line
         using var measureFont = new SKFont(SKTypeface.Default, fontSize);
-        using var measurePaint = new SKPaint(measureFont);
-        var metrics = measurePaint.FontMetrics;
+        var metrics = measureFont.Metrics;
         y -= metrics.Ascent;
 
         foreach (var span in FormattedText.Spans)
@@ -976,14 +973,13 @@ public class SkiaLabel : SkiaView
                 spanFontSize);
 
             var spanColor = span.TextColor ?? TextColor;
-            using var paint = new SKPaint(font)
+            using var paint = new SKPaint
             {
                 Color = ToSKColor(spanColor),
                 IsAntialias = true
             };
 
-            var textBounds = new SKRect();
-            paint.MeasureText(span.Text, ref textBounds);
+            font.MeasureText(span.Text, out var textBounds);
 
             // Check if we need to wrap to next line
             if (x + textBounds.Width > bounds.Right && x > bounds.Left)
@@ -1017,16 +1013,15 @@ public class SkiaLabel : SkiaView
         }
     }
 
-    private string TruncateText(string text, SKPaint paint, float maxWidth, LineBreakMode mode)
+    private string TruncateText(string text, SKFont font, float maxWidth, LineBreakMode mode)
     {
         if (string.IsNullOrEmpty(text)) return text;
 
-        var bounds = new SKRect();
-        paint.MeasureText(text, ref bounds);
+        font.MeasureText(text, out var bounds);
         if (bounds.Width <= maxWidth) return text;
 
         string ellipsis = "...";
-        float ellipsisWidth = paint.MeasureText(ellipsis);
+        float ellipsisWidth = font.MeasureText(ellipsis);
 
         switch (mode)
         {
@@ -1034,7 +1029,7 @@ public class SkiaLabel : SkiaView
                 for (int i = 1; i < text.Length; i++)
                 {
                     string truncated = ellipsis + text.Substring(i);
-                    if (paint.MeasureText(truncated) <= maxWidth)
+                    if (font.MeasureText(truncated) <= maxWidth)
                         return truncated;
                 }
                 return ellipsis;
@@ -1044,7 +1039,7 @@ public class SkiaLabel : SkiaView
                 for (int i = 0; i < half; i++)
                 {
                     string truncated = text.Substring(0, half - i) + ellipsis + text.Substring(half + i);
-                    if (paint.MeasureText(truncated) <= maxWidth)
+                    if (font.MeasureText(truncated) <= maxWidth)
                         return truncated;
                 }
                 return ellipsis;
@@ -1054,14 +1049,14 @@ public class SkiaLabel : SkiaView
                 for (int i = text.Length - 1; i > 0; i--)
                 {
                     string truncated = text.Substring(0, i) + ellipsis;
-                    if (paint.MeasureText(truncated) <= maxWidth)
+                    if (font.MeasureText(truncated) <= maxWidth)
                         return truncated;
                 }
                 return ellipsis;
         }
     }
 
-    private List<string> WrapText(string text, SKPaint paint, float maxWidth)
+    private List<string> WrapText(string text, SKFont font, float maxWidth)
     {
         var lines = new List<string>();
         if (string.IsNullOrEmpty(text)) return lines;
@@ -1079,7 +1074,7 @@ public class SkiaLabel : SkiaView
 
             // Check if the entire paragraph fits on one line - no need to wrap
             // Use small tolerance to account for floating point precision
-            float paragraphWidth = paint.MeasureText(paragraph);
+            float paragraphWidth = font.MeasureText(paragraph);
             if (paragraphWidth <= maxWidth + 1.0f)
             {
                 lines.Add(paragraph);
@@ -1088,18 +1083,18 @@ public class SkiaLabel : SkiaView
 
             if (LineBreakMode == LineBreakMode.CharacterWrap)
             {
-                WrapByCharacter(paragraph, paint, maxWidth, lines);
+                WrapByCharacter(paragraph, font, maxWidth, lines);
             }
             else
             {
-                WrapByWord(paragraph, paint, maxWidth, lines);
+                WrapByWord(paragraph, font, maxWidth, lines);
             }
         }
 
         return lines;
     }
 
-    private void WrapByWord(string text, SKPaint paint, float maxWidth, List<string> lines)
+    private void WrapByWord(string text, SKFont font, float maxWidth, List<string> lines)
     {
         var words = text.Split(' ');
         string currentLine = "";
@@ -1107,7 +1102,7 @@ public class SkiaLabel : SkiaView
         foreach (var word in words)
         {
             string testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
-            float width = paint.MeasureText(testLine);
+            float width = font.MeasureText(testLine);
 
             if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
             {
@@ -1126,14 +1121,14 @@ public class SkiaLabel : SkiaView
         }
     }
 
-    private void WrapByCharacter(string text, SKPaint paint, float maxWidth, List<string> lines)
+    private void WrapByCharacter(string text, SKFont font, float maxWidth, List<string> lines)
     {
         string currentLine = "";
 
         foreach (char c in text)
         {
             string testLine = currentLine + c;
-            float width = paint.MeasureText(testLine);
+            float width = font.MeasureText(testLine);
 
             if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
             {
@@ -1175,8 +1170,6 @@ public class SkiaLabel : SkiaView
             RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
-        using var paint = new SKPaint(font);
-
         double width, height;
         // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
         double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
@@ -1190,17 +1183,16 @@ public class SkiaLabel : SkiaView
             {
                 if (!string.IsNullOrEmpty(span.Text))
                 {
-                    width += paint.MeasureText(span.Text);
+                    width += font.MeasureText(span.Text);
                 }
             }
         }
         else
         {
-            // Use advance width (paint.MeasureText return value) not bounding box width
+            // Use advance width (font.MeasureText return value) not bounding box width
             // This must match what WrapText uses for consistency
-            var textBounds = new SKRect();
-            paint.MeasureText(displayText, ref textBounds);
-            width = paint.MeasureText(displayText);  // Advance width, not textBounds.Width
+            font.MeasureText(displayText, out var textBounds);
+            width = font.MeasureText(displayText);  // Advance width, not textBounds.Width
             height = textBounds.Height;
 
             // Account for character spacing
