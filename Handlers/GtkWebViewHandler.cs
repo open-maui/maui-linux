@@ -19,6 +19,48 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
     private bool _isRegisteredWithHost;
     private SKRect _lastBounds;
 
+    // GLib idle sources queued by navigation events. Tracked so
+    // DisconnectHandler can remove any that have not fired yet — a pending
+    // idle running after the WebView/handler is torn down must not touch the
+    // virtual view or the (destroyed) platform view.
+    private readonly List<uint> _pendingIdleSources = new();
+
+    /// <summary>
+    /// Queues a one-shot callback on the GLib main loop, tracking its source
+    /// id until it runs so DisconnectHandler can cancel it.
+    /// </summary>
+    private void QueueTrackedIdle(Func<bool> callback)
+    {
+        uint sourceId = 0;
+        sourceId = GLibNative.IdleAdd(() =>
+        {
+            lock (_pendingIdleSources)
+            {
+                _pendingIdleSources.Remove(sourceId);
+            }
+            if (_platformWebView == null)
+                return false; // handler disconnected before the idle fired
+            return callback();
+        });
+        lock (_pendingIdleSources)
+        {
+            _pendingIdleSources.Add(sourceId);
+        }
+    }
+
+    private void CancelPendingIdleSources()
+    {
+        lock (_pendingIdleSources)
+        {
+            foreach (var id in _pendingIdleSources)
+            {
+                if (id != 0)
+                    GLibNative.SourceRemove(id);
+            }
+            _pendingIdleSources.Clear();
+        }
+    }
+
     public static IPropertyMapper<IWebView, GtkWebViewHandler> Mapper = new PropertyMapper<IWebView, GtkWebViewHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IWebView.Source)] = MapSource,
@@ -65,6 +107,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
             _platformWebView.NavigationStarted -= OnNavigationStarted;
             _platformWebView.NavigationCompleted -= OnNavigationCompleted;
             _platformWebView.ScriptDialogRequested -= OnScriptDialogRequested;
+            CancelPendingIdleSources();
             UnregisterFromHost();
             _platformWebView.Dispose();
             _platformWebView = null;
@@ -106,7 +149,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         DiagnosticLog.Debug("GtkWebViewHandler", $"Navigation started: {uri}");
         try
         {
-            GLibNative.IdleAdd(() =>
+            QueueTrackedIdle(() =>
             {
                 try
                 {
@@ -136,7 +179,7 @@ public class GtkWebViewHandler : ViewHandler<IWebView, GtkWebViewProxy>
         DiagnosticLog.Debug("GtkWebViewHandler", $"Navigation completed: {e.Url} (Success: {e.Success})");
         try
         {
-            GLibNative.IdleAdd(() =>
+            QueueTrackedIdle(() =>
             {
                 try
                 {

@@ -21,14 +21,23 @@ public enum ScriptDialogType
 /// </summary>
 public sealed class GtkWebViewPlatformView : IDisposable
 {
+    [System.Runtime.InteropServices.UnmanagedFunctionPointer(System.Runtime.InteropServices.CallingConvention.Cdecl)]
+    private delegate void DestroyCallback(IntPtr widget, IntPtr userData);
+
     private IntPtr _widget;
     private bool _disposed;
     private string? _currentUri;
     private ulong _loadChangedSignalId;
     private ulong _scriptDialogSignalId;
+    private ulong _destroySignalId;
     private WebKitNative.LoadChangedCallback? _loadChangedCallback;
     private WebKitNative.ScriptDialogCallback? _scriptDialogCallback;
+    private DestroyCallback? _destroyCallback;
     private EventHandler<Microsoft.Maui.Controls.AppThemeChangedEventArgs>? _themeChangedHandler;
+
+    // Pending theme-change idle source (0 when none). Removed on Dispose so a
+    // queued theme update can never run against a torn-down WebView.
+    private uint _themeIdleSourceId;
 
     public IntPtr Widget => _widget;
     public string? CurrentUri => _currentUri;
@@ -57,15 +66,32 @@ public sealed class GtkWebViewPlatformView : IDisposable
         _scriptDialogCallback = OnScriptDialog;
         _scriptDialogSignalId = WebKitNative.ConnectScriptDialog(_widget, _scriptDialogCallback);
 
+        // "destroy" zeroes the widget pointer at the authoritative moment. The
+        // widget is owned by the GTK host window tree; when that tree is
+        // destroyed (window close / GtkHostService.Shutdown) this instance may
+        // still be reachable from the handler, and every method here guards on
+        // _widget == IntPtr.Zero.
+        _destroyCallback = OnWidgetDestroyed;
+        _destroySignalId = GtkNative.g_signal_connect_data(
+            _widget,
+            "destroy",
+            System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_destroyCallback),
+            IntPtr.Zero, IntPtr.Zero, 0);
+
         // Set initial background color based on theme
         UpdateBackgroundForTheme();
 
-        // Subscribe to theme changes to update background color
+        // Subscribe to theme changes to update background color. The idle
+        // source is tracked so Dispose can remove it if it has not fired yet.
         _themeChangedHandler = (sender, args) =>
         {
-            GLibNative.IdleAdd(() =>
+            if (_disposed || _widget == IntPtr.Zero) return;
+            if (_themeIdleSourceId != 0) return; // one pending update is enough
+            _themeIdleSourceId = GLibNative.IdleAdd(() =>
             {
-                UpdateBackgroundForTheme();
+                _themeIdleSourceId = 0;
+                if (!_disposed)
+                    UpdateBackgroundForTheme();
                 return false;
             });
         };
@@ -75,6 +101,20 @@ public sealed class GtkWebViewPlatformView : IDisposable
         }
 
         DiagnosticLog.Debug("GtkWebViewPlatformView", "Created WebKitWebView widget");
+    }
+
+    private void OnWidgetDestroyed(IntPtr widget, IntPtr userData)
+    {
+        // Drop WebKitNative's per-widget callback bookkeeping (it is keyed by
+        // the widget pointer, which becomes meaningless now), then zero our
+        // pointer and ids so no managed call reaches freed memory. GTK
+        // disconnects the remaining handlers itself during destroy.
+        WebKitNative.DisconnectLoadChanged(widget);
+        WebKitNative.DisconnectScriptDialog(widget);
+        _widget = IntPtr.Zero;
+        _loadChangedSignalId = 0;
+        _scriptDialogSignalId = 0;
+        _destroySignalId = 0;
     }
 
     /// <summary>
@@ -532,10 +572,21 @@ public sealed class GtkWebViewPlatformView : IDisposable
                 _themeChangedHandler = null;
             }
 
+            // Remove a queued-but-unfired theme update idle.
+            if (_themeIdleSourceId != 0)
+            {
+                GLibNative.SourceRemove(_themeIdleSourceId);
+                _themeIdleSourceId = 0;
+            }
+
             if (_widget != IntPtr.Zero)
             {
                 WebKitNative.DisconnectLoadChanged(_widget);
                 WebKitNative.DisconnectScriptDialog(_widget);
+                // Keep the "destroy" handler connected: the widget still lives
+                // in the GTK host window tree and that handler is what zeroes
+                // _widget when the tree is destroyed. _destroyCallback stays
+                // rooted for the same reason.
             }
             _widget = IntPtr.Zero;
             _loadChangedCallback = null;

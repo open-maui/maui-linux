@@ -25,6 +25,9 @@ public sealed class GtkHostWindow : IDisposable
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate bool MotionEventDelegate(IntPtr widget, IntPtr eventData, IntPtr userData);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void DestroyDelegate(IntPtr widget, IntPtr userData);
+
     [StructLayout(LayoutKind.Explicit)]
     private struct GdkEventButton
     {
@@ -92,11 +95,13 @@ public sealed class GtkHostWindow : IDisposable
     private readonly ButtonEventDelegate _buttonPressHandler;
     private readonly ButtonEventDelegate _buttonReleaseHandler;
     private readonly MotionEventDelegate _motionHandler;
+    private readonly DestroyDelegate _destroyHandler;
     private ulong _deleteSignalId;
     private ulong _configureSignalId;
     private ulong _buttonPressSignalId;
     private ulong _buttonReleaseSignalId;
     private ulong _motionSignalId;
+    private ulong _destroySignalId;
 
     public IntPtr Window => _window;
     public IntPtr Overlay => _overlay;
@@ -158,10 +163,15 @@ public sealed class GtkHostWindow : IDisposable
         _buttonPressHandler = OnButtonPress;
         _buttonReleaseHandler = OnButtonRelease;
         _motionHandler = OnMotion;
+        _destroyHandler = OnWindowDestroyed;
 
         // Connect event handlers
         _deleteSignalId = GtkNative.g_signal_connect_data(_window, "delete-event", Marshal.GetFunctionPointerForDelegate(_deleteEventHandler), IntPtr.Zero, IntPtr.Zero, 0);
         _configureSignalId = GtkNative.g_signal_connect_data(_window, "configure-event", Marshal.GetFunctionPointerForDelegate(_configureEventHandler), IntPtr.Zero, IntPtr.Zero, 0);
+        // "destroy" zeroes the native pointers at the authoritative moment so
+        // any late managed call (RequestRedraw from a pending idle, a dispose
+        // path invalidating views) no-ops instead of touching freed widgets.
+        _destroySignalId = GtkNative.g_signal_connect_data(_window, "destroy", Marshal.GetFunctionPointerForDelegate(_destroyHandler), IntPtr.Zero, IntPtr.Zero, 0);
 
         // Add pointer event masks
         GtkNative.gtk_widget_add_events(_window, 772);
@@ -178,6 +188,23 @@ public sealed class GtkHostWindow : IDisposable
         _isRunning = false;
         GtkNative.gtk_main_quit();
         return true;
+    }
+
+    private void OnWindowDestroyed(IntPtr widget, IntPtr userData)
+    {
+        // The window tree (overlay, webview layer, Skia surface) dies with the
+        // toplevel; drop every native pointer so no managed caller can reach
+        // freed GTK memory. GTK disconnects the signal handlers itself.
+        _window = IntPtr.Zero;
+        _overlay = IntPtr.Zero;
+        _webViewLayer = IntPtr.Zero;
+        _deleteSignalId = 0;
+        _configureSignalId = 0;
+        _buttonPressSignalId = 0;
+        _buttonReleaseSignalId = 0;
+        _motionSignalId = 0;
+        _destroySignalId = 0;
+        _isRunning = false;
     }
 
     private bool OnConfigureEvent(IntPtr widget, IntPtr eventData, IntPtr userData)
@@ -239,22 +266,26 @@ public sealed class GtkHostWindow : IDisposable
 
     public void Show()
     {
+        if (_window == IntPtr.Zero) return;
         GtkNative.gtk_widget_show_all(_window);
         _isRunning = true;
     }
 
     public void Hide()
     {
+        if (_window == IntPtr.Zero) return;
         GtkNative.gtk_widget_hide(_window);
     }
 
     public void SetTitle(string title)
     {
+        if (_window == IntPtr.Zero) return;
         GtkNative.gtk_window_set_title(_window, title);
     }
 
     public void SetIcon(string iconPath)
     {
+        if (_window == IntPtr.Zero) return;
         if (string.IsNullOrEmpty(iconPath) || !File.Exists(iconPath))
         {
             DiagnosticLog.Warn("GtkHostWindow", "Icon file not found: " + iconPath);
@@ -278,11 +309,13 @@ public sealed class GtkHostWindow : IDisposable
 
     public void Resize(int width, int height)
     {
+        if (_window == IntPtr.Zero) return;
         GtkNative.gtk_window_resize(_window, width, height);
     }
 
     public void AddWebView(IntPtr webViewWidget, int x, int y, int width, int height)
     {
+        if (_webViewLayer == IntPtr.Zero || webViewWidget == IntPtr.Zero) return;
         GtkNative.gtk_widget_set_size_request(webViewWidget, width, height);
         GtkNative.gtk_fixed_put(_webViewLayer, webViewWidget, x, y);
         GtkNative.gtk_widget_show(webViewWidget);
@@ -291,25 +324,31 @@ public sealed class GtkHostWindow : IDisposable
 
     public void MoveResizeWebView(IntPtr webViewWidget, int x, int y, int width, int height)
     {
+        if (_webViewLayer == IntPtr.Zero || webViewWidget == IntPtr.Zero) return;
         GtkNative.gtk_widget_set_size_request(webViewWidget, width, height);
         GtkNative.gtk_fixed_move(_webViewLayer, webViewWidget, x, y);
     }
 
     public void RemoveWebView(IntPtr webViewWidget)
     {
+        if (_webViewLayer == IntPtr.Zero || webViewWidget == IntPtr.Zero) return;
         GtkNative.gtk_container_remove(_webViewLayer, webViewWidget);
     }
 
     public void RequestRedraw()
     {
-        if (_skiaSurface != null)
-        {
-            GtkNative.gtk_widget_queue_draw(_skiaSurface.Widget);
-        }
+        // _skiaSurface.Widget is zeroed by its "destroy" handler when the host
+        // window tree is torn down; guard both so a late redraw request
+        // (e.g. a view invalidating during app dispose) is a safe no-op.
+        var surface = _skiaSurface;
+        if (_disposed || surface == null || surface.Widget == IntPtr.Zero)
+            return;
+        GtkNative.gtk_widget_queue_draw(surface.Widget);
     }
 
     public void Run()
     {
+        if (_window == IntPtr.Zero) return;
         Show();
         GtkNative.gtk_main();
     }
@@ -333,8 +372,11 @@ public sealed class GtkHostWindow : IDisposable
         if (!_disposed)
         {
             _disposed = true;
+            _isRunning = false;
 
-            // Disconnect signal handlers before destroying the widget
+            // Disconnect signal handlers before destroying the widget.
+            // The "destroy" handler stays connected: it zeroes _window,
+            // _overlay and _webViewLayer when gtk_widget_destroy runs below.
             if (_window != IntPtr.Zero)
             {
                 if (_deleteSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _deleteSignalId);
@@ -342,14 +384,25 @@ public sealed class GtkHostWindow : IDisposable
                 if (_buttonPressSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _buttonPressSignalId);
                 if (_buttonReleaseSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _buttonReleaseSignalId);
                 if (_motionSignalId != 0) GtkNative.g_signal_handler_disconnect(_window, _motionSignalId);
+                _deleteSignalId = 0;
+                _configureSignalId = 0;
+                _buttonPressSignalId = 0;
+                _buttonReleaseSignalId = 0;
+                _motionSignalId = 0;
             }
 
             _skiaSurface?.Dispose();
             if (_window != IntPtr.Zero)
             {
+                // Destroys the whole tree (overlay, webview layer, Skia surface
+                // widget). The surface widget's "destroy" handler zeroes its
+                // pointer, and ours zeroes _window/_overlay/_webViewLayer.
                 GtkNative.gtk_widget_destroy(_window);
                 _window = IntPtr.Zero;
             }
+            _overlay = IntPtr.Zero;
+            _webViewLayer = IntPtr.Zero;
+            _skiaSurface = null;
         }
     }
 }
