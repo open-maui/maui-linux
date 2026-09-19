@@ -551,7 +551,7 @@ public partial class SkiaEntry
         var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, (float)FontSize);
+        using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
 
         var displayText = GetDisplayText();
 
@@ -775,7 +775,7 @@ public partial class SkiaEntry
         var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, (float)FontSize);
+        using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
 
         var displayText = GetDisplayText();
         var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));

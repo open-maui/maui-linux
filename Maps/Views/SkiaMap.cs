@@ -7,6 +7,7 @@ using Microsoft.Maui.Platform.Linux.Dispatching;
 using Microsoft.Maui.Platform.Linux.Maps.Native;
 using Microsoft.Maui.Platform.Linux.Maps.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Maps.Views;
 
@@ -486,7 +487,7 @@ public class SkiaMap : SkiaView
             Color = SKColors.Black,
             IsAntialias = true,
         };
-        using var labelFont = new SKFont(SKTypeface.Default, 12);
+        using var labelFont = SkiaFontFactory.Create(12);
 
         foreach (var pin in Pins)
         {
@@ -535,7 +536,7 @@ public class SkiaMap : SkiaView
 
     private static void DrawAttribution(SKCanvas canvas, SKRect bounds, string attribution)
     {
-        using var font = new SKFont(SKTypeface.Default, 11);
+        using var font = SkiaFontFactory.Create(11);
         using var textPaint = new SKPaint { Color = SKColors.Black, IsAntialias = true };
         var textWidth = font.MeasureText(attribution);
         var pad = 6f;

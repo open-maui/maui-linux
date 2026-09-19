@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -313,7 +314,7 @@ public class SkiaTabbedPage : SkiaLayoutView
         float tabWidth = tabBarBounds.Width / _tabs.Count;
 
         // Draw tabs
-        using var textFont = new SKFont(SKTypeface.Default, 14f);
+        using var textFont = SkiaFontFactory.Create(14f);
         using var textPaint = new SKPaint
         {
             IsAntialias = true
