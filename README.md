@@ -418,11 +418,15 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Live Visual Tree — `Diagnostics/VisualTreeInspector`: tree snapshot, highlight overlay, click-to-pick, text dump; opt-in Ctrl+Shift+D (10.0.90.1)
 - [x] Hot Reload — `dotnet watch` C#/XAML edits re-render the current page (Shell-rooted apps); see `docs/HOT_RELOAD.md` (10.0.90.1)
 
+- [x] MAUI 10.0.101 alignment + SkiaSharp 3 → 4 migration — ~400 call sites to the `SKFont` API; `SkiaFontFactory` (Subpixel + LinearMetrics) fixes HiDPI glyph gaps; label measurement is wrap-aware and glyph-independent (10.0.101.1)
+- [x] Multi-window support — `Application.OpenWindow`/`CloseWindow`, per-window render/input/focus, X11 + Wayland parity, MAUI `IWindow` lifecycle, last-window-close exits (10.0.101.1)
+- [x] Non-Shell-root XAML Hot Reload — raw `ContentPage`/`NavigationPage` roots rebuild and re-swap under `dotnet watch` (10.0.101.1)
+- [x] Async drag image sourcing — `StreamImageSource` payloads resolve in-flight with format sniffing and bounded honest-fail (10.0.101.1)
+
 ### Up next
 
+- [ ] Multi-window round-out — per-window `WindowHandler` (live title/page updates), DnD onto secondary windows, window positioning
 - [ ] Hardware video decode zero-copy — explicit pipeline construction for direct compositor-surface playback (`Prefer` mode already covers decoder selection)
-- [ ] Non-Shell-root XAML Hot Reload — structural reload when the window page is a raw `ContentPage`/`NavigationPage` (Shell roots already work)
-- [ ] Drag payload sourcing polish — async `StreamImageSource` images for outgoing drags (currently `FileImageSource` / raw bytes only)
 
 ## License
 

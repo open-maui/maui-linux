@@ -4,7 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.90.1] - unreleased
+## [10.0.101.1] - unreleased
+
+> The multi-window release, on a fully migrated rendering stack. Aligned to MAUI 10.0.101, which forces the SkiaSharp 3 → 4 major-version jump (the legacy `SKPaint` text APIs are error-obsolete in 4.x — nearly 400 call sites across ~30 files migrated to the `SKFont` API). Adds multiple top-level windows, closes the two remaining medium-term roadmap finishers, and fixes three visible text-rendering defects found by on-screen review.
+
+### Added
+
+- **Multi-window support.** `Application.Current.OpenWindow(new Window(page))` now works: each MAUI `Window` gets its own native toplevel (X11 and Wayland at full parity — each window owns its display connection), its own Skia rendering engine, and its own input routing with independent focus/hover/capture, all through the `Guarded` exception containment. A new `WindowContext` registry backs it; the legacy single-window members forward to the primary context so existing consumers are unchanged. `IWindow` lifecycle (`Created`/`Activated`/`Deactivated`/`Destroying`) fires per the MAUI contract — `Activated`/`Deactivated` follow OS focus. Closing the primary window keeps the app alive while secondaries remain; the app exits when the last window closes. `Application.CloseWindow` works. The Application handler is now attached at startup (it never was on this platform, so `OpenWindow` used to silently no-op). Per-window routing decisions for shared services are documented in code: Wayland clipboard follows keyboard focus, dialogs/context menus are app-modal and latch to the focused window, popup overlays are filtered per window, theme changes refresh every window. V1 scope notes: drag-and-drop targets the primary window; GTK mode remains single-window; title/page changes to an already-open secondary don't propagate; `IWindow.Stopped`/`Resumed` and window positioning are deferred.
+- **Hot Reload for non-Shell roots.** A raw `ContentPage`/`NavigationPage` window page now structurally reloads under `dotnet watch`: the root page type is rebuilt (DI-first), re-parented into the MAUI Window, re-rendered, and swapped with correct `Disappearing`/`Appearing` lifecycle. NavigationPage stacks reset to the rebuilt root on structural reload — verified to match MAUI's own hot-reload behavior. Plain `new NavigationPage(page)` roots re-wrap the rebuilt inner page, preserving code-set bar styling.
+- **Async image sourcing for outgoing drags.** `StreamImageSource` images now work as drag payloads: the drag still starts synchronously (press-serial constraint), while the stream is read in-flight (`DragPayload.PendingImage`); transfer paths await it with a 5 s bound and honest-fail just the image MIME on timeout (text/files in the same payload still deliver). Image format is sniffed from the stream header (PNG/JPEG/GIF/WebP/BMP) rather than assumed; a MIME mismatch fails cleanly instead of serving mislabeled bytes. On X11, not-yet-resolved image requests defer the `SelectionNotify` on the event pump instead of blocking it.
+
+### Changed
+
+- **Aligned to .NET MAUI 10.0.101; SkiaSharp 3.119.2 → 4.152.1** (forced by MAUI's dependency floor), with HarfBuzzSharp 14.2.1.201 and Svg.Skia 5.2.3. All five packages move to `10.0.101.1` in lockstep. The SkiaSharp 4 migration: every legacy `SKPaint` text member (`TextSize`, `Typeface`, `TextAlign`, `MeasureText`, `FakeBoldText`, `FilterQuality`, the `SKPaint(SKFont)` constructor, paint-only `DrawText`) is `[Obsolete(error: true)]` in 4.x — all call sites moved to `SKFont`-based measurement/drawing and `SKSamplingOptions` (legacy High quality → Mitchell cubic), preserving rendering behavior.
+- **New `SkiaFontFactory` — the single construction path for SKFonts** (`Subpixel = true`, `LinearMetrics = true`). Required on DPI-scaled canvases: SkiaSharp 4's font defaults snap glyph advances to integers in font space, and the HiDPI canvas scale magnified the rounding into visible intra-word gaps ("SearchBar" rendered as "Search Bar" at 2x). All rendering/measurement code must create fonts through the factory — mixed settings cause measure/draw mismatch.
+
+### Fixed
+
+- **Wrapped labels no longer overdraw their siblings.** `SkiaLabel.MeasureOverride` measured soft-wrapped text as a single line (it never consulted the available width), so a wrapping label under-reported its height and its extra lines drew over the next control. Measurement now mirrors the draw path exactly: same wrap condition, same `WrapText`, same line-height math, capped by `MaxLines`.
+- **Label heights are glyph-independent.** Single-line labels measured height by ink bounds, so "Input" (descender) measured taller than "Buttons" and sibling spacing shifted with the letters in the text. Height now comes from the line height (`FontSize × LineHeight`, default 1.2), consistent with the multi-line branch and other MAUI platforms.
+- HiDPI intra-word glyph gaps (see `SkiaFontFactory` above) — text on scaled canvases renders with correct kerning and even spacing again.
+
+## [10.0.90.1] - 2026-08-09
 
 > MAUI 10.0.90 alignment + the next roadmap set. Bumped `Microsoft.Maui.Controls` / `Microsoft.Maui.Graphics` / `Microsoft.Maui.Graphics.Skia` / `Microsoft.Maui.Controls.Maps` from 10.0.70 to 10.0.90 (no source changes required for the jump), then added file/image drag payloads, satellite/hybrid map layers, a Tmds.DBus Fcitx5 transport, a Live Visual Tree inspector, and Hot Reload.
 
