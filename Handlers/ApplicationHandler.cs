@@ -4,6 +4,7 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -53,8 +54,33 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
 
     public static void MapOpenWindow(ApplicationHandler handler, IApplication application, object? args)
     {
-        if (args is IWindow window)
+        // Application.OpenWindow(Window) does NOT pass the window itself: it
+        // stashes the window under a GUID and invokes this command with an
+        // OpenWindowRequest whose persisted state carries the id. Round-trip
+        // through IApplication.CreateWindow (with that state as the activation
+        // state) to resolve the actual Window instance — the standard MAUI
+        // multi-window contract on every platform.
+        if (args is Microsoft.Maui.Handlers.OpenWindowRequest request)
         {
+            var mauiContext = handler.MauiContext;
+            if (mauiContext == null)
+            {
+                DiagnosticLog.Warn("ApplicationHandler", "OpenWindow: handler has no MauiContext");
+                return;
+            }
+
+            var state = request.State != null
+                ? new ActivationState(mauiContext, request.State)
+                : new ActivationState(mauiContext);
+            var window = application.CreateWindow(state);
+            if (window != null)
+            {
+                handler.PlatformView?.OpenWindow(window);
+            }
+        }
+        else if (args is IWindow window)
+        {
+            // Direct-IWindow form kept for programmatic callers.
             handler.PlatformView?.OpenWindow(window);
         }
     }
@@ -106,7 +132,10 @@ public class LinuxApplicationContext
     public IReadOnlyList<IWindow> Windows => _windows;
 
     /// <summary>
-    /// Opens a window and creates its handler.
+    /// Opens a window: tracks it and asks LinuxApplication to create/adopt the
+    /// native window (multi-window support). The startup window is adopted
+    /// into the already-created primary native window; subsequent windows get
+    /// a fresh native toplevel, rendered page, and per-window input routing.
     /// </summary>
     public void OpenWindow(IWindow window)
     {
@@ -114,18 +143,30 @@ public class LinuxApplicationContext
         {
             _windows.Add(window);
         }
+
+        LinuxApplication.Current?.OpenMauiWindow(window);
     }
 
     /// <summary>
-    /// Closes a window and cleans up its handler.
+    /// Closes a window: stops its native window (the run loop then raises
+    /// IWindow.Destroying and disposes the context; the app exits when the
+    /// LAST window closes — closing the primary alone does not).
     /// </summary>
     public void CloseWindow(IWindow window)
     {
         _windows.Remove(window);
 
+        var app = LinuxApplication.Current;
+        if (app != null)
+        {
+            app.CloseMauiWindow(window);
+            return;
+        }
+
         if (_windows.Count == 0)
         {
-            // Last window closed, stop the application
+            // No platform app (shouldn't happen in production): preserve the
+            // historical stop-on-last behavior.
             LinuxApplication.Current?.MainWindow?.Stop();
         }
     }
