@@ -411,18 +411,17 @@ public class LinuxWebView : SkiaView
         // Draw "WebView" label if not yet initialized
         if (!_initialized)
         {
+            using var textFont = new SKFont(SKTypeface.Default, 14);
             using var textPaint = new SKPaint
             {
                 Color = SkiaTheme.TextPlaceholderSK,
-                TextSize = 14,
                 IsAntialias = true
             };
             var text = "WebView (WebKitGTK)";
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
+            textFont.MeasureText(text, out var textBounds);
             var x = bounds.MidX - textBounds.MidX;
             var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(text, x, y, textPaint);
+            canvas.DrawText(text, x, y, SKTextAlign.Left, textFont, textPaint);
         }
 
         // Process GTK events to keep WebView responsive

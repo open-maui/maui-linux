@@ -103,7 +103,7 @@ internal static class WaylandCsdRenderer
         {
             using var typeface = SKTypeface.Default;
             using var font = new SKFont(typeface, 13f);
-            using var paint = new SKPaint(font)
+            using var paint = new SKPaint
             {
                 Color = isDark ? new SKColor(0xE0, 0xE0, 0xE0) : new SKColor(0x20, 0x20, 0x20),
                 IsAntialias = true,
@@ -114,7 +114,7 @@ internal static class WaylandCsdRenderer
 
             var metrics = font.Metrics;
             float baselineY = h * 0.5f - (metrics.Ascent + metrics.Descent) * 0.5f;
-            canvas.DrawText(displayed, TitlePaddingLeft, baselineY, font, paint);
+            canvas.DrawText(displayed, TitlePaddingLeft, baselineY, SKTextAlign.Left, font, paint);
         }
     }
 

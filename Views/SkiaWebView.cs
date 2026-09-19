@@ -1401,11 +1401,11 @@ public partial class SkiaWebView : SkiaView
         canvas.DrawLine(midX - 25, midY - 20, midX + 25, midY - 20, iconPaint);
         canvas.DrawArc(new SKRect(midX - 15, midY - 45, midX + 15, midY + 5), 0, 180, false, iconPaint);
 
+        using var textFont = new SKFont(SKTypeface.Default, 14);
         using var textPaint = new SKPaint
         {
             Color = SkiaTheme.Gray700SK,
-            IsAntialias = true,
-            TextSize = 14
+            IsAntialias = true
         };
 
         string statusText;
@@ -1426,20 +1426,20 @@ public partial class SkiaWebView : SkiaView
             statusText = "WebView (click to open)";
         }
 
-        float textWidth = textPaint.MeasureText(statusText);
-        canvas.DrawText(statusText, midX - textWidth / 2, midY + 30, textPaint);
+        float textWidth = textFont.MeasureText(statusText);
+        canvas.DrawText(statusText, midX - textWidth / 2, midY + 30, SKTextAlign.Left, textFont, textPaint);
 
         if (!IsSupported)
         {
+            using var hintFont = new SKFont(SKTypeface.Default, 11);
             using var hintPaint = new SKPaint
             {
                 Color = SkiaTheme.Gray600SK,
-                IsAntialias = true,
-                TextSize = 11
+                IsAntialias = true
             };
             string hint = "Install: sudo apt install libwebkit2gtk-4.1-0";
-            float hintWidth = hintPaint.MeasureText(hint);
-            canvas.DrawText(hint, midX - hintWidth / 2, midY + 50, hintPaint);
+            float hintWidth = hintFont.MeasureText(hint);
+            canvas.DrawText(hint, midX - hintWidth / 2, midY + 50, SKTextAlign.Left, hintFont, hintPaint);
         }
 
         if (_loadProgress > 0 && _loadProgress < 1)

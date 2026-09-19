@@ -698,7 +698,7 @@ public class SkiaButton : SkiaView, IButtonController
             textColor = textColor.WithAlpha(128);
         }
 
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = textColor,
             IsAntialias = true
@@ -714,7 +714,7 @@ public class SkiaButton : SkiaView, IButtonController
         float textHeight = 0;
         if (hasText)
         {
-            textPaint.MeasureText(displayText, ref textBounds);
+            font.MeasureText(displayText, out textBounds);
             textWidth = textBounds.Width;
             if (CharacterSpacing != 0 && displayText.Length > 1)
             {
@@ -817,7 +817,7 @@ public class SkiaButton : SkiaView, IButtonController
             canvas.DrawBitmap(_loadedImage!, imageRect, imagePaint);
 
             // Draw text
-            DrawTextWithSpacing(canvas, displayText, textX, textY, textPaint);
+            DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
         }
         else if (hasImage)
         {
@@ -836,15 +836,15 @@ public class SkiaButton : SkiaView, IButtonController
         {
             float textX = contentBounds.MidX - textWidth / 2;
             float textY = contentBounds.MidY - textBounds.MidY;
-            DrawTextWithSpacing(canvas, displayText, textX, textY, textPaint);
+            DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
         }
     }
 
-    private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKPaint paint)
+    private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint paint)
     {
         if (CharacterSpacing == 0 || string.IsNullOrEmpty(text) || text.Length <= 1)
         {
-            canvas.DrawText(text, x, y, paint);
+            canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
             return;
         }
 
@@ -853,8 +853,8 @@ public class SkiaButton : SkiaView, IButtonController
         foreach (char c in text)
         {
             string charStr = c.ToString();
-            canvas.DrawText(charStr, currentX, y, paint);
-            currentX += paint.MeasureText(charStr) + (float)CharacterSpacing;
+            canvas.DrawText(charStr, currentX, y, SKTextAlign.Left, font, paint);
+            currentX += font.MeasureText(charStr) + (float)CharacterSpacing;
         }
     }
 
@@ -1018,8 +1018,6 @@ public class SkiaButton : SkiaView, IButtonController
             RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 
-        using var paint = new SKPaint(font);
-
         string displayText = ApplyTextTransform(Text);
         bool hasText = !string.IsNullOrEmpty(displayText);
         bool hasImage = _loadedImage != null;
@@ -1027,8 +1025,7 @@ public class SkiaButton : SkiaView, IButtonController
         float textWidth = 0, textHeight = 0;
         if (hasText)
         {
-            var textBounds = new SKRect();
-            paint.MeasureText(displayText, ref textBounds);
+            font.MeasureText(displayText, out var textBounds);
             textWidth = textBounds.Width;
             if (CharacterSpacing != 0 && displayText.Length > 1)
             {
