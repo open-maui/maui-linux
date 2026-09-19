@@ -37,8 +37,10 @@ public abstract partial class SkiaView
             canvas.Restore();
         }
 
-        foreach (var (_, draw) in _popupOverlays)
+        foreach (var (owner, draw) in _popupOverlays)
         {
+            if (root != null && !OwnerBelongsToRoot(owner, root))
+                continue;
             canvas.Save();
             if (PopupDpiScale > 1.0f)
                 canvas.Scale(PopupDpiScale);
@@ -48,15 +50,53 @@ public abstract partial class SkiaView
     }
 
     /// <summary>
+    /// True when <paramref name="owner"/>'s parent chain reaches
+    /// <paramref name="root"/>, or when the chain reaches no window root at
+    /// all (detached owner — treated as global so it isn't silently lost).
+    /// </summary>
+    private static bool OwnerBelongsToRoot(SkiaView owner, SkiaView root)
+    {
+        SkiaView top = owner;
+        while (top.Parent != null)
+            top = top.Parent;
+        if (top == root)
+            return true;
+
+        // If the owner's top isn't ANY live window root, it is detached;
+        // keep historical draw-everywhere behavior for it.
+        var app = Microsoft.Maui.Platform.Linux.LinuxApplication.Current;
+        if (app != null)
+        {
+            foreach (var ctx in app.WindowContexts)
+            {
+                if (ctx.RootView == top)
+                    return false; // belongs to another window
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Gets the popup owner that should receive pointer events at the given coordinates.
     /// This allows popups to receive events even outside their normal bounds.
     /// </summary>
     public static SkiaView? GetPopupOwnerAt(float x, float y)
     {
+        return GetPopupOwnerAt(x, y, null);
+    }
+
+    /// <summary>
+    /// Root-filtered variant for multi-window input routing; see
+    /// <see cref="DrawPopupOverlays(SKCanvas, SkiaView?)"/> for the filter rule.
+    /// </summary>
+    public static SkiaView? GetPopupOwnerAt(float x, float y, SkiaView? root)
+    {
         // Check in reverse order (topmost popup first)
         for (int i = _popupOverlays.Count - 1; i >= 0; i--)
         {
             var owner = _popupOverlays[i].Owner;
+            if (root != null && !OwnerBelongsToRoot(owner, root))
+                continue;
             if (owner.HitTestPopupArea(x, y))
             {
                 return owner;

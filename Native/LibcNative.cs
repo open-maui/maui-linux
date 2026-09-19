@@ -21,4 +21,12 @@ internal static partial class LibcNative
 
     [LibraryImport(Libc, EntryPoint = "poll", SetLastError = true)]
     public static partial int Poll(ref PollFd fds, nuint nfds, int timeout);
+
+    /// <summary>
+    /// Multi-fd poll used by the multi-window run loop (one fd per native
+    /// window connection). The span is pinned for the call, so Revents
+    /// written by the kernel is visible to the caller.
+    /// </summary>
+    [LibraryImport(Libc, EntryPoint = "poll", SetLastError = true)]
+    public static partial int Poll(Span<PollFd> fds, nuint nfds, int timeout);
 }
