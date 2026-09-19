@@ -125,16 +125,15 @@ public class SkiaContextMenu : SkiaView
             }
 
             // Draw text
+            using (var textFont = new SKFont(SKTypeface.Default, 14f))
             using (var textPaint = new SKPaint
             {
                 Color = !item.IsEnabled ? DisabledTextColor : ItemTextColor,
-                TextSize = 14f,
-                IsAntialias = true,
-                Typeface = SKTypeface.Default
+                IsAntialias = true
             })
             {
-                float textY = itemRect.MidY + textPaint.TextSize / 3f;
-                canvas.DrawText(item.Text, itemRect.Left + ItemPaddingH, textY, textPaint);
+                float textY = itemRect.MidY + textFont.Size / 3f;
+                canvas.DrawText(item.Text, itemRect.Left + ItemPaddingH, textY, SKTextAlign.Left, textFont, textPaint);
             }
 
             itemY += ItemHeight;
@@ -144,13 +143,13 @@ public class SkiaContextMenu : SkiaView
     private float CalculateMenuWidth()
     {
         float maxWidth = MinWidth;
-        using (var paint = new SKPaint { TextSize = 14f, Typeface = SKTypeface.Default })
+        using (var font = new SKFont(SKTypeface.Default, 14f))
         {
             foreach (var item in _items)
             {
                 if (!item.IsSeparator)
                 {
-                    float textWidth = paint.MeasureText(item.Text) + ItemPaddingH * 2f;
+                    float textWidth = font.MeasureText(item.Text) + ItemPaddingH * 2f;
                     maxWidth = Math.Max(maxWidth, textWidth);
                 }
             }

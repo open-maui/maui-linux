@@ -410,11 +410,11 @@ public class SkiaImage : SkiaView
         using var paint = new SKPaint
         {
             IsAntialias = true,
-            FilterQuality = SKFilterQuality.High,
             BlendMode = SKBlendMode.SrcOver
         };
 
-        canvas.DrawImage(_image, destRect, paint);
+        // SKFilterQuality.High equivalent in SkiaSharp 4: cubic (Mitchell) resampling
+        canvas.DrawImage(_image, destRect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint);
     }
 
     private SKRect CalculateDestRect(SKRect bounds, float imageWidth, float imageHeight)
