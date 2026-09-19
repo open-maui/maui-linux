@@ -105,8 +105,10 @@ public partial class LinuxApplication
         {
             linuxApp.Initialize(options);
 
-            // Create MAUI context
+            // Create MAUI context. Retained on the app so Application.OpenWindow
+            // can render new windows' pages later (multi-window support).
             var mauiContext = new LinuxMauiContext(app.Services, linuxApp);
+            linuxApp.MauiContext = mauiContext;
 
             // Get the application and render it
             var application = app.Services.GetService<IApplication>();
@@ -114,6 +116,19 @@ public partial class LinuxApplication
 
             if (application is Application mauiApplication)
             {
+                // Attach the platform Application handler so OpenWindow /
+                // CloseWindow calls route into the Linux windowing plumbing
+                // (Application.OpenWindow invokes the handler's command mapper;
+                // without a handler it silently no-ops). Must happen before
+                // CreateWindow so a startup OpenWindow round-trips correctly.
+                try
+                {
+                    mauiApplication.ToHandler(mauiContext);
+                }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Error("LinuxApplication", $"Attaching ApplicationHandler failed: {ex.Message}");
+                }
                 // Force Application.Current to be this instance
                 var currentProperty = typeof(Application).GetProperty("Current");
                 if (currentProperty != null && currentProperty.CanWrite)
@@ -201,6 +216,14 @@ public partial class LinuxApplication
                         {
                             mauiApplication.OpenWindow(mauiWindow);
                         }
+
+                        // Associate the startup IWindow with the primary native
+                        // window so close notifies IWindow.Destroying and any
+                        // OpenWindow for it is recognized as already open.
+                        // (OpenMauiWindow may already have adopted it if the
+                        // OpenWindow above round-tripped through the handler.)
+                        if (linuxApp.PrimaryContext is { MauiWindow: null } primaryCtx)
+                            primaryCtx.MauiWindow = mauiWindow;
                     }
                 }
                 catch (Exception ex)
@@ -218,10 +241,17 @@ public partial class LinuxApplication
                     {
                         var mauiWindow = new Microsoft.Maui.Controls.Window(mainPage);
                         mauiApplication.OpenWindow(mauiWindow);
+                        // OpenWindow round-trips through the handler and adopts
+                        // the window into the primary context; belt-and-braces
+                        // for the no-handler case:
+                        if (linuxApp.PrimaryContext is { MauiWindow: null } primaryCtx)
+                            primaryCtx.MauiWindow = mauiWindow;
                     }
                     else if (mauiApplication.Windows[0] is Microsoft.Maui.Controls.Window w && w.Page == null)
                     {
                         w.Page = mainPage;
+                        if (linuxApp.PrimaryContext is { MauiWindow: null } primaryCtx)
+                            primaryCtx.MauiWindow = w;
                     }
                 }
 
@@ -252,6 +282,11 @@ public partial class LinuxApplication
                     }
                     linuxApp.SetWindowTitle(windowTitle);
                 }
+
+                // Catch-all: whatever path produced the startup window, make
+                // sure the primary context knows its MAUI IWindow.
+                if (linuxApp.PrimaryContext is { MauiWindow: null } pc && mauiApplication.Windows.Count > 0)
+                    pc.MauiWindow = mauiApplication.Windows[0];
             }
 
             if (rootView == null)
@@ -307,37 +342,39 @@ public partial class LinuxApplication
             return;
         }
 
-        if (_mainWindow is X11Window x11)
-        {
-            RunX11(x11);
-        }
-        else if (_mainWindow is WaylandWindow wl)
-        {
-            RunWayland(wl);
-        }
-        else
-        {
+        if (MainWindow == null)
             throw new InvalidOperationException("No display window available");
-        }
+
+        RunEventLoop();
     }
 
-    private void RunX11(X11Window window)
+    /// <summary>
+    /// Multi-window event loop for the native (X11/Wayland) backends: pumps
+    /// events and renders for EVERY live window each iteration, blocks on all
+    /// window connection fds together, and exits when the LAST window closes
+    /// (MAUI desktop semantics — closing the primary while secondaries live
+    /// keeps the process running). Windows opened mid-run via
+    /// Application.OpenWindow join the loop on the next iteration.
+    ///
+    /// X11 and Wayland windows each own their display connection, so mixed
+    /// backends (Wayland primary with an X11 fallback secondary) pump fine.
+    /// </summary>
+    private void RunEventLoop()
     {
-        window.Show();
-        Render();
+        // Show and first-render the windows present at startup (the primary).
+        // Secondary windows are shown by OpenMauiWindow at creation time.
+        foreach (var ctx in _windowContexts)
+            ctx.DisplayWindow?.Show();
+        RenderAll();
 
         // Cap the wait at ~60Hz so animations get a chance to tick even when no input
         // arrives. When events are pending, poll() returns immediately and the loop
         // runs as fast as needed; when idle, CPU drops from ~100% to near zero.
         const int IdleTimeoutMs = 16;
-        var pollFd = new LibcNative.PollFd
-        {
-            Fd = X11.XConnectionNumber(window.Display),
-            Events = LibcNative.POLLIN,
-        };
+        var pollFds = new LibcNative.PollFd[_windowContexts.Count];
 
-        DiagnosticLog.Debug("LinuxApplication", "Starting X11 event loop");
-        while (window.IsRunning)
+        DiagnosticLog.Debug("LinuxApplication", "Starting event loop");
+        while (_windowContexts.Count > 0)
         {
             _loopCounter++;
             if (_loopCounter % 1000 == 0)
@@ -345,76 +382,88 @@ public partial class LinuxApplication
                 DiagnosticLog.Debug("LinuxApplication", $"Loop iteration {_loopCounter}");
             }
 
-            window.ProcessEvents();
-            window.FlushDeferredResize();
+            // Pump each window's queued events (index-based: OpenMauiWindow can
+            // append to the registry from inside an input callback).
+            for (int i = 0; i < _windowContexts.Count; i++)
+            {
+                var window = _windowContexts[i].DisplayWindow;
+                if (window == null) continue;
+                window.ProcessEvents();
+                window.FlushDeferredResize();
+            }
+
             // Process GLib events (idle callbacks, timeouts) so that
             // MainThread.BeginInvokeOnMainThread dispatches execute.
             // This is required for libraries like LiveCharts that use
             // Task.Run + InvokeOnUIThread for chart updates.
             GLibNative.ProcessPendingEvents();
             SkiaWebView.ProcessGtkEvents();
+            UpdateDialogRouting();
             UpdateAnimations();
-            Render();
-            window.AcknowledgeSync();
 
-            // Block until an X event arrives or the frame budget elapses.
-            // Skip the wait if X events are already queued.
-            if (X11.XPending(window.Display) == 0)
+            for (int i = 0; i < _windowContexts.Count; i++)
             {
-                pollFd.Revents = 0;
-                LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
+                var ctx = _windowContexts[i];
+                ctx.Render();
+                ctx.DisplayWindow?.AcknowledgeSync();
+            }
+
+            // Tear down windows whose native side stopped (close button /
+            // Stop()); notifies IWindow.Destroying and disposes the context.
+            // The loop condition exits when the last one goes.
+            ReapClosedContexts();
+            if (_windowContexts.Count == 0)
+                break;
+
+            // Block until any window's connection is readable or the frame
+            // budget elapses. Skip the wait if X events are already queued
+            // (X11 reads events into its queue ahead of the fd becoming
+            // readable again).
+            bool anyPending = false;
+            for (int i = 0; i < _windowContexts.Count && !anyPending; i++)
+            {
+                if (_windowContexts[i].DisplayWindow is X11Window x11 &&
+                    X11.XPending(x11.Display) > 0)
+                {
+                    anyPending = true;
+                }
+            }
+
+            if (!anyPending)
+            {
+                int n = _windowContexts.Count;
+                if (pollFds.Length < n)
+                    pollFds = new LibcNative.PollFd[n];
+                for (int i = 0; i < n; i++)
+                {
+                    pollFds[i].Fd = _windowContexts[i].DisplayWindow?.GetFileDescriptor() ?? -1;
+                    pollFds[i].Events = LibcNative.POLLIN;
+                    pollFds[i].Revents = 0;
+                }
+
+                int polled = LibcNative.Poll(pollFds.AsSpan(0, n), (nuint)n, IdleTimeoutMs);
+                if (polled > 0)
+                {
+                    for (int i = 0; i < n && i < _windowContexts.Count; i++)
+                    {
+                        if (_windowContexts[i].DisplayWindow is not WaylandWindow wayland)
+                            continue; // X11 reads its events next iteration via ProcessEvents
+                        if ((pollFds[i].Revents & LibcNative.POLLIN) != 0)
+                        {
+                            wayland.DispatchReadEvents();
+                        }
+                        else if ((pollFds[i].Revents & 0x10) != 0)
+                        {
+                            // POLLHUP — compositor closed this connection. Stop
+                            // this window so we don't busy-spin on a dead fd.
+                            DiagnosticLog.Warn("LinuxApplication", "Wayland compositor disconnected (POLLHUP); closing window");
+                            wayland.Stop();
+                        }
+                    }
+                }
             }
         }
-        DiagnosticLog.Debug("LinuxApplication", "X11 event loop ended");
-    }
-
-    private void RunWayland(WaylandWindow window)
-    {
-        // Wayland event loop with non-blocking dispatch and frame-rate cap.
-        // Full subsystem support (cursor, keyboard via xkbcommon, clipboard, IME,
-        // fractional scale) is layered in across Stage 2b–2f.
-        window.Show();
-        Render();
-
-        const int IdleTimeoutMs = 16;
-        var pollFd = new LibcNative.PollFd
-        {
-            Fd = window.GetFileDescriptor(),
-            Events = LibcNative.POLLIN,
-        };
-
-        DiagnosticLog.Debug("LinuxApplication", "Starting Wayland event loop");
-        while (window.IsRunning)
-        {
-            _loopCounter++;
-            if (_loopCounter % 1000 == 0)
-                DiagnosticLog.Debug("LinuxApplication", $"Loop iteration {_loopCounter}");
-
-            // Drain any events callbacks queued during the previous frame, then flush
-            // outgoing requests so the compositor sees what we did.
-            window.ProcessEvents();
-            GLibNative.ProcessPendingEvents();
-            SkiaWebView.ProcessGtkEvents();
-            UpdateAnimations();
-            Render();
-
-            // Block until the compositor has something for us, or our frame budget
-            // expires (animations need ticking even when idle).
-            pollFd.Revents = 0;
-            int polled = LibcNative.Poll(ref pollFd, 1, IdleTimeoutMs);
-            if (polled > 0 && (pollFd.Revents & LibcNative.POLLIN) != 0)
-            {
-                window.DispatchReadEvents();
-            }
-            else if (polled > 0 && (pollFd.Revents & 0x10) != 0)
-            {
-                // POLLHUP — compositor closed our connection. Stop the event loop
-                // so we don't busy-spin on a dead fd.
-                DiagnosticLog.Warn("LinuxApplication", "Wayland compositor disconnected (POLLHUP); exiting event loop");
-                window.Stop();
-            }
-        }
-        DiagnosticLog.Debug("LinuxApplication", "Wayland event loop ended");
+        DiagnosticLog.Debug("LinuxApplication", "Event loop ended");
     }
 
     private void RunGtk()
@@ -431,27 +480,31 @@ public partial class LinuxApplication
 
     private void PerformGtkLayout(int width, int height)
     {
-        if (_rootView != null)
+        var rootView = RootView;
+        if (rootView != null)
         {
-            _rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
-            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
+            rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
+            rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
         }
     }
 
-    private void Render()
+    private void RenderAll()
     {
-        if (_renderingEngine != null && _rootView != null)
-        {
-            _renderingEngine.Render(_rootView);
-        }
+        for (int i = 0; i < _windowContexts.Count; i++)
+            _windowContexts[i].Render();
     }
 
     public void Dispose()
     {
         if (!_disposed)
         {
-            _renderingEngine?.Dispose();
-            _mainWindow?.Dispose();
+            // Dispose every live window context (engine + native window).
+            for (int i = _windowContexts.Count - 1; i >= 0; i--)
+            {
+                try { _windowContexts[i].Dispose(); }
+                catch (Exception ex) { DiagnosticLog.Error("LinuxApplication", "Context dispose failed", ex); }
+            }
+            _windowContexts.Clear();
 
             if (Current == this)
                 Current = null;
@@ -476,24 +529,33 @@ public partial class LinuxApplication
         // Apply GTK CSS for dialogs, menus, and window decorations.
         GtkThemeService.ApplyTheme();
 
-        // Refresh shell colors and rebuild section content trees.
+        // Refresh shell colors and rebuild section content trees. The static
+        // CurrentSkiaShell covers the most recently rendered shell (primary in
+        // single-window apps); the per-window walk below reaches any shells
+        // hosted as other windows' roots so a theme flip refreshes EVERY
+        // window's tree.
         var shell = LinuxViewRenderer.CurrentSkiaShell;
         shell?.RefreshTheme();
 
-        // Walk every reachable content tree and clear caches on items views.
+        // Walk every window's content tree and clear caches on items views.
         // Both SkiaShell and SkiaNavigationPage hold their actual content in
         // private fields outside the standard Children chain; ExtraContentRoots
         // exposes those so the walker reaches the CollectionView in TodoApp's
         // NavigationPage(TodoListPage) and the section/nav-stack pages of any
         // Shell-based app.
-        if (linuxApp._rootView != null)
-            RefreshCachedItemsRecursive(linuxApp._rootView);
+        foreach (var ctx in linuxApp.WindowContexts)
+        {
+            if (ctx.RootView is SkiaShell ctxShell && ctxShell != shell)
+                ctxShell.RefreshTheme();
+            if (ctx.RootView != null)
+                RefreshCachedItemsRecursive(ctx.RootView);
+        }
 
         // Invalidate to redraw - use correct method based on mode
         if (linuxApp._useGtk)
             linuxApp._gtkWindow?.RequestRedraw();
         else
-            linuxApp._renderingEngine?.InvalidateAll();
+            linuxApp.InvalidateAllWindows();
     }
 
     private static void RefreshCachedItemsRecursive(SkiaView view)
