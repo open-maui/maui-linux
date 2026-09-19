@@ -314,6 +314,7 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
                 IsAntialias = true
             };
 
+            // symbol: ink-centering intentional (FontImageSource icon glyph is optically centered by its ink bounds)
             font.MeasureText(glyph, out SKRect bounds, paint);
             float x = size / 2f;
             float y = (size - bounds.Top - bounds.Bottom) / 2f;

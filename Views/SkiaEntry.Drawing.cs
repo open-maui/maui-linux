@@ -122,7 +122,7 @@ public partial class SkiaEntry
             {
                 TextAlignment.Start => contentBounds.Top - textBounds.Top,
                 TextAlignment.End => contentBounds.Bottom - textBounds.Bottom,
-                _ => contentBounds.MidY - textBounds.MidY // Center
+                _ => TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY) // Center
             };
 
             // Draw the text with font fallback for emoji/CJK support
@@ -145,10 +145,8 @@ public partial class SkiaEntry
             // Draw placeholder
             paint.Color = GetEffectivePlaceholderColor();
 
-            font.MeasureText(Placeholder, out var textBounds);
-
             float x = contentBounds.Left;
-            float y = contentBounds.MidY - textBounds.MidY;
+            float y = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
 
             canvas.DrawText(Placeholder, x, y, SKTextAlign.Left, font, paint);
         }

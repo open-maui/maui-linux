@@ -24,6 +24,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Wrapped labels no longer overdraw their siblings.** `SkiaLabel.MeasureOverride` measured soft-wrapped text as a single line (it never consulted the available width), so a wrapping label under-reported its height and its extra lines drew over the next control. Measurement now mirrors the draw path exactly: same wrap condition, same `WrapText`, same line-height math, capped by `MaxLines`.
 - **Label heights are glyph-independent.** Single-line labels measured height by ink bounds, so "Input" (descender) measured taller than "Buttons" and sibling spacing shifted with the letters in the text. Height now comes from the line height (`FontSize × LineHeight`, default 1.2), consistent with the multi-line branch and other MAUI platforms.
 - HiDPI intra-word glyph gaps (see `SkiaFontFactory` above) — text on scaled canvases renders with correct kerning and even spacing again.
+- **Vertically centered text no longer drifts with its glyphs.** 32 sites across 16 controls (buttons, entries, pickers, nav bars, collection views, dialogs, tab bars, the CSD titlebar) centered text by its ink bounds, so strings with descenders sat visibly higher than strings without ("Play"/"Stop" vs "Pause"/"Mute" on MediaDemo's buttons). All converted to the new `TextRenderingHelper.BaselineForVerticalCenter` (font-metrics based, glyph-independent). Standalone symbol glyphs (stepper +/−, font-icon images) intentionally keep optical ink-centering.
 
 ## [10.0.90.1] - 2026-08-09
 

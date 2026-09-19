@@ -399,6 +399,7 @@ public class SkiaStepper : SkiaView
             IsAntialias = true
         };
 
+        // symbol: ink-centering intentional ("+"/"−" glyphs are optically centered by their ink bounds)
         font.MeasureText(symbol, out var textBounds);
         canvas.DrawText(symbol, rect.MidX - textBounds.MidX, rect.MidY - textBounds.MidY, SKTextAlign.Left, font, textPaint);
     }
