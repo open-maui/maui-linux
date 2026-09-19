@@ -1154,17 +1154,16 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Draw title
+        using var titleFont = new SKFont(SKTypeface.Default, 20f) { Embolden = true };
         using var titlePaint = new SKPaint
         {
             Color = _navBarTextColorSK,
-            TextSize = 20f,
-            IsAntialias = true,
-            FakeBoldText = true
+            IsAntialias = true
         };
 
         float titleX = (CanGoBack || (FlyoutBehavior == ShellFlyoutBehavior.Flyout && FlyoutBehavior != ShellFlyoutBehavior.Locked)) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
         float titleY = navBarBounds.MidY + 6;
-        canvas.DrawText(Title, titleX, titleY, titlePaint);
+        canvas.DrawText(Title, titleX, titleY, titleFont, titlePaint);
     }
 
     private void DrawTabBar(SKCanvas canvas, SKRect bounds)
@@ -1201,9 +1200,9 @@ public class SkiaShell : SkiaLayoutView
         // Draw tabs
         float tabWidth = tabBarBounds.Width / section.Items.Count;
 
+        using var textFont = new SKFont(SKTypeface.Default, 12f);
         using var textPaint = new SKPaint
         {
-            TextSize = 12f,
             IsAntialias = true
         };
 
@@ -1214,13 +1213,12 @@ public class SkiaShell : SkiaLayoutView
 
             textPaint.Color = isSelected ? _navBarBackgroundColorSK : SkiaTheme.TextTertiarySK;
 
-            var textBounds = new SKRect();
-            textPaint.MeasureText(item.Title, ref textBounds);
+            textFont.MeasureText(item.Title, out var textBounds);
 
             float textX = tabBarBounds.Left + i * tabWidth + tabWidth / 2 - textBounds.MidX;
             float textY = tabBarBounds.MidY - textBounds.MidY;
 
-            canvas.DrawText(item.Title, textX, textY, textPaint);
+            canvas.DrawText(item.Title, textX, textY, textFont, textPaint);
         }
     }
 
@@ -1303,9 +1301,9 @@ public class SkiaShell : SkiaLayoutView
         // Apply scroll offset
         float itemY = itemsAreaTop - _flyoutScrollOffset;
 
+        using var itemTextFont = new SKFont(SKTypeface.Default, 14f);
         using var itemTextPaint = new SKPaint
         {
-            TextSize = 14f,
             IsAntialias = true
         };
 
@@ -1351,7 +1349,7 @@ public class SkiaShell : SkiaLayoutView
                 textStartX = iconX + iconSize + 12; // gap between icon and text
             }
 
-            canvas.DrawText(section.Title, textStartX, itemY + 30, itemTextPaint);
+            canvas.DrawText(section.Title, textStartX, itemY + 30, itemTextFont, itemTextPaint);
 
             itemY += itemHeight;
         }
@@ -1368,14 +1366,14 @@ public class SkiaShell : SkiaLayoutView
         else if (!string.IsNullOrEmpty(FlyoutFooterText))
         {
             // Fallback: draw simple text footer
+            using var footerFont = new SKFont(SKTypeface.Default, 12f);
             using var footerPaint = new SKPaint
             {
-                TextSize = 12f,
                 Color = _flyoutTextColorSK.WithAlpha(180),
                 IsAntialias = true
             };
             var footerY = flyoutBounds.Bottom - footerHeight / 2 + 4;
-            canvas.DrawText(FlyoutFooterText, flyoutBounds.Left + 16, footerY, footerPaint);
+            canvas.DrawText(FlyoutFooterText, flyoutBounds.Left + 16, footerY, footerFont, footerPaint);
         }
     }
 
