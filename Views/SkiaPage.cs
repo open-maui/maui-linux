@@ -4,6 +4,7 @@
 using SkiaSharp;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -243,7 +244,7 @@ public class SkiaPage : SkiaView
         // Draw title
         if (!string.IsNullOrEmpty(_title))
         {
-            using var font = new SKFont(SKTypeface.Default, 20);
+            using var font = SkiaFontFactory.Create(20);
             using var textPaint = new SKPaint
             {
                 Color = _titleTextColor,
@@ -419,7 +420,7 @@ public class SkiaContentPage : SkiaPage
         // Draw title
         if (!string.IsNullOrEmpty(Title))
         {
-            using var font = new SKFont(SKTypeface.Default, 20);
+            using var font = SkiaFontFactory.Create(20);
             using var textPaint = new SKPaint
             {
                 Color = _titleTextColor,
@@ -452,7 +453,7 @@ public class SkiaContentPage : SkiaPage
         DiagnosticLog.Debug("SkiaContentPage", $"DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
         if (primaryItems.Count == 0) return;
 
-        using var font = new SKFont(SKTypeface.Default, 14);
+        using var font = SkiaFontFactory.Create(14);
         using var textPaint = new SKPaint
         {
             Color = _titleTextColor,

@@ -8,6 +8,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Hosting;
 
@@ -418,7 +419,7 @@ public static class LinuxProgramHost
         canvas.DrawRect(width * 0.5f, height * 0.3f, 20, 20, shapePaint);
 
         // Draw "IMG" text
-        using var font = new SKFont(SKTypeface.Default, 12);
+        using var font = SkiaFontFactory.Create(12);
         using var textPaint = new SKPaint
         {
             Color = SKColors.White,

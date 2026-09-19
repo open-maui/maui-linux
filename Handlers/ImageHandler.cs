@@ -7,6 +7,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -306,7 +307,7 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
             }
 
             float fontSize = size * 0.8f;
-            using SKFont font = new SKFont(typeface, fontSize, 1f, 0f);
+            using SKFont font = SkiaFontFactory.Create(typeface, fontSize);
             using SKPaint paint = new SKPaint
             {
                 Color = color,

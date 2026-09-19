@@ -542,7 +542,7 @@ public class SkiaLabel : SkiaView
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
-        using var font = new SKFont(
+        using var font = SkiaFontFactory.Create(
             RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
@@ -679,7 +679,7 @@ public class SkiaLabel : SkiaView
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
-        using var font = new SKFont(
+        using var font = SkiaFontFactory.Create(
             RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
@@ -845,7 +845,7 @@ public class SkiaLabel : SkiaView
             foreach (char c in run.Text)
             {
                 string charStr = c.ToString();
-                using var charFont = new SKFont(run.Typeface, fontSize);
+                using var charFont = SkiaFontFactory.Create(run.Typeface, fontSize);
                 using var charPaint = new SKPaint
                 {
                     Color = paint.Color,
@@ -880,7 +880,7 @@ public class SkiaLabel : SkiaView
         if (runs.Count <= 1)
         {
             // Single run or no fallback needed - draw directly
-            using var directFont = new SKFont(preferredTypeface, fontSize);
+            using var directFont = SkiaFontFactory.Create(preferredTypeface, fontSize);
             canvas.DrawText(text, x, y, directFont, paint);
             return;
         }
@@ -890,7 +890,7 @@ public class SkiaLabel : SkiaView
 
         foreach (var run in runs)
         {
-            using var runFont = new SKFont(run.Typeface, fontSize);
+            using var runFont = SkiaFontFactory.Create(run.Typeface, fontSize);
             using var runPaint = new SKPaint
             {
                 Color = paint.Color,
@@ -945,7 +945,7 @@ public class SkiaLabel : SkiaView
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
         // Calculate baseline for first line
-        using var measureFont = new SKFont(SKTypeface.Default, fontSize);
+        using var measureFont = SkiaFontFactory.Create(fontSize);
         var metrics = measureFont.Metrics;
         y -= metrics.Ascent;
 
@@ -968,7 +968,7 @@ public class SkiaLabel : SkiaView
                 SKFontStyleWidth.Normal,
                 isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
 
-            using var font = new SKFont(
+            using var font = SkiaFontFactory.Create(
                 RenderContext?.Resources.GetTypeface(spanFontFamily, fontStyle) ?? SKTypeface.Default,
                 spanFontSize);
 
@@ -1166,7 +1166,7 @@ public class SkiaLabel : SkiaView
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
-        using var font = new SKFont(
+        using var font = SkiaFontFactory.Create(
             RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
             fontSize);
 
@@ -1191,9 +1191,13 @@ public class SkiaLabel : SkiaView
         {
             // Use advance width (font.MeasureText return value) not bounding box width
             // This must match what WrapText uses for consistency
-            font.MeasureText(displayText, out var textBounds);
             width = font.MeasureText(displayText);  // Advance width, not textBounds.Width
-            height = textBounds.Height;
+            // Height comes from the line height, NOT the ink bounds: ink-bounds
+            // height varies with the glyphs present ("Input" with its descender
+            // measures taller than "Buttons"), which makes sibling spacing
+            // depend on the letters in the text. Line-height measurement is
+            // glyph-independent and matches the multi-line branch below.
+            height = fontSize * effectiveLineHeight;
 
             // Account for character spacing
             if (CharacterSpacing != 0 && displayText.Length > 1)

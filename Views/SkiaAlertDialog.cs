@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -105,7 +106,8 @@ public class SkiaAlertDialog : SkiaView
         var yOffset = dialogBounds.Top + DialogPadding;
         if (!string.IsNullOrEmpty(_title))
         {
-            using var titleFont = new SKFont(SKTypeface.Default, 20) { Embolden = true };
+            using var titleFont = SkiaFontFactory.Create(20);
+            titleFont.Embolden = true;
             using var titlePaint = new SKPaint
             {
                 Color = TitleColor,
@@ -118,7 +120,7 @@ public class SkiaAlertDialog : SkiaView
         // Draw message
         if (!string.IsNullOrEmpty(_message))
         {
-            using var messageFont = new SKFont(SKTypeface.Default, 16);
+            using var messageFont = SkiaFontFactory.Create(16);
             using var messagePaint = new SKPaint
             {
                 Color = MessageColor,
@@ -196,7 +198,8 @@ public class SkiaAlertDialog : SkiaView
         canvas.DrawRoundRect(bounds, 8, 8, bgPaint);
 
         // Button text
-        using var font = new SKFont(SKTypeface.Default, 16) { Embolden = true };
+        using var font = SkiaFontFactory.Create(16);
+        font.Embolden = true;
         using var textPaint = new SKPaint
         {
             Color = ButtonTextColor,
@@ -231,7 +234,7 @@ public class SkiaAlertDialog : SkiaView
         if (string.IsNullOrEmpty(text))
             return lines;
 
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
 
         var words = text.Split(' ');
         var currentLine = "";

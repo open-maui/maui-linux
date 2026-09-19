@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -427,7 +428,7 @@ public class SkiaRadioButton : SkiaView
         // Draw content text
         if (!string.IsNullOrEmpty(Content))
         {
-            using var font = new SKFont(SKTypeface.Default, fontSize);
+            using var font = SkiaFontFactory.Create(fontSize);
             using var textPaint = new SKPaint
             {
                 Color = IsEnabled ? textColorSK : disabledColorSK,
@@ -515,7 +516,7 @@ public class SkiaRadioButton : SkiaView
         var textWidth = 0f;
         if (!string.IsNullOrEmpty(Content))
         {
-            using var font = new SKFont(SKTypeface.Default, fontSize);
+            using var font = SkiaFontFactory.Create(fontSize);
             textWidth = font.MeasureText(Content) + spacing;
         }
         return new Size(radioSize + textWidth, Math.Max(radioSize, fontSize * 1.5f));
