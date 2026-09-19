@@ -543,9 +543,24 @@ public partial class WaylandWindow
 
     #region Public API (called from ClipboardService)
 
-    // Single-window app assumption: the most recently initialized WaylandWindow
-    // backs the clipboard. Set/cleared in SetupClipboard / DisposeClipboard.
+    // The WaylandWindow backing the static clipboard entry points. Set on
+    // SetupClipboard (window creation), re-pointed to the focused window by
+    // ActivateClipboardRouting when several windows are live (clipboard
+    // follows keyboard focus), and cleared in DisposeClipboard.
     private static WaylandWindow? s_activeClipboardWindow;
+
+    /// <summary>
+    /// Multi-window: route the static clipboard/data-device entry points at
+    /// this window's connection. Called by LinuxApplication when this window
+    /// gains keyboard focus so copy/paste (and start_drag serials) use the
+    /// connection whose seat produced the most recent input. No-op until this
+    /// window's wl_data_device is wired.
+    /// </summary>
+    internal void ActivateClipboardRouting()
+    {
+        if (_dataDevice != IntPtr.Zero)
+            s_activeClipboardWindow = this;
+    }
 
     /// <summary>
     /// Heuristic: does this offer's MIME list look like one WE published?

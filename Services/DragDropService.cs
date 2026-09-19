@@ -107,9 +107,20 @@ public partial class DragDropService : IDisposable
 
     /// <summary>
     /// Initializes the drag drop service for the specified window.
+    /// First-wins: the singleton binds to the FIRST (primary) X11 window and
+    /// ignores later windows — a secondary window created via
+    /// Application.OpenWindow must not steal the XDND state from the primary
+    /// (drag-and-drop is a primary-window feature in multi-window v1; only the
+    /// primary announces XdndAware, so external drags never target secondaries).
     /// </summary>
     public void Initialize(nint display, nint window)
     {
+        if (_display != 0 && _window != 0 && _window != window)
+        {
+            DiagnosticLog.Debug("DragDropService", "Already bound to the primary window; ignoring secondary window registration");
+            return;
+        }
+
         _display = display;
         _window = window;
 
