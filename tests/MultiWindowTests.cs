@@ -128,6 +128,17 @@ public class MultiWindowTests : IDisposable
         }
     }
 
+    /// <summary>View that records focus-lost notifications.</summary>
+    private sealed class FocusRecordingView : RecordingView
+    {
+        public int FocusLostCount;
+        public override void OnFocusLost()
+        {
+            FocusLostCount++;
+            base.OnFocusLost();
+        }
+    }
+
     private (WindowContext ctx, FakeDisplayWindow win) AddWindow(bool raisesLifecycle = false)
     {
         var win = new FakeDisplayWindow();
@@ -221,6 +232,28 @@ public class MultiWindowTests : IDisposable
         _app.ReapClosedContexts().Should().Be(1);
         _app.ReapClosedContexts().Should().Be(0);
         _app.WindowContexts.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void ContextDispose_DoesNotFireFocusLostSideEffects()
+    {
+        // Regression for the WebViewDemo close SIGSEGV: WindowContext.Dispose
+        // used to null FocusedView through the property, firing
+        // OnFocusLost -> Invalidate -> RequestRedraw AFTER the native window
+        // was already torn down — in GTK mode that reached
+        // gtk_widget_queue_draw on a freed widget. Dispose must drop the
+        // focus pointer silently.
+        var (ctx, _) = AddWindow();
+        ctx.RootView = MakeRoot();
+
+        var focused = new FocusRecordingView { IsFocusable = true };
+        ctx.FocusedView = focused;
+        focused.FocusLostCount.Should().Be(0);
+
+        ctx.Dispose();
+
+        focused.FocusLostCount.Should().Be(0);
+        ctx.FocusedView.Should().BeNull();
     }
 
     #endregion

@@ -20,6 +20,8 @@ public partial class SkiaWebView : SkiaView
     #region Delegates
 
     private delegate void LoadChangedCallback(IntPtr webView, int loadEvent, IntPtr userData);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void WidgetDestroyedCallback(IntPtr widget, IntPtr userData);
     private delegate IntPtr WebKitWebViewNewDelegate();
     private delegate void WebKitWebViewLoadUriDelegate(IntPtr webView, [MarshalAs(UnmanagedType.LPStr)] string uri);
     private delegate void WebKitWebViewLoadHtmlDelegate(IntPtr webView, [MarshalAs(UnmanagedType.LPStr)] string html, [MarshalAs(UnmanagedType.LPStr)] string? baseUri);
@@ -130,6 +132,8 @@ public partial class SkiaWebView : SkiaView
     private IntPtr _webView;
     private IntPtr _gtkX11Window;
     private IntPtr _x11Container;
+    // Rooted for the lifetime of the GTK window so the native thunk stays valid.
+    private WidgetDestroyedCallback? _windowDestroyedCallback;
     private string _source = "";
     private string _html = "";
     private bool _isInitialized;
@@ -195,6 +199,12 @@ public partial class SkiaWebView : SkiaView
 
     [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_hide")]
     private static partial void gtk3_widget_hide(IntPtr widget);
+
+    [LibraryImport(LibGtk3, EntryPoint = "gtk_widget_destroy")]
+    private static partial void gtk3_widget_destroy(IntPtr widget);
+
+    [LibraryImport(LibGtk4, EntryPoint = "gtk_window_destroy")]
+    private static partial void gtk4_window_destroy(IntPtr window);
 
     [LibraryImport(LibGtk4, EntryPoint = "gtk_widget_get_width")]
     private static partial int gtk4_widget_get_width(IntPtr widget);
@@ -623,6 +633,21 @@ public partial class SkiaWebView : SkiaView
         }
     }
 
+    private void OnGtkWindowDestroyed(IntPtr widget, IntPtr userData)
+    {
+        // The WebKit view is a child of this window and dies with it.
+        if (_webView != IntPtr.Zero)
+        {
+            _webViewInstances.Remove(_webView);
+        }
+        _webView = IntPtr.Zero;
+        _gtkWindow = IntPtr.Zero;
+        _gtkX11Window = IntPtr.Zero;
+        _isInitialized = false;
+        _isEmbedded = false;
+        _isProperlyReparented = false;
+    }
+
     #endregion
 
     #region Constructor
@@ -709,6 +734,15 @@ public partial class SkiaWebView : SkiaView
                 gtk3_container_add(_gtkWindow, _webView);
                 DiagnosticLog.Debug("SkiaWebView", $"GTK3 TOPLEVEL window created: {width}x{height}");
             }
+
+            // Zero our native pointers at the authoritative moment (the GTK
+            // window's destruction). Any managed callback that fires afterwards
+            // (positioning, queue_draw, progress polling) bails on the zero
+            // checks instead of touching freed widgets.
+            _windowDestroyedCallback = OnGtkWindowDestroyed;
+            g_signal_connect_data(_gtkWindow, "destroy",
+                Marshal.GetFunctionPointerForDelegate(_windowDestroyedCallback),
+                IntPtr.Zero, IntPtr.Zero, 0);
 
             ConfigureWebKitSettings();
             UpdateJavaScriptSetting();
@@ -1099,7 +1133,10 @@ public partial class SkiaWebView : SkiaView
         SetWindowAlwaysOnTop(_gtkX11Window);
         XFlush(_mainDisplay);
 
-        gtk3_widget_queue_draw(_webView);
+        if (_webView != IntPtr.Zero)
+        {
+            gtk3_widget_queue_draw(_webView);
+        }
 
         for (int i = 0; i < 5; i++)
         {
@@ -1491,15 +1528,22 @@ public partial class SkiaWebView : SkiaView
 
             if (_gtkWindow != IntPtr.Zero)
             {
+                // Destroy — not unref — the toplevel: GTK owns a reference to
+                // every toplevel, so unreffing the caller-visible pointer left
+                // the window (and the WebKit child) alive in GTK's toplevel
+                // list while our side considered it gone; destroy tears the
+                // tree down and fires the "destroy" handler above, which
+                // zeroes _webView/_gtkWindow/_gtkX11Window.
                 if (_useGtk4)
                 {
                     gtk4_widget_hide(_gtkWindow);
+                    gtk4_window_destroy(_gtkWindow);
                 }
                 else
                 {
                     gtk3_widget_hide(_gtkWindow);
+                    gtk3_widget_destroy(_gtkWindow);
                 }
-                g_object_unref(_gtkWindow);
                 _gtkWindow = IntPtr.Zero;
             }
 
