@@ -106,12 +106,12 @@ public class SkiaAlertDialog : SkiaView
         if (!string.IsNullOrEmpty(_title))
         {
             using var titleFont = new SKFont(SKTypeface.Default, 20) { Embolden = true };
-            using var titlePaint = new SKPaint(titleFont)
+            using var titlePaint = new SKPaint
             {
                 Color = TitleColor,
                 IsAntialias = true
             };
-            canvas.DrawText(_title, dialogBounds.Left + DialogPadding, yOffset + 20, titlePaint);
+            canvas.DrawText(_title, dialogBounds.Left + DialogPadding, yOffset + 20, titleFont, titlePaint);
             yOffset += 36;
         }
 
@@ -119,7 +119,7 @@ public class SkiaAlertDialog : SkiaView
         if (!string.IsNullOrEmpty(_message))
         {
             using var messageFont = new SKFont(SKTypeface.Default, 16);
-            using var messagePaint = new SKPaint(messageFont)
+            using var messagePaint = new SKPaint
             {
                 Color = MessageColor,
                 IsAntialias = true
@@ -127,7 +127,7 @@ public class SkiaAlertDialog : SkiaView
 
             foreach (var line in messageLines)
             {
-                canvas.DrawText(line, dialogBounds.Left + DialogPadding, yOffset + 16, messagePaint);
+                canvas.DrawText(line, dialogBounds.Left + DialogPadding, yOffset + 16, messageFont, messagePaint);
                 yOffset += 22;
             }
             yOffset += 8;
@@ -197,18 +197,17 @@ public class SkiaAlertDialog : SkiaView
 
         // Button text
         using var font = new SKFont(SKTypeface.Default, 16) { Embolden = true };
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = ButtonTextColor,
             IsAntialias = true
         };
 
-        var textBounds = new SKRect();
-        textPaint.MeasureText(text, ref textBounds);
+        font.MeasureText(text, out var textBounds);
 
         var x = bounds.MidX - textBounds.MidX;
         var y = bounds.MidY - textBounds.MidY;
-        canvas.DrawText(text, x, y, textPaint);
+        canvas.DrawText(text, x, y, font, textPaint);
     }
 
     private float CalculateDialogHeight(int messageLineCount)
@@ -233,7 +232,6 @@ public class SkiaAlertDialog : SkiaView
             return lines;
 
         using var font = new SKFont(SKTypeface.Default, fontSize);
-        using var paint = new SKPaint(font);
 
         var words = text.Split(' ');
         var currentLine = "";
@@ -241,7 +239,7 @@ public class SkiaAlertDialog : SkiaView
         foreach (var word in words)
         {
             var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
-            var width = paint.MeasureText(testLine);
+            var width = font.MeasureText(testLine);
 
             if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
             {

@@ -428,16 +428,15 @@ public class SkiaRadioButton : SkiaView
         if (!string.IsNullOrEmpty(Content))
         {
             using var font = new SKFont(SKTypeface.Default, fontSize);
-            using var textPaint = new SKPaint(font)
+            using var textPaint = new SKPaint
             {
                 Color = IsEnabled ? textColorSK : disabledColorSK,
                 IsAntialias = true
             };
 
             var textX = bounds.Left + radioSize + spacing;
-            var textBounds = new SKRect();
-            textPaint.MeasureText(Content, ref textBounds);
-            canvas.DrawText(Content, textX, bounds.MidY - textBounds.MidY, textPaint);
+            font.MeasureText(Content, out var textBounds);
+            canvas.DrawText(Content, textX, bounds.MidY - textBounds.MidY, SKTextAlign.Left, font, textPaint);
         }
     }
 
@@ -517,8 +516,7 @@ public class SkiaRadioButton : SkiaView
         if (!string.IsNullOrEmpty(Content))
         {
             using var font = new SKFont(SKTypeface.Default, fontSize);
-            using var paint = new SKPaint(font);
-            textWidth = paint.MeasureText(Content) + spacing;
+            textWidth = font.MeasureText(Content) + spacing;
         }
         return new Size(radioSize + textWidth, Math.Max(radioSize, fontSize * 1.5f));
     }
