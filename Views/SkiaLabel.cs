@@ -1201,8 +1201,23 @@ public class SkiaLabel : SkiaView
                 width += CharacterSpacing * (displayText.Length - 1);
             }
 
-            // Account for multi-line
-            if (displayText.Contains('\n') || MaxLines > 1)
+            // Account for multi-line. This must mirror OnDraw's needsMultiLine
+            // condition and DrawMultiLineText's math exactly: a wrapping label
+            // that reports single-line height gets under-allocated by its
+            // layout and its extra lines overdraw the next sibling.
+            bool wraps = LineBreakMode == LineBreakMode.WordWrap ||
+                         LineBreakMode == LineBreakMode.CharacterWrap;
+            if (wraps && !double.IsInfinity(availableSize.Width) && width > availableSize.Width)
+            {
+                // Wrap with the same helper and width the draw pass will use.
+                float contentWidth = (float)Math.Max(1.0, availableSize.Width - paddingH);
+                var wrapped = WrapText(displayText, font, contentWidth);
+                int lineCount = MaxLines > 0 ? Math.Min(wrapped.Count, MaxLines) : wrapped.Count;
+                lineCount = Math.Max(1, lineCount);
+                height = lineCount * fontSize * effectiveLineHeight;
+                width = Math.Min(width, availableSize.Width);
+            }
+            else if (displayText.Contains('\n') || MaxLines > 1)
             {
                 var lines = displayText.Split('\n');
                 int lineCount = MaxLines > 0 ? Math.Min(lines.Length, MaxLines) : lines.Length;
