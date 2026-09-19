@@ -392,15 +392,14 @@ public class SkiaStepper : SkiaView
 
         // Draw symbol
         using var font = new SKFont(SKTypeface.Default, 20);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = isDisabled ? symbolDisabledColor : symbolColor,
             IsAntialias = true
         };
 
-        var textBounds = new SKRect();
-        textPaint.MeasureText(symbol, ref textBounds);
-        canvas.DrawText(symbol, rect.MidX - textBounds.MidX, rect.MidY - textBounds.MidY, textPaint);
+        font.MeasureText(symbol, out var textBounds);
+        canvas.DrawText(symbol, rect.MidX - textBounds.MidX, rect.MidY - textBounds.MidY, SKTextAlign.Left, font, textPaint);
     }
 
     #endregion

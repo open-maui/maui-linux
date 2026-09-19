@@ -476,19 +476,18 @@ public class SkiaCollectionView : SkiaItemsView
         paint.Style = SKPaintStyle.Fill;
 
         using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = SkiaTheme.TextPrimarySK,
             IsAntialias = true
         };
 
         var text = item?.ToString() ?? "";
-        var textBounds = new SKRect();
-        textPaint.MeasureText(text, ref textBounds);
+        font.MeasureText(text, out var textBounds);
 
         var x = bounds.Left + 16f;
         var y = bounds.MidY - textBounds.MidY;
-        canvas.DrawText(text, x, y, textPaint);
+        canvas.DrawText(text, x, y, font, textPaint);
 
         if (isSelected && SelectionMode == SkiaSelectionMode.Multiple)
         {
@@ -738,18 +737,17 @@ public class SkiaCollectionView : SkiaItemsView
         if (!string.IsNullOrEmpty(text))
         {
             using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
-            using var textPaint = new SKPaint(font)
+            using var textPaint = new SKPaint
             {
                 Color = SkiaTheme.TextPrimarySK,
                 IsAntialias = true
             };
 
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
+            font.MeasureText(text, out var textBounds);
 
             var x = bounds.Left + 16f;
             var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(text, x, y, textPaint);
+            canvas.DrawText(text, x, y, font, textPaint);
         }
 
         using var sepPaint = new SKPaint
@@ -782,18 +780,17 @@ public class SkiaCollectionView : SkiaItemsView
         if (!string.IsNullOrEmpty(text))
         {
             using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
-            using var textPaint = new SKPaint(font)
+            using var textPaint = new SKPaint
             {
                 Color = SkiaTheme.TextPlaceholderSK,
                 IsAntialias = true
             };
 
-            var textBounds = new SKRect();
-            textPaint.MeasureText(text, ref textBounds);
+            font.MeasureText(text, out var textBounds);
 
             var x = bounds.MidX - textBounds.MidX;
             var y = bounds.MidY - textBounds.MidY;
-            canvas.DrawText(text, x, y, textPaint);
+            canvas.DrawText(text, x, y, font, textPaint);
         }
     }
 }

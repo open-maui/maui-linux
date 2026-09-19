@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.90.1</Version>
+    <Version>10.0.101.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -39,21 +39,21 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.90" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.90" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.90" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.101" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.101" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.101" />
 
-    <!-- SkiaSharp for rendering (3.x with SKFont API) -->
-    <PackageReference Include="SkiaSharp" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.Views.Maui.Core" Version="3.119.2" />
-    <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
-    <PackageReference Include="Svg.Skia" Version="3.4.1" />
+    <!-- SkiaSharp for rendering (4.x — SKFont text API; legacy SKPaint text members are error-obsolete) -->
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Core" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="4.152.1" />
+    <PackageReference Include="Svg.Skia" Version="5.2.3" />
 
     <!-- HarfBuzz for advanced text shaping -->
-    <PackageReference Include="HarfBuzzSharp" Version="8.3.1.3" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.3" />
+    <PackageReference Include="HarfBuzzSharp" Version="14.2.1.201" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.1.201" />
 
     <!-- Harmony for patching MAUI Essentials stubs with Linux implementations -->
     <PackageReference Include="Lib.Harmony" Version="2.4.2" />
