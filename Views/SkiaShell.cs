@@ -5,6 +5,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Svg.Skia;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -1154,7 +1155,8 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Draw title
-        using var titleFont = new SKFont(SKTypeface.Default, 20f) { Embolden = true };
+        using var titleFont = SkiaFontFactory.Create(20f);
+        titleFont.Embolden = true;
         using var titlePaint = new SKPaint
         {
             Color = _navBarTextColorSK,
@@ -1200,7 +1202,7 @@ public class SkiaShell : SkiaLayoutView
         // Draw tabs
         float tabWidth = tabBarBounds.Width / section.Items.Count;
 
-        using var textFont = new SKFont(SKTypeface.Default, 12f);
+        using var textFont = SkiaFontFactory.Create(12f);
         using var textPaint = new SKPaint
         {
             IsAntialias = true
@@ -1301,7 +1303,7 @@ public class SkiaShell : SkiaLayoutView
         // Apply scroll offset
         float itemY = itemsAreaTop - _flyoutScrollOffset;
 
-        using var itemTextFont = new SKFont(SKTypeface.Default, 14f);
+        using var itemTextFont = SkiaFontFactory.Create(14f);
         using var itemTextPaint = new SKPaint
         {
             IsAntialias = true
@@ -1366,7 +1368,7 @@ public class SkiaShell : SkiaLayoutView
         else if (!string.IsNullOrEmpty(FlyoutFooterText))
         {
             // Fallback: draw simple text footer
-            using var footerFont = new SKFont(SKTypeface.Default, 12f);
+            using var footerFont = SkiaFontFactory.Create(12f);
             using var footerPaint = new SKPaint
             {
                 Color = _flyoutTextColorSK.WithAlpha(180),
