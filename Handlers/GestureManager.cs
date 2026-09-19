@@ -1079,6 +1079,15 @@ public static class GestureManager
                 payload.ImageBytes = imageBytes;
                 payload.ImageMime = imageMime;
             }
+            else
+            {
+                // StreamImageSource is async-only: start reading NOW on a
+                // background task and hand the in-flight task to the payload,
+                // so the drag still starts synchronously (Wayland needs the
+                // held press serial; X11 grabs the in-progress press). The
+                // transfer path awaits it with a bounded timeout.
+                payload.PendingImage = StartPendingImageRead(data);
+            }
 
             return payload;
         }
@@ -1153,15 +1162,49 @@ public static class GestureManager
             return true;
         }
 
-        // FileImageSource → read bytes and infer mime from the extension.
+        // FileImageSource → read bytes; prefer the header-sniffed format over
+        // the file extension (extensions lie, magic numbers don't).
         if (data.Image is FileImageSource { File: { Length: > 0 } file } && System.IO.File.Exists(file))
         {
             bytes = System.IO.File.ReadAllBytes(file);
-            mime = MimeFromExtension(file);
+            mime = DragPayload.SniffImageMime(bytes) ?? MimeFromExtension(file);
             return bytes.Length > 0;
         }
 
         return false;
+    }
+
+    // Kick off an async read of a StreamImageSource. Returns the in-flight
+    // task (bytes + header-sniffed MIME; unrecognized headers default to
+    // image/png), or null when the DataPackage carries no readable stream
+    // image. The task never faults unobserved — failures resolve to null and
+    // are logged.
+    private static System.Threading.Tasks.Task<ResolvedImage?>? StartPendingImageRead(DataPackage data)
+    {
+        if (data.Image is not StreamImageSource { Stream: { } streamFunc })
+            return null;
+
+        return System.Threading.Tasks.Task.Run(async () =>
+        {
+            try
+            {
+                using var stream = await streamFunc(System.Threading.CancellationToken.None).ConfigureAwait(false);
+                if (stream == null) return null;
+
+                using var ms = new System.IO.MemoryStream();
+                await stream.CopyToAsync(ms).ConfigureAwait(false);
+                var bytes = ms.ToArray();
+                if (bytes.Length == 0) return null;
+
+                var mime = DragPayload.SniffImageMime(bytes) ?? "image/png";
+                return new ResolvedImage(bytes, mime);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Debug(Tag, $"Pending drag image read failed: {ex.Message}");
+                return (ResolvedImage?)null;
+            }
+        });
     }
 
     private static string MimeFromExtension(string path)
