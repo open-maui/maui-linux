@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -99,7 +100,7 @@ public class SkiaMenuFlyout : SkiaView
         float width = MinWidth;
         float height = 0f;
 
-        using var textFont = new SKFont(SKTypeface.Default, FontSize);
+        using var textFont = SkiaFontFactory.Create(FontSize);
         using var textPaint = new SKPaint
         {
             IsAntialias = true

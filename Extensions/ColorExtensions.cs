@@ -3,6 +3,7 @@
 
 using SkiaSharp;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -158,7 +159,7 @@ public static class FontExtensions
     {
         var size = font.Size > 0 ? (float)font.Size : defaultSize;
         var typeface = SKTypeface.FromFamilyName(font.Family ?? "sans-serif", font.ToSKFontStyle());
-        return new SKFont(typeface, size);
+        return SkiaFontFactory.Create(typeface, size);
     }
 }
 
