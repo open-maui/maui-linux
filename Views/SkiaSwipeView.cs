@@ -210,16 +210,15 @@ public class SkiaSwipeView : SkiaLayoutView
             // Draw icon or text
             if (!string.IsNullOrEmpty(item.Text))
             {
+                using var textFont = new SKFont(SKTypeface.Default, 14f);
                 using var textPaint = new SKPaint
                 {
                     Color = item.GetTextColorSK(),
-                    TextSize = 14f,
-                    IsAntialias = true,
-                    TextAlign = SKTextAlign.Center
+                    IsAntialias = true
                 };
 
                 float textY = itemBounds.MidY + 5;
-                canvas.DrawText(item.Text, itemBounds.MidX, textY, textPaint);
+                canvas.DrawText(item.Text, itemBounds.MidX, textY, SKTextAlign.Center, textFont, textPaint);
             }
         }
     }
