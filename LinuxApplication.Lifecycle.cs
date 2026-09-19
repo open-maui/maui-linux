@@ -230,6 +230,13 @@ public partial class LinuxApplication
                     var renderer = new LinuxViewRenderer(mauiContext);
                     rootView = renderer.RenderPage(mainPage);
 
+                    // Retain the root context so a hot-reload delta can rebuild
+                    // non-Shell roots (no-op unless a hot-reload agent is attached).
+                    TrackRootForHotReload(
+                        renderer,
+                        mauiApplication.Windows.Count > 0 ? mauiApplication.Windows[0] : null,
+                        mainPage);
+
                     string windowTitle = "OpenMaui App";
                     if (mainPage is NavigationPage navPage)
                     {
