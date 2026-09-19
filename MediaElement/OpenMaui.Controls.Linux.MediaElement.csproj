@@ -33,7 +33,7 @@
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
 
     <!-- Upstream MediaElement control + interface + no-op handler base. -->
-    <PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="9.0.0" />
+    <PackageReference Include="CommunityToolkit.Maui.MediaElement" Version="10.0.0" />
   </ItemGroup>
 
   <!-- Include icon and README in package -->
