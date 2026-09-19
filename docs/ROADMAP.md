@@ -89,7 +89,7 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Maps satellite / hybrid layers | `SkiaMap.LayerType` + MAUI `Map.MapType` wired; `TileSource` abstraction with keyless defaults (OSM, Esri World Imagery, Esri reference overlay); layer-stacking hybrid render; layer-keyed cache; per-layer attribution |
 | `Tmds.DBus` migration | Fcitx5 transport moved off the `dbus-monitor` subprocess to typed Tmds.DBus 0.94.2 proxies (`InputMethod1` / `InputContext1`, commit + preedit signals); fixed a latent inverted-key-event bug |
 | Live Visual Tree | `Diagnostics/VisualTreeInspector` — read-only tree snapshot, highlight overlay, click-to-pick, text dump; reuses the popup-overlay draw hook; opt-in Ctrl+Shift+D hotkey |
-| Hot Reload | `[MetadataUpdateHandler]` → main-thread re-render of the current page (`SkiaShell.ReRenderContentTrees`); C# + XAML edits for Shell-rooted apps under `dotnet watch`; non-Shell-root structural XAML reload deferred (see `docs/HOT_RELOAD.md`) |
+| Hot Reload | `[MetadataUpdateHandler]` → main-thread re-render of the current page (`SkiaShell.ReRenderContentTrees`, root rebuild for non-Shell roots); C# + XAML edits under `dotnet watch` for Shell and non-Shell roots (see `docs/HOT_RELOAD.md`) |
 
 ## Planned
 
@@ -98,8 +98,6 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Feature | Description |
 |---------|-------------|
 | Hardware video acceleration zero-copy | Explicit pipeline construction for direct compositor-surface (zero-copy) playback — `Prefer` mode already covers decoder selection |
-| Non-Shell-root XAML Hot Reload | Structural XAML reload when the window page is a raw `ContentPage`/`NavigationPage` (Shell roots already work); needs retaining the root page Type + `IMauiContext` to rebuild and re-swap |
-| Drag payload sourcing polish | `StreamImageSource` (async) images for outgoing drags — currently only `FileImageSource` / raw `ImageBytes` are sourced synchronously |
 
 ### Long-term
 
