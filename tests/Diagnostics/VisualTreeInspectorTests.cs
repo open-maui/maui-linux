@@ -16,6 +16,12 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Diagnostics;
 /// and dump output. Overlay/pick behavior needs a real render pass and is not covered
 /// here.
 /// </summary>
+/// <remarks>
+/// Shares the "LinuxApplication.Current" collection with the multi-window
+/// tests: DumpTree's no-root case reads the LinuxApplication.Current static,
+/// which those tests set/clear, so the two classes must not run in parallel.
+/// </remarks>
+[Collection("LinuxApplication.Current")]
 public class VisualTreeInspectorTests
 {
     /// <summary>Minimal concrete view (base MeasureOverride, no Text property).</summary>
