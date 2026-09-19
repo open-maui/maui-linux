@@ -132,10 +132,10 @@ public class SkiaMenuBar : SkiaView
         canvas.DrawLine((float)Bounds.Left, (float)(Bounds.Top + Bounds.Height), (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height), borderPaint);
 
         // Draw menu items
+        using var textFont = new SKFont(SKTypeface.Default, FontSize);
         using var textPaint = new SKPaint
         {
             Color = _textColorSK,
-            TextSize = FontSize,
             IsAntialias = true
         };
 
@@ -144,8 +144,7 @@ public class SkiaMenuBar : SkiaView
         for (int i = 0; i < _items.Count; i++)
         {
             var item = _items[i];
-            var textBounds = new SKRect();
-            textPaint.MeasureText(item.Text, ref textBounds);
+            textFont.MeasureText(item.Text, out var textBounds);
 
             float itemWidth = textBounds.Width + ItemPadding * 2;
             var itemBounds = new SKRect(x, (float)Bounds.Top, x + itemWidth, (float)(Bounds.Top + Bounds.Height));
@@ -165,7 +164,7 @@ public class SkiaMenuBar : SkiaView
             // Draw text (MidY = Top + Height/2)
             float textX = x + ItemPadding;
             float textY = (float)(Bounds.Top + Bounds.Height / 2) - textBounds.MidY;
-            canvas.DrawText(item.Text, textX, textY, textPaint);
+            canvas.DrawText(item.Text, textX, textY, SKTextAlign.Left, textFont, textPaint);
 
             item.Bounds = itemBounds;
             x += itemWidth;

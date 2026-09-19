@@ -15,12 +15,12 @@ public class TextRenderCache : IDisposable
         private readonly int _weight;
         private readonly int _hashCode;
 
-        public TextCacheKey(string text, SKPaint paint)
+        public TextCacheKey(string text, SKFont font, SKPaint paint)
         {
             _text = text;
-            _textSize = paint.TextSize;
+            _textSize = font.Size;
             _color = paint.Color;
-            _weight = paint.Typeface?.FontWeight ?? 400;
+            _weight = font.Typeface?.FontWeight ?? 400;
             _hashCode = HashCode.Combine(_text, _textSize, _color, _weight);
         }
 
@@ -51,9 +51,9 @@ public class TextRenderCache : IDisposable
         set => _maxEntries = Math.Max(10, value);
     }
 
-    public SKBitmap GetOrCreate(string text, SKPaint paint)
+    public SKBitmap GetOrCreate(string text, SKFont font, SKPaint paint)
     {
-        var key = new TextCacheKey(text, paint);
+        var key = new TextCacheKey(text, font, paint);
 
         lock (_lock)
         {
@@ -62,8 +62,7 @@ public class TextRenderCache : IDisposable
                 return cached;
             }
 
-            var bounds = new SKRect();
-            paint.MeasureText(text, ref bounds);
+            font.MeasureText(text, out SKRect bounds, paint);
 
             var width = Math.Max(1, (int)Math.Ceiling(bounds.Width) + 2);
             var height = Math.Max(1, (int)Math.Ceiling(bounds.Height) + 2);
@@ -71,7 +70,7 @@ public class TextRenderCache : IDisposable
             var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Transparent);
-            canvas.DrawText(text, -bounds.Left + 1f, -bounds.Top + 1f, paint);
+            canvas.DrawText(text, -bounds.Left + 1f, -bounds.Top + 1f, SKTextAlign.Left, font, paint);
 
             if (_cache.Count >= _maxEntries)
             {
