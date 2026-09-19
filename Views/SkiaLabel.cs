@@ -732,9 +732,9 @@ public class SkiaLabel : SkiaView
         float y = VerticalTextAlignment switch
         {
             TextAlignment.Start => bounds.Top - textBounds.Top,
-            TextAlignment.Center => bounds.MidY - textBounds.MidY,
+            TextAlignment.Center => TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY),
             TextAlignment.End => bounds.Bottom - textBounds.Bottom,
-            _ => bounds.MidY - textBounds.MidY
+            _ => TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY)
         };
 
         // Draw selection highlight if applicable

@@ -15,6 +15,27 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 public static class TextRenderingHelper
 {
     /// <summary>
+    /// Returns the baseline Y coordinate that vertically centers text on <paramref name="centerY"/>
+    /// using glyph-independent font metrics.
+    /// </summary>
+    /// <remarks>
+    /// Do NOT center text vertically via its measured ink bounds
+    /// (<c>bounds.MidY - textBounds.MidY</c>): the ink box depends on the glyphs present, so the
+    /// computed baseline drifts from string to string. For example, on MediaDemo's buttons,
+    /// "Play"/"Stop" (descenders in y, p) sat visibly higher than "Pause"/"Mute" (no descenders),
+    /// because a descender extends the ink box downward and shifts the ink-centered baseline up.
+    /// Centering on font metrics (ascent/descent) places every string of the same font on the same
+    /// baseline regardless of which glyphs it contains. Note SKFontMetrics.Ascent is negative.
+    /// Ink-bounds centering remains appropriate only for standalone symbols drawn as text
+    /// (e.g. "+"/"−" stepper glyphs, icon-font glyphs), where optical centering of the ink is wanted.
+    /// </remarks>
+    public static float BaselineForVerticalCenter(SKFont font, float centerY)
+    {
+        var metrics = font.Metrics;
+        return centerY - (metrics.Ascent + metrics.Descent) / 2f;
+    }
+
+    /// <summary>
     /// Draws text with font fallback for emoji, CJK, and other scripts.
     /// Uses FontFallbackManager to shape text across multiple typefaces when needed.
     /// </summary>
