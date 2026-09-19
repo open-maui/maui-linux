@@ -6,6 +6,7 @@ using FluentAssertions;
 using Xunit;
 using DragPayload = Microsoft.Maui.Platform.Linux.Services.DragPayload;
 using DragDropService = Microsoft.Maui.Platform.Linux.Services.DragDropService;
+using ResolvedImage = Microsoft.Maui.Platform.Linux.Services.ResolvedImage;
 
 namespace Microsoft.Maui.Platform.Tests;
 
@@ -162,5 +163,155 @@ public class DragPayloadTests
     public void NextIncrChunk_EmptyData_ImmediateTerminator()
     {
         DragDropService.NextIncrChunk(0, 0, 4).Should().Be((0, 0, true));
+    }
+
+    // ---- image format sniffing ----
+
+    private static readonly byte[] PngHeader =
+        { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0 };
+    private static readonly byte[] JpegHeader =
+        { 0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+    [Theory]
+    [InlineData(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }, "image/png")]
+    [InlineData(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }, "image/jpeg")]
+    [InlineData(new byte[] { (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a' }, "image/gif")]
+    [InlineData(new byte[] { (byte)'B', (byte)'M', 0x3A, 0x00 }, "image/bmp")]
+    public void SniffImageMime_RecognizesMagicNumbers(byte[] header, string expected)
+    {
+        DragPayload.SniffImageMime(header).Should().Be(expected);
+    }
+
+    [Fact]
+    public void SniffImageMime_WebP_RequiresRiffAndWebpTags()
+    {
+        var webp = new byte[]
+        {
+            (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0,
+            (byte)'W', (byte)'E', (byte)'B', (byte)'P',
+        };
+        DragPayload.SniffImageMime(webp).Should().Be("image/webp");
+    }
+
+    [Fact]
+    public void SniffImageMime_UnknownOrShort_ReturnsNull()
+    {
+        DragPayload.SniffImageMime(null).Should().BeNull();
+        DragPayload.SniffImageMime(new byte[0]).Should().BeNull();
+        DragPayload.SniffImageMime(new byte[] { 0x00, 0x01, 0x02, 0x03 }).Should().BeNull();
+        // Truncated PNG magic must not match.
+        DragPayload.SniffImageMime(new byte[] { 0x89, 0x50, 0x4E }).Should().BeNull();
+    }
+
+    // ---- lazy (pending) image resolution ----
+
+    [Fact]
+    public void PendingImage_AdvertisesOptimisticMimes_WhenFormatUnknown()
+    {
+        var payload = new DragPayload
+        {
+            PendingImage = new TaskCompletionSource<ResolvedImage?>().Task,
+        };
+
+        payload.IsEmpty.Should().BeFalse();
+        payload.MimeTypes.Should().Equal("image/png", "image/jpeg");
+    }
+
+    [Fact]
+    public void GetBytes_CompletedPendingImage_ServedForSniffedMimeOnly()
+    {
+        var payload = new DragPayload
+        {
+            PendingImage = Task.FromResult<ResolvedImage?>(new ResolvedImage(PngHeader, "image/png")),
+        };
+
+        // Sync path serves an already-completed task, gated on the sniffed MIME.
+        payload.GetBytes("image/png").Should().BeSameAs(PngHeader);
+        payload.GetBytes("image/jpeg").Should().BeNull(); // advertised, but not what resolved
+    }
+
+    [Fact]
+    public void GetBytes_IncompletePendingImage_NeverBlocks_ReturnsNull()
+    {
+        var payload = new DragPayload
+        {
+            PendingImage = new TaskCompletionSource<ResolvedImage?>().Task,
+        };
+
+        payload.GetBytes("image/png").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_AwaitsPendingImage()
+    {
+        var tcs = new TaskCompletionSource<ResolvedImage?>();
+        var payload = new DragPayload { PendingImage = tcs.Task };
+
+        var resolving = payload.GetBytesAsync("image/jpeg", TimeSpan.FromSeconds(5));
+        tcs.SetResult(new ResolvedImage(JpegHeader, "image/jpeg"));
+
+        (await resolving).Should().BeSameAs(JpegHeader);
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_Timeout_ReturnsNull()
+    {
+        var payload = new DragPayload
+        {
+            PendingImage = new TaskCompletionSource<ResolvedImage?>().Task, // never completes
+        };
+
+        var bytes = await payload.GetBytesAsync("image/png", TimeSpan.FromMilliseconds(50));
+
+        bytes.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_FaultedTask_ReturnsNull_WithoutThrowing()
+    {
+        var payload = new DragPayload
+        {
+            PendingImage = Task.FromException<ResolvedImage?>(new InvalidOperationException("decode failed")),
+        };
+
+        var bytes = await payload.GetBytesAsync("image/png", TimeSpan.FromSeconds(1));
+
+        bytes.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_NullResolution_ReturnsNull()
+    {
+        var payload = new DragPayload { PendingImage = Task.FromResult<ResolvedImage?>(null) };
+
+        (await payload.GetBytesAsync("image/png", TimeSpan.FromSeconds(1))).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_TextMime_UnaffectedByPendingImage()
+    {
+        // A never-completing image must not stall or break the payload's other
+        // MIMEs — they resolve synchronously.
+        var payload = new DragPayload
+        {
+            Text = "hello",
+            PendingImage = new TaskCompletionSource<ResolvedImage?>().Task,
+        };
+
+        var bytes = await payload.GetBytesAsync("text/plain", TimeSpan.FromSeconds(1));
+
+        Encoding.UTF8.GetString(bytes!).Should().Be("hello");
+    }
+
+    [Fact]
+    public void PendingImage_WithDeclaredMime_AdvertisesOnlyThat()
+    {
+        var payload = new DragPayload
+        {
+            ImageMime = "image/png",
+            PendingImage = new TaskCompletionSource<ResolvedImage?>().Task,
+        };
+
+        payload.MimeTypes.Should().Equal("image/png");
     }
 }

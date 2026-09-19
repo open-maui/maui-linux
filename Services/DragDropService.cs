@@ -395,6 +395,10 @@ public partial class DragDropService : IDisposable
         if (_dropPending && Environment.TickCount64 >= _dropDeadline)
             CompleteDropTransfer(null);
 
+        // Answer SelectionRequests that were deferred behind a lazy image
+        // decode (may also extend the finish deadline below).
+        FlushPendingSelectionReplies();
+
         if (_sourceDropSent && Environment.TickCount64 >= _sourceFinishDeadline)
             CleanupSourceDrag(releaseSelection: true);
 
@@ -642,7 +646,7 @@ public partial class DragDropService : IDisposable
     /// Backend-agnostic entry point: begin a drag-and-drop carrying
     /// <paramref name="text"/>. Routes to the native Wayland data-device drag
     /// when a Wayland window is active (see
-    /// <see cref="Microsoft.Maui.Platform.Linux.Window.WaylandWindow.TryStartDrag"/>),
+    /// <see cref="Microsoft.Maui.Platform.Linux.Window.WaylandWindow.TryStartDrag(DragPayload)"/>),
     /// otherwise to the X11 XDND source implementation. Returns false when no
     /// backend can start a drag (no recent pointer press, backend not wired,
     /// or a drag already in flight).
@@ -850,37 +854,118 @@ public partial class DragDropService : IDisposable
         else
         {
             var mime = MimeForAtom(target);
+
+            // A pending (lazy) image that hasn't resolved yet: defer the
+            // SelectionNotify instead of blocking the event pump — the reply
+            // is completed from FlushPendingSelectionReplies once the task
+            // finishes (or its deadline lapses → property None). ICCCM
+            // requestors wait for the notify with their own timeouts.
+            if (mime != null
+                && _sourcePayload.HasPendingImage
+                && _sourcePayload.PendingImage is { IsCompleted: false }
+                && _sourcePayload.GetBytes(mime) == null
+                && IsImageMimeCandidate(mime))
+            {
+                _pendingSelectionReplies.Add(new PendingSelectionReply
+                {
+                    Requestor = requestor,
+                    Property = property,
+                    Target = target,
+                    Time = time,
+                    Mime = mime,
+                    Payload = _sourcePayload,
+                    Deadline = Environment.TickCount64 + (long)DragPayload.PendingImageTimeout.TotalMilliseconds,
+                });
+                return true;
+            }
+
             var bytes = mime != null ? _sourcePayload.GetBytes(mime) : null;
-            if (bytes == null)
-            {
-                converted = false; // unsupported target → property None
-            }
-            else if (bytes.Length > IncrThresholdBytes)
-            {
-                BeginOutgoingIncr(requestor, property, target, bytes);
-                converted = true; // reply now; data streams via PropertyNotify
-            }
-            else
-            {
-                XChangePropertyBytes(_display, requestor, property, target, 8,
-                    PropModeReplace, bytes, bytes.Length);
-                converted = true;
-            }
+            converted = WritePayloadProperty(requestor, property, target, bytes);
         }
 
+        SendSelectionNotify(requestor, target, converted ? property : IntPtr.Zero, time);
+        return true;
+    }
+
+    // Write resolved payload bytes to the requestor's property, switching to
+    // INCR above the threshold. Returns false for null bytes (unsupported /
+    // failed target → the caller replies property None).
+    private bool WritePayloadProperty(nint requestor, nint property, nint target, byte[]? bytes)
+    {
+        if (bytes == null) return false;
+        if (bytes.Length > IncrThresholdBytes)
+        {
+            BeginOutgoingIncr(requestor, property, target, bytes);
+            return true; // reply now; data streams via PropertyNotify
+        }
+        XChangePropertyBytes(_display, requestor, property, target, 8,
+            PropModeReplace, bytes, bytes.Length);
+        return true;
+    }
+
+    private void SendSelectionNotify(nint requestor, nint target, nint property, nint time)
+    {
         var reply = new XSelectionNotifyEvent
         {
             type = SelectionNotifyCode,
             display = _display,
             requestor = requestor,
-            selection = selection,
+            selection = _xdndSelection,
             target = target,
-            property = converted ? property : IntPtr.Zero,
+            property = property,
             time = time,
         };
         XSendEvent(_display, requestor, false, 0, ref reply);
         XFlush(_display);
-        return true;
+    }
+
+    // Cheap check that the MIME is plausibly one of the payload's advertised
+    // image types (a text/uri-list request must never be deferred behind an
+    // image decode — those bytes are always available synchronously).
+    private static bool IsImageMimeCandidate(string mime)
+        => mime.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+
+    // SelectionRequests answered later because the payload's lazy image was
+    // still decoding when they arrived. Completed (or expired) from the event
+    // pump — all X calls stay on the pump thread.
+    private sealed class PendingSelectionReply
+    {
+        public nint Requestor;
+        public nint Property;
+        public nint Target;
+        public nint Time;
+        public string Mime = string.Empty;
+        public DragPayload Payload = null!;
+        public long Deadline;
+    }
+    private readonly List<PendingSelectionReply> _pendingSelectionReplies = new();
+
+    private void FlushPendingSelectionReplies()
+    {
+        if (_pendingSelectionReplies.Count == 0) return;
+
+        // A target waiting on our slow image decode can't send XdndFinished
+        // yet — keep the post-drop finish deadline from reaping the drag under
+        // it while replies are outstanding.
+        if (_sourceDropSent)
+            _sourceFinishDeadline = Math.Max(_sourceFinishDeadline, Environment.TickCount64 + DropTimeoutMs);
+
+        var now = Environment.TickCount64;
+        for (int i = _pendingSelectionReplies.Count - 1; i >= 0; i--)
+        {
+            var r = _pendingSelectionReplies[i];
+            bool expired = now >= r.Deadline;
+            if (!expired && r.Payload.PendingImage is { IsCompleted: false })
+                continue; // still decoding, still within its deadline
+
+            _pendingSelectionReplies.RemoveAt(i);
+
+            // GetBytes serves a completed pending image (sniffed-MIME gated);
+            // an expired/faulted resolution yields null → honest property None.
+            var bytes = expired ? null : r.Payload.GetBytes(r.Mime);
+            bool converted = WritePayloadProperty(r.Requestor, r.Property, r.Target, bytes);
+            SendSelectionNotify(r.Requestor, r.Target, converted ? r.Property : IntPtr.Zero, r.Time);
+        }
     }
 
     /// <summary>
