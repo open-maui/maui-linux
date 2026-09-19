@@ -7,6 +7,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -1401,7 +1402,7 @@ public partial class SkiaWebView : SkiaView
         canvas.DrawLine(midX - 25, midY - 20, midX + 25, midY - 20, iconPaint);
         canvas.DrawArc(new SKRect(midX - 15, midY - 45, midX + 15, midY + 5), 0, 180, false, iconPaint);
 
-        using var textFont = new SKFont(SKTypeface.Default, 14);
+        using var textFont = SkiaFontFactory.Create(14);
         using var textPaint = new SKPaint
         {
             Color = SkiaTheme.Gray700SK,
@@ -1431,7 +1432,7 @@ public partial class SkiaWebView : SkiaView
 
         if (!IsSupported)
         {
-            using var hintFont = new SKFont(SKTypeface.Default, 11);
+            using var hintFont = SkiaFontFactory.Create(11);
             using var hintPaint = new SKPaint
             {
                 Color = SkiaTheme.Gray600SK,

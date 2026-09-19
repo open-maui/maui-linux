@@ -31,7 +31,7 @@ public static class TextRenderingHelper
         if (runs.Count <= 1)
         {
             // Single run or no fallback needed - draw directly
-            using var font = new SKFont(preferredTypeface, fontSize);
+            using var font = SkiaFontFactory.Create(preferredTypeface, fontSize);
             canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
             return;
         }
@@ -40,7 +40,7 @@ public static class TextRenderingHelper
         float currentX = x;
         foreach (var run in runs)
         {
-            using var runFont = new SKFont(run.Typeface, fontSize);
+            using var runFont = SkiaFontFactory.Create(run.Typeface, fontSize);
             using var runPaint = new SKPaint
             {
                 Color = paint.Color,

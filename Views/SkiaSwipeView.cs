@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -210,7 +211,7 @@ public class SkiaSwipeView : SkiaLayoutView
             // Draw icon or text
             if (!string.IsNullOrEmpty(item.Text))
             {
-                using var textFont = new SKFont(SKTypeface.Default, 14f);
+                using var textFont = SkiaFontFactory.Create(14f);
                 using var textPaint = new SKPaint
                 {
                     Color = item.GetTextColorSK(),

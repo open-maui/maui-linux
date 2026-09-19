@@ -6,6 +6,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Converters;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -337,7 +338,7 @@ public class SkiaTimePicker : SkiaView
             typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
         }
 
-        using var font = new SKFont(typeface, fontSize);
+        using var font = SkiaFontFactory.Create(typeface, fontSize);
         using var textPaint = new SKPaint
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
@@ -397,7 +398,7 @@ public class SkiaTimePicker : SkiaView
         canvas.Restore();
         canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
-        using var font = new SKFont(SKTypeface.Default, 32);
+        using var font = SkiaFontFactory.Create(32);
         using var selectedPaint = new SKPaint { Color = SkiaTheme.BackgroundWhiteSK, IsAntialias = true };
         using var unselectedPaint = new SKPaint { Color = SkiaTheme.WhiteSemiTransparentSK, IsAntialias = true };
 
@@ -432,7 +433,7 @@ public class SkiaTimePicker : SkiaView
         using var facePaint = new SKPaint { Color = clockFaceColor, Style = SKPaintStyle.Fill, IsAntialias = true };
         canvas.DrawCircle(centerX, centerY, ClockRadius + 20, facePaint);
 
-        using var font = new SKFont(SKTypeface.Default, 14);
+        using var font = SkiaFontFactory.Create(14);
         using var textPaint = new SKPaint { Color = textColor, IsAntialias = true };
 
         if (_isSelectingHours)
