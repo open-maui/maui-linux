@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Shipped (10.0.50 → 10.0.90.1)
+## Shipped (10.0.50 → 10.0.101.1)
 
 ### Core platform
 
@@ -91,6 +91,16 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Live Visual Tree | `Diagnostics/VisualTreeInspector` — read-only tree snapshot, highlight overlay, click-to-pick, text dump; reuses the popup-overlay draw hook; opt-in Ctrl+Shift+D hotkey |
 | Hot Reload | `[MetadataUpdateHandler]` → main-thread re-render of the current page (`SkiaShell.ReRenderContentTrees`, root rebuild for non-Shell roots); C# + XAML edits under `dotnet watch` for Shell and non-Shell roots (see `docs/HOT_RELOAD.md`) |
 
+### Multi-window + SkiaSharp 4 *(10.0.101.1)*
+
+| Feature | Description |
+|---------|-------------|
+| MAUI 10.0.101 / SkiaSharp 4 | MAUI 10.0.101 forces SkiaSharp 3 → 4: ~400 call sites migrated off the error-obsolete `SKPaint` text APIs to `SKFont`; new `SkiaFontFactory` (Subpixel + LinearMetrics) is the mandatory font construction path — fixes HiDPI intra-word glyph gaps |
+| Multi-window support | `Application.OpenWindow` / `CloseWindow` with per-window native toplevel, render engine, and input routing (X11 + Wayland parity); `IWindow` lifecycle per the MAUI contract; last-window-close exits, primary-close survives; per-window routing for clipboard/dialogs/popups/theme documented in code. V1 scope: DnD targets primary, GTK mode single-window |
+| Non-Shell-root Hot Reload | Raw `ContentPage`/`NavigationPage` window pages rebuild and re-swap on `dotnet watch` edits with proper lifecycle; nav stacks reset to root (matches MAUI's own structural reload) |
+| Async drag image sourcing | `StreamImageSource` drag payloads resolve in-flight with format sniffing and bounded honest-fail; X11 defers `SelectionNotify` instead of blocking the pump |
+| Text measurement correctness | Wrapped labels measure by the draw path's wrap math (no more sibling overdraw); single-line label heights are line-height based, not ink-bounds based (glyph-independent spacing) |
+
 ## Planned
 
 ### Medium-term
@@ -98,6 +108,7 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Feature | Description |
 |---------|-------------|
 | Hardware video acceleration zero-copy | Explicit pipeline construction for direct compositor-surface (zero-copy) playback — `Prefer` mode already covers decoder selection |
+| Multi-window round-out | Per-window `WindowHandler` (live title/page changes on secondaries), DnD onto secondary windows, `IWindow.Stopped`/`Resumed`, window positioning, GTK-mode secondaries |
 
 ### Long-term
 
@@ -106,7 +117,6 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 | Vulkan rendering | Next-gen graphics API support |
 | Flatpak packaging | Easy distribution via Flatpak |
 | Snap packaging | Ubuntu Snap store support |
-| Multi-window support | Multiple top-level windows |
 | Frame-accurate HTTP scrubbing | *Deferred.* The 1-2s backward-seek drift on HTTP-streamed video is a byte-range re-request + decode-and-discard latency issue at the GStreamer layer; local-file scrubbing is already frame-accurate, so the user-visible impact is limited to streamed sources |
 
 ## Contributing
@@ -134,7 +144,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.70.2 | .NET 10 / MAUI 10.0.70 | Q2 2026 | Released (Maps sibling missing — see 10.0.70.3) |
 | v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | Released |
 | v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | Released |
-| v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | In development |
+| v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | Released |
+| v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development |
 | v10.0.90.x | .NET 10 / MAUI 10.0.90 | Q3 2026 | Active |
 
 ## Feedback
@@ -143,5 +154,5 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 ---
 
-*Last updated: July 2026*
+*Last updated: September 2026*
 *Copyright 2025-2026 MarketAlly Pte Ltd*
