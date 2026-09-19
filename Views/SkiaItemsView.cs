@@ -150,6 +150,38 @@ public class SkiaItemsView : SkiaView
     }
 
     /// <summary>
+    /// Ensures the item view for <paramref name="index"/> is created and its height measured
+    /// BEFORE row positions are computed, so the very first draw after an ItemsSource change
+    /// (or cache refresh) lays rows out with real heights. Without this, the first frame
+    /// positions rows using the default ItemHeight, then a second frame corrects them -
+    /// a visible one-frame layout flash (e.g. when a page's OnAppearing resets ItemsSource
+    /// after a navigation pop).
+    /// </summary>
+    protected void EnsureItemMeasured(int index, float availableWidth)
+    {
+        if (ItemViewCreator == null) return;
+        if (index < 0 || index >= _items.Count) return;
+        if (_itemHeights.ContainsKey(index)) return;
+
+        if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
+        {
+            itemView = ItemViewCreator(_items[index]);
+            if (itemView == null) return;
+            itemView.Parent = this;
+            _itemViewCache[index] = itemView;
+        }
+
+        var measuredSize = itemView.Measure(new Size(availableWidth, float.MaxValue));
+        var rawHeight = (float)measuredSize.Height;
+        if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000f)
+        {
+            rawHeight = _itemHeight;
+        }
+
+        _itemHeights[index] = Math.Max(rawHeight, _itemHeight);
+    }
+
+    /// <summary>
     /// Gets the height for a specific item, using cached height or default.
     /// Always returns at least ItemHeight to allow vertical centering of smaller content.
     /// </summary>
@@ -216,11 +248,17 @@ public class SkiaItemsView : SkiaView
             return;
         }
 
-        // Find first visible index by walking through items
+        // Content width excludes the scrollbar gutter (matches the itemRect below)
+        var contentWidth = bounds.Width - (_showVerticalScrollBar ? _scrollBarWidth : 0);
+
+        // Find first visible index by walking through items.
+        // Measure each item before using its height so the first frame after a
+        // cache refresh positions rows correctly (no mis-layout flash).
         _firstVisibleIndex = 0;
         float cumulativeOffset = 0;
         for (int i = 0; i < _items.Count; i++)
         {
+            EnsureItemMeasured(i, contentWidth);
             var itemH = GetItemHeight(i);
             if (cumulativeOffset + itemH > _scrollOffset)
             {
@@ -243,6 +281,7 @@ public class SkiaItemsView : SkiaView
         float currentY = bounds.Top + GetItemOffset(_firstVisibleIndex) - _scrollOffset;
         for (int i = _firstVisibleIndex; i < _items.Count; i++)
         {
+            EnsureItemMeasured(i, contentWidth);
             var itemH = GetItemHeight(i);
             var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - (_showVerticalScrollBar ? _scrollBarWidth : 0), currentY + itemH);
 

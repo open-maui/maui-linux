@@ -576,10 +576,18 @@ public class SkiaCollectionView : SkiaItemsView
 
         var scrollOffset = GetScrollOffset();
 
+        // Row content width (matches the itemRect below). Measure each item before
+        // using its height so the FIRST frame after an ItemsSource refresh positions
+        // rows with real heights instead of the default ItemHeight - otherwise the
+        // frame right after a refresh (e.g. OnAppearing after a navigation pop)
+        // paints squashed rows and only corrects itself a frame later (visible flash).
+        var contentWidth = bounds.Width - 8f;
+
         int firstVisible = 0;
         float cumulativeOffset = 0f;
         for (int i = 0; i < ItemCount; i++)
         {
+            EnsureItemMeasured(i, contentWidth);
             var itemH = GetItemHeight(i);
             if (cumulativeOffset + itemH > scrollOffset)
             {
@@ -592,6 +600,7 @@ public class SkiaCollectionView : SkiaItemsView
         float currentY = bounds.Top + GetItemOffset(firstVisible) - scrollOffset;
         for (int i = firstVisible; i < ItemCount; i++)
         {
+            EnsureItemMeasured(i, contentWidth);
             var itemH = GetItemHeight(i);
             var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - 8f, currentY + itemH);
 
