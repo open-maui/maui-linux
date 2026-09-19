@@ -30,6 +30,20 @@ public abstract partial class SkiaView
 
     public static void DrawPopupOverlays(SKCanvas canvas)
     {
+        DrawPopupOverlays(canvas, null);
+    }
+
+    /// <summary>
+    /// Draws popup overlays, optionally restricted to popups whose owner lives
+    /// under <paramref name="root"/>. Multi-window support: each window's
+    /// rendering pass passes its own root so a dropdown opened in one window
+    /// doesn't paint into every other window. A null root (the single-window
+    /// case) draws every registered overlay — the historical behavior.
+    /// Owners whose parent chain doesn't reach any root (detached mid-close)
+    /// are drawn everywhere rather than dropped, erring on visibility.
+    /// </summary>
+    public static void DrawPopupOverlays(SKCanvas canvas, SkiaView? root)
+    {
         // Restore canvas to clean state for overlay drawing
         // Save count tells us how many unmatched Saves there are
         while (canvas.SaveCount > 1)
