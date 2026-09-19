@@ -12,6 +12,15 @@ using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux;
 
+// NOTE (multi-window): the per-window X11/Wayland input routing that used to
+// live here (OnKeyDown/OnPointerMoved/... with the _focusedView/_hoveredView/
+// _capturedView singletons) moved to WindowContext so each native window
+// routes its own input into its own tree with its own focus/capture/hover
+// state — all still through the Guarded wrapper (hard invariant: a view
+// exception must never unwind into a native callback). This file keeps the
+// GTK-mode handlers (GTK stays single-window; they operate on the primary
+// context's state) and the app-level native drag-and-drop routing (primary
+// window only).
 public partial class LinuxApplication
 {
     /// <summary>
@@ -20,252 +29,25 @@ public partial class LinuxApplication
     private float ToLogical(double physicalCoord) => (float)(physicalCoord / DpiScale);
 
     /// <summary>
-    /// When CSD is active on Wayland, the view tree is rendered translated down
-    /// by the titlebar height. View bounds therefore live in a coordinate space
-    /// whose y=0 is *below* the titlebar; pointer events arrive in window-relative
-    /// coords (y=0 = top of surface = top of titlebar). This shift puts them in
-    /// view-tree space. Returns 0 on backends without CSD.
+    /// CSD titlebar inset of the PRIMARY window (drag-and-drop is wired to the
+    /// primary window only). See WindowContext.CsdPointerInsetLogical.
     /// </summary>
-    private float CsdPointerInsetLogical =>
-        _mainWindow is WaylandWindow w && w.UseCsd ? WaylandWindow.CsdTitlebarHeightLogical : 0f;
-
-    /// <summary>
-    /// Creates a new PointerEventArgs with coordinates scaled to logical pixels
-    /// and (on Wayland CSD) offset so the view tree sees y=0 at the top of its
-    /// content area rather than the top of the titlebar.
-    /// </summary>
-    private PointerEventArgs ScalePointerArgs(PointerEventArgs e)
-    {
-        float inset = CsdPointerInsetLogical;
-        if (DpiScale <= 1.0f && inset <= 0f) return e;
-        return new PointerEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.Button);
-    }
-
-    /// <summary>
-    /// Creates a new ScrollEventArgs with coordinates scaled to logical pixels.
-    /// CSD inset applied for the same reason as ScalePointerArgs.
-    /// </summary>
-    private ScrollEventArgs ScaleScrollArgs(ScrollEventArgs e)
-    {
-        float inset = CsdPointerInsetLogical;
-        if (DpiScale <= 1.0f && inset <= 0f) return e;
-        return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.DeltaX, e.DeltaY);
-    }
+    private float CsdPointerInsetLogical => PrimaryContext?.CsdPointerInsetLogical ?? 0f;
 
     private void UpdateAnimations()
     {
-        // Update cursor blink for text input controls
-        if (_focusedView is SkiaEntry entry)
-        {
-            entry.UpdateCursorBlink();
-        }
-        else if (_focusedView is SkiaEditor editor)
-        {
-            editor.UpdateCursorBlink();
-        }
-    }
-
-    private void OnWindowResized(object? sender, (int Width, int Height) size)
-    {
-        if (_rootView != null)
-        {
-            // Re-measure with new available size, then arrange
-            var availableSize = new Microsoft.Maui.Graphics.Size(size.Width, size.Height);
-            _rootView.Measure(availableSize);
-            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, size.Width, size.Height));
-        }
-        _renderingEngine?.InvalidateAll();
-    }
-
-    private void OnWindowExposed(object? sender, EventArgs e)
-    {
-        Render();
-    }
-
-    private void OnKeyDown(object? sender, KeyEventArgs e)
-    {
-        // Live Visual Tree inspector: consume Escape while picking (no-op otherwise).
-        if (VisualTreeInspector.Instance.HandleKeyDown(e.Key))
-            return;
-
-        // Route to dialog if one is active
-        if (LinuxDialogService.HasActiveDialog)
-        {
-            LinuxDialogService.TopDialog?.OnKeyDown(e);
-            return;
-        }
-
-        if (_focusedView != null)
-        {
-            _focusedView.OnKeyDown(e);
-        }
-    }
-
-    private void OnKeyUp(object? sender, KeyEventArgs e)
-    {
-        // Route to dialog if one is active
-        if (LinuxDialogService.HasActiveDialog)
-        {
-            LinuxDialogService.TopDialog?.OnKeyUp(e);
-            return;
-        }
-
-        if (_focusedView != null)
-        {
-            _focusedView.OnKeyUp(e);
-        }
-    }
-
-    private void OnTextInput(object? sender, TextInputEventArgs e)
-    {
-        if (_focusedView != null)
-        {
-            _focusedView.OnTextInput(e);
-        }
-    }
-
-    private void OnPointerMoved(object? sender, PointerEventArgs e)
-    {
-        e = ScalePointerArgs(e);
-
-        // Live Visual Tree inspector pick mode: track the hovered node and
-        // suppress normal routing while active (no-op when inactive).
-        if (VisualTreeInspector.Instance.HandlePointerMoved(e.X, e.Y))
-            return;
-
-        // Route to context menu if one is active
-        if (LinuxDialogService.HasContextMenu)
-        {
-            LinuxDialogService.ActiveContextMenu?.OnPointerMoved(e);
-            return;
-        }
-
-        // Route to dialog if one is active
-        if (LinuxDialogService.HasActiveDialog)
-        {
-            LinuxDialogService.TopDialog?.OnPointerMoved(e);
-            return;
-        }
-
-        if (_rootView != null)
-        {
-            // If a view has captured the pointer, send all events to it
-            if (_capturedView != null)
-            {
-                _capturedView.OnPointerMoved(e);
-                return;
-            }
-
-            // Check for popup overlay first
-            var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y);
-            var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
-
-            // Track hover state changes
-            if (hitView != _hoveredView)
-            {
-                _hoveredView?.OnPointerExited(e);
-                _hoveredView = hitView;
-                _hoveredView?.OnPointerEntered(e);
-
-                // Update cursor based on view's cursor type
-                CursorType cursor = hitView?.CursorType ?? CursorType.Arrow;
-                _mainWindow?.SetCursor(cursor);
-            }
-
-            hitView?.OnPointerMoved(e);
-        }
-    }
-
-    private void OnPointerPressed(object? sender, PointerEventArgs e)
-    {
-        e = ScalePointerArgs(e);
-        DiagnosticLog.Debug("LinuxApplication", $"OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
-
-        // Live Visual Tree inspector pick mode: commit the element under the
-        // cursor as the selection and consume the press (no-op when inactive).
-        if (VisualTreeInspector.Instance.HandlePointerPressed(e.X, e.Y))
-            return;
-
-        // Route to context menu if one is active
-        if (LinuxDialogService.HasContextMenu)
-        {
-            LinuxDialogService.ActiveContextMenu?.OnPointerPressed(e);
-            return;
-        }
-
-        // Route to dialog if one is active
-        if (LinuxDialogService.HasActiveDialog)
-        {
-            LinuxDialogService.TopDialog?.OnPointerPressed(e);
-            return;
-        }
-
-        if (_rootView != null)
-        {
-            // Check for popup overlay first
-            var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y);
-            var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
-            DiagnosticLog.Debug("LinuxApplication", $"HitView: {hitView?.GetType().Name ?? "null"}, rootView: {_rootView.GetType().Name}");
-
-            if (hitView != null)
-            {
-                // Capture pointer to this view for drag operations
-                _capturedView = hitView;
-
-                // Update focus
-                if (hitView.IsFocusable)
-                {
-                    FocusedView = hitView;
-                }
-
-                DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerPressed on {hitView.GetType().Name}");
-                hitView.OnPointerPressed(e);
-            }
-            else
-            {
-                // Close any open popups when clicking outside
-                if (SkiaView.HasActivePopup && _focusedView != null)
-                {
-                    _focusedView.OnFocusLost();
-                }
-                FocusedView = null;
-            }
-        }
-    }
-
-    private void OnPointerReleased(object? sender, PointerEventArgs e)
-    {
-        e = ScalePointerArgs(e);
-        // Route to dialog if one is active
-        if (LinuxDialogService.HasActiveDialog)
-        {
-            LinuxDialogService.TopDialog?.OnPointerReleased(e);
-            return;
-        }
-
-        if (_rootView != null)
-        {
-            // If a view has captured the pointer, send release to it
-            if (_capturedView != null)
-            {
-                _capturedView.OnPointerReleased(e);
-                _capturedView = null; // Release capture
-                return;
-            }
-
-            // Check for popup overlay first
-            var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y);
-            var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
-            hitView?.OnPointerReleased(e);
-        }
+        // Update cursor blink for text input controls in every window.
+        for (int i = 0; i < WindowContexts.Count; i++)
+            WindowContexts[i].UpdateAnimations();
     }
 
     /// <summary>
     /// Wraps a window input-event handler so an exception thrown by view code
-    /// is logged instead of unwinding through the native (Wayland/X11) dispatch
+    /// is logged instead of unwinding through the native (GTK) dispatch
     /// frame that invoked it — which would abort the whole process (SIGABRT). A
     /// misbehaving control must never crash the app via the input path. All
-    /// input subscriptions in <c>LinuxApplication</c> route through this.
+    /// input subscriptions in <c>LinuxApplication</c> route through this
+    /// (X11/Wayland subscriptions route through WindowContext's equivalent).
     /// </summary>
     private EventHandler<T> Guarded<T>(string name, EventHandler<T> handler) => (s, e) =>
     {
@@ -276,55 +58,22 @@ public partial class LinuxApplication
         }
     };
 
-    private void OnScroll(object? sender, ScrollEventArgs e)
-    {
-        e = ScaleScrollArgs(e);
-        DiagnosticLog.Debug("LinuxApplication", $"OnScroll - X={e.X}, Y={e.Y}, DeltaX={e.DeltaX}, DeltaY={e.DeltaY}");
-        if (_rootView != null)
-        {
-            var hitView = _rootView.HitTest(e.X, e.Y);
-            DiagnosticLog.Debug("LinuxApplication", $"HitView: {hitView?.GetType().Name ?? "null"}");
-            // Bubble scroll events up to find a ScrollView
-            var view = hitView;
-            while (view != null)
-            {
-                DiagnosticLog.Debug("LinuxApplication", $"Bubbling to: {view.GetType().Name}");
-                if (view is SkiaScrollView scrollView)
-                {
-                    scrollView.OnScroll(e);
-                    return;
-                }
-                view.OnScroll(e);
-                if (e.Handled) return;
-                view = view.Parent;
-            }
-        }
-    }
-
-    private void OnCloseRequested(object? sender, EventArgs e)
-    {
-        // Drop any tracked drag target — the view tree is going away.
-        var left = _dropTargetTracker.Clear();
-        if (left != null)
-            Handlers.GestureManager.ProcessDragLeave(left);
-
-        _mainWindow?.Stop();
-    }
-
-    // GTK Event Handlers
+    // GTK Event Handlers (GTK mode is single-window; all state lives on the
+    // primary context)
     private void OnGtkDrawRequested(object? sender, EventArgs e)
     {
         DiagnosticLog.Debug("LinuxApplication", ">>> OnGtkDrawRequested ENTER");
         LogDraw();
         var surface = _gtkWindow?.SkiaSurface;
-        if (surface?.Canvas != null && _rootView != null)
+        var rootView = RootView;
+        if (surface?.Canvas != null && rootView != null)
         {
             var bgColor = Application.Current?.UserAppTheme == AppTheme.Dark
                 ? new SKColor(32, 33, 36)
                 : SKColors.White;
             surface.Canvas.Clear(bgColor);
             DiagnosticLog.Debug("LinuxApplication", "Drawing rootView...");
-            _rootView.Draw(surface.Canvas);
+            rootView.Draw(surface.Canvas);
             DiagnosticLog.Debug("LinuxApplication", "Drawing dialogs...");
             var bounds = new SKRect(0, 0, surface.Width, surface.Height);
             LinuxDialogService.DrawDialogs(surface.Canvas, bounds);
@@ -362,24 +111,23 @@ public partial class LinuxApplication
             return;
         }
 
-        if (_rootView == null)
+        var ctx = PrimaryContext;
+        if (ctx?.RootView == null)
         {
-            DiagnosticLog.Warn("LinuxApplication", "GTK _rootView is null!");
+            DiagnosticLog.Warn("LinuxApplication", "GTK root view is null!");
             return;
         }
 
-        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        var hitView = ctx.RootView.HitTest((float)e.X, (float)e.Y);
         DiagnosticLog.Debug("LinuxApplication", $"GTK HitView: {hitView?.GetType().Name ?? "null"}");
 
         if (hitView != null)
         {
-            if (hitView.IsFocusable && _focusedView != hitView)
+            if (hitView.IsFocusable && ctx.FocusedView != hitView)
             {
-                _focusedView?.OnFocusLost();
-                _focusedView = hitView;
-                _focusedView.OnFocusGained();
+                ctx.FocusedView = hitView;
             }
-            _capturedView = hitView;
+            ctx.CapturedView = hitView;
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
             var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
             DiagnosticLog.Debug("LinuxApplication", ">>> Before OnPointerPressed");
@@ -404,22 +152,23 @@ public partial class LinuxApplication
             return;
         }
 
-        if (_rootView == null) return;
+        var ctx = PrimaryContext;
+        if (ctx?.RootView == null) return;
 
-        if (_capturedView != null)
+        if (ctx.CapturedView != null)
         {
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
             var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
-            DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerReleased on {_capturedView.GetType().Name}");
-            _capturedView.OnPointerReleased(args);
+            DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerReleased on {ctx.CapturedView.GetType().Name}");
+            ctx.CapturedView.OnPointerReleased(args);
             DiagnosticLog.Debug("LinuxApplication", "OnPointerReleased returned");
-            _capturedView = null;
+            ctx.CapturedView = null;
             _gtkWindow?.RequestRedraw();
             DiagnosticLog.Debug("LinuxApplication", "<<< OnGtkPointerReleased EXIT (captured path)");
         }
         else
         {
-            var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+            var hitView = ctx.RootView.HitTest((float)e.X, (float)e.Y);
             if (hitView != null)
             {
                 var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
@@ -449,23 +198,24 @@ public partial class LinuxApplication
             return;
         }
 
-        if (_rootView == null) return;
+        var ctx = PrimaryContext;
+        if (ctx?.RootView == null) return;
 
-        if (_capturedView != null)
+        if (ctx.CapturedView != null)
         {
             var args = new PointerEventArgs((float)e.X, (float)e.Y);
-            _capturedView.OnPointerMoved(args);
+            ctx.CapturedView.OnPointerMoved(args);
             _gtkWindow?.RequestRedraw();
             return;
         }
 
-        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
-        if (hitView != _hoveredView)
+        var hitView = ctx.RootView.HitTest((float)e.X, (float)e.Y);
+        if (hitView != ctx.HoveredView)
         {
             var args = new PointerEventArgs((float)e.X, (float)e.Y);
-            _hoveredView?.OnPointerExited(args);
-            _hoveredView = hitView;
-            _hoveredView?.OnPointerEntered(args);
+            ctx.HoveredView?.OnPointerExited(args);
+            ctx.HoveredView = hitView;
+            ctx.HoveredView?.OnPointerEntered(args);
             _gtkWindow?.RequestRedraw();
         }
 
@@ -490,9 +240,10 @@ public partial class LinuxApplication
             return;
         }
 
-        if (_focusedView != null)
+        var focused = PrimaryContext?.FocusedView;
+        if (focused != null)
         {
-            _focusedView.OnKeyDown(args);
+            focused.OnKeyDown(args);
             _gtkWindow?.RequestRedraw();
         }
     }
@@ -511,22 +262,24 @@ public partial class LinuxApplication
             return;
         }
 
-        if (_focusedView != null)
+        var focused = PrimaryContext?.FocusedView;
+        if (focused != null)
         {
-            _focusedView.OnKeyUp(args);
+            focused.OnKeyUp(args);
             _gtkWindow?.RequestRedraw();
         }
     }
 
     private void OnGtkScrolled(object? sender, (double X, double Y, double DeltaX, double DeltaY, uint State) e)
     {
-        if (_rootView == null) return;
+        var rootView = RootView;
+        if (rootView == null) return;
 
         // Convert GDK state to KeyModifiers
         var modifiers = ConvertGdkStateToModifiers(e.State);
         bool isCtrlPressed = (modifiers & KeyModifiers.Control) != 0;
 
-        var hitView = _rootView.HitTest((float)e.X, (float)e.Y);
+        var hitView = rootView.HitTest((float)e.X, (float)e.Y);
 
         // Check for pinch gesture (Ctrl+Scroll) first
         if (isCtrlPressed && hitView?.MauiView != null)
@@ -572,10 +325,11 @@ public partial class LinuxApplication
 
     private void OnGtkTextInput(object? sender, string text)
     {
-        if (_focusedView != null)
+        var focused = PrimaryContext?.FocusedView;
+        if (focused != null)
         {
             var args = new TextInputEventArgs(text);
-            _focusedView.OnTextInput(args);
+            focused.OnTextInput(args);
             _gtkWindow?.RequestRedraw();
         }
     }
@@ -618,6 +372,14 @@ public partial class LinuxApplication
     // enter/leave transitions fire as the drag moves between views. This
     // routing is ADDITIVE: DragDropService.Default's own events keep firing
     // for direct subscribers (the samples use those) unchanged.
+    //
+    // Multi-window: drag-and-drop resolves against the PRIMARY window's tree
+    // only. On X11 only the primary window announces XdndAware (the singleton
+    // DragDropService binds first-wins to the primary display/window), so no
+    // XDND traffic ever targets a secondary window. On Wayland the per-window
+    // data devices raise into the same DragDropService.Default events without
+    // window identity, so a drag over a secondary window would mis-resolve —
+    // documented v1 limitation.
     private readonly DropTargetTracker<View> _dropTargetTracker = new();
 
     private void WireDragDropRouting()
@@ -630,17 +392,18 @@ public partial class LinuxApplication
 
     /// <summary>
     /// Convert a drag event's window-physical position to the logical space
-    /// pointer dispatch hit-tests in (same scaling + CSD inset as
-    /// ScalePointerArgs), and resolve the MAUI drop target under it. The
-    /// shared HitTest entry point handles scroll-offset views internally, so
-    /// coordinates stay consistent with regular pointer routing.
+    /// pointer dispatch hit-tests in (same scaling + CSD inset as the pointer
+    /// path), and resolve the MAUI drop target under it. The shared HitTest
+    /// entry point handles scroll-offset views internally, so coordinates stay
+    /// consistent with regular pointer routing.
     /// </summary>
     private View? ResolveDropTarget(int physicalX, int physicalY)
     {
-        if (_rootView == null) return null;
+        var rootView = RootView;
+        if (rootView == null) return null;
         float x = ToLogical(physicalX);
         float y = ToLogical(physicalY) - CsdPointerInsetLogical;
-        var hit = SkiaView.GetPopupOwnerAt(x, y) ?? _rootView.HitTest(x, y);
+        var hit = SkiaView.GetPopupOwnerAt(x, y) ?? rootView.HitTest(x, y);
         return Handlers.GestureManager.FindDropTarget(hit?.MauiView);
     }
 
