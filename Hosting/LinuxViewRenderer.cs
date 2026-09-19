@@ -107,6 +107,12 @@ public class LinuxViewRenderer
     }
 
     /// <summary>
+    /// Service provider backing this renderer's MAUI context. Used by the
+    /// hot-reload root rebuild for DI-first page construction.
+    /// </summary>
+    internal IServiceProvider Services => _mauiContext.Services;
+
+    /// <summary>
     /// Renders a MAUI page and returns the corresponding SkiaView.
     /// </summary>
     public SkiaView? RenderPage(Page page)
