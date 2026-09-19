@@ -475,7 +475,12 @@ public partial class LinuxApplication
         PerformGtkLayout(_gtkWindow.Width, _gtkWindow.Height);
         _gtkWindow.RequestRedraw();
         _gtkWindow.Run();
+        // The host window (and every GTK widget in it) is destroyed here.
+        // Drop our reference so late RequestRedraw calls — e.g. views
+        // invalidating from Dispose in the caller's finally — cannot route
+        // into the dead window (queue_draw on a freed widget SEGVs).
         GtkHostService.Instance.Shutdown();
+        _gtkWindow = null;
     }
 
     private void PerformGtkLayout(int width, int height)
