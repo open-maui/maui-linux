@@ -52,6 +52,42 @@ public class SkiaNavigationPageTests
     }
 
     [Fact]
+    public void Pop_Animated_FiresAppearingOnRestoredPageBeforeItIsPresented()
+    {
+        // OnAppearing must complete BEFORE the restored page's first presented
+        // frame (matching other platforms). Pop() therefore fires it synchronously
+        // before starting the pop animation - i.e. before Pop() returns.
+        var rootPage = new SkiaPage { Title = "Root" };
+        var detailPage = new SkiaPage { Title = "Detail" };
+        var navPage = new SkiaNavigationPage(rootPage);
+        navPage.Push(detailPage, animated: false);
+
+        var appearedBeforeReturn = false;
+        rootPage.Appearing += (s, e) => appearedBeforeReturn = true;
+
+        navPage.Pop(animated: true);
+
+        appearedBeforeReturn.Should().BeTrue(
+            "the restored page's OnAppearing must run before the first frame that shows it");
+    }
+
+    [Fact]
+    public void Push_Animated_FiresAppearingOnNewPageBeforeItIsPresented()
+    {
+        var rootPage = new SkiaPage { Title = "Root" };
+        var detailPage = new SkiaPage { Title = "Detail" };
+        var navPage = new SkiaNavigationPage(rootPage);
+
+        var appearedBeforeReturn = false;
+        detailPage.Appearing += (s, e) => appearedBeforeReturn = true;
+
+        navPage.Push(detailPage, animated: true);
+
+        appearedBeforeReturn.Should().BeTrue(
+            "the pushed page's OnAppearing must run before the first frame that shows it");
+    }
+
+    [Fact]
     public void Draw_DoesNotThrow()
     {
         // Arrange
