@@ -793,7 +793,7 @@ public class SkiaButton : SkiaView, IButtonController
 
                 case ButtonContentLayout.ImagePosition.Right:
                     textX = startX;
-                    textY = contentBounds.MidY - textBounds.MidY;
+                    textY = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
                     imageX = startX + textWidth + spacing;
                     imageY = contentBounds.MidY - imageHeight / 2;
                     break;
@@ -802,7 +802,7 @@ public class SkiaButton : SkiaView, IButtonController
                     imageX = startX;
                     imageY = contentBounds.MidY - imageHeight / 2;
                     textX = startX + imageWidth + spacing;
-                    textY = contentBounds.MidY - textBounds.MidY;
+                    textY = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
                     break;
             }
 
@@ -835,7 +835,7 @@ public class SkiaButton : SkiaView, IButtonController
         else if (hasText)
         {
             float textX = contentBounds.MidX - textWidth / 2;
-            float textY = contentBounds.MidY - textBounds.MidY;
+            float textY = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
             DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
         }
     }

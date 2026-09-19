@@ -113,8 +113,7 @@ internal static class WaylandCsdRenderer
             float maxTextWidth = minRect.Left - TitlePaddingLeft - 8f;
             string displayed = TruncateToWidth(title, font, maxTextWidth);
 
-            var metrics = font.Metrics;
-            float baselineY = h * 0.5f - (metrics.Ascent + metrics.Descent) * 0.5f;
+            float baselineY = TextRenderingHelper.BaselineForVerticalCenter(font, h * 0.5f);
             canvas.DrawText(displayed, TitlePaddingLeft, baselineY, SKTextAlign.Left, font, paint);
         }
     }

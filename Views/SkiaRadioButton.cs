@@ -436,8 +436,7 @@ public class SkiaRadioButton : SkiaView
             };
 
             var textX = bounds.Left + radioSize + spacing;
-            font.MeasureText(Content, out var textBounds);
-            canvas.DrawText(Content, textX, bounds.MidY - textBounds.MidY, SKTextAlign.Left, font, textPaint);
+            canvas.DrawText(Content, textX, TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY), SKTextAlign.Left, font, textPaint);
         }
     }
 

@@ -421,7 +421,7 @@ public class LinuxWebView : SkiaView
             var text = "WebView (WebKitGTK)";
             textFont.MeasureText(text, out var textBounds);
             var x = bounds.MidX - textBounds.MidX;
-            var y = bounds.MidY - textBounds.MidY;
+            var y = TextRenderingHelper.BaselineForVerticalCenter(textFont, bounds.MidY);
             canvas.DrawText(text, x, y, SKTextAlign.Left, textFont, textPaint);
         }
 

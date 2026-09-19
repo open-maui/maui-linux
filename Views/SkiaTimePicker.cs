@@ -345,8 +345,7 @@ public class SkiaTimePicker : SkiaView
             IsAntialias = true
         };
         var timeText = DateTime.Today.Add(Time).ToString(Format);
-        font.MeasureText(timeText, out var textBounds);
-        canvas.DrawText(timeText, bounds.Left + 12, bounds.MidY - textBounds.MidY, font, textPaint);
+        canvas.DrawText(timeText, bounds.Left + 12, TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY), font, textPaint);
 
         DrawClockIcon(canvas, new SKRect(bounds.Right - 36, bounds.MidY - 10, bounds.Right - 12, bounds.MidY + 10));
     }
@@ -413,7 +412,7 @@ public class SkiaTimePicker : SkiaView
 
         var totalWidth = hourBounds.Width + colonBounds.Width + minuteBounds.Width + 8;
         var startX = bounds.MidX - totalWidth / 2;
-        var centerY = bounds.MidY - hourBounds.MidY;
+        var centerY = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
 
         canvas.DrawText(hourText, startX, centerY, font, hourPaint);
         canvas.DrawText(":", startX + hourBounds.Width + 4, centerY, font, selectedPaint);
@@ -452,7 +451,7 @@ public class SkiaTimePicker : SkiaView
                 }
                 else textPaint.Color = textColor;
                 font.MeasureText(i.ToString(), out var tBounds);
-                canvas.DrawText(i.ToString(), x - tBounds.MidX, y - tBounds.MidY, font, textPaint);
+                canvas.DrawText(i.ToString(), x - tBounds.MidX, TextRenderingHelper.BaselineForVerticalCenter(font, y), font, textPaint);
             }
             DrawClockHand(canvas, centerX, centerY, (_selectedHour % 12) * 30 - 90, ClockRadius - 18, selectedColor);
         }
@@ -473,7 +472,7 @@ public class SkiaTimePicker : SkiaView
                 }
                 else textPaint.Color = textColor;
                 font.MeasureText(minute.ToString("D2"), out var tBounds);
-                canvas.DrawText(minute.ToString("D2"), x - tBounds.MidX, y - tBounds.MidY, font, textPaint);
+                canvas.DrawText(minute.ToString("D2"), x - tBounds.MidX, TextRenderingHelper.BaselineForVerticalCenter(font, y), font, textPaint);
             }
             DrawClockHand(canvas, centerX, centerY, _selectedMinute * 6 - 90, ClockRadius - 18, selectedColor);
         }
