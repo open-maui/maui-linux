@@ -552,21 +552,20 @@ public partial class SkiaEntry
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
-        using var paint = new SKPaint(font);
 
         var displayText = GetDisplayText();
 
         for (int i = 0; i <= displayText.Length; i++)
         {
             var substring = displayText.Substring(0, i);
-            var width = paint.MeasureText(substring);
+            var width = font.MeasureText(substring);
 
             if (width >= x)
             {
                 // Check if closer to current or previous character
                 if (i > 0)
                 {
-                    var prevWidth = paint.MeasureText(displayText.Substring(0, i - 1));
+                    var prevWidth = font.MeasureText(displayText.Substring(0, i - 1));
                     if (x - prevWidth < width - x)
                         return i - 1;
                 }
@@ -777,11 +776,10 @@ public partial class SkiaEntry
                       ?? SKTypeface.Default;
 
         using var font = new SKFont(typeface, (float)FontSize);
-        using var paint = new SKPaint(font);
 
         var displayText = GetDisplayText();
         var textToCursor = displayText.Substring(0, Math.Min(_cursorPosition, displayText.Length));
-        var cursorX = paint.MeasureText(textToCursor);
+        var cursorX = font.MeasureText(textToCursor);
 
         int x = (int)(screenBounds.Left + Padding.Left - _scrollOffset + cursorX);
         int y = (int)(screenBounds.Top + Padding.Top);

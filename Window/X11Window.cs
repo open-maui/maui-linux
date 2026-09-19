@@ -345,7 +345,8 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
             if (bitmap.Width != targetSize || bitmap.Height != targetSize)
             {
                 var scaled = new SKBitmap(targetSize, targetSize);
-                bitmap.ScalePixels(scaled, SKFilterQuality.High);
+                // SKFilterQuality.High maps to cubic (Mitchell) resampling in SkiaSharp 4.
+                bitmap.ScalePixels(scaled, new SKSamplingOptions(SKCubicResampler.Mitchell));
                 bitmap.Dispose();
                 bitmap = scaled;
             }

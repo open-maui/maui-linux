@@ -307,18 +307,16 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
 
             float fontSize = size * 0.8f;
             using SKFont font = new SKFont(typeface, fontSize, 1f, 0f);
-            using SKPaint paint = new SKPaint(font)
+            using SKPaint paint = new SKPaint
             {
                 Color = color,
-                IsAntialias = true,
-                TextAlign = SKTextAlign.Center
+                IsAntialias = true
             };
 
-            SKRect bounds = default;
-            paint.MeasureText(glyph, ref bounds);
+            font.MeasureText(glyph, out SKRect bounds, paint);
             float x = size / 2f;
             float y = (size - bounds.Top - bounds.Bottom) / 2f;
-            canvas.DrawText(glyph, x, y, paint);
+            canvas.DrawText(glyph, x, y, SKTextAlign.Center, font, paint);
 
             return bitmap;
         }

@@ -344,19 +344,18 @@ public class SkiaItemsView : SkiaView
         paint.Style = SKPaintStyle.Fill;
 
         using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = SkiaTheme.TextPrimarySK,
             IsAntialias = true
         };
 
         var text = item?.ToString() ?? "";
-        var textBounds = new SKRect();
-        textPaint.MeasureText(text, ref textBounds);
+        font.MeasureText(text, out var textBounds);
 
         var x = bounds.Left + 16;
         var y = bounds.MidY - textBounds.MidY;
-        canvas.DrawText(text, x, y, textPaint);
+        canvas.DrawText(text, x, y, SKTextAlign.Left, font, textPaint);
     }
 
     protected virtual void DrawEmptyView(SKCanvas canvas, SKRect bounds)
@@ -368,19 +367,18 @@ public class SkiaItemsView : SkiaView
         };
 
         using var font = new SKFont(SKTypeface.Default, 16);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = SkiaTheme.TextPlaceholderSK,
             IsAntialias = true
         };
 
         var text = EmptyViewText ?? "No items";
-        var textBounds = new SKRect();
-        textPaint.MeasureText(text, ref textBounds);
+        font.MeasureText(text, out var textBounds);
 
         var x = bounds.MidX - textBounds.MidX;
         var y = bounds.MidY - textBounds.MidY;
-        canvas.DrawText(text, x, y, textPaint);
+        canvas.DrawText(text, x, y, SKTextAlign.Left, font, textPaint);
     }
 
     private void DrawScrollBar(SKCanvas canvas, SKRect bounds)
