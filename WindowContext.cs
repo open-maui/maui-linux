@@ -563,8 +563,13 @@ public sealed class WindowContext : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        // Pointers into this tree must not survive the context.
-        FocusedView = null;
+        // Pointers into this tree must not survive the context. Null the
+        // focused-view FIELD directly: going through the property would fire
+        // OnFocusLost -> Invalidate -> RequestRedraw on a tree that is being
+        // torn down — in GTK mode after the host window was already destroyed,
+        // which called gtk_widget_queue_draw on a freed widget (SIGSEGV on
+        // WebViewDemo close).
+        _focusedView = null;
         HoveredView = null;
         CapturedView = null;
         _rootView = null;
