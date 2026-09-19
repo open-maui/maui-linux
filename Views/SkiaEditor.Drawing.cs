@@ -76,7 +76,7 @@ public partial class SkiaEditor
 
         if (string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Placeholder))
         {
-            using var placeholderPaint = new SKPaint(font)
+            using var placeholderPaint = new SKPaint
             {
                 Color = GetEffectivePlaceholderColor(),
                 IsAntialias = true
@@ -86,14 +86,14 @@ public partial class SkiaEditor
             var y = contentRect.Top + fontSize;
             foreach (var line in placeholderLines)
             {
-                canvas.DrawText(line, contentRect.Left, y, placeholderPaint);
+                canvas.DrawText(line, contentRect.Left, y, SKTextAlign.Left, font, placeholderPaint);
                 y += lineSpacing;
             }
         }
         else
         {
             var textColor = GetEffectiveTextColor();
-            using var textPaint = new SKPaint(font)
+            using var textPaint = new SKPaint
             {
                 Color = IsEnabled ? textColor : textColor.WithAlpha(128),
                 IsAntialias = true
@@ -151,7 +151,7 @@ public partial class SkiaEditor
                 // Draw underline for pre-edit (composition) text
                 if (hasPreEditOnThisLine)
                 {
-                    DrawPreEditUnderline(canvas, textPaint, line, x, y, contentRect);
+                    DrawPreEditUnderline(canvas, textPaint, font, line, x, y, contentRect);
                 }
 
                 // Draw cursor if on this line
@@ -198,8 +198,7 @@ public partial class SkiaEditor
     private float MeasureText(string text, SKFont font)
     {
         if (string.IsNullOrEmpty(text)) return 0;
-        using var paint = new SKPaint(font);
-        return paint.MeasureText(text);
+        return font.MeasureText(text);
     }
 
     private void DrawScrollbar(SKCanvas canvas, SKRect bounds, float viewHeight, float contentHeight)
@@ -235,8 +234,8 @@ public partial class SkiaEditor
     /// <summary>
     /// Draws underline for IME pre-edit (composition) text.
     /// </summary>
-    private void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, string displayText, float x, float y, SKRect bounds)
-        => TextRenderingHelper.DrawPreEditUnderline(canvas, paint, displayText, _cursorPosition, _preEditText, x, y);
+    private void DrawPreEditUnderline(SKCanvas canvas, SKPaint paint, SKFont font, string displayText, float x, float y, SKRect bounds)
+        => TextRenderingHelper.DrawPreEditUnderline(canvas, paint, font, displayText, _cursorPosition, _preEditText, x, y);
 
     protected override Size MeasureOverride(Size availableSize)
     {

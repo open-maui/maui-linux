@@ -361,16 +361,15 @@ public class SkiaDatePicker : SkiaView
         }
 
         using var font = new SKFont(typeface, fontSize, 1f, 0f);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
             IsAntialias = true
         };
 
         string dateText = Date.ToString(Format);
-        SKRect textBounds = default;
-        textPaint.MeasureText(dateText, ref textBounds);
-        canvas.DrawText(dateText, bounds.Left + 12f, bounds.MidY - textBounds.MidY, textPaint);
+        font.MeasureText(dateText, out var textBounds);
+        canvas.DrawText(dateText, bounds.Left + 12f, bounds.MidY - textBounds.MidY, font, textPaint);
 
         DrawCalendarIcon(canvas, new SKRect(bounds.Right - 36f, bounds.MidY - 10f, bounds.Right - 12f, bounds.MidY + 10f));
     }
@@ -455,16 +454,15 @@ public class SkiaDatePicker : SkiaView
         canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
         using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = SkiaTheme.BackgroundWhiteSK,
             IsAntialias = true
         };
 
         string monthYear = _displayMonth.ToString("MMMM yyyy");
-        SKRect textBounds = default;
-        textPaint.MeasureText(monthYear, ref textBounds);
-        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, bounds.MidY - textBounds.MidY, textPaint);
+        font.MeasureText(monthYear, out var textBounds);
+        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, bounds.MidY - textBounds.MidY, font, textPaint);
 
         using var arrowPaint = new SKPaint
         {
@@ -495,7 +493,7 @@ public class SkiaDatePicker : SkiaView
         bool isDark = SkiaTheme.IsDarkMode;
 
         using var font = new SKFont(SKTypeface.Default, 12f, 1f, 0f);
-        using var paint = new SKPaint(font)
+        using var paint = new SKPaint
         {
             Color = isDark ? SkiaTheme.Gray400SK : SkiaTheme.TextPlaceholderSK,
             IsAntialias = true
@@ -503,9 +501,8 @@ public class SkiaDatePicker : SkiaView
 
         for (int i = 0; i < 7; i++)
         {
-            SKRect textBounds = default;
-            paint.MeasureText(dayNames[i], ref textBounds);
-            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2f - textBounds.MidX, bounds.MidY - textBounds.MidY, paint);
+            font.MeasureText(dayNames[i], out var textBounds);
+            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2f - textBounds.MidX, bounds.MidY - textBounds.MidY, font, paint);
         }
     }
 
@@ -518,7 +515,7 @@ public class SkiaDatePicker : SkiaView
         float cellHeight = (bounds.Height - 10f) / 6f;
 
         using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             IsAntialias = true
         };
@@ -567,9 +564,8 @@ public class SkiaDatePicker : SkiaView
 
             textPaint.Color = isSelected ? SkiaTheme.BackgroundWhiteSK : (isDisabled ? disabledDayColor : textColor);
             string dayText = day.ToString();
-            SKRect dayTextBounds = default;
-            textPaint.MeasureText(dayText, ref dayTextBounds);
-            canvas.DrawText(dayText, cellRect.MidX - dayTextBounds.MidX, cellRect.MidY - dayTextBounds.MidY, textPaint);
+            font.MeasureText(dayText, out var dayTextBounds);
+            canvas.DrawText(dayText, cellRect.MidX - dayTextBounds.MidX, cellRect.MidY - dayTextBounds.MidY, font, textPaint);
         }
     }
 

@@ -338,15 +338,14 @@ public class SkiaTimePicker : SkiaView
         }
 
         using var font = new SKFont(typeface, fontSize);
-        using var textPaint = new SKPaint(font)
+        using var textPaint = new SKPaint
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
             IsAntialias = true
         };
         var timeText = DateTime.Today.Add(Time).ToString(Format);
-        var textBounds = new SKRect();
-        textPaint.MeasureText(timeText, ref textBounds);
-        canvas.DrawText(timeText, bounds.Left + 12, bounds.MidY - textBounds.MidY, textPaint);
+        font.MeasureText(timeText, out var textBounds);
+        canvas.DrawText(timeText, bounds.Left + 12, bounds.MidY - textBounds.MidY, font, textPaint);
 
         DrawClockIcon(canvas, new SKRect(bounds.Right - 36, bounds.MidY - 10, bounds.Right - 12, bounds.MidY + 10));
     }
@@ -399,26 +398,25 @@ public class SkiaTimePicker : SkiaView
         canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
         using var font = new SKFont(SKTypeface.Default, 32);
-        using var selectedPaint = new SKPaint(font) { Color = SkiaTheme.BackgroundWhiteSK, IsAntialias = true };
-        using var unselectedPaint = new SKPaint(font) { Color = SkiaTheme.WhiteSemiTransparentSK, IsAntialias = true };
+        using var selectedPaint = new SKPaint { Color = SkiaTheme.BackgroundWhiteSK, IsAntialias = true };
+        using var unselectedPaint = new SKPaint { Color = SkiaTheme.WhiteSemiTransparentSK, IsAntialias = true };
 
         var hourText = _selectedHour.ToString("D2");
         var minuteText = _selectedMinute.ToString("D2");
         var hourPaint = _isSelectingHours ? selectedPaint : unselectedPaint;
         var minutePaint = _isSelectingHours ? unselectedPaint : selectedPaint;
 
-        var hourBounds = new SKRect(); var colonBounds = new SKRect(); var minuteBounds = new SKRect();
-        hourPaint.MeasureText(hourText, ref hourBounds);
-        selectedPaint.MeasureText(":", ref colonBounds);
-        minutePaint.MeasureText(minuteText, ref minuteBounds);
+        font.MeasureText(hourText, out var hourBounds);
+        font.MeasureText(":", out var colonBounds);
+        font.MeasureText(minuteText, out var minuteBounds);
 
         var totalWidth = hourBounds.Width + colonBounds.Width + minuteBounds.Width + 8;
         var startX = bounds.MidX - totalWidth / 2;
         var centerY = bounds.MidY - hourBounds.MidY;
 
-        canvas.DrawText(hourText, startX, centerY, hourPaint);
-        canvas.DrawText(":", startX + hourBounds.Width + 4, centerY, selectedPaint);
-        canvas.DrawText(minuteText, startX + hourBounds.Width + colonBounds.Width + 8, centerY, minutePaint);
+        canvas.DrawText(hourText, startX, centerY, font, hourPaint);
+        canvas.DrawText(":", startX + hourBounds.Width + 4, centerY, font, selectedPaint);
+        canvas.DrawText(minuteText, startX + hourBounds.Width + colonBounds.Width + 8, centerY, font, minutePaint);
     }
 
     private void DrawClockFace(SKCanvas canvas, SKRect bounds)
@@ -435,7 +433,7 @@ public class SkiaTimePicker : SkiaView
         canvas.DrawCircle(centerX, centerY, ClockRadius + 20, facePaint);
 
         using var font = new SKFont(SKTypeface.Default, 14);
-        using var textPaint = new SKPaint(font) { Color = textColor, IsAntialias = true };
+        using var textPaint = new SKPaint { Color = textColor, IsAntialias = true };
 
         if (_isSelectingHours)
         {
@@ -452,9 +450,8 @@ public class SkiaTimePicker : SkiaView
                     textPaint.Color = SkiaTheme.BackgroundWhiteSK;
                 }
                 else textPaint.Color = textColor;
-                var tBounds = new SKRect();
-                textPaint.MeasureText(i.ToString(), ref tBounds);
-                canvas.DrawText(i.ToString(), x - tBounds.MidX, y - tBounds.MidY, textPaint);
+                font.MeasureText(i.ToString(), out var tBounds);
+                canvas.DrawText(i.ToString(), x - tBounds.MidX, y - tBounds.MidY, font, textPaint);
             }
             DrawClockHand(canvas, centerX, centerY, (_selectedHour % 12) * 30 - 90, ClockRadius - 18, selectedColor);
         }
@@ -474,9 +471,8 @@ public class SkiaTimePicker : SkiaView
                     textPaint.Color = SkiaTheme.BackgroundWhiteSK;
                 }
                 else textPaint.Color = textColor;
-                var tBounds = new SKRect();
-                textPaint.MeasureText(minute.ToString("D2"), ref tBounds);
-                canvas.DrawText(minute.ToString("D2"), x - tBounds.MidX, y - tBounds.MidY, textPaint);
+                font.MeasureText(minute.ToString("D2"), out var tBounds);
+                canvas.DrawText(minute.ToString("D2"), x - tBounds.MidX, y - tBounds.MidY, font, textPaint);
             }
             DrawClockHand(canvas, centerX, centerY, _selectedMinute * 6 - 90, ClockRadius - 18, selectedColor);
         }

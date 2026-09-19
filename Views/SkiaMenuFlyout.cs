@@ -99,9 +99,9 @@ public class SkiaMenuFlyout : SkiaView
         float width = MinWidth;
         float height = 0f;
 
+        using var textFont = new SKFont(SKTypeface.Default, FontSize);
         using var textPaint = new SKPaint
         {
-            TextSize = FontSize,
             IsAntialias = true
         };
 
@@ -114,13 +114,12 @@ public class SkiaMenuFlyout : SkiaView
             }
 
             height += ItemHeight;
-            var textBounds = new SKRect();
-            textPaint.MeasureText(item.Text, ref textBounds);
+            textFont.MeasureText(item.Text, out var textBounds);
             float itemWidth = textBounds.Width + 50f;
 
             if (!string.IsNullOrEmpty(item.Shortcut))
             {
-                textPaint.MeasureText(item.Shortcut, ref textBounds);
+                textFont.MeasureText(item.Shortcut, out textBounds);
                 itemWidth += textBounds.Width + 20f;
             }
 
@@ -193,29 +192,27 @@ public class SkiaMenuFlyout : SkiaView
                 using var checkPaint = new SKPaint
                 {
                     Color = menuItem.IsEnabled ? _textColorSK : _disabledTextColorSK,
-                    TextSize = FontSize,
                     IsAntialias = true
                 };
-                canvas.DrawText("\u2713", _bounds.Left + 8f, y + ItemHeight / 2f + 5f, checkPaint);
+                canvas.DrawText("\u2713", _bounds.Left + 8f, y + ItemHeight / 2f + 5f, textFont, checkPaint);
             }
 
             // Draw text
             textPaint.Color = menuItem.IsEnabled ? _textColorSK : _disabledTextColorSK;
-            canvas.DrawText(menuItem.Text, _bounds.Left + 28f, y + ItemHeight / 2f + 5f, textPaint);
+            canvas.DrawText(menuItem.Text, _bounds.Left + 28f, y + ItemHeight / 2f + 5f, textFont, textPaint);
 
             // Draw shortcut
             if (!string.IsNullOrEmpty(menuItem.Shortcut))
             {
                 textPaint.Color = _disabledTextColorSK;
-                var shortcutBounds = new SKRect();
-                textPaint.MeasureText(menuItem.Shortcut, ref shortcutBounds);
-                canvas.DrawText(menuItem.Shortcut, _bounds.Right - shortcutBounds.Width - 12f, y + ItemHeight / 2f + 5f, textPaint);
+                textFont.MeasureText(menuItem.Shortcut, out var shortcutBounds);
+                canvas.DrawText(menuItem.Shortcut, _bounds.Right - shortcutBounds.Width - 12f, y + ItemHeight / 2f + 5f, textFont, textPaint);
             }
 
             // Draw submenu arrow
             if (menuItem.SubItems.Count > 0)
             {
-                canvas.DrawText("\u25B8", _bounds.Right - 16f, y + ItemHeight / 2f + 5f, textPaint);
+                canvas.DrawText("\u25B8", _bounds.Right - 16f, y + ItemHeight / 2f + 5f, textFont, textPaint);
             }
 
             y += ItemHeight;
