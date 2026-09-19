@@ -369,8 +369,7 @@ public class SkiaDatePicker : SkiaView
         };
 
         string dateText = Date.ToString(Format);
-        font.MeasureText(dateText, out var textBounds);
-        canvas.DrawText(dateText, bounds.Left + 12f, bounds.MidY - textBounds.MidY, font, textPaint);
+        canvas.DrawText(dateText, bounds.Left + 12f, TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY), font, textPaint);
 
         DrawCalendarIcon(canvas, new SKRect(bounds.Right - 36f, bounds.MidY - 10f, bounds.Right - 12f, bounds.MidY + 10f));
     }
@@ -463,7 +462,7 @@ public class SkiaDatePicker : SkiaView
 
         string monthYear = _displayMonth.ToString("MMMM yyyy");
         font.MeasureText(monthYear, out var textBounds);
-        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, bounds.MidY - textBounds.MidY, font, textPaint);
+        canvas.DrawText(monthYear, bounds.MidX - textBounds.MidX, TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY), font, textPaint);
 
         using var arrowPaint = new SKPaint
         {
@@ -500,10 +499,11 @@ public class SkiaDatePicker : SkiaView
             IsAntialias = true
         };
 
+        float baselineY = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
         for (int i = 0; i < 7; i++)
         {
             font.MeasureText(dayNames[i], out var textBounds);
-            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2f - textBounds.MidX, bounds.MidY - textBounds.MidY, font, paint);
+            canvas.DrawText(dayNames[i], bounds.Left + i * cellWidth + cellWidth / 2f - textBounds.MidX, baselineY, font, paint);
         }
     }
 
@@ -566,7 +566,7 @@ public class SkiaDatePicker : SkiaView
             textPaint.Color = isSelected ? SkiaTheme.BackgroundWhiteSK : (isDisabled ? disabledDayColor : textColor);
             string dayText = day.ToString();
             font.MeasureText(dayText, out var dayTextBounds);
-            canvas.DrawText(dayText, cellRect.MidX - dayTextBounds.MidX, cellRect.MidY - dayTextBounds.MidY, font, textPaint);
+            canvas.DrawText(dayText, cellRect.MidX - dayTextBounds.MidX, TextRenderingHelper.BaselineForVerticalCenter(font, cellRect.MidY), font, textPaint);
         }
     }
 

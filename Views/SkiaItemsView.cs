@@ -352,10 +352,9 @@ public class SkiaItemsView : SkiaView
         };
 
         var text = item?.ToString() ?? "";
-        font.MeasureText(text, out var textBounds);
 
         var x = bounds.Left + 16;
-        var y = bounds.MidY - textBounds.MidY;
+        var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
         canvas.DrawText(text, x, y, SKTextAlign.Left, font, textPaint);
     }
 
@@ -378,7 +377,7 @@ public class SkiaItemsView : SkiaView
         font.MeasureText(text, out var textBounds);
 
         var x = bounds.MidX - textBounds.MidX;
-        var y = bounds.MidY - textBounds.MidY;
+        var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
         canvas.DrawText(text, x, y, SKTextAlign.Left, font, textPaint);
     }
 
