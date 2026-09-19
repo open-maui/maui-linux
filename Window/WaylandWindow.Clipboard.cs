@@ -433,27 +433,34 @@ public partial class WaylandWindow
         // Resolve the bytes for THIS specific source and the requested MIME.
         // Clipboard sources hold text (mime-agnostic — every text variant maps
         // to the same string); drag sources hold a DragPayload that resolves
-        // text / uri-list / image bytes per MIME. Both dicts are consulted
-        // here on the dispatch thread; only the write moves off it.
-        byte[] bytes;
+        // text / uri-list / image bytes per MIME. The dict lookups happen here
+        // on the dispatch thread; the (possibly lazy) resolution and the write
+        // both move to a background task — a client that reads slowly would
+        // otherwise block the GLib main loop once the payload exceeds the pipe
+        // buffer (images routinely do).
         if (window._ownedSourceTexts.TryGetValue(source, out var text))
         {
-            bytes = Encoding.UTF8.GetBytes(text);
+            var bytes = Encoding.UTF8.GetBytes(text);
+            Task.Run(() => WriteAllToFdAndClose(fd, bytes));
         }
         else if (window._dragSourcePayloads.TryGetValue(source, out var payload))
         {
             var mime = Marshal.PtrToStringUTF8(mimePtr) ?? string.Empty;
-            bytes = payload.GetBytes(mime) ?? Array.Empty<byte>();
+            // GetBytesAsync awaits a pending (lazy) image with a bounded
+            // timeout; on timeout/fault/unsupported MIME it resolves null and
+            // we close the fd empty — the target sees EOF for that MIME while
+            // other MIMEs in the payload keep working. Never throws.
+            Task.Run(async () =>
+            {
+                var bytes = await payload.GetBytesAsync(mime, DragPayload.PendingImageTimeout)
+                    .ConfigureAwait(false) ?? Array.Empty<byte>();
+                WriteAllToFdAndClose(fd, bytes);
+            });
         }
         else
         {
-            bytes = Array.Empty<byte>();
+            Task.Run(() => WriteAllToFdAndClose(fd, Array.Empty<byte>()));
         }
-
-        // Write on a background thread: a client that reads slowly (or not at
-        // all) would otherwise block the GLib main loop once the payload
-        // exceeds the pipe buffer (images routinely do).
-        Task.Run(() => WriteAllToFdAndClose(fd, bytes));
     }
 
     private static void WriteAllToFdAndClose(int fd, string text)

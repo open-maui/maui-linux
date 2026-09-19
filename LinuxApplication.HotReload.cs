@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Services;
@@ -9,6 +11,28 @@ namespace Microsoft.Maui.Platform.Linux;
 
 public partial class LinuxApplication
 {
+    // Root context retained at startup so a hot-reload delta can rebuild
+    // non-Shell roots (raw ContentPage/NavigationPage as the window page).
+    // Only populated when a hot-reload agent is attached, so this stays
+    // empty (and the rebuild path inert) in Release / normal runs.
+    private static LinuxViewRenderer? s_hotReloadRenderer;
+    private static Microsoft.Maui.Controls.Window? s_hotReloadWindow;
+    private static Page? s_hotReloadRootPage;
+
+    /// <summary>
+    /// Retains the renderer, MAUI window, and root page so a hot-reload delta
+    /// can rebuild the root when the app has no Shell. No-op unless a
+    /// hot-reload agent is attached.
+    /// </summary>
+    internal static void TrackRootForHotReload(
+        LinuxViewRenderer renderer, Microsoft.Maui.Controls.Window? window, Page page)
+    {
+        if (!Diagnostics.HotReloadService.IsActive) return;
+        s_hotReloadRenderer = renderer;
+        s_hotReloadWindow = window;
+        s_hotReloadRootPage = page;
+    }
+
     /// <summary>
     /// Entry point for the .NET hot-reload handler (see
     /// <see cref="Diagnostics.HotReloadService"/>). Marshals to the UI thread and
@@ -50,19 +74,13 @@ public partial class LinuxApplication
                 // re-swaps the active page, preserving the selected section/item.
                 shell.ReRenderContentTrees();
             }
-            else
+            else if (!TryRebuildNonShellRoot())
             {
-                // Non-Shell root (direct ContentPage / NavigationPage): we don't
-                // retain the type + DI context needed to re-instantiate the page,
-                // so structural XAML reload isn't wired for this case. C# method-
-                // body edits already take effect via CoreCLR on the next call; a
-                // redraw surfaces any that affect drawing/layout on the next frame.
-                // TODO: to support structural XAML reload for non-Shell roots we
-                // would need to retain the root page's Type + IMauiContext and
-                // rebuild a fresh instance here (as CreateShellContentPage does),
-                // then swap RootView and re-parent it into MAUI's Window.
+                // No rebuildable root retained. C# method-body edits already take
+                // effect via CoreCLR on the next call; the redraw below surfaces
+                // any that affect drawing/layout on the next frame.
                 DiagnosticLog.Debug("HotReload",
-                    "No active SkiaShell; redraw-only (non-Shell root structural XAML reload not wired).");
+                    "No active SkiaShell and no tracked root page; redraw-only.");
             }
 
             if (_useGtk)
@@ -77,6 +95,145 @@ public partial class LinuxApplication
         {
             // Never propagate into the reload callback.
             DiagnosticLog.Error("HotReload", "Re-render failed", ex);
+        }
+    }
+
+    /// <summary>
+    /// Structural reload for non-Shell roots: builds a fresh instance of the
+    /// tracked root page (a fresh InitializeComponent picks up the new XAML),
+    /// re-parents it into the MAUI Window, renders it through the retained
+    /// renderer, and swaps the root SkiaView. NavigationPage roots restart at
+    /// their root page — pushed pages are popped, which matches MAUI's own
+    /// replace-with-fresh-instance semantics for structural deltas
+    /// (MauiHotReloadHelper.GetReplacedView never reconstructs runtime nav
+    /// stacks either).
+    /// </summary>
+    private bool TryRebuildNonShellRoot()
+    {
+        var renderer = s_hotReloadRenderer;
+        var oldPage = s_hotReloadRootPage;
+        if (renderer == null || oldPage == null)
+            return false;
+
+        var newPage = BuildFreshRootPage(renderer, oldPage);
+        if (newPage == null)
+            return false;
+
+        // Disappearing before the swap so the outgoing instance unwires its
+        // subscriptions (mirrors SkiaShell.SendPageLifecycle ordering).
+        try
+        {
+            (oldPage as IPageController)?.SendDisappearing();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("HotReload", "SendDisappearing threw", ex);
+        }
+
+        // Re-parent into the Window before rendering: bindings and resources
+        // resolve through the Application-rooted parent chain during handler
+        // mapping, and Page.SendAppearing silently no-ops without it.
+        var window = s_hotReloadWindow;
+        if (window != null)
+            window.Page = newPage;
+
+        var newView = renderer.RenderPage(newPage);
+        if (newView == null)
+        {
+            DiagnosticLog.Error("HotReload",
+                $"Re-render of {newPage.GetType().Name} produced no view; keeping previous tree");
+            if (window != null)
+                window.Page = oldPage;
+            return false;
+        }
+
+        // Pointers into the old tree must not survive the swap.
+        FocusedView = null;
+        _hoveredView = null;
+        _capturedView = null;
+
+        RootView = newView;
+        if (_useGtk && _gtkWindow != null)
+        {
+            PerformGtkLayout(_gtkWindow.Width, _gtkWindow.Height);
+        }
+        else if (_mainWindow != null)
+        {
+            // RootView's setter only arranges; measure first like OnWindowResized.
+            newView.Measure(new Microsoft.Maui.Graphics.Size(_mainWindow.Width, _mainWindow.Height));
+            newView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, _mainWindow.Width, _mainWindow.Height));
+        }
+
+        try
+        {
+            (newPage as IPageController)?.SendAppearing();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("HotReload", "SendAppearing threw", ex);
+        }
+
+        oldPage.Handler?.DisconnectHandler();
+        s_hotReloadRootPage = newPage;
+        DiagnosticLog.Info("HotReload", $"Rebuilt non-Shell root: {newPage.GetType().Name}");
+        return true;
+    }
+
+    private static Page? BuildFreshRootPage(LinuxViewRenderer renderer, Page oldPage)
+    {
+        try
+        {
+            if (oldPage.GetType() == typeof(NavigationPage) && oldPage is NavigationPage oldNav)
+            {
+                // Plain `new NavigationPage(rootPage)` root: the type worth
+                // rebuilding is the page inside. Re-wrap it, carrying over the
+                // code-set bar styling a bare re-instantiation can't restore.
+                var stack = oldNav.Navigation.NavigationStack;
+                var innerType = stack.Count > 0 ? stack[0]?.GetType() : null;
+                if (innerType == null) return null;
+
+                var inner = CreatePageInstance(renderer, innerType);
+                if (inner == null) return null;
+
+                return new NavigationPage(inner)
+                {
+                    Title = oldNav.Title,
+                    BarBackgroundColor = oldNav.BarBackgroundColor,
+                    BarTextColor = oldNav.BarTextColor,
+                };
+            }
+
+            // Subclassed NavigationPage / ContentPage / TabbedPage / FlyoutPage:
+            // the subclass constructor rebuilds its own structure.
+            return CreatePageInstance(renderer, oldPage.GetType());
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("HotReload", "Root page rebuild failed", ex);
+            return null;
+        }
+    }
+
+    private static Page? CreatePageInstance(LinuxViewRenderer renderer, Type pageType)
+    {
+        // DI-first (constructor injection), matching CreateShellContentPage.
+        try
+        {
+            return ActivatorUtilities.CreateInstance(renderer.Services, pageType) as Page;
+        }
+        catch (Exception diEx)
+        {
+            DiagnosticLog.Debug("HotReload", $"DI construction failed for {pageType.Name}: {diEx.Message}");
+        }
+
+        try
+        {
+            return Activator.CreateInstance(pageType) as Page;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("HotReload", $"Cannot construct {pageType.Name}", ex);
+            return null;
         }
     }
 }
