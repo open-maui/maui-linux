@@ -7,6 +7,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -478,7 +479,7 @@ public class SkiaPicker : SkiaView
             typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
         }
 
-        using var font = new SKFont(typeface, fontSize);
+        using var font = SkiaFontFactory.Create(typeface, fontSize);
         using var textPaint = new SKPaint
         {
             IsAntialias = true
@@ -632,7 +633,7 @@ public class SkiaPicker : SkiaView
         canvas.ClipRoundRect(new SKRoundRect(dropdownRect, cornerRadius));
 
         // Draw items
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
         using var textPaint = new SKPaint
         {
             Color = textColorSK,

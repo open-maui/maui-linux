@@ -142,7 +142,7 @@ public partial class SkiaEditor
             return;
         }
 
-        using var font = new SKFont(SKTypeface.Default, (float)FontSize);
+        using var font = SkiaFontFactory.Create((float)FontSize);
 
         // Split by actual newlines first
         var paragraphs = text.Split('\n');
@@ -291,7 +291,7 @@ public partial class SkiaEditor
         var lineSpacing = fontSize * (float)LineHeight;
         var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
 
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
         var line = _lines[clickedLine];
         var clickedCol = 0;
 
@@ -353,7 +353,7 @@ public partial class SkiaEditor
         var lineSpacing = fontSize * (float)LineHeight;
         var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
 
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
         var line = _lines[clickedLine];
         var clickedCol = 0;
 
@@ -426,7 +426,7 @@ public partial class SkiaEditor
         var lineSpacing = fontSize * (float)LineHeight;
         var clickedLine = Math.Clamp((int)(contentY / lineSpacing), 0, _lines.Count - 1);
 
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
         var line = _lines[clickedLine];
         var clickedCol = 0;
         for (int i = 0; i <= line.Length; i++)
@@ -893,7 +893,7 @@ public partial class SkiaEditor
         var lineSpacing = fontSize * (float)LineHeight;
         var (line, col) = GetLineColumn(_cursorPosition);
 
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
         var lineText = line < _lines.Count ? _lines[line] : "";
         var textToCursor = lineText.Substring(0, Math.Min(col, lineText.Length));
         var cursorX = MeasureText(textToCursor, font);

@@ -5,6 +5,7 @@ using System;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -391,7 +392,7 @@ public class SkiaStepper : SkiaView
         canvas.DrawPath(path, bgPaint);
 
         // Draw symbol
-        using var font = new SKFont(SKTypeface.Default, 20);
+        using var font = SkiaFontFactory.Create(20);
         using var textPaint = new SKPaint
         {
             Color = isDisabled ? symbolDisabledColor : symbolColor,

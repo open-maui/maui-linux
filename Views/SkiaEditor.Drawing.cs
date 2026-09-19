@@ -59,7 +59,7 @@ public partial class SkiaEditor
         }
 
         // Setup text rendering
-        using var font = new SKFont(SKTypeface.Default, fontSize);
+        using var font = SkiaFontFactory.Create(fontSize);
         var lineSpacing = fontSize * lineHeight;
 
         // Clip to content area

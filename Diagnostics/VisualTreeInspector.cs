@@ -8,6 +8,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Diagnostics;
 
@@ -449,7 +450,7 @@ public sealed class VisualTreeInspector
 
     private static void DrawLabel(SKCanvas canvas, SKRect rect, string text)
     {
-        using var font = new SKFont(SKTypeface.Default, 12f);
+        using var font = SkiaFontFactory.Create(12f);
         float textWidth = font.MeasureText(text);
         const float padX = 6f;
         const float padY = 4f;
