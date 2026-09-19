@@ -6,6 +6,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -360,7 +361,7 @@ public class SkiaDatePicker : SkiaView
             typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
         }
 
-        using var font = new SKFont(typeface, fontSize, 1f, 0f);
+        using var font = SkiaFontFactory.Create(typeface, fontSize);
         using var textPaint = new SKPaint
         {
             Color = IsEnabled ? textColor : textColor.WithAlpha(128),
@@ -453,7 +454,7 @@ public class SkiaDatePicker : SkiaView
         canvas.Restore();
         canvas.DrawRect(new SKRect(bounds.Left, bounds.Top + cornerRadius, bounds.Right, bounds.Bottom), headerPaint);
 
-        using var font = new SKFont(SKTypeface.Default, 16f, 1f, 0f);
+        using var font = SkiaFontFactory.Create(16f);
         using var textPaint = new SKPaint
         {
             Color = SkiaTheme.BackgroundWhiteSK,
@@ -492,7 +493,7 @@ public class SkiaDatePicker : SkiaView
         float cellWidth = bounds.Width / 7f;
         bool isDark = SkiaTheme.IsDarkMode;
 
-        using var font = new SKFont(SKTypeface.Default, 12f, 1f, 0f);
+        using var font = SkiaFontFactory.Create(12f);
         using var paint = new SKPaint
         {
             Color = isDark ? SkiaTheme.Gray400SK : SkiaTheme.TextPlaceholderSK,
@@ -514,7 +515,7 @@ public class SkiaDatePicker : SkiaView
         float cellWidth = bounds.Width / 7f;
         float cellHeight = (bounds.Height - 10f) / 6f;
 
-        using var font = new SKFont(SKTypeface.Default, 14f, 1f, 0f);
+        using var font = SkiaFontFactory.Create(14f);
         using var textPaint = new SKPaint
         {
             IsAntialias = true

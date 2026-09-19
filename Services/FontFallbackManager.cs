@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -247,7 +248,7 @@ public class FontFallbackManager
     private bool TypefaceContainsGlyph(SKTypeface typeface, int codepoint)
     {
         // Use SKFont to check glyph coverage
-        using var font = new SKFont(typeface, 12);
+        using var font = SkiaFontFactory.Create(typeface, 12);
         var glyphs = new ushort[1];
         var chars = char.ConvertFromUtf32(codepoint);
         font.GetGlyphs(chars, glyphs);

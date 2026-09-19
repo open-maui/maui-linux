@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -343,7 +344,7 @@ public class SkiaItemsView : SkiaView
         paint.Color = SkiaTheme.TextPrimarySK;
         paint.Style = SKPaintStyle.Fill;
 
-        using var font = new SKFont(SKTypeface.Default, 14);
+        using var font = SkiaFontFactory.Create(14);
         using var textPaint = new SKPaint
         {
             Color = SkiaTheme.TextPrimarySK,
@@ -366,7 +367,7 @@ public class SkiaItemsView : SkiaView
             IsAntialias = true
         };
 
-        using var font = new SKFont(SKTypeface.Default, 16);
+        using var font = SkiaFontFactory.Create(16);
         using var textPaint = new SKPaint
         {
             Color = SkiaTheme.TextPlaceholderSK,
