@@ -164,7 +164,7 @@ public class SkiaMenuBar : SkiaView
 
             // Draw text (MidY = Top + Height/2)
             float textX = x + ItemPadding;
-            float textY = (float)(Bounds.Top + Bounds.Height / 2) - textBounds.MidY;
+            float textY = TextRenderingHelper.BaselineForVerticalCenter(textFont, (float)(Bounds.Top + Bounds.Height / 2));
             canvas.DrawText(item.Text, textX, textY, SKTextAlign.Left, textFont, textPaint);
 
             item.Bounds = itemBounds;
