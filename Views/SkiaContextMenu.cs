@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -125,7 +126,7 @@ public class SkiaContextMenu : SkiaView
             }
 
             // Draw text
-            using (var textFont = new SKFont(SKTypeface.Default, 14f))
+            using (var textFont = SkiaFontFactory.Create(14f))
             using (var textPaint = new SKPaint
             {
                 Color = !item.IsEnabled ? DisabledTextColor : ItemTextColor,
@@ -143,7 +144,7 @@ public class SkiaContextMenu : SkiaView
     private float CalculateMenuWidth()
     {
         float maxWidth = MinWidth;
-        using (var font = new SKFont(SKTypeface.Default, 14f))
+        using (var font = SkiaFontFactory.Create(14f))
         {
             foreach (var item in _items)
             {

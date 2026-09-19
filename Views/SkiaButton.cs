@@ -671,7 +671,7 @@ public class SkiaButton : SkiaView, IButtonController
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
-        using var font = new SKFont(
+        using var font = SkiaFontFactory.Create(
             RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 
@@ -1014,7 +1014,7 @@ public class SkiaButton : SkiaView, IButtonController
 
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
-        using var font = new SKFont(
+        using var font = SkiaFontFactory.Create(
             RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
             fontSize);
 

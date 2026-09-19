@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Window;
 
@@ -102,7 +103,7 @@ internal static class WaylandCsdRenderer
         if (!string.IsNullOrEmpty(title))
         {
             using var typeface = SKTypeface.Default;
-            using var font = new SKFont(typeface, 13f);
+            using var font = SkiaFontFactory.Create(typeface, 13f);
             using var paint = new SKPaint
             {
                 Color = isDark ? new SKColor(0xE0, 0xE0, 0xE0) : new SKColor(0x20, 0x20, 0x20),

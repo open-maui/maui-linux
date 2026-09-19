@@ -4,6 +4,7 @@
 using Microsoft.Maui.Platform.Linux.Interop;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -411,7 +412,7 @@ public class LinuxWebView : SkiaView
         // Draw "WebView" label if not yet initialized
         if (!_initialized)
         {
-            using var textFont = new SKFont(SKTypeface.Default, 14);
+            using var textFont = SkiaFontFactory.Create(14);
             using var textPaint = new SKPaint
             {
                 Color = SkiaTheme.TextPlaceholderSK,
