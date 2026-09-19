@@ -36,15 +36,22 @@ public partial class LinuxApplication : IDisposable
     private static int _isRedrawing;
     private static int _loopCounter = 0;
 
-    private IDisplayWindow? _mainWindow;
+    // Multi-window registry. The first entry is the PRIMARY window; the legacy
+    // single-window members below (MainWindow, RenderingEngine, RootView,
+    // FocusedView) forward to it so all existing consumers keep working.
+    private readonly List<WindowContext> _windowContexts = new();
     private GtkHostWindow? _gtkWindow;
-    private SkiaRenderingEngine? _renderingEngine;
-    private SkiaView? _rootView;
-    private SkiaView? _focusedView;
-    private SkiaView? _hoveredView;
-    private SkiaView? _capturedView; // View that has captured pointer events during drag
     private bool _disposed;
     private bool _useGtk;
+
+    // The context whose native window currently has OS keyboard focus.
+    private WindowContext? _focusedContext;
+
+    // The context that hosts the active modal dialog / context menu. Latched
+    // when a dialog first appears (focused window at that moment, else
+    // primary) and cleared when no dialog is active. Dialogs are app-modal:
+    // they render in and receive input from this window only.
+    private WindowContext? _dialogHostContext;
 
     /// <summary>
     /// Gets the current application instance.
@@ -154,7 +161,11 @@ public partial class LinuxApplication : IDisposable
             }
             else
             {
-                Current?._renderingEngine?.InvalidateAll();
+                // A view requesting a redraw through the static path doesn't
+                // know which window owns it; invalidating every window's
+                // engine is cheap and correct (views with a RenderContext
+                // invalidate their own engine directly instead).
+                Current?.InvalidateAllWindows();
             }
         }
         finally
@@ -164,62 +175,204 @@ public partial class LinuxApplication : IDisposable
     }
 
     /// <summary>
-    /// Gets the main window.
+    /// The primary window's context (first live window). Null before
+    /// Initialize and after the last window closes.
     /// </summary>
-    public IDisplayWindow? MainWindow => _mainWindow;
+    public WindowContext? PrimaryContext => _windowContexts.Count > 0 ? _windowContexts[0] : null;
 
     /// <summary>
-    /// Gets the rendering engine.
+    /// All live window contexts. Index 0 is the primary window.
     /// </summary>
-    public SkiaRenderingEngine? RenderingEngine => _renderingEngine;
+    public IReadOnlyList<WindowContext> WindowContexts => _windowContexts;
 
     /// <summary>
-    /// Gets or sets the root view.
+    /// The context whose native window currently has OS keyboard focus, when
+    /// known; falls back to the primary context.
+    /// </summary>
+    public WindowContext? FocusedContext => _focusedContext ?? PrimaryContext;
+
+    /// <summary>
+    /// Gets the main (primary) window. Forwards to the primary context.
+    /// </summary>
+    public IDisplayWindow? MainWindow => PrimaryContext?.DisplayWindow;
+
+    /// <summary>
+    /// Gets the primary window's rendering engine. Forwards to the primary context.
+    /// </summary>
+    public SkiaRenderingEngine? RenderingEngine => PrimaryContext?.RenderingEngine;
+
+    /// <summary>
+    /// Gets or sets the primary window's root view. Forwards to the primary
+    /// context (creating a bare context when none exists yet, which preserves
+    /// pre-Initialize assignment behavior for embedding/tests).
     /// </summary>
     public SkiaView? RootView
     {
-        get => _rootView;
+        get => PrimaryContext?.RootView;
         set
         {
-            _rootView = value;
-            if (_rootView != null)
-            {
-                // Attach the render context so views in this tree can resolve
-                // typefaces and request invalidation without a global lookup.
-                if (_renderingEngine != null)
-                    _rootView.RenderContext = _renderingEngine;
+            var ctx = PrimaryContext ?? AttachWindowContext(null, null, raisesMauiLifecycle: false);
+            ctx.RootView = value;
+        }
+    }
 
-                if (_mainWindow != null)
-                {
-                    _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(
-                        0, 0,
-                        _mainWindow.Width,
-                        _mainWindow.Height));
-                }
+    /// <summary>
+    /// Gets or sets the currently focused view — the focused window's focused
+    /// view. Forwards to the focused (or primary) context; setter semantics
+    /// (OnFocusLost/OnFocusGained) live in <see cref="WindowContext.FocusedView"/>.
+    /// </summary>
+    public SkiaView? FocusedView
+    {
+        get => FocusedContext?.FocusedView;
+        set
+        {
+            var ctx = FocusedContext;
+            if (ctx != null)
+                ctx.FocusedView = value;
+        }
+    }
+
+    /// <summary>
+    /// Creates and registers a window context. The first registered context
+    /// becomes the primary window.
+    /// </summary>
+    internal WindowContext AttachWindowContext(
+        IDisplayWindow? displayWindow,
+        SkiaRenderingEngine? renderingEngine,
+        bool raisesMauiLifecycle)
+    {
+        var ctx = new WindowContext(this, displayWindow, renderingEngine)
+        {
+            RaisesMauiLifecycle = raisesMauiLifecycle,
+        };
+        _windowContexts.Add(ctx);
+        return ctx;
+    }
+
+    /// <summary>
+    /// Invalidates every live window's rendering engine.
+    /// </summary>
+    internal void InvalidateAllWindows()
+    {
+        for (int i = 0; i < _windowContexts.Count; i++)
+            _windowContexts[i].RenderingEngine?.InvalidateAll();
+    }
+
+    /// <summary>
+    /// Called by a context when its native window gains OS keyboard focus.
+    /// Tracks the focused context and (on Wayland) re-points the clipboard
+    /// routing at the focused window's connection.
+    /// </summary>
+    internal void NotifyContextFocused(WindowContext ctx)
+    {
+        _focusedContext = ctx;
+
+        // Wayland clipboard/data-device state is per-connection; route the
+        // static ClipboardService entry points at the focused window so copy/
+        // paste follows keyboard focus across windows.
+        if (ctx.DisplayWindow is WaylandWindow wayland)
+            wayland.ActivateClipboardRouting();
+    }
+
+    /// <summary>
+    /// Dialog routing rule: dialogs and context menus are app-modal but must
+    /// appear (and take input) in exactly one window. With one window this is
+    /// always true — the exact single-window behavior. With several, the host
+    /// is latched to the focused window when the dialog appears (else primary)
+    /// and released when no dialog remains.
+    /// </summary>
+    internal bool IsDialogHost(WindowContext ctx)
+    {
+        if (_windowContexts.Count <= 1)
+            return true;
+
+        bool anyDialog = LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu;
+        if (!anyDialog)
+        {
+            _dialogHostContext = null;
+            return true;
+        }
+
+        _dialogHostContext ??= FocusedContext ?? PrimaryContext;
+        return _dialogHostContext == ctx;
+    }
+
+    /// <summary>
+    /// Per-frame dialog routing maintenance: latch/release the dialog host and
+    /// mirror it onto each engine's RendersDialogs flag so the dialog draws in
+    /// exactly one window. Single-window: every engine keeps RendersDialogs
+    /// true, matching historical behavior.
+    /// </summary>
+    private void UpdateDialogRouting()
+    {
+        bool anyDialog = LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu;
+        if (!anyDialog)
+            _dialogHostContext = null;
+        else if (_windowContexts.Count > 1)
+            _dialogHostContext ??= FocusedContext ?? PrimaryContext;
+
+        for (int i = 0; i < _windowContexts.Count; i++)
+        {
+            var engine = _windowContexts[i].RenderingEngine;
+            if (engine != null)
+            {
+                engine.RendersDialogs = _windowContexts.Count <= 1
+                    || _dialogHostContext == null
+                    || _windowContexts[i] == _dialogHostContext;
             }
         }
     }
 
     /// <summary>
-    /// Gets or sets the currently focused view.
+    /// Called by a context when its native window's close button is pressed,
+    /// before the window stops. Clears cross-window trackers that reference
+    /// the closing tree.
     /// </summary>
-    public SkiaView? FocusedView
+    internal void HandleContextCloseRequested(WindowContext ctx)
     {
-        get => _focusedView;
-        set
+        if (ctx.IsPrimary)
         {
-            if (_focusedView != value)
-            {
-                var oldFocus = _focusedView;
-                _focusedView = value;
-
-                // Call OnFocusLost on the old view (this sets IsFocused = false and invalidates)
-                oldFocus?.OnFocusLost();
-
-                // Call OnFocusGained on the new view (this sets IsFocused = true and invalidates)
-                _focusedView?.OnFocusGained();
-            }
+            // Native drag-and-drop is wired to the primary window; drop any
+            // tracked drag target — its view tree is going away.
+            var left = _dropTargetTracker.Clear();
+            if (left != null)
+                Handlers.GestureManager.ProcessDragLeave(left);
         }
+    }
+
+    /// <summary>
+    /// Removes contexts whose native windows have stopped: notifies MAUI
+    /// (IWindow.Destroying), disposes the engine and native window, and drops
+    /// them from the registry. When the primary closes while secondaries
+    /// live, the next context is promoted to primary (the forwarders follow
+    /// automatically) and the process keeps running; the app exits only when
+    /// the LAST window closes (the run loop's condition).
+    /// </summary>
+    internal int ReapClosedContexts()
+    {
+        int reaped = 0;
+        for (int i = _windowContexts.Count - 1; i >= 0; i--)
+        {
+            var ctx = _windowContexts[i];
+            if (ctx.DisplayWindow == null || ctx.DisplayWindow.IsRunning)
+                continue;
+
+            _windowContexts.RemoveAt(i);
+            if (_focusedContext == ctx) _focusedContext = null;
+            if (_dialogHostContext == ctx) _dialogHostContext = null;
+
+            ctx.NotifyDestroying();
+            try
+            {
+                ctx.Dispose();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("LinuxApplication", "Window context dispose failed", ex);
+            }
+            reaped++;
+        }
+        return reaped;
     }
 
     /// <summary>
@@ -239,7 +392,7 @@ public partial class LinuxApplication : IDisposable
             }
             else
             {
-                _renderingEngine?.InvalidateAll();
+                InvalidateAllWindows();
             }
         });
     }
@@ -311,7 +464,7 @@ public partial class LinuxApplication : IDisposable
         //   1. options.DisplayServer if set to a concrete value (programmatic override)
         //   2. WAYLAND_DISPLAY env var present and MAUI_PREFER_X11 not set → Wayland
         //   3. otherwise X11/XWayland
-        _mainWindow = DisplayServerFactory.CreateWindow(
+        var mainWindow = DisplayServerFactory.CreateWindow(
             options.Title ?? "MAUI Application",
             options.Width,
             options.Height,
@@ -320,7 +473,7 @@ public partial class LinuxApplication : IDisposable
         // SkiaWebView reparents WebKitGTK widgets into the host window using raw X11
         // calls; only valid when the main window actually is X11. On native Wayland
         // the WebView falls back to its own toplevel via GTK.
-        if (_mainWindow is IX11Surface x11)
+        if (mainWindow is IX11Surface x11)
         {
             SkiaWebView.SetMainWindow(x11.Display, x11.Handle);
         }
@@ -330,7 +483,7 @@ public partial class LinuxApplication : IDisposable
         string? iconPath = ResolveIconPath(options.IconPath);
         if (!string.IsNullOrEmpty(iconPath))
         {
-            _mainWindow.SetIcon(iconPath);
+            mainWindow.SetIcon(iconPath);
             try
             {
                 GtkNative.gtk_window_set_default_icon_from_file(iconPath, IntPtr.Zero);
@@ -343,30 +496,32 @@ public partial class LinuxApplication : IDisposable
             InstallDesktopEntry(iconPath);
         }
 
-        _renderingEngine = new SkiaRenderingEngine(_mainWindow);
-        _renderingEngine.DpiScale = DpiScale;
+        var renderingEngine = new SkiaRenderingEngine(mainWindow);
+        renderingEngine.DpiScale = DpiScale;
 
-        _mainWindow.Resized += OnWindowResized;
-        _mainWindow.Exposed += OnWindowExposed;
-        // All input handlers run synchronously inside native (Wayland/X11)
-        // event callbacks; route them through Guarded so a view exception is
-        // logged instead of aborting the process through the native frame.
-        _mainWindow.KeyDown += Guarded<KeyEventArgs>("key-down", OnKeyDown);
-        _mainWindow.KeyUp += Guarded<KeyEventArgs>("key-up", OnKeyUp);
-        _mainWindow.TextInput += Guarded<TextInputEventArgs>("text-input", OnTextInput);
-        _mainWindow.PointerMoved += Guarded<PointerEventArgs>("pointer-moved", OnPointerMoved);
-        _mainWindow.PointerPressed += Guarded<PointerEventArgs>("pointer-pressed", OnPointerPressed);
-        _mainWindow.PointerReleased += Guarded<PointerEventArgs>("pointer-released", OnPointerReleased);
-        _mainWindow.Scroll += Guarded<ScrollEventArgs>("scroll", OnScroll);
-        _mainWindow.CloseRequested += OnCloseRequested;
+        // Register the primary window context. WireInput subscribes all input
+        // handlers through Guarded (a view exception unwinding into a native
+        // callback aborts the process — hard invariant), plus Resized/Exposed
+        // and close/focus tracking. The primary/startup window does not raise
+        // MAUI window lifecycle events (Created/Activated) — the historical
+        // bootstrap never did — but DOES get Destroying on close.
+        var ctx = AttachWindowContext(mainWindow, renderingEngine, raisesMauiLifecycle: false);
+        ctx.WireInput();
 
         // Route native drag-and-drop into MAUI DropGestureRecognizers
         // (additive — DragDropService.Default subscribers are unaffected).
+        // Drag-and-drop targets the PRIMARY window's tree only (v1): on X11
+        // only the primary window announces XdndAware, and the Wayland drag
+        // events carry no window identity through DragDropService.
         WireDragDropRouting();
     }
 
     private void InitializeGtk(LinuxApplicationOptions options)
     {
+        // GTK mode is single-window: one bare context carries the view state
+        // (root/focus/hover/capture); rendering goes through GtkHostWindow.
+        if (PrimaryContext == null)
+            AttachWindowContext(null, null, raisesMauiLifecycle: false);
         _gtkWindow = GtkHostService.Instance.GetOrCreateHostWindow(
             options.Title ?? "MAUI Application",
             options.Width,
@@ -474,6 +629,6 @@ public partial class LinuxApplication : IDisposable
     /// </summary>
     public void SetWindowTitle(string title)
     {
-        _mainWindow?.SetTitle(title);
+        MainWindow?.SetTitle(title);
     }
 }

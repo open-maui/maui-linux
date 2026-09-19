@@ -68,6 +68,22 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     public bool EnableDirtyRegionOptimization { get; set; } = true;
 
     /// <summary>
+    /// Multi-window: whether this engine draws the (app-modal) dialog and
+    /// context-menu overlays. True by default so the single-window path is
+    /// unchanged; with several windows live, LinuxApplication sets this true
+    /// only on the dialog-host window's engine so a dialog appears once.
+    /// </summary>
+    public bool RendersDialogs { get; set; } = true;
+
+    /// <summary>
+    /// Multi-window: when set, only popup overlays owned by views under this
+    /// root are drawn by this engine (a dropdown opened in window A must not
+    /// paint into window B). Null (default, single-window) draws all popups —
+    /// the historical behavior. Set per-frame by WindowContext.Render.
+    /// </summary>
+    public SkiaView? PopupFilterRoot { get; set; }
+
+    /// <summary>
     /// Gets the number of dirty regions in the current frame.
     /// </summary>
     public int DirtyRegionCount
@@ -285,11 +301,13 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             }
         }
 
-        // Draw popup overlays (always on top, full redraw)
+        // Draw popup overlays (always on top, full redraw). PopupFilterRoot is
+        // null for single-window apps (draw everything, historical behavior);
+        // in multi-window it restricts to popups owned by this window's tree.
         try
         {
             SkiaView.PopupDpiScale = DpiScale;
-            SkiaView.DrawPopupOverlays(_canvas);
+            SkiaView.DrawPopupOverlays(_canvas, PopupFilterRoot);
         }
         catch (Exception ex)
         {
@@ -304,7 +322,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         // divided by DpiScale by ScalePointerArgs).
         try
         {
-            if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
+            if (RendersDialogs && (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu))
             {
                 _canvas.Save();
                 if (DpiScale > 1.0f)

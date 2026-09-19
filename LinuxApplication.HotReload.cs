@@ -86,7 +86,7 @@ public partial class LinuxApplication
             if (_useGtk)
                 _gtkWindow?.RequestRedraw();
             else
-                _renderingEngine?.InvalidateAll();
+                InvalidateAllWindows();
 
             DiagnosticLog.Debug("HotReload",
                 $"Re-rendered after delta ({updatedTypes?.Length ?? 0} type(s)).");
@@ -147,21 +147,28 @@ public partial class LinuxApplication
             return false;
         }
 
-        // Pointers into the old tree must not survive the swap.
-        FocusedView = null;
-        _hoveredView = null;
-        _capturedView = null;
+        // Pointers into the old tree must not survive the swap. Hot reload
+        // tracks the PRIMARY window's root only (v1 — secondary windows get
+        // C# method-body edits via CoreCLR but no structural rebuild).
+        var primaryCtx = PrimaryContext;
+        if (primaryCtx != null)
+        {
+            primaryCtx.FocusedView = null;
+            primaryCtx.HoveredView = null;
+            primaryCtx.CapturedView = null;
+        }
 
         RootView = newView;
+        var mainWindow = MainWindow;
         if (_useGtk && _gtkWindow != null)
         {
             PerformGtkLayout(_gtkWindow.Width, _gtkWindow.Height);
         }
-        else if (_mainWindow != null)
+        else if (mainWindow != null)
         {
             // RootView's setter only arranges; measure first like OnWindowResized.
-            newView.Measure(new Microsoft.Maui.Graphics.Size(_mainWindow.Width, _mainWindow.Height));
-            newView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, _mainWindow.Width, _mainWindow.Height));
+            newView.Measure(new Microsoft.Maui.Graphics.Size(mainWindow.Width, mainWindow.Height));
+            newView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, mainWindow.Width, mainWindow.Height));
         }
 
         try
