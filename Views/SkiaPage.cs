@@ -251,10 +251,8 @@ public class SkiaPage : SkiaView
                 IsAntialias = true
             };
 
-            font.MeasureText(_title, out var textBounds);
-
             var x = bounds.Left + 16;
-            var y = bounds.MidY - textBounds.MidY;
+            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
             canvas.DrawText(_title, x, y, font, textPaint);
         }
 
@@ -427,10 +425,8 @@ public class SkiaContentPage : SkiaPage
                 IsAntialias = true
             };
 
-            font.MeasureText(Title, out var textBounds);
-
             var x = bounds.Left + 56; // Leave space for back button
-            var y = bounds.MidY - textBounds.MidY;
+            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
             canvas.DrawText(Title, x, y, font, textPaint);
         }
 
@@ -499,7 +495,7 @@ public class SkiaContentPage : SkiaPage
 
                 // Draw text
                 var x = itemLeft + 12;
-                var y = navBarBounds.MidY - textBounds.MidY;
+                var y = TextRenderingHelper.BaselineForVerticalCenter(font, navBarBounds.MidY);
                 canvas.DrawText(item.Text, x, y, font, textPaint);
             }
 

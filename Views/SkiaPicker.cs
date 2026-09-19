@@ -518,7 +518,7 @@ public class SkiaPicker : SkiaView
         {
             TextAlignment.Start => bounds.Top + fontSize + 4,
             TextAlignment.End => bounds.Bottom - 4,
-            _ => bounds.MidY - textBounds.MidY // Center alignment
+            _ => TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY) // Center alignment
         };
 
         canvas.DrawText(displayText, textX, textY, SKTextAlign.Left, font, textPaint);
@@ -668,10 +668,8 @@ public class SkiaPicker : SkiaView
             }
 
             // Draw item text
-            font.MeasureText(_items[i], out var textBounds);
-
             var textX = itemRect.Left + 12;
-            var textY = itemRect.MidY - textBounds.MidY;
+            var textY = TextRenderingHelper.BaselineForVerticalCenter(font, itemRect.MidY);
             canvas.DrawText(_items[i], textX, textY, SKTextAlign.Left, font, textPaint);
         }
 
