@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform;
 
@@ -132,7 +133,7 @@ public class SkiaMenuBar : SkiaView
         canvas.DrawLine((float)Bounds.Left, (float)(Bounds.Top + Bounds.Height), (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height), borderPaint);
 
         // Draw menu items
-        using var textFont = new SKFont(SKTypeface.Default, FontSize);
+        using var textFont = SkiaFontFactory.Create(FontSize);
         using var textPaint = new SKPaint
         {
             Color = _textColorSK,

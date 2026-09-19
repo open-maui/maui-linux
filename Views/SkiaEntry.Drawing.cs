@@ -79,7 +79,7 @@ public partial class SkiaEntry
         var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, (float)FontSize);
+        using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
         using var paint = new SKPaint { IsAntialias = true };
 
         var displayText = GetDisplayText();
@@ -287,7 +287,7 @@ public partial class SkiaEntry
         var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
                       ?? SKTypeface.Default;
 
-        using var font = new SKFont(typeface, (float)FontSize);
+        using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
 
         // Use font metrics for consistent height regardless of text content
         // This prevents size changes when placeholder disappears or text changes
