@@ -261,14 +261,25 @@ public class SkiaCollectionView : SkiaItemsView
 
     private void OnSelectedItemChanged(object? newValue)
     {
-        if (SelectionMode != SkiaSelectionMode.None && !_isSelectingItem)
-        {
-            ClearSelection();
-            if (newValue != null)
-            {
-                SelectItem(newValue);
-            }
-        }
+        if (SelectionMode == SkiaSelectionMode.None || _isSelectingItem)
+            return;
+
+        // Programmatic SelectedItem set: mirror it into the selection state
+        // WITHOUT writing the property back. BindableObject queues re-entrant
+        // sets of the same property until the outer set returns, so a
+        // SetValue here would fire after the guard is released and ping-pong
+        // with this callback forever.
+        var previousSelection = _selectedItems.ToList();
+        _selectedItems.Clear();
+        if (newValue != null)
+            _selectedItems.Add(newValue);
+        _selectedIndex = newValue != null ? GetIndexOf(newValue) : -1;
+
+        // SelectItem/ClearSelection update the list before writing the property,
+        // so when they are the writer the state already matches: no second event.
+        if (!previousSelection.SequenceEqual(_selectedItems))
+            SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(previousSelection, _selectedItems.ToList()));
+        Invalidate();
     }
 
     private void OnHeaderChanged(object? newValue)

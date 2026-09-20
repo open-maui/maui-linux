@@ -87,19 +87,9 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
 
             float x, y, width, height;
 
-            // X position
-            if (flags.HasFlag(AbsoluteLayoutFlags.XProportional))
-                x = content.Left + childBounds.Left * content.Width;
-            else
-                x = content.Left + childBounds.Left;
-
-            // Y position
-            if (flags.HasFlag(AbsoluteLayoutFlags.YProportional))
-                y = content.Top + childBounds.Top * content.Height;
-            else
-                y = content.Top + childBounds.Top;
-
-            // Width
+            // Size first: MAUI defines a proportional position as a fraction of the
+            // space left after the child's size ((layout - child) * fraction),
+            // so 0.5 centres a child rather than placing its left edge mid-way.
             if (flags.HasFlag(AbsoluteLayoutFlags.WidthProportional))
                 width = childBounds.Width * content.Width;
             else if (childBounds.Width < 0)
@@ -107,13 +97,22 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
             else
                 width = childBounds.Width;
 
-            // Height
             if (flags.HasFlag(AbsoluteLayoutFlags.HeightProportional))
                 height = childBounds.Height * content.Height;
             else if (childBounds.Height < 0)
                 height = (float)child.DesiredSize.Height;
             else
                 height = childBounds.Height;
+
+            if (flags.HasFlag(AbsoluteLayoutFlags.XProportional))
+                x = content.Left + childBounds.Left * Math.Max(0f, content.Width - width);
+            else
+                x = content.Left + childBounds.Left;
+
+            if (flags.HasFlag(AbsoluteLayoutFlags.YProportional))
+                y = content.Top + childBounds.Top * Math.Max(0f, content.Height - height);
+            else
+                y = content.Top + childBounds.Top;
 
             // Apply child's margin
             var margin = child.Margin;

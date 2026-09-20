@@ -89,6 +89,23 @@
     <Copy SourceFiles="@(MauiImage)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
   </Target>
 
+  <!--
+    Copy MauiFont items next to the app. MAUI's Resizetizer only stages fonts
+    under obj/ on the generic TFM (it embeds/bundles them for Android, iOS,
+    Windows and Tizen only), so without this copy ConfigureFonts(AddFont(...))
+    has nothing to load. LinuxFontRegistrar probes $(OutputPath)/Resources/Fonts
+    first, then the output root.
+  -->
+  <Target Name="CopyMauiFontsToOutput" AfterTargets="Build" Condition="@(MauiFont) != ''">
+    <Message Importance="normal" Text="OpenMaui: Copying MauiFont items to output..." />
+    <Copy SourceFiles="@(MauiFont)" DestinationFolder="$(OutputPath)Resources/Fonts" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyMauiFontsToPublish" AfterTargets="Publish" Condition="@(MauiFont) != ''">
+    <Message Importance="normal" Text="OpenMaui: Copying MauiFont items to publish folder..." />
+    <Copy SourceFiles="@(MauiFont)" DestinationFolder="$(PublishDir)Resources/Fonts" SkipUnchangedFiles="true" />
+  </Target>
+
   <!-- Process MauiIcon: copy foreground SVG and generate appicon.meta for runtime icon generation -->
   <Target Name="ProcessMauiIconForOutput" AfterTargets="Build" Condition="@(MauiIcon) != ''">
     <Message Importance="normal" Text="OpenMaui: Processing MauiIcon for output..." />

@@ -233,16 +233,20 @@ The chosen renderer is logged at startup, e.g. `Renderer: egl-wayland (EGL 1.5 M
 
 | Category | Controls |
 |----------|----------|
-| **Basic** | Button, Label, Entry, Editor, CheckBox, Switch, RadioButton |
-| **Layout** | StackLayout, ScrollView, Border, Page |
+| **Basic** | Button, Label (incl. FormattedText), Entry, Editor, CheckBox, Switch, RadioButton, SearchBar |
+| **Layout** | StackLayout, Grid, FlexLayout, AbsoluteLayout, ScrollView, ContentView, Border, Frame, ControlTemplate / ContentPresenter / TemplatedView |
 | **Selection** | Picker, DatePicker, TimePicker, Slider, Stepper |
-| **Display** | Image, ImageButton, ActivityIndicator, ProgressBar |
-| **Collection** | CollectionView, CarouselView, IndicatorView |
-| **Gesture** | SwipeView, RefreshView |
-| **Navigation** | NavigationPage, TabbedPage, FlyoutPage, Shell |
-| **Menu** | MenuBar, MenuFlyout, MenuItem |
+| **Display** | Image (incl. FontImageSource), ImageButton, ActivityIndicator, ProgressBar |
+| **Collection** | CollectionView, ListView, TableView, CarouselView, IndicatorView |
+| **Gesture** | SwipeView, RefreshView; Tap, Pan, Pinch, Swipe, Pointer and Drag/Drop recognizers |
+| **Navigation** | NavigationPage, TabbedPage, FlyoutPage, Shell, modal pages |
+| **Dialogs** | DisplayAlert, DisplayActionSheet, DisplayPromptAsync |
+| **Menu** | MenuBar, MenuFlyout, context flyouts (`FlyoutBase.ContextFlyout`), MenuItem |
 | **Shapes** | Ellipse, Line, Rectangle, Polygon, Polyline, Path |
 | **Graphics** | GraphicsView, Border |
+| **Web** | WebView (WPE WebKit), BlazorWebView |
+
+The measured picture is in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md): a scorecard generated from the test run (`dotnet run --project tools/Scorecard -- --run`) in the same categories Microsoft publishes for its maui-labs GTK backend. An item counts as covered only when every test mapped to it passed, so the percentages are computed, not claimed.
 
 ## Platform Services
 
@@ -292,6 +296,8 @@ sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-
 - [Getting Started Guide](docs/GETTING_STARTED.md)
 - [FAQ - Visual Studio Integration](docs/FAQ.md)
 - [API Reference](docs/API.md)
+- [Compatibility scorecard](docs/COMPATIBILITY.md) (generated per release)
+- [Roadmap](docs/ROADMAP.md)
 - [Contributing Guide](CONTRIBUTING.md)
 
 ## Sample Applications
@@ -345,8 +351,10 @@ git clone https://github.com/open-maui/maui-linux.git
 
 cd maui-linux
 dotnet build
-dotnet test
+dotnet test tests/OpenMaui.Controls.Linux.Tests.csproj
 ```
+
+The suite runs serially (the platform has process-wide state) and needs no display: golden-screenshot scenes render offscreen through the real engine at 1.0x to 2.0x (`OPENMAUI_UPDATE_GOLDENS=1` re-records baselines after an intended change), and the WebView scenarios run in a small out-of-process host because WebKit binds itself to the process main thread. Regenerate the scorecard with `dotnet run --project tools/Scorecard -- --run`.
 
 ## Contributing
 
@@ -479,7 +487,7 @@ OpenMaui is the Wayland-first, self-rendered Linux platform for .NET MAUI, with 
 
 - [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2). Remaining: runtime scale change, hardware video zero-copy, explicit DMA-BUF and Vulkan, the full benchmark suite
 - [x] **Phase 2: WPE WebKit WebView and BlazorWebView** — WPEPlatform (WPE WebKit 2.54) embedder compositing web frames inside the platform's own render tree, identical on Wayland and X11; context menus, clipboard bridge, backend selection; JS dialogs, file chooser and link cursors through the platform; `OpenMaui.Controls.Linux.Blazor` for Blazor Hybrid (10.0.101.2). Remaining: DMA-BUF zero-copy frames, hardware keycodes
-- [ ] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a per-release compatibility scorecard, third-party library compatibility as a KPI
+- [x] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a compatibility scorecard computed from the test run ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)), and the handlers and services it exposed as missing (AbsoluteLayout, ControlTemplate, TableView, ListView, MAUI 10 dialogs, modal navigation, animations on MAUI's pipeline, VisualStateManager/triggers/behaviors, FormattedText, context flyouts, Essentials). Remaining: third-party library compatibility as a KPI, performance regression gates
 - [ ] `openmaui doctor`, native D-Bus xdg-desktop-portal layer, deb/rpm output, multi-window round-out
 
 ## License

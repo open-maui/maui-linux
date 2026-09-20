@@ -57,6 +57,7 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
     protected override void ConnectHandler(SkiaBorder platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         if (VirtualView is View view)
         {
             platformView.MauiView = view;
@@ -86,6 +87,7 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
     {
         platformView.Tapped -= OnPlatformViewTapped;
         platformView.MauiView = null;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 
