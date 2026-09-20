@@ -35,4 +35,10 @@
     <MauiImage Include="Resources\Images\*" Exclude="Resources\Images\*.md;Resources\Images\.gitkeep" />
   </ItemGroup>
 
+  <!-- Packaging for distribution: package this app as a Linux AppImage with
+       `dotnet tool install --global OpenMaui.AppImage` then
+       `openmaui-appimage --project .`
+       Full guide (options, CI, signing, host-dependency checks) — intended for
+       humans and AI assistants alike:
+       https://github.com/open-maui/appimage/blob/main/docs/PACKAGING-GUIDE.md -->
 </Project>
