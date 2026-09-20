@@ -4,7 +4,28 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.101.1] - unreleased
+## [10.0.101.2] - unreleased
+
+> Phase 1 of the Wayland-first roadmap: GPU-native presentation. Frames are now rasterised by Skia's OpenGL ES backend and handed to the compositor through EGL (zero-copy on Wayland), behind a new render-target seam that keeps the CPU raster path as an automatic fallback. Measured on an identical video-playback workload at 1400x1050: per-frame time 3.55 ms -> 1.47 ms average, p99 7-10 ms -> under 4 ms.
+
+### Added
+
+- **`IRenderTarget` seam** (`Rendering/IRenderTarget.cs`). `SkiaRenderingEngine` no longer owns pixels; a target provides the canvas (`BeginFrame`) and submits the frame (`EndFrame`). `RasterRenderTarget` is the historical path (bitmap -> `IDisplayWindow.Present` -> wl_shm / XPutImage); the engine's default constructor still uses it, so existing tests and callers are unchanged. `PreservesContents` tells the engine whether partial repaints are valid.
+- **EGL render targets.** `WaylandEglRenderTarget` (wl_egl_window over the native wl_surface) and `X11EglRenderTarget` (EGL config matched to the window's visual). EGL 1.5 platform display, OpenGL ES 3 with ES 2 fallback, Skia `GRContext` on the default framebuffer, `eglSwapBuffers` presentation with swap interval 0 so a hidden window never blocks the run loop. One context per window, made current per frame, disposed before the window's display connection closes.
+- **Renderer selection with fallback.** `RenderTargetFactory` tries the GPU target and falls back to raster on any failure (missing libEGL, software-only drivers, headless). `LinuxApplicationOptions.Renderer` (`Auto` default, `Gpu`, `Raster`) and the `OPENMAUI_RENDERER=gpu|raster|auto` environment variable override it; an explicit `gpu` that fails logs an error and still runs on raster. The chosen renderer is logged at startup (`Renderer: egl-wayland (EGL 1.5 Mesa Project; Mesa Intel(R) UHD Graphics)`), and `LinuxApplication.RendererName` exposes it.
+- **Frame statistics.** `OPENMAUI_RENDER_STATS=1` prints, per window every two seconds, rendered frames, effective FPS and average / p50 / p95 / p99 / max frame time (draw + flush + submit). Only rendered frames count, so idle loops show nothing.
+- **`WaylandWindow.ExternalPresentation`** and `IWaylandSurface`. When a GPU target owns the surface the window releases its wl_shm buffer and stops attaching it from `Show`/`Present`; the wp_viewporter destination it already maintains keeps buffer size physical and the compositor-visible size logical, so fractional scaling is unchanged.
+
+### Fixed
+
+- **Wayland event loop could stall with a second event queue.** `DispatchReadEvents` used `wl_display_dispatch`, which blocks until an event for the default queue arrives even when the readable data was entirely another queue's (Mesa's EGL buffer-release and frame-callback events). With the GPU target active the app froze after the first frames until the next input event. Replaced with the `wl_display_prepare_read` / `read_events` / `dispatch_pending` sequence, which reads once, demultiplexes, and returns.
+- **Idle repaint on non-preserving targets.** The engine's "nothing dirty" early-out is now evaluated before the full-versus-partial decision, so a GPU target does not repaint every loop iteration.
+
+### Changed
+
+- Rendering tests: `tests/Rendering/RenderTargetTests.cs` covers the engine's frame decisions against a recording target (no frame when idle on either target kind, partial repaint on raster, full repaint on GPU, expose/resize forcing frames, target disposal), the raster target's presentation, and the factory's preference resolution and fallback.
+
+## [10.0.101.1] - 2026-09-19
 
 > The multi-window release, on a fully migrated rendering stack. Aligned to MAUI 10.0.101, which forces the SkiaSharp 3 → 4 major-version jump (the legacy `SKPaint` text APIs are error-obsolete in 4.x — nearly 400 call sites across ~30 files migrated to the `SKFont` API). Adds multiple top-level windows, closes the two remaining medium-term roadmap finishers, and fixes three visible text-rendering defects found by on-screen review.
 
