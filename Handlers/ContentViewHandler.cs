@@ -18,6 +18,9 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
         new PropertyMapper<IContentView, ContentViewHandler>(ViewHandler.ViewMapper)
         {
             [nameof(IContentView.Content)] = MapContent,
+            // ControlTemplate swaps PresentedContent (the template root) without
+            // touching Content; re-map so the template renders around the content.
+            [nameof(TemplatedView.ControlTemplate)] = MapContent,
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
             [nameof(IPadding.Padding)] = MapPadding,

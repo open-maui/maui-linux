@@ -91,30 +91,61 @@ public class SkiaFlexLayout : SkiaLayoutView
     protected override Size MeasureOverride(Size availableSize)
     {
         bool isRow = Direction == FlexDirection.Row || Direction == FlexDirection.RowReverse;
-        float totalMain = 0f;
-        float maxCross = 0f;
-
-        var sizeAvailable = new Size(availableSize.Width, availableSize.Height);
-
-        foreach (var child in Children)
+        var lines = BuildLines(availableSize, isRow);
+        float mainExtent = 0f, crossExtent = 0f;
+        foreach (var line in lines)
         {
-            if (!child.IsVisible)
-                continue;
-
-            var childSize = child.Measure(sizeAvailable);
-            if (isRow)
-            {
-                totalMain += (float)childSize.Width;
-                maxCross = Math.Max(maxCross, (float)childSize.Height);
-            }
-            else
-            {
-                totalMain += (float)childSize.Height;
-                maxCross = Math.Max(maxCross, (float)childSize.Width);
-            }
+            mainExtent = Math.Max(mainExtent, line.Sum(i => i.MainSize));
+            crossExtent += line.Max(i => i.CrossSize);
         }
+        return isRow ? new Size(mainExtent, crossExtent) : new Size(crossExtent, mainExtent);
+    }
 
-        return isRow ? new Size(totalMain, maxCross) : new Size(maxCross, totalMain);
+    private readonly record struct FlexItem(SkiaView Child, float MainSize, float CrossSize, float Grow, float Shrink);
+
+    /// <summary>
+    /// Measures visible children in order and splits them into lines: one
+    /// line when Wrap is NoWrap, otherwise a new line whenever the next item's
+    /// basis would overflow the main axis. Grow/shrink are applied later per line.
+    /// </summary>
+    private List<List<FlexItem>> BuildLines(Size available, bool isRow)
+    {
+        var lines = new List<List<FlexItem>>();
+        var ordered = Children.Where(c => c.IsVisible).OrderBy(GetOrder).ToList();
+        if (ordered.Count == 0)
+            return lines;
+
+        float mainLimit = isRow ? (float)available.Width : (float)available.Height;
+        bool wrap = Wrap != FlexWrap.NoWrap && !float.IsInfinity(mainLimit) && !float.IsNaN(mainLimit);
+
+        var current = new List<FlexItem>();
+        float used = 0f;
+        foreach (var child in ordered)
+        {
+            var basis = GetBasis(child);
+            Size size;
+            if (basis.IsAuto)
+                size = child.Measure(available);
+            else
+                size = isRow ? child.Measure(new Size(basis.Length, available.Height)) : child.Measure(new Size(available.Width, basis.Length));
+
+            var item = new FlexItem(child,
+                isRow ? (float)size.Width : (float)size.Height,
+                isRow ? (float)size.Height : (float)size.Width,
+                GetGrow(child), GetShrink(child));
+
+            if (wrap && current.Count > 0 && used + item.MainSize > mainLimit + 0.01f)
+            {
+                lines.Add(current);
+                current = new List<FlexItem>();
+                used = 0f;
+            }
+            current.Add(item);
+            used += item.MainSize;
+        }
+        if (current.Count > 0)
+            lines.Add(current);
+        return lines;
     }
 
     protected override Rect ArrangeOverride(Rect bounds)
@@ -124,133 +155,96 @@ public class SkiaFlexLayout : SkiaLayoutView
 
         bool isRow = Direction == FlexDirection.Row || Direction == FlexDirection.RowReverse;
         bool isReverse = Direction == FlexDirection.RowReverse || Direction == FlexDirection.ColumnReverse;
-
-        var orderedChildren = Children.Where(c => c.IsVisible).OrderBy(c => GetOrder(c)).ToList();
-        if (orderedChildren.Count == 0)
-            return bounds;
-
         float mainSize = isRow ? (float)bounds.Width : (float)bounds.Height;
         float crossSize = isRow ? (float)bounds.Height : (float)bounds.Width;
 
-        var childInfos = new List<(SkiaView child, Size size, float grow, float shrink)>();
-        float totalBasis = 0f;
-        float totalGrow = 0f;
-        float totalShrink = 0f;
+        var lines = BuildLines(new Size(bounds.Width, bounds.Height), isRow);
+        if (lines.Count == 0)
+            return bounds;
+        if (Wrap == FlexWrap.WrapReverse)
+            lines.Reverse();
 
-        foreach (var child in orderedChildren)
+        // Resolve grow/shrink per line and the line's cross extent.
+        var resolved = new List<(List<(SkiaView child, float main, float cross)> items, float lineCross)>();
+        foreach (var line in lines)
         {
-            var basis = GetBasis(child);
-            float grow = GetGrow(child);
-            float shrink = GetShrink(child);
-
-            Size size;
-            if (basis.IsAuto)
+            float totalBasis = line.Sum(i => i.MainSize);
+            float totalGrow = line.Sum(i => i.Grow);
+            float totalShrink = line.Sum(i => i.Shrink);
+            float free = mainSize - totalBasis;
+            var items = new List<(SkiaView, float, float)>();
+            foreach (var i in line)
             {
-                size = child.Measure(new Size(bounds.Width, bounds.Height));
+                float main = i.MainSize;
+                if (free > 0f && totalGrow > 0f) main += free * (i.Grow / totalGrow);
+                else if (free < 0f && totalShrink > 0f) main += free * (i.Shrink / totalShrink);
+                items.Add((i.Child, Math.Max(0f, main), i.CrossSize));
             }
-            else
-            {
-                float length = basis.Length;
-                size = isRow
-                    ? child.Measure(new Size(length, bounds.Height))
-                    : child.Measure(new Size(bounds.Width, length));
-            }
-
-            childInfos.Add((child, size, grow, shrink));
-            totalBasis += isRow ? (float)size.Width : (float)size.Height;
-            totalGrow += grow;
-            totalShrink += shrink;
+            resolved.Add((items, line.Max(i => i.CrossSize)));
         }
 
-        float freeSpace = mainSize - totalBasis;
-
-        var resolvedSizes = new List<(SkiaView child, float mainSize, float crossSize)>();
-        foreach (var (child, size, grow, shrink) in childInfos)
+        // AlignContent distributes lines on the cross axis (only meaningful with several lines).
+        float totalLinesCross = resolved.Sum(l => l.lineCross);
+        float crossFree = Math.Max(0f, crossSize - totalLinesCross);
+        float crossPos = isRow ? (float)bounds.Top : (float)bounds.Left;
+        float lineGap = 0f;
+        bool stretchLines = false;
+        if (resolved.Count > 1 || AlignContent == FlexAlignContent.Stretch)
         {
-            float childMainSize = isRow ? (float)size.Width : (float)size.Height;
-            float childCrossSize = isRow ? (float)size.Height : (float)size.Width;
-
-            if (freeSpace > 0f && totalGrow > 0f)
+            switch (AlignContent)
             {
-                childMainSize += freeSpace * (grow / totalGrow);
+                case FlexAlignContent.Center: crossPos += crossFree / 2f; break;
+                case FlexAlignContent.End: crossPos += crossFree; break;
+                case FlexAlignContent.SpaceBetween: if (resolved.Count > 1) lineGap = crossFree / (resolved.Count - 1); break;
+                case FlexAlignContent.SpaceAround: lineGap = crossFree / resolved.Count; crossPos += lineGap / 2f; break;
+                case FlexAlignContent.SpaceEvenly: lineGap = crossFree / (resolved.Count + 1); crossPos += lineGap; break;
+                case FlexAlignContent.Stretch: stretchLines = true; break;
             }
-            else if (freeSpace < 0f && totalShrink > 0f)
-            {
-                childMainSize += freeSpace * (shrink / totalShrink);
-            }
-
-            resolvedSizes.Add((child, Math.Max(0f, childMainSize), childCrossSize));
         }
+        float stretchExtra = stretchLines && resolved.Count > 0 ? crossFree / resolved.Count : 0f;
 
-        float usedSpace = resolvedSizes.Sum(s => s.mainSize);
-        float remainingSpace = Math.Max(0f, mainSize - usedSpace);
-
-        float position = isRow ? (float)bounds.Left : (float)bounds.Top;
-        float spacing = 0f;
-
-        switch (JustifyContent)
+        foreach (var (items, lineCrossRaw) in resolved)
         {
-            case FlexJustify.Center:
-                position += remainingSpace / 2f;
-                break;
-            case FlexJustify.End:
-                position += remainingSpace;
-                break;
-            case FlexJustify.SpaceBetween:
-                if (resolvedSizes.Count > 1)
-                    spacing = remainingSpace / (resolvedSizes.Count - 1);
-                break;
-            case FlexJustify.SpaceAround:
-                if (resolvedSizes.Count > 0)
+            float lineCross = lineCrossRaw + stretchExtra;
+            // Single-line layouts align items against the whole cross axis (CSS behaviour
+            // when align-content does not apply); multi-line ones against their line.
+            float lineCrossForItems = resolved.Count == 1 && !stretchLines ? crossSize : lineCross;
+
+            float used = items.Sum(i => i.main);
+            float remaining = Math.Max(0f, mainSize - used);
+            float position = isRow ? (float)bounds.Left : (float)bounds.Top;
+            float spacing = 0f;
+            switch (JustifyContent)
+            {
+                case FlexJustify.Center: position += remaining / 2f; break;
+                case FlexJustify.End: position += remaining; break;
+                case FlexJustify.SpaceBetween: if (items.Count > 1) spacing = remaining / (items.Count - 1); break;
+                case FlexJustify.SpaceAround: spacing = remaining / items.Count; position += spacing / 2f; break;
+                case FlexJustify.SpaceEvenly: spacing = remaining / (items.Count + 1); position += spacing; break;
+            }
+
+            var ordered = isReverse ? items.AsEnumerable().Reverse() : items;
+            foreach (var (child, main, cross) in ordered)
+            {
+                var alignSelf = GetAlignSelf(child);
+                var align = alignSelf == FlexAlignSelf.Auto ? AlignItems : (FlexAlignItems)alignSelf;
+                float itemCross = cross;
+                float itemCrossPos = crossPos;
+                switch (align)
                 {
-                    spacing = remainingSpace / resolvedSizes.Count;
-                    position += spacing / 2f;
+                    case FlexAlignItems.End: itemCrossPos = crossPos + lineCrossForItems - cross; break;
+                    case FlexAlignItems.Center: itemCrossPos = crossPos + (lineCrossForItems - cross) / 2f; break;
+                    case FlexAlignItems.Stretch: itemCross = lineCrossForItems; break;
                 }
-                break;
-            case FlexJustify.SpaceEvenly:
-                if (resolvedSizes.Count > 0)
-                {
-                    spacing = remainingSpace / (resolvedSizes.Count + 1);
-                    position += spacing;
-                }
-                break;
-        }
 
-        var items = isReverse ? resolvedSizes.AsEnumerable().Reverse() : resolvedSizes;
-
-        foreach (var (child, childMainSize, childCrossSize) in items)
-        {
-            var alignSelf = GetAlignSelf(child);
-            var effectiveAlign = alignSelf == FlexAlignSelf.Auto ? AlignItems : (FlexAlignItems)alignSelf;
-
-            float crossPos = isRow ? (float)bounds.Top : (float)bounds.Left;
-            float finalCrossSize = childCrossSize;
-
-            switch (effectiveAlign)
-            {
-                case FlexAlignItems.End:
-                    crossPos = (isRow ? (float)bounds.Bottom : (float)bounds.Right) - finalCrossSize;
-                    break;
-                case FlexAlignItems.Center:
-                    crossPos += (crossSize - finalCrossSize) / 2f;
-                    break;
-                case FlexAlignItems.Stretch:
-                    finalCrossSize = crossSize;
-                    break;
+                var childBounds = isRow
+                    ? new Rect(position, itemCrossPos, main, itemCross)
+                    : new Rect(itemCrossPos, position, itemCross, main);
+                child.Arrange(childBounds);
+                position += main + spacing;
             }
 
-            Rect childBounds;
-            if (isRow)
-            {
-                childBounds = new Rect(position, crossPos, childMainSize, finalCrossSize);
-            }
-            else
-            {
-                childBounds = new Rect(crossPos, position, finalCrossSize, childMainSize);
-            }
-
-            child.Arrange(childBounds);
-            position += childMainSize + spacing;
+            crossPos += lineCross + lineGap;
         }
 
         return bounds;

@@ -15,6 +15,8 @@ public partial class PolygonHandler : ViewHandler<Polygon, SkiaPolygon>
             [nameof(Polygon.Fill)] = MapFill,
             [nameof(Polygon.Stroke)] = MapStroke,
             [nameof(Polygon.StrokeThickness)] = MapStrokeThickness,
+            [nameof(Polygon.StrokeDashArray)] = MapStrokeDashArray,
+            [nameof(Polygon.StrokeDashOffset)] = MapStrokeDashOffset,
             [nameof(Polygon.FillRule)] = MapFillRule,
         };
 
@@ -27,4 +29,6 @@ public partial class PolygonHandler : ViewHandler<Polygon, SkiaPolygon>
     public static void MapStroke(PolygonHandler h, Polygon p) { h.PlatformView.Stroke = p.Stroke; h.PlatformView.Invalidate(); }
     public static void MapStrokeThickness(PolygonHandler h, Polygon p) { h.PlatformView.StrokeThickness = p.StrokeThickness; h.PlatformView.Invalidate(); }
     public static void MapFillRule(PolygonHandler h, Polygon p) { h.PlatformView.FillRule = p.FillRule; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashArray(PolygonHandler h, Polygon p) { h.PlatformView.StrokeDashArray = p.StrokeDashArray; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashOffset(PolygonHandler h, Polygon p) { h.PlatformView.StrokeDashOffset = p.StrokeDashOffset; h.PlatformView.Invalidate(); }
 }

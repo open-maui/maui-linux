@@ -25,10 +25,7 @@ public class ShareService : IShare
         else if (!string.IsNullOrEmpty(request.Text))
         {
             // Try to use email for text sharing
-            var subject = Uri.EscapeDataString(request.Subject ?? "");
-            var body = Uri.EscapeDataString(request.Text ?? "");
-            var mailto = $"mailto:?subject={subject}&body={body}";
-            await OpenUrlAsync(mailto);
+            await OpenUrlAsync(BuildTextMailto(request));
         }
     }
 
@@ -58,23 +55,26 @@ public class ShareService : IShare
         }
     }
 
-    private async Task OpenUrlAsync(string url)
+    /// <summary>mailto: URI carrying the request's subject and text as body.</summary>
+    internal static string BuildTextMailto(ShareTextRequest request)
+    {
+        var subject = Uri.EscapeDataString(request.Subject ?? "");
+        var body = Uri.EscapeDataString(request.Text ?? "");
+        return $"mailto:?subject={subject}&body={body}";
+    }
+
+    private static async Task OpenUrlAsync(string url)
     {
         try
         {
             var startInfo = new ProcessStartInfo
             {
                 FileName = "xdg-open",
-                Arguments = $"\"{url}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-
-            using var process = Process.Start(startInfo);
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-            }
+            startInfo.ArgumentList.Add(url);
+            await ExternalProcess.RunAsync(startInfo);
         }
         catch (Exception ex)
         {
@@ -82,7 +82,7 @@ public class ShareService : IShare
         }
     }
 
-    private async Task ShareFileAsync(string filePath)
+    private static async Task ShareFileAsync(string filePath)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException("File not found for sharing", filePath);
@@ -98,16 +98,11 @@ public class ShareService : IShare
             var startInfo = new ProcessStartInfo
             {
                 FileName = "xdg-open",
-                Arguments = $"\"{Path.GetDirectoryName(filePath)}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-
-            using var process = Process.Start(startInfo);
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-            }
+            startInfo.ArgumentList.Add(Path.GetDirectoryName(filePath) ?? filePath);
+            await ExternalProcess.RunAsync(startInfo);
         }
         catch (Exception ex)
         {
@@ -115,7 +110,7 @@ public class ShareService : IShare
         }
     }
 
-    private async Task<bool> TryPortalShareAsync(string filePath)
+    private static async Task<bool> TryPortalShareAsync(string filePath)
     {
         try
         {
@@ -126,18 +121,14 @@ public class ShareService : IShare
             var startInfo = new ProcessStartInfo
             {
                 FileName = "zenity",
-                Arguments = $"--info --text=\"File ready to share:\\n{Path.GetFileName(filePath)}\\n\\nPath: {filePath}\" --title=\"Share File\"",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            startInfo.ArgumentList.Add("--info");
+            startInfo.ArgumentList.Add($"--text=File ready to share:\\n{Path.GetFileName(filePath)}\\n\\nPath: {filePath}");
+            startInfo.ArgumentList.Add("--title=Share File");
 
-            using var process = Process.Start(startInfo);
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-                return true;
-            }
-            return false;
+            return await ExternalProcess.RunAsync(startInfo) != null;
         }
         catch
         {

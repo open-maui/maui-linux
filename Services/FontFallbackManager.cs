@@ -83,7 +83,10 @@ public class FontFallbackManager
 
     // Cache for typeface lookups
     private readonly Dictionary<string, SKTypeface?> _typefaceCache = new();
-    private readonly ConcurrentDictionary<(int codepoint, string preferredFont), SKTypeface?> _glyphCache = new();
+    // Keyed by the preferred typeface INSTANCE, not its family name: "Noto Sans"
+    // Regular and "Noto Sans" Italic share a family name, and a name-keyed cache
+    // handed the first-seen (regular) face to every later italic/bold label.
+    private readonly ConcurrentDictionary<(int codepoint, SKTypeface preferred), SKTypeface?> _glyphCache = new();
 
     private FontFallbackManager()
     {
@@ -104,7 +107,7 @@ public class FontFallbackManager
     public SKTypeface GetTypefaceForCodepoint(int codepoint, SKTypeface preferred)
     {
         // Check cache first
-        var cacheKey = (codepoint, preferred.FamilyName);
+        var cacheKey = (codepoint, preferred);
         if (_glyphCache.TryGetValue(cacheKey, out var cached))
         {
             return cached ?? preferred;
