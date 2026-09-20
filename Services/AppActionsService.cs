@@ -11,14 +11,26 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 public class AppActionsService : IAppActions
 {
     private readonly List<AppAction> _actions = new();
-    private static readonly string DesktopFilesPath;
 
-    static AppActionsService()
+    /// <summary>
+    /// Directory the generated .desktop file lands in: $XDG_DATA_HOME/applications
+    /// (default ~/.local/share/applications), resolved on every call so a
+    /// changed environment is honoured.
+    /// </summary>
+    internal static string DesktopFilesPath
     {
-        DesktopFilesPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "applications");
+        get
+        {
+            var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            if (string.IsNullOrWhiteSpace(dataHome))
+                dataHome = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            return Path.Combine(dataHome, "applications");
+        }
     }
+
+    /// <summary>File name the .desktop entry for <paramref name="appName"/> is written under.</summary>
+    internal static string DesktopFileNameFor(string appName)
+        => $"{appName.ToLowerInvariant().Replace(" ", "-")}.desktop";
 
     public bool IsSupported => true;
 
@@ -31,6 +43,9 @@ public class AppActionsService : IAppActions
 
     public Task SetAsync(IEnumerable<AppAction> actions)
     {
+        if (actions == null)
+            throw new ArgumentNullException(nameof(actions));
+
         _actions.Clear();
         _actions.AddRange(actions);
 
@@ -83,7 +98,7 @@ public class AppActionsService : IAppActions
             }
 
             var desktopContent = GenerateDesktopFileContent(appName, execPath, iconPath);
-            var desktopFilePath = Path.Combine(DesktopFilesPath, $"{appName.ToLowerInvariant().Replace(" ", "-")}.desktop");
+            var desktopFilePath = Path.Combine(DesktopFilesPath, DesktopFileNameFor(appName));
 
             File.WriteAllText(desktopFilePath, desktopContent);
 
@@ -98,7 +113,7 @@ public class AppActionsService : IAppActions
         }
     }
 
-    private string GenerateDesktopFileContent(string appName, string execPath, string? iconPath)
+    internal string GenerateDesktopFileContent(string appName, string execPath, string? iconPath)
     {
         var content = new System.Text.StringBuilder();
 

@@ -23,7 +23,14 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
         [nameof(TabbedPage.BarTextColor)] = MapBarTextColor,
         [nameof(TabbedPage.SelectedTabColor)] = MapSelectedTabColor,
         [nameof(TabbedPage.UnselectedTabColor)] = MapUnselectedTabColor,
+        [nameof(TabbedPage.CurrentPage)] = MapCurrentPage,
+        // Tab bar placement is expressed through MAUI's platform-specific
+        // attached property (TabbedPage.ToolbarPlacement, AndroidSpecific);
+        // Linux honours it the same way: Bottom puts the tab strip below the content.
+        [ToolbarPlacementPropertyName] = MapToolbarPlacement,
     };
+
+    private const string ToolbarPlacementPropertyName = "ToolbarPlacement";
 
     public static CommandMapper<ITabbedView, TabbedPageHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
     {
@@ -48,6 +55,11 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
         base.ConnectHandler(platformView);
         platformView.SelectedIndexChanged += OnSelectedIndexChanged;
 
+        if (VirtualView is TabbedPage tabbedPage)
+        {
+            tabbedPage.PagesChanged += OnPagesChanged;
+        }
+
         // Sync initial tabs
         SyncTabs();
     }
@@ -55,8 +67,17 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
     protected override void DisconnectHandler(SkiaTabbedPage platformView)
     {
         platformView.SelectedIndexChanged -= OnSelectedIndexChanged;
+        if (VirtualView is TabbedPage tabbedPage)
+        {
+            tabbedPage.PagesChanged -= OnPagesChanged;
+        }
         platformView.ClearTabs();
         base.DisconnectHandler(platformView);
+    }
+
+    private void OnPagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        SyncTabs();
     }
 
     private void OnSelectedIndexChanged(object? sender, EventArgs e)
@@ -108,13 +129,21 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
                 }
             }
 
-            // Sync selected tab
+            // Sync selected tab (MAUI's CurrentPage is authoritative here)
             if (tabbedPage.CurrentPage != null)
             {
                 var index = tabbedPage.Children.IndexOf(tabbedPage.CurrentPage);
                 if (index >= 0)
                 {
-                    PlatformView.SelectedIndex = index;
+                    try
+                    {
+                        _isUpdatingSelection = true;
+                        PlatformView.SelectedIndex = index;
+                    }
+                    finally
+                    {
+                        _isUpdatingSelection = false;
+                    }
                 }
             }
         }
@@ -136,8 +165,49 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
 
         if (tabbedView is TabbedPage tabbedPage && tabbedPage.BarTextColor is Color color)
         {
-            // BarTextColor applies to unselected tabs
-            handler.PlatformView.UnselectedTabColor = color;
+            // BarTextColor is the tab text color; the Selected/Unselected
+            // colors refine it when set.
+            if (tabbedPage.UnselectedTabColor is null)
+                handler.PlatformView.UnselectedTabColor = color;
+            if (tabbedPage.SelectedTabColor is null)
+            {
+                handler.PlatformView.SelectedTabColor = color;
+                handler.PlatformView.IndicatorColor = color;
+            }
+        }
+    }
+
+    public static void MapCurrentPage(TabbedPageHandler handler, ITabbedView tabbedView)
+    {
+        if (handler.PlatformView is null || handler._isUpdatingSelection) return;
+
+        if (tabbedView is TabbedPage tabbedPage && tabbedPage.CurrentPage != null)
+        {
+            var index = tabbedPage.Children.IndexOf(tabbedPage.CurrentPage);
+            if (index >= 0)
+            {
+                try
+                {
+                    handler._isUpdatingSelection = true;
+                    handler.PlatformView.SelectedIndex = index;
+                }
+                finally
+                {
+                    handler._isUpdatingSelection = false;
+                }
+            }
+        }
+    }
+
+    public static void MapToolbarPlacement(TabbedPageHandler handler, ITabbedView tabbedView)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (tabbedView is TabbedPage tabbedPage)
+        {
+            var placement = Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.TabbedPage.GetToolbarPlacement(tabbedPage);
+            handler.PlatformView.TabBarOnBottom =
+                placement == Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.ToolbarPlacement.Bottom;
         }
     }
 

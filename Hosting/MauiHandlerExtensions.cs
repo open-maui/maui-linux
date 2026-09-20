@@ -40,15 +40,18 @@ public static class MauiHandlerExtensions
         [typeof(Frame)] = () => new FrameHandler(),
         [typeof(Border)] = () => new BorderHandler(),
         [typeof(ContentView)] = () => new ContentViewHandler(),
+        [typeof(ContentPresenter)] = () => new ContentPresenterHandler(),
+        [typeof(TemplatedView)] = () => new TemplatedViewHandler(),
         [typeof(ScrollView)] = () => new ScrollViewHandler(),
         [typeof(Grid)] = () => new GridHandler(),
         [typeof(StackLayout)] = () => new StackLayoutHandler(),
         [typeof(VerticalStackLayout)] = () => new StackLayoutHandler(),
         [typeof(HorizontalStackLayout)] = () => new StackLayoutHandler(),
-        [typeof(AbsoluteLayout)] = () => new LayoutHandler(),
-        [typeof(FlexLayout)] = () => new LayoutHandler(),
+        [typeof(AbsoluteLayout)] = () => new AbsoluteLayoutHandler(),
+        [typeof(FlexLayout)] = () => new FlexLayoutHandler(),
         [typeof(CollectionView)] = () => new CollectionViewHandler(),
         [typeof(ListView)] = () => new CollectionViewHandler(),
+        [typeof(TableView)] = () => new TableViewHandler(),
         [typeof(Page)] = () => new PageHandler(),
         [typeof(ContentPage)] = () => new ContentPageHandler(),
         [typeof(NavigationPage)] = () => new NavigationPageHandler(),
@@ -59,6 +62,17 @@ public static class MauiHandlerExtensions
         [typeof(Microsoft.Maui.Controls.Window)] = () => new WindowHandler(),
         [typeof(GraphicsView)] = () => new GraphicsViewHandler(),
         [typeof(Path)] = () => new ShapePathHandler(),
+        [typeof(Microsoft.Maui.Controls.Shapes.Rectangle)] = () => new RectangleHandler(),
+        [typeof(Microsoft.Maui.Controls.Shapes.Ellipse)] = () => new EllipseHandler(),
+        [typeof(Microsoft.Maui.Controls.Shapes.Line)] = () => new LineHandler(),
+        [typeof(Microsoft.Maui.Controls.Shapes.Polygon)] = () => new PolygonHandler(),
+        [typeof(Microsoft.Maui.Controls.Shapes.Polyline)] = () => new PolylineHandler(),
+        [typeof(CarouselView)] = () => new CarouselViewHandler(),
+        [typeof(SwipeView)] = () => new SwipeViewHandler(),
+        [typeof(RefreshView)] = () => new RefreshViewHandler(),
+        [typeof(IndicatorView)] = () => new IndicatorViewHandler(),
+        [typeof(MenuBar)] = () => new MenuBarHandler(),
+        [typeof(MenuFlyout)] = () => new MenuFlyoutHandler(),
         [typeof(SKCanvasView)] = () => new SKCanvasViewHandler(),
         [typeof(SKGLView)] = () => new SKGLViewHandler()
     };
@@ -79,6 +93,21 @@ public static class MauiHandlerExtensions
         var handler = CreateHandler((IElement)view, mauiContext);
         return handler as IViewHandler;
     }
+
+    /// <summary>
+    /// The handler type the platform's own map resolves for a control type, or
+    /// null when the map has no entry (the MAUI handler factory is used then).
+    /// Exposed so tests can assert the map and the DI registrations agree.
+    /// </summary>
+    public static Type? GetLinuxHandlerType(Type controlType)
+    {
+        if (LinuxHandlerMap.TryGetValue(controlType, out var factory))
+            return factory().GetType();
+        return null;
+    }
+
+    /// <summary>All control types the platform map covers.</summary>
+    public static IEnumerable<Type> MappedControlTypes => LinuxHandlerMap.Keys;
 
     private static IElementHandler? CreateHandler(IElement element, IMauiContext mauiContext)
     {
@@ -131,6 +160,7 @@ public static class MauiHandlerExtensions
                 viewHandler.PlatformView is SkiaView skiaView)
             {
                 skiaView.MauiView = mauiView;
+                VisualStateBridge.Attach(mauiView, skiaView);
 
                 // Sync visual properties from MAUI view to platform view,
                 // and subscribe to future changes. MAUI's ViewMapper doesn't
@@ -138,6 +168,7 @@ public static class MauiHandlerExtensions
                 skiaView.IsVisible = mauiView.IsVisible;
                 skiaView.Opacity = (float)mauiView.Opacity;
                 skiaView.InputTransparent = mauiView.InputTransparent;
+                SemanticMapper.Apply(mauiView, skiaView);
 
                 mauiView.PropertyChanged += (s, e) =>
                 {

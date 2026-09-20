@@ -17,6 +17,8 @@ public partial class LineHandler : ViewHandler<Line, SkiaLine>
             [nameof(Line.Y2)] = MapY2,
             [nameof(Line.Stroke)] = MapStroke,
             [nameof(Line.StrokeThickness)] = MapStrokeThickness,
+            [nameof(Line.StrokeDashArray)] = MapStrokeDashArray,
+            [nameof(Line.StrokeDashOffset)] = MapStrokeDashOffset,
         };
 
     public LineHandler() : base(Mapper) { }
@@ -35,4 +37,6 @@ public partial class LineHandler : ViewHandler<Line, SkiaLine>
     public static void MapY2(LineHandler h, Line l) { h.PlatformView.Y2 = l.Y2; h.PlatformView.Invalidate(); }
     public static void MapStroke(LineHandler h, Line l) { h.PlatformView.Stroke = l.Stroke; h.PlatformView.Invalidate(); }
     public static void MapStrokeThickness(LineHandler h, Line l) { h.PlatformView.StrokeThickness = l.StrokeThickness; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashArray(LineHandler h, Line l) { h.PlatformView.StrokeDashArray = l.StrokeDashArray; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashOffset(LineHandler h, Line l) { h.PlatformView.StrokeDashOffset = l.StrokeDashOffset; h.PlatformView.Invalidate(); }
 }

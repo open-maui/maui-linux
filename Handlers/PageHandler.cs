@@ -146,6 +146,7 @@ public partial class ContentPageHandler : PageHandler
         new PropertyMapper<ContentPage, ContentPageHandler>(PageHandler.Mapper)
         {
             [nameof(ContentPage.Content)] = MapContent,
+        [nameof(TemplatedView.ControlTemplate)] = MapContent,
             [nameof(ContentPage.ToolbarItems)] = MapToolbarItems,
         };
 
@@ -184,7 +185,7 @@ public partial class ContentPageHandler : PageHandler
         if (handler.PlatformView is null || handler.MauiContext is null) return;
 
         // Get the platform view for the content
-        var content = page.Content;
+        var content = ((IContentView)page).PresentedContent as View ?? page.Content;
         if (content != null)
         {
             // Create handler for content if it doesn't exist

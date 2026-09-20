@@ -14,6 +14,8 @@ public partial class RectangleHandler : ViewHandler<Microsoft.Maui.Controls.Shap
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.Fill)] = MapFill,
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.Stroke)] = MapStroke,
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.StrokeThickness)] = MapStrokeThickness,
+            [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.StrokeDashArray)] = MapStrokeDashArray,
+            [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.StrokeDashOffset)] = MapStrokeDashOffset,
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.RadiusX)] = MapRadiusX,
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.RadiusY)] = MapRadiusY,
         };
@@ -33,4 +35,6 @@ public partial class RectangleHandler : ViewHandler<Microsoft.Maui.Controls.Shap
     public static void MapStrokeThickness(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.StrokeThickness = r.StrokeThickness; h.PlatformView.Invalidate(); }
     public static void MapRadiusX(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.RadiusX = r.RadiusX; h.PlatformView.Invalidate(); }
     public static void MapRadiusY(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.RadiusY = r.RadiusY; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashArray(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.StrokeDashArray = r.StrokeDashArray; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashOffset(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.StrokeDashOffset = r.StrokeDashOffset; h.PlatformView.Invalidate(); }
 }

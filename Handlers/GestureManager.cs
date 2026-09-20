@@ -8,10 +8,24 @@ using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
+// Inside the namespace so it beats Microsoft.Maui.Platform.SwipeDirection in lookup.
+using SwipeDirection = Microsoft.Maui.SwipeDirection;
+
 /// <summary>
 /// Manages gesture recognition and processing for MAUI views on Linux.
-/// Handles tap, pan, swipe, pinch, and pointer gestures.
+/// Handles tap, pan, swipe, pinch, pointer and drag/drop gestures.
 /// </summary>
+/// <remarks>
+/// Dispatch prefers MAUI's public surface: <see cref="IPanGestureController"/>,
+/// <see cref="IPinchGestureController"/>, <see cref="SwipeGestureRecognizer.SendSwiped"/>
+/// and <see cref="DropGestureRecognizer.SendDragOver"/>. The members MAUI keeps
+/// internal (TapGestureRecognizer.SendTapped, PointerGestureRecognizer.SendPointer*,
+/// DragGestureRecognizer.SendDragStarting/SendDropCompleted,
+/// DropGestureRecognizer.SendDragLeave/SendDrop and the event-args constructors
+/// that take a GetPosition resolver) are reached through <see cref="MauiInternals"/>,
+/// which resolves them once against explicit signatures so a MAUI upgrade that
+/// changes them shows up as a pinned test failure rather than a silent no-op.
+/// </remarks>
 public static class GestureManager
 {
     private const string Tag = "GestureManager";
@@ -27,13 +41,14 @@ public static class GestureManager
         public bool IsPressed { get; set; }
         public bool IsPinching { get; set; }
         public double PinchScale { get; set; } = 1.0;
+        public int PanGestureId { get; set; }
         // Set once the press+move threshold has offered this gesture to the
         // drag path — whether or not a native drag actually started — so a
         // cancelled/empty DragStarting doesn't retrigger on every move.
         public bool DragStarted { get; set; }
     }
 
-    private enum PointerEventType
+    internal enum PointerEventType
     {
         Entered,
         Exited,
@@ -42,114 +57,112 @@ public static class GestureManager
         Released
     }
 
-    /// <summary>
-    /// Finds and invokes an internal MAUI gesture method, handling signature changes across versions.
-    /// Caches the resolved method for performance.
-    /// </summary>
-    private static bool InvokeGestureMethod(
-        ref MethodInfo? cached,
-        Type recognizerType,
-        string methodName,
-        object recognizerInstance,
-        View view,
-        Func<MethodInfo, object[]> buildArgs)
-        => InvokeGestureMethod(ref cached, recognizerType, methodName, recognizerInstance, view, buildArgs, out _);
+    #region MAUI internal members (pinned)
 
     /// <summary>
-    /// Overload exposing the invoked method's return value — SendDragStarting
-    /// returns the DragStartingEventArgs the drag path needs (Cancel + Data).
+    /// The internal MAUI members this manager depends on, resolved once with
+    /// explicit signatures. Every member is nullable so a signature change
+    /// degrades to a logged no-op at runtime; the test suite pins them so the
+    /// change is caught at upgrade time.
     /// </summary>
-    private static bool InvokeGestureMethod(
-        ref MethodInfo? cached,
-        Type recognizerType,
-        string methodName,
-        object recognizerInstance,
-        View view,
-        Func<MethodInfo, object[]> buildArgs,
-        out object? result)
+    internal static class MauiInternals
+    {
+        private const BindingFlags Instance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+
+        private static readonly Type PositionResolverType = typeof(Func<IElement?, Point?>);
+
+        /// <summary>TapGestureRecognizer.SendTapped(View, Func&lt;IElement?, Point?&gt;)</summary>
+        public static readonly MethodInfo? SendTapped = typeof(TapGestureRecognizer).GetMethod(
+            "SendTapped", Instance, new[] { typeof(View), PositionResolverType });
+
+        /// <summary>PointerGestureRecognizer.SendPointer{Entered,Exited,Pressed,Moved,Released}(View, Func, PlatformPointerEventArgs, ButtonsMask)</summary>
+        public static readonly IReadOnlyDictionary<PointerEventType, MethodInfo?> SendPointer =
+            new Dictionary<PointerEventType, MethodInfo?>
+            {
+                [PointerEventType.Entered] = ResolvePointer("SendPointerEntered"),
+                [PointerEventType.Exited] = ResolvePointer("SendPointerExited"),
+                [PointerEventType.Pressed] = ResolvePointer("SendPointerPressed"),
+                [PointerEventType.Moved] = ResolvePointer("SendPointerMoved"),
+                [PointerEventType.Released] = ResolvePointer("SendPointerReleased"),
+            };
+
+        /// <summary>DragGestureRecognizer.SendDragStarting(View, Func, PlatformDragStartingEventArgs) → DragStartingEventArgs</summary>
+        public static readonly MethodInfo? SendDragStarting = typeof(DragGestureRecognizer).GetMethod(
+            "SendDragStarting", Instance, new[] { typeof(View), PositionResolverType, typeof(PlatformDragStartingEventArgs) });
+
+        /// <summary>DragGestureRecognizer.SendDropCompleted(DropCompletedEventArgs)</summary>
+        public static readonly MethodInfo? SendDropCompleted = typeof(DragGestureRecognizer).GetMethod(
+            "SendDropCompleted", Instance, new[] { typeof(DropCompletedEventArgs) });
+
+        /// <summary>DropGestureRecognizer.SendDragLeave(DragEventArgs)</summary>
+        public static readonly MethodInfo? SendDragLeave = typeof(DropGestureRecognizer).GetMethod(
+            "SendDragLeave", Instance, new[] { typeof(Microsoft.Maui.Controls.DragEventArgs) });
+
+        /// <summary>DropGestureRecognizer.SendDrop(DropEventArgs) → Task</summary>
+        public static readonly MethodInfo? SendDrop = typeof(DropGestureRecognizer).GetMethod(
+            "SendDrop", Instance, new[] { typeof(Microsoft.Maui.Controls.DropEventArgs) });
+
+        /// <summary>DragEventArgs(DataPackage, Func, PlatformDragEventArgs) — the resolver-carrying constructor.</summary>
+        public static readonly ConstructorInfo? DragEventArgsCtor = typeof(Microsoft.Maui.Controls.DragEventArgs).GetConstructor(
+            Instance, new[] { typeof(DataPackage), PositionResolverType, typeof(PlatformDragEventArgs) });
+
+        /// <summary>DropEventArgs(DataPackageView, Func, PlatformDropEventArgs) — the resolver-carrying constructor.</summary>
+        public static readonly ConstructorInfo? DropEventArgsCtor = typeof(Microsoft.Maui.Controls.DropEventArgs).GetConstructor(
+            Instance, new[] { typeof(DataPackageView), PositionResolverType, typeof(PlatformDropEventArgs) });
+
+        private static MethodInfo? ResolvePointer(string name)
+            => typeof(PointerGestureRecognizer).GetMethod(
+                name, Instance, new[] { typeof(View), PositionResolverType, typeof(PlatformPointerEventArgs), typeof(ButtonsMask) });
+
+        /// <summary>Names of the members that failed to resolve — empty on a supported MAUI.</summary>
+        public static IEnumerable<string> Missing()
+        {
+            if (SendTapped == null) yield return "TapGestureRecognizer.SendTapped";
+            foreach (var kv in SendPointer)
+                if (kv.Value == null) yield return $"PointerGestureRecognizer.SendPointer{kv.Key}";
+            if (SendDragStarting == null) yield return "DragGestureRecognizer.SendDragStarting";
+            if (SendDropCompleted == null) yield return "DragGestureRecognizer.SendDropCompleted";
+            if (SendDragLeave == null) yield return "DropGestureRecognizer.SendDragLeave";
+            if (SendDrop == null) yield return "DropGestureRecognizer.SendDrop";
+            if (DragEventArgsCtor == null) yield return "DragEventArgs(DataPackage, Func, PlatformDragEventArgs)";
+            if (DropEventArgsCtor == null) yield return "DropEventArgs(DataPackageView, Func, PlatformDropEventArgs)";
+        }
+    }
+
+    /// <summary>
+    /// Invokes a pinned internal member, logging (never throwing) on failure.
+    /// Returns false when the member is unavailable or the call threw.
+    /// </summary>
+    private static bool InvokeInternal(MethodInfo? method, object target, object?[] args, out object? result)
     {
         result = null;
-
-        if (cached == null)
+        if (method == null)
         {
-            var methods = recognizerType.GetMethods(
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                .Where(m => m.Name == methodName)
-                .ToArray();
-
-            if (methods.Length == 0)
-            {
-                DiagnosticLog.Warn(Tag, $"No {methodName} method found on {recognizerType.Name}");
-                return false;
-            }
-
-            if (methods.Length == 1)
-            {
-                cached = methods[0];
-            }
-            else
-            {
-                // Multiple overloads — prefer ones with Func parameters (newer MAUI)
-                cached = methods.FirstOrDefault(m =>
-                    m.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
-                    ?? methods[0];
-            }
+            DiagnosticLog.Warn(Tag, $"MAUI internal member unavailable on {target.GetType().Name}; gesture not delivered");
+            return false;
         }
-
         try
         {
-            var args = buildArgs(cached);
-            result = cached.Invoke(recognizerInstance, args);
+            result = method.Invoke(target, args);
             return true;
+        }
+        catch (TargetInvocationException tie) when (tie.InnerException != null)
+        {
+            // The app's handler threw — surface that, not the reflection wrapper.
+            DiagnosticLog.Error(Tag, $"{method.Name} handler failed", tie.InnerException);
+            return false;
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error(Tag, $"{methodName} invocation failed", ex);
+            DiagnosticLog.Error(Tag, $"{method.Name} invocation failed", ex);
             return false;
         }
     }
 
-    /// <summary>
-    /// Builds argument array matching the method's parameter types.
-    /// Handles View, Func&lt;IElement, Point?&gt;, and other parameter types.
-    /// </summary>
-    private static object[] BuildAdaptiveArgs(MethodInfo method, View view, double x, double y, params (Type type, object value)[] extras)
-    {
-        var parameters = method.GetParameters();
-        var args = new object[parameters.Length];
-        int extraIdx = 0;
+    private static bool InvokeInternal(MethodInfo? method, object target, params object?[] args)
+        => InvokeInternal(method, target, args, out _);
 
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            var pType = parameters[i].ParameterType;
-
-            if (pType.IsAssignableFrom(typeof(View)) || pType.IsAssignableFrom(view.GetType()))
-            {
-                args[i] = view;
-            }
-            else if (pType.Name.Contains("Func"))
-            {
-                // GetPosition resolver — see CreatePositionResolver for the
-                // coordinate-space contract and null semantics.
-                args[i] = CreateResolverForParameter(pType, x, y)!;
-            }
-            else if (extraIdx < extras.Length && (pType == extras[extraIdx].type || pType.IsAssignableFrom(extras[extraIdx].type)))
-            {
-                args[i] = extras[extraIdx++].value;
-            }
-            else if (extraIdx < extras.Length)
-            {
-                // Try to convert
-                args[i] = extras[extraIdx++].value;
-            }
-            else
-            {
-                args[i] = pType.IsValueType ? Activator.CreateInstance(pType)! : null!;
-            }
-        }
-
-        return args;
-    }
+    #endregion
 
     #region GetPosition resolvers
 
@@ -205,62 +218,15 @@ public static class GestureManager
         return new Point(x - bounds.Left, y - bounds.Top);
     }
 
-    /// <summary>
-    /// Adapt the resolver to whatever Func&lt;TElement, Point?&gt; the reflected
-    /// MAUI signature asks for (IElement? vs Element vs VisualElement across
-    /// versions). Returns null when the parameter isn't a compatible Func —
-    /// the invocation then proceeds with a null resolver, which MAUI treats
-    /// as "position unavailable".
-    /// </summary>
-    private static object? CreateResolverForParameter(Type funcParameterType, double x, double y)
-    {
-        try
-        {
-            var resolver = CreatePositionResolver(x, y);
-            if (funcParameterType.IsInstanceOfType(resolver))
-                return resolver;
-
-            if (!funcParameterType.IsGenericType
-                || funcParameterType.GetGenericTypeDefinition() != typeof(Func<,>))
-                return null;
-
-            var genericArgs = funcParameterType.GetGenericArguments();
-            if (genericArgs[1] != typeof(Point?))
-                return null;
-
-            return typeof(GestureManager)
-                .GetMethod(nameof(MakeTypedResolver), BindingFlags.NonPublic | BindingFlags.Static)!
-                .MakeGenericMethod(genericArgs[0])
-                .Invoke(null, new object[] { resolver });
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Debug(Tag, $"Position resolver adaptation failed: {ex.Message}");
-            return null;
-        }
-    }
-
-    private static Func<T, Point?> MakeTypedResolver<T>(Func<IElement?, Point?> resolver) where T : class
-        => arg => resolver(arg as IElement);
-
     #endregion
-
-    // Cached reflection MethodInfo for internal MAUI methods
-    private static MethodInfo? _sendTappedMethod;
-    private static MethodInfo? _sendSwipedMethod;
-    private static MethodInfo? _sendPanMethod;
-    private static MethodInfo? _sendPinchMethod;
-    private static MethodInfo? _sendDragStartingMethod;
-    private static MethodInfo? _sendDragOverMethod;
-    private static MethodInfo? _sendDragLeaveMethod;
-    private static MethodInfo? _sendDropMethod;
-    private static readonly Dictionary<PointerEventType, MethodInfo?> _pointerMethodCache = new();
 
     private static readonly Dictionary<View, (DateTime lastTap, int tapCount)> _tapTracking = new();
     private static readonly Dictionary<View, GestureTrackingState> _gestureState = new();
+    private static int _nextPanGestureId;
 
     /// <summary>
-    /// Minimum distance in pixels for a swipe gesture to be recognized.
+    /// Minimum distance in pixels for a swipe gesture to be recognized when the
+    /// recognizer's own <see cref="SwipeGestureRecognizer.Threshold"/> is zero.
     /// </summary>
     public static double SwipeMinDistance { get; set; } = 50.0;
 
@@ -285,6 +251,11 @@ public static class GestureManager
     public static double PinchScrollScale { get; set; } = 0.1;
 
     /// <summary>
+    /// Maximum interval in milliseconds between the taps of a multi-tap gesture.
+    /// </summary>
+    public static double MultiTapInterval { get; set; } = 300.0;
+
+    /// <summary>
     /// Removes tracking entries for the specified view, preventing memory leaks
     /// when views are disconnected from the visual tree.
     /// </summary>
@@ -296,105 +267,123 @@ public static class GestureManager
     }
 
     /// <summary>
-    /// Processes a tap gesture on the specified view.
+    /// Processes a tap gesture on the specified view. Coordinates are in
+    /// window-logical space (see <see cref="CreatePositionResolver"/>). Walks
+    /// up the parent chain until a view (or one of its child gesture elements,
+    /// e.g. a Label's Spans) handles the tap.
     /// </summary>
     public static bool ProcessTap(View? view, double x, double y)
+        => ProcessTapCore(view, x, y) != null;
+
+    /// <summary>
+    /// The tap walk; returns the view whose recognizers (or child gesture
+    /// elements) consumed the tap, or null.
+    /// </summary>
+    private static View? ProcessTapCore(View? view, double x, double y)
     {
-        if (view == null)
+        for (var current = view; current != null; current = current.Parent as View)
         {
-            return false;
-        }
-        var current = view;
-        while (current != null)
-        {
-            var recognizers = current.GestureRecognizers;
-            if (recognizers != null && recognizers.Count > 0 && ProcessTapOnView(current, x, y))
+            if (ProcessTapOnView(current, x, y))
             {
-                return true;
+                return current;
             }
-            var parent = current.Parent;
-            current = (parent is View parentView) ? parentView : null;
         }
-        return false;
+        return null;
     }
+
+    private static Microsoft.Maui.Graphics.Rect? ScreenBoundsOf(View view)
+        => view.Handler?.PlatformView is Microsoft.Maui.Platform.SkiaView sv ? sv.ScreenBounds : null;
+
+    /// <summary>
+    /// Window-logical → view-local. A view without a realized platform view
+    /// has no origin to subtract; its coordinates are taken as already local.
+    /// </summary>
+    private static Point ToLocal(View view, double x, double y)
+        => ScreenBoundsOf(view) is { } b ? new Point(x - b.Left, y - b.Top) : new Point(x, y);
 
     private static bool ProcessTapOnView(View view, double x, double y)
     {
+        bool result = false;
+
+        // Child gesture elements first (Label.FormattedText spans carry their
+        // own TapGestureRecognizers and report hit regions in view-local
+        // coordinates). MAUI raises Tapped with the host view as sender.
+        var children = view.GetChildElements(ToLocal(view, x, y));
+        if (children != null)
+        {
+            foreach (var child in children)
+            {
+                foreach (var recognizer in child.GestureRecognizers)
+                {
+                    if (recognizer is TapGestureRecognizer childTap)
+                        result |= ProcessTapRecognizer(childTap, view, child, x, y);
+                }
+            }
+        }
+
         var recognizers = view.GestureRecognizers;
         if (recognizers == null || recognizers.Count == 0)
         {
-            return false;
+            return result;
         }
-        bool result = false;
         foreach (var item in recognizers)
         {
-            if (item is not TapGestureRecognizer tapRecognizer)
-            {
-                continue;
-            }
-            DiagnosticLog.Debug(Tag,
-                $"Processing TapGestureRecognizer on {view.GetType().Name}, CommandParameter={tapRecognizer.CommandParameter}, NumberOfTapsRequired={tapRecognizer.NumberOfTapsRequired}");
-
-            int numberOfTapsRequired = tapRecognizer.NumberOfTapsRequired;
-            if (numberOfTapsRequired > 1)
-            {
-                DateTime utcNow = DateTime.UtcNow;
-                if (!_tapTracking.TryGetValue(view, out var tracking))
-                {
-                    _tapTracking[view] = (utcNow, 1);
-                    DiagnosticLog.Debug(Tag, $"First tap 1/{numberOfTapsRequired}");
-                    continue;
-                }
-                if (!((utcNow - tracking.lastTap).TotalMilliseconds < 300.0))
-                {
-                    _tapTracking[view] = (utcNow, 1);
-                    DiagnosticLog.Debug(Tag, $"Tap timeout, reset to 1/{numberOfTapsRequired}");
-                    continue;
-                }
-                int tapCount = tracking.tapCount + 1;
-                if (tapCount < numberOfTapsRequired)
-                {
-                    _tapTracking[view] = (utcNow, tapCount);
-                    DiagnosticLog.Debug(Tag, $"Tap {tapCount}/{numberOfTapsRequired}, waiting for more taps");
-                    continue;
-                }
-                _tapTracking.Remove(view);
-            }
-
-            // Try to raise the Tapped event via cached reflection
-            bool eventFired = false;
-            try
-            {
-                eventFired = InvokeGestureMethod(
-                    ref _sendTappedMethod,
-                    typeof(TapGestureRecognizer),
-                    "SendTapped",
-                    tapRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, x, y,
-                        (typeof(TappedEventArgs), new TappedEventArgs(tapRecognizer.CommandParameter))));
-                if (eventFired)
-                    DiagnosticLog.Debug(Tag, "SendTapped invoked successfully");
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error(Tag, "SendTapped failed", ex);
-            }
-
-            // Always invoke the Command if available (SendTapped may or may not invoke it internally)
-            if (!eventFired)
-            {
-                ICommand? command = tapRecognizer.Command;
-                if (command != null && command.CanExecute(tapRecognizer.CommandParameter))
-                {
-                    DiagnosticLog.Debug(Tag, "Executing TapGestureRecognizer Command");
-                    command.Execute(tapRecognizer.CommandParameter);
-                }
-            }
-
-            result = true;
+            if (item is TapGestureRecognizer tapRecognizer)
+                result |= ProcessTapRecognizer(tapRecognizer, view, view, x, y);
         }
         return result;
+    }
+
+    /// <summary>
+    /// Runs the multi-tap bookkeeping for one recognizer and raises Tapped
+    /// when its NumberOfTapsRequired is satisfied. <paramref name="trackingKey"/>
+    /// distinguishes a span's taps from its host label's.
+    /// </summary>
+    private static bool ProcessTapRecognizer(TapGestureRecognizer tapRecognizer, View sender, Element trackingKey, double x, double y)
+    {
+        DiagnosticLog.Debug(Tag,
+            $"Processing TapGestureRecognizer on {sender.GetType().Name}, CommandParameter={tapRecognizer.CommandParameter}, NumberOfTapsRequired={tapRecognizer.NumberOfTapsRequired}");
+
+        int numberOfTapsRequired = tapRecognizer.NumberOfTapsRequired;
+        if (numberOfTapsRequired > 1)
+        {
+            // Multi-tap state is tracked per host view; spans share the label's
+            // clock, which matches how a double-tap on a span reads to the user.
+            var key = sender;
+            DateTime utcNow = DateTime.UtcNow;
+            if (!_tapTracking.TryGetValue(key, out var tracking)
+                || (utcNow - tracking.lastTap).TotalMilliseconds >= MultiTapInterval)
+            {
+                _tapTracking[key] = (utcNow, 1);
+                DiagnosticLog.Debug(Tag, $"Tap 1/{numberOfTapsRequired}");
+                return false;
+            }
+            int tapCount = tracking.tapCount + 1;
+            if (tapCount < numberOfTapsRequired)
+            {
+                _tapTracking[key] = (utcNow, tapCount);
+                DiagnosticLog.Debug(Tag, $"Tap {tapCount}/{numberOfTapsRequired}, waiting for more taps");
+                return false;
+            }
+            _tapTracking.Remove(key);
+        }
+
+        // SendTapped raises Tapped (with a lazily-resolved position) and runs
+        // the Command itself; only fall back to the Command when the internal
+        // member is unavailable.
+        bool eventFired = InvokeInternal(MauiInternals.SendTapped, tapRecognizer, sender, CreatePositionResolver(x, y));
+        if (!eventFired)
+        {
+            ICommand? command = tapRecognizer.Command;
+            if (command != null && command.CanExecute(tapRecognizer.CommandParameter))
+            {
+                DiagnosticLog.Debug(Tag, "Executing TapGestureRecognizer Command");
+                command.Execute(tapRecognizer.CommandParameter);
+            }
+        }
+
+        _ = trackingKey;
+        return true;
     }
 
     /// <summary>
@@ -472,7 +461,7 @@ public static class GestureManager
         }
         double deltaX = x - state.StartX;
         double deltaY = y - state.StartY;
-        if (Math.Sqrt(deltaX * deltaX + deltaY * deltaY) >= PanMinDistance)
+        if (state.IsPanning || Math.Sqrt(deltaX * deltaX + deltaY * deltaY) >= PanMinDistance)
         {
             // Press-then-move on a view with an enabled DragGestureRecognizer
             // starts a native drag instead of a pan. Offered exactly once per
@@ -490,8 +479,13 @@ public static class GestureManager
                 }
             }
 
-            ProcessPanGesture(view, deltaX, deltaY, (GestureStatus)(state.IsPanning ? 1 : 0));
-            state.IsPanning = true;
+            if (!state.IsPanning)
+            {
+                state.IsPanning = true;
+                state.PanGestureId = ++_nextPanGestureId;
+                ProcessPanGesture(view, deltaX, deltaY, GestureStatus.Started, state.PanGestureId);
+            }
+            ProcessPanGesture(view, deltaX, deltaY, GestureStatus.Running, state.PanGestureId);
         }
         ProcessPointerEvent(view, x, y, PointerEventType.Moved);
     }
@@ -525,26 +519,27 @@ public static class GestureManager
             double deltaY = y - state.StartY;
             double distance = Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
             double elapsed = (DateTime.UtcNow - state.StartTime).TotalMilliseconds;
-            if (distance >= SwipeMinDistance && elapsed <= SwipeMaxTime)
+            if (elapsed <= SwipeMaxTime && distance > 0)
             {
-                var direction = DetermineSwipeDirection(deltaX, deltaY);
-                if (direction != SwipeDirection.Right)
-                {
-                    ProcessSwipeGesture(view, direction);
-                }
-                else if (Math.Abs(deltaX) > Math.Abs(deltaY) * SwipeDirectionThreshold)
-                {
-                    ProcessSwipeGesture(view, (deltaX > 0.0) ? SwipeDirection.Right : SwipeDirection.Left);
-                }
+                ProcessSwipeGesture(view, deltaX, deltaY);
             }
             if (state.IsPanning)
             {
-                ProcessPanGesture(view, deltaX, deltaY, (GestureStatus)2);
+                ProcessPanGesture(view, deltaX, deltaY, GestureStatus.Completed, state.PanGestureId);
             }
             else if (distance < 15.0 && elapsed < SwipeMaxTime)
             {
                 DiagnosticLog.Debug(Tag, $"Detected tap on {view.GetType().Name} (distance={distance:F1}, elapsed={elapsed:F0}ms)");
-                ProcessTap(view, x, y);
+                if (ProcessTapCore(view, x, y) != null)
+                {
+                    // The tap was consumed by this view or an ancestor. Pointer
+                    // events bubble (SkiaView.BubblePointerEvent calls
+                    // ProcessPointerUp for every ancestor too), so drop the
+                    // ancestors' press state or the same tap would be raised
+                    // again when their own release arrives.
+                    for (var ancestor = view.Parent as View; ancestor != null; ancestor = ancestor.Parent as View)
+                        _gestureState.Remove(ancestor);
+                }
             }
             _gestureState.Remove(view);
         }
@@ -573,75 +568,63 @@ public static class GestureManager
         }
     }
 
-    private static SwipeDirection DetermineSwipeDirection(double deltaX, double deltaY)
+    /// <summary>
+    /// Classifies a displacement as one of the four swipe directions; the
+    /// dominant axis wins, with <see cref="SwipeDirectionThreshold"/> deciding
+    /// how dominant it has to be before the minor axis is ignored.
+    /// </summary>
+    internal static SwipeDirection DetermineSwipeDirection(double deltaX, double deltaY)
     {
         double absX = Math.Abs(deltaX);
         double absY = Math.Abs(deltaY);
-        if (absX > absY * SwipeDirectionThreshold)
+        if (absX >= absY)
         {
-            if (deltaX > 0.0)
-            {
-                return SwipeDirection.Right;
-            }
-            return SwipeDirection.Left;
+            return deltaX > 0.0 ? SwipeDirection.Right : SwipeDirection.Left;
         }
-        if (absY > absX * SwipeDirectionThreshold)
-        {
-            if (deltaY > 0.0)
-            {
-                return SwipeDirection.Down;
-            }
-            return SwipeDirection.Up;
-        }
-        if (deltaX > 0.0)
-        {
-            return SwipeDirection.Right;
-        }
-        return SwipeDirection.Left;
+        return deltaY > 0.0 ? SwipeDirection.Down : SwipeDirection.Up;
     }
 
-    private static void ProcessSwipeGesture(View view, SwipeDirection direction)
+    /// <summary>
+    /// Raises Swiped on every SwipeGestureRecognizer whose Direction includes
+    /// the detected direction and whose Threshold the displacement along that
+    /// axis exceeds (a zero Threshold falls back to <see cref="SwipeMinDistance"/>).
+    /// </summary>
+    private static void ProcessSwipeGesture(View view, double deltaX, double deltaY)
     {
         var recognizers = view.GestureRecognizers;
         if (recognizers == null)
         {
             return;
         }
+        var direction = DetermineSwipeDirection(deltaX, deltaY);
+        double axisDistance = direction is SwipeDirection.Left or SwipeDirection.Right ? Math.Abs(deltaX) : Math.Abs(deltaY);
+
         foreach (var item in recognizers)
         {
             if (item is not SwipeGestureRecognizer swipeRecognizer || !swipeRecognizer.Direction.HasFlag(direction))
             {
                 continue;
             }
-            DiagnosticLog.Debug(Tag, $"Swipe detected: {direction}");
+            double threshold = swipeRecognizer.Threshold > 0 ? swipeRecognizer.Threshold : SwipeMinDistance;
+            if (axisDistance < threshold)
+            {
+                continue;
+            }
+            DiagnosticLog.Debug(Tag, $"Swipe detected: {direction} ({axisDistance:F0}px, threshold {threshold:F0})");
 
             try
             {
-                bool invoked = InvokeGestureMethod(
-                    ref _sendSwipedMethod,
-                    typeof(SwipeGestureRecognizer),
-                    "SendSwiped",
-                    swipeRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, 0, 0,
-                        (typeof(SwipeDirection), direction)));
-                if (invoked)
-                    DiagnosticLog.Debug(Tag, "SendSwiped invoked successfully");
+                // Public API: raises Swiped and runs Command with CommandParameter.
+                swipeRecognizer.SendSwiped(view, direction);
             }
             catch (Exception ex)
             {
                 DiagnosticLog.Error(Tag, "SendSwiped failed", ex);
             }
-
-            ICommand? command = swipeRecognizer.Command;
-            if (command != null && command.CanExecute(swipeRecognizer.CommandParameter))
-            {
-                command.Execute(swipeRecognizer.CommandParameter);
-            }
         }
     }
 
-    private static void ProcessPanGesture(View view, double totalX, double totalY, GestureStatus status)
+    private static void ProcessPanGesture(View view, double totalX, double totalY, GestureStatus status, int gestureId)
     {
         var recognizers = view.GestureRecognizers;
         if (recognizers == null)
@@ -658,17 +641,24 @@ public static class GestureManager
 
             try
             {
-                InvokeGestureMethod(
-                    ref _sendPanMethod,
-                    typeof(PanGestureRecognizer),
-                    "SendPan",
-                    panRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, totalX, totalY,
-                        (typeof(double), totalX),
-                        (typeof(double), totalY),
-                        (typeof(int), (int)status),
-                        (typeof(GestureStatus), status)));
+                // Public API: IPanGestureController raises PanUpdated with the
+                // matching GestureStatus.
+                var controller = (IPanGestureController)panRecognizer;
+                switch (status)
+                {
+                    case GestureStatus.Started:
+                        controller.SendPanStarted(view, gestureId);
+                        break;
+                    case GestureStatus.Running:
+                        controller.SendPan(view, totalX, totalY, gestureId);
+                        break;
+                    case GestureStatus.Completed:
+                        controller.SendPanCompleted(view, gestureId);
+                        break;
+                    case GestureStatus.Canceled:
+                        controller.SendPanCanceled(view, gestureId);
+                        break;
+                }
             }
             catch (Exception ex)
             {
@@ -690,67 +680,13 @@ public static class GestureManager
             {
                 continue;
             }
-            try
-            {
-                string? methodName = eventType switch
-                {
-                    PointerEventType.Entered => "SendPointerEntered",
-                    PointerEventType.Exited => "SendPointerExited",
-                    PointerEventType.Pressed => "SendPointerPressed",
-                    PointerEventType.Moved => "SendPointerMoved",
-                    PointerEventType.Released => "SendPointerReleased",
-                    _ => null,
-                };
-                if (methodName == null)
-                {
-                    continue;
-                }
-
-                if (!_pointerMethodCache.TryGetValue(eventType, out var method))
-                {
-                    var methods = typeof(PointerGestureRecognizer).GetMethods(
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                        .Where(m => m.Name == methodName)
-                        .ToArray();
-                    method = methods.FirstOrDefault(m =>
-                        m.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
-                        ?? methods.FirstOrDefault();
-                    _pointerMethodCache[eventType] = method;
-                }
-
-                if (method != null)
-                {
-                    var pointerArgs = BuildAdaptiveArgs(method, view, x, y,
-                        (typeof(object), CreatePointerEventArgs(view, x, y)));
-                    method.Invoke(pointerRecognizer, pointerArgs);
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error(Tag, $"Pointer event {eventType} failed", ex);
-            }
+            // SendPointer*(View sender, Func<IElement?, Point?> getPosition,
+            // PlatformPointerEventArgs platformArgs, ButtonsMask button) — the
+            // platform args carry nothing on Linux, MAUI accepts null there.
+            MauiInternals.SendPointer.TryGetValue(eventType, out var method);
+            InvokeInternal(method, pointerRecognizer,
+                view, CreatePositionResolver(x, y), null, ButtonsMask.Primary);
         }
-    }
-
-    private static object CreatePointerEventArgs(View view, double x, double y)
-    {
-        try
-        {
-            var type = typeof(PointerGestureRecognizer).Assembly.GetType("Microsoft.Maui.Controls.PointerEventArgs");
-            if (type != null)
-            {
-                var ctor = type.GetConstructors().FirstOrDefault();
-                if (ctor != null)
-                {
-                    return ctor.Invoke(new object[0]);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Debug("GestureManager", "PointerEventArgs creation failed", ex);
-        }
-        return null!;
     }
 
     /// <summary>
@@ -785,12 +721,7 @@ public static class GestureManager
             _gestureState[view] = state;
         }
 
-        // Calculate new scale based on scroll delta
-        double scaleDelta = 1.0 + (deltaY * PinchScrollScale);
-        state.PinchScale *= scaleDelta;
-
-        // Clamp scale to reasonable bounds
-        state.PinchScale = Math.Clamp(state.PinchScale, 0.1, 10.0);
+        state.PinchScale = ComputePinchScale(state.PinchScale, deltaY);
 
         GestureStatus status;
         if (!state.IsPinching)
@@ -808,6 +739,17 @@ public static class GestureManager
     }
 
     /// <summary>
+    /// Applies one scroll step to a running pinch scale: each unit of
+    /// <paramref name="scrollDelta"/> multiplies by (1 + <see cref="PinchScrollScale"/>),
+    /// clamped to [0.1, 10]. Split out so the math is testable without a display.
+    /// </summary>
+    internal static double ComputePinchScale(double currentScale, double scrollDelta)
+    {
+        double scaleDelta = 1.0 + (scrollDelta * PinchScrollScale);
+        return Math.Clamp(currentScale * scaleDelta, 0.1, 10.0);
+    }
+
+    /// <summary>
     /// Ends an ongoing pinch gesture.
     /// </summary>
     public static void EndPinchGesture(View? view)
@@ -819,6 +761,8 @@ public static class GestureManager
             ProcessPinchGesture(view, state.PinchScale, state.CurrentX, state.CurrentY, GestureStatus.Completed);
             state.IsPinching = false;
             state.PinchScale = 1.0;
+            if (!state.IsPressed)
+                _gestureState.Remove(view);
         }
     }
 
@@ -841,19 +785,30 @@ public static class GestureManager
 
             try
             {
-                var scaleOrigin = new Point(originX / view.Width, originY / view.Height);
-                bool invoked = InvokeGestureMethod(
-                    ref _sendPinchMethod,
-                    typeof(PinchGestureRecognizer),
-                    "SendPinch",
-                    pinchRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, originX, originY,
-                        (typeof(double), scale),
-                        (typeof(Point), scaleOrigin),
-                        (typeof(GestureStatus), status)));
-                if (invoked)
-                    DiagnosticLog.Debug(Tag, "SendPinch invoked successfully");
+                // ScaleOrigin is normalised to the view's size, as on the other platforms.
+                var local = ToLocal(view, originX, originY);
+                var scaleOrigin = new Point(
+                    view.Width > 0 ? local.X / view.Width : 0,
+                    view.Height > 0 ? local.Y / view.Height : 0);
+
+                // Public API: IPinchGestureController raises PinchUpdated.
+                var controller = (IPinchGestureController)pinchRecognizer;
+                switch (status)
+                {
+                    case GestureStatus.Started:
+                        controller.SendPinchStarted(view, scaleOrigin);
+                        controller.SendPinch(view, scale, scaleOrigin);
+                        break;
+                    case GestureStatus.Running:
+                        controller.SendPinch(view, scale, scaleOrigin);
+                        break;
+                    case GestureStatus.Completed:
+                        controller.SendPinchEnded(view);
+                        break;
+                    case GestureStatus.Canceled:
+                        controller.SendPinchCanceled(view);
+                        break;
+                }
             }
             catch (Exception ex)
             {
@@ -861,6 +816,7 @@ public static class GestureManager
             }
         }
     }
+
 
     /// <summary>
     /// Checks if the view has a pinch gesture recognizer.
@@ -998,24 +954,12 @@ public static class GestureManager
 
             DiagnosticLog.Debug(Tag, $"Starting drag from {view.GetType().Name}");
 
-            object? result;
-            try
-            {
-                if (!InvokeGestureMethod(
-                        ref _sendDragStartingMethod,
-                        typeof(DragGestureRecognizer),
-                        "SendDragStarting",
-                        dragRecognizer,
-                        view,
-                        method => BuildAdaptiveArgs(method, view, x, y),
-                        out result))
-                    continue;
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error(Tag, "SendDragStarting failed", ex);
+            // SendDragStarting(View, Func<IElement?, Point?>, PlatformDragStartingEventArgs)
+            // raises DragStarting and returns its args; the platform args carry
+            // nothing on Linux.
+            if (!InvokeInternal(MauiInternals.SendDragStarting, dragRecognizer,
+                    new object?[] { view, CreatePositionResolver(x, y), null }, out var result))
                 continue;
-            }
 
             // SendDragStarting returns the DragStartingEventArgs — honor the
             // handler's cancellation, then feed the DataPackage into the
@@ -1042,6 +986,7 @@ public static class GestureManager
             if (DragDropService.Default.TryStartDrag(payload))
             {
                 DiagnosticLog.Debug(Tag, "Native drag session started");
+                WatchDragSession(view);
                 return true;
             }
 
@@ -1049,6 +994,42 @@ public static class GestureManager
         }
 
         return false;
+    }
+
+    private static View? s_dragSourceView;
+    private static bool s_dragSessionHooked;
+
+    /// <summary>
+    /// Remembers the drag source so DropCompleted reaches it when the native
+    /// session ends (Wayland dnd_finished/cancelled, X11 cleanup).
+    /// </summary>
+    internal static void WatchDragSession(View view)
+    {
+        s_dragSourceView = view;
+        if (s_dragSessionHooked) return;
+        s_dragSessionHooked = true;
+        DragDropService.Default.DragSessionEnded += (_, _) =>
+        {
+            var source = s_dragSourceView;
+            s_dragSourceView = null;
+            ProcessDropCompleted(source);
+        };
+    }
+
+    /// <summary>
+    /// Raises MAUI DropCompleted on the view's DragGestureRecognizers once the
+    /// native drag session that <see cref="StartDrag"/> began has ended
+    /// (dropped or cancelled). Never throws.
+    /// </summary>
+    public static void ProcessDropCompleted(View? view)
+    {
+        if (view?.GestureRecognizers == null) return;
+
+        foreach (var item in view.GestureRecognizers)
+        {
+            if (item is not DragGestureRecognizer dragRecognizer) continue;
+            InvokeInternal(MauiInternals.SendDropCompleted, dragRecognizer, new DropCompletedEventArgs());
+        }
     }
 
     // Conventional Properties keys — DataPackage in MAUI 10.0.90 exposes only
@@ -1223,16 +1204,10 @@ public static class GestureManager
 
     #region Incoming native DnD → DropGestureRecognizer adapter
 
-    // MAUI's DropGestureRecognizer plumbing is internal: SendDragOver /
-    // SendDragLeave / SendDrop, plus the DragEventArgs/DropEventArgs and
-    // DataPackageView construction paths, vary across versions. Everything
-    // below goes through the same cached-reflection machinery as the rest of
-    // this file and degrades to debug logs — it must NEVER throw into the
-    // input path.
-
-    private static ConstructorInfo? _controlsDragEventArgsCtor;
-    private static ConstructorInfo? _controlsDropEventArgsCtor;
-    private static PropertyInfo? _dataPackageViewProperty;
+    // DropGestureRecognizer.SendDragOver is public; SendDragLeave / SendDrop
+    // and the position-resolver constructors of DragEventArgs / DropEventArgs
+    // are internal and reached through MauiInternals. Everything below degrades
+    // to debug logs — it must NEVER throw into the input path.
 
     /// <summary>
     /// Conventional key under which dropped file paths are exposed on
@@ -1281,15 +1256,16 @@ public static class GestureManager
             var args = BuildControlsDragEventArgs(x, y);
             if (args == null) return null; // MAUI internals shifted — degrade gracefully
 
-            if (!InvokeGestureMethod(
-                    ref _sendDragOverMethod,
-                    typeof(DropGestureRecognizer),
-                    "SendDragOver",
-                    dropRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, x, y,
-                        (typeof(Microsoft.Maui.Controls.DragEventArgs), args))))
+            try
+            {
+                // Public API: raises DragOver and runs DragOverCommand.
+                dropRecognizer.SendDragOver(args);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error(Tag, "SendDragOver handler failed", ex);
                 continue;
+            }
 
             sawRecognizer = true;
             if (args.AcceptedOperation != DataPackageOperation.None)
@@ -1313,14 +1289,7 @@ public static class GestureManager
             var args = BuildControlsDragEventArgs(0, 0);
             if (args == null) return;
 
-            InvokeGestureMethod(
-                ref _sendDragLeaveMethod,
-                typeof(DropGestureRecognizer),
-                "SendDragLeave",
-                dropRecognizer,
-                view,
-                method => BuildAdaptiveArgs(method, view, 0, 0,
-                    (typeof(Microsoft.Maui.Controls.DragEventArgs), args)));
+            InvokeInternal(MauiInternals.SendDragLeave, dropRecognizer, args);
         }
     }
 
@@ -1344,15 +1313,7 @@ public static class GestureManager
             var dropArgs = BuildControlsDropEventArgs(x, y, text, filePaths);
             if (dropArgs == null) return;
 
-            if (!InvokeGestureMethod(
-                    ref _sendDropMethod,
-                    typeof(DropGestureRecognizer),
-                    "SendDrop",
-                    dropRecognizer,
-                    view,
-                    method => BuildAdaptiveArgs(method, view, x, y,
-                        (typeof(Microsoft.Maui.Controls.DropEventArgs), dropArgs)),
-                    out var result))
+            if (!InvokeInternal(MauiInternals.SendDrop, dropRecognizer, new object?[] { dropArgs }, out var result))
                 continue;
 
             if (result is System.Threading.Tasks.Task task)
@@ -1374,20 +1335,22 @@ public static class GestureManager
         return package;
     }
 
-    private static Microsoft.Maui.Controls.DragEventArgs? BuildControlsDragEventArgs(double x, double y)
+    /// <summary>
+    /// Builds Controls.DragEventArgs carrying a GetPosition resolver. The
+    /// payload isn't readable until drop on either backend, so over/leave args
+    /// carry an empty DataPackage. Falls back to the public constructor (no
+    /// position) when the internal one is unavailable.
+    /// </summary>
+    internal static Microsoft.Maui.Controls.DragEventArgs? BuildControlsDragEventArgs(double x, double y)
     {
         try
         {
-            // The payload isn't readable until drop on either backend, so the
-            // over/leave args carry an empty DataPackage.
             var package = BuildDataPackage(null, null);
-            _controlsDragEventArgsCtor ??= SelectCtor(typeof(Microsoft.Maui.Controls.DragEventArgs), typeof(DataPackage));
-            if (_controlsDragEventArgsCtor == null)
-            {
-                DiagnosticLog.Warn(Tag, "No usable Controls.DragEventArgs constructor found");
-                return null;
-            }
-            return (Microsoft.Maui.Controls.DragEventArgs?)InvokeCtorAdaptive(_controlsDragEventArgsCtor, package, x, y);
+            if (MauiInternals.DragEventArgsCtor != null)
+                return (Microsoft.Maui.Controls.DragEventArgs)MauiInternals.DragEventArgsCtor.Invoke(
+                    new object?[] { package, CreatePositionResolver(x, y), null });
+            DiagnosticLog.Warn(Tag, "DragEventArgs resolver constructor unavailable; positions will be null");
+            return new Microsoft.Maui.Controls.DragEventArgs(package);
         }
         catch (Exception ex)
         {
@@ -1396,80 +1359,28 @@ public static class GestureManager
         }
     }
 
-    private static Microsoft.Maui.Controls.DropEventArgs? BuildControlsDropEventArgs(double x, double y, string? text, string[]? filePaths)
+    /// <summary>
+    /// Builds Controls.DropEventArgs over a DataPackageView of the dropped text
+    /// and file paths, with a GetPosition resolver when MAUI's internal
+    /// constructor is available.
+    /// </summary>
+    internal static Microsoft.Maui.Controls.DropEventArgs? BuildControlsDropEventArgs(double x, double y, string? text, string[]? filePaths)
     {
         try
         {
             var package = BuildDataPackage(text, filePaths);
-
-            // DropEventArgs wants a DataPackageView; both its constructor and
-            // DataPackage.View are internal.
-            _dataPackageViewProperty ??= typeof(DataPackage).GetProperty(
-                "View", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            var packageView = _dataPackageViewProperty?.GetValue(package);
-            if (packageView == null)
-            {
-                DiagnosticLog.Warn(Tag, "DataPackage.View unavailable; drop not delivered to recognizer");
-                return null;
-            }
-
-            _controlsDropEventArgsCtor ??= SelectCtor(typeof(Microsoft.Maui.Controls.DropEventArgs), packageView.GetType());
-            if (_controlsDropEventArgsCtor == null)
-            {
-                DiagnosticLog.Warn(Tag, "No usable Controls.DropEventArgs constructor found");
-                return null;
-            }
-            return (Microsoft.Maui.Controls.DropEventArgs?)InvokeCtorAdaptive(_controlsDropEventArgsCtor, packageView, x, y);
+            var packageView = package.View;
+            if (MauiInternals.DropEventArgsCtor != null)
+                return (Microsoft.Maui.Controls.DropEventArgs)MauiInternals.DropEventArgsCtor.Invoke(
+                    new object?[] { packageView, CreatePositionResolver(x, y), null });
+            DiagnosticLog.Warn(Tag, "DropEventArgs resolver constructor unavailable; positions will be null");
+            return new Microsoft.Maui.Controls.DropEventArgs(packageView);
         }
         catch (Exception ex)
         {
             DiagnosticLog.Error(Tag, "BuildControlsDropEventArgs failed", ex);
             return null;
         }
-    }
-
-    // Pick a constructor whose first parameter accepts the payload type,
-    // PREFERRING one with a Func parameter — that's the GetPosition resolver
-    // slot (MAUI 10: DragEventArgs(DataPackage, Func<IElement, Point?>,
-    // PlatformDragEventArgs)); the resolver-less overload would silently lose
-    // positions. Among equals, fewest parameters wins.
-    private static ConstructorInfo? SelectCtor(Type type, Type firstArgType)
-    {
-        return type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(c =>
-            {
-                var p = c.GetParameters();
-                return p.Length > 0 && p[0].ParameterType.IsAssignableFrom(firstArgType);
-            })
-            .OrderByDescending(c => c.GetParameters().Any(p => p.ParameterType.Name.Contains("Func")))
-            .ThenBy(c => c.GetParameters().Length)
-            .FirstOrDefault();
-    }
-
-    // First param = payload; Func params get a position resolver; anything
-    // else gets null/default — the same adaptive shape BuildAdaptiveArgs uses.
-    private static object? InvokeCtorAdaptive(ConstructorInfo ctor, object firstArg, double x, double y)
-    {
-        var parameters = ctor.GetParameters();
-        var args = new object?[parameters.Length];
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            var pType = parameters[i].ParameterType;
-            if (i == 0)
-            {
-                args[i] = firstArg;
-            }
-            else if (pType.Name.Contains("Func"))
-            {
-                // Same shared GetPosition resolver as BuildAdaptiveArgs.
-                args[i] = CreateResolverForParameter(pType, x, y);
-            }
-            else
-            {
-                args[i] = pType.IsValueType ? Activator.CreateInstance(pType) : null;
-            }
-        }
-        return ctor.Invoke(args);
     }
 
     #endregion

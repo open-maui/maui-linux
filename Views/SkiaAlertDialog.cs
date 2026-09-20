@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// A modal alert dialog rendered with Skia.
 /// Supports title, message, and up to two buttons (cancel/accept).
 /// </summary>
-public class SkiaAlertDialog : SkiaView
+public class SkiaAlertDialog : SkiaModalDialog
 {
     private readonly string _title;
     private readonly string _message;
@@ -29,24 +29,6 @@ public class SkiaAlertDialog : SkiaView
     private SKRect _inputBounds;
     private const float InputHeight = 40;
 
-    // Dialog styling - theme-aware colors (evaluated at draw time)
-    private static SKColor OverlayColor => SkiaTheme.Overlay50SK;
-    private static SKColor DialogBackground => SkiaTheme.CurrentSurfaceSK;
-    private static SKColor TitleColor => SkiaTheme.CurrentTextSK;
-    private static SKColor MessageColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray400SK : SkiaTheme.TextSecondarySK;
-    private static SKColor ButtonColor => SkiaTheme.PrimarySK;
-    private static SKColor ButtonHoverColor => SkiaTheme.PrimaryDarkSK;
-    private static SKColor ButtonTextColor => SKColors.White;
-    private static SKColor CancelButtonColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray600SK : SkiaTheme.ButtonCancelSK;
-    private static SKColor CancelButtonHoverColor => SkiaTheme.IsDarkMode ? SkiaTheme.Gray700SK : SkiaTheme.ButtonCancelHoverSK;
-    private static SKColor BorderColor => SkiaTheme.CurrentBorderSK;
-
-    private const float DialogWidth = 400;
-    private const float DialogPadding = 24;
-    private const float ButtonHeight = 44;
-    private const float ButtonSpacing = 12;
-    private const float CornerRadius = 12;
-
     /// <summary>
     /// Creates a new alert dialog.
     /// </summary>
@@ -57,7 +39,6 @@ public class SkiaAlertDialog : SkiaView
         _accept = accept;
         _cancel = cancel;
         _tcs = new TaskCompletionSource<bool>();
-        IsFocusable = true;
     }
 
     /// <summary>
@@ -74,23 +55,35 @@ public class SkiaAlertDialog : SkiaView
     public string? Input => _input;
 
     /// <summary>
+    /// Maximum number of characters the prompt field accepts; -1 (default)
+    /// for unlimited. Typed and pasted text beyond the limit is dropped.
+    /// Mirrors <c>Page.DisplayPromptAsync(maxLength)</c>.
+    /// </summary>
+    public int MaxLength { get; set; } = -1;
+
+    /// <summary>
+    /// Hint text drawn in the prompt field while it is empty.
+    /// </summary>
+    public string? Placeholder { get; set; }
+
+    /// <summary>
     /// Gets the task that completes when the dialog is dismissed.
     /// Returns true if accept was clicked, false if cancel was clicked.
     /// </summary>
     public Task<bool> Result => _tcs.Task;
+
+    /// <summary>Bounds of the accept button as of the last draw (tests).</summary>
+    internal SKRect AcceptButtonBounds => _acceptButtonBounds;
+
+    /// <summary>Bounds of the cancel button as of the last draw (tests).</summary>
+    internal SKRect CancelButtonBounds => _cancelButtonBounds;
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         var app = Application.Current;
         DiagnosticLog.Debug("SkiaAlertDialog", $"OnDraw: app={app != null}, UserAppTheme={app?.UserAppTheme}, RequestedTheme={app?.RequestedTheme}, IsDarkMode={SkiaTheme.IsDarkMode}, DialogBg={DialogBackground}");
 
-        // Draw semi-transparent overlay covering entire screen
-        using var overlayPaint = new SKPaint
-        {
-            Color = OverlayColor,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, overlayPaint);
+        DrawOverlay(canvas, bounds);
 
         // Calculate dialog dimensions
         var messageLines = WrapText(_message, DialogWidth - DialogPadding * 2, 16);
@@ -100,25 +93,7 @@ public class SkiaAlertDialog : SkiaView
         var dialogTop = bounds.MidY - dialogHeight / 2;
         var dialogBounds = new SKRect(dialogLeft, dialogTop, dialogLeft + DialogWidth, dialogTop + dialogHeight);
 
-        // Draw dialog shadow
-        using var shadowPaint = new SKPaint
-        {
-            Color = SkiaTheme.Shadow25SK,
-            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 8),
-            Style = SKPaintStyle.Fill
-        };
-        var shadowRect = new SKRect(dialogBounds.Left + 4, dialogBounds.Top + 4,
-                                     dialogBounds.Right + 4, dialogBounds.Bottom + 4);
-        canvas.DrawRoundRect(shadowRect, CornerRadius, CornerRadius, shadowPaint);
-
-        // Draw dialog background
-        using var bgPaint = new SKPaint
-        {
-            Color = DialogBackground,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(dialogBounds, CornerRadius, CornerRadius, bgPaint);
+        DrawCard(canvas, dialogBounds);
 
         // Draw title
         var yOffset = dialogBounds.Top + DialogPadding;
@@ -173,7 +148,15 @@ public class SkiaAlertDialog : SkiaView
             canvas.Save();
             canvas.ClipRect(new SKRect(_inputBounds.Left + 4, _inputBounds.Top, _inputBounds.Right - 4, _inputBounds.Bottom));
             if (textWidth > maxWidth) textX -= textWidth - maxWidth;
-            canvas.DrawText(_input, textX, baseline, inputFont, inputPaint);
+            if (_input.Length == 0 && !string.IsNullOrEmpty(Placeholder))
+            {
+                using var placeholderPaint = new SKPaint { Color = MessageColor, IsAntialias = true };
+                canvas.DrawText(Placeholder, textX, baseline, inputFont, placeholderPaint);
+            }
+            else
+            {
+                canvas.DrawText(_input, textX, baseline, inputFont, inputPaint);
+            }
             using var caretPaint = new SKPaint { Color = TitleColor, StrokeWidth = 1.5f, IsAntialias = true };
             float caretX = textX + textWidth + 1;
             canvas.DrawLine(caretX, _inputBounds.MidY - 10, caretX, _inputBounds.MidY + 10, caretPaint);
@@ -232,33 +215,6 @@ public class SkiaAlertDialog : SkiaView
         }
     }
 
-    private void DrawButton(SKCanvas canvas, SKRect bounds, string text, SKColor bgColor)
-    {
-        // Button background
-        using var bgPaint = new SKPaint
-        {
-            Color = bgColor,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRoundRect(bounds, 8, 8, bgPaint);
-
-        // Button text
-        using var font = SkiaFontFactory.Create(16);
-        font.Embolden = true;
-        using var textPaint = new SKPaint
-        {
-            Color = ButtonTextColor,
-            IsAntialias = true
-        };
-
-        font.MeasureText(text, out var textBounds);
-
-        var x = bounds.MidX - textBounds.MidX;
-        var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
-        canvas.DrawText(text, x, y, font, textPaint);
-    }
-
     private float CalculateDialogHeight(int messageLineCount)
     {
         var height = DialogPadding * 2; // Top and bottom padding
@@ -275,39 +231,6 @@ public class SkiaAlertDialog : SkiaView
         height += ButtonHeight; // Buttons
 
         return Math.Max(height, 180); // Minimum height
-    }
-
-    private List<string> WrapText(string text, float maxWidth, float fontSize)
-    {
-        var lines = new List<string>();
-        if (string.IsNullOrEmpty(text))
-            return lines;
-
-        using var font = SkiaFontFactory.Create(fontSize);
-
-        var words = text.Split(' ');
-        var currentLine = "";
-
-        foreach (var word in words)
-        {
-            var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
-            var width = font.MeasureText(testLine);
-
-            if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
-            {
-                lines.Add(currentLine);
-                currentLine = word;
-            }
-            else
-            {
-                currentLine = testLine;
-            }
-        }
-
-        if (!string.IsNullOrEmpty(currentLine))
-            lines.Add(currentLine);
-
-        return lines;
     }
 
     public override void OnPointerMoved(PointerEventArgs e)
@@ -342,9 +265,26 @@ public class SkiaAlertDialog : SkiaView
     public override void OnTextInput(TextInputEventArgs e)
     {
         if (_input == null || string.IsNullOrEmpty(e.Text)) return;
-        _input += e.Text;
+        AppendInput(e.Text);
         e.Handled = true;
         Invalidate();
+    }
+
+    /// <summary>
+    /// Appends text to the prompt field, truncating at <see cref="MaxLength"/>
+    /// when a limit is set.
+    /// </summary>
+    private void AppendInput(string text)
+    {
+        if (_input == null) return;
+        if (MaxLength >= 0)
+        {
+            int room = MaxLength - _input.Length;
+            if (room <= 0) return;
+            if (text.Length > room)
+                text = text.Substring(0, room);
+        }
+        _input += text;
     }
 
     public override void OnKeyDown(KeyEventArgs e)
@@ -365,7 +305,7 @@ public class SkiaAlertDialog : SkiaView
             {
                 var text = SystemClipboard.GetText();
                 if (!string.IsNullOrEmpty(text))
-                    _input += text.Replace("\n", " ").Replace("\r", string.Empty);
+                    AppendInput(text.Replace("\n", " ").Replace("\r", string.Empty));
                 e.Handled = true;
                 Invalidate();
                 return;
@@ -380,11 +320,20 @@ public class SkiaAlertDialog : SkiaView
             return;
         }
 
-        // Handle Enter to accept
-        if (e.Key == Key.Enter && _accept != null)
+        // Handle Enter to accept; on a single-button alert (cancel only, the
+        // DisplayAlert(title, message, cancel) form) Enter dismisses it.
+        if (e.Key == Key.Enter)
         {
-            Dismiss(true);
-            e.Handled = true;
+            if (_accept != null)
+            {
+                Dismiss(true);
+                e.Handled = true;
+            }
+            else if (_cancel != null)
+            {
+                Dismiss(false);
+                e.Handled = true;
+            }
             return;
         }
     }
@@ -392,19 +341,7 @@ public class SkiaAlertDialog : SkiaView
     private void Dismiss(bool result)
     {
         // Remove from dialog system
-        LinuxDialogService.HideDialog(this);
+        Hide();
         _tcs.TrySetResult(result);
-    }
-
-    protected override Size MeasureOverride(Size availableSize)
-    {
-        // Dialog takes full screen for the overlay
-        return availableSize;
-    }
-
-    public override SkiaView? HitTest(float x, float y)
-    {
-        // Modal dialogs capture all input
-        return this;
     }
 }

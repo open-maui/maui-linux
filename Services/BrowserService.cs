@@ -38,29 +38,30 @@ public class BrowserService : IBrowser
 
         try
         {
-            var uriString = uri.AbsoluteUri;
-
-            // Use xdg-open which respects user's default browser
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "xdg-open",
-                Arguments = $"\"{uriString}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null)
-                return false;
-
-            await process.WaitForExitAsync();
-            return process.ExitCode == 0;
+            var exitCode = await ExternalProcess.RunAsync(BuildStartInfo(uri));
+            return exitCode == 0;
         }
         catch
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// xdg-open invocation for the URI (absolute form, passed as one argument)
+    /// so the user's default browser is respected.
+    /// </summary>
+    internal static ProcessStartInfo BuildStartInfo(Uri uri)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "xdg-open",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add(uri.AbsoluteUri);
+        return startInfo;
     }
 }

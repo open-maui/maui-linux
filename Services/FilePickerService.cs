@@ -148,7 +148,11 @@ public class FilePickerService : IFilePicker
         });
     }
 
-    private string BuildZenityArguments(PickOptions? options, bool multiple)
+    /// <summary>
+    /// zenity --file-selection argument string. File types come from the shared
+    /// FilePickerFileType mapping (one --file-filter glob per extension).
+    /// </summary>
+    internal static string BuildZenityArguments(PickOptions? options, bool multiple)
     {
         var sb = new StringBuilder("--file-selection");
 
@@ -158,19 +162,19 @@ public class FilePickerService : IFilePicker
         if (!string.IsNullOrEmpty(options?.PickerTitle))
             sb.Append($" --title=\"{EscapeArgument(options.PickerTitle)}\"");
 
-        if (options?.FileTypes != null)
+        foreach (var extension in PortalFilePickerService.GetExtensionsFromFileType(options?.FileTypes))
         {
-            foreach (var ext in options.FileTypes.Value)
-            {
-                var extension = ext.StartsWith(".") ? ext : $".{ext}";
-                sb.Append($" --file-filter='*{extension}'");
-            }
+            sb.Append($" --file-filter='*{extension}'");
         }
 
         return sb.ToString();
     }
 
-    private string BuildKdialogArguments(PickOptions? options, bool multiple)
+    /// <summary>
+    /// kdialog --getopenfilename argument string: start directory, then one
+    /// space-separated glob list for all extensions.
+    /// </summary>
+    internal static string BuildKdialogArguments(PickOptions? options, bool multiple)
     {
         var sb = new StringBuilder("--getopenfilename");
 
@@ -179,14 +183,10 @@ public class FilePickerService : IFilePicker
 
         sb.Append(" .");
 
-        if (options?.FileTypes != null)
+        var extensions = string.Join(" ", PortalFilePickerService.GetExtensionsFromFileType(options?.FileTypes).Select(e => $"*{e}"));
+        if (!string.IsNullOrEmpty(extensions))
         {
-            var extensions = string.Join(" ", options.FileTypes.Value.Select(e =>
-                e.StartsWith(".") ? $"*{e}" : $"*.{e}"));
-            if (!string.IsNullOrEmpty(extensions))
-            {
-                sb.Append($" \"{extensions}\"");
-            }
+            sb.Append($" \"{extensions}\"");
         }
 
         if (!string.IsNullOrEmpty(options?.PickerTitle))

@@ -62,13 +62,17 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         platformView.FlyoutIsPresentedChanged += OnFlyoutIsPresentedChanged;
         platformView.Navigated += OnNavigated;
 
-        // Store reference to MAUI Shell for callbacks
-        platformView.MauiShell = VirtualView;
-
         // Set up content renderer and theme callbacks
         platformView.ContentRenderer = RenderShellContent;
+        platformView.PageRenderer = RenderPushedPage;
         platformView.ColorRefresher = RefreshShellColors;
         platformView.IconSyncer = SyncFlyoutIcons;
+
+        // Store reference to MAUI Shell for callbacks. This also attaches
+        // SkiaShell's navigation mirror (Navigated + per-section
+        // NavigationRequested), so MAUI's ShellNavigationManager stays the
+        // single router: it applies query attributes and raises the events.
+        platformView.MauiShell = VirtualView;
 
         // Sync colors immediately (styles may have already applied)
         if (VirtualView != null)
@@ -76,14 +80,16 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
             RefreshShellColors(platformView, VirtualView);
         }
 
-        // Subscribe to Shell navigation events
         if (VirtualView != null)
         {
             VirtualView.Navigating += OnShellNavigating;
             VirtualView.Navigated += OnShellNavigated;
 
-            // Initial sync of shell items
+            // Initial sync of shell items, then align with whatever MAUI
+            // already considers current (CurrentItem may have been set, or a
+            // navigation may have run, before the handler was created).
             SyncShellItems();
+            platformView.SyncFromMauiShell();
         }
     }
 
@@ -93,6 +99,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         platformView.Navigated -= OnNavigated;
         platformView.MauiShell = null;
         platformView.ContentRenderer = null;
+        platformView.PageRenderer = null;
         platformView.ColorRefresher = null;
         platformView.IconSyncer = null;
 
@@ -103,6 +110,29 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
         }
 
         base.DisconnectHandler(platformView);
+    }
+
+    /// <summary>
+    /// Platform view for a page MAUI pushed onto a section stack; the
+    /// existing handler is reused so a page keeps its live view across
+    /// re-syncs (section switches and back).
+    /// </summary>
+    private SkiaView? RenderPushedPage(Page page)
+    {
+        if (page.Handler?.PlatformView is SkiaView existing)
+            return existing;
+        if (MauiContext is null) return null;
+
+        try
+        {
+            page.Handler = page.ToViewHandler(MauiContext);
+            return page.Handler?.PlatformView as SkiaView;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("ShellHandler", $"Rendering pushed page {page.GetType().Name} failed", ex);
+            return null;
+        }
     }
 
     private void OnFlyoutIsPresentedChanged(object? sender, EventArgs e)
@@ -127,20 +157,14 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
     private void OnShellNavigating(object? sender, ShellNavigatingEventArgs e)
     {
-        DiagnosticLog.Debug("ShellHandler", $"Shell Navigating to: {e.Target?.Location}");
-
-        // Route to platform view
-        if (PlatformView != null && e.Target?.Location != null)
-        {
-            var route = e.Target.Location.ToString().TrimStart('/');
-            DiagnosticLog.Debug("ShellHandler", $"Routing to: {route}");
-            PlatformView.GoToAsync(route);
-        }
+        // MAUI resolves the target itself; the platform follows in Navigated
+        // (and per-section NavigationRequested) via SkiaShell.SyncFromMauiShell.
+        DiagnosticLog.Debug("ShellHandler", $"Shell Navigating to: {e.Target?.Location} (source {e.Source})");
     }
 
     private void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
     {
-        DiagnosticLog.Debug("ShellHandler", $"Shell Navigated to: {e.Current?.Location}");
+        DiagnosticLog.Debug("ShellHandler", $"Shell Navigated to: {e.Current?.Location} (source {e.Source})");
     }
 
     private void SyncShellItems()
@@ -478,35 +502,28 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
 
     public static void MapCurrentItem(ShellHandler handler, Shell shell)
     {
-        if (handler.PlatformView is null) return;
-
-        // Sync current item selection
-        var currentItem = shell.CurrentItem;
-        if (currentItem != null)
-        {
-            // Find matching section index
-            for (int i = 0; i < handler.PlatformView.Sections.Count; i++)
-            {
-                var section = handler.PlatformView.Sections[i];
-                if (section.Route == (currentItem.Route ?? currentItem.Title))
-                {
-                    handler.PlatformView.NavigateToSection(i);
-                    break;
-                }
-            }
-        }
+        // The platform mirrors MAUI's current item/section/content (and the
+        // section's page stack) in one place.
+        handler.PlatformView?.SyncFromMauiShell();
     }
 
     public static void MapTitle(ShellHandler handler, Shell shell)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Title = shell.Title ?? "";
+
+        // The navigation bar shows the presented page's title (set by
+        // SkiaShell on every navigation); Shell.Title is the window title and
+        // only fills in while nothing is presented.
+        if (handler.PlatformView.Sections.Count == 0)
+            handler.PlatformView.Title = shell.Title ?? "";
     }
 
     public static void MapGoToAsync(ShellHandler handler, Shell shell, object? args)
     {
         if (handler.PlatformView is null || args is null) return;
 
+        // SkiaShell forwards to Shell.GoToAsync when a MAUI Shell is attached,
+        // so MAUI resolves the route and applies query attributes.
         if (args is ShellNavigationState state)
         {
             handler.PlatformView.GoToAsync(state.Location.ToString());
