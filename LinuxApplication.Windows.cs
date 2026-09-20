@@ -98,10 +98,11 @@ public partial class LinuxApplication
             // windows pump independently in the shared run loop.
             var native = DisplayServerFactory.CreateWindow(title, width, height);
 
-            var engine = new SkiaRenderingEngine(native)
+            var engine = new SkiaRenderingEngine(native, RenderTargetFactory.Create(native, _rendererPreference))
             {
                 DpiScale = DpiScale,
             };
+            LogRenderer(engine.RenderTarget);
 
             ctx = AttachWindowContext(native, engine, raisesMauiLifecycle: true);
             ctx.MauiWindow = window;

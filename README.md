@@ -180,6 +180,23 @@ builder
 
 Native Wayland uses xdg-shell + wp_viewporter for fractional-scale rendering and ssd via zxdg_decoration_manager_v1. The X11 path remains the default fallback and is fully supported. Environment overrides (`MAUI_PREFER_X11=1`, `GDK_BACKEND=x11`) still work and take effect before the builder runs.
 
+## Rendering (GPU / raster)
+
+Frames are rasterised by Skia's OpenGL ES backend and presented through EGL: zero-copy `eglSwapBuffers` on native Wayland, DRI3/Present on X11. When EGL cannot be initialised (no `libEGL`, software-only drivers, headless CI) the platform falls back to the CPU raster path automatically, so an app always renders.
+
+```csharp
+builder.UseLinux(options => options.Renderer = RendererPreference.Raster); // Auto (default) | Gpu | Raster
+```
+
+Environment overrides, useful for A/B checks and bug reports:
+
+```bash
+OPENMAUI_RENDERER=raster ./MyApp      # force the CPU path (gpu | raster | auto)
+OPENMAUI_RENDER_STATS=1 ./MyApp       # print rendered FPS and avg/p50/p95/p99/max frame time every 2 s
+```
+
+The chosen renderer is logged at startup, e.g. `Renderer: egl-wayland (EGL 1.5 Mesa Project; Mesa Intel(R) UHD Graphics)`. Measured on video playback at 1400x1050 on Mesa/Intel, the GPU path renders a frame in 1.47 ms average (p99 under 4 ms) against 3.55 ms (p99 7-10 ms) for raster.
+
 ## Supported Controls
 
 | Category | Controls |
@@ -425,8 +442,12 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 ### Up next
 
-- [ ] Multi-window round-out — per-window `WindowHandler` (live title/page updates), DnD onto secondary windows, window positioning
-- [ ] Hardware video decode zero-copy — explicit pipeline construction for direct compositor-surface playback (`Prefer` mode already covers decoder selection)
+OpenMaui is the Wayland-first, self-rendered Linux platform for .NET MAUI, with X11 compatibility rather than GTK as its architectural foundation. The next releases build on that (full detail in [docs/ROADMAP.md](docs/ROADMAP.md)):
+
+- [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2). Remaining: runtime scale change, hardware video zero-copy, explicit DMA-BUF and Vulkan, the full benchmark suite
+- [ ] **Phase 2: WPE WebKit WebView and BlazorWebView** — `BlazorWebView` first on the existing WebKitGTK path, then a WPEPlatform (WPE WebKit 2.54) embedder that composites web frames as Skia textures inside the platform's own render tree, identical on Wayland and X11, with a Fedora distribution answer (COPR / bundling)
+- [ ] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a per-release compatibility scorecard, third-party library compatibility as a KPI
+- [ ] `openmaui doctor`, native D-Bus xdg-desktop-portal layer, deb/rpm output, multi-window round-out
 
 ## License
 
