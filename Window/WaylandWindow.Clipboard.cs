@@ -500,7 +500,10 @@ public partial class WaylandWindow
         if (window._ownedDataSource == source)
             window._ownedDataSource = IntPtr.Zero;
         if (window._activeDragSource == source)
+        {
             window._activeDragSource = IntPtr.Zero;
+            RaiseDragSessionEnded(dropped: false);
+        }
     }
 
     // Successful-drag terminal event; see the listener wiring comment above.
@@ -512,7 +515,23 @@ public partial class WaylandWindow
 
         window.DestroySource(source);
         if (window._activeDragSource == source)
+        {
             window._activeDragSource = IntPtr.Zero;
+            RaiseDragSessionEnded(dropped: true);
+        }
+    }
+
+    /// <summary>
+    /// Raised on the UI thread when an outgoing drag that
+    /// <see cref="TryStartDrag(DragPayload)"/> began has ended: dropped
+    /// (<c>dnd_finished</c>) or cancelled. The argument is true for a drop.
+    /// </summary>
+    public static event Action<bool>? DragSessionEnded;
+
+    private static void RaiseDragSessionEnded(bool dropped)
+    {
+        try { DragSessionEnded?.Invoke(dropped); }
+        catch (Exception ex) { DiagnosticLog.Error("WaylandWindow", "DragSessionEnded handler failed", ex); }
     }
 
     private void DestroySource(IntPtr source)

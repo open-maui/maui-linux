@@ -94,6 +94,10 @@ public static class SkiaVisualStateManager
     /// <returns>True if the state was found and applied, false otherwise.</returns>
     public static bool GoToState(SkiaView view, string stateName)
     {
+        // Let observers (the MAUI VisualStateManager bridge) follow the
+        // control's interaction state even when no Skia-side groups exist.
+        view.RaiseVisualStateRequested(stateName);
+
         var groups = GetVisualStateGroups(view);
         if (groups == null || groups.Count == 0)
             return false;

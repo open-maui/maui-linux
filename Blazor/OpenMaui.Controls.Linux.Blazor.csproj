@@ -8,7 +8,7 @@
     <RootNamespace>Microsoft.Maui.Platform.Linux.Blazor</RootNamespace>
     <AssemblyName>OpenMaui.Controls.Linux.Blazor</AssemblyName>
     <PackageId>OpenMaui.Controls.Linux.Blazor</PackageId>
-    <Version>10.0.101.2</Version>
+    <Version>10.0.101.3</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui BlazorWebView (Linux)</Product>

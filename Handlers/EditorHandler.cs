@@ -58,6 +58,7 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
     protected override void ConnectHandler(SkiaEditor platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TextChanged += OnTextChanged;
         platformView.Completed += OnCompleted;
     }
@@ -66,6 +67,7 @@ public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
     {
         platformView.TextChanged -= OnTextChanged;
         platformView.Completed -= OnCompleted;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

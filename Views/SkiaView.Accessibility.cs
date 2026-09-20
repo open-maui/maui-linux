@@ -216,6 +216,18 @@ public abstract partial class SkiaView
     public string? SemanticHint { get; set; }
 
     /// <summary>
+    /// Gets or sets the heading level from <c>SemanticProperties.HeadingLevel</c>
+    /// (<see cref="SemanticHeadingLevel.None"/> when the view is not a heading).
+    /// </summary>
+    public SemanticHeadingLevel SemanticHeadingLevel { get; set; } = SemanticHeadingLevel.None;
+
+    /// <summary>
+    /// Gets or sets whether the view is exposed to assistive technology
+    /// (<c>AutomationProperties.IsInAccessibleTree</c>). Null means unspecified.
+    /// </summary>
+    public bool? IsInAccessibleTree { get; set; }
+
+    /// <summary>
     /// Gets the accessibility service instance.
     /// </summary>
     protected static IAccessibilityService? AccessibilityService

@@ -36,6 +36,17 @@ public class SkiaLine : SkiaView
         BindableProperty.Create(nameof(StrokeThickness), typeof(double), typeof(SkiaLine), 1.0,
             propertyChanged: (b, o, n) => ((SkiaLine)b).Invalidate());
 
+    public static readonly BindableProperty StrokeDashArrayProperty =
+        BindableProperty.Create(nameof(StrokeDashArray), typeof(DoubleCollection), typeof(SkiaLine), null,
+            propertyChanged: (b, o, n) => ((SkiaLine)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashOffsetProperty =
+        BindableProperty.Create(nameof(StrokeDashOffset), typeof(double), typeof(SkiaLine), 0.0,
+            propertyChanged: (b, o, n) => ((SkiaLine)b).Invalidate());
+
+    public DoubleCollection? StrokeDashArray { get => (DoubleCollection?)GetValue(StrokeDashArrayProperty); set => SetValue(StrokeDashArrayProperty, value); }
+    public double StrokeDashOffset { get => (double)GetValue(StrokeDashOffsetProperty); set => SetValue(StrokeDashOffsetProperty, value); }
+
     public double X1 { get => (double)GetValue(X1Property); set => SetValue(X1Property, value); }
     public double Y1 { get => (double)GetValue(Y1Property); set => SetValue(Y1Property, value); }
     public double X2 { get => (double)GetValue(X2Property); set => SetValue(X2Property, value); }
@@ -56,7 +67,12 @@ public class SkiaLine : SkiaView
             IsAntialias = true,
             StrokeCap = SKStrokeCap.Round,
         };
-        canvas.DrawLine((float)X1, (float)Y1, (float)X2, (float)Y2, paint);
+        ShapeDashing.Apply(paint, StrokeDashArray, StrokeDashOffset, StrokeThickness);
+
+        // Points are in the shape's own coordinate space; Bounds are absolute.
+        canvas.DrawLine(
+            bounds.Left + (float)X1, bounds.Top + (float)Y1,
+            bounds.Left + (float)X2, bounds.Top + (float)Y2, paint);
     }
 
     protected override Size MeasureOverride(Size availableSize)

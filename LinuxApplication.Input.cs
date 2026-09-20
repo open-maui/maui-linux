@@ -36,6 +36,12 @@ public partial class LinuxApplication
 
     private void UpdateAnimations()
     {
+        // Fire MAUI's animation ticker(s) (FadeTo, Animation.Commit, ...) for
+        // the native X11/Wayland loop; in GTK mode the ticker runs off a GLib
+        // timeout instead. Runs before Render so this frame picks up the new
+        // property values.
+        Hosting.LinuxTicker.PumpAll();
+
         // Update cursor blink for text input controls in every window.
         for (int i = 0; i < WindowContexts.Count; i++)
             WindowContexts[i].UpdateAnimations();
@@ -74,6 +80,20 @@ public partial class LinuxApplication
             surface.Canvas.Clear(bgColor);
             DiagnosticLog.Debug("LinuxApplication", "Drawing rootView...");
             rootView.Draw(surface.Canvas);
+
+            // Modal pages (Navigation.PushModalAsync) stack above the root.
+            var modalViews = PrimaryContext?.ModalViews;
+            if (modalViews != null)
+            {
+                for (int i = 0; i < modalViews.Count; i++)
+                {
+                    var layer = modalViews[i];
+                    layer.Measure(new Microsoft.Maui.Graphics.Size(surface.Width, surface.Height));
+                    layer.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, surface.Width, surface.Height));
+                    layer.Draw(surface.Canvas);
+                }
+            }
+
             DiagnosticLog.Debug("LinuxApplication", "Drawing dialogs...");
             var bounds = new SKRect(0, 0, surface.Width, surface.Height);
             LinuxDialogService.DrawDialogs(surface.Canvas, bounds);
@@ -112,13 +132,13 @@ public partial class LinuxApplication
         }
 
         var ctx = PrimaryContext;
-        if (ctx?.RootView == null)
+        if (ctx?.InputRoot == null)
         {
             DiagnosticLog.Warn("LinuxApplication", "GTK root view is null!");
             return;
         }
 
-        var hitView = ctx.RootView.HitTest((float)e.X, (float)e.Y);
+        var hitView = ctx.InputRoot.HitTest((float)e.X, (float)e.Y);
         DiagnosticLog.Debug("LinuxApplication", $"GTK HitView: {hitView?.GetType().Name ?? "null"}");
 
         if (hitView != null)
@@ -153,7 +173,7 @@ public partial class LinuxApplication
         }
 
         var ctx = PrimaryContext;
-        if (ctx?.RootView == null) return;
+        if (ctx?.InputRoot == null) return;
 
         if (ctx.CapturedView != null)
         {
@@ -168,7 +188,7 @@ public partial class LinuxApplication
         }
         else
         {
-            var hitView = ctx.RootView.HitTest((float)e.X, (float)e.Y);
+            var hitView = ctx.InputRoot.HitTest((float)e.X, (float)e.Y);
             if (hitView != null)
             {
                 var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
@@ -199,7 +219,7 @@ public partial class LinuxApplication
         }
 
         var ctx = PrimaryContext;
-        if (ctx?.RootView == null) return;
+        if (ctx?.InputRoot == null) return;
 
         if (ctx.CapturedView != null)
         {
@@ -209,7 +229,7 @@ public partial class LinuxApplication
             return;
         }
 
-        var hitView = ctx.RootView.HitTest((float)e.X, (float)e.Y);
+        var hitView = ctx.InputRoot.HitTest((float)e.X, (float)e.Y);
         if (hitView != ctx.HoveredView)
         {
             var args = new PointerEventArgs((float)e.X, (float)e.Y);
@@ -272,7 +292,7 @@ public partial class LinuxApplication
 
     private void OnGtkScrolled(object? sender, (double X, double Y, double DeltaX, double DeltaY, uint State) e)
     {
-        var rootView = RootView;
+        var rootView = PrimaryContext?.InputRoot;
         if (rootView == null) return;
 
         // Convert GDK state to KeyModifiers
@@ -399,7 +419,7 @@ public partial class LinuxApplication
     /// </summary>
     private View? ResolveDropTarget(int physicalX, int physicalY)
     {
-        var rootView = RootView;
+        var rootView = PrimaryContext?.InputRoot;
         if (rootView == null) return null;
         float x = ToLogical(physicalX);
         float y = ToLogical(physicalY) - CsdPointerInsetLogical;

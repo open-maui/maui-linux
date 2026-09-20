@@ -26,6 +26,17 @@ public class SecureStorageService : ISecureStorage
         _useSecretService = CheckSecretServiceAvailable();
     }
 
+    /// <summary>
+    /// Creates a store with an explicit fallback directory and backend choice
+    /// (tests, hosts without a keyring). <paramref name="useSecretService"/>
+    /// true still requires <c>secret-tool</c> on PATH at call time.
+    /// </summary>
+    internal SecureStorageService(string fallbackPath, bool useSecretService)
+    {
+        _fallbackPath = fallbackPath;
+        _useSecretService = useSecretService && CheckSecretServiceAvailable();
+    }
+
     private bool CheckSecretServiceAvailable()
     {
         try

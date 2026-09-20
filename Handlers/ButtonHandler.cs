@@ -50,6 +50,7 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
         platformView.Clicked += OnClicked;
         platformView.Pressed += OnPressed;
         platformView.Released += OnReleased;
+        VisualStateBridge.Attach(VirtualView, platformView);
 
         // Manually map all properties on connect since MAUI may not trigger updates
         // for properties that were set before handler connection
@@ -83,6 +84,7 @@ public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
         platformView.Clicked -= OnClicked;
         platformView.Pressed -= OnPressed;
         platformView.Released -= OnReleased;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

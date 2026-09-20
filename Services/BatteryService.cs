@@ -1,7 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
+using System.Globalization;
 using Microsoft.Maui.Devices;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -11,14 +11,16 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class BatteryService : IBattery
 {
-    private const string PowerSupplyPath = "/sys/class/power_supply";
+    private static string PowerSupplyPath => Sysfs.PathOf("class", "power_supply");
 
     public double ChargeLevel
     {
         get
         {
-            var capacity = ReadSysFile("capacity");
-            return double.TryParse(capacity, out var level) ? level / 100.0 : 1.0;
+            var capacity = ReadBatteryFile("capacity")?.Trim();
+            return double.TryParse(capacity, NumberStyles.Float, CultureInfo.InvariantCulture, out var level)
+                ? Math.Clamp(level / 100.0, 0.0, 1.0)
+                : 1.0;
         }
     }
 
@@ -26,7 +28,7 @@ public class BatteryService : IBattery
     {
         get
         {
-            var status = ReadSysFile("status")?.Trim().ToLowerInvariant();
+            var status = ReadBatteryFile("status")?.Trim().ToLowerInvariant();
             return status switch
             {
                 "charging" => BatteryState.Charging,
@@ -42,8 +44,16 @@ public class BatteryService : IBattery
     {
         get
         {
-            var status = ReadSysFile("status")?.Trim().ToLowerInvariant();
-            return status is "charging" or "full" ? BatteryPowerSource.AC : BatteryPowerSource.Battery;
+            var status = ReadBatteryFile("status")?.Trim().ToLowerInvariant();
+            if (status is "charging" or "full")
+                return BatteryPowerSource.AC;
+
+            // No battery at all (desktop) or a mains supply reporting online:
+            // the machine is wall-powered.
+            if (status == null || MainsOnline())
+                return BatteryPowerSource.AC;
+
+            return BatteryPowerSource.Battery;
         }
     }
 
@@ -52,15 +62,23 @@ public class BatteryService : IBattery
     public event EventHandler<BatteryInfoChangedEventArgs>? BatteryInfoChanged;
     public event EventHandler<EnergySaverStatusChangedEventArgs>? EnergySaverStatusChanged;
 
-    private static string? ReadSysFile(string fileName)
+    /// <summary>Reads a node from the first supply whose type is "Battery".</summary>
+    private static string? ReadBatteryFile(string fileName)
+        => ReadSupplyFile("Battery", fileName);
+
+    private static bool MainsOnline()
+        => ReadSupplyFile("Mains", "online")?.Trim() == "1";
+
+    private static string? ReadSupplyFile(string supplyType, string fileName)
     {
         try
         {
-            if (!Directory.Exists(PowerSupplyPath)) return null;
-            foreach (var dir in Directory.GetDirectories(PowerSupplyPath))
+            var root = PowerSupplyPath;
+            if (!Directory.Exists(root)) return null;
+            foreach (var dir in Directory.GetDirectories(root).OrderBy(d => d, StringComparer.Ordinal))
             {
                 var typePath = Path.Combine(dir, "type");
-                if (File.Exists(typePath) && File.ReadAllText(typePath).Trim() == "Battery")
+                if (File.Exists(typePath) && File.ReadAllText(typePath).Trim() == supplyType)
                 {
                     var filePath = Path.Combine(dir, fileName);
                     if (File.Exists(filePath))

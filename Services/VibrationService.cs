@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Globalization;
 using Microsoft.Maui.Devices;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -10,7 +11,9 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class VibrationService : IVibration
 {
-    public bool IsSupported => File.Exists("/sys/class/leds/vibrator/trigger");
+    internal static string VibratorPath => Sysfs.PathOf("class", "leds", "vibrator");
+
+    public bool IsSupported => File.Exists(Path.Combine(VibratorPath, "trigger"));
 
     public void Vibrate() => Vibrate(TimeSpan.FromMilliseconds(500));
 
@@ -18,10 +21,12 @@ public class VibrationService : IVibration
     {
         try
         {
-            if (File.Exists("/sys/class/leds/vibrator/duration"))
+            var durationPath = Path.Combine(VibratorPath, "duration");
+            if (File.Exists(durationPath))
             {
-                File.WriteAllText("/sys/class/leds/vibrator/duration", ((int)duration.TotalMilliseconds).ToString());
-                File.WriteAllText("/sys/class/leds/vibrator/activate", "1");
+                var ms = Math.Max(0, (int)duration.TotalMilliseconds);
+                File.WriteAllText(durationPath, ms.ToString(CultureInfo.InvariantCulture));
+                File.WriteAllText(Path.Combine(VibratorPath, "activate"), "1");
             }
         }
         catch { }
@@ -31,8 +36,9 @@ public class VibrationService : IVibration
     {
         try
         {
-            if (File.Exists("/sys/class/leds/vibrator/activate"))
-                File.WriteAllText("/sys/class/leds/vibrator/activate", "0");
+            var activatePath = Path.Combine(VibratorPath, "activate");
+            if (File.Exists(activatePath))
+                File.WriteAllText(activatePath, "0");
         }
         catch { }
     }
