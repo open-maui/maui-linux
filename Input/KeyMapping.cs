@@ -128,6 +128,40 @@ public static class KeyMapping
         return Key.Unknown;
     }
 
+    private static readonly Lazy<Dictionary<Key, int>> s_keyToKeysym = new(() =>
+    {
+        var map = new Dictionary<Key, int>();
+        foreach (var kv in KeysymToKey)
+            map.TryAdd(kv.Value, kv.Key); // first (left-hand) variant wins
+        return map;
+    });
+
+    /// <summary>
+    /// True for keys that produce text (letters, digits, space, numpad digits):
+    /// their characters arrive through TextInput, with IME composition applied.
+    /// </summary>
+    public static bool IsPrintable(Key key)
+        => (key >= Key.A && key <= Key.Z) || (key >= Key.D0 && key <= Key.D9)
+           || (key >= Key.NumPad0 && key <= Key.NumPad9) || key == Key.Space;
+
+    /// <summary>
+    /// Converts a MAUI Key back to an X11 keysym (0 when unknown). Letters map
+    /// to their lower-case keysym, or upper-case when <paramref name="shifted"/>.
+    /// Used to feed embedded engines (WPE WebKit) that consume keysyms.
+    /// </summary>
+    public static uint ToKeysym(Key key, bool shifted)
+    {
+        if (key >= Key.A && key <= Key.Z)
+            return (uint)((shifted ? 'A' : 'a') + (key - Key.A));
+        if (key >= Key.D0 && key <= Key.D9)
+            return (uint)('0' + (key - Key.D0));
+        if (key >= Key.NumPad0 && key <= Key.NumPad9)
+            return 0xffb0u + (uint)(key - Key.NumPad0);
+        if (key == Key.Space)
+            return 0x20;
+        return s_keyToKeysym.Value.TryGetValue(key, out var sym) ? (uint)sym : 0u;
+    }
+
     /// <summary>
     /// Gets the keysym from X11 keycode.
     /// </summary>
