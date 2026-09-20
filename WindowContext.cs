@@ -3,6 +3,8 @@
 
 using System;
 using Microsoft.Maui.Platform.Linux.Diagnostics;
+using Microsoft.Maui.Platform.Linux.Handlers;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Window;
@@ -28,7 +30,16 @@ public sealed class WindowContext : IDisposable
     private readonly LinuxApplication _app;
     private SkiaView? _rootView;
     private SkiaView? _focusedView;
+    private IWindow? _mauiWindow;
     private bool _disposed;
+
+    // Modal pages pushed through Navigation.PushModalAsync, bottom to top.
+    // Each is a full-window layer rendered above the root (and above any
+    // modal beneath it); input goes to the top-most entry while any exist.
+    private readonly List<ModalEntry> _modals = new();
+    private readonly List<SkiaView> _modalViews = new();
+
+    private readonly record struct ModalEntry(Page Page, SkiaView View);
 
     // MAUI IWindow lifecycle bookkeeping. IWindow.Created/Activated/Deactivated/
     // Destroying THROW on double invocation, so each transition is latched here.
@@ -61,8 +72,38 @@ public sealed class WindowContext : IDisposable
     /// <summary>True when this context is the app's primary (first) window.</summary>
     public bool IsPrimary => _app.PrimaryContext == this;
 
-    /// <summary>The MAUI IWindow this context presents, when known.</summary>
-    public IWindow? MauiWindow { get; set; }
+    /// <summary>
+    /// The MAUI IWindow this context presents, when known. Assigning a
+    /// <see cref="Microsoft.Maui.Controls.Window"/> attaches the Linux
+    /// WindowHandler to it (MAUI's AlertManager and ModalNavigationManager
+    /// only engage once the window has a handler with a MauiContext) and
+    /// subscribes to its modal push/pop events so modal pages render in this
+    /// window.
+    /// </summary>
+    public IWindow? MauiWindow
+    {
+        get => _mauiWindow;
+        set
+        {
+            if (ReferenceEquals(_mauiWindow, value))
+                return;
+
+            if (_mauiWindow is Microsoft.Maui.Controls.Window oldWindow)
+            {
+                oldWindow.ModalPushed -= OnMauiModalPushed;
+                oldWindow.ModalPopped -= OnMauiModalPopped;
+            }
+
+            _mauiWindow = value;
+
+            if (value is Microsoft.Maui.Controls.Window newWindow)
+            {
+                AttachMauiWindowHandler(newWindow);
+                newWindow.ModalPushed += OnMauiModalPushed;
+                newWindow.ModalPopped += OnMauiModalPopped;
+            }
+        }
+    }
 
     /// <summary>View that has captured pointer events during a drag.</summary>
     public SkiaView? CapturedView { get; set; }
@@ -228,6 +269,8 @@ public sealed class WindowContext : IDisposable
             _rootView.Measure(availableSize);
             _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, size.Width, size.Height));
         }
+        for (int i = 0; i < _modalViews.Count; i++)
+            LayoutModalLayer(_modalViews[i], size.Width, size.Height);
         RenderingEngine?.InvalidateAll();
 
         // Propagate to MAUI so Window.Width/Height and SizeChanged observers
@@ -351,7 +394,8 @@ public sealed class WindowContext : IDisposable
             return;
         }
 
-        if (_rootView != null)
+        var inputRoot = InputRoot;
+        if (inputRoot != null)
         {
             // If a view has captured the pointer, send all events to it
             if (CapturedView != null)
@@ -362,7 +406,7 @@ public sealed class WindowContext : IDisposable
 
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot);
-            var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
+            var hitView = popupOwner ?? inputRoot.HitTest(e.X, e.Y);
 
             // Track hover state changes
             if (hitView != HoveredView)
@@ -405,12 +449,18 @@ public sealed class WindowContext : IDisposable
             return;
         }
 
-        if (_rootView != null)
+        var inputRoot = InputRoot;
+        if (inputRoot != null)
         {
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot);
-            var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
-            DiagnosticLog.Debug("WindowContext", $"HitView: {hitView?.GetType().Name ?? "null"}, rootView: {_rootView.GetType().Name}");
+            var hitView = popupOwner ?? inputRoot.HitTest(e.X, e.Y);
+            DiagnosticLog.Debug("WindowContext", $"HitView: {hitView?.GetType().Name ?? "null"}, inputRoot: {inputRoot.GetType().Name}");
+
+            // An explicit FlyoutBase.ContextFlyout replaces the control's own
+            // context menu: open it and swallow the press.
+            if (e.Button == PointerButton.Right && ContextFlyoutBridge.TryShow(hitView, e.X, e.Y))
+                return;
 
             if (hitView != null)
             {
@@ -449,7 +499,8 @@ public sealed class WindowContext : IDisposable
             return;
         }
 
-        if (_rootView != null)
+        var inputRoot = InputRoot;
+        if (inputRoot != null)
         {
             // If a view has captured the pointer, send release to it
             if (CapturedView != null)
@@ -461,7 +512,7 @@ public sealed class WindowContext : IDisposable
 
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot);
-            var hitView = popupOwner ?? _rootView.HitTest(e.X, e.Y);
+            var hitView = popupOwner ?? inputRoot.HitTest(e.X, e.Y);
             hitView?.OnPointerReleased(e);
         }
     }
@@ -472,9 +523,10 @@ public sealed class WindowContext : IDisposable
         DiagnosticLog.Debug("WindowContext", $"OnScroll - X={e.X}, Y={e.Y}, DeltaX={e.DeltaX}, DeltaY={e.DeltaY}");
         if (LinuxDialogService.HasActiveDialog && !_app.IsDialogHost(this))
             return;
-        if (_rootView != null)
+        var inputRoot = InputRoot;
+        if (inputRoot != null)
         {
-            var hitView = _rootView.HitTest(e.X, e.Y);
+            var hitView = inputRoot.HitTest(e.X, e.Y);
             DiagnosticLog.Debug("WindowContext", $"HitView: {hitView?.GetType().Name ?? "null"}");
             // Bubble scroll events up to find a ScrollView
             var view = hitView;
@@ -501,6 +553,204 @@ public sealed class WindowContext : IDisposable
 
     #endregion
 
+    #region Modal navigation (Navigation.PushModalAsync / PopModalAsync)
+
+    /// <summary>
+    /// MAUI modal pages currently presented in this window, bottom to top.
+    /// Mirrors <c>Window.Navigation.ModalStack</c> for the pages the platform
+    /// managed to render.
+    /// </summary>
+    public IReadOnlyList<Page> ModalStack
+    {
+        get
+        {
+            var pages = new Page[_modals.Count];
+            for (int i = 0; i < _modals.Count; i++)
+                pages[i] = _modals[i].Page;
+            return pages;
+        }
+    }
+
+    /// <summary>
+    /// The Skia views of the presented modal pages, bottom to top. Each is a
+    /// full-window layer drawn above <see cref="RootView"/> (GTK draw path and
+    /// <see cref="SkiaRenderingEngine.OverlayLayers"/>).
+    /// </summary>
+    public IReadOnlyList<SkiaView> ModalViews => _modalViews;
+
+    /// <summary>True while at least one modal page is presented.</summary>
+    public bool HasModal => _modals.Count > 0;
+
+    /// <summary>
+    /// The view tree that receives pointer/scroll input: the top-most modal
+    /// while one is presented, else the root. Modal layers cover the whole
+    /// window, so the page beneath is unreachable until the modal pops.
+    /// </summary>
+    public SkiaView? InputRoot => _modalViews.Count > 0 ? _modalViews[_modalViews.Count - 1] : _rootView;
+
+    /// <summary>
+    /// Attaches the Linux WindowHandler to a MAUI Window that has none.
+    /// Without a window handler MAUI's AlertManager never subscribes (so
+    /// Page.DisplayAlert silently no-ops) and ModalNavigationManager never
+    /// reports the platform as ready. Failure is logged, not thrown: the
+    /// window still renders, only dialogs/modal sync are lost.
+    /// </summary>
+    private void AttachMauiWindowHandler(Microsoft.Maui.Controls.Window window)
+    {
+        if (window.Handler != null)
+            return;
+
+        var mauiContext = _app.MauiContext;
+        if (mauiContext == null)
+        {
+            DiagnosticLog.Debug("WindowContext", "No MAUI context yet; WindowHandler not attached");
+            return;
+        }
+
+        try
+        {
+            window.ToHandler(mauiContext);
+            DiagnosticLog.Debug("WindowContext", "Attached WindowHandler to MAUI window");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "Attaching WindowHandler failed; DisplayAlert and modal sync are unavailable for this window", ex);
+        }
+    }
+
+    private void OnMauiModalPushed(object? sender, ModalPushedEventArgs e)
+    {
+        try { PushModalView(e.Modal); }
+        catch (Exception ex) { DiagnosticLog.Error("WindowContext", "PushModalAsync platform presentation failed", ex); }
+    }
+
+    private void OnMauiModalPopped(object? sender, ModalPoppedEventArgs e)
+    {
+        try { PopModalView(e.Modal); }
+        catch (Exception ex) { DiagnosticLog.Error("WindowContext", "PopModalAsync platform teardown failed", ex); }
+    }
+
+    /// <summary>
+    /// Presents a modal page: renders its Skia tree through
+    /// <see cref="LinuxViewRenderer"/>, lays it out to the window, pushes it
+    /// as the top input/render layer, and drops focus/hover/capture so the
+    /// page beneath stops receiving input. Appearing/Disappearing are raised
+    /// by MAUI's ModalNavigationManager before this runs.
+    /// </summary>
+    internal void PushModalView(Page page)
+    {
+        if (page == null) return;
+
+        var mauiContext = _app.MauiContext
+            ?? (_mauiWindow as Microsoft.Maui.Controls.Window)?.Handler?.MauiContext;
+        if (mauiContext == null)
+        {
+            DiagnosticLog.Warn("WindowContext", $"PushModalAsync({page.GetType().Name}): no MAUI context; modal not presented");
+            return;
+        }
+
+        var renderer = new LinuxViewRenderer(mauiContext);
+        var view = renderer.RenderPage(page);
+        if (view == null)
+        {
+            DiagnosticLog.Warn("WindowContext", $"PushModalAsync({page.GetType().Name}): page produced no SkiaView; modal not presented");
+            return;
+        }
+
+        if (RenderingEngine != null)
+            view.RenderContext = RenderingEngine;
+
+        var (width, height) = CurrentLayoutSize();
+        LayoutModalLayer(view, width, height);
+
+        _modals.Add(new ModalEntry(page, view));
+        _modalViews.Add(view);
+        ResetInputState();
+        RequestFullRedraw();
+        DiagnosticLog.Debug("WindowContext", $"Modal pushed: {page.GetType().Name} (depth {_modals.Count})");
+    }
+
+    /// <summary>
+    /// Removes a presented modal page (normally the top-most) and its layer,
+    /// disconnects the page's handler so its Skia tree can be collected, and
+    /// returns input to whatever is now on top.
+    /// </summary>
+    internal void PopModalView(Page page)
+    {
+        if (page == null) return;
+
+        int index = -1;
+        for (int i = _modals.Count - 1; i >= 0; i--)
+        {
+            if (_modals[i].Page == page)
+            {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0)
+        {
+            DiagnosticLog.Debug("WindowContext", $"PopModalAsync({page.GetType().Name}): page was not presented here");
+            return;
+        }
+
+        _modals.RemoveAt(index);
+        _modalViews.RemoveAt(index);
+        ResetInputState();
+
+        try
+        {
+            page.Handler?.DisconnectHandler();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "Disconnecting popped modal page handler failed", ex);
+        }
+
+        RequestFullRedraw();
+        DiagnosticLog.Debug("WindowContext", $"Modal popped: {page.GetType().Name} (depth {_modals.Count})");
+    }
+
+    private (int Width, int Height) CurrentLayoutSize()
+    {
+        if (RenderingEngine != null)
+            return ((int)RenderingEngine.LogicalWidth, (int)(RenderingEngine.LogicalHeight - CsdPointerInsetLogical));
+        if (DisplayWindow != null)
+            return (DisplayWindow.Width, DisplayWindow.Height);
+        if (_rootView != null && _rootView.Bounds.Width > 0)
+            return ((int)_rootView.Bounds.Width, (int)_rootView.Bounds.Height);
+        return (800, 600);
+    }
+
+    private static void LayoutModalLayer(SkiaView view, int width, int height)
+    {
+        var size = new Microsoft.Maui.Graphics.Size(width, height);
+        view.Measure(size);
+        view.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
+    }
+
+    /// <summary>
+    /// Drops focus/hover/capture when the input root changes (modal push or
+    /// pop) so no view under a modal keeps keyboard focus or a drag capture.
+    /// Goes through the FocusedView property so the old view sees OnFocusLost.
+    /// </summary>
+    private void ResetInputState()
+    {
+        FocusedView = null;
+        HoveredView = null;
+        CapturedView = null;
+    }
+
+    private void RequestFullRedraw()
+    {
+        if (RenderingEngine != null)
+            RenderingEngine.InvalidateAll();
+        else
+            LinuxApplication.RequestRedraw();
+    }
+
+    #endregion
+
     #region Rendering
 
     /// <summary>Renders this context's view tree through its engine.</summary>
@@ -511,6 +761,7 @@ public sealed class WindowContext : IDisposable
             // Only popups owned by this window's tree draw here (null filter
             // when a single window is live — historical behavior).
             RenderingEngine.PopupFilterRoot = PopupFilterRoot;
+            RenderingEngine.OverlayLayers = _modalViews.Count > 0 ? _modalViews : null;
             RenderingEngine.Render(_rootView);
         }
     }
@@ -580,6 +831,14 @@ public sealed class WindowContext : IDisposable
         HoveredView = null;
         CapturedView = null;
         _rootView = null;
+        _modals.Clear();
+        _modalViews.Clear();
+
+        if (_mauiWindow is Microsoft.Maui.Controls.Window window)
+        {
+            window.ModalPushed -= OnMauiModalPushed;
+            window.ModalPopped -= OnMauiModalPopped;
+        }
 
         RenderingEngine?.Dispose();
         DisplayWindow?.Dispose();

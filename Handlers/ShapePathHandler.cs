@@ -26,6 +26,8 @@ public partial class ShapePathHandler : ViewHandler<Path, SkiaShapePath>
             [nameof(Path.StrokeLineCap)] = MapStrokeLineCap,
             [nameof(Path.StrokeLineJoin)] = MapStrokeLineJoin,
             [nameof(Path.Aspect)] = MapAspect,
+            [nameof(Path.StrokeDashArray)] = MapStrokeDashArray,
+            [nameof(Path.StrokeDashOffset)] = MapStrokeDashOffset,
         };
 
     public ShapePathHandler() : base(Mapper) { }
@@ -46,6 +48,10 @@ public partial class ShapePathHandler : ViewHandler<Path, SkiaShapePath>
         MapFill(this, VirtualView);
         MapStroke(this, VirtualView);
         MapStrokeThickness(this, VirtualView);
+        MapStrokeLineCap(this, VirtualView);
+        MapStrokeLineJoin(this, VirtualView);
+        MapStrokeDashArray(this, VirtualView);
+        MapStrokeDashOffset(this, VirtualView);
         MapAspect(this, VirtualView);
     }
 
@@ -105,6 +111,20 @@ public partial class ShapePathHandler : ViewHandler<Path, SkiaShapePath>
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.StrokeLineJoin = path.StrokeLineJoin;
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeDashArray(ShapePathHandler handler, Path path)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.StrokeDashArray = path.StrokeDashArray;
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeDashOffset(ShapePathHandler handler, Path path)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.StrokeDashOffset = path.StrokeDashOffset;
         handler.PlatformView.Invalidate();
     }
 

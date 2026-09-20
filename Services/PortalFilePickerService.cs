@@ -186,8 +186,7 @@ public class PortalFilePickerService : IFilePicker
         var extensions = GetExtensionsFromFileType(options.FileTypes);
         if (extensions.Count > 0)
         {
-            var filterPattern = string.Join(" ", extensions.Select(e => $"*{e}"));
-            args.Append($"--file-filter=\"Files | {filterPattern}\" ");
+            args.Append($"--file-filter=\"{BuildZenityFilter("Files", extensions)}\" ");
         }
 
         var output = await Task.Run(() => RunCommand("zenity", args.ToString()));
@@ -257,8 +256,7 @@ public class PortalFilePickerService : IFilePicker
         var extensions = GetExtensionsFromFileType(options.FileTypes);
         if (extensions.Count > 0)
         {
-            var filterPattern = string.Join(" ", extensions.Select(e => $"*{e}"));
-            args.Append($"--file-filter=\"Files | {filterPattern}\" ");
+            args.Append($"--file-filter=\"{BuildZenityFilter("Files", extensions)}\" ");
         }
 
         var output = await Task.Run(() => RunCommand("yad", args.ToString()));
@@ -273,43 +271,95 @@ public class PortalFilePickerService : IFilePicker
     }
 
     /// <summary>
-    /// Extracts file extensions from a MAUI FilePickerFileType.
+    /// Extracts file extensions from a MAUI FilePickerFileType. The portable
+    /// Essentials build resolves <see cref="FilePickerFileType.Value"/> through
+    /// DeviceInfo.Platform, which is only "Linux" once EssentialsPatches has
+    /// run; when that lookup fails the platform dictionary is read directly
+    /// (Linux entry first, otherwise every platform's extension-style entries).
     /// </summary>
-    private List<string> GetExtensionsFromFileType(FilePickerFileType? fileType)
+    internal static List<string> GetExtensionsFromFileType(FilePickerFileType? fileType)
     {
-        var extensions = new List<string>();
-        if (fileType == null) return extensions;
+        if (fileType == null) return new List<string>();
 
+        IEnumerable<string>? raw = null;
         try
         {
-            // FilePickerFileType.Value is IEnumerable<string> for the current platform
-            var value = fileType.Value;
-            if (value == null) return extensions;
-
-            foreach (var ext in value)
-            {
-                // Skip MIME types, only take file extensions
-                if (ext.StartsWith(".") || (!ext.Contains('/') && !ext.Contains('*')))
-                {
-                    var normalized = ext.StartsWith(".") ? ext : $".{ext}";
-                    if (!extensions.Contains(normalized))
-                    {
-                        extensions.Add(normalized);
-                    }
-                }
-            }
+            raw = fileType.Value;
         }
         catch
         {
-            // Silently fail if we can't parse the file type
+            raw = ReadPlatformDictionary(fileType);
+        }
+
+        return NormalizeExtensions(raw);
+    }
+
+    private static IEnumerable<string>? ReadPlatformDictionary(FilePickerFileType fileType)
+    {
+        try
+        {
+            // FieldInfo.GetValue would run FilePickerFileType's static constructor,
+            // which throws in the portable build (its Images/Videos/... statics
+            // call NotImplementedInReferenceAssembly stubs). UnsafeAccessor reads
+            // the instance field directly without that initialisation.
+            var dict = GetPlatformFileTypes(fileType);
+            if (dict == null)
+                return null;
+
+            if (dict.TryGetValue(Microsoft.Maui.Devices.DevicePlatform.Create("Linux"), out var linux))
+                return linux;
+
+            return dict.Values.SelectMany(v => v ?? Array.Empty<string>()).ToList();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "fileTypes")]
+    private static extern ref IDictionary<Microsoft.Maui.Devices.DevicePlatform, IEnumerable<string>>? GetPlatformFileTypes(FilePickerFileType fileType);
+
+    /// <summary>
+    /// Turns the mixed entries a FilePickerFileType carries ("png", ".png",
+    /// "*.png", "image/png", "public.png") into distinct dotted extensions.
+    /// MIME types and UTIs have no direct glob form and are dropped.
+    /// </summary>
+    internal static List<string> NormalizeExtensions(IEnumerable<string>? raw)
+    {
+        var extensions = new List<string>();
+        if (raw == null) return extensions;
+
+        foreach (var entry in raw)
+        {
+            if (string.IsNullOrWhiteSpace(entry)) continue;
+            var ext = entry.Trim();
+            if (ext.Contains('/')) continue;            // MIME type
+            if (ext.StartsWith("public.", StringComparison.OrdinalIgnoreCase)) continue; // Apple UTI
+            if (ext.StartsWith("*")) ext = ext.Substring(1);
+            if (ext.Length == 0 || ext == ".") continue;
+            if (ext.Contains('*') || ext.Contains('?')) continue;
+            var normalized = ext.StartsWith(".") ? ext : $".{ext}";
+            if (!extensions.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+                extensions.Add(normalized);
         }
 
         return extensions;
     }
 
-    private string? BuildPortalFilterArgs(FilePickerFileType? fileType)
+    /// <summary>zenity/yad --file-filter value: "Name | *.a *.b".</summary>
+    internal static string BuildZenityFilter(string name, IEnumerable<string> extensions)
+        => $"{name} | {string.Join(" ", extensions.Select(e => $"*{e}"))}";
+
+    /// <summary>
+    /// GVariant literal for the portal FileChooser "filters" option:
+    /// a(sa(us)) with one "Files" entry holding glob patterns (type 0).
+    /// </summary>
+    internal static string? BuildPortalFilterArgs(FilePickerFileType? fileType)
+        => BuildPortalFilterArgs(GetExtensionsFromFileType(fileType));
+
+    internal static string? BuildPortalFilterArgs(IReadOnlyCollection<string> extensions)
     {
-        var extensions = GetExtensionsFromFileType(fileType);
         if (extensions.Count == 0)
             return null;
 
@@ -317,19 +367,21 @@ public class PortalFilePickerService : IFilePicker
         return $"[('Files', [{patterns}])]";
     }
 
-    private string? ParseRequestPath(string output)
+    /// <summary>
+    /// Pulls the request object path out of a gdbus reply such as
+    /// "(objectpath '/org/freedesktop/portal/desktop/request/1_0/t',)".
+    /// </summary>
+    internal static string? ParseRequestPath(string output)
     {
-        // Parse D-Bus response like: (objectpath '/org/freedesktop/portal/desktop/request/...',)
-        var start = output.IndexOf("'/");
-        var end = output.IndexOf("',", start);
-        if (start >= 0 && end > start)
-        {
-            return output.Substring(start + 1, end - start - 1);
-        }
-        return null;
+        if (string.IsNullOrEmpty(output)) return null;
+        var start = output.IndexOf("'/", StringComparison.Ordinal);
+        if (start < 0) return null;
+        var end = output.IndexOf('\'', start + 1);
+        if (end <= start) return null;
+        return output.Substring(start + 1, end - start - 1);
     }
 
-    private string EscapeForShell(string input)
+    internal static string EscapeForShell(string input)
     {
         return input.Replace("\"", "\\\"").Replace("'", "\\'");
     }

@@ -28,7 +28,17 @@ public class SkiaPolyline : SkiaView
         BindableProperty.Create(nameof(Fill), typeof(Brush), typeof(SkiaPolyline), null,
             propertyChanged: (b, o, n) => ((SkiaPolyline)b).Invalidate());
 
+    public static readonly BindableProperty StrokeDashArrayProperty =
+        BindableProperty.Create(nameof(StrokeDashArray), typeof(DoubleCollection), typeof(SkiaPolyline), null,
+            propertyChanged: (b, o, n) => ((SkiaPolyline)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashOffsetProperty =
+        BindableProperty.Create(nameof(StrokeDashOffset), typeof(double), typeof(SkiaPolyline), 0.0,
+            propertyChanged: (b, o, n) => ((SkiaPolyline)b).Invalidate());
+
     public PointCollection? Points { get => (PointCollection?)GetValue(PointsProperty); set => SetValue(PointsProperty, value); }
+    public DoubleCollection? StrokeDashArray { get => (DoubleCollection?)GetValue(StrokeDashArrayProperty); set => SetValue(StrokeDashArrayProperty, value); }
+    public double StrokeDashOffset { get => (double)GetValue(StrokeDashOffsetProperty); set => SetValue(StrokeDashOffsetProperty, value); }
     public Brush? Stroke { get => (Brush?)GetValue(StrokeProperty); set => SetValue(StrokeProperty, value); }
     public double StrokeThickness { get => (double)GetValue(StrokeThicknessProperty); set => SetValue(StrokeThicknessProperty, value); }
     public Brush? Fill { get => (Brush?)GetValue(FillProperty); set => SetValue(FillProperty, value); }
@@ -38,10 +48,11 @@ public class SkiaPolyline : SkiaView
         var pts = Points;
         if (pts == null || pts.Count < 2) return;
 
+        // Points are in the shape's own coordinate space; Bounds are absolute.
         using var path = new SKPath();
-        path.MoveTo((float)pts[0].X, (float)pts[0].Y);
+        path.MoveTo(bounds.Left + (float)pts[0].X, bounds.Top + (float)pts[0].Y);
         for (int i = 1; i < pts.Count; i++)
-            path.LineTo((float)pts[i].X, (float)pts[i].Y);
+            path.LineTo(bounds.Left + (float)pts[i].X, bounds.Top + (float)pts[i].Y);
 
         var fillColor = BrushToSKColor(Fill);
         if (fillColor != SKColors.Transparent)
@@ -54,6 +65,7 @@ public class SkiaPolyline : SkiaView
         if (strokeColor != SKColors.Transparent && StrokeThickness > 0)
         {
             using var strokePaint = new SKPaint { Color = strokeColor, Style = SKPaintStyle.Stroke, StrokeWidth = (float)StrokeThickness, IsAntialias = true, StrokeCap = SKStrokeCap.Round, StrokeJoin = SKStrokeJoin.Round };
+            ShapeDashing.Apply(strokePaint, StrokeDashArray, StrokeDashOffset, StrokeThickness);
             canvas.DrawPath(path, strokePaint);
         }
     }

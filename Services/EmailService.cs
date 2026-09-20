@@ -47,18 +47,14 @@ public class EmailService : IEmail
             var startInfo = new ProcessStartInfo
             {
                 FileName = "xdg-open",
-                Arguments = $"\"{mailto}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
+            startInfo.ArgumentList.Add(mailto);
 
-            using var process = Process.Start(startInfo);
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-            }
+            await ExternalProcess.RunAsync(startInfo);
         }
         catch (Exception ex)
         {
@@ -66,7 +62,12 @@ public class EmailService : IEmail
         }
     }
 
-    private static string BuildMailtoUri(EmailMessage? message)
+    /// <summary>
+    /// Builds the RFC 6068 mailto: URI for a message. Header values are
+    /// percent-encoded; the '@' in addresses is kept literal, as the RFC allows
+    /// and as mail clients expect.
+    /// </summary>
+    internal static string BuildMailtoUri(EmailMessage? message)
     {
         var sb = new StringBuilder("mailto:");
         if (message == null) return sb.ToString();
@@ -74,7 +75,7 @@ public class EmailService : IEmail
         // Add recipients
         if (message.To?.Count > 0)
         {
-            sb.Append(string.Join(",", message.To.Select(Uri.EscapeDataString)));
+            sb.Append(string.Join(",", message.To.Select(EscapeAddress)));
         }
 
         var queryParams = new List<string>();
@@ -94,13 +95,13 @@ public class EmailService : IEmail
         // Add CC
         if (message.Cc?.Count > 0)
         {
-            queryParams.Add($"cc={string.Join(",", message.Cc.Select(Uri.EscapeDataString))}");
+            queryParams.Add($"cc={string.Join(",", message.Cc.Select(EscapeAddress))}");
         }
 
         // Add BCC
         if (message.Bcc?.Count > 0)
         {
-            queryParams.Add($"bcc={string.Join(",", message.Bcc.Select(Uri.EscapeDataString))}");
+            queryParams.Add($"bcc={string.Join(",", message.Bcc.Select(EscapeAddress))}");
         }
 
         if (queryParams.Count > 0)
@@ -111,4 +112,7 @@ public class EmailService : IEmail
 
         return sb.ToString();
     }
+
+    private static string EscapeAddress(string address)
+        => Uri.EscapeDataString(address).Replace("%40", "@");
 }

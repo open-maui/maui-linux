@@ -44,12 +44,14 @@ public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
     protected override void ConnectHandler(SkiaCheckBox platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.CheckedChanged += OnCheckedChanged;
     }
 
     protected override void DisconnectHandler(SkiaCheckBox platformView)
     {
         platformView.CheckedChanged -= OnCheckedChanged;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

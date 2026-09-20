@@ -101,6 +101,26 @@ public partial class DragDropService : IDisposable
     public event EventHandler? DragLeave;
 
     /// <summary>
+    /// Raised when an outgoing drag started with <see cref="TryStartDrag(DragPayload)"/>
+    /// ends on either backend, dropped or cancelled. MAUI's DropCompleted is
+    /// dispatched from here.
+    /// </summary>
+    public event EventHandler<DragSessionEndedEventArgs>? DragSessionEnded;
+
+    private bool _waylandSessionHooked;
+
+    private void HookWaylandDragSession()
+    {
+        if (_waylandSessionHooked) return;
+        _waylandSessionHooked = true;
+        Microsoft.Maui.Platform.Linux.Window.WaylandWindow.DragSessionEnded += RaiseDragSessionEnded;
+    }
+
+    /// <summary>Raises <see cref="DragSessionEnded"/> (also the X11 backend's and the tests' entry point).</summary>
+    internal void RaiseDragSessionEnded(bool dropped)
+        => DragSessionEnded?.Invoke(this, new DragSessionEndedEventArgs(dropped));
+
+    /// <summary>
     /// Event raised when a drop occurs.
     /// </summary>
     public event EventHandler<DropEventArgs>? Drop;
@@ -674,6 +694,7 @@ public partial class DragDropService : IDisposable
     public bool TryStartDrag(DragPayload payload)
     {
         if (payload == null || payload.IsEmpty) return false;
+        HookWaylandDragSession();
         if (Microsoft.Maui.Platform.Linux.Window.WaylandWindow.TryStartDrag(payload)) return true;
         return TryStartX11Drag(payload);
     }
@@ -1071,6 +1092,7 @@ public partial class DragDropService : IDisposable
     {
         if (!_sourceDragActive) return;
         _sourceDragActive = false;
+        bool dropped = _sourceDropSent;
         _sourceDropSent = false;
         _sourceTarget = IntPtr.Zero;
         _sourceTargetVersion = 0;
@@ -1084,6 +1106,7 @@ public partial class DragDropService : IDisposable
         if (releaseSelection)
             XSetSelectionOwner(_display, _xdndSelection, IntPtr.Zero, _lastInputTime);
         XFlush(_display);
+        RaiseDragSessionEnded(dropped);
     }
 
     /// <summary>
@@ -1351,4 +1374,11 @@ public partial class DragDropService : IDisposable
     private static partial void XFlush(nint display);
 
     #endregion
+}
+
+/// <summary>Carries whether an outgoing drag ended in a drop (true) or was cancelled.</summary>
+public sealed class DragSessionEndedEventArgs : EventArgs
+{
+    public DragSessionEndedEventArgs(bool dropped) => Dropped = dropped;
+    public bool Dropped { get; }
 }

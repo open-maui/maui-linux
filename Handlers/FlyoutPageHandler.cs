@@ -5,6 +5,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -25,6 +26,9 @@ public partial class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage
         [nameof(IFlyoutView.FlyoutWidth)] = MapFlyoutWidth,
         [nameof(IFlyoutView.IsGestureEnabled)] = MapIsGestureEnabled,
         [nameof(IFlyoutView.FlyoutBehavior)] = MapFlyoutBehavior,
+        // The Controls-level property raises "FlyoutLayoutBehavior"; the
+        // IFlyoutView projection above only covers the initial mapping.
+        [nameof(FlyoutPage.FlyoutLayoutBehavior)] = MapFlyoutBehavior,
         [nameof(IView.Background)] = MapBackground,
     };
 
@@ -67,10 +71,19 @@ public partial class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage
         try
         {
             _isUpdatingPresented = true;
-            // Sync back to the virtual view
-            if (VirtualView is FlyoutPage flyoutPage)
+            // Sync back to the virtual view. MAUI throws when IsPresented is
+            // cleared while it expects split mode; the platform never clears
+            // a split flyout, but stay defensive.
+            if (VirtualView is FlyoutPage flyoutPage && flyoutPage.IsPresented != PlatformView.IsPresented)
             {
-                flyoutPage.IsPresented = PlatformView.IsPresented;
+                try
+                {
+                    flyoutPage.IsPresented = PlatformView.IsPresented;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    DiagnosticLog.Debug("FlyoutPageHandler", "IsPresented sync refused by MAUI", ex);
+                }
             }
         }
         finally
@@ -156,22 +169,62 @@ public partial class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage
     {
         if (handler.PlatformView is null) return;
 
-        handler.PlatformView.FlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
+        if (flyoutView is FlyoutPage flyoutPage)
         {
-            Microsoft.Maui.FlyoutBehavior.Disabled => FlyoutLayoutBehavior.Default,
-            Microsoft.Maui.FlyoutBehavior.Flyout => FlyoutLayoutBehavior.Popover,
-            Microsoft.Maui.FlyoutBehavior.Locked => FlyoutLayoutBehavior.Split,
-            _ => FlyoutLayoutBehavior.Default
-        };
+            // Use the Controls value directly: it distinguishes the Split
+            // variants that IFlyoutView collapses into Locked.
+            // Default follows MAUI's own decision (IFlyoutPageController.
+            // ShouldShowSplitMode): split on desktop/tablet idioms, popover on
+            // phones — MAUI refuses IsPresented=false while it expects split.
+            var controller = (IFlyoutPageController)flyoutPage;
+            handler.PlatformView.FlyoutLayoutBehavior = flyoutPage.FlyoutLayoutBehavior switch
+            {
+                Microsoft.Maui.Controls.FlyoutLayoutBehavior.Popover => FlyoutLayoutBehavior.Popover,
+                Microsoft.Maui.Controls.FlyoutLayoutBehavior.Split => FlyoutLayoutBehavior.Split,
+                Microsoft.Maui.Controls.FlyoutLayoutBehavior.SplitOnLandscape => FlyoutLayoutBehavior.SplitOnLandscape,
+                Microsoft.Maui.Controls.FlyoutLayoutBehavior.SplitOnPortrait => FlyoutLayoutBehavior.SplitOnPortrait,
+                _ => controller.ShouldShowSplitMode ? FlyoutLayoutBehavior.Split : FlyoutLayoutBehavior.Popover
+            };
+        }
+        else
+        {
+            handler.PlatformView.FlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
+            {
+                Microsoft.Maui.FlyoutBehavior.Locked => FlyoutLayoutBehavior.Split,
+                Microsoft.Maui.FlyoutBehavior.Flyout => FlyoutLayoutBehavior.Popover,
+                _ => FlyoutLayoutBehavior.Default
+            };
+        }
+
+        // Split keeps the flyout presented; reflect that on the virtual view
+        // so IsPresented reads true for the app as well.
+        if (handler.PlatformView.IsSplit && flyoutView is FlyoutPage page && !page.IsPresented && !handler._isUpdatingPresented)
+        {
+            try
+            {
+                handler._isUpdatingPresented = true;
+                page.IsPresented = true;
+            }
+            catch (InvalidOperationException)
+            {
+                // MAUI refuses IsPresented changes for some behaviors; the
+                // platform still shows the split flyout.
+            }
+            finally
+            {
+                handler._isUpdatingPresented = false;
+            }
+        }
     }
 
     public static void MapBackground(FlyoutPageHandler handler, IFlyoutView flyoutView)
     {
         if (handler.PlatformView is null) return;
 
-        if (flyoutView is FlyoutPage flyoutPage && flyoutPage.Background is SolidColorBrush solidBrush)
+        // Brush.Default is a SolidColorBrush with a null Color.
+        if (flyoutView is FlyoutPage flyoutPage && flyoutPage.Background is SolidColorBrush { Color: Color color })
         {
-            handler.PlatformView.ScrimColor = solidBrush.Color.WithAlpha(100f / 255f);
+            handler.PlatformView.ScrimColor = color.WithAlpha(100f / 255f);
         }
     }
 }

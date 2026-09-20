@@ -82,18 +82,21 @@ public class SkiaFlyoutPage : SkiaLayoutView
     }
 
     /// <summary>
-    /// Gets or sets whether the flyout is currently presented.
+    /// Gets or sets whether the flyout is currently presented. In split
+    /// layout the flyout is always presented and the value cannot be cleared.
     /// </summary>
     public bool IsPresented
     {
         get => _isPresented;
         set
         {
+            if (IsSplit && !value) return;
             if (_isPresented != value)
             {
                 _isPresented = value;
                 _flyoutAnimationProgress = value ? 1f : 0f;
                 IsPresentedChanged?.Invoke(this, EventArgs.Empty);
+                InvalidateMeasure();
                 Invalidate();
             }
         }
@@ -125,10 +128,51 @@ public class SkiaFlyoutPage : SkiaLayoutView
         set => _gestureEnabled = value;
     }
 
+    private FlyoutLayoutBehavior _flyoutLayoutBehavior = FlyoutLayoutBehavior.Default;
+
     /// <summary>
-    /// The flyout layout behavior.
+    /// The flyout layout behavior. <see cref="FlyoutLayoutBehavior.Split"/>,
+    /// <see cref="FlyoutLayoutBehavior.SplitOnLandscape"/> and
+    /// <see cref="FlyoutLayoutBehavior.SplitOnPortrait"/> show the flyout
+    /// side by side with the detail (desktop windows are treated as
+    /// landscape); <see cref="FlyoutLayoutBehavior.Popover"/> and
+    /// <see cref="FlyoutLayoutBehavior.Default"/> overlay it on demand.
     /// </summary>
-    public FlyoutLayoutBehavior FlyoutLayoutBehavior { get; set; } = FlyoutLayoutBehavior.Default;
+    public FlyoutLayoutBehavior FlyoutLayoutBehavior
+    {
+        get => _flyoutLayoutBehavior;
+        set
+        {
+            if (_flyoutLayoutBehavior == value) return;
+            _flyoutLayoutBehavior = value;
+            if (IsSplit)
+            {
+                // Split keeps the flyout open; entering split presents it.
+                if (!_isPresented)
+                {
+                    _isPresented = true;
+                    IsPresentedChanged?.Invoke(this, EventArgs.Empty);
+                }
+                _flyoutAnimationProgress = 1f;
+            }
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// True when the current layout behavior places the flyout beside the
+    /// detail rather than over it.
+    /// </summary>
+    public bool IsSplit => _flyoutLayoutBehavior is FlyoutLayoutBehavior.Split
+        or FlyoutLayoutBehavior.SplitOnLandscape
+        or FlyoutLayoutBehavior.SplitOnPortrait;
+
+    /// <summary>
+    /// The horizontal offset of the detail content: the flyout width in
+    /// split layout, zero when the flyout overlays the detail.
+    /// </summary>
+    public float DetailOffset => IsSplit ? FlyoutWidth : 0f;
 
     /// <summary>
     /// Background color of the scrim when flyout is open.
@@ -162,10 +206,10 @@ public class SkiaFlyoutPage : SkiaLayoutView
             _flyout.Measure(new Size(FlyoutWidth, availableSize.Height));
         }
 
-        // Measure detail to full size
+        // Measure detail: full size when overlaid, beside the flyout when split
         if (_detail != null)
         {
-            _detail.Measure(new Size(availableSize.Width, availableSize.Height));
+            _detail.Measure(new Size(Math.Max(0, availableSize.Width - DetailOffset), availableSize.Height));
         }
 
         return availableSize;
@@ -173,16 +217,19 @@ public class SkiaFlyoutPage : SkiaLayoutView
 
     protected override Rect ArrangeOverride(Rect bounds)
     {
-        // Arrange detail to fill the entire area
+        // Arrange detail: the whole area, or the area right of a split flyout
         if (_detail != null)
         {
-            _detail.Arrange(new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height));
+            float offset = DetailOffset;
+            _detail.Arrange(new Rect(bounds.Left + offset, bounds.Top, Math.Max(0, bounds.Width - offset), bounds.Height));
         }
 
-        // Arrange flyout (positioned based on animation progress)
+        // Arrange flyout (positioned based on animation progress; pinned when split)
         if (_flyout != null)
         {
-            float flyoutX = (float)bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            float flyoutX = IsSplit
+                ? (float)bounds.Left
+                : (float)bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
             var flyoutBounds = new Rect(flyoutX, bounds.Top, FlyoutWidth, bounds.Height);
             _flyout.Arrange(flyoutBounds);
         }
@@ -198,8 +245,21 @@ public class SkiaFlyoutPage : SkiaLayoutView
         // Draw detail content first
         _detail?.Draw(canvas);
 
-        // If flyout is visible, draw scrim and flyout
-        if (_flyoutAnimationProgress > 0)
+        if (IsSplit)
+        {
+            // Side-by-side: the flyout is a permanent panel, no scrim; a
+            // hairline separates it from the detail.
+            _flyout?.Draw(canvas);
+            using var dividerPaint = new SKPaint
+            {
+                Color = SkiaTheme.Gray300SK,
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1f
+            };
+            float x = (float)Bounds.Left + FlyoutWidth;
+            canvas.DrawLine(x, (float)Bounds.Top, x, (float)Bounds.Bottom, dividerPaint);
+        }
+        else if (_flyoutAnimationProgress > 0)
         {
             // Draw scrim (semi-transparent overlay)
             using var scrimPaint = new SKPaint
@@ -257,8 +317,8 @@ public class SkiaFlyoutPage : SkiaLayoutView
             var flyoutHit = _flyout.HitTest(x, y);
             if (flyoutHit != null) return flyoutHit;
 
-            // Hit on scrim closes flyout
-            if (_isPresented)
+            // Hit on scrim closes flyout (overlay layouts only)
+            if (_isPresented && !IsSplit)
             {
                 return this; // Return self to handle scrim tap
             }
@@ -279,15 +339,15 @@ public class SkiaFlyoutPage : SkiaLayoutView
         if (!IsEnabled) return;
 
         // Check if tap is on scrim (outside flyout but flyout is open)
-        if (_isPresented && _flyout != null && !_flyout.Bounds.Contains(e.X, e.Y))
+        if (_isPresented && !IsSplit && _flyout != null && !_flyout.Bounds.Contains(e.X, e.Y))
         {
             IsPresented = false;
             e.Handled = true;
             return;
         }
 
-        // Start drag gesture
-        if (_gestureEnabled)
+        // Start drag gesture (overlay layouts only; a split flyout is pinned)
+        if (_gestureEnabled && !IsSplit)
         {
             _isDragging = true;
             _dragStartX = e.X;
@@ -333,6 +393,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
             _isDragging = false;
 
             // Determine final state based on progress
+            bool wasPresented = _isPresented;
             if (_flyoutAnimationProgress > 0.5f)
             {
                 _isPresented = true;
@@ -344,7 +405,10 @@ public class SkiaFlyoutPage : SkiaLayoutView
                 _flyoutAnimationProgress = 0f;
             }
 
-            IsPresentedChanged?.Invoke(this, EventArgs.Empty);
+            if (wasPresented != _isPresented)
+            {
+                IsPresentedChanged?.Invoke(this, EventArgs.Empty);
+            }
             Invalidate();
         }
 
@@ -352,7 +416,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
     }
 
     /// <summary>
-    /// Toggles the flyout presentation state.
+    /// Toggles the flyout presentation state (no-op in split layout).
     /// </summary>
     public void ToggleFlyout()
     {

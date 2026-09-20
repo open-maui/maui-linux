@@ -47,6 +47,7 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
     protected override void ConnectHandler(SkiaStepper platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.ValueChanged += OnValueChanged;
 
         // Apply dark theme colors if needed
@@ -73,6 +74,7 @@ public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
     protected override void DisconnectHandler(SkiaStepper platformView)
     {
         platformView.ValueChanged -= OnValueChanged;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

@@ -59,6 +59,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
     protected override void ConnectHandler(SkiaEntry platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TextChanged += OnTextChanged;
         platformView.Completed += OnCompleted;
     }
@@ -67,6 +68,7 @@ public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
     {
         platformView.TextChanged -= OnTextChanged;
         platformView.Completed -= OnCompleted;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 
