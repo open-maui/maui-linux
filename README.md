@@ -24,6 +24,8 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **Theming**: AppThemeBinding live propagation across the entire view tree — CollectionView items, pushed pages, Shell content, and flyout regions all flip on theme toggle
 - **Window decorations**: Server-side decorations (KDE/Sway) or client-side titlebar drawn in Skia with full drag/resize/close/maximize/minimize (GNOME/Mutter)
 - **MediaElement**: Opt-in `OpenMaui.Controls.Linux.MediaElement` package backs `CommunityToolkit.Maui.MediaElement` with GStreamer (playbin + appsink → Skia). `MediaHardwareAcceleration.Prefer` boosts VA-API / NVDEC / V4L2 / MediaSDK decoder ranks when those plugins are installed
+- **WebView**: WPE WebKit composited inside the Skia tree (no GTK widget, no reparenting) on native Wayland and X11, with context menus, clipboard, JavaScript dialogs, file chooser, permissions, web notifications, downloads, spell checking, link cursors, `EvaluateJavaScriptAsync` results and a backend-neutral WebKit content API; WebKitGTK remains the GTK-mode fallback
+- **Blazor Hybrid**: Opt-in `OpenMaui.Controls.Linux.Blazor` package backs `BlazorWebView` (Microsoft.AspNetCore.Components.WebView.Maui) on the WPE WebView
 - **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
 
 ## Quick Start
@@ -139,6 +141,36 @@ map.Pins.Add(new MapPin { Latitude = 35.68, Longitude = 139.65, Label = "Tokyo" 
 ```
 
 OSM's tile usage policy requires displaying attribution; `SkiaMap` renders the credit overlay automatically (toggle with `ShowAttribution`).
+
+### WebView (WPE WebKit)
+
+`WebView` renders through WPE WebKit 2.54+ when it is installed, composited in the Skia tree like any other control, in native Wayland/X11 mode. Without WPE the GTK-hosted WebKitGTK view is used (requires `options.UseGtk = true`). `OPENMAUI_WEBVIEW=wpe|webkitgtk|auto` overrides the choice.
+
+```bash
+# Debian / Ubuntu
+sudo apt install libwpewebkit-2.0-1
+
+# Fedora (not in the official repositories; maintained by an Igalia WPE developer)
+sudo dnf copr enable philn/wpewebkit && sudo dnf install wpewebkit
+```
+
+### Optional: Blazor Hybrid (BlazorWebView)
+
+`BlazorWebView` on Linux uses the opt-in sibling package on top of the WPE WebView:
+
+```bash
+dotnet add package Microsoft.AspNetCore.Components.WebView.Maui
+dotnet add package OpenMaui.Controls.Linux.Blazor
+```
+
+```csharp
+builder
+    .UseMauiApp<App>()
+    .UseLinux()
+    .UseLinuxBlazorWebView();   // Blazor WebView services + WPE-backed handler; no-op off Linux
+```
+
+Use `HostPage="wwwroot/index.html"` and `RootComponent` exactly as on the other platforms; `wwwroot` is served from the app's output directory (the sample marks it `CopyToOutputDirectory`). External links open in the system browser through `UrlLoading`. See the `BlazorDemo` sample.
 
 ## XAML Support
 
@@ -270,7 +302,8 @@ Full sample applications are available in the [maui-linux-samples](https://githu
 |--------|-------------|
 | **[TodoApp](https://github.com/open-maui/maui-linux-samples/tree/main/TodoApp)** | Task manager with NavigationPage, XAML data binding, CollectionView |
 | **[ShellDemo](https://github.com/open-maui/maui-linux-samples/tree/main/ShellDemo)** | Control showcase with Shell navigation and flyout menu |
-| **[WebViewDemo](https://github.com/open-maui/maui-linux-samples/tree/main/WebViewDemo)** | Web browser with WebView, navigation controls, and XAML UI |
+| **[WebViewDemo](https://github.com/open-maui/maui-linux-samples/tree/main/WebViewDemo)** | Web browser with WebView (WPE WebKit in native mode), navigation controls, and XAML UI |
+| **[BlazorDemo](https://github.com/open-maui/maui-linux-samples/tree/main/BlazorDemo)** | Blazor Hybrid: `BlazorWebView` with Razor components, counter, two-way binding, DI-injected service, external links via `UrlLoading` |
 | **[MediaDemo](https://github.com/open-maui/maui-linux-samples/tree/main/MediaDemo)** | Video/audio player with `CommunityToolkit.Maui.MediaElement` on Linux (GStreamer backend); play/pause/seek/volume/mute, HTTP streams and local files |
 | **[MapsDemo](https://github.com/open-maui/maui-linux-samples/tree/main/MapsDemo)** | OpenStreetMap map view with `Microsoft.Maui.Controls.Maps` on Linux; pins, route polyline, pan/zoom, cached OSM raster tiles |
 
@@ -445,7 +478,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 OpenMaui is the Wayland-first, self-rendered Linux platform for .NET MAUI, with X11 compatibility rather than GTK as its architectural foundation. The next releases build on that (full detail in [docs/ROADMAP.md](docs/ROADMAP.md)):
 
 - [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2). Remaining: runtime scale change, hardware video zero-copy, explicit DMA-BUF and Vulkan, the full benchmark suite
-- [ ] **Phase 2: WPE WebKit WebView and BlazorWebView** — `BlazorWebView` first on the existing WebKitGTK path, then a WPEPlatform (WPE WebKit 2.54) embedder that composites web frames as Skia textures inside the platform's own render tree, identical on Wayland and X11, with a Fedora distribution answer (COPR / bundling)
+- [x] **Phase 2: WPE WebKit WebView and BlazorWebView** — WPEPlatform (WPE WebKit 2.54) embedder compositing web frames inside the platform's own render tree, identical on Wayland and X11; context menus, clipboard bridge, backend selection; JS dialogs, file chooser and link cursors through the platform; `OpenMaui.Controls.Linux.Blazor` for Blazor Hybrid (10.0.101.2). Remaining: DMA-BUF zero-copy frames, hardware keycodes
 - [ ] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a per-release compatibility scorecard, third-party library compatibility as a KPI
 - [ ] `openmaui doctor`, native D-Bus xdg-desktop-portal layer, deb/rpm output, multi-window round-out
 

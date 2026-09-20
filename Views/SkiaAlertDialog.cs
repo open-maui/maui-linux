@@ -24,6 +24,11 @@ public class SkiaAlertDialog : SkiaView
     private bool _cancelHovered;
     private bool _acceptHovered;
 
+    // Optional single-line input (prompt dialogs). Null = no field.
+    private string? _input;
+    private SKRect _inputBounds;
+    private const float InputHeight = 40;
+
     // Dialog styling - theme-aware colors (evaluated at draw time)
     private static SKColor OverlayColor => SkiaTheme.Overlay50SK;
     private static SKColor DialogBackground => SkiaTheme.CurrentSurfaceSK;
@@ -54,6 +59,19 @@ public class SkiaAlertDialog : SkiaView
         _tcs = new TaskCompletionSource<bool>();
         IsFocusable = true;
     }
+
+    /// <summary>
+    /// Creates a prompt dialog: an alert with a single-line text field whose
+    /// value is read from <see cref="Input"/> after <see cref="Result"/> completes.
+    /// </summary>
+    public SkiaAlertDialog(string title, string message, string? accept, string? cancel, string initialInput)
+        : this(title, message, accept, cancel)
+    {
+        _input = initialInput ?? string.Empty;
+    }
+
+    /// <summary>The text field's current value (prompt dialogs), else null.</summary>
+    public string? Input => _input;
 
     /// <summary>
     /// Gets the task that completes when the dialog is dismissed.
@@ -133,6 +151,34 @@ public class SkiaAlertDialog : SkiaView
                 yOffset += 22;
             }
             yOffset += 8;
+        }
+
+        // Draw input field (prompt)
+        if (_input != null)
+        {
+            _inputBounds = new SKRect(dialogBounds.Left + DialogPadding, yOffset,
+                dialogBounds.Right - DialogPadding, yOffset + InputHeight);
+            using var fieldBg = new SKPaint { Color = SkiaTheme.IsDarkMode ? SkiaTheme.Gray700SK : SKColors.White, Style = SKPaintStyle.Fill, IsAntialias = true };
+            using var fieldBorder = new SKPaint { Color = SkiaTheme.PrimarySK, Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, IsAntialias = true };
+            canvas.DrawRoundRect(_inputBounds, 6, 6, fieldBg);
+            canvas.DrawRoundRect(_inputBounds, 6, 6, fieldBorder);
+
+            using var inputFont = SkiaFontFactory.Create(16);
+            using var inputPaint = new SKPaint { Color = TitleColor, IsAntialias = true };
+            float textX = _inputBounds.Left + 10;
+            float baseline = TextRenderingHelper.BaselineForVerticalCenter(inputFont, _inputBounds.MidY);
+            // Keep the caret (end of text) visible when the value is wider than the field.
+            float textWidth = inputFont.MeasureText(_input);
+            float maxWidth = _inputBounds.Width - 20;
+            canvas.Save();
+            canvas.ClipRect(new SKRect(_inputBounds.Left + 4, _inputBounds.Top, _inputBounds.Right - 4, _inputBounds.Bottom));
+            if (textWidth > maxWidth) textX -= textWidth - maxWidth;
+            canvas.DrawText(_input, textX, baseline, inputFont, inputPaint);
+            using var caretPaint = new SKPaint { Color = TitleColor, StrokeWidth = 1.5f, IsAntialias = true };
+            float caretX = textX + textWidth + 1;
+            canvas.DrawLine(caretX, _inputBounds.MidY - 10, caretX, _inputBounds.MidY + 10, caretPaint);
+            canvas.Restore();
+            yOffset += InputHeight + 12;
         }
 
         // Draw buttons
@@ -223,6 +269,9 @@ public class SkiaAlertDialog : SkiaView
         if (!string.IsNullOrEmpty(_message))
             height += messageLineCount * 22 + 8; // Message lines + spacing
 
+        if (_input != null)
+            height += InputHeight + 12; // Prompt field
+
         height += ButtonHeight; // Buttons
 
         return Math.Max(height, 180); // Minimum height
@@ -290,8 +339,39 @@ public class SkiaAlertDialog : SkiaView
         // Clicking outside dialog doesn't dismiss it (it's modal)
     }
 
+    public override void OnTextInput(TextInputEventArgs e)
+    {
+        if (_input == null || string.IsNullOrEmpty(e.Text)) return;
+        _input += e.Text;
+        e.Handled = true;
+        Invalidate();
+    }
+
     public override void OnKeyDown(KeyEventArgs e)
     {
+        // Prompt field editing: backspace (Ctrl clears), paste.
+        if (_input != null)
+        {
+            bool ctrl = (e.Modifiers & KeyModifiers.Control) != 0;
+            if (e.Key == Key.Backspace)
+            {
+                if (_input.Length > 0)
+                    _input = ctrl ? string.Empty : _input[..^1];
+                e.Handled = true;
+                Invalidate();
+                return;
+            }
+            if (ctrl && e.Key == Key.V)
+            {
+                var text = SystemClipboard.GetText();
+                if (!string.IsNullOrEmpty(text))
+                    _input += text.Replace("\n", " ").Replace("\r", string.Empty);
+                e.Handled = true;
+                Invalidate();
+                return;
+            }
+        }
+
         // Handle Escape to cancel
         if (e.Key == Key.Escape && _cancel != null)
         {
