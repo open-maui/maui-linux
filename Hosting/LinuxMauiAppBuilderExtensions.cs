@@ -4,14 +4,18 @@
 using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Maui.Accessibility;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Authentication;
 using Microsoft.Maui.ApplicationModel.Communication;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Devices;
+using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Networking;
+using Microsoft.Maui.Platform.Linux;
 using Microsoft.Maui.Platform.Linux.Converters;
 using Microsoft.Maui.Platform.Linux.Dispatching;
 using Microsoft.Maui.Platform.Linux.Handlers;
@@ -107,6 +111,15 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // Register dispatcher provider
         builder.Services.TryAddSingleton<IDispatcherProvider>(LinuxDispatcherProvider.Instance);
 
+        // Animation ticker and manager for MAUI's ViewExtensions (FadeTo, ...);
+        // previously only reachable through the MauiContext fallback.
+        builder.Services.TryAddSingleton<Microsoft.Maui.Animations.ITicker, LinuxTicker>();
+        builder.Services.TryAddSingleton<Microsoft.Maui.Animations.IAnimationManager, LinuxAnimationManager>();
+
+        // Named font sizes (FontSize="Large" etc.): MAUI's XAML converter resolves
+        // them through DependencyService and throws when no platform provides it.
+        Microsoft.Maui.Controls.DependencyService.Register<Microsoft.Maui.Controls.Internals.IFontNamedSizeService, LinuxFontNamedSizeService>();
+
         // Register device services
         builder.Services.TryAddSingleton<IDeviceInfo>(DeviceInfoService.Instance);
         builder.Services.TryAddSingleton<IDeviceDisplay>(DeviceDisplayService.Instance);
@@ -141,12 +154,34 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // Register font fallback manager
         builder.Services.TryAddSingleton(_ => FontFallbackManager.Instance);
 
+        // Fonts: MauiApp.CreateBuilder() already TryAdd'ed MAUI's portable FontRegistrar/FontManager
+        // (their EmbeddedFontLoader is a no-op on the generic TFM), so Replace rather than TryAdd.
+        builder.Services.Replace(ServiceDescriptor.Singleton<IFontRegistrar>(_ => LinuxFontRegistrar.Instance));
+        builder.Services.Replace(ServiceDescriptor.Singleton<IFontManager>(sp => new LinuxFontManager(sp.GetRequiredService<IFontRegistrar>())));
+
+        // Essentials gaps
+        builder.Services.TryAddSingleton<IFileSystem, FileSystemService>();
+        builder.Services.TryAddSingleton<ISemanticScreenReader, SemanticScreenReaderService>();
+        builder.Services.TryAddSingleton<IWebAuthenticator, WebAuthenticatorService>();
+
+        // Sensors without desktop hardware (IsSupported == false, Start throws FeatureNotSupportedException)
+        builder.Services.TryAddSingleton<IAccelerometer, UnsupportedAccelerometer>();
+        builder.Services.TryAddSingleton<IBarometer, UnsupportedBarometer>();
+        builder.Services.TryAddSingleton<ICompass, UnsupportedCompass>();
+        builder.Services.TryAddSingleton<IGyroscope, UnsupportedGyroscope>();
+        builder.Services.TryAddSingleton<IMagnetometer, UnsupportedMagnetometer>();
+        builder.Services.TryAddSingleton<IOrientationSensor, UnsupportedOrientationSensor>();
+
         // Register additional Linux-specific services
         builder.Services.TryAddSingleton<FolderPickerService>();
         builder.Services.TryAddSingleton<NotificationService>();
         builder.Services.TryAddSingleton<SystemTrayService>();
         builder.Services.TryAddSingleton(_ => MonitorService.Instance);
         builder.Services.TryAddSingleton<DragDropService>();
+
+        // Page.DisplayAlert / DisplayPromptAsync / DisplayActionSheet -> Skia dialogs
+        // (MAUI 10 AlertManager resolves these keyed delegates).
+        LinuxAlertManager.Register(builder.Services);
 
         // Register GTK host service
         builder.Services.TryAddSingleton(_ => GtkHostService.Instance);
@@ -166,7 +201,9 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>();
             handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, PolygonHandler>();
             handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, PolylineHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Path, PathHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Path, ShapePathHandler>();
+            handlers.AddHandler<MenuBar, MenuBarHandler>();
+            handlers.AddHandler<MenuFlyout, MenuFlyoutHandler>();
 
             // Core controls
             handlers.AddHandler<BoxView, BoxViewHandler>();
@@ -185,12 +222,14 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<StackLayout, StackLayoutHandler>();
             handlers.AddHandler<VerticalStackLayout, StackLayoutHandler>();
             handlers.AddHandler<HorizontalStackLayout, StackLayoutHandler>();
-            handlers.AddHandler<AbsoluteLayout, LayoutHandler>();
+            handlers.AddHandler<AbsoluteLayout, AbsoluteLayoutHandler>();
             handlers.AddHandler<FlexLayout, FlexLayoutHandler>();
             handlers.AddHandler<ScrollView, ScrollViewHandler>();
             handlers.AddHandler<Frame, FrameHandler>();
             handlers.AddHandler<Border, BorderHandler>();
-            handlers.AddHandler<ContentView, BorderHandler>();
+            handlers.AddHandler<ContentView, ContentViewHandler>();
+            handlers.AddHandler<ContentPresenter, ContentPresenterHandler>();
+            handlers.AddHandler<TemplatedView, TemplatedViewHandler>();
             handlers.AddHandler<RefreshView, RefreshViewHandler>();
 
             // Picker controls
@@ -222,6 +261,7 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
             handlers.AddHandler<ListView, CollectionViewHandler>();
+            handlers.AddHandler<TableView, TableViewHandler>();
             handlers.AddHandler<CarouselView, CarouselViewHandler>();
             handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
             handlers.AddHandler<SwipeView, SwipeViewHandler>();

@@ -80,29 +80,12 @@ public class AppInfoService : IAppInfo
 
     public void ShowSettingsUI()
     {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "gnome-control-center",
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "xdg-open",
-                    Arguments = "x-settings:",
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Debug("AppInfoService", "Settings launch fallback failed", ex);
-            }
-        }
+        // gnome-control-center first; any other desktop gets the x-settings:
+        // handler through xdg-open.
+        if (ExternalProcess.TryStart(new ProcessStartInfo { FileName = "gnome-control-center", UseShellExecute = false }))
+            return;
+
+        if (!ExternalProcess.TryStart(new ProcessStartInfo { FileName = "xdg-open", ArgumentList = { "x-settings:" }, UseShellExecute = false }))
+            DiagnosticLog.Debug("AppInfoService", "Settings launch fallback failed");
     }
 }

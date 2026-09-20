@@ -19,67 +19,45 @@ public class LauncherService : ILauncher
 
     public Task<bool> OpenAsync(Uri uri)
     {
-        return Task.Run(() =>
-        {
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "xdg-open",
-                    Arguments = uri.ToString(),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
+        if (uri == null)
+            throw new ArgumentNullException(nameof(uri));
 
-                using var process = Process.Start(psi);
-                if (process == null)
-                    return false;
-
-                // Don't wait for the process to exit - xdg-open may spawn another process
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        });
+        // AbsoluteUri keeps the escaped form (ToString() would unescape spaces
+        // and break the argument xdg-open receives).
+        var target = uri.IsAbsoluteUri ? uri.AbsoluteUri : uri.OriginalString;
+        return Task.Run(() => ExternalProcess.TryStart(BuildStartInfo(target)));
     }
 
     public Task<bool> OpenAsync(OpenFileRequest request)
     {
-        if (request.File == null)
+        if (request?.File == null)
             return Task.FromResult(false);
 
-        return Task.Run(() =>
-        {
-            try
-            {
-                var filePath = request.File.FullPath;
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "xdg-open",
-                    Arguments = $"\"{filePath}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using var process = Process.Start(psi);
-                return process != null;
-            }
-            catch
-            {
-                return false;
-            }
-        });
+        var filePath = request.File.FullPath;
+        return Task.Run(() => ExternalProcess.TryStart(BuildStartInfo(filePath)));
     }
 
     public Task<bool> TryOpenAsync(Uri uri)
     {
         return OpenAsync(uri);
+    }
+
+    /// <summary>
+    /// xdg-open invocation for a URI or file path. The target is passed as a
+    /// single argument (ArgumentList), so spaces and quotes in file names are
+    /// forwarded verbatim rather than shell-quoted.
+    /// </summary>
+    internal static ProcessStartInfo BuildStartInfo(string target)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "xdg-open",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        psi.ArgumentList.Add(target);
+        return psi;
     }
 }

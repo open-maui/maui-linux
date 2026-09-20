@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Out-of-process host for the WebView conformance scenarios. WebKit
+       (WTF::initializeMainThread) insists on the process main thread; xunit
+       runs on pool threads, so WebViewHandlerTests launch this program once
+       per scenario and assert on its exit code and output. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Microsoft.Maui.Controls.Linux.Tests.WebViewHost</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\OpenMaui.Controls.Linux.csproj" />
+  </ItemGroup>
+
+</Project>

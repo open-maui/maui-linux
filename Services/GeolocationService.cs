@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics;
 using Microsoft.Maui.Devices.Sensors;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
@@ -10,33 +11,35 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class GeolocationService : IGeolocation
 {
-    public async Task<Location?> GetLastKnownLocationAsync() => null;
+    public Task<Location?> GetLastKnownLocationAsync() => Task.FromResult<Location?>(null);
 
     public async Task<Location?> GetLocationAsync(GeolocationRequest request, CancellationToken cancellationToken = default)
     {
-        // Try to read from GeoClue2 via gdbus
+        if (cancellationToken.IsCancellationRequested)
+            return null;
+
+        // Try to reach GeoClue2 via gdbus. The reply is not parsed yet (a real
+        // implementation needs a D-Bus client and the agent handshake), so the
+        // call only establishes whether the service answers; the result is null
+        // either way.
         try
         {
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "gdbus",
-                Arguments = "call --system --dest org.freedesktop.GeoClue2 --object-path /org/freedesktop/GeoClue2/Manager --method org.freedesktop.GeoClue2.Manager.GetClient",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-            using var process = System.Diagnostics.Process.Start(psi);
-            if (process != null)
-            {
-                var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-                await process.WaitForExitAsync(cancellationToken);
-                // Parse GeoClue2 response — simplified, real impl would use D-Bus bindings.
-            }
+            await ExternalProcess.RunAsync(BuildGeoClueStartInfo(), cancellationToken);
         }
         catch { }
 
         return null;
     }
+
+    internal static ProcessStartInfo BuildGeoClueStartInfo() => new()
+    {
+        FileName = "gdbus",
+        Arguments = "call --system --dest org.freedesktop.GeoClue2 --object-path /org/freedesktop/GeoClue2/Manager --method org.freedesktop.GeoClue2.Manager.GetClient",
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        CreateNoWindow = true
+    };
 
     public bool IsListening => false;
     public bool IsListeningForeground => false;
@@ -47,6 +50,8 @@ public class GeolocationService : IGeolocation
 
     public void StopListeningForeground() { }
 
+#pragma warning disable CS0067 // never raised: no listening support
     public event EventHandler<GeolocationLocationChangedEventArgs>? LocationChanged;
     public event EventHandler<GeolocationListeningFailedEventArgs>? ListeningFailed;
+#pragma warning restore CS0067
 }

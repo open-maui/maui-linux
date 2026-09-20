@@ -60,7 +60,12 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public IRenderContext? RenderContext
     {
-        get => _renderContext;
+        // Containers keep their own child lists (SkiaLayoutView, item views,
+        // page content), so a value set on the root cannot reach every
+        // descendant by push alone; resolve through the parent chain instead.
+        // Without this, views inside layouts fell back to SKTypeface.Default
+        // and FontFamily / FontAttributes (italic) were silently ignored.
+        get => _renderContext ?? _parent?.RenderContext;
         set
         {
             if (ReferenceEquals(_renderContext, value)) return;
@@ -169,7 +174,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.IsVisible = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.IsVisible, value)) ve.IsVisible = value; return; }
             if (_isVisible == value) return;
             _isVisible = value;
             OnVisibilityChanged();
@@ -188,7 +193,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.IsEnabled = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.IsEnabled, value)) ve.IsEnabled = value; return; }
             if (_isEnabled == value) return;
             _isEnabled = value;
             OnEnabledChanged();
@@ -208,7 +213,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         set
         {
             var coerced = Math.Clamp(value, 0f, 1f);
-            if (_mauiView is VisualElement ve) { ve.Opacity = coerced; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals((float)ve.Opacity, coerced)) ve.Opacity = coerced; return; }
             if (_opacity == coerced) return;
             _opacity = coerced;
             Invalidate();
@@ -228,7 +233,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.BackgroundColor = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.BackgroundColor, value)) ve.BackgroundColor = value; return; }
             if (EqualityComparer<Color?>.Default.Equals(_backgroundColor, value)) return;
             _backgroundColor = value;
             OnBackgroundColorChanged();
@@ -285,7 +290,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.WidthRequest = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.WidthRequest, value)) ve.WidthRequest = value; return; }
             if (_widthRequest == value) return;
             _widthRequest = value;
             InvalidateMeasure();
@@ -304,7 +309,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.HeightRequest = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.HeightRequest, value)) ve.HeightRequest = value; return; }
             if (_heightRequest == value) return;
             _heightRequest = value;
             InvalidateMeasure();
@@ -323,7 +328,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.MinimumWidthRequest = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.MinimumWidthRequest, value)) ve.MinimumWidthRequest = value; return; }
             if (_minimumWidthRequest == value) return;
             _minimumWidthRequest = value;
             InvalidateMeasure();
@@ -342,7 +347,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.MinimumHeightRequest = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.MinimumHeightRequest, value)) ve.MinimumHeightRequest = value; return; }
             if (_minimumHeightRequest == value) return;
             _minimumHeightRequest = value;
             InvalidateMeasure();
@@ -454,7 +459,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.Scale = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.Scale, value)) ve.Scale = value; return; }
             if (_scale == value) return;
             _scale = value;
             Invalidate();
@@ -473,7 +478,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.ScaleX = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.ScaleX, value)) ve.ScaleX = value; return; }
             if (_scaleX == value) return;
             _scaleX = value;
             Invalidate();
@@ -492,7 +497,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.ScaleY = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.ScaleY, value)) ve.ScaleY = value; return; }
             if (_scaleY == value) return;
             _scaleY = value;
             Invalidate();
@@ -511,7 +516,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.Rotation = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.Rotation, value)) ve.Rotation = value; return; }
             if (_rotation == value) return;
             _rotation = value;
             Invalidate();
@@ -530,7 +535,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.RotationX = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.RotationX, value)) ve.RotationX = value; return; }
             if (_rotationX == value) return;
             _rotationX = value;
             Invalidate();
@@ -549,7 +554,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.RotationY = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.RotationY, value)) ve.RotationY = value; return; }
             if (_rotationY == value) return;
             _rotationY = value;
             Invalidate();
@@ -568,7 +573,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.TranslationX = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.TranslationX, value)) ve.TranslationX = value; return; }
             if (_translationX == value) return;
             _translationX = value;
             Invalidate();
@@ -587,7 +592,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.TranslationY = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.TranslationY, value)) ve.TranslationY = value; return; }
             if (_translationY == value) return;
             _translationY = value;
             Invalidate();
@@ -606,7 +611,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.AnchorX = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.AnchorX, value)) ve.AnchorX = value; return; }
             if (_anchorX == value) return;
             _anchorX = value;
             Invalidate();
@@ -625,7 +630,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.AnchorY = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.AnchorY, value)) ve.AnchorY = value; return; }
             if (_anchorY == value) return;
             _anchorY = value;
             Invalidate();
@@ -645,7 +650,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.InputTransparent = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.InputTransparent, value)) ve.InputTransparent = value; return; }
             if (_inputTransparent == value) return;
             _inputTransparent = value;
         }
@@ -663,7 +668,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.FlowDirection = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.FlowDirection, value)) ve.FlowDirection = value; return; }
             if (_flowDirection == value) return;
             _flowDirection = value;
             InvalidateMeasure();
@@ -702,7 +707,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.MaximumWidthRequest = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.MaximumWidthRequest, value)) ve.MaximumWidthRequest = value; return; }
             if (_maximumWidthRequest == value) return;
             _maximumWidthRequest = value;
             InvalidateMeasure();
@@ -721,7 +726,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.MaximumHeightRequest = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.MaximumHeightRequest, value)) ve.MaximumHeightRequest = value; return; }
             if (_maximumHeightRequest == value) return;
             _maximumHeightRequest = value;
             InvalidateMeasure();
@@ -777,7 +782,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.Background = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.Background, value)) ve.Background = value; return; }
             if (ReferenceEquals(_background, value)) return;
             _background = value;
             Invalidate();
@@ -796,7 +801,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.Clip = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.Clip, value)) ve.Clip = value; return; }
             if (ReferenceEquals(_clip, value)) return;
             _clip = value;
             Invalidate();
@@ -815,7 +820,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.Shadow = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.Shadow, value)) ve.Shadow = value; return; }
             if (ReferenceEquals(_shadow, value)) return;
             _shadow = value;
             Invalidate();
@@ -834,7 +839,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is VisualElement ve) { ve.Visual = value; return; }
+            if (_mauiView is VisualElement ve) { if (!Equals(ve.Visual, value)) ve.Visual = value; return; }
             if (ReferenceEquals(_visual, value)) return;
             _visual = value;
         }
@@ -849,7 +854,11 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// Gets or sets the MAUI View this platform view represents.
     /// Used for gesture processing. When set, all VisualElement-equivalent
     /// properties on this SkiaView read live from the MauiView, eliminating
-    /// duplicate state.
+    /// duplicate state. Their setters skip the write-back when the value is
+    /// unchanged: handler mappers echo values they just read from the MAUI
+    /// view, and an unconditional set would stamp them as manual (highest
+    /// specificity) values, pinning them over Style, Trigger and VisualState
+    /// setters that later need to unapply.
     /// </summary>
     private View? _mauiView;
     public View? MauiView

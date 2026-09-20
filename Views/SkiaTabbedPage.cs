@@ -57,6 +57,8 @@ public class SkiaTabbedPage : SkiaLayoutView
             if (_tabBarOnBottom != value)
             {
                 _tabBarOnBottom = value;
+                // Content bounds move with the bar, so a re-arrange is needed.
+                InvalidateMeasure();
                 Invalidate();
             }
         }
@@ -437,8 +439,16 @@ public class SkiaTabbedPage : SkiaLayoutView
 
             SelectedIndex = clickedIndex;
             e.Handled = true;
+            return;
         }
 
         base.OnPointerPressed(e);
     }
+
+    /// <summary>
+    /// The tab bar's bounds in the same coordinate space as <see cref="SkiaView.Bounds"/>.
+    /// </summary>
+    public SKRect TabBarBounds => TabBarOnBottom
+        ? new SKRect((float)Bounds.Left, (float)Bounds.Bottom - TabBarHeight, (float)Bounds.Right, (float)Bounds.Bottom)
+        : new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Top + TabBarHeight);
 }
