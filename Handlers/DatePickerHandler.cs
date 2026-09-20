@@ -49,12 +49,14 @@ public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker
     protected override void ConnectHandler(SkiaDatePicker platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.DateSelected += OnDateSelected;
     }
 
     protected override void DisconnectHandler(SkiaDatePicker platformView)
     {
         platformView.DateSelected -= OnDateSelected;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

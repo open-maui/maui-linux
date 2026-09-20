@@ -124,14 +124,9 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         }
 
         // Connect click event
-        menuItem.Clicked += (s, e) =>
-        {
-            if (mauiItem.Command?.CanExecute(mauiItem.CommandParameter) == true)
-            {
-                mauiItem.Command.Execute(mauiItem.CommandParameter);
-            }
-            (mauiItem as IMenuFlyoutItem)?.Clicked();
-        };
+        // IMenuElement.Clicked runs the Command and raises Clicked once;
+        // executing the command here as well fired it twice.
+        menuItem.Clicked += (s, e) => ((IMenuElement)mauiItem).Clicked();
 
         return menuItem;
     }
@@ -298,14 +293,9 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
         }
 
         // Connect click event
-        menuItem.Clicked += (s, e) =>
-        {
-            if (mauiItem.Command?.CanExecute(mauiItem.CommandParameter) == true)
-            {
-                mauiItem.Command.Execute(mauiItem.CommandParameter);
-            }
-            (mauiItem as IMenuFlyoutItem)?.Clicked();
-        };
+        // IMenuElement.Clicked runs the Command and raises Clicked once;
+        // executing the command here as well fired it twice.
+        menuItem.Clicked += (s, e) => ((IMenuElement)mauiItem).Clicked();
 
         return menuItem;
     }

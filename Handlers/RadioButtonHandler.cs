@@ -45,6 +45,7 @@ public partial class RadioButtonHandler : ViewHandler<IRadioButton, SkiaRadioBut
     protected override void ConnectHandler(SkiaRadioButton platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.CheckedChanged += OnCheckedChanged;
 
         // Set content if available
@@ -59,6 +60,7 @@ public partial class RadioButtonHandler : ViewHandler<IRadioButton, SkiaRadioBut
     protected override void DisconnectHandler(SkiaRadioButton platformView)
     {
         platformView.CheckedChanged -= OnCheckedChanged;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

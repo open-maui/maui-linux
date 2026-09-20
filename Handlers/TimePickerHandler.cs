@@ -47,12 +47,14 @@ public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker
     protected override void ConnectHandler(SkiaTimePicker platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TimeSelected += OnTimeSelected;
     }
 
     protected override void DisconnectHandler(SkiaTimePicker platformView)
     {
         platformView.TimeSelected -= OnTimeSelected;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

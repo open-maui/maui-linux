@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -29,6 +30,18 @@
   <ItemGroup>
     <ProjectReference Include="..\OpenMaui.Controls.Linux.csproj" />
     <ProjectReference Include="..\Maps\OpenMaui.Controls.Linux.Maps.csproj" />
+    <!-- WebView scenarios run out of process (WebKit needs the main thread);
+         the host is built with the tests and lands next to them. -->
+    <ProjectReference Include="WebViewHost\WebViewHost.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="WebViewHost\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The platform has process-global state (Application.Current, the GLib main
+         context, WebKit's main-thread rule); collections run serially. -->
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

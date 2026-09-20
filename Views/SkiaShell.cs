@@ -214,9 +214,9 @@ public class SkiaShell : SkiaLayoutView
         {
             if (_currentContent != null)
                 yield return _currentContent;
-            foreach (var (content, _, _) in _navigationStack)
-                if (content != null)
-                    yield return content;
+            foreach (var entry in _navigationStack)
+                if (entry.Content != null)
+                    yield return entry.Content;
             foreach (var section in _sections)
             {
                 foreach (var item in section.Items)
@@ -232,8 +232,12 @@ public class SkiaShell : SkiaLayoutView
     private int _selectedSectionIndex = 0;
     private int _selectedItemIndex = 0;
 
-    // Navigation stack for push/pop navigation
-    private readonly Stack<(SkiaView Content, string Title, Microsoft.Maui.Controls.Page? MauiPage)> _navigationStack = new();
+    // Navigation stack for push/pop navigation. Ordered bottom (the section
+    // root that was covered first) to top (the entry directly under the
+    // current content); the current content itself is not on the stack.
+    private readonly List<NavigationEntry> _navigationStack = new();
+
+    private readonly record struct NavigationEntry(SkiaView Content, string Title, Microsoft.Maui.Controls.Page? MauiPage);
 
     // The MAUI page whose Appearing has been sent and Disappearing hasn't.
     // SkiaShell owns page transitions (MAUI's Shell never sees them), so it
@@ -512,6 +516,23 @@ public class SkiaShell : SkiaLayoutView
     public int CurrentSectionIndex => _selectedSectionIndex;
 
     /// <summary>
+    /// Gets the index of the selected content (tab) within the current section.
+    /// </summary>
+    public int CurrentItemIndex => _selectedItemIndex;
+
+    /// <summary>
+    /// The view presented in the content area: the selected content's view,
+    /// or the top pushed page's view when the navigation stack is not empty.
+    /// </summary>
+    public SkiaView? CurrentContent => _currentContent;
+
+    /// <summary>
+    /// The MAUI page currently presented (the one that last received
+    /// Appearing), or null when no MAUI page is attached.
+    /// </summary>
+    public Microsoft.Maui.Controls.Page? CurrentMauiPage => _lifecyclePage;
+
+    /// <summary>
     /// Reference to the MAUI Shell this view represents.
     /// </summary>
     private Shell? _mauiShell;
@@ -521,7 +542,12 @@ public class SkiaShell : SkiaLayoutView
         get => _mauiShell;
         set
         {
+            if (ReferenceEquals(_mauiShell, value)) return;
+            if (_mauiShell != null)
+                DetachMauiShell(_mauiShell);
             _mauiShell = value;
+            if (_mauiShell != null)
+                AttachMauiShell(_mauiShell);
             // Subscribe to Application.RequestedThemeChanged once so the Shell's
             // attached colors (TitleColor, ForegroundColor, BackgroundColor —
             // which are AppThemeBinding-bound from XAML) get pulled into the
@@ -541,6 +567,239 @@ public class SkiaShell : SkiaLayoutView
         ReadShellThemeColors();
         Invalidate();
     }
+
+    #region MAUI Shell navigation bridge
+
+    // MAUI's Shell owns routing: Shell.GoToAsync runs through
+    // ShellNavigationManager, which resolves the route, applies
+    // [QueryProperty] / IQueryAttributable, raises Navigating/Navigated,
+    // updates CurrentState and mutates each ShellSection's page stack.
+    // SkiaShell never routes on its own when a MAUI Shell is attached — it
+    // mirrors MAUI's state: the current ShellContent, and the pages MAUI has
+    // pushed on the current section. Two signals drive the mirror:
+    //   * IShellSectionController.NavigationRequested (per section) fires
+    //     synchronously on every push/pop/insert/remove, after MAUI's stack
+    //     has been mutated;
+    //   * Shell.Navigated fires when a navigation completes (section switch,
+    //     push, pop) and is the public, stable signal.
+    // Both call SyncFromMauiShell, which is idempotent.
+
+    private readonly HashSet<Microsoft.Maui.Controls.ShellSection> _observedSections = new();
+    private bool _syncingFromMaui;
+
+    /// <summary>
+    /// Renders a MAUI page that MAUI pushed onto a section's navigation
+    /// stack. Set by the host (handler or LinuxViewRenderer). Pages are
+    /// rendered once and the platform view is reused on later syncs.
+    /// </summary>
+    public Func<Microsoft.Maui.Controls.Page, SkiaView?>? PageRenderer { get; set; }
+
+    private void AttachMauiShell(Shell shell)
+    {
+        shell.Navigated += OnMauiShellNavigated;
+        if (shell is Microsoft.Maui.Controls.IShellController controller)
+            controller.StructureChanged += OnMauiShellStructureChanged;
+        ObserveMauiSections();
+    }
+
+    private void DetachMauiShell(Shell shell)
+    {
+        shell.Navigated -= OnMauiShellNavigated;
+        if (shell is Microsoft.Maui.Controls.IShellController controller)
+            controller.StructureChanged -= OnMauiShellStructureChanged;
+        foreach (var section in _observedSections)
+            ((Microsoft.Maui.Controls.IShellSectionController)section).NavigationRequested -= OnMauiNavigationRequested;
+        _observedSections.Clear();
+    }
+
+    private void ObserveMauiSections()
+    {
+        if (_mauiShell == null) return;
+        foreach (var item in _mauiShell.Items)
+        {
+            foreach (var section in item.Items)
+            {
+                if (_observedSections.Add(section))
+                    ((Microsoft.Maui.Controls.IShellSectionController)section).NavigationRequested += OnMauiNavigationRequested;
+            }
+        }
+    }
+
+    private void OnMauiShellStructureChanged(object? sender, EventArgs e) => ObserveMauiSections();
+
+    private void OnMauiNavigationRequested(object? sender, Microsoft.Maui.Controls.Internals.NavigationRequestedEventArgs e)
+    {
+        // MAUI mutates the section's stack before raising this, so the
+        // mirror can be rebuilt from Stack directly. Completing the task
+        // synchronously tells MAUI the platform transition is done.
+        SyncFromMauiShell();
+        e.Task ??= Task.FromResult(true);
+    }
+
+    private void OnMauiShellNavigated(object? sender, ShellNavigatedEventArgs e) => SyncFromMauiShell();
+
+    /// <summary>
+    /// The MAUI ShellSection currently presented (null when no MAUI Shell is
+    /// attached or it has no items).
+    /// </summary>
+    private Microsoft.Maui.Controls.ShellSection? CurrentMauiSection => _mauiShell?.CurrentItem?.CurrentItem;
+
+    /// <summary>
+    /// Brings the platform selection and navigation stack in line with the
+    /// attached MAUI Shell: selects the section/content MAUI reports as
+    /// current, then makes the pushed pages match the MAUI section's
+    /// <see cref="Microsoft.Maui.Controls.ShellSection.Stack"/>. Safe to call
+    /// at any time; a no-op when already in sync or when no Shell is attached.
+    /// </summary>
+    public void SyncFromMauiShell()
+    {
+        if (_mauiShell == null || _syncingFromMaui) return;
+        _syncingFromMaui = true;
+        try
+        {
+            ObserveMauiSections();
+
+            var mauiSection = CurrentMauiSection;
+            var mauiContent = mauiSection?.CurrentItem;
+            if (mauiContent != null && TryFindContent(mauiContent, out int sectionIndex, out int itemIndex)
+                && (sectionIndex != _selectedSectionIndex || itemIndex != _selectedItemIndex))
+            {
+                NavigateToSection(sectionIndex, itemIndex);
+            }
+
+            SyncNavigationStack(mauiSection);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaShell", "SyncFromMauiShell failed", ex);
+        }
+        finally
+        {
+            _syncingFromMaui = false;
+        }
+    }
+
+    private bool TryFindContent(Microsoft.Maui.Controls.ShellContent content, out int sectionIndex, out int itemIndex)
+    {
+        for (int i = 0; i < _sections.Count; i++)
+        {
+            var items = _sections[i].Items;
+            for (int j = 0; j < items.Count; j++)
+            {
+                if (ReferenceEquals(items[j].MauiShellContent, content))
+                {
+                    sectionIndex = i;
+                    itemIndex = j;
+                    return true;
+                }
+            }
+        }
+        sectionIndex = -1;
+        itemIndex = -1;
+        return false;
+    }
+
+    private void SyncNavigationStack(Microsoft.Maui.Controls.ShellSection? mauiSection)
+    {
+        // MAUI's Stack[0] is a null placeholder for the section root.
+        var target = new List<Microsoft.Maui.Controls.Page>();
+        if (mauiSection != null)
+        {
+            foreach (var page in mauiSection.Stack)
+                if (page != null) target.Add(page);
+        }
+
+        // Pages currently mirrored: stack entries above the root, then the
+        // presented page (when something is pushed).
+        var mirrored = new List<Microsoft.Maui.Controls.Page?>();
+        for (int i = 1; i < _navigationStack.Count; i++)
+            mirrored.Add(_navigationStack[i].MauiPage);
+        if (_navigationStack.Count > 0)
+            mirrored.Add(_lifecyclePage);
+
+        if (mirrored.Count == target.Count)
+        {
+            bool same = true;
+            for (int i = 0; i < target.Count && same; i++)
+                same = ReferenceEquals(mirrored[i], target[i]);
+            if (same) return;
+        }
+
+        // Find the longest common prefix, pop everything above it, then push
+        // the remainder, so an unaffected page keeps its live platform view.
+        int common = 0;
+        while (common < mirrored.Count && common < target.Count && ReferenceEquals(mirrored[common], target[common]))
+            common++;
+
+        while (mirrored.Count > common)
+        {
+            PopAsync();
+            mirrored.RemoveAt(mirrored.Count - 1);
+        }
+
+        for (int i = common; i < target.Count; i++)
+        {
+            var page = target[i];
+            var view = PageRenderer?.Invoke(page);
+            if (view == null)
+            {
+                DiagnosticLog.Warn("SkiaShell", $"No platform view for pushed page {page.GetType().Name}; skipping");
+                continue;
+            }
+            PushAsync(view, page.Title ?? string.Empty, page);
+        }
+    }
+
+    /// <summary>
+    /// Handles the navigation bar back affordance. With a MAUI Shell attached
+    /// the pop is requested from MAUI (so Navigating/Navigated fire and its
+    /// stack stays authoritative); otherwise the platform stack is popped.
+    /// </summary>
+    public void GoBack()
+    {
+        var section = CurrentMauiSection;
+        if (section != null && section.Stack.Count > 1)
+        {
+            _ = section.Navigation.PopAsync();
+            return;
+        }
+        PopAsync();
+    }
+
+    /// <summary>
+    /// Selects a section (flyout item) and content (tab). With a MAUI Shell
+    /// attached the selection is proposed to MAUI exactly as a flyout tap is,
+    /// and the platform follows through Navigated; otherwise the platform
+    /// navigates directly.
+    /// </summary>
+    public void SelectSection(int sectionIndex, int itemIndex = 0)
+    {
+        if (sectionIndex < 0 || sectionIndex >= _sections.Count) return;
+        var section = _sections[sectionIndex];
+        if (itemIndex < 0 || itemIndex >= section.Items.Count) return;
+
+        if (_mauiShell is Microsoft.Maui.Controls.IShellController controller)
+        {
+            var mauiContent = section.Items[itemIndex].MauiShellContent;
+            if (mauiContent != null && ReferenceEquals(_mauiShell, FindShell(mauiContent)))
+            {
+                _ = controller.OnFlyoutItemSelectedAsync(mauiContent);
+                return;
+            }
+        }
+
+        NavigateToSection(sectionIndex, itemIndex);
+    }
+
+    private static Shell? FindShell(Element element)
+    {
+        var parent = element.Parent;
+        while (parent != null && parent is not Shell)
+            parent = parent.Parent;
+        return parent as Shell;
+    }
+
+    #endregion
 
     /// <summary>
     /// Callback to render content from a ShellContent.
@@ -769,11 +1028,28 @@ public class SkiaShell : SkiaLayoutView
     }
 
     /// <summary>
-    /// Navigates using a URI route with parameters.
+    /// Navigates using a URI route with parameters. With a MAUI Shell
+    /// attached the request is handed to <see cref="Shell.GoToAsync(ShellNavigationState, IDictionary{string, object})"/>
+    /// so MAUI resolves the route (registered routes, "..", "//absolute"),
+    /// applies query attributes and raises its navigation events; the
+    /// platform then mirrors the result. The built-in router below only
+    /// serves shells assembled without a MAUI Shell.
     /// </summary>
     public void GoToAsync(string route, IDictionary<string, object>? parameters)
     {
         if (string.IsNullOrEmpty(route)) return;
+
+        if (_mauiShell != null)
+        {
+            var state = new ShellNavigationState(route);
+            var task = parameters != null
+                ? _mauiShell.GoToAsync(state, parameters)
+                : _mauiShell.GoToAsync(state);
+            task.ContinueWith(
+                t => DiagnosticLog.Error("SkiaShell", $"GoToAsync('{route}') failed", t.Exception!),
+                TaskContinuationOptions.OnlyOnFaulted);
+            return;
+        }
 
         string routePath = route;
         Dictionary<string, string> queryParams = new Dictionary<string, string>();
@@ -942,7 +1218,7 @@ public class SkiaShell : SkiaLayoutView
         // Save current content to stack
         if (_currentContent != null)
         {
-            _navigationStack.Push((_currentContent, Title, _lifecyclePage));
+            _navigationStack.Add(new NavigationEntry(_currentContent, Title, _lifecyclePage));
         }
 
         // Set new content
@@ -959,10 +1235,11 @@ public class SkiaShell : SkiaLayoutView
     {
         if (_navigationStack.Count == 0) return false;
 
-        var (previousContent, previousTitle, previousPage) = _navigationStack.Pop();
-        SetCurrentContent(previousContent);
-        Title = previousTitle;
-        SendPageLifecycle(previousPage);
+        var previous = _navigationStack[^1];
+        _navigationStack.RemoveAt(_navigationStack.Count - 1);
+        SetCurrentContent(previous.Content);
+        Title = previous.Title;
+        SendPageLifecycle(previous.MauiPage);
         Invalidate();
         return true;
     }
@@ -974,12 +1251,8 @@ public class SkiaShell : SkiaLayoutView
     {
         if (_navigationStack.Count == 0) return;
 
-        // Get the root content
-        (SkiaView Content, string Title, Microsoft.Maui.Controls.Page? MauiPage) root = default;
-        while (_navigationStack.Count > 0)
-        {
-            root = _navigationStack.Pop();
-        }
+        var root = _navigationStack[0];
+        _navigationStack.Clear();
 
         SetCurrentContent(root.Content);
         Title = root.Title ?? string.Empty;
@@ -1494,7 +1767,7 @@ public class SkiaShell : SkiaLayoutView
                     {
                         if (e.Y >= itemY && e.Y < itemY + itemHeight)
                         {
-                            NavigateToSection(i, 0);
+                            SelectSection(i, 0);
                             if (!isLocked)
                             {
                                 FlyoutIsPresented = false;
@@ -1522,7 +1795,7 @@ public class SkiaShell : SkiaLayoutView
             if (CanGoBack)
             {
                 // Back button pressed
-                PopAsync();
+                GoBack();
                 e.Handled = true;
                 return;
             }
@@ -1547,7 +1820,7 @@ public class SkiaShell : SkiaLayoutView
 
                 if (tappedIndex != _selectedItemIndex)
                 {
-                    NavigateToSection(_selectedSectionIndex, tappedIndex);
+                    SelectSection(_selectedSectionIndex, tappedIndex);
                 }
                 e.Handled = true;
                 return;

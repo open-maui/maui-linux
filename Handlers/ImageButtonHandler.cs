@@ -52,6 +52,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
     protected override void ConnectHandler(SkiaImageButton platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.Clicked += OnClicked;
         platformView.Pressed += OnPressed;
         platformView.Released += OnReleased;
@@ -66,6 +67,7 @@ public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageBut
         platformView.Released -= OnReleased;
         platformView.ImageLoaded -= OnImageLoaded;
         platformView.ImageLoadingError -= OnImageLoadingError;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 
