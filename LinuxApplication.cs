@@ -587,6 +587,18 @@ public partial class LinuxApplication : IDisposable
     {
         try
         {
+            // Running from an AppImage: ProcessPath points into the ephemeral
+            // FUSE mount (/tmp/.mount_*), so a desktop entry written here would
+            // go stale the moment the AppImage unmounts — a dead launcher icon.
+            // The AppImage runtime sets $APPIMAGE to the real on-disk path, and
+            // the AppImage's own first-run installer owns desktop integration;
+            // skip ours entirely.
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPIMAGE")))
+            {
+                DiagnosticLog.Debug("LinuxApplication", "Running from AppImage — skipping desktop entry (AppImage installer owns it)");
+                return;
+            }
+
             string appName = Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MauiApp");
             string wmClass = appName.Replace(" ", "").Replace("_", "");
             string desktopDir = Path.Combine(

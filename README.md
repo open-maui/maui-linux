@@ -263,10 +263,10 @@ Package your OpenMaui app as a portable AppImage with a single command:
 
 ```bash
 dotnet tool install --global OpenMaui.AppImage
-dotnet appimage
+openmaui-appimage --project ./MyApp
 ```
 
-Auto-detects your executable and icon, generates a `.desktop` file, and produces a self-contained AppImage that runs on most Linux distributions. See the [OpenMaui.AppImage](https://github.com/open-maui/appimage) repository for details.
+Publishes the project, auto-detects the executable and icon, generates the `.desktop` file and installer, and produces a self-contained AppImage that runs on most Linux distributions. Full reference (options, CI recipes, host-dependency checks, signing, self-update): [OpenMaui.AppImage packaging guide](https://github.com/open-maui/appimage/blob/main/docs/PACKAGING-GUIDE.md) — written to be followed verbatim by humans or AI assistants.
 
 ## Quick Example
 
