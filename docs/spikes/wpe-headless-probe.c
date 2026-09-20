@@ -36,7 +36,7 @@ static void on_buffer_rendered(WPEView *view, WPEBuffer *buffer, gpointer user_d
         printf("wrote %s\n", (char *)user_data);
         g_main_loop_quit(loop);
     }
-    g_bytes_unref(bytes);
+    /* bytes is owned by the buffer (transfer none): do not unref */
     wpe_view_buffer_released(view, buffer);
 }
 
