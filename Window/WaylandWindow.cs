@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// Native Wayland window implementation using xdg-shell protocol.
 /// Provides full Wayland support without XWayland dependency.
 /// </summary>
-public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow
+public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IWaylandSurface
 {
     #region Native Interop - libwayland-client
 
@@ -29,6 +29,13 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     [LibraryImport(LibWaylandClient)]
     private static partial int wl_display_dispatch_pending(IntPtr display);
+
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_prepare_read(IntPtr display);
+
+    [LibraryImport(LibWaylandClient)]
+    private static partial int wl_display_read_events(IntPtr display);
+
 
     [LibraryImport(LibWaylandClient)]
     private static partial int wl_display_roundtrip(IntPtr display);
@@ -1092,6 +1099,45 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         DiagnosticLog.Debug("WaylandWindow", $"Window created: {_width}x{_height}");
     }
 
+    private bool _externalPresentation;
+
+    /// <summary>
+    /// When true, frames are attached to the surface by an external presenter
+    /// (the EGL render target via eglSwapBuffers) and this window neither keeps
+    /// a wl_shm buffer nor attaches one in Show/Present/CommitFrame. Resizes
+    /// still update the tracked size and raise <see cref="Resized"/>. Switching
+    /// back to false recreates the shm buffer for the raster path.
+    /// </summary>
+    public bool ExternalPresentation
+    {
+        get => _externalPresentation;
+        set
+        {
+            if (_externalPresentation == value) return;
+            _externalPresentation = value;
+            if (value)
+                DestroyShmBuffer();
+            else if (_buffer == IntPtr.Zero)
+                CreateShmBuffer();
+        }
+    }
+
+    private void DestroyShmBuffer()
+    {
+        if (_buffer != IntPtr.Zero)
+            wl_buffer_destroy(_buffer);
+        if (_shmPool != IntPtr.Zero)
+            wl_shm_pool_destroy(_shmPool);
+        if (_pixelData != IntPtr.Zero && _pixelData != new IntPtr(-1))
+            munmap(_pixelData, (nuint)_bufferSize);
+        if (_shmFd >= 0)
+            close(_shmFd);
+        _buffer = IntPtr.Zero;
+        _shmPool = IntPtr.Zero;
+        _pixelData = IntPtr.Zero;
+        _shmFd = -1;
+    }
+
     private void CreateShmBuffer()
     {
         _stride = _width * 4;
@@ -1158,20 +1204,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (newWidth == _width && newHeight == _height) return;
         if (newWidth <= 0 || newHeight <= 0) return;
 
-        // Destroy old buffer
-        if (_buffer != IntPtr.Zero)
-            wl_buffer_destroy(_buffer);
-        if (_shmPool != IntPtr.Zero)
-            wl_shm_pool_destroy(_shmPool);
-        if (_pixelData != IntPtr.Zero && _pixelData != new IntPtr(-1))
-            munmap(_pixelData, (nuint)_bufferSize);
-        if (_shmFd >= 0)
-            close(_shmFd);
+        DestroyShmBuffer();
 
         _width = newWidth;
         _height = newHeight;
 
-        CreateShmBuffer();
+        // External presenters (EGL) size their own buffers from Resized.
+        if (!_externalPresentation)
+            CreateShmBuffer();
         Resized?.Invoke(this, (_width, _height));
     }
 
@@ -1680,6 +1720,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     {
         _isRunning = true;
 
+        if (_externalPresentation)
+        {
+            // The EGL target attaches on its first eglSwapBuffers; an empty
+            // commit here would only re-send the surface's current state.
+            wl_display_flush(_display);
+            return;
+        }
+
         // Attach buffer and commit
         wl_surface_attach(_surface, _buffer, 0, 0);
         wl_surface_damage_buffer(_surface, 0, 0, _width, _height);
@@ -1744,6 +1792,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     public void Present(IntPtr pixels, int width, int height, int stride)
     {
+        if (_externalPresentation) return;
         if (_pixelData == IntPtr.Zero || pixels == IntPtr.Zero) return;
 
         // Match the renderer's frame to our wl_shm buffer dimensions; if they
@@ -1792,16 +1841,38 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
     /// <summary>
     /// After poll() reports readability on the Wayland fd, call this to read events
-    /// off the wire and dispatch them. Skips the read if the queue is already non-empty
-    /// (which happens when callbacks queue more events synchronously).
+    /// off the wire and dispatch the ones for our (default) queue.
     /// </summary>
+    /// <remarks>
+    /// This deliberately does not use wl_display_dispatch. With the EGL render
+    /// target active, Mesa owns a second event queue on the same connection
+    /// (buffer release, frame callbacks). wl_display_dispatch reads everything
+    /// off the fd and then keeps blocking until at least one event for the
+    /// default queue arrives; if the readable data was all Mesa's, that is a
+    /// hang until the next input event. The prepare_read / read_events /
+    /// dispatch_pending sequence reads once, demultiplexes into the queues,
+    /// dispatches ours and returns. Mesa drains its queue inside eglSwapBuffers.
+    /// </remarks>
     public void DispatchReadEvents()
     {
         if (!_isRunning || _display == IntPtr.Zero) return;
-        // wl_display_dispatch returns immediately if there are queued events; otherwise
-        // it reads from the fd. Safe to call after poll() since fd is known readable.
+
         _inWaylandDispatch = true;
-        try { wl_display_dispatch(_display); }
+        try
+        {
+            // prepare_read fails when our queue already holds events; dispatch
+            // those first (they were queued by an earlier read on another queue).
+            while (wl_display_prepare_read(_display) != 0)
+                wl_display_dispatch_pending(_display);
+
+            // The fd is known readable; read_events does not block, and it
+            // consumes the prepared read whether it succeeds or not (so no
+            // cancel_read here). -1 means a protocol error on the connection,
+            // which the next dispatch reports.
+            wl_display_read_events(_display);
+
+            wl_display_dispatch_pending(_display);
+        }
         finally { _inWaylandDispatch = false; }
     }
 

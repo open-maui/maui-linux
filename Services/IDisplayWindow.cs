@@ -77,3 +77,17 @@ public interface IX11Surface
     /// <summary>The X11 Window XID.</summary>
     IntPtr Handle { get; }
 }
+
+/// <summary>
+/// Native Wayland handles a window exposes for consumers that must talk to the
+/// compositor directly (the EGL render target wraps <see cref="Surface"/> in a
+/// wl_egl_window).
+/// </summary>
+public interface IWaylandSurface
+{
+    /// <summary>The wl_display* this window is connected to.</summary>
+    IntPtr Display { get; }
+
+    /// <summary>The window's wl_surface*.</summary>
+    IntPtr Surface { get; }
+}
