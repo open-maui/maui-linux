@@ -11,19 +11,22 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class HapticFeedbackService : IHapticFeedback
 {
-    public bool IsSupported => File.Exists("/sys/class/leds/vibrator/trigger");
+    public bool IsSupported => File.Exists(Path.Combine(VibrationService.VibratorPath, "trigger"));
 
     public void Perform(HapticFeedbackType type)
     {
         try
         {
-            if (File.Exists("/sys/class/leds/vibrator/trigger"))
+            if (IsSupported)
             {
-                var duration = type == HapticFeedbackType.LongPress ? "200" : "50";
-                File.WriteAllText("/sys/class/leds/vibrator/duration", duration);
-                File.WriteAllText("/sys/class/leds/vibrator/activate", "1");
+                File.WriteAllText(Path.Combine(VibrationService.VibratorPath, "duration"), DurationFor(type));
+                File.WriteAllText(Path.Combine(VibrationService.VibratorPath, "activate"), "1");
             }
         }
         catch { }
     }
+
+    /// <summary>Pulse length in milliseconds written to the vibrator node.</summary>
+    internal static string DurationFor(HapticFeedbackType type)
+        => type == HapticFeedbackType.LongPress ? "200" : "50";
 }

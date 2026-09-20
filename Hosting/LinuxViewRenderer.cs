@@ -74,6 +74,18 @@ public class LinuxViewRenderer
 
         try
         {
+            // With a MAUI Shell attached, push through MAUI so its section
+            // stack, CurrentState and Navigating/Navigated stay authoritative;
+            // SkiaShell mirrors the push (see SkiaShell.SyncFromMauiShell).
+            var mauiSection = shell.MauiShell?.CurrentItem?.CurrentItem;
+            if (mauiSection != null)
+            {
+                mauiSection.Navigation.PushAsync(page).ContinueWith(
+                    t => DiagnosticLog.Error("LinuxViewRenderer", "PushPage failed", t.Exception!),
+                    TaskContinuationOptions.OnlyOnFaulted);
+                return true;
+            }
+
             var skiaPage = renderer.RenderPage(page);
             if (skiaPage == null) return false;
             shell.PushAsync(skiaPage, page.Title ?? "Detail", page);
@@ -97,7 +109,9 @@ public class LinuxViewRenderer
             DiagnosticLog.Warn("LinuxViewRenderer", "PopPage: no current shell");
             return false;
         }
-        return shell.PopAsync();
+        if (!shell.CanGoBack) return false;
+        shell.GoBack();
+        return true;
     }
 
     public LinuxViewRenderer(IMauiContext mauiContext)
@@ -208,14 +222,19 @@ public class LinuxViewRenderer
 
         // Set up content renderer, color refresher, and icon syncer delegates
         skiaShell.ContentRenderer = CreateShellContentPage;
+        skiaShell.PageRenderer = RenderPushedPage;
         skiaShell.ColorRefresher = ApplyShellColors;
         skiaShell.IconSyncer = s => SyncFlyoutIcons(s, shell);
 
-        // Subscribe to MAUI Shell navigation events to update SkiaShell
-        shell.Navigated += OnShellNavigated;
+        // SkiaShell subscribed itself to the MAUI Shell's navigation when
+        // MauiShell was assigned above (Navigated + per-section
+        // NavigationRequested); MAUI's ShellNavigationManager owns routing and
+        // query attributes, the platform mirrors CurrentItem and the section
+        // page stack. Align with whatever MAUI already considers current.
         shell.Navigating += (s, e) => DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Navigating: {e.Target}");
+        skiaShell.SyncFromMauiShell();
 
-        DiagnosticLog.Debug("LinuxViewRenderer", $"Shell navigation events subscribed. Sections: {skiaShell.Sections.Count}");
+        DiagnosticLog.Debug("LinuxViewRenderer", $"Shell navigation mirror attached. Sections: {skiaShell.Sections.Count}");
         for (int i = 0; i < skiaShell.Sections.Count; i++)
         {
             DiagnosticLog.Debug("LinuxViewRenderer", $"Section {i}: Route='{skiaShell.Sections[i].Route}', Title='{skiaShell.Sections[i].Title}'");
@@ -344,42 +363,16 @@ public class LinuxViewRenderer
     }
 
     /// <summary>
-    /// Handles MAUI Shell navigation events and updates SkiaShell accordingly.
-    /// Instance-bound so the captured shell pair always matches the renderer that
-    /// subscribed — multi-window safe by construction.
+    /// Platform view for a page MAUI pushed onto a Shell section stack
+    /// (<see cref="SkiaShell.PageRenderer"/>). A page that already has a live
+    /// handler keeps its view; otherwise it is rendered through the normal
+    /// page path. Instance-bound so the MauiContext is the renderer's own.
     /// </summary>
-    private void OnShellNavigated(object? sender, ShellNavigatedEventArgs e)
+    private SkiaView? RenderPushedPage(Page page)
     {
-        DiagnosticLog.Debug("LinuxViewRenderer", $"OnShellNavigated - Source: {e.Source}, Current: {e.Current?.Location}, Previous: {e.Previous?.Location}");
-
-        var skiaShell = _skiaShell;
-        var mauiShell = _mauiShell;
-        if (skiaShell == null || mauiShell == null)
-        {
-            DiagnosticLog.Warn("LinuxViewRenderer", "Shell pair not initialized; ignoring navigation");
-            return;
-        }
-
-        var location = mauiShell.CurrentState?.Location?.OriginalString ?? "";
-        DiagnosticLog.Debug("LinuxViewRenderer", $"Navigation: Location: {location}, Sections: {skiaShell.Sections.Count}");
-
-        for (int i = 0; i < skiaShell.Sections.Count; i++)
-        {
-            var section = skiaShell.Sections[i];
-            if (!string.IsNullOrEmpty(section.Route) && location.Contains(section.Route, StringComparison.OrdinalIgnoreCase))
-            {
-                if (i != skiaShell.CurrentSectionIndex)
-                    skiaShell.NavigateToSection(i);
-                return;
-            }
-            if (!string.IsNullOrEmpty(section.Title) && location.Contains(section.Title, StringComparison.OrdinalIgnoreCase))
-            {
-                if (i != skiaShell.CurrentSectionIndex)
-                    skiaShell.NavigateToSection(i);
-                return;
-            }
-        }
-        DiagnosticLog.Warn("LinuxViewRenderer", $"Navigation: No matching section found for location: {location}");
+        if (page.Handler?.PlatformView is SkiaView existing)
+            return existing;
+        return RenderPage(page);
     }
 
     /// <summary>
@@ -633,7 +626,7 @@ public class LinuxViewRenderer
     /// </summary>
     /// <summary>
     /// Set of view type names known to cause crashes on Linux.
-    /// With SKCanvasView/SKGLView native hosting, ContentViewHandler, PathHandler,
+    /// With SKCanvasView/SKGLView native hosting, ContentViewHandler, ShapePathHandler,
     /// and alignment fixes, most third-party controls now render through normal handlers.
     /// Add entries here only as a last resort for controls that truly SIGSEGV.
     /// </summary>

@@ -256,7 +256,7 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
             }
         }
 
-        private static SKBitmap? RenderFontImageSource(FontImageSource fontSource, double requestedWidth, double requestedHeight)
+        internal static SKBitmap? RenderFontImageSource(FontImageSource fontSource, double requestedWidth, double requestedHeight)
         {
             string glyph = fontSource.Glyph;
             if (string.IsNullOrEmpty(glyph))
@@ -274,6 +274,14 @@ public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
 
             SKTypeface? typeface = null;
             if (!string.IsNullOrEmpty(fontSource.FontFamily))
+            {
+                // Icon fonts registered through ConfigureFonts (AddFont("fa-solid.otf",
+                // "FontAwesome")) resolve by alias or family name through the same
+                // registrar the label renderer uses.
+                typeface = LinuxFontRegistrar.Instance.TryGetTypeface(fontSource.FontFamily, SKFontStyle.Normal);
+            }
+
+            if (typeface == null && !string.IsNullOrEmpty(fontSource.FontFamily))
             {
                 string[] fontPaths = new string[]
                 {

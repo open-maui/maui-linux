@@ -25,6 +25,15 @@ public class VersionTrackingService : IVersionTracking
         _data = new VersionTrackingData();
     }
 
+    /// <summary>
+    /// Creates a tracker backed by an explicit JSON file (tests, embedded hosts).
+    /// </summary>
+    internal VersionTrackingService(string trackingFilePath)
+    {
+        _trackingFilePath = trackingFilePath;
+        _data = new VersionTrackingData();
+    }
+
     private void EnsureInitialized()
     {
         if (_isInitialized) return;
@@ -203,16 +212,20 @@ public class VersionTrackingService : IVersionTracking
         }
     }
 
+    // Mirrors MAUI's VersionTrackingImplementation: true only when asking
+    // about the running version/build during its first launch. The previous
+    // history-based check answered false for the current version because it
+    // had just been appended to the history.
     public bool IsFirstLaunchForVersion(string version)
     {
         EnsureInitialized();
-        return !_data.VersionHistory.Contains(version);
+        return CurrentVersion == version && _data.IsFirstLaunchForCurrentVersion;
     }
 
     public bool IsFirstLaunchForBuild(string build)
     {
         EnsureInitialized();
-        return !_data.BuildHistory.Contains(build);
+        return CurrentBuild == build && _data.IsFirstLaunchForCurrentBuild;
     }
 
     public void Track()

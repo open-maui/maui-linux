@@ -18,6 +18,8 @@ public partial class EllipseHandler : ViewHandler<Ellipse, SkiaEllipse>
             [nameof(Ellipse.Fill)] = MapFill,
             [nameof(Ellipse.Stroke)] = MapStroke,
             [nameof(Ellipse.StrokeThickness)] = MapStrokeThickness,
+            [nameof(Ellipse.StrokeDashArray)] = MapStrokeDashArray,
+            [nameof(Ellipse.StrokeDashOffset)] = MapStrokeDashOffset,
             [nameof(Ellipse.Aspect)] = MapAspect,
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
@@ -60,6 +62,18 @@ public partial class EllipseHandler : ViewHandler<Ellipse, SkiaEllipse>
     public static void MapStrokeThickness(EllipseHandler handler, Ellipse ellipse)
     {
         handler.PlatformView.StrokeThickness = ellipse.StrokeThickness;
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeDashArray(EllipseHandler handler, Ellipse ellipse)
+    {
+        handler.PlatformView.StrokeDashArray = ellipse.StrokeDashArray;
+        handler.PlatformView.Invalidate();
+    }
+
+    public static void MapStrokeDashOffset(EllipseHandler handler, Ellipse ellipse)
+    {
+        handler.PlatformView.StrokeDashOffset = ellipse.StrokeDashOffset;
         handler.PlatformView.Invalidate();
     }
 

@@ -32,6 +32,17 @@ public class SkiaRectangle : SkiaView
         BindableProperty.Create(nameof(RadiusY), typeof(double), typeof(SkiaRectangle), 0.0,
             propertyChanged: (b, o, n) => ((SkiaRectangle)b).Invalidate());
 
+    public static readonly BindableProperty StrokeDashArrayProperty =
+        BindableProperty.Create(nameof(StrokeDashArray), typeof(DoubleCollection), typeof(SkiaRectangle), null,
+            propertyChanged: (b, o, n) => ((SkiaRectangle)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashOffsetProperty =
+        BindableProperty.Create(nameof(StrokeDashOffset), typeof(double), typeof(SkiaRectangle), 0.0,
+            propertyChanged: (b, o, n) => ((SkiaRectangle)b).Invalidate());
+
+    public DoubleCollection? StrokeDashArray { get => (DoubleCollection?)GetValue(StrokeDashArrayProperty); set => SetValue(StrokeDashArrayProperty, value); }
+    public double StrokeDashOffset { get => (double)GetValue(StrokeDashOffsetProperty); set => SetValue(StrokeDashOffsetProperty, value); }
+
     public Brush? Fill { get => (Brush?)GetValue(FillProperty); set => SetValue(FillProperty, value); }
     public Brush? Stroke { get => (Brush?)GetValue(StrokeProperty); set => SetValue(StrokeProperty, value); }
     public double StrokeThickness { get => (double)GetValue(StrokeThicknessProperty); set => SetValue(StrokeThicknessProperty, value); }
@@ -62,6 +73,7 @@ public class SkiaRectangle : SkiaView
             if (strokeColor != SKColors.Transparent)
             {
                 using var strokePaint = new SKPaint { Color = strokeColor, Style = SKPaintStyle.Stroke, StrokeWidth = (float)StrokeThickness, IsAntialias = true };
+                ShapeDashing.Apply(strokePaint, StrokeDashArray, StrokeDashOffset, StrokeThickness);
                 if (RadiusX > 0 || RadiusY > 0)
                     canvas.DrawRoundRect(rect, (float)RadiusX, (float)RadiusY, strokePaint);
                 else

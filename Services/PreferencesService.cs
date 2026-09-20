@@ -26,6 +26,18 @@ public class PreferencesService : IPreferences
         // the portable assembly stub whose property getters throw.
     }
 
+    /// <summary>
+    /// Creates a preferences store backed by an explicit JSON file (tests,
+    /// embedded hosts). The directory is created on first save.
+    /// </summary>
+    internal PreferencesService(string preferencesPath)
+    {
+        _preferencesPath = preferencesPath;
+        var dir = Path.GetDirectoryName(preferencesPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+    }
+
     private string PreferencesPath
     {
         get

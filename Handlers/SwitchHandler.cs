@@ -43,12 +43,14 @@ public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
     protected override void ConnectHandler(SkiaSwitch platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.Toggled += OnToggled;
     }
 
     protected override void DisconnectHandler(SkiaSwitch platformView)
     {
         platformView.Toggled -= OnToggled;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

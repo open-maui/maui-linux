@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
@@ -33,6 +34,14 @@ public class SkiaShapePath : SkiaView
 
     public static readonly BindableProperty StrokeLineJoinProperty =
         BindableProperty.Create(nameof(StrokeLineJoin), typeof(PenLineJoin), typeof(SkiaShapePath), PenLineJoin.Miter,
+            propertyChanged: (b, o, n) => ((SkiaShapePath)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashArrayProperty =
+        BindableProperty.Create(nameof(StrokeDashArray), typeof(DoubleCollection), typeof(SkiaShapePath), null,
+            propertyChanged: (b, o, n) => ((SkiaShapePath)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashOffsetProperty =
+        BindableProperty.Create(nameof(StrokeDashOffset), typeof(double), typeof(SkiaShapePath), 0.0,
             propertyChanged: (b, o, n) => ((SkiaShapePath)b).Invalidate());
 
     public static readonly BindableProperty AspectProperty =
@@ -71,6 +80,18 @@ public class SkiaShapePath : SkiaView
     {
         get => (PenLineJoin)GetValue(StrokeLineJoinProperty);
         set => SetValue(StrokeLineJoinProperty, value);
+    }
+
+    public DoubleCollection? StrokeDashArray
+    {
+        get => (DoubleCollection?)GetValue(StrokeDashArrayProperty);
+        set => SetValue(StrokeDashArrayProperty, value);
+    }
+
+    public double StrokeDashOffset
+    {
+        get => (double)GetValue(StrokeDashOffsetProperty);
+        set => SetValue(StrokeDashOffsetProperty, value);
     }
 
     public Stretch Aspect
@@ -237,46 +258,14 @@ public class SkiaShapePath : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        var path = GetOrBuildPath();
-        if (path == null) return;
+        var source = GetOrBuildPath();
+        if (source == null) return;
 
-        canvas.Save();
-
-        // Apply stretch/aspect scaling
-        if (Aspect != Stretch.None && _pathBounds.Width > 0 && _pathBounds.Height > 0)
-        {
-            float scaleX = bounds.Width / _pathBounds.Width;
-            float scaleY = bounds.Height / _pathBounds.Height;
-
-            switch (Aspect)
-            {
-                case Stretch.Fill:
-                    canvas.Translate(bounds.Left - _pathBounds.Left * scaleX, bounds.Top - _pathBounds.Top * scaleY);
-                    canvas.Scale(scaleX, scaleY);
-                    break;
-                case Stretch.Uniform:
-                    float uniformScale = Math.Min(scaleX, scaleY);
-                    float offsetX = (bounds.Width - _pathBounds.Width * uniformScale) / 2f;
-                    float offsetY = (bounds.Height - _pathBounds.Height * uniformScale) / 2f;
-                    canvas.Translate(bounds.Left + offsetX - _pathBounds.Left * uniformScale,
-                                     bounds.Top + offsetY - _pathBounds.Top * uniformScale);
-                    canvas.Scale(uniformScale, uniformScale);
-                    break;
-                case Stretch.UniformToFill:
-                    float fillScale = Math.Max(scaleX, scaleY);
-                    float fOffsetX = (bounds.Width - _pathBounds.Width * fillScale) / 2f;
-                    float fOffsetY = (bounds.Height - _pathBounds.Height * fillScale) / 2f;
-                    canvas.Translate(bounds.Left + fOffsetX - _pathBounds.Left * fillScale,
-                                     bounds.Top + fOffsetY - _pathBounds.Top * fillScale);
-                    canvas.Scale(fillScale, fillScale);
-                    break;
-            }
-        }
-        else
-        {
-            // No stretch - just translate to bounds origin
-            canvas.Translate(bounds.Left, bounds.Top);
-        }
+        // Stretch transforms the geometry (not the canvas) so the stroke keeps
+        // its thickness, as on the other MAUI platforms; the stroke is kept
+        // inside the bounds by insetting the target box by half of it.
+        using var path = new SKPath();
+        source.Transform(ComputeStretchMatrix(bounds), path);
 
         // Draw fill
         if (FillColor != null)
@@ -312,10 +301,46 @@ public class SkiaShapePath : SkiaView
                     _ => SKStrokeJoin.Miter
                 }
             };
+            ShapeDashing.Apply(strokePaint, StrokeDashArray, StrokeDashOffset, StrokeThickness);
             canvas.DrawPath(path, strokePaint);
         }
 
-        canvas.Restore();
+    }
+
+    /// <summary>
+    /// The transform that maps the cached geometry into <paramref name="bounds"/>
+    /// for the current <see cref="Aspect"/>: a plain translation for
+    /// <see cref="Stretch.None"/>, otherwise a scale (uniform or not) about the
+    /// geometry's tight bounds, centred for the uniform modes.
+    /// </summary>
+    internal SKMatrix ComputeStretchMatrix(SKRect bounds)
+    {
+        if (Aspect == Stretch.None || _pathBounds.Width <= 0 || _pathBounds.Height <= 0)
+            return SKMatrix.CreateTranslation(bounds.Left, bounds.Top);
+
+        float inset = StrokeColor != null && StrokeThickness > 0 ? (float)StrokeThickness / 2f : 0f;
+        var box = new SKRect(bounds.Left + inset, bounds.Top + inset, bounds.Right - inset, bounds.Bottom - inset);
+        if (box.Width <= 0 || box.Height <= 0) box = bounds;
+
+        float scaleX = box.Width / _pathBounds.Width;
+        float scaleY = box.Height / _pathBounds.Height;
+        switch (Aspect)
+        {
+            case Stretch.Uniform:
+                scaleX = scaleY = Math.Min(scaleX, scaleY);
+                break;
+            case Stretch.UniformToFill:
+                scaleX = scaleY = Math.Max(scaleX, scaleY);
+                break;
+        }
+
+        float offsetX = (box.Width - _pathBounds.Width * scaleX) / 2f;
+        float offsetY = (box.Height - _pathBounds.Height * scaleY) / 2f;
+        var matrix = SKMatrix.CreateScale(scaleX, scaleY);
+        matrix = SKMatrix.Concat(
+            SKMatrix.CreateTranslation(box.Left + offsetX - _pathBounds.Left * scaleX, box.Top + offsetY - _pathBounds.Top * scaleY),
+            matrix);
+        return matrix;
     }
 
     protected override void Dispose(bool disposing)
