@@ -245,6 +245,104 @@ internal static partial class WpeNative
     [LibraryImport(LibWpeWebKit)]
     public static partial void webkit_policy_decision_ignore(IntPtr decision);
 
+    // Script dialogs (alert/confirm/prompt): the embedder shows them.
+    public const int WEBKIT_SCRIPT_DIALOG_ALERT = 0;
+    public const int WEBKIT_SCRIPT_DIALOG_CONFIRM = 1;
+    public const int WEBKIT_SCRIPT_DIALOG_PROMPT = 2;
+    public const int WEBKIT_SCRIPT_DIALOG_BEFORE_UNLOAD_CONFIRM = 3;
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int webkit_script_dialog_get_dialog_type(IntPtr dialog);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_script_dialog_get_message(IntPtr dialog);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_script_dialog_confirm_set_confirmed(IntPtr dialog, int confirmed);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_script_dialog_prompt_get_default_text(IntPtr dialog);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_script_dialog_prompt_set_text(IntPtr dialog, string? text);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_script_dialog_close(IntPtr dialog);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_script_dialog_ref(IntPtr dialog);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_script_dialog_unref(IntPtr dialog);
+
+    // File chooser (<input type="file">).
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int webkit_file_chooser_request_get_select_multiple(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_file_chooser_request_select_files(IntPtr request, IntPtr files);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_file_chooser_request_cancel(IntPtr request);
+
+    // Spell checking (off by default in WPE; needs enchant + a dictionary on the host).
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_web_context_set_spell_checking_enabled(IntPtr context, int enabled);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_web_context_set_spell_checking_languages(IntPtr context, IntPtr languages);
+
+    // Permission requests (geolocation, camera/microphone, notifications).
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_permission_request_allow(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_permission_request_deny(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial nuint webkit_geolocation_permission_request_get_type();
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial nuint webkit_user_media_permission_request_get_type();
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial nuint webkit_notification_permission_request_get_type();
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int webkit_user_media_permission_is_for_audio_device(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int webkit_user_media_permission_is_for_video_device(IntPtr request);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int webkit_user_media_permission_is_for_display_device(IntPtr request);
+
+    [LibraryImport(LibGObject)]
+    public static partial int g_type_check_instance_is_a(IntPtr instance, nuint type);
+
+    // Web notifications.
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_notification_get_title(IntPtr notification);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_notification_get_body(IntPtr notification);
+
+    // Downloads.
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_web_view_get_network_session(IntPtr webView);
+
+    [LibraryImport(LibWpeWebKit, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial void webkit_download_set_destination(IntPtr download, string destination);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_download_get_destination(IntPtr download);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void webkit_download_set_allow_overwrite(IntPtr download, int allowed);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial IntPtr webkit_download_get_web_view(IntPtr download);
+
     // Context menus: WPE emits the model and leaves display to the embedder.
     [LibraryImport(LibWpeWebKit)]
     public static partial IntPtr webkit_context_menu_get_items(IntPtr menu);
