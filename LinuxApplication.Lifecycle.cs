@@ -554,6 +554,10 @@ public partial class LinuxApplication
                 ctxShell.RefreshTheme();
             if (ctx.RootView != null)
                 RefreshCachedItemsRecursive(ctx.RootView);
+            // Modal pages are separate layers above the root, not children.
+            var modalViews = ctx.ModalViews;
+            for (int i = 0; i < modalViews.Count; i++)
+                RefreshCachedItemsRecursive(modalViews[i]);
         }
 
         // Invalidate to redraw - use correct method based on mode

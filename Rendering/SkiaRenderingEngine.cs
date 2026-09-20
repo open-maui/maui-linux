@@ -88,6 +88,15 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     public SkiaView? PopupFilterRoot { get; set; }
 
     /// <summary>
+    /// Full-window layers drawn above the root view tree in stacking order
+    /// (modal pages pushed via Navigation.PushModalAsync). Each layer is
+    /// measured/arranged to the same logical size as the root and drawn after
+    /// it in every redrawn region, before popups and dialogs. Null or empty
+    /// (default) draws only the root. Set per-frame by WindowContext.Render.
+    /// </summary>
+    public IReadOnlyList<SkiaView>? OverlayLayers { get; set; }
+
+    /// <summary>
     /// Gets the number of dirty regions in the current frame.
     /// </summary>
     public int DirtyRegionCount
@@ -226,10 +235,19 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         var logicalWidth = (double)LogicalWidth;
         var logicalHeight = (double)LogicalHeight - csdInsetLogical;
         var availableSize = new Size(logicalWidth, logicalHeight);
+        var overlays = OverlayLayers;
         try
         {
             rootView.Measure(availableSize);
             rootView.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+            if (overlays != null)
+            {
+                for (int i = 0; i < overlays.Count; i++)
+                {
+                    overlays[i].Measure(availableSize);
+                    overlays[i].Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -275,7 +293,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         {
             try
             {
-                RenderRegion(canvas, rootView, region, isFullRedraw, csdInsetLogical);
+                RenderRegion(canvas, rootView, overlays, region, isFullRedraw, csdInsetLogical);
             }
             catch (Exception ex)
             {
@@ -347,7 +365,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         _stats?.EndFrame();
     }
 
-    private void RenderRegion(SKCanvas canvas, SkiaView rootView, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f)
+    private void RenderRegion(SKCanvas canvas, SkiaView rootView, IReadOnlyList<SkiaView>? overlays, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f)
     {
         canvas.Save();
 
@@ -384,6 +402,22 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaRenderingEngine", "Exception during view Draw", ex);
+        }
+
+        // Modal layers stack above the root, bottom to top.
+        if (overlays != null)
+        {
+            for (int i = 0; i < overlays.Count; i++)
+            {
+                try
+                {
+                    overlays[i].Draw(canvas);
+                }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Error("SkiaRenderingEngine", $"Exception during overlay layer {i} Draw", ex);
+                }
+            }
         }
 
         canvas.Restore();

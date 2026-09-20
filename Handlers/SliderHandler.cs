@@ -46,6 +46,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
     protected override void ConnectHandler(SkiaSlider platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.ValueChanged += OnValueChanged;
         platformView.DragStarted += OnDragStarted;
         platformView.DragCompleted += OnDragCompleted;
@@ -65,6 +66,7 @@ public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
         platformView.ValueChanged -= OnValueChanged;
         platformView.DragStarted -= OnDragStarted;
         platformView.DragCompleted -= OnDragCompleted;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

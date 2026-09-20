@@ -12,52 +12,66 @@ public abstract partial class SkiaView
     #region Input Events
 
     /// <summary>
-    /// Converts absolute window coordinates to view-relative coordinates.
-    /// MAUI gesture recognizers expect coordinates relative to the view.
-    /// </summary>
-    private (double X, double Y) ToViewRelative(double absX, double absY)
-    {
-        return (absX - Bounds.Left, absY - Bounds.Top);
-    }
-
-    /// <summary>
     /// Bubbles a pointer event action up the MAUI visual tree from this view's MauiView.
-    /// Each parent receives coordinates relative to itself.
     /// This enables controls like LiveCharts that handle pointer events at a parent level
     /// (e.g., PieChart is a grandparent of SKCanvasView).
+    /// Coordinates stay in window-logical space — GestureManager's contract —
+    /// so the GetPosition resolvers it hands to MAUI event args translate them
+    /// once, against the requested element's ScreenBounds. (Passing
+    /// view-relative points here made GetPosition(element) subtract the
+    /// element origin twice and GetPosition(null) return a relative point.)
     /// </summary>
     private void BubblePointerEvent(double absX, double absY, Action<Microsoft.Maui.Controls.View, double, double> action)
     {
         var current = MauiView as Microsoft.Maui.Controls.Element;
         while (current != null)
         {
-            if (current is Microsoft.Maui.Controls.View view)
+            if (current is Microsoft.Maui.Controls.View view
+                && (view.Handler?.PlatformView is SkiaView || current == MauiView))
             {
-                // Compute coordinates relative to this view's bounds
-                var handler = view.Handler;
-                if (handler?.PlatformView is SkiaView skiaView)
-                {
-                    var (rx, ry) = (absX - skiaView.Bounds.Left, absY - skiaView.Bounds.Top);
-                    action(view, rx, ry);
-                }
-                else if (current == MauiView)
-                {
-                    // For the directly hit view, use our own bounds
-                    var (rx, ry) = ToViewRelative(absX, absY);
-                    action(view, rx, ry);
-                }
+                action(view, absX, absY);
             }
             current = current.Parent;
         }
     }
 
+    /// <summary>
+    /// Raised by the base pointer/focus handlers so external observers (the
+    /// MAUI VisualStateManager bridge, tests) can follow interaction state
+    /// without subclassing. Subclasses that override the On* methods without
+    /// calling base do not raise these; interactive controls instead report
+    /// their transitions through <see cref="VisualStateRequested"/>.
+    /// </summary>
+    public event EventHandler<PointerEventArgs>? PointerEntered;
+    public event EventHandler<PointerEventArgs>? PointerExited;
+    public event EventHandler<PointerEventArgs>? PointerPressed;
+    public event EventHandler<PointerEventArgs>? PointerReleased;
+    public event EventHandler? FocusGained;
+    public event EventHandler? FocusLost;
+
+    /// <summary>
+    /// Raised whenever a control asks <see cref="SkiaVisualStateManager"/> to
+    /// enter a named state ("Normal", "PointerOver", "Pressed", "Focused",
+    /// "Disabled", ...). Fires even when the view has no Skia-side visual
+    /// state groups, so it doubles as the interaction feed for the MAUI
+    /// VisualStateManager bridge.
+    /// </summary>
+    public event EventHandler<string>? VisualStateRequested;
+
+    internal void RaiseVisualStateRequested(string stateName)
+    {
+        VisualStateRequested?.Invoke(this, stateName);
+    }
+
     public virtual void OnPointerEntered(PointerEventArgs e)
     {
+        PointerEntered?.Invoke(this, e);
         BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerEntered);
     }
 
     public virtual void OnPointerExited(PointerEventArgs e)
     {
+        PointerExited?.Invoke(this, e);
         BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerExited);
     }
 
@@ -68,11 +82,13 @@ public abstract partial class SkiaView
 
     public virtual void OnPointerPressed(PointerEventArgs e)
     {
+        PointerPressed?.Invoke(this, e);
         BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerDown);
     }
 
     public virtual void OnPointerReleased(PointerEventArgs e)
     {
+        PointerReleased?.Invoke(this, e);
         BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerUp);
     }
 
@@ -84,12 +100,14 @@ public abstract partial class SkiaView
     public virtual void OnFocusGained()
     {
         IsFocused = true;
+        FocusGained?.Invoke(this, EventArgs.Empty);
         Invalidate();
     }
 
     public virtual void OnFocusLost()
     {
         IsFocused = false;
+        FocusLost?.Invoke(this, EventArgs.Empty);
         Invalidate();
     }
 

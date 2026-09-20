@@ -935,83 +935,263 @@ public class SkiaLabel : SkiaView
 
     private void DrawFormattedText(SKCanvas canvas, SKRect bounds)
     {
-        if (FormattedText == null) return;
+        var formatted = FormattedText;
+        if (formatted == null) return;
 
-        float x = bounds.Left;
-        float y = bounds.Top;
-        // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
-        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
-        float lineHeight = (float)(FontSize * effectiveLineHeight);
-        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+        var layout = LayoutFormattedText(formatted, bounds.Width);
 
-        // Calculate baseline for first line
-        using var measureFont = SkiaFontFactory.Create(fontSize);
-        var metrics = measureFont.Metrics;
-        y -= metrics.Ascent;
-
-        foreach (var span in FormattedText.Spans)
+        // Vertical alignment of the whole block inside the content bounds.
+        float offsetY = VerticalTextAlignment switch
         {
-            if (string.IsNullOrEmpty(span.Text)) continue;
+            TextAlignment.Center => (bounds.Height - layout.Height) / 2f,
+            TextAlignment.End => bounds.Height - layout.Height,
+            _ => 0f,
+        };
+        if (offsetY < 0) offsetY = 0;
 
-            // Get span-specific styling
-            var spanFontSize = span.FontSize > 0 ? (float)span.FontSize : fontSize;
-            var spanFontFamily = !string.IsNullOrEmpty(span.FontFamily) ? span.FontFamily :
-                                 (!string.IsNullOrEmpty(FontFamily) ? FontFamily : "Sans");
+        // Per-span hit rectangles, in label-local coordinates (relative to the
+        // view's own top-left, so GestureManager can test a view-relative
+        // point against them through Label.GetChildElements).
+        var viewBounds = BoundsSK;
+        var spanRects = new Dictionary<Span, List<Rect>>();
 
-            bool isBold = span.FontAttributes.HasFlag(FontAttributes.Bold) ||
-                         FontAttributes.HasFlag(FontAttributes.Bold);
-            bool isItalic = span.FontAttributes.HasFlag(FontAttributes.Italic) ||
-                           FontAttributes.HasFlag(FontAttributes.Italic);
+        foreach (var run in layout.Runs)
+        {
+            var line = layout.Lines[run.Line];
+            float lineX = GetHorizontalPosition(HorizontalTextAlignment, bounds.Left, bounds.Right, line.Width);
+            float x = lineX + run.X;
+            float lineTop = bounds.Top + offsetY + line.Top;
+            float baseline = lineTop + line.Ascent;
 
-            var fontStyle = new SKFontStyle(
-                isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                SKFontStyleWidth.Normal,
-                isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-
-            using var font = SkiaFontFactory.Create(
-                RenderContext?.Resources.GetTypeface(spanFontFamily, fontStyle) ?? SKTypeface.Default,
-                spanFontSize);
-
-            var spanColor = span.TextColor ?? TextColor;
             using var paint = new SKPaint
             {
-                Color = ToSKColor(spanColor),
-                IsAntialias = true
+                Color = ToSKColor(run.Span.TextColor ?? TextColor),
+                IsAntialias = true,
             };
 
-            font.MeasureText(span.Text, out var textBounds);
-
-            // Check if we need to wrap to next line
-            if (x + textBounds.Width > bounds.Right && x > bounds.Left)
+            if (run.Span.BackgroundColor != null)
             {
-                x = bounds.Left;
-                y += lineHeight;
+                using var bgPaint = new SKPaint { Color = run.Span.BackgroundColor.ToSKColor(), Style = SKPaintStyle.Fill };
+                canvas.DrawRect(new SKRect(x, lineTop, x + run.Width, lineTop + line.Height), bgPaint);
             }
 
-            // Use font fallback for this span
-            var preferredTypeface = RenderContext?.Resources.GetTypeface(spanFontFamily, fontStyle)
-                                   ?? SKTypeface.Default;
-            DrawFormattedSpanWithFallback(canvas, span.Text, x, y, paint, preferredTypeface, spanFontSize);
+            DrawFormattedSpanWithFallback(canvas, run.Text, x, baseline, paint, run.Typeface, run.FontSize);
 
-            // Draw span decorations
-            if (span.TextDecorations != TextDecorations.None)
+            var decorations = run.Span.TextDecorations != TextDecorations.None ? run.Span.TextDecorations : TextDecorations;
+            if (decorations != TextDecorations.None)
             {
-                using var linePaint = new SKPaint { Color = paint.Color, StrokeWidth = 1, IsAntialias = true };
-
-                if (span.TextDecorations.HasFlag(TextDecorations.Underline))
+                using var linePaint = new SKPaint { Color = paint.Color, StrokeWidth = Math.Max(1f, run.FontSize / 14f), IsAntialias = true };
+                if (decorations.HasFlag(TextDecorations.Underline))
                 {
-                    canvas.DrawLine(x, y + 2, x + textBounds.Width, y + 2, linePaint);
+                    float underlineY = baseline + Math.Max(2f, run.FontSize * 0.12f);
+                    canvas.DrawLine(x, underlineY, x + run.Width, underlineY, linePaint);
                 }
-                if (span.TextDecorations.HasFlag(TextDecorations.Strikethrough))
+                if (decorations.HasFlag(TextDecorations.Strikethrough))
                 {
-                    float strikeY = y - textBounds.Height / 3;
-                    canvas.DrawLine(x, strikeY, x + textBounds.Width, strikeY, linePaint);
+                    float strikeY = baseline - run.FontSize * 0.28f;
+                    canvas.DrawLine(x, strikeY, x + run.Width, strikeY, linePaint);
                 }
             }
 
-            x += textBounds.Width;
+            if (!spanRects.TryGetValue(run.Span, out var rects))
+                spanRects[run.Span] = rects = new List<Rect>();
+            rects.Add(new Rect(x - viewBounds.Left, lineTop - viewBounds.Top, run.Width, line.Height));
+        }
+
+        PublishSpanRegions(formatted, spanRects);
+    }
+
+    #region Formatted text layout
+
+    /// <summary>One contiguous piece of a span on one line.</summary>
+    private readonly record struct FormattedRun(Span Span, string Text, int Line, float X, float Width, float FontSize, SKTypeface Typeface);
+
+    private sealed class FormattedLine
+    {
+        public float Top;
+        public float Height;
+        public float Ascent;
+        public float Width;
+    }
+
+    private sealed class FormattedLayout
+    {
+        public readonly List<FormattedRun> Runs = new();
+        public readonly List<FormattedLine> Lines = new();
+        public float Width;
+        public float Height;
+    }
+
+    /// <summary>
+    /// Lays FormattedText out into runs and lines for a content width. Shared
+    /// by measure and draw so the two agree: each span resolves its own
+    /// typeface and size, text wraps at word boundaries (or on a newline) when it
+    /// overflows, and a line is as tall as its largest span (font size times
+    /// the line-height multiplier) with the baseline at the largest ascent.
+    /// </summary>
+    private FormattedLayout LayoutFormattedText(FormattedString formatted, float maxWidth)
+    {
+        var layout = new FormattedLayout();
+        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
+        float baseFontSize = FontSize > 0 ? (float)FontSize : 14f;
+        bool canWrap = maxWidth > 0 && !float.IsInfinity(maxWidth) && !float.IsNaN(maxWidth)
+                       && LineBreakMode != LineBreakMode.NoWrap;
+
+        var line = NewLine(layout, 0);
+        float x = 0;
+
+        foreach (var span in formatted.Spans)
+        {
+            var spanText = span.Text;
+            if (string.IsNullOrEmpty(spanText)) continue;
+            spanText = span.TextTransform switch
+            {
+                TextTransform.Uppercase => spanText.ToUpperInvariant(),
+                TextTransform.Lowercase => spanText.ToLowerInvariant(),
+                _ => spanText,
+            };
+
+            float spanFontSize = span.FontSize > 0 ? (float)span.FontSize : baseFontSize;
+            var typeface = ResolveSpanTypeface(span);
+            using var font = SkiaFontFactory.Create(typeface, spanFontSize);
+            var metrics = font.Metrics;
+            float ascent = -metrics.Ascent;
+            float spanLineHeight = (float)(spanFontSize * effectiveLineHeight);
+
+            var paragraphs = spanText.Split('\n');
+            for (int p = 0; p < paragraphs.Length; p++)
+            {
+                if (p > 0)
+                {
+                    // Forced break.
+                    line = NewLine(layout, line.Top + line.Height);
+                    x = 0;
+                }
+
+                foreach (var token in Tokenize(paragraphs[p]))
+                {
+                    float width = font.MeasureText(token);
+                    if (CharacterSpacing != 0 && token.Length > 1)
+                        width += (float)(CharacterSpacing * (token.Length - 1));
+
+                    if (canWrap && x > 0 && x + width > maxWidth && !string.IsNullOrWhiteSpace(token))
+                    {
+                        line = NewLine(layout, line.Top + line.Height);
+                        x = 0;
+                    }
+
+                    // Grow the line to this span's metrics.
+                    line.Height = Math.Max(line.Height, spanLineHeight);
+                    line.Ascent = Math.Max(line.Ascent, ascent);
+
+                    // Merge with the previous run of the same span on this line.
+                    int last = layout.Runs.Count - 1;
+                    if (last >= 0 && layout.Runs[last].Span == span && layout.Runs[last].Line == layout.Lines.Count - 1)
+                    {
+                        var prev = layout.Runs[last];
+                        layout.Runs[last] = prev with { Text = prev.Text + token, Width = prev.Width + width };
+                    }
+                    else
+                    {
+                        layout.Runs.Add(new FormattedRun(span, token, layout.Lines.Count - 1, x, width, spanFontSize, typeface));
+                    }
+
+                    x += width;
+                    line.Width = Math.Max(line.Width, x);
+                }
+            }
+        }
+
+        // An empty trailing line (e.g. text ending in a newline) still takes space.
+        foreach (var l in layout.Lines)
+        {
+            if (l.Height <= 0) l.Height = (float)(baseFontSize * effectiveLineHeight);
+        }
+
+        var lastLine = layout.Lines[^1];
+        layout.Height = lastLine.Top + lastLine.Height;
+        layout.Width = layout.Lines.Max(l => l.Width);
+        return layout;
+    }
+
+    private static FormattedLine NewLine(FormattedLayout layout, float top)
+    {
+        var line = new FormattedLine { Top = top };
+        layout.Lines.Add(line);
+        return line;
+    }
+
+    /// <summary>Words with their trailing whitespace attached, so wrapping keeps spaces at line ends.</summary>
+    private static IEnumerable<string> Tokenize(string text)
+    {
+        int i = 0;
+        while (i < text.Length)
+        {
+            int start = i;
+            if (char.IsWhiteSpace(text[i]))
+            {
+                while (i < text.Length && char.IsWhiteSpace(text[i])) i++;
+            }
+            else
+            {
+                while (i < text.Length && !char.IsWhiteSpace(text[i])) i++;
+                while (i < text.Length && char.IsWhiteSpace(text[i])) i++;
+            }
+            yield return text.Substring(start, i - start);
         }
     }
+
+    private SKTypeface ResolveSpanTypeface(Span span)
+    {
+        var family = !string.IsNullOrEmpty(span.FontFamily) ? span.FontFamily
+                   : (!string.IsNullOrEmpty(FontFamily) ? FontFamily : "Sans");
+        bool isBold = span.FontAttributes.HasFlag(FontAttributes.Bold) || FontAttributes.HasFlag(FontAttributes.Bold);
+        bool isItalic = span.FontAttributes.HasFlag(FontAttributes.Italic) || FontAttributes.HasFlag(FontAttributes.Italic);
+        var style = new SKFontStyle(
+            isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        return RenderContext?.Resources.GetTypeface(family, style) ?? SKTypeface.Default;
+    }
+
+    /// <summary>
+    /// Publishes each span's drawn rectangles as its MAUI hit region so
+    /// <c>Label.GetChildElements(point)</c> (used by GestureManager for span
+    /// TapGestureRecognizers) finds the span under a view-local point.
+    /// Spans that drew nothing get an empty region.
+    /// </summary>
+    private static void PublishSpanRegions(FormattedString formatted, Dictionary<Span, List<Rect>> spanRects)
+    {
+        foreach (var span in formatted.Spans)
+        {
+            var spatial = (Microsoft.Maui.Controls.Internals.ISpatialElement)span;
+            spatial.Region = spanRects.TryGetValue(span, out var rects)
+                ? Region.FromRectangles(rects)
+                : default;
+        }
+    }
+
+    /// <summary>
+    /// The rectangles (label-local) the span was last drawn into; empty until
+    /// the label has been drawn. Exposed for tests and tooling.
+    /// </summary>
+    public IReadOnlyList<Rect> GetSpanRects(Span span)
+    {
+        var spatial = (Microsoft.Maui.Controls.Internals.ISpatialElement)span;
+        var region = spatial.Region;
+        return RegionRectangles(region);
+    }
+
+    private static IReadOnlyList<Rect> RegionRectangles(Region region)
+    {
+        // Region keeps its rectangles behind an internal property; read them
+        // through the public Contains test would be lossy, so use reflection.
+        var prop = typeof(Region).GetProperty("Regions", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+        if (prop?.GetValue(region) is IReadOnlyList<Rect> rects) return rects;
+        return Array.Empty<Rect>();
+    }
+
+    #endregion
 
     private string TruncateText(string text, SKFont font, float maxWidth, LineBreakMode mode)
     {
@@ -1176,16 +1356,14 @@ public class SkiaLabel : SkiaView
 
         if (FormattedText != null && FormattedText.Spans.Count > 0)
         {
-            // Measure formatted text
-            width = 0;
-            height = fontSize * effectiveLineHeight;
-            foreach (var span in FormattedText.Spans)
-            {
-                if (!string.IsNullOrEmpty(span.Text))
-                {
-                    width += font.MeasureText(span.Text);
-                }
-            }
+            // Same layout the draw pass uses: per-span fonts, word wrapping at
+            // the available content width, line height from the largest span.
+            float maxWidth = double.IsInfinity(availableSize.Width) || double.IsNaN(availableSize.Width)
+                ? float.PositiveInfinity
+                : (float)Math.Max(1.0, availableSize.Width - paddingH);
+            var layout = LayoutFormattedText(FormattedText, maxWidth);
+            width = layout.Width;
+            height = layout.Height;
         }
         else
         {

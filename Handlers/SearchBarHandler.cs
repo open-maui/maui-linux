@@ -47,6 +47,7 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
     protected override void ConnectHandler(SkiaSearchBar platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TextChanged += OnTextChanged;
         platformView.SearchButtonPressed += OnSearchButtonPressed;
     }
@@ -55,6 +56,7 @@ public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
     {
         platformView.TextChanged -= OnTextChanged;
         platformView.SearchButtonPressed -= OnSearchButtonPressed;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 
