@@ -64,6 +64,13 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
         base.DisconnectHandler(platformView);
     }
 
+    // True while a property mapper is pushing a value from the MAUI Window
+    // into SkiaWindow. SkiaWindow raises SizeChanged for every Width/Height
+    // set; echoing that back through IWindow.FrameChanged would overwrite the
+    // window's (possibly unset, NaN) size with the wrapper's clamped default.
+    // Real native sizes reach MAUI through WindowContext.OnWindowResized.
+    private bool _syncingFromVirtualView;
+
     private void OnCloseRequested(object? sender, EventArgs e)
     {
         VirtualView?.Destroying();
@@ -71,7 +78,21 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
 
     private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
     {
+        if (_syncingFromVirtualView) return;
         VirtualView?.FrameChanged(new Rect(0, 0, e.Width, e.Height));
+    }
+
+    /// <summary>
+    /// MAUI window dimensions are logical doubles that are NaN when unset
+    /// (and +Infinity for the maximum defaults); a raw <c>(int)</c> cast of
+    /// those yields int.MinValue, which then trips SkiaWindow's clamps.
+    /// Returns <paramref name="fallback"/> for any non-finite value.
+    /// </summary>
+    private static int ToPixels(double value, int fallback)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+            return fallback;
+        return (int)Math.Round(value);
     }
 
     public static void MapTitle(WindowHandler handler, IWindow window)
@@ -92,58 +113,69 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
             DiagnosticLog.Debug("WindowHandler", $"MapContent - setting SkiaView content: {skiaContent.GetType().Name}");
             handler.PlatformView.Content = skiaContent;
         }
+        else if (content?.Handler != null)
+        {
+            DiagnosticLog.Warn("WindowHandler", $"MapContent - content has no SkiaView! Handler={content.Handler}, PlatformView={content.Handler.PlatformView}");
+        }
         else
         {
-            DiagnosticLog.Warn("WindowHandler", $"MapContent - content has no SkiaView! Handler={content?.Handler}, PlatformView={content?.Handler?.PlatformView}");
+            // The window handler is attached before the page is rendered
+            // (WindowContext adopts the MAUI window first so alerts can
+            // subscribe); the page's SkiaView arrives when it gets its handler.
+            DiagnosticLog.Debug("WindowHandler", "MapContent - content not rendered yet");
         }
     }
 
     public static void MapX(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.X = (int)window.X;
+        handler.PlatformView.X = ToPixels(window.X, handler.PlatformView.X);
     }
 
     public static void MapY(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Y = (int)window.Y;
+        handler.PlatformView.Y = ToPixels(window.Y, handler.PlatformView.Y);
     }
 
     public static void MapWidth(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Width = (int)window.Width;
+        handler._syncingFromVirtualView = true;
+        try { handler.PlatformView.Width = ToPixels(window.Width, handler.PlatformView.Width); }
+        finally { handler._syncingFromVirtualView = false; }
     }
 
     public static void MapHeight(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Height = (int)window.Height;
+        handler._syncingFromVirtualView = true;
+        try { handler.PlatformView.Height = ToPixels(window.Height, handler.PlatformView.Height); }
+        finally { handler._syncingFromVirtualView = false; }
     }
 
     public static void MapMinimumWidth(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MinWidth = (int)window.MinimumWidth;
+        handler.PlatformView.MinWidth = ToPixels(window.MinimumWidth, handler.PlatformView.MinWidth);
     }
 
     public static void MapMinimumHeight(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MinHeight = (int)window.MinimumHeight;
+        handler.PlatformView.MinHeight = ToPixels(window.MinimumHeight, handler.PlatformView.MinHeight);
     }
 
     public static void MapMaximumWidth(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MaxWidth = (int)window.MaximumWidth;
+        handler.PlatformView.MaxWidth = ToPixels(window.MaximumWidth, handler.PlatformView.MaxWidth);
     }
 
     public static void MapMaximumHeight(WindowHandler handler, IWindow window)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MaxHeight = (int)window.MaximumHeight;
+        handler.PlatformView.MaxHeight = ToPixels(window.MaximumHeight, handler.PlatformView.MaxHeight);
     }
 }
 

@@ -99,19 +99,23 @@ public class DeviceDisplayService : IDeviceDisplay
 
     private double GetScaleFactor()
     {
-        var gdkScale = Environment.GetEnvironmentVariable("GDK_SCALE");
-        if (!string.IsNullOrEmpty(gdkScale) && double.TryParse(gdkScale, out var result))
-        {
-            return result;
-        }
+        return ParseScaleFactor(Environment.GetEnvironmentVariable("GDK_SCALE"))
+            ?? ParseScaleFactor(Environment.GetEnvironmentVariable("QT_SCALE_FACTOR"))
+            ?? 1.0;
+    }
 
-        var qtScale = Environment.GetEnvironmentVariable("QT_SCALE_FACTOR");
-        if (!string.IsNullOrEmpty(qtScale) && double.TryParse(qtScale, out result))
-        {
-            return result;
-        }
-
-        return 1.0;
+    /// <summary>
+    /// GDK_SCALE / QT_SCALE_FACTOR value parsed with the invariant culture (so
+    /// "1.5" is 1.5 under any locale); null for empty, unparsable or
+    /// non-positive values.
+    /// </summary>
+    internal static double? ParseScaleFactor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+        if (!double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var result))
+            return null;
+        return result > 0 ? result : null;
     }
 
     private float GetRefreshRate()
@@ -123,27 +127,33 @@ public class DeviceDisplayService : IDeviceDisplay
     {
         try
         {
-            string action = inhibit ? "suspend" : "resume";
             // xdg-screensaver requires an X11 window ID; on Wayland the call is skipped
             // (the compositor handles idle inhibit via the idle-inhibit-unstable-v1 protocol,
             // wired up in a follow-up).
             IntPtr windowHandle = (LinuxApplication.Current?.MainWindow as IX11Surface)?.Handle ?? IntPtr.Zero;
             if (windowHandle != IntPtr.Zero)
             {
-                long windowId = windowHandle.ToInt64();
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "xdg-screensaver",
-                    Arguments = $"{action} {windowId}",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                });
+                ExternalProcess.TryStart(BuildScreenSaverStartInfo(inhibit, windowHandle.ToInt64()));
             }
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Debug("DeviceDisplayService", "Display info refresh failed", ex);
+            DiagnosticLog.Debug("DeviceDisplayService", "Screen saver inhibit failed", ex);
         }
+    }
+
+    /// <summary>xdg-screensaver suspend/resume for an X11 window id.</summary>
+    internal static ProcessStartInfo BuildScreenSaverStartInfo(bool inhibit, long windowId)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "xdg-screensaver",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        psi.ArgumentList.Add(inhibit ? "suspend" : "resume");
+        psi.ArgumentList.Add(windowId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return psi;
     }
 
     public void OnDisplayInfoChanged()
