@@ -36,6 +36,10 @@ public class WpeWebView : SkiaView
     private int _requestedHeight;
     private double _requestedScale;
     private uint _pressedButtons;
+    private uint _clickCount;
+    private long _lastClickTicks;
+    private (double X, double Y) _lastClickPos;
+    private uint _lastClickButton;
     private bool _disposedNative;
     private string? _lastUri;
 
@@ -44,7 +48,41 @@ public class WpeWebView : SkiaView
     private readonly LoadChangedDelegate _onLoadChanged;
     private readonly DecidePolicyDelegate _onDecidePolicy;
     private readonly ContextMenuDelegate _onContextMenu;
+    private readonly ScriptDialogDelegate _onScriptDialog;
+    private readonly FileChooserDelegate _onFileChooser;
+    private readonly PermissionRequestDelegate _onPermissionRequest;
+    private readonly ShowNotificationDelegate _onShowNotification;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int PermissionRequestDelegate(IntPtr webView, IntPtr request, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ShowNotificationDelegate(IntPtr webView, IntPtr notification, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void DownloadStartedDelegate(IntPtr session, IntPtr download, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int DecideDestinationDelegate(IntPtr download, IntPtr suggestedFilename, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void DownloadFinishedDelegate(IntPtr download, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void DownloadFailedDelegate(IntPtr download, IntPtr error, IntPtr userData);
     private (float X, float Y) _lastSecondaryPress;
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ScriptDialogDelegate(IntPtr webView, IntPtr dialog, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int FileChooserDelegate(IntPtr webView, IntPtr request, IntPtr userData);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void SetCursorFromNameDelegate(IntPtr view, IntPtr name);
+
+    // Live views by WPEView*, for callbacks that arrive without user data.
+    private static readonly Dictionary<IntPtr, WpeWebView> s_viewsByWpeView = new();
     private long _clipboardChangeCount;
     private string? _lastPushedClipboardText;
 
@@ -111,6 +149,17 @@ public class WpeWebView : SkiaView
         _onLoadChanged = OnLoadChanged;
         _onDecidePolicy = OnDecidePolicy;
         _onContextMenu = OnContextMenu;
+        _onScriptDialog = OnScriptDialog;
+        _onFileChooser = OnFileChooser;
+        _onPermissionRequest = OnPermissionRequest;
+        _onShowNotification = OnShowNotification;
+        WpeNative.g_signal_connect_data(_webView, "permission-request", Marshal.GetFunctionPointerForDelegate(_onPermissionRequest), IntPtr.Zero, IntPtr.Zero, 0);
+        WpeNative.g_signal_connect_data(_webView, "show-notification", Marshal.GetFunctionPointerForDelegate(_onShowNotification), IntPtr.Zero, IntPtr.Zero, 0);
+        InstallDownloadHandler(_webView);
+        lock (s_viewsByWpeView) s_viewsByWpeView[_wpeView] = this;
+        InstallCursorHook(_wpeView);
+        WpeNative.g_signal_connect_data(_webView, "script-dialog", Marshal.GetFunctionPointerForDelegate(_onScriptDialog), IntPtr.Zero, IntPtr.Zero, 0);
+        WpeNative.g_signal_connect_data(_webView, "run-file-chooser", Marshal.GetFunctionPointerForDelegate(_onFileChooser), IntPtr.Zero, IntPtr.Zero, 0);
         WpeNative.g_signal_connect_data(_wpeView, "buffer-rendered", Marshal.GetFunctionPointerForDelegate(_onBufferRendered), IntPtr.Zero, IntPtr.Zero, 0);
         WpeNative.g_signal_connect_data(_webView, "load-changed", Marshal.GetFunctionPointerForDelegate(_onLoadChanged), IntPtr.Zero, IntPtr.Zero, 0);
         WpeNative.g_signal_connect_data(_webView, "decide-policy", Marshal.GetFunctionPointerForDelegate(_onDecidePolicy), IntPtr.Zero, IntPtr.Zero, 0);
@@ -124,8 +173,63 @@ public class WpeWebView : SkiaView
         if (settings != IntPtr.Zero)
             WpeNative.webkit_settings_set_enable_webgl(settings, 1);
 
+        EnableSpellChecking(_webView);
+
         DiagnosticLog.Debug("WpeWebView", "Created WPE WebKit view");
     }
+
+    #region Spell checking
+
+    private static bool s_spellCheckingConfigured;
+
+    /// <summary>
+    /// WPE ships with spell checking off. Turn it on for the (shared) context
+    /// with the user's locale language so editable fields get red underlines
+    /// and "Spelling Suggestions" in the context menu (needs enchant and a
+    /// dictionary such as hunspell-en-US on the host; harmless without).
+    /// </summary>
+    private static void EnableSpellChecking(IntPtr webView)
+    {
+        if (s_spellCheckingConfigured) return;
+        s_spellCheckingConfigured = true;
+        try
+        {
+            var context = WpeNative.webkit_web_view_get_context(webView);
+            if (context == IntPtr.Zero) return;
+
+            // LANG-style tag: "en_US.UTF-8" -> "en_US"; fall back to en_US.
+            var culture = System.Globalization.CultureInfo.CurrentUICulture.Name.Replace('-', '_');
+            if (string.IsNullOrEmpty(culture)) culture = "en_US";
+            var languages = new[] { culture, culture.Split('_')[0], "en_US" }.Distinct().ToArray();
+
+            // NULL-terminated char** for set_spell_checking_languages.
+            var block = Marshal.AllocHGlobal(IntPtr.Size * (languages.Length + 1));
+            var strings = new IntPtr[languages.Length];
+            try
+            {
+                for (int i = 0; i < languages.Length; i++)
+                {
+                    strings[i] = Marshal.StringToCoTaskMemUTF8(languages[i]);
+                    Marshal.WriteIntPtr(block, i * IntPtr.Size, strings[i]);
+                }
+                Marshal.WriteIntPtr(block, languages.Length * IntPtr.Size, IntPtr.Zero);
+                WpeNative.webkit_web_context_set_spell_checking_languages(context, block);
+            }
+            finally
+            {
+                foreach (var p in strings) if (p != IntPtr.Zero) Marshal.FreeCoTaskMem(p);
+                Marshal.FreeHGlobal(block);
+            }
+            WpeNative.webkit_web_context_set_spell_checking_enabled(context, 1);
+            DiagnosticLog.Debug("WpeWebView", $"Spell checking enabled: {string.Join(",", languages)}");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("WpeWebView", $"Spell checking not enabled: {ex.Message}");
+        }
+    }
+
+    #endregion
 
     #region Display
 
@@ -386,6 +490,371 @@ public class WpeWebView : SkiaView
 
     #endregion
 
+    #region Script dialogs and file chooser
+
+    /// <summary>
+    /// alert/confirm/prompt: WPE hands the dialog to the embedder. Shown through
+    /// the platform's own dialog (asynchronously: the dialog is ref'd, the
+    /// signal returns handled, and WebKit is answered when the user does).
+    /// </summary>
+    private int OnScriptDialog(IntPtr webView, IntPtr dialog, IntPtr userData)
+    {
+        try
+        {
+            int type = WpeNative.webkit_script_dialog_get_dialog_type(dialog);
+            string message = WpeNative.PtrToString(WpeNative.webkit_script_dialog_get_message(dialog)) ?? string.Empty;
+            string? defaultText = type == WpeNative.WEBKIT_SCRIPT_DIALOG_PROMPT
+                ? WpeNative.PtrToString(WpeNative.webkit_script_dialog_prompt_get_default_text(dialog))
+                : null;
+            WpeNative.webkit_script_dialog_ref(dialog);
+            _ = ShowScriptDialogAsync(dialog, type, message, defaultText);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "script-dialog handler failed", ex);
+            return 0;
+        }
+    }
+
+    private async Task ShowScriptDialogAsync(IntPtr dialog, int type, string message, string? defaultText)
+    {
+        bool confirmed = false;
+        string? promptText = null;
+        try
+        {
+            switch (type)
+            {
+                case WpeNative.WEBKIT_SCRIPT_DIALOG_PROMPT:
+                    promptText = await LinuxDialogService.ShowPromptAsync("Prompt", message, "OK", "Cancel", defaultText ?? string.Empty);
+                    confirmed = promptText != null;
+                    break;
+                case WpeNative.WEBKIT_SCRIPT_DIALOG_CONFIRM:
+                    confirmed = await LinuxDialogService.ShowAlertAsync("Confirm", message, "OK", "Cancel");
+                    break;
+                case WpeNative.WEBKIT_SCRIPT_DIALOG_BEFORE_UNLOAD_CONFIRM:
+                    confirmed = await LinuxDialogService.ShowAlertAsync("Leave page?", message, "Leave", "Stay");
+                    break;
+                default:
+                    confirmed = await LinuxDialogService.ShowAlertAsync("Alert", message, "OK", null);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "Script dialog failed", ex);
+        }
+        finally
+        {
+            try
+            {
+                switch (type)
+                {
+                    case WpeNative.WEBKIT_SCRIPT_DIALOG_CONFIRM:
+                    case WpeNative.WEBKIT_SCRIPT_DIALOG_BEFORE_UNLOAD_CONFIRM:
+                        WpeNative.webkit_script_dialog_confirm_set_confirmed(dialog, confirmed ? 1 : 0);
+                        break;
+                    case WpeNative.WEBKIT_SCRIPT_DIALOG_PROMPT:
+                        WpeNative.webkit_script_dialog_prompt_set_text(dialog, confirmed ? promptText : null);
+                        break;
+                }
+                WpeNative.webkit_script_dialog_close(dialog);
+            }
+            finally
+            {
+                WpeNative.webkit_script_dialog_unref(dialog);
+            }
+        }
+    }
+
+    /// <summary>&lt;input type="file"&gt;: routed to the platform file picker.</summary>
+    private int OnFileChooser(IntPtr webView, IntPtr request, IntPtr userData)
+    {
+        try
+        {
+            bool multiple = WpeNative.webkit_file_chooser_request_get_select_multiple(request) != 0;
+            WpeNative.g_object_ref(request);
+            _ = PickFilesAsync(request, multiple);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "run-file-chooser handler failed", ex);
+            return 0;
+        }
+    }
+
+    private static async Task PickFilesAsync(IntPtr request, bool multiple)
+    {
+        var files = new List<string>();
+        try
+        {
+            var picker = Microsoft.Maui.Controls.Application.Current?.Handler?.MauiContext?.Services
+                .GetService(typeof(Microsoft.Maui.Storage.IFilePicker)) as Microsoft.Maui.Storage.IFilePicker
+                ?? new FilePickerService();
+            if (multiple)
+            {
+                foreach (var f in await picker.PickMultipleAsync())
+                    if (!string.IsNullOrEmpty(f.FullPath)) files.Add(f.FullPath);
+            }
+            else
+            {
+                var f = await picker.PickAsync();
+                if (f != null && !string.IsNullOrEmpty(f.FullPath)) files.Add(f.FullPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "File chooser failed", ex);
+        }
+
+        try
+        {
+            if (files.Count == 0)
+            {
+                WpeNative.webkit_file_chooser_request_cancel(request);
+                return;
+            }
+            // NULL-terminated char** for select_files.
+            var block = Marshal.AllocHGlobal(IntPtr.Size * (files.Count + 1));
+            var strings = new IntPtr[files.Count];
+            try
+            {
+                for (int i = 0; i < files.Count; i++)
+                {
+                    strings[i] = Marshal.StringToCoTaskMemUTF8(files[i]);
+                    Marshal.WriteIntPtr(block, i * IntPtr.Size, strings[i]);
+                }
+                Marshal.WriteIntPtr(block, files.Count * IntPtr.Size, IntPtr.Zero);
+                WpeNative.webkit_file_chooser_request_select_files(request, block);
+            }
+            finally
+            {
+                foreach (var p in strings) if (p != IntPtr.Zero) Marshal.FreeCoTaskMem(p);
+                Marshal.FreeHGlobal(block);
+            }
+        }
+        finally
+        {
+            WpeNative.g_object_unref(request);
+        }
+    }
+
+    #endregion
+
+    #region Permissions, notifications, downloads
+
+    private static NotificationService? s_notifications;
+    private static NotificationService Notifications => s_notifications ??= new NotificationService(
+        Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Title
+        ?? Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MAUI Application"));
+
+    /// <summary>
+    /// Geolocation, camera/microphone/screen and web-notification permissions:
+    /// asked through the platform's confirm dialog, answered asynchronously.
+    /// Anything else is denied (the safe default).
+    /// </summary>
+    private int OnPermissionRequest(IntPtr webView, IntPtr request, IntPtr userData)
+    {
+        try
+        {
+            string? what = null;
+            if (WpeNative.g_type_check_instance_is_a(request, WpeNative.webkit_geolocation_permission_request_get_type()) != 0)
+                what = "your location";
+            else if (WpeNative.g_type_check_instance_is_a(request, WpeNative.webkit_notification_permission_request_get_type()) != 0)
+                what = "show notifications";
+            else if (WpeNative.g_type_check_instance_is_a(request, WpeNative.webkit_user_media_permission_request_get_type()) != 0)
+            {
+                var parts = new List<string>();
+                if (WpeNative.webkit_user_media_permission_is_for_video_device(request) != 0) parts.Add("your camera");
+                if (WpeNative.webkit_user_media_permission_is_for_audio_device(request) != 0) parts.Add("your microphone");
+                if (WpeNative.webkit_user_media_permission_is_for_display_device(request) != 0) parts.Add("your screen");
+                what = parts.Count > 0 ? string.Join(" and ", parts) : "media devices";
+            }
+
+            if (what == null)
+            {
+                WpeNative.webkit_permission_request_deny(request);
+                return 1;
+            }
+
+            var origin = Uri.TryCreate(CurrentUri, UriKind.Absolute, out var u) ? u.Host : "This page";
+            WpeNative.g_object_ref(request);
+            _ = AskPermissionAsync(request, $"{origin} wants to {(what.StartsWith("show") ? what : "use " + what)}.");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "permission-request handler failed", ex);
+            return 0;
+        }
+    }
+
+    private static async Task AskPermissionAsync(IntPtr request, string message)
+    {
+        bool allow = false;
+        try { allow = await LinuxDialogService.ShowAlertAsync("Permission", message, "Allow", "Deny"); }
+        catch (Exception ex) { DiagnosticLog.Error("WpeWebView", "Permission dialog failed", ex); }
+        finally
+        {
+            if (allow) WpeNative.webkit_permission_request_allow(request);
+            else WpeNative.webkit_permission_request_deny(request);
+            WpeNative.g_object_unref(request);
+        }
+    }
+
+    /// <summary>Web Notifications API: routed to the platform notification service.</summary>
+    private int OnShowNotification(IntPtr webView, IntPtr notification, IntPtr userData)
+    {
+        try
+        {
+            var title = WpeNative.PtrToString(WpeNative.webkit_notification_get_title(notification)) ?? Title ?? "Notification";
+            var body = WpeNative.PtrToString(WpeNative.webkit_notification_get_body(notification)) ?? string.Empty;
+            _ = Notifications.ShowAsync(title, body);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "show-notification handler failed", ex);
+            return 0;
+        }
+    }
+
+    // Downloads are announced on the (shared) network session: one handler per session.
+    private static readonly HashSet<IntPtr> s_sessionsWithDownloadHandler = new();
+    private static DownloadStartedDelegate? s_onDownloadStarted;
+    private static readonly List<object> s_downloadCallbacks = new();
+
+    private static void InstallDownloadHandler(IntPtr webView)
+    {
+        var session = WpeNative.webkit_web_view_get_network_session(webView);
+        if (session == IntPtr.Zero) return;
+        lock (s_sessionsWithDownloadHandler)
+        {
+            if (!s_sessionsWithDownloadHandler.Add(session)) return;
+            s_onDownloadStarted ??= OnDownloadStarted;
+            WpeNative.g_signal_connect_data(session, "download-started", Marshal.GetFunctionPointerForDelegate(s_onDownloadStarted), IntPtr.Zero, IntPtr.Zero, 0);
+        }
+    }
+
+    /// <summary>
+    /// Saves into the user's Downloads folder under the suggested name (made
+    /// unique), and reports completion or failure as a notification.
+    /// </summary>
+    private static void OnDownloadStarted(IntPtr session, IntPtr download, IntPtr userData)
+    {
+        try
+        {
+            DecideDestinationDelegate decide = (dl, suggestedPtr, ud) =>
+            {
+                try
+                {
+                    var suggested = WpeNative.PtrToString(suggestedPtr);
+                    if (string.IsNullOrWhiteSpace(suggested)) suggested = "download";
+                    suggested = Path.GetFileName(suggested);
+                    var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                    Directory.CreateDirectory(dir);
+                    var path = Path.Combine(dir, suggested);
+                    var stem = Path.GetFileNameWithoutExtension(suggested);
+                    var ext = Path.GetExtension(suggested);
+                    for (int n = 1; File.Exists(path); n++)
+                        path = Path.Combine(dir, $"{stem} ({n}){ext}");
+                    WpeNative.webkit_download_set_destination(dl, path);
+                    DiagnosticLog.Debug("WpeWebView", $"Download -> {path}");
+                    return 1;
+                }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Error("WpeWebView", "decide-destination failed", ex);
+                    return 0;
+                }
+            };
+            DownloadFinishedDelegate finished = (dl, ud) =>
+            {
+                var dest = WpeNative.PtrToString(WpeNative.webkit_download_get_destination(dl));
+                _ = Notifications.ShowAsync("Download complete", dest != null ? Path.GetFileName(dest) : "File saved to Downloads");
+            };
+            DownloadFailedDelegate failed = (dl, error, ud) =>
+            {
+                var message = error == IntPtr.Zero ? "unknown error" : (Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(error, 8)) ?? "unknown error");
+                var dest = WpeNative.PtrToString(WpeNative.webkit_download_get_destination(dl));
+                _ = Notifications.ShowAsync("Download failed", $"{(dest != null ? Path.GetFileName(dest) : "Download")}: {message}");
+            };
+            lock (s_downloadCallbacks) { s_downloadCallbacks.Add(decide); s_downloadCallbacks.Add(finished); s_downloadCallbacks.Add(failed); }
+            WpeNative.g_signal_connect_data(download, "decide-destination", Marshal.GetFunctionPointerForDelegate(decide), IntPtr.Zero, IntPtr.Zero, 0);
+            WpeNative.g_signal_connect_data(download, "finished", Marshal.GetFunctionPointerForDelegate(finished), IntPtr.Zero, IntPtr.Zero, 0);
+            WpeNative.g_signal_connect_data(download, "failed", Marshal.GetFunctionPointerForDelegate(failed), IntPtr.Zero, IntPtr.Zero, 0);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WpeWebView", "download-started handler failed", ex);
+        }
+    }
+
+    #endregion
+
+    #region Cursor
+
+    // WPEViewClass.set_cursor_from_name is a class vfunc WebKit calls when the
+    // page wants a different pointer (links, text fields). The headless view
+    // has no display to apply it to and there is no signal, so the class
+    // slot is redirected to us once; offsets from the 2.54 headers
+    // (GObjectClass = 136 bytes, then buffers_changed, render_buffer,
+    // lock_pointer, unlock_pointer, set_cursor_from_name at 168).
+    private const int SetCursorFromNameVfuncOffset = 168;
+    private static SetCursorFromNameDelegate? s_cursorHook;
+    private static IntPtr s_originalSetCursorFromName;
+    private static bool s_cursorHookInstalled;
+
+    private static void InstallCursorHook(IntPtr wpeView)
+    {
+        if (s_cursorHookInstalled || wpeView == IntPtr.Zero) return;
+        s_cursorHookInstalled = true;
+        try
+        {
+            var klass = Marshal.ReadIntPtr(wpeView); // GTypeInstance.g_class
+            s_originalSetCursorFromName = Marshal.ReadIntPtr(klass, SetCursorFromNameVfuncOffset);
+            s_cursorHook = OnSetCursorFromName;
+            Marshal.WriteIntPtr(klass, SetCursorFromNameVfuncOffset, Marshal.GetFunctionPointerForDelegate(s_cursorHook));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("WpeWebView", $"Cursor hook not installed: {ex.Message}");
+        }
+    }
+
+    private static void OnSetCursorFromName(IntPtr view, IntPtr namePtr)
+    {
+        try
+        {
+            if (s_originalSetCursorFromName != IntPtr.Zero)
+                Marshal.GetDelegateForFunctionPointer<SetCursorFromNameDelegate>(s_originalSetCursorFromName)(view, namePtr);
+
+            WpeWebView? owner;
+            lock (s_viewsByWpeView) s_viewsByWpeView.TryGetValue(view, out owner);
+            if (owner == null) return;
+
+            var name = Marshal.PtrToStringUTF8(namePtr) ?? "default";
+            var cursor = name switch
+            {
+                "pointer" or "hand" or "grab" or "grabbing" => Window.CursorType.Hand,
+                "text" or "vertical-text" => Window.CursorType.Text,
+                _ => Window.CursorType.Arrow,
+            };
+            if (owner.CursorType == cursor) return;
+            owner.CursorType = cursor;
+            // WindowContext re-applies CursorType on the next pointer move; apply
+            // now too so a hover that stops moving still shows the right cursor.
+            LinuxApplication.Current?.FocusedContext?.DisplayWindow?.SetCursor(cursor);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("WpeWebView", $"Cursor update failed: {ex.Message}");
+        }
+    }
+
+    #endregion
+
     #region Context menu
 
     /// <summary>
@@ -408,8 +877,31 @@ public class WpeWebView : SkiaView
                     entries.Add((null, IntPtr.Zero, IntPtr.Zero, false));
                     continue;
                 }
-                if (WpeNative.webkit_context_menu_item_get_submenu(item) != IntPtr.Zero)
-                    continue; // submenus (spelling, fonts) are not surfaced in v1
+                var submenu = WpeNative.webkit_context_menu_item_get_submenu(item);
+                if (submenu != IntPtr.Zero)
+                {
+                    // The platform menu is flat: show the submenu as a disabled
+                    // header followed by its (indented) items.
+                    var header = WpeNative.PtrToString(WpeNative.webkit_context_menu_item_get_title(item))?.Replace("_", string.Empty);
+                    var children = new List<(string? Title, IntPtr Action, IntPtr Target, bool Enabled)>();
+                    for (var sub = WpeNative.webkit_context_menu_get_items(submenu); sub != IntPtr.Zero; sub = Marshal.ReadIntPtr(sub, IntPtr.Size))
+                    {
+                        var child = Marshal.ReadIntPtr(sub);
+                        if (child == IntPtr.Zero || WpeNative.webkit_context_menu_item_is_separator(child) != 0) continue;
+                        var childTitle = WpeNative.PtrToString(WpeNative.webkit_context_menu_item_get_title(child));
+                        var childAction = WpeNative.webkit_context_menu_item_get_gaction(child);
+                        if (string.IsNullOrEmpty(childTitle) || childAction == IntPtr.Zero) continue;
+                        var childTarget = WpeNative.webkit_context_menu_item_get_gaction_target(child);
+                        children.Add(("    " + childTitle.Replace("_", string.Empty), WpeNative.g_object_ref(childAction),
+                            childTarget == IntPtr.Zero ? IntPtr.Zero : WpeNative.g_variant_ref(childTarget),
+                            WpeNative.g_action_get_enabled(childAction) != 0));
+                    }
+                    if (children.Count == 0) continue;
+                    if (!string.IsNullOrEmpty(header))
+                        entries.Add((header, IntPtr.Zero, IntPtr.Zero, false));
+                    entries.AddRange(children);
+                    continue;
+                }
                 var title = WpeNative.PtrToString(WpeNative.webkit_context_menu_item_get_title(item));
                 if (string.IsNullOrEmpty(title)) continue;
                 var action = WpeNative.webkit_context_menu_item_get_gaction(item);
@@ -436,7 +928,7 @@ public class WpeWebView : SkiaView
                 }
                 refs.Clear();
             }
-            Action Activate((string? Title, IntPtr Action, IntPtr Target, bool Enabled) e) => () =>
+            Action? Activate((string? Title, IntPtr Action, IntPtr Target, bool Enabled) e) => e.Action == IntPtr.Zero ? null : () =>
             {
                 try { WpeNative.g_action_activate(e.Action, e.Target); ScheduleClipboardPull(); }
                 catch (Exception ex) { DiagnosticLog.Error("WpeWebView", $"Context menu action '{e.Title}' failed", ex); }
@@ -606,7 +1098,20 @@ public class WpeWebView : SkiaView
             WpeNative.WPE_BUTTON_SECONDARY => WpeNative.WPE_MODIFIER_POINTER_BUTTON3,
             _ => WpeNative.WPE_MODIFIER_POINTER_BUTTON1,
         };
-        Send(WpeNative.wpe_event_pointer_button_new(WpeNative.WPE_EVENT_POINTER_DOWN, _wpeView, WpeNative.WPE_INPUT_SOURCE_MOUSE, Now, _pressedButtons, button, x, y, 1));
+
+        // Multi-click detection (word / paragraph selection): same button within
+        // 400 ms and 5 px counts up, capped at 3 like GTK.
+        long now = Environment.TickCount64;
+        bool sameSpot = Math.Abs(x - _lastClickPos.X) <= 5 && Math.Abs(y - _lastClickPos.Y) <= 5;
+        if (button == _lastClickButton && sameSpot && now - _lastClickTicks <= 400 && _clickCount < 3)
+            _clickCount++;
+        else
+            _clickCount = 1;
+        _lastClickTicks = now;
+        _lastClickPos = (x, y);
+        _lastClickButton = button;
+
+        Send(WpeNative.wpe_event_pointer_button_new(WpeNative.WPE_EVENT_POINTER_DOWN, _wpeView, WpeNative.WPE_INPUT_SOURCE_MOUSE, Now, _pressedButtons, button, x, y, _clickCount));
         e.Handled = true;
     }
 
@@ -699,6 +1204,7 @@ public class WpeWebView : SkiaView
             _disposedNative = true;
             if (_webView != IntPtr.Zero)
             {
+                lock (s_viewsByWpeView) s_viewsByWpeView.Remove(_wpeView);
                 WpeNative.g_object_unref(_webView);
                 _webView = IntPtr.Zero;
                 _wpeView = IntPtr.Zero;
