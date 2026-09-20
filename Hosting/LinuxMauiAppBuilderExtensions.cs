@@ -212,8 +212,12 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKCanvasView, SKCanvasViewHandler>();
             handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKGLView, SKGLViewHandler>();
 
-            // Web - use GtkWebViewHandler
-            handlers.AddHandler<WebView, GtkWebViewHandler>();
+            // Web: WPE WebKit composited in the Skia tree when installed (works in
+            // native Wayland/X11 mode), else the GTK-hosted WebKitGTK view.
+            if (WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe)
+                handlers.AddHandler<WebView, WpeWebViewHandler>();
+            else
+                handlers.AddHandler<WebView, GtkWebViewHandler>();
 
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
