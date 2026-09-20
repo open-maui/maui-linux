@@ -121,7 +121,7 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 
 ## Planned
 
-Priorities are ordered. Phase 1 and Phase 2 are the current focus; Phase 3 follows them.
+Priorities are ordered. Phases 1 and 2 shipped in 10.0.101.2; Phase 3 is the current focus.
 
 ### Phase 1: GPU-native presentation
 
@@ -163,14 +163,14 @@ Shipped in 10.0.101.2. WebView was the platform's remaining architectural rough 
 
 ### Phase 3: Conformance suite and visual regression
 
-Every visual defect fixed in 10.0.101.1 (glyph gaps at fractional scale, label heights, wrap overlap, baseline drift) was found by a human screenshot, not by the 700-test suite. Phase 3 makes that impossible to repeat, and turns "runs unmodified" into a measured number.
+In tree for 10.0.101.3. Every visual defect fixed in 10.0.101.1 (glyph gaps at fractional scale, label heights, wrap overlap, baseline drift) was found by a human screenshot, not by the 700-test suite. Phase 3 makes that impossible to repeat, and turns "runs unmodified" into a measured number: `docs/COMPATIBILITY.md` is generated from the test run by `tools/Scorecard`, an item counts as covered only when every test mapped to it passed, and the categories mirror the table Microsoft publishes for its maui-labs GTK backend so the two compare row for row.
 
-| Item | Description |
-|------|-------------|
-| Golden screenshot tests | Offscreen Skia rendering of every control and the sample pages at 1.0x, 1.25x, 1.5x, 1.75x and 2.0x with pixel-diff comparison; no display required, runs in the existing test project |
-| Compatibility scorecard | Automated pass/fail per area, published per release: MAUI Controls, Navigation (Shell, NavigationPage, multi-window), Essentials, Community Toolkit, Blazor Hybrid, XAML (bindings, styles, triggers, VisualStateManager, animations), input (gestures, IME, clipboard, drag and drop), accessibility, localisation and RTL, theming. Real tests behind every cell, no marketing percentages |
-| Third-party compatibility as a KPI | How many existing MAUI applications and libraries run without modification: CommunityToolkit.Maui, MediaElement, SkiaSharp.Views.Maui, LiveCharts2, Maps, popular MVVM and DI frameworks, ReactiveUI. Tracked in the scorecard |
-| Performance regression gates | The Phase 1 benchmark suite runs per release and fails on regression beyond a threshold |
+| Item | Status |
+|------|--------|
+| Golden screenshot tests | Done: `tests/Golden/` renders twelve scenes (labels, buttons, entry/editor, toggles, ranges, pickers, grid and border, shapes, formatted text, table view, collection view) through the real rendering engine at 1.0x, 1.25x, 1.5x, 1.75x and 2.0x against committed baselines with a per-channel tolerance; no display required, mismatches write actual/expected/diff images. **Remaining:** the sample pages as scenes |
+| Compatibility scorecard | Done: 19 categories, 125 items, computed from the TRX (`dotnet run --project tools/Scorecard -- --run`). The gaps it exposed were closed in the same release: AbsoluteLayout, ControlTemplate/ContentPresenter/TemplatedView, TableView and ListView handlers; MAUI 10 alert/action-sheet/prompt dispatch; modal navigation; animations on MAUI's ticker and animation manager; VisualStateManager, triggers and behaviors; FormattedText spans; gesture dispatch per MAUI's rules; context flyouts; fonts (registrar, manager, named sizes, FontImageSource); Essentials services behind a testable process seam. WebView scenarios run out of process because WebKit requires the main thread. The suite went from about 900 to 1,415 tests, run serially in about 12 seconds; the generated scorecard reports 125 of 125 items covered |
+| Third-party compatibility as a KPI | **Remaining:** how many existing MAUI applications and libraries run without modification (CommunityToolkit.Maui, MediaElement, SkiaSharp.Views.Maui, LiveCharts2, Maps, MVVM and DI frameworks, ReactiveUI), tracked in the scorecard |
+| Performance regression gates | **Remaining:** the Phase 1 benchmark suite per release, failing on regression beyond a threshold |
 
 ### Also planned
 
@@ -215,7 +215,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | Released |
 | v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | Released |
 | v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released |
-| v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development: Phase 1 GPU presentation and Phase 2 WPE WebView + Blazor (in tree) |
+| v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released: Phase 1 GPU presentation and Phase 2 WPE WebView + Blazor |
+| v10.0.101.3 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development: Phase 3 conformance (scorecard, golden tests, the handlers and services it exposed) |
 
 ## Feedback
 

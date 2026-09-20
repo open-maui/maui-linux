@@ -14,6 +14,8 @@ public partial class PolylineHandler : ViewHandler<Polyline, SkiaPolyline>
             [nameof(Polyline.Points)] = MapPoints,
             [nameof(Polyline.Stroke)] = MapStroke,
             [nameof(Polyline.StrokeThickness)] = MapStrokeThickness,
+            [nameof(Polyline.StrokeDashArray)] = MapStrokeDashArray,
+            [nameof(Polyline.StrokeDashOffset)] = MapStrokeDashOffset,
             [nameof(Polyline.Fill)] = MapFill,
         };
 
@@ -25,4 +27,6 @@ public partial class PolylineHandler : ViewHandler<Polyline, SkiaPolyline>
     public static void MapStroke(PolylineHandler h, Polyline p) { h.PlatformView.Stroke = p.Stroke; h.PlatformView.Invalidate(); }
     public static void MapStrokeThickness(PolylineHandler h, Polyline p) { h.PlatformView.StrokeThickness = p.StrokeThickness; h.PlatformView.Invalidate(); }
     public static void MapFill(PolylineHandler h, Polyline p) { h.PlatformView.Fill = p.Fill; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashArray(PolylineHandler h, Polyline p) { h.PlatformView.StrokeDashArray = p.StrokeDashArray; h.PlatformView.Invalidate(); }
+    public static void MapStrokeDashOffset(PolylineHandler h, Polyline p) { h.PlatformView.StrokeDashOffset = p.StrokeDashOffset; h.PlatformView.Invalidate(); }
 }

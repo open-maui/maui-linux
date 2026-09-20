@@ -31,9 +31,29 @@ public class SkiaEllipse : SkiaView
         BindableProperty.Create(nameof(Aspect), typeof(Stretch), typeof(SkiaEllipse), Stretch.None,
             BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaEllipse)b).Invalidate());
 
+    public static readonly BindableProperty StrokeDashArrayProperty =
+        BindableProperty.Create(nameof(StrokeDashArray), typeof(DoubleCollection), typeof(SkiaEllipse), null,
+            propertyChanged: (b, o, n) => ((SkiaEllipse)b).Invalidate());
+
+    public static readonly BindableProperty StrokeDashOffsetProperty =
+        BindableProperty.Create(nameof(StrokeDashOffset), typeof(double), typeof(SkiaEllipse), 0.0,
+            propertyChanged: (b, o, n) => ((SkiaEllipse)b).Invalidate());
+
     #endregion
 
     #region Properties
+
+    public DoubleCollection? StrokeDashArray
+    {
+        get => (DoubleCollection?)GetValue(StrokeDashArrayProperty);
+        set => SetValue(StrokeDashArrayProperty, value);
+    }
+
+    public double StrokeDashOffset
+    {
+        get => (double)GetValue(StrokeDashOffsetProperty);
+        set => SetValue(StrokeDashOffsetProperty, value);
+    }
 
     public Brush? Fill
     {
@@ -121,6 +141,7 @@ public class SkiaEllipse : SkiaView
                     StrokeWidth = strokeWidth,
                     IsAntialias = true,
                 };
+                ShapeDashing.Apply(strokePaint, StrokeDashArray, StrokeDashOffset, StrokeThickness);
                 canvas.DrawOval(ellipseBounds, strokePaint);
             }
         }
