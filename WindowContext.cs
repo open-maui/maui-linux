@@ -314,6 +314,13 @@ public sealed class WindowContext : IDisposable
         if (LinuxDialogService.HasActiveDialog && !_app.IsDialogHost(this))
             return;
 
+        // Modal dialogs with an input field (prompt) take typed text.
+        if (LinuxDialogService.HasActiveDialog && _app.IsDialogHost(this))
+        {
+            LinuxDialogService.TopDialog?.OnTextInput(e);
+            return;
+        }
+
         if (_focusedView != null)
         {
             _focusedView.OnTextInput(e);
