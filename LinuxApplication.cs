@@ -458,6 +458,22 @@ public partial class LinuxApplication : IDisposable
         RegisterServices();
     }
 
+    private Rendering.RendererPreference _rendererPreference = Rendering.RendererPreference.Auto;
+
+    /// <summary>
+    /// Diagnostic name of the primary window's render target ("raster",
+    /// "egl-wayland", "egl-x11"); null in GTK-hosted mode.
+    /// </summary>
+    public string? RendererName => PrimaryContext?.RenderingEngine?.RenderTarget.Name;
+
+    private static void LogRenderer(IRenderTarget target)
+    {
+        if (target is EglRenderTarget egl)
+            DiagnosticLog.Info("LinuxApplication", $"Renderer: {egl.Name} (EGL {egl.EglVersion}; {egl.Renderer})");
+        else
+            DiagnosticLog.Info("LinuxApplication", $"Renderer: {target.Name}");
+    }
+
     private void InitializeX11(LinuxApplicationOptions options)
     {
         // Display server resolution order:
@@ -496,8 +512,10 @@ public partial class LinuxApplication : IDisposable
             InstallDesktopEntry(iconPath);
         }
 
-        var renderingEngine = new SkiaRenderingEngine(mainWindow);
+        _rendererPreference = options.Renderer;
+        var renderingEngine = new SkiaRenderingEngine(mainWindow, RenderTargetFactory.Create(mainWindow, _rendererPreference));
         renderingEngine.DpiScale = DpiScale;
+        LogRenderer(renderingEngine.RenderTarget);
 
         // Register the primary window context. WireInput subscribes all input
         // handlers through Guarded (a view exception unwinding into a native
