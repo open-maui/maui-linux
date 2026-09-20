@@ -56,6 +56,7 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
     protected override void ConnectHandler(SkiaLabel platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
 
         if (VirtualView is View view)
         {
@@ -78,6 +79,7 @@ public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
     protected override void DisconnectHandler(SkiaLabel platformView)
     {
         platformView.MauiView = null;
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

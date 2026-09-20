@@ -40,6 +40,8 @@ internal static class EssentialsPatches
 
         try { PatchLauncher(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Launcher patch failed: {ex.Message}", ex); }
+        try { PatchFilePickerFileTypes(harmony); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"FilePickerFileType patch failed: {ex.Message}", ex); }
 
         // Register AppInfo and DeviceInfo FIRST — other services (e.g. Preferences,
         // FilePicker) read AppInfo.Current.Name in their constructors. If we leave
@@ -121,6 +123,38 @@ internal static class EssentialsPatches
 
         try { RegisterEssential<Microsoft.Maui.ApplicationModel.IMap>("com.openmaui.essentials.map", "Microsoft.Maui.ApplicationModel.Map", "Microsoft.Maui.ApplicationModel.MapImplementation", new MapService()); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Map registration failed: {ex.Message}", ex); }
+
+        // Storage, accessibility and authentication facades that previously fell
+        // through to the portable stubs.
+        try { RegisterEssential<Microsoft.Maui.Storage.IFileSystem>("com.openmaui.essentials.filesystem", "Microsoft.Maui.Storage.FileSystem", "Microsoft.Maui.Storage.FileSystemImplementation", new FileSystemService()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"FileSystem registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Accessibility.ISemanticScreenReader>("com.openmaui.essentials.screenreader", "Microsoft.Maui.Accessibility.SemanticScreenReader", "Microsoft.Maui.Accessibility.SemanticScreenReaderImplementation", new SemanticScreenReaderService()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"SemanticScreenReader registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Authentication.IWebAuthenticator>("com.openmaui.essentials.webauthenticator", "Microsoft.Maui.Authentication.WebAuthenticator", "Microsoft.Maui.Authentication.WebAuthenticatorImplementation", new WebAuthenticatorService()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"WebAuthenticator registration failed: {ex.Message}", ex); }
+
+        // Motion/environment sensors: no desktop hardware. Explicit IsSupported=false
+        // services replace the reference-assembly stubs so IsSupported checks work
+        // and Start() throws FeatureNotSupportedException as documented.
+        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IAccelerometer>("com.openmaui.essentials.accelerometer", "Microsoft.Maui.Devices.Sensors.Accelerometer", "Microsoft.Maui.Devices.Sensors.AccelerometerImplementation", new UnsupportedAccelerometer()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Accelerometer registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IBarometer>("com.openmaui.essentials.barometer", "Microsoft.Maui.Devices.Sensors.Barometer", "Microsoft.Maui.Devices.Sensors.BarometerImplementation", new UnsupportedBarometer()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Barometer registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.ICompass>("com.openmaui.essentials.compass", "Microsoft.Maui.Devices.Sensors.Compass", "Microsoft.Maui.Devices.Sensors.CompassImplementation", new UnsupportedCompass()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Compass registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IGyroscope>("com.openmaui.essentials.gyroscope", "Microsoft.Maui.Devices.Sensors.Gyroscope", "Microsoft.Maui.Devices.Sensors.GyroscopeImplementation", new UnsupportedGyroscope()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Gyroscope registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IMagnetometer>("com.openmaui.essentials.magnetometer", "Microsoft.Maui.Devices.Sensors.Magnetometer", "Microsoft.Maui.Devices.Sensors.MagnetometerImplementation", new UnsupportedMagnetometer()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Magnetometer registration failed: {ex.Message}", ex); }
+
+        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IOrientationSensor>("com.openmaui.essentials.orientationsensor", "Microsoft.Maui.Devices.Sensors.OrientationSensor", "Microsoft.Maui.Devices.Sensors.OrientationSensorImplementation", new UnsupportedOrientationSensor()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"OrientationSensor registration failed: {ex.Message}", ex); }
 
         DiagnosticLog.Debug("EssentialsPatches", "MAUI Essentials patches applied");
     }
@@ -216,6 +250,74 @@ internal static class EssentialsPatches
         {
             DiagnosticLog.Error("EssentialsPatches", "LauncherImplementation type not found");
         }
+    }
+
+    /// <summary>
+    /// Linux extensions behind <c>FilePickerFileType.Images/Png/Jpeg/Videos/Pdf</c>.
+    /// The Linux picker services read the "Linux" entry of a file type.
+    /// </summary>
+    internal static readonly IReadOnlyDictionary<string, string[]> LinuxFileTypes = new Dictionary<string, string[]>
+    {
+        ["Images"] = new[] { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".svg" },
+        ["Png"] = new[] { ".png" },
+        ["Jpeg"] = new[] { ".jpg", ".jpeg" },
+        ["Videos"] = new[] { ".mp4", ".mkv", ".webm", ".mov", ".avi", ".m4v", ".mpg", ".mpeg" },
+        ["Pdf"] = new[] { ".pdf" },
+    };
+
+    /// <summary>
+    /// The portable Essentials build initialises FilePickerFileType's static
+    /// fields (Images, Png, Jpeg, Videos, Pdf) from private factories that throw
+    /// NotImplementedInReferenceAssemblyException, so the first touch of any of
+    /// them (the usual <c>new PickOptions { FileTypes = FilePickerFileType.Images }</c>)
+    /// raised TypeInitializationException and killed the type for the process.
+    /// The factories are prefixed to return types populated for Linux. Patching
+    /// does not run the type initializer, so this must be applied before the
+    /// app first uses the statics (UseLinux does).
+    /// </summary>
+    private static void PatchFilePickerFileTypes(Harmony harmony)
+    {
+        var type = typeof(Microsoft.Maui.Storage.FilePickerFileType);
+        var prefix = typeof(EssentialsPatches).GetMethod(nameof(PlatformFileType_Prefix), BindingFlags.Static | BindingFlags.NonPublic)!;
+        int patched = 0;
+        foreach (var (factory, _) in s_fileTypeFactories)
+        {
+            var original = type.GetMethod(factory, BindingFlags.Static | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+            if (original == null)
+            {
+                DiagnosticLog.Error("EssentialsPatches", $"FilePickerFileType.{factory} not found");
+                continue;
+            }
+            harmony.Patch(original, new HarmonyMethod(prefix));
+            patched++;
+        }
+        DiagnosticLog.Debug("EssentialsPatches", $"Patched {patched} FilePickerFileType factories");
+    }
+
+    private static readonly (string Factory, string Key)[] s_fileTypeFactories =
+    {
+        ("PlatformImageFileType", "Images"),
+        ("PlatformPngFileType", "Png"),
+        ("PlatformJpegFileType", "Jpeg"),
+        ("PlatformVideoFileType", "Videos"),
+        ("PlatformPdfFileType", "Pdf"),
+    };
+
+    private static bool PlatformFileType_Prefix(MethodBase __originalMethod, ref Microsoft.Maui.Storage.FilePickerFileType __result)
+    {
+        var key = Array.Find(s_fileTypeFactories, f => f.Factory == __originalMethod.Name).Key;
+        __result = CreateLinuxFileType(key ?? "Images");
+        return false;
+    }
+
+    /// <summary>A FilePickerFileType carrying the Linux extensions for <paramref name="key"/> (Images, Png, Jpeg, Videos, Pdf).</summary>
+    internal static Microsoft.Maui.Storage.FilePickerFileType CreateLinuxFileType(string key)
+    {
+        var extensions = LinuxFileTypes.TryGetValue(key, out var list) ? list : Array.Empty<string>();
+        return new Microsoft.Maui.Storage.FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+        {
+            [DevicePlatform.Create("Linux")] = extensions,
+        });
     }
 
     private static bool PlatformOpenAsync_Prefix(Uri uri, ref Task<bool> __result)

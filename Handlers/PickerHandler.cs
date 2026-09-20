@@ -55,6 +55,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
     protected override void ConnectHandler(SkiaPicker platformView)
     {
         base.ConnectHandler(platformView);
+        VisualStateBridge.Attach(VirtualView, platformView);
         platformView.SelectedIndexChanged += OnSelectedIndexChanged;
 
         // Subscribe to items collection changes
@@ -87,6 +88,7 @@ public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
             _itemsCollection = null;
         }
 
+        VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
 

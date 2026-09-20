@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform;
 
 public static class LinuxDialogService
 {
-    private static readonly List<SkiaAlertDialog> _activeDialogs = new List<SkiaAlertDialog>();
+    private static readonly List<SkiaModalDialog> _activeDialogs = new List<SkiaModalDialog>();
 
     private static Action? _invalidateCallback;
 
@@ -21,7 +21,12 @@ public static class LinuxDialogService
 
     public static bool HasActiveDialog => _activeDialogs.Count > 0;
 
-    public static SkiaAlertDialog? TopDialog
+    /// <summary>
+    /// The dialog currently receiving input (the most recently shown one):
+    /// a <see cref="SkiaAlertDialog"/> for alerts and prompts, a
+    /// <see cref="SkiaActionSheetDialog"/> for action sheets.
+    /// </summary>
+    public static SkiaModalDialog? TopDialog
     {
         get
         {
@@ -45,25 +50,53 @@ public static class LinuxDialogService
     public static Task<bool> ShowAlertAsync(string title, string message, string? accept, string? cancel)
     {
         var dialog = new SkiaAlertDialog(title, message, accept, cancel);
-        _activeDialogs.Add(dialog);
-        _invalidateCallback?.Invoke();
+        Show(dialog);
         return dialog.Result;
     }
 
     /// <summary>
     /// Shows a modal prompt (alert with a text field). Completes with the
     /// entered text when accepted, or null when cancelled.
+    /// <paramref name="maxLength"/> caps the entered text (-1 = unlimited);
+    /// <paramref name="placeholder"/> is the hint shown while the field is empty.
     /// </summary>
-    public static async Task<string?> ShowPromptAsync(string title, string message, string? accept, string? cancel, string initialValue = "")
+    public static async Task<string?> ShowPromptAsync(string title, string message, string? accept, string? cancel, string initialValue = "", int maxLength = -1, string? placeholder = null)
     {
-        var dialog = new SkiaAlertDialog(title, message, accept, cancel, initialValue);
-        _activeDialogs.Add(dialog);
-        _invalidateCallback?.Invoke();
+        var dialog = new SkiaAlertDialog(title, message, accept, cancel, initialValue)
+        {
+            MaxLength = maxLength,
+            Placeholder = placeholder,
+        };
+        Show(dialog);
         bool accepted = await dialog.Result;
         return accepted ? dialog.Input : null;
     }
 
-    internal static void HideDialog(SkiaAlertDialog dialog)
+    /// <summary>
+    /// Shows a modal action sheet with one button per option. Completes with
+    /// the chosen option's text, the cancel text when dismissed with Escape,
+    /// or null when dismissed without a cancel option.
+    /// </summary>
+    public static Task<string?> ShowActionSheetAsync(string? title, string? cancel, string? destruction, IEnumerable<string>? buttons)
+    {
+        var dialog = new SkiaActionSheetDialog(title, cancel, destruction, buttons);
+        Show(dialog);
+        return dialog.Result;
+    }
+
+    /// <summary>
+    /// Registers an already-constructed dialog as the top-most modal and
+    /// requests a redraw. Exposed for custom dialog types deriving from
+    /// <see cref="SkiaModalDialog"/>.
+    /// </summary>
+    public static void Show(SkiaModalDialog dialog)
+    {
+        if (dialog == null) throw new ArgumentNullException(nameof(dialog));
+        _activeDialogs.Add(dialog);
+        _invalidateCallback?.Invoke();
+    }
+
+    internal static void HideDialog(SkiaModalDialog dialog)
     {
         _activeDialogs.Remove(dialog);
         _invalidateCallback?.Invoke();

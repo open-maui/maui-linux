@@ -1,0 +1,903 @@
+{
+  "categories": [
+    {
+      "name": "Core Infrastructure",
+      "notes": "Dispatcher, handler factory, rendering pipeline (raster and GPU targets)",
+      "items": [
+        {
+          "name": "Dispatcher",
+          "tests": [
+            "LinuxDispatcherTests"
+          ]
+        },
+        {
+          "name": "Handler factory",
+          "tests": [
+            "HandlerPropertyMappingTests",
+            "HandlerRegistryTests"
+          ]
+        },
+        {
+          "name": "Rendering pipeline",
+          "tests": [
+            "RenderTargetTests",
+            "RenderContextPropagationTests",
+            "TextRenderingHelperTests"
+          ]
+        },
+        {
+          "name": "Golden rendering at 1.0x-2.0x",
+          "tests": [
+            "GoldenSceneTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pages",
+      "notes": "ContentPage, NavigationPage, TabbedPage, FlyoutPage, Shell",
+      "items": [
+        {
+          "name": "ContentPage",
+          "tests": [
+            "SkiaPageTests"
+          ]
+        },
+        {
+          "name": "NavigationPage",
+          "tests": [
+            "SkiaNavigationPageTests"
+          ]
+        },
+        {
+          "name": "TabbedPage",
+          "tests": [
+            "SkiaTabbedPageTests"
+          ]
+        },
+        {
+          "name": "FlyoutPage",
+          "tests": [
+            "SkiaFlyoutPageTests"
+          ]
+        },
+        {
+          "name": "Shell",
+          "tests": [
+            "ShellRoutingTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Layouts",
+      "notes": "StackLayout, Grid, FlexLayout, AbsoluteLayout, ScrollView, ContentView, Border, Frame",
+      "items": [
+        {
+          "name": "StackLayout (vertical, horizontal)",
+          "tests": [
+            "SkiaStackLayoutTests",
+            "LayoutIntegrationTests",
+            "AlignmentTests"
+          ]
+        },
+        {
+          "name": "Grid",
+          "tests": [
+            "SkiaGridTests",
+            "GoldenSceneTests.Grid_and_border"
+          ]
+        },
+        {
+          "name": "FlexLayout",
+          "tests": [
+            "SkiaFlexLayoutTests"
+          ]
+        },
+        {
+          "name": "AbsoluteLayout",
+          "tests": [
+            "SkiaAbsoluteLayoutTests",
+            "AbsoluteLayoutHandlerTests"
+          ]
+        },
+        {
+          "name": "ScrollView",
+          "tests": [
+            "SkiaScrollViewTests"
+          ]
+        },
+        {
+          "name": "ContentView",
+          "tests": [
+            "ContentViewTests",
+            "ControlTemplateTests"
+          ]
+        },
+        {
+          "name": "Border",
+          "tests": [
+            "SkiaBorderTests"
+          ]
+        },
+        {
+          "name": "Frame",
+          "tests": [
+            "SkiaFrameTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Basic Controls",
+      "notes": "All 14 standard controls",
+      "items": [
+        {
+          "name": "Label",
+          "tests": [
+            "SkiaLabelTests",
+            "LabelPropertyMappingTests",
+            "GoldenSceneTests.Labels"
+          ]
+        },
+        {
+          "name": "Button",
+          "tests": [
+            "SkiaButtonTests",
+            "GoldenSceneTests.Buttons"
+          ]
+        },
+        {
+          "name": "Entry",
+          "tests": [
+            "SkiaEntryTests"
+          ]
+        },
+        {
+          "name": "Editor",
+          "tests": [
+            "SkiaEditorTests"
+          ]
+        },
+        {
+          "name": "CheckBox",
+          "tests": [
+            "SkiaCheckBoxTests"
+          ]
+        },
+        {
+          "name": "Switch",
+          "tests": [
+            "SkiaSwitchTests"
+          ]
+        },
+        {
+          "name": "Slider",
+          "tests": [
+            "SkiaSliderTests"
+          ]
+        },
+        {
+          "name": "Stepper",
+          "tests": [
+            "SkiaStepperTests"
+          ]
+        },
+        {
+          "name": "ProgressBar",
+          "tests": [
+            "SkiaProgressBarTests"
+          ]
+        },
+        {
+          "name": "ActivityIndicator",
+          "tests": [
+            "SkiaActivityIndicatorTests"
+          ]
+        },
+        {
+          "name": "Image",
+          "tests": [
+            "SkiaImageTests"
+          ]
+        },
+        {
+          "name": "ImageButton",
+          "tests": [
+            "SkiaImageButtonTests"
+          ]
+        },
+        {
+          "name": "BoxView",
+          "tests": [
+            "SkiaBoxViewTests"
+          ]
+        },
+        {
+          "name": "RadioButton",
+          "tests": [
+            "SkiaRadioButtonTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Input Controls",
+      "notes": "Picker, DatePicker, TimePicker, SearchBar",
+      "items": [
+        {
+          "name": "Picker",
+          "tests": [
+            "SkiaPickerTests"
+          ]
+        },
+        {
+          "name": "DatePicker",
+          "tests": [
+            "SkiaDatePickerTests"
+          ]
+        },
+        {
+          "name": "TimePicker",
+          "tests": [
+            "SkiaTimePickerTests"
+          ]
+        },
+        {
+          "name": "SearchBar",
+          "tests": [
+            "SkiaSearchBarTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Collection Controls",
+      "notes": "CollectionView, ListView, TableView, CarouselView, SwipeView, RefreshView, IndicatorView",
+      "items": [
+        {
+          "name": "CollectionView",
+          "tests": [
+            "SkiaCollectionViewTests",
+            "GoldenSceneTests.CollectionView"
+          ]
+        },
+        {
+          "name": "ListView",
+          "tests": [
+            "ListViewTests"
+          ]
+        },
+        {
+          "name": "TableView",
+          "tests": [
+            "SkiaTableViewTests"
+          ]
+        },
+        {
+          "name": "CarouselView",
+          "tests": [
+            "SkiaCarouselViewTests"
+          ]
+        },
+        {
+          "name": "SwipeView",
+          "tests": [
+            "SkiaSwipeViewTests"
+          ]
+        },
+        {
+          "name": "RefreshView",
+          "tests": [
+            "SkiaRefreshViewTests"
+          ]
+        },
+        {
+          "name": "IndicatorView",
+          "tests": [
+            "SkiaIndicatorViewTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Navigation & Routing",
+      "notes": "Push/pop, modal navigation, Shell routes, query parameters",
+      "items": [
+        {
+          "name": "Push / pop",
+          "tests": [
+            "SkiaNavigationPageTests"
+          ]
+        },
+        {
+          "name": "Modal navigation",
+          "tests": [
+            "ModalNavigationTests"
+          ]
+        },
+        {
+          "name": "Shell routes",
+          "tests": [
+            "ShellRoutingTests/route|Route|GoTo|Back"
+          ]
+        },
+        {
+          "name": "Query parameters",
+          "tests": [
+            "ShellRoutingTests/Query|query|Attributable"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Alerts & Dialogs",
+      "notes": "DisplayAlert, DisplayActionSheet, DisplayPromptAsync, modal pages",
+      "items": [
+        {
+          "name": "DisplayAlert",
+          "tests": [
+            "DialogBridgeTests/Alert|alert"
+          ]
+        },
+        {
+          "name": "DisplayActionSheet",
+          "tests": [
+            "DialogBridgeTests/ActionSheet|action_sheet|Action_sheet"
+          ]
+        },
+        {
+          "name": "DisplayPromptAsync",
+          "tests": [
+            "DialogBridgeTests/Prompt|prompt"
+          ]
+        },
+        {
+          "name": "Modal pages",
+          "tests": [
+            "ModalNavigationTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Gesture Recognizers",
+      "notes": "Tap, Pan, Pinch, Swipe, Pointer, Drag/Drop",
+      "items": [
+        {
+          "name": "Tap",
+          "tests": [
+            "GestureRecognizerTests/Tap|tap",
+            "GestureManagerPositionResolverTests"
+          ]
+        },
+        {
+          "name": "Pan",
+          "tests": [
+            "GestureRecognizerTests/Pan|pan"
+          ]
+        },
+        {
+          "name": "Pinch",
+          "tests": [
+            "GestureRecognizerTests/Pinch|pinch"
+          ]
+        },
+        {
+          "name": "Swipe",
+          "tests": [
+            "GestureRecognizerTests/Swipe|swipe"
+          ]
+        },
+        {
+          "name": "Pointer",
+          "tests": [
+            "GestureRecognizerTests/Pointer|pointer"
+          ]
+        },
+        {
+          "name": "Drag and drop",
+          "tests": [
+            "DragPayloadTests",
+            "DropTargetTrackerTests",
+            "WaylandDragDropTests",
+            "GestureRecognizerTests/Drag|Drop|drag|drop"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Graphics & Shapes",
+      "notes": "GraphicsView + all 6 shape types",
+      "items": [
+        {
+          "name": "GraphicsView",
+          "tests": [
+            "ShapeTests/Graphics|graphics"
+          ]
+        },
+        {
+          "name": "Rectangle",
+          "tests": [
+            "ShapeTests/Rectangle|rectangle"
+          ]
+        },
+        {
+          "name": "Ellipse",
+          "tests": [
+            "ShapeTests/Ellipse|ellipse"
+          ]
+        },
+        {
+          "name": "Line",
+          "tests": [
+            "ShapeTests/Line|line"
+          ]
+        },
+        {
+          "name": "Path",
+          "tests": [
+            "ShapeTests/Path|path"
+          ]
+        },
+        {
+          "name": "Polygon",
+          "tests": [
+            "ShapeTests/Polygon|polygon"
+          ]
+        },
+        {
+          "name": "Polyline",
+          "tests": [
+            "ShapeTests/Polyline|polyline"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Font Management",
+      "notes": "Registrar, manager, FontImageSource, named sizes, fallback",
+      "items": [
+        {
+          "name": "Font registrar (AddFont)",
+          "tests": [
+            "LinuxFontRegistrarTests",
+            "FontRegistrarTests"
+          ]
+        },
+        {
+          "name": "Font manager / resolution",
+          "tests": [
+            "FontFallbackManagerTests",
+            "FontManagerTests",
+            "LinuxFontManagerTests"
+          ]
+        },
+        {
+          "name": "FontImageSource",
+          "tests": [
+            "FontImageSourceTests"
+          ]
+        },
+        {
+          "name": "Named sizes",
+          "tests": [
+            "LinuxFontNamedSizeServiceTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WebView",
+      "notes": "URL, HTML, JavaScript, navigation events (WPE WebKit)",
+      "items": [
+        {
+          "name": "URL and HTML sources",
+          "tests": [
+            "WpeWebViewSupportTests",
+            "WebViewHandlerTests"
+          ]
+        },
+        {
+          "name": "JavaScript evaluation",
+          "tests": [
+            "WebViewHandlerTests/Java|java|Eval|eval",
+            "WpeWebViewSupportTests/Keysym|keysym"
+          ]
+        },
+        {
+          "name": "Navigation events",
+          "tests": [
+            "WebViewHandlerTests/Navigat|navigat"
+          ]
+        },
+        {
+          "name": "Backend selection",
+          "tests": [
+            "WpeWebViewSupportTests/Environment|Auto|backend|Backend"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Animations",
+      "notes": "ViewExtensions, Animation class, ticker",
+      "items": [
+        {
+          "name": "ViewExtensions (FadeTo, TranslateTo, ScaleTo, RotateTo)",
+          "tests": [
+            "MauiViewAnimationTests/FadeTo|TranslateTo|ScaleTo|RotateTo|Rel|LayoutTo",
+            "SkiaViewAnimationExtensionsTests"
+          ]
+        },
+        {
+          "name": "Animation class and Easing",
+          "tests": [
+            "MauiViewAnimationTests/AnimationCommit|AbortAnimation|CancelAnimations",
+            "LinuxAnimationManagerTests",
+            "EasingTests"
+          ]
+        },
+        {
+          "name": "Ticker",
+          "tests": [
+            "LinuxTickerTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "VisualStateManager",
+      "notes": "Visual states, triggers, behaviors",
+      "items": [
+        {
+          "name": "Visual states (CommonStates)",
+          "tests": [
+            "VisualStateBridgeTests",
+            "VisualStateManagerTests"
+          ]
+        },
+        {
+          "name": "Triggers",
+          "tests": [
+            "TriggerPropagationTests"
+          ]
+        },
+        {
+          "name": "Behaviors",
+          "tests": [
+            "BehaviorAttachTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ControlTemplate",
+      "notes": "ContentPresenter, TemplatedView",
+      "items": [
+        {
+          "name": "ControlTemplate on ContentView / ContentPage",
+          "tests": [
+            "ControlTemplateHandlerTests/ContentView_|TemplatedView_"
+          ]
+        },
+        {
+          "name": "ContentPresenter and TemplateBinding",
+          "tests": [
+            "ControlTemplateHandlerTests/ContentPresenter|TemplateBinding|GetTemplateChild|Presenter"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Base View Properties",
+      "notes": "Opacity, visibility, transforms, shadow, clip, automation",
+      "items": [
+        {
+          "name": "Opacity and IsVisible",
+          "tests": [
+            "SkiaViewTests",
+            "SkiaViewEdgeCaseTests",
+            "ViewPropertyRenderingTests/Opacity|Visible|opacity|visible"
+          ]
+        },
+        {
+          "name": "Transforms (rotation, scale, translation, anchor)",
+          "tests": [
+            "SkiaViewTheoryTests",
+            "ViewPropertyRenderingTests/Rotat|Scale|Translat|Anchor|rotat|scale|translat|anchor"
+          ]
+        },
+        {
+          "name": "Shadow",
+          "tests": [
+            "ViewPropertyRenderingTests/Shadow|shadow"
+          ]
+        },
+        {
+          "name": "Clip",
+          "tests": [
+            "ViewPropertyRenderingTests/Clip|clip"
+          ]
+        },
+        {
+          "name": "AutomationId and semantics",
+          "tests": [
+            "ViewPropertyRenderingTests/Automation|automation",
+            "SemanticMapperTests",
+            "SemanticPropertiesTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FormattedText",
+      "notes": "Span properties, decorations, fonts, span gestures",
+      "items": [
+        {
+          "name": "Spans (colour, size, attributes, family)",
+          "tests": [
+            "FormattedTextTests"
+          ]
+        },
+        {
+          "name": "Span decorations",
+          "tests": [
+            "FormattedTextTests/Decoration|decoration|Underline|underline|Strike|strike"
+          ]
+        },
+        {
+          "name": "Span gestures",
+          "tests": [
+            "FormattedTextTests/Gesture|gesture|Tap|tap"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MenuBar",
+      "notes": "MenuBarItem, MenuFlyoutItem, submenus, separators, accelerators, context menus",
+      "items": [
+        {
+          "name": "MenuBar and items",
+          "tests": [
+            "SkiaMenuBarTests",
+            "SkiaMenuFlyoutTests",
+            "MenuItemClickedEventArgsTests"
+          ]
+        },
+        {
+          "name": "Context menus (MenuFlyout)",
+          "tests": [
+            "ContextFlyoutTests"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Essentials",
+      "notes": "36 services; desktop-inapplicable sensors report IsSupported=false",
+      "items": [
+        {
+          "name": "AppInfo",
+          "tests": [
+            "EssentialsTests/AppInfo"
+          ]
+        },
+        {
+          "name": "AppActions",
+          "tests": [
+            "EssentialsTests/AppActions"
+          ]
+        },
+        {
+          "name": "Battery",
+          "tests": [
+            "EssentialsTests/Battery"
+          ]
+        },
+        {
+          "name": "Browser",
+          "tests": [
+            "EssentialsTests/Browser"
+          ]
+        },
+        {
+          "name": "Clipboard",
+          "tests": [
+            "EssentialsTests/Clipboard",
+            "PrimarySelectionServiceTests"
+          ]
+        },
+        {
+          "name": "Connectivity",
+          "tests": [
+            "EssentialsTests/Connectivity"
+          ]
+        },
+        {
+          "name": "DeviceDisplay",
+          "tests": [
+            "EssentialsTests/DeviceDisplay",
+            "HiDpiServiceTests"
+          ]
+        },
+        {
+          "name": "DeviceInfo",
+          "tests": [
+            "EssentialsTests/DeviceInfo"
+          ]
+        },
+        {
+          "name": "Email",
+          "tests": [
+            "EssentialsTests/Email"
+          ]
+        },
+        {
+          "name": "FilePicker",
+          "tests": [
+            "EssentialsTests/FilePicker"
+          ]
+        },
+        {
+          "name": "FileSystem",
+          "tests": [
+            "EssentialsTests/FileSystem"
+          ]
+        },
+        {
+          "name": "Launcher",
+          "tests": [
+            "EssentialsTests/Launcher"
+          ]
+        },
+        {
+          "name": "Map",
+          "tests": [
+            "EssentialsTests/Map",
+            "MapTypeRoutingTests"
+          ]
+        },
+        {
+          "name": "MediaPicker",
+          "tests": [
+            "EssentialsTests/MediaPicker"
+          ]
+        },
+        {
+          "name": "Preferences",
+          "tests": [
+            "EssentialsTests/Preferences"
+          ]
+        },
+        {
+          "name": "Screenshot",
+          "tests": [
+            "EssentialsTests/Screenshot"
+          ]
+        },
+        {
+          "name": "SecureStorage",
+          "tests": [
+            "EssentialsTests/SecureStorage"
+          ]
+        },
+        {
+          "name": "SemanticScreenReader",
+          "tests": [
+            "EssentialsTests/ScreenReader"
+          ]
+        },
+        {
+          "name": "Share",
+          "tests": [
+            "EssentialsTests/Share"
+          ]
+        },
+        {
+          "name": "TextToSpeech",
+          "tests": [
+            "EssentialsTests/TextToSpeech"
+          ]
+        },
+        {
+          "name": "VersionTracking",
+          "tests": [
+            "EssentialsTests/VersionTracking"
+          ]
+        },
+        {
+          "name": "Geolocation",
+          "tests": [
+            "EssentialsTests/Geolocation"
+          ]
+        },
+        {
+          "name": "WebAuthenticator",
+          "tests": [
+            "EssentialsTests/WebAuthenticator"
+          ]
+        },
+        {
+          "name": "Accelerometer",
+          "tests": [
+            "EssentialsTests/Accelerometer"
+          ]
+        },
+        {
+          "name": "Barometer",
+          "tests": [
+            "EssentialsTests/Barometer"
+          ]
+        },
+        {
+          "name": "Compass",
+          "tests": [
+            "EssentialsTests/Compass"
+          ]
+        },
+        {
+          "name": "Contacts",
+          "tests": [
+            "EssentialsTests/Contacts"
+          ]
+        },
+        {
+          "name": "Flashlight",
+          "tests": [
+            "EssentialsTests/Flashlight"
+          ]
+        },
+        {
+          "name": "Geocoding",
+          "tests": [
+            "EssentialsTests/Geocoding"
+          ]
+        },
+        {
+          "name": "Gyroscope",
+          "tests": [
+            "EssentialsTests/Gyroscope"
+          ]
+        },
+        {
+          "name": "HapticFeedback",
+          "tests": [
+            "EssentialsTests/Haptic"
+          ]
+        },
+        {
+          "name": "Magnetometer",
+          "tests": [
+            "EssentialsTests/Magnetometer"
+          ]
+        },
+        {
+          "name": "OrientationSensor",
+          "tests": [
+            "EssentialsTests/Orientation"
+          ]
+        },
+        {
+          "name": "PhoneDialer",
+          "tests": [
+            "EssentialsTests/PhoneDialer"
+          ]
+        },
+        {
+          "name": "SMS",
+          "tests": [
+            "EssentialsTests/Sms"
+          ]
+        },
+        {
+          "name": "Vibration",
+          "tests": [
+            "EssentialsTests/Vibration"
+          ]
+        }
+      ]
+    }
+  ]
+}
