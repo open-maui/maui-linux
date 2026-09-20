@@ -33,5 +33,13 @@ public class LinuxApplicationOptions
 
     // Rendering configuration
     public int MaxDirtyRegions { get; set; } = 32;
+
+    /// <summary>
+    /// How frames are presented: GPU (EGL/OpenGL ES through Skia's GL backend,
+    /// zero-copy on Wayland) when available, or the CPU raster path. Default
+    /// Auto tries GPU and falls back to raster. The OPENMAUI_RENDERER
+    /// environment variable (gpu|raster|auto) overrides this at launch.
+    /// </summary>
+    public Rendering.RendererPreference Renderer { get; set; } = Rendering.RendererPreference.Auto;
     public float RegionMergeThreshold { get; set; } = 0.3f;
 }
