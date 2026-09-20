@@ -2,7 +2,25 @@
 
 This document outlines the development roadmap for the OpenMaui Linux platform.
 
-## Shipped (10.0.50 → 10.0.101.1)
+## Positioning
+
+> OpenMaui is the Wayland-first, self-rendered, production-grade Linux platform for .NET MAUI, with X11 compatibility rather than GTK as its architectural foundation.
+
+The roadmap below is built around that statement. Wayland is the primary architecture and new capabilities are designed Wayland-first, then backported to X11 where practical; X11/XWayland remains a fully supported compatibility architecture. GTK, WebKit, GStreamer and similar are used as implementation tools where they are the best available technology, but no desktop toolkit is the foundation of the platform:
+
+```text
+MAUI
+ ↓
+OpenMaui
+ ↓
+Skia + Linux platform APIs
+ ↓
+Wayland (X11 compatibility)
+```
+
+Guiding principle for the next releases: the existing 50+ controls do not need thirty more siblings; they need to run on a rendering, web, and verification foundation that is clearly engineered for where Linux is going.
+
+## Shipped (10.0.50 to 10.0.101.1)
 
 ### Core platform
 
@@ -103,31 +121,86 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 
 ## Planned
 
-### Medium-term
+Priorities are ordered. Phase 1 and Phase 2 are the current focus; Phase 3 follows them.
 
-| Feature | Description |
-|---------|-------------|
-| Hardware video acceleration zero-copy | Explicit pipeline construction for direct compositor-surface (zero-copy) playback — `Prefer` mode already covers decoder selection |
+### Phase 1: GPU-native presentation
+
+Shipped in 10.0.101.2: the pipeline is now `SkiaView -> Skia GL (GRContext) -> EGL window surface -> eglSwapBuffers -> compositor`, with the raster path (`SkiaView -> CPU raster -> wl_shm / XPutImage`) retained as an automatic fallback.
+
+| Item | Status |
+|------|--------|
+| `IRenderTarget` boundary | Done. `SkiaRenderingEngine` draws on the canvas a target provides; `RasterRenderTarget` (both backends, via the window's `Present`), `WaylandEglRenderTarget`, `X11EglRenderTarget` |
+| EGL on Wayland | Done. `wl_egl_window` + EGL 1.5 platform display + `GRContext` on the default framebuffer; zero-copy submission through `eglSwapBuffers`; the existing wp_viewporter logical/physical split still applies |
+| EGL on X11 | Done. EGL config matched to the window's visual; drawable resized by the server |
+| Runtime selection and fallback | Done. `LinuxApplicationOptions.Renderer` and `OPENMAUI_RENDERER=gpu|raster|auto`; any GPU failure falls back to raster |
+| Resource lifetime | Done for resize and multi-window (one context per window, made current per frame, disposed before the connection closes). **Scale change** (moving between monitors of different scale) is still not a runtime path on either target; `wp_fractional_scale_v1.preferred_scale` is received but not applied |
+| Frame statistics | Done. `OPENMAUI_RENDER_STATS=1` prints rendered FPS and avg/p50/p95/p99/max frame time per window |
+| First numbers | MediaDemo video playback, 1400x1050 (1.75x), Mesa Intel UHD: raster avg 3.55 ms, p99 7-10 ms; egl-wayland avg 1.47 ms, p99 under 4 ms, at the same 32 rendered fps |
+
+Remaining (Phase 1b):
+
+| Item | Description |
+|------|-------------|
+| Benchmark suite | Turn the frame statistics into a repeatable suite: startup, idle CPU, memory, scrolling FPS, resize latency, animation smoothness, 1,000 and 10,000 item virtualisation, text rendering, power, on both targets |
+| Runtime scale change | Apply `preferred_scale` (Wayland) and monitor changes (X11) at runtime: resize the EGL window / shm buffer, update `DpiScale`, re-layout |
+| Hardware video zero-copy | MediaElement frames imported as GPU textures (DMA-BUF via VA-API/NVDEC where available) instead of the CPU `SKBitmap` upload the GPU target still performs per frame |
+| Explicit DMA-BUF and Vulkan | `zwp_linux_dmabuf_v1` buffer submission and a Vulkan `GRContext` backend once the EGL path has soaked |
+| Partial-damage submission | `eglSwapBuffersWithDamageKHR` / `wl_surface_damage_buffer` from the engine's dirty rects (the rects' logical-versus-physical coordinate handling needs fixing first) |
+
+### Phase 2: WPE WebKit WebView and BlazorWebView
+
+WebView is the platform's remaining architectural rough spot: WebKitGTK is a GTK widget, so on Wayland it cannot simply be reparented into a native OpenMaui window the way it can on X11.
+
+WPE WebKit 2.54 (released 2026-09-16) makes the WPEPlatform API stable and enabled by default (`wpe-platform-2.0`), deprecates the libwpe API, and moves WebKit's compositor to Skia. Under WPEPlatform the embedder subclasses `WPEDisplay`/`WPEToplevel`/`WPEView` and receives each rendered frame as a `WPEBuffer`, DMA-BUF (`wpe_buffer_import_to_egl_image`) with a shared-memory fallback (`wpe_buffer_import_to_pixels`), and feeds input as `WPEEvent`s. No GTK, no window of its own.
+
+That fits OpenMaui exactly: the WebView becomes an ordinary `SkiaView` that draws web frames as textures inside the platform's own render tree, identical on Wayland and X11, and it composes directly with the Phase 1 GPU pipeline (EGLImage to `SKImage`).
+
+| Item | Description |
+|------|-------------|
+| BlazorWebView on the existing WebKitGTK WebView | First, and independent of WPE: `BlazorWebView` needs a custom URI scheme handler (`app://`) and a message bridge, both available in WebKitGTK. Delivers Blazor Hybrid parity on Linux on every distro that ships WebKitGTK today, on both backends |
+| WPE availability (verified 2026-09-20) | Debian sid ships 2.54.0, testing 2.52.6, stable 2.48; Ubuntu inherits from Debian. Fedora's own repositories do not package WPE WebKit, but the `philn/wpewebkit` COPR (maintained by an Igalia WPE developer) ships `wpewebkit` 2.54.0, `libwpe` 1.16.3 and `wpebackend-fdo` 1.16.1 for Fedora 43/44 on x86_64 and aarch64, built on release day. Platform work is therefore detection plus guidance (`openmaui doctor` and the AppImage dependency scanner print `dnf copr enable philn/wpewebkit && dnf install wpewebkit` on Fedora, `apt install libwpewebkit-2.0-1` on Debian/Ubuntu); an optional bundled WPE in the AppImage/Flatpak remains the answer for end users who cannot add repositories |
+| WPEPlatform embedder | `WPEDisplay`/`WPEView` subclasses registered from managed code via the GObject type system (the platform already manages GClosure and GObject lifetimes); frames arrive through `render_buffer`, input is translated from OpenMaui pointer/keyboard events to `WPEEvent` |
+| Frame import | DMA-BUF to `EGLImage` to `SKImage` on the GPU target; `wpe_buffer_import_to_pixels` to `SKBitmap` on the raster target |
+| Backend selection | WPE when `libWPEWebKit-2.0` is present, WebKitGTK otherwise; the X11 WebKitGTK path remains the compatibility fallback. `openmaui doctor` reports which backend will be used |
+| BlazorWebView on WPE | Same scheme handler and bridge, now composited natively on Wayland |
+| Dependency reporting | AppImage tool's dependency scanner learns the WPE package names per distro and the COPR instructions |
+
+### Phase 3: Conformance suite and visual regression
+
+Every visual defect fixed in 10.0.101.1 (glyph gaps at fractional scale, label heights, wrap overlap, baseline drift) was found by a human screenshot, not by the 700-test suite. Phase 3 makes that impossible to repeat, and turns "runs unmodified" into a measured number.
+
+| Item | Description |
+|------|-------------|
+| Golden screenshot tests | Offscreen Skia rendering of every control and the sample pages at 1.0x, 1.25x, 1.5x, 1.75x and 2.0x with pixel-diff comparison; no display required, runs in the existing test project |
+| Compatibility scorecard | Automated pass/fail per area, published per release: MAUI Controls, Navigation (Shell, NavigationPage, multi-window), Essentials, Community Toolkit, Blazor Hybrid, XAML (bindings, styles, triggers, VisualStateManager, animations), input (gestures, IME, clipboard, drag and drop), accessibility, localisation and RTL, theming. Real tests behind every cell, no marketing percentages |
+| Third-party compatibility as a KPI | How many existing MAUI applications and libraries run without modification: CommunityToolkit.Maui, MediaElement, SkiaSharp.Views.Maui, LiveCharts2, Maps, popular MVVM and DI frameworks, ReactiveUI. Tracked in the scorecard |
+| Performance regression gates | The Phase 1 benchmark suite runs per release and fails on regression beyond a threshold |
+
+### Also planned
+
+| Item | Description |
+|------|-------------|
+| `openmaui doctor` | One command that reports .NET version, session type, compositor, available Wayland globals (fractional-scale, text-input-v3, dmabuf), GPU and renderer selection, scale factor, and the presence of GStreamer, CUPS, AT-SPI2, WebKitGTK and WPE with the exact packages to install. Builds on the AppImage tool's dependency scanner |
+| xdg-desktop-portal layer | Portal calls move from `gdbus` subprocesses to native D-Bus (Tmds.DBus is already a dependency) and expand from FileChooser to OpenURI, Notification, Screenshot, Secret, Settings, Inhibit and Background; native compositor APIs and portals side by side, which is the Flatpak-ready shape |
+| Deployment beyond AppImage | `deb` and `rpm` output from the packaging tool alongside AppImage and Flatpak; Snap later |
 | Multi-window round-out | Per-window `WindowHandler` (live title/page changes on secondaries), DnD onto secondary windows, `IWindow.Stopped`/`Resumed`, window positioning, GTK-mode secondaries |
+| ARM64 hardening | Keep `linux-arm64` boringly reliable (templates already publish both RIDs); WPE plus DRM/KMS opens embedded and kiosk targets with no desktop environment later |
+| Stable-contract commitment | Semantic versioning, API compatibility checks between releases, migration guides and a documented support matrix across the MAUI 10 lifecycle |
+| Frame-accurate HTTP scrubbing | Deferred. The 1-2s backward-seek drift on HTTP-streamed video is a byte-range re-request + decode-and-discard latency issue at the GStreamer layer; local-file scrubbing is already frame-accurate |
 
-### Long-term
+### Not prioritised
 
-| Feature | Description |
-|---------|-------------|
-| Vulkan rendering | Next-gen graphics API support |
-| Flatpak packaging | Easy distribution via Flatpak |
-| Snap packaging | Ubuntu Snap store support |
-| Frame-accurate HTTP scrubbing | *Deferred.* The 1-2s backward-seek drift on HTTP-streamed video is a byte-range re-request + decode-and-discard latency issue at the GStreamer layer; local-file scrubbing is already frame-accurate, so the user-visible impact is limited to streamed sources |
+A public multi-distro, multi-desktop CI matrix (GNOME/KDE/Sway across Ubuntu and Fedora, on x64 and ARM64, at every scale factor) is a good idea and remains open to contributors, but it is not on the core team's list: the platform is developed and used daily on real desktops, and Phase 3 puts the verification effort into offscreen golden tests that run anywhere.
 
 ## Contributing
 
 We welcome contributions! Priority areas:
 
-1. **Wayland Support** - Help complete the Wayland backend
-2. **Testing** - Integration tests on various distributions
-3. **Documentation** - API docs and tutorials
-4. **Controls** - Additional control implementations
-5. **Samples** - Real-world demo applications
+1. **GPU presentation** - EGL/Vulkan render targets and benchmarks (Phase 1)
+2. **WPE WebKit** - WPEPlatform embedding, Fedora packaging (COPR), BlazorWebView (Phase 2)
+3. **Conformance** - golden screenshot tests and the compatibility scorecard (Phase 3)
+4. **Distribution** - CI matrices across distros and desktops, deb/rpm output
+5. **Documentation** - API docs and tutorials
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
@@ -145,8 +218,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.70.3 | .NET 10 / MAUI 10.0.70 | Q2 2026 | Released |
 | v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | Released |
 | v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | Released |
-| v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development |
-| v10.0.90.x | .NET 10 / MAUI 10.0.90 | Q3 2026 | Active |
+| v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released |
+| v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development: Phase 1 GPU presentation (shipped in tree), Phase 2 next |
 
 ## Feedback
 
