@@ -50,6 +50,19 @@ public static class LinuxDialogService
         return dialog.Result;
     }
 
+    /// <summary>
+    /// Shows a modal prompt (alert with a text field). Completes with the
+    /// entered text when accepted, or null when cancelled.
+    /// </summary>
+    public static async Task<string?> ShowPromptAsync(string title, string message, string? accept, string? cancel, string initialValue = "")
+    {
+        var dialog = new SkiaAlertDialog(title, message, accept, cancel, initialValue);
+        _activeDialogs.Add(dialog);
+        _invalidateCallback?.Invoke();
+        bool accepted = await dialog.Result;
+        return accepted ? dialog.Input : null;
+    }
+
     internal static void HideDialog(SkiaAlertDialog dialog)
     {
         _activeDialogs.Remove(dialog);

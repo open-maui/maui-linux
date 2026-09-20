@@ -149,21 +149,17 @@ Remaining (Phase 1b):
 
 ### Phase 2: WPE WebKit WebView and BlazorWebView
 
-WebView is the platform's remaining architectural rough spot: WebKitGTK is a GTK widget, so on Wayland it cannot simply be reparented into a native OpenMaui window the way it can on X11.
+Shipped in 10.0.101.2. WebView was the platform's remaining architectural rough spot (WebKitGTK is a GTK widget that cannot be reparented into a native Wayland window, so the GTK-hosted view only displayed in GTK mode). WPE WebKit 2.54's stable WPEPlatform API renders headlessly and delivers each frame as a `WPEBuffer` through the `buffer-rendered` signal, so the WebView is now an ordinary `SkiaView` drawing web frames inside the platform's own render tree, identical on Wayland and X11, composed with the Phase 1 GPU pipeline.
 
-WPE WebKit 2.54 (released 2026-09-16) makes the WPEPlatform API stable and enabled by default (`wpe-platform-2.0`), deprecates the libwpe API, and moves WebKit's compositor to Skia. Under WPEPlatform the embedder subclasses `WPEDisplay`/`WPEToplevel`/`WPEView` and receives each rendered frame as a `WPEBuffer`, DMA-BUF (`wpe_buffer_import_to_egl_image`) with a shared-memory fallback (`wpe_buffer_import_to_pixels`), and feeds input as `WPEEvent`s. No GTK, no window of its own.
-
-That fits OpenMaui exactly: the WebView becomes an ordinary `SkiaView` that draws web frames as textures inside the platform's own render tree, identical on Wayland and X11, and it composes directly with the Phase 1 GPU pipeline (EGLImage to `SKImage`).
-
-| Item | Description |
-|------|-------------|
-| BlazorWebView on the existing WebKitGTK WebView | First, and independent of WPE: `BlazorWebView` needs a custom URI scheme handler (`app://`) and a message bridge, both available in WebKitGTK. Delivers Blazor Hybrid parity on Linux on every distro that ships WebKitGTK today, on both backends |
-| WPE availability (verified 2026-09-20) | Debian sid ships 2.54.0, testing 2.52.6, stable 2.48; Ubuntu inherits from Debian. Fedora's own repositories do not package WPE WebKit, but the `philn/wpewebkit` COPR (maintained by an Igalia WPE developer) ships `wpewebkit` 2.54.0, `libwpe` 1.16.3 and `wpebackend-fdo` 1.16.1 for Fedora 43/44 on x86_64 and aarch64, built on release day. Platform work is therefore detection plus guidance (`openmaui doctor` and the AppImage dependency scanner print `dnf copr enable philn/wpewebkit && dnf install wpewebkit` on Fedora, `apt install libwpewebkit-2.0-1` on Debian/Ubuntu); an optional bundled WPE in the AppImage/Flatpak remains the answer for end users who cannot add repositories |
-| WPEPlatform embedder | `WPEDisplay`/`WPEView` subclasses registered from managed code via the GObject type system (the platform already manages GClosure and GObject lifetimes); frames arrive through `render_buffer`, input is translated from OpenMaui pointer/keyboard events to `WPEEvent` |
-| Frame import | DMA-BUF to `EGLImage` to `SKImage` on the GPU target; `wpe_buffer_import_to_pixels` to `SKBitmap` on the raster target |
-| Backend selection | WPE when `libWPEWebKit-2.0` is present, WebKitGTK otherwise; the X11 WebKitGTK path remains the compatibility fallback. `openmaui doctor` reports which backend will be used |
-| BlazorWebView on WPE | Same scheme handler and bridge, now composited natively on Wayland |
-| Dependency reporting | AppImage tool's dependency scanner learns the WPE package names per distro and the COPR instructions |
+| Item | Status |
+|------|--------|
+| WPE availability | Debian sid 2.54.0 (`libwpewebkit-2.0-1`), Ubuntu inherits; Fedora via the `philn/wpewebkit` COPR (2.54.0, Fedora 43/44, x86_64 and aarch64). Runtime selection: WPE when the library loads, else WebKitGTK; `OPENMAUI_WEBVIEW` overrides |
+| WPEPlatform embedder | Done, without GObject subclassing: headless display on an explicit DRM render node, `buffer-rendered` frames, `wpe_view_event` input, CSS-pixel sizing with the device scale on the toplevel (`docs/WPE-EMBEDDING.md`) |
+| Frame import | Done on the raster path (`wpe_buffer_import_to_pixels` to `SKBitmap`, one copy per frame). **DMA-BUF to EGLImage to `SKImage` on the GPU target: remaining** |
+| Context menus, clipboard | Done: WebKit's menu model through the platform's Skia context menu; in-process WPE clipboard bridged to the system clipboard both ways |
+| BlazorWebView | Done: `OpenMaui.Controls.Linux.Blazor` (`app://localhost/` scheme, script-message bridge, embedded `blazor.webview.js`, `UrlLoading`, root components, DI). WPE only, by decision: no new WebKitGTK-specific work |
+| Dependency reporting | **Remaining:** AppImage tool scanner and `openmaui doctor` to report WPE and the per-distro install commands |
+| JS dialogs, file chooser, link cursor | Done: `script-dialog` to the platform alert/confirm/prompt dialogs (new prompt dialog with a text field), `run-file-chooser` to the platform file picker, WPE cursor requests to the platform cursor. Permissions, web notifications, downloads, spell checking, submenus and multi-click done too. **Remaining:** hardware keycodes |
 
 ### Phase 3: Conformance suite and visual regression
 
@@ -219,7 +215,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.70.4 | .NET 10 / MAUI 10.0.70 | Q3 2026 | Released |
 | v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | Released |
 | v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released |
-| v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development: Phase 1 GPU presentation (shipped in tree), Phase 2 next |
+| v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development: Phase 1 GPU presentation and Phase 2 WPE WebView + Blazor (in tree) |
 
 ## Feedback
 
