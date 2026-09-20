@@ -43,6 +43,9 @@ internal static partial class X11
     public static partial IntPtr XDefaultVisual(IntPtr display, int screenNumber);
 
     [LibraryImport(LibX11)]
+    public static partial nuint XVisualIDFromVisual(IntPtr visual);
+
+    [LibraryImport(LibX11)]
     public static partial IntPtr XDefaultColormap(IntPtr display, int screenNumber);
 
     // Returns an XVisualInfo* array (free with XFree); mask selects which

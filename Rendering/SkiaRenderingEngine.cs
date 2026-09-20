@@ -11,7 +11,10 @@ using System.Runtime.InteropServices;
 namespace Microsoft.Maui.Platform.Linux.Rendering;
 
 /// <summary>
-/// Manages Skia rendering to an X11 window with dirty region optimization.
+/// Manages Skia rendering for one window with dirty region optimization. What
+/// to draw (layout, regions, overlays, dialogs) is decided here; where the
+/// pixels live and how a frame reaches the display is the <see cref="IRenderTarget"/>'s
+/// business (CPU raster via the window's Present, or GPU via EGL).
 /// </summary>
 public class SkiaRenderingEngine : IDisposable, IRenderContext
 {
@@ -21,10 +24,8 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     void IRenderContext.Invalidate() => InvalidateAll();
 
     private readonly IDisplayWindow _window;
-    private SKBitmap? _bitmap;
-    private SKBitmap? _backBuffer;
-    private SKCanvas? _canvas;
-    private SKImageInfo _imageInfo;
+    private readonly IRenderTarget _target;
+    private readonly FrameStatistics? _stats;
     private bool _disposed;
     private bool _fullRedrawNeeded = true;
 
@@ -42,8 +43,11 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     public static float RegionMergeThreshold { get; set; } = 0.3f;
 
     public ResourceCache ResourceCache { get; }
-    public int Width => _imageInfo.Width;
-    public int Height => _imageInfo.Height;
+    public int Width => _target.Width;
+    public int Height => _target.Height;
+
+    /// <summary>The target this engine presents through (raster or GPU).</summary>
+    public IRenderTarget RenderTarget => _target;
 
     /// <summary>
     /// DPI scale factor for HiDPI displays. Layout is performed at logical pixels
@@ -91,51 +95,44 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         get { lock (_dirtyLock) return _dirtyRegions.Count; }
     }
 
+    /// <summary>
+    /// Creates an engine over the CPU raster target (the window's own Present
+    /// path). Used by tests and by callers that do not go through
+    /// <see cref="RenderTargetFactory"/>.
+    /// </summary>
     public SkiaRenderingEngine(IDisplayWindow window)
+        : this(window, new RasterRenderTarget(window))
+    {
+    }
+
+    /// <summary>
+    /// Creates an engine over an explicit render target. The engine owns the
+    /// target and disposes it.
+    /// </summary>
+    public SkiaRenderingEngine(IDisplayWindow window, IRenderTarget target)
     {
         _window = window;
+        _target = target;
         ResourceCache = new ResourceCache();
+        if (FrameStatistics.Enabled)
+            _stats = new FrameStatistics(target.Name);
 
-        CreateSurface(window.Width, window.Height);
+        _target.Resize(window.Width, window.Height);
+        _fullRedrawNeeded = true;
 
         _window.Resized += OnWindowResized;
         _window.Exposed += OnWindowExposed;
     }
 
-    private void CreateSurface(int width, int height)
+    private void OnWindowResized(object? sender, (int Width, int Height) size)
     {
-        var oldBitmap = _bitmap;
-        _canvas?.Dispose();
-
-        _imageInfo = new SKImageInfo(
-            Math.Max(1, width),
-            Math.Max(1, height),
-            SKColorType.Bgra8888,
-            SKAlphaType.Premul);
-
-        _bitmap = new SKBitmap(_imageInfo);
-        _canvas = new SKCanvas(_bitmap);
-
-        // Copy old content to new bitmap to avoid a blank flash during resize
-        if (oldBitmap != null)
-        {
-            _canvas.DrawBitmap(oldBitmap, 0, 0);
-            oldBitmap.Dispose();
-        }
-
-        _backBuffer?.Dispose();
-        _backBuffer = new SKBitmap(_imageInfo);
+        _target.Resize(size.Width, size.Height);
         _fullRedrawNeeded = true;
 
         lock (_dirtyLock)
         {
             _dirtyRegions.Clear();
         }
-    }
-
-    private void OnWindowResized(object? sender, (int Width, int Height) size)
-    {
-        CreateSurface(size.Width, size.Height);
     }
 
     private void OnWindowExposed(object? sender, EventArgs e)
@@ -215,7 +212,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     /// </summary>
     public void Render(SkiaView rootView)
     {
-        if (_canvas == null || _bitmap == null)
+        if (_disposed)
             return;
 
         // CSD reserves a titlebar strip at the top of the surface. Views see a
@@ -240,22 +237,26 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             return;
         }
 
-        // Determine what to redraw
+        // Determine what to redraw. Nothing dirty means no frame at all, on
+        // every target (a GPU swapchain simply keeps showing its last buffer).
+        // When something is dirty, a target that does not keep the previous
+        // frame (GPU) must be repainted fully; a raster target repaints only
+        // the merged dirty regions.
         List<SKRect> regionsToRedraw;
-        bool isFullRedraw = _fullRedrawNeeded || !EnableDirtyRegionOptimization;
+        bool isFullRedraw;
 
         lock (_dirtyLock)
         {
+            bool anythingDirty = _fullRedrawNeeded || !EnableDirtyRegionOptimization || _dirtyRegions.Count > 0;
+            if (!anythingDirty)
+                return;
+
+            isFullRedraw = _fullRedrawNeeded || !EnableDirtyRegionOptimization || !_target.PreservesContents;
             if (isFullRedraw)
             {
                 regionsToRedraw = new List<SKRect> { new SKRect(0, 0, Width, Height) };
                 _dirtyRegions.Clear();
                 _fullRedrawNeeded = false;
-            }
-            else if (_dirtyRegions.Count == 0)
-            {
-                // Nothing to redraw
-                return;
             }
             else
             {
@@ -264,12 +265,17 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             }
         }
 
+        _stats?.BeginFrame();
+        var canvas = _target.BeginFrame();
+        if (canvas == null)
+            return;
+
         // Render dirty regions
         foreach (var region in regionsToRedraw)
         {
             try
             {
-                RenderRegion(rootView, region, isFullRedraw, csdInsetLogical);
+                RenderRegion(canvas, rootView, region, isFullRedraw, csdInsetLogical);
             }
             catch (Exception ex)
             {
@@ -285,15 +291,15 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         {
             try
             {
-                _canvas.Save();
+                canvas.Save();
                 if (DpiScale > 1.0f)
-                    _canvas.Scale(DpiScale);
+                    canvas.Scale(DpiScale);
                 Window.WaylandCsdRenderer.DrawTitlebar(
-                    _canvas,
+                    canvas,
                     waylandCsdDraw,
                     LogicalWidth,
                     waylandCsdDraw.Title ?? string.Empty);
-                _canvas.Restore();
+                canvas.Restore();
             }
             catch (Exception ex)
             {
@@ -307,7 +313,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         try
         {
             SkiaView.PopupDpiScale = DpiScale;
-            SkiaView.DrawPopupOverlays(_canvas, PopupFilterRoot);
+            SkiaView.DrawPopupOverlays(canvas, PopupFilterRoot);
         }
         catch (Exception ex)
         {
@@ -324,11 +330,11 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         {
             if (RendersDialogs && (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu))
             {
-                _canvas.Save();
+                canvas.Save();
                 if (DpiScale > 1.0f)
-                    _canvas.Scale(DpiScale);
-                LinuxDialogService.DrawDialogs(_canvas, new SKRect(0, 0, LogicalWidth, LogicalHeight));
-                _canvas.Restore();
+                    canvas.Scale(DpiScale);
+                LinuxDialogService.DrawDialogs(canvas, new SKRect(0, 0, LogicalWidth, LogicalHeight));
+                canvas.Restore();
             }
         }
         catch (Exception ex)
@@ -336,34 +342,31 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing dialogs", ex);
         }
 
-        _canvas.Flush();
-
-        // Present to X11 window
-        PresentToWindow();
+        // Flush and submit the frame (raster: copy to the window; GPU: swap).
+        _target.EndFrame();
+        _stats?.EndFrame();
     }
 
-    private void RenderRegion(SkiaView rootView, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f)
+    private void RenderRegion(SKCanvas canvas, SkiaView rootView, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f)
     {
-        if (_canvas == null) return;
-
-        _canvas.Save();
+        canvas.Save();
 
         if (!isFullRedraw)
         {
             // Clip to dirty region for partial updates
-            _canvas.ClipRect(region);
+            canvas.ClipRect(region);
         }
 
         // Clear the region with transparent so PNG alpha and view backgrounds are preserved
-        _canvas.Save();
-        _canvas.ClipRect(region);
-        _canvas.Clear(SKColors.Transparent);
-        _canvas.Restore();
+        canvas.Save();
+        canvas.ClipRect(region);
+        canvas.Clear(SKColors.Transparent);
+        canvas.Restore();
 
         // Apply DPI scaling so all drawing is proportionally larger on HiDPI displays
         if (DpiScale > 1.0f)
         {
-            _canvas.Scale(DpiScale);
+            canvas.Scale(DpiScale);
         }
 
         // CSD: shift the view tree down by the titlebar inset (in logical px,
@@ -371,19 +374,19 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         // logical pixel from here on). Done as a translate rather than a
         // resized clip so the views' own bounds math stays unchanged.
         if (csdInsetLogical > 0f)
-            _canvas.Translate(0f, csdInsetLogical);
+            canvas.Translate(0f, csdInsetLogical);
 
         // Draw the view tree (views will naturally clip to their bounds)
         try
         {
-            rootView.Draw(_canvas);
+            rootView.Draw(canvas);
         }
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaRenderingEngine", "Exception during view Draw", ex);
         }
 
-        _canvas.Restore();
+        canvas.Restore();
     }
 
     private List<SKRect> MergeOverlappingRegions(List<SKRect> regions)
@@ -425,17 +428,11 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         return merged;
     }
 
-    private void PresentToWindow()
-    {
-        if (_bitmap == null) return;
-
-        var pixels = _bitmap.GetPixels();
-        if (pixels == IntPtr.Zero) return;
-
-        _window.Present(pixels, _imageInfo.Width, _imageInfo.Height, _imageInfo.RowBytes);
-    }
-
-    public SKCanvas? GetCanvas() => _canvas;
+    /// <summary>
+    /// The target's current canvas, if a frame is in progress or the target is
+    /// a raster one that keeps its canvas between frames. Diagnostic use only.
+    /// </summary>
+    public SKCanvas? GetCanvas() => _target is RasterRenderTarget ? _target.BeginFrame() : null;
 
     protected virtual void Dispose(bool disposing)
     {
@@ -445,9 +442,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             {
                 _window.Resized -= OnWindowResized;
                 _window.Exposed -= OnWindowExposed;
-                _canvas?.Dispose();
-                _bitmap?.Dispose();
-                _backBuffer?.Dispose();
+                _target.Dispose();
                 ResourceCache.Dispose();
             }
             _disposed = true;
