@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Microsoft.Maui.Platform.Linux.Blazor</RootNamespace>
+    <AssemblyName>OpenMaui.Controls.Linux.Blazor</AssemblyName>
+    <PackageId>OpenMaui.Controls.Linux.Blazor</PackageId>
+    <Version>10.0.101.2</Version>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Product>OpenMaui BlazorWebView (Linux)</Product>
+    <Description>Linux backend for Microsoft.AspNetCore.Components.WebView.Maui (BlazorWebView). Adds .UseLinuxBlazorWebView() to your MAUI app builder; hosts Blazor Hybrid apps in WPE WebKit composited inside the OpenMaui Skia render tree on native Wayland and X11. Requires WPE WebKit 2.54+ on the host (Debian/Ubuntu: libwpewebkit-2.0-1; Fedora: dnf copr enable philn/wpewebkit). Opt-in: install this package only if your app uses BlazorWebView on Linux.</Description>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>maui;linux;openmaui;blazor;blazorwebview;hybrid;wpe;webkit</PackageTags>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.101" />
+    <!-- Same version WebView.Maui depends on. GeneratePathProperty exposes the
+         package folder so blazor.webview.js (a static web asset that MAUI's
+         asset pipeline delivers on other platforms) can be embedded here and
+         served for _framework/blazor.webview.js, always matching the runtime. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView" Version="10.0.0" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(PkgMicrosoft_AspNetCore_Components_WebView)/staticwebassets/blazor.webview.js" LogicalName="blazor.webview.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+</Project>
