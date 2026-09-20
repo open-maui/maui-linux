@@ -5,6 +5,13 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual re-run against any ref (for example after adding a package to an
+  # already-tagged version): Actions -> Release -> Run workflow, enter the version.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version to publish (for example 10.0.101.2)'
+        required: true
 
 env:
   DOTNET_NOLOGO: true
@@ -18,11 +25,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Get version from tag
+      - name: Get version from tag or input
         id: version
         run: |
-          TAG="${{ gitea.ref_name }}"
-          VERSION="${TAG#v}"
+          if [ -n "${{ gitea.event.inputs.version }}" ]; then
+            VERSION="${{ gitea.event.inputs.version }}"
+          else
+            TAG="${{ gitea.ref_name }}"
+            VERSION="${TAG#v}"
+          fi
+          VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Building version: $VERSION"
 
@@ -61,6 +73,12 @@ jobs:
         # this pack step.
         run: dotnet pack Maps/OpenMaui.Controls.Linux.Maps.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
+      - name: Pack OpenMaui.Controls.Linux.Blazor package
+        # Opt-in sibling for Microsoft.AspNetCore.Components.WebView.Maui
+        # (BlazorWebView on the WPE WebKit view). Independent sibling like
+        # MediaElement and Maps: built by this pack step, no --no-build.
+        run: dotnet pack Blazor/OpenMaui.Controls.Linux.Blazor.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
       - name: Pack Templates package
         run: dotnet pack templates/OpenMaui.Linux.Templates.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
@@ -71,6 +89,8 @@ jobs:
           path: ./nupkg/*.nupkg
 
       - name: Publish to Gitea Packages
+        # --skip-duplicate: re-running a release (for example after adding a
+        # package) must not fail on versions that are already published.
         run: |
           for pkg in ./nupkg/*.nupkg; do
             dotnet nuget push "$pkg" \

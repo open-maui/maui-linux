@@ -46,6 +46,10 @@ jobs:
         # Same independent-sibling reasoning as MediaElement; pack builds it.
         run: dotnet pack Maps/OpenMaui.Controls.Linux.Maps.csproj --configuration Release -o ./nupkg
 
+      - name: Pack OpenMaui.Controls.Linux.Blazor
+        # Independent sibling (BlazorWebView on WPE); built by this pack step.
+        run: dotnet pack Blazor/OpenMaui.Controls.Linux.Blazor.csproj --configuration Release -o ./nupkg
+
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v3
         with:
