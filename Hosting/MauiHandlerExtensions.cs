@@ -31,7 +31,9 @@ public static class MauiHandlerExtensions
         [typeof(TimePicker)] = () => new TimePickerHandler(),
         [typeof(SearchBar)] = () => new SearchBarHandler(),
         [typeof(RadioButton)] = () => new RadioButtonHandler(),
-        [typeof(WebView)] = () => new GtkWebViewHandler(),
+        [typeof(WebView)] = () => WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe
+            ? new WpeWebViewHandler()
+            : new GtkWebViewHandler(),
         [typeof(Image)] = () => new ImageHandler(),
         [typeof(ImageButton)] = () => new ImageButtonHandler(),
         [typeof(BoxView)] = () => new BoxViewHandler(),
