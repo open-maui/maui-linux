@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Supports PathGeometry with LineSegment, BezierSegment, QuadraticBezierSegment,
 /// ArcSegment, PolyLineSegment, PolyBezierSegment, PolyQuadraticBezierSegment.
 /// </summary>
-public partial class ShapePathHandler : ViewHandler<Path, SkiaShapePath>
+public partial class ShapePathHandler : LinuxViewHandler<Path, SkiaShapePath>
 {
     public static IPropertyMapper<Path, ShapePathHandler> Mapper =
         new PropertyMapper<Path, ShapePathHandler>(ViewHandler.ViewMapper)

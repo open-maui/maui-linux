@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for WebView control on Linux using WebKitGTK.
 /// </summary>
-public partial class WebViewHandler : ViewHandler<IWebView, SkiaWebView>
+public partial class WebViewHandler : LinuxViewHandler<IWebView, SkiaWebView>
 {
     public static IPropertyMapper<IWebView, WebViewHandler> Mapper = new PropertyMapper<IWebView, WebViewHandler>(ViewHandler.ViewMapper)
     {

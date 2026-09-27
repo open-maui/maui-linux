@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Switch on Linux using Skia rendering.
 /// Maps ISwitch interface to SkiaSwitch platform view.
 /// </summary>
-public partial class SwitchHandler : ViewHandler<ISwitch, SkiaSwitch>
+public partial class SwitchHandler : LinuxViewHandler<ISwitch, SkiaSwitch>
 {
     public static IPropertyMapper<ISwitch, SwitchHandler> Mapper = new PropertyMapper<ISwitch, SwitchHandler>(ViewHandler.ViewMapper)
     {

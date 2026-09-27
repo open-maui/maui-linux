@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Controls that use SKGLView for GPU-accelerated rendering will fall back
 /// gracefully to CPU rendering through OpenMaui's pipeline.
 /// </summary>
-public partial class SKGLViewHandler : ViewHandler<SKGLView, SkiaSKGLView>
+public partial class SKGLViewHandler : LinuxViewHandler<SKGLView, SkiaSKGLView>
 {
     public static IPropertyMapper<SKGLView, SKGLViewHandler> Mapper =
         new PropertyMapper<SKGLView, SKGLViewHandler>(ViewHandler.ViewMapper)

@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for Frame on Linux using SkiaFrame.
 /// </summary>
-public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
+public partial class FrameHandler : LinuxViewHandler<Frame, SkiaFrame>
 {
     public static IPropertyMapper<Frame, FrameHandler> Mapper =
         new PropertyMapper<Frame, FrameHandler>(ViewMapper)
@@ -45,22 +45,12 @@ public partial class FrameHandler : ViewHandler<Frame, SkiaFrame>
         {
             platformView.MauiView = view;
         }
-        platformView.Tapped += OnPlatformViewTapped;
     }
 
     protected override void DisconnectHandler(SkiaFrame platformView)
     {
-        platformView.Tapped -= OnPlatformViewTapped;
         platformView.MauiView = null;
         base.DisconnectHandler(platformView);
-    }
-
-    private void OnPlatformViewTapped(object? sender, EventArgs e)
-    {
-        if (VirtualView is View view)
-        {
-            GestureManager.ProcessTap(view, 0.0, 0.0);
-        }
     }
 
     public static void MapBorderColor(FrameHandler handler, Frame frame)
