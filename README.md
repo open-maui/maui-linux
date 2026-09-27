@@ -27,7 +27,8 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **WebView**: WPE WebKit composited inside the Skia tree (no GTK widget, no reparenting) on native Wayland and X11, with context menus, clipboard, JavaScript dialogs, file chooser, permissions, web notifications, downloads, spell checking, link cursors, `EvaluateJavaScriptAsync` results and a backend-neutral WebKit content API; WebKitGTK remains the GTK-mode fallback
 - **Blazor Hybrid**: Opt-in `OpenMaui.Controls.Linux.Blazor` package backs `BlazorWebView` (Microsoft.AspNetCore.Components.WebView.Maui) on the WPE WebView
 - **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
-- **Syncfusion**: Opt-in `OpenMaui.Controls.Linux.Syncfusion` package runs Syncfusion .NET MAUI controls (ListView, TreeView, TabView and the other `SfView`-based controls): call `.UseLinuxSyncfusion()` instead of `.ConfigureSyncfusionCore()`. Bring your own Syncfusion license
+- **Syncfusion**: Opt-in `OpenMaui.Controls.Linux.Syncfusion` package runs Syncfusion .NET MAUI controls (lists and trees, tabs, charts, inputs and drop-downs, Carousel, Rotator, SignaturePad, SfPopup): call `.UseLinuxSyncfusion()` instead of `.ConfigureSyncfusionCore()`. Bring your own Syncfusion license
+- **Third-party libraries**: popular MAUI libraries (CommunityToolkit.Maui, CommunityToolkit.Mvvm, LiveCharts2, ReactiveUI, Prism, SkiaSharp views) run unmodified, measured by a separate compatibility suite and published in the [scorecard](docs/COMPATIBILITY.md)
 
 ## Quick Start
 
@@ -412,17 +413,18 @@ LinuxApplication.Run(app, args);
 
 ```bash
 # Primary repository
-git clone https://github.com/open-maui/maui-linux.git
+git clone https://git.marketally.com/open-maui/maui-linux.git
 
-# Or from GitHub mirror
+# Or from the GitHub mirror
 git clone https://github.com/open-maui/maui-linux.git
 
 cd maui-linux
 dotnet build
 dotnet test tests/OpenMaui.Controls.Linux.Tests.csproj
+dotnet test tests/Compat/OpenMaui.Compat.Tests.csproj   # third-party libraries
 ```
 
-The suite runs serially (the platform has process-wide state) and needs no display: golden-screenshot scenes render offscreen through the real engine at 1.0x to 2.0x (`OPENMAUI_UPDATE_GOLDENS=1` re-records baselines after an intended change), and the WebView scenarios run in a small out-of-process host because WebKit binds itself to the process main thread. Regenerate the scorecard with `dotnet run --project tools/Scorecard -- --run`.
+The suite runs serially (the platform has process-wide state) and needs no display: golden-screenshot scenes render offscreen through the real engine at 1.0x to 2.0x (`OPENMAUI_UPDATE_GOLDENS=1` re-records baselines after an intended change), and the WebView scenarios run in a small out-of-process host because WebKit binds itself to the process main thread. Regenerate the scorecard with `dotnet run --project tools/Scorecard -- --run`, which runs both suites.
 
 ## Contributing
 
@@ -554,11 +556,12 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 OpenMaui is the Wayland-first, self-rendered Linux platform for .NET MAUI, with X11 compatibility rather than GTK as its architectural foundation. The next releases build on that (full detail in [docs/ROADMAP.md](docs/ROADMAP.md)):
 
-- [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2). runtime scale change per window (10.0.110.1). Remaining: hardware video zero-copy, explicit DMA-BUF and Vulkan, the full benchmark suite
+- [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2); runtime scale change per window, partial damage, zero-copy DMA-BUF import for WebView and hardware-decoded video, an opt-in Vulkan target, and the benchmark suite with performance gates (10.0.110.1)
 - [x] **Phase 2: WPE WebKit WebView and BlazorWebView** — WPEPlatform (WPE WebKit 2.54) embedder compositing web frames inside the platform's own render tree, identical on Wayland and X11; context menus, clipboard bridge, backend selection; JS dialogs, file chooser and link cursors through the platform; `OpenMaui.Controls.Linux.Blazor` for Blazor Hybrid (10.0.101.2); zero-copy DMA-BUF frames on the GPU target and hardware keycodes (10.0.110.1)
-- [x] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a compatibility scorecard computed from the test run ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)), and the handlers and services it exposed as missing (AbsoluteLayout, ControlTemplate, TableView, ListView, MAUI 10 dialogs, modal navigation, animations on MAUI's pipeline, VisualStateManager/triggers/behaviors, FormattedText, context flyouts, Essentials). Remaining: third-party library compatibility as a KPI, performance regression gates
+- [x] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a compatibility scorecard computed from the test run ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)), and the handlers and services it exposed as missing (AbsoluteLayout, ControlTemplate, TableView, ListView, MAUI 10 dialogs, modal navigation, animations on MAUI's pipeline, VisualStateManager/triggers/behaviors, FormattedText, context flyouts, Essentials); third-party library compatibility measured in the scorecard (10.0.110.1)
 - [x] `openmaui doctor` and the multi-window round-out (live page/title/geometry, Stopped/Resumed) (10.0.110.1)
-- [ ] Native D-Bus xdg-desktop-portal layer, deb/rpm output
+- [x] Native D-Bus xdg-desktop-portal layer (10.0.110.1)
+- [x] deb/rpm output (OpenMaui.AppImage 1.3.0: `--format deb`, `--format rpm`, `--format all`)
 
 ## License
 

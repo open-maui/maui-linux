@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
 using Microsoft.Maui.Animations;
@@ -91,12 +92,14 @@ internal sealed class BenchHost : IDisposable
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<BenchApplication>();
-        // Registered before UseLinux, whose TryAdd then keeps these: the real
-        // platform ticker and animation manager, reading the fake clock.
+        builder.UseLinux(_ => { });
+        // After UseLinux, which replaces any ticker registered before it with the platform's:
+        // the same ticker and animation manager, reading the fake clock the scenarios advance.
         var ticker = new LinuxTicker(() => clock.Now);
+        builder.Services.RemoveAll<ITicker>();
+        builder.Services.RemoveAll<IAnimationManager>();
         builder.Services.AddSingleton<ITicker>(ticker);
         builder.Services.AddSingleton<IAnimationManager>(_ => new LinuxAnimationManager(ticker));
-        builder.UseLinux(_ => { });
         MauiApp = builder.Build();
         BuildTime = sw.Elapsed;
 
