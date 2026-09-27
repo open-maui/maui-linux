@@ -490,10 +490,15 @@ public class SkiaBorder : SkiaLayoutView
 
         foreach (var child in Children.ToArray())
         {
-            var childSize = child.Measure(childAvailable);
+            // The content is arranged inside its margin (ArrangeOverride); it is measured
+            // there too, and the margin counts towards the Border's size.
+            var margin = child.Margin;
+            var childSize = child.Measure(new Size(
+                Math.Max(0, childAvailable.Width - margin.HorizontalThickness),
+                Math.Max(0, childAvailable.Height - margin.VerticalThickness)));
             maxChildSize = new Size(
-                Math.Max(maxChildSize.Width, childSize.Width),
-                Math.Max(maxChildSize.Height, childSize.Height));
+                Math.Max(maxChildSize.Width, childSize.Width + margin.HorizontalThickness),
+                Math.Max(maxChildSize.Height, childSize.Height + margin.VerticalThickness));
         }
 
         // Use requested size if set, otherwise use child size + padding
