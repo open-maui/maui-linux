@@ -6,7 +6,7 @@ using Microsoft.Maui.Handlers;
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
-/// MAUI's Focus and Unfocus view commands. <c>VisualElement.Focus()</c> asks
+/// MAUI's Focus, Unfocus and InvalidateMeasure view commands. <c>VisualElement.Focus()</c> asks
 /// the handler for a result; with no Linux mapping none was set and every call
 /// threw ("No result value was set"), taking down whatever called it (an
 /// Entry focused from code; Syncfusion's ListViewItem focuses itself on a tap,
@@ -23,6 +23,15 @@ internal static class FocusCommands
             return;
         ViewHandler.ViewCommandMapper.Add(nameof(IView.Focus), MapFocus);
         ViewHandler.ViewCommandMapper.Add(nameof(IView.Unfocus), MapUnfocus);
+        // A view's InvalidateMeasure (a control whose content changed) marks its
+        // platform view's layout dirty, so a skipped self-layout runs again.
+        ViewHandler.ViewCommandMapper.Add(nameof(IView.InvalidateMeasure), MapInvalidateMeasure);
+    }
+
+    internal static void MapInvalidateMeasure(IViewHandler handler, IView view, object? args)
+    {
+        if (handler.PlatformView is SkiaView skia)
+            skia.InvalidateMeasure();
     }
 
     internal static void MapFocus(IViewHandler handler, IView view, object? args)
