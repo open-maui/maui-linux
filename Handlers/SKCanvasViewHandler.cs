@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// SkiaSharp rendering pipeline. This enables all SkiaSharp-based MAUI controls
 /// (LiveCharts, Microcharts, custom SKCanvasView drawings, etc.) to work on Linux.
 /// </summary>
-public partial class SKCanvasViewHandler : ViewHandler<SKCanvasView, SkiaSKCanvasView>
+public partial class SKCanvasViewHandler : LinuxViewHandler<SKCanvasView, SkiaSKCanvasView>
 {
     public static IPropertyMapper<SKCanvasView, SKCanvasViewHandler> Mapper =
         new PropertyMapper<SKCanvasView, SKCanvasViewHandler>(ViewHandler.ViewMapper)

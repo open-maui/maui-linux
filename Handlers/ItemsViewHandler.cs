@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Base handler for ItemsView on Linux using Skia rendering.
 /// Maps ItemsView to SkiaItemsView platform view.
 /// </summary>
-public partial class ItemsViewHandler<TItemsView> : ViewHandler<TItemsView, SkiaItemsView>
+public partial class ItemsViewHandler<TItemsView> : LinuxViewHandler<TItemsView, SkiaItemsView>
     where TItemsView : ItemsView
 {
     public static IPropertyMapper<TItemsView, ItemsViewHandler<TItemsView>> ItemsViewMapper =

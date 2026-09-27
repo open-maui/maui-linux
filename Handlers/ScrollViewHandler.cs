@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for ScrollView on Linux using SkiaScrollView.
 /// </summary>
-public partial class ScrollViewHandler : ViewHandler<IScrollView, SkiaScrollView>
+public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrollView>
 {
     public static IPropertyMapper<IScrollView, ScrollViewHandler> Mapper =
         new PropertyMapper<IScrollView, ScrollViewHandler>(ViewMapper)
@@ -39,6 +39,33 @@ public partial class ScrollViewHandler : ViewHandler<IScrollView, SkiaScrollView
     protected override SkiaScrollView CreatePlatformView()
     {
         return new SkiaScrollView();
+    }
+
+    protected override void ConnectHandler(SkiaScrollView platformView)
+    {
+        base.ConnectHandler(platformView);
+        platformView.Scrolled += OnPlatformScrolled;
+    }
+
+    protected override void DisconnectHandler(SkiaScrollView platformView)
+    {
+        platformView.Scrolled -= OnPlatformScrolled;
+        base.DisconnectHandler(platformView);
+    }
+
+    /// <summary>
+    /// The scroll position, reported back as every platform does: ScrollX and
+    /// ScrollY follow it and ScrollView.Scrolled fires. Controls that realise
+    /// their content as it scrolls into view listen for that (Syncfusion's
+    /// SfListView created only the rows of its first screen without it).
+    /// </summary>
+    private void OnPlatformScrolled(object? sender, ScrolledEventArgs e)
+    {
+        if (VirtualView is not { } view)
+            return;
+        view.HorizontalOffset = e.ScrollX;
+        view.VerticalOffset = e.ScrollY;
+        view.ScrollFinished();
     }
 
     public static void MapContent(ScrollViewHandler handler, IScrollView scrollView)
@@ -106,6 +133,9 @@ public partial class ScrollViewHandler : ViewHandler<IScrollView, SkiaScrollView
         {
             // Instant means no animation, so we pass !Instant for animated parameter
             handler.PlatformView.ScrollTo((float)request.HorizontalOffset, (float)request.VerticalOffset, !request.Instant);
+            // ScrollToAsync waits for this; a scroll to where the view already
+            // is raises no Scrolled, and the await would never finish.
+            scrollView.ScrollFinished();
         }
     }
 }

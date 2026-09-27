@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for SearchBar on Linux using Skia rendering.
 /// Maps ISearchBar interface to SkiaSearchBar platform view.
 /// </summary>
-public partial class SearchBarHandler : ViewHandler<ISearchBar, SkiaSearchBar>
+public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchBar>
 {
     public static IPropertyMapper<ISearchBar, SearchBarHandler> Mapper = new PropertyMapper<ISearchBar, SearchBarHandler>(ViewHandler.ViewMapper)
     {

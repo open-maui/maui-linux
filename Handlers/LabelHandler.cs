@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Label on Linux using Skia rendering.
 /// Maps ILabel interface to SkiaLabel platform view.
 /// </summary>
-public partial class LabelHandler : ViewHandler<ILabel, SkiaLabel>
+public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>
 {
     public static IPropertyMapper<ILabel, LabelHandler> Mapper = new PropertyMapper<ILabel, LabelHandler>(ViewHandler.ViewMapper)
     {

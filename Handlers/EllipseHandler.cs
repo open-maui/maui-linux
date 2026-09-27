@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Ellipse (Microsoft.Maui.Controls.Shapes.Ellipse) on Linux.
 /// Maps MAUI shape properties to SkiaEllipse for rendering.
 /// </summary>
-public partial class EllipseHandler : ViewHandler<Ellipse, SkiaEllipse>
+public partial class EllipseHandler : LinuxViewHandler<Ellipse, SkiaEllipse>
 {
     public static IPropertyMapper<Ellipse, EllipseHandler> Mapper =
         new PropertyMapper<Ellipse, EllipseHandler>(ViewMapper)
