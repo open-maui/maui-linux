@@ -240,6 +240,20 @@ public class LinuxViewRenderer
             skiaShell.FlyoutFooterText = $"Version {version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
         }
 
+        // Shell.FlyoutContent / FlyoutContentTemplate: replaces the item list.
+        // MAUI resolves either into one view (IShellController.FlyoutContent).
+        void RenderFlyoutContent()
+        {
+            var content = ((IShellController)shell).FlyoutContent;
+            skiaShell.FlyoutContentView = content != null ? RenderView(content) : null;
+        }
+        RenderFlyoutContent();
+        shell.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(Shell.FlyoutContent) or nameof(Shell.FlyoutContentTemplate))
+                RenderFlyoutContent();
+        };
+
         // Process shell items into sections
         foreach (var item in shell.Items)
         {
