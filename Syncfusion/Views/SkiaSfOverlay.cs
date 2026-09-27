@@ -48,8 +48,6 @@ internal sealed class SkiaSfOverlay : SkiaView
     /// <summary>The window the overlay is shown in, from the last show.</summary>
     internal WindowContext? Window { get; private set; }
 
-    internal bool IsShown => _registered;
-
     /// <summary>Blur applied to what is beneath the overlay (SfPopup's OverlayMode Blur); 0 for none.</summary>
     internal float BackdropBlurRadius
     {
@@ -82,9 +80,6 @@ internal sealed class SkiaSfOverlay : SkiaView
         Container = container;
         MauiView = container;
     }
-
-    /// <summary>The views on the overlay, bottom to top.</summary>
-    internal IEnumerable<SkiaView> Views => _placements.Select(p => p.View);
 
     /// <summary>
     /// Places <paramref name="view"/> on the overlay (adding it on top when it
@@ -145,15 +140,30 @@ internal sealed class SkiaSfOverlay : SkiaView
 
     private void Attach(WindowContext window)
     {
-        if (ReferenceEquals(Window, window) && window.RootView is { } same && ReferenceEquals(Parent, same))
-            return;
-        if (Window?.DisplayWindow is { } oldDisplay)
-            oldDisplay.Resized -= OnWindowResized;
-        Window = window;
+        if (!ReferenceEquals(Window, window))
+        {
+            Unsubscribe();
+            Window = window;
+            _laidOutFor = Size.Zero;
+        }
         Parent = window.RootView;
-        if (window.DisplayWindow is { } display)
-            display.Resized += OnWindowResized;
-        _laidOutFor = Size.Zero;
+    }
+
+    private IDisplayWindow? _subscribed;
+
+    private void Subscribe()
+    {
+        if (_subscribed != null || Window?.DisplayWindow is not { } display)
+            return;
+        _subscribed = display;
+        display.Resized += OnWindowResized;
+    }
+
+    private void Unsubscribe()
+    {
+        if (_subscribed != null)
+            _subscribed.Resized -= OnWindowResized;
+        _subscribed = null;
     }
 
     private void Show()
@@ -163,6 +173,7 @@ internal sealed class SkiaSfOverlay : SkiaView
         // last draws over, and takes input before, the ones opened earlier.
         RegisterPopupOverlay(this, DrawOverlay);
         _registered = true;
+        Subscribe();
         Invalidate();
     }
 
@@ -179,8 +190,7 @@ internal sealed class SkiaSfOverlay : SkiaView
             hovered.OnPointerExited(new PointerEventArgs(float.NaN, float.NaN));
         }
         _pressed = null;
-        if (Window?.DisplayWindow is { } display)
-            display.Resized -= OnWindowResized;
+        Unsubscribe();
         // The frame that removes an overlay is repainted whole.
         Invalidate();
     }
@@ -299,18 +309,18 @@ internal sealed class SkiaSfOverlay : SkiaView
         return new Point(x, y);
     }
 
+    /// <summary>True while the overlay's window is open (a closed window's overlay draws nowhere).</summary>
+    private bool IsWindowLive => Window is { } window && LinuxApplication.Current?.WindowContexts.Contains(window) == true;
+
     private void DrawOverlay(SKCanvas canvas)
     {
-        if (!_registered)
+        if (!_registered || !IsWindowLive)
             return;
-        if (Window?.RootView is not { } root || !ReferenceEquals(Parent, root))
-        {
-            // The window's page was replaced or the window closed.
-            if (Window?.RootView is { } newRoot)
-                Parent = newRoot;
-            else
-                return;
-        }
+        if (Window?.RootView is not { } root)
+            return;
+        // The window's page was replaced (Window.Page set) while the overlay was shown.
+        if (!ReferenceEquals(Parent, root))
+            Parent = root;
         UpdateBounds();
         LayOutAll();
 
@@ -372,10 +382,12 @@ internal sealed class SkiaSfOverlay : SkiaView
     /// included), as the native canvas is hit there.
     /// </summary>
     protected override bool HitTestPopupArea(float x, float y) =>
-        _registered && IsVisible && Window?.RootView is { } root && ReferenceEquals(Parent, root)
+        _registered && IsVisible && IsWindowLive && Window?.RootView is { } root && ReferenceEquals(Parent, root)
         && (TakesBackdropInput || PlacementAt(x, y) != null);
 
-    private bool TakesBackdropInput => Container is { } container && !Brush.IsNullOrEmpty(container.Background);
+    /// <summary>A container with a background, or a blurred page beneath, takes every press.</summary>
+    private bool TakesBackdropInput =>
+        Container is { } container && (!Brush.IsNullOrEmpty(container.Background) || _backdropBlurRadius > 0);
 
     /// <summary>Never hit in the page's own tree: the overlay is only reachable as a popup overlay.</summary>
     public override SkiaView? HitTest(float x, float y) => null;

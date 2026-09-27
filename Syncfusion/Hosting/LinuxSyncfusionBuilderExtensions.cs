@@ -23,12 +23,13 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// serves every head.
 /// <para>
 /// Covered: every <c>SfView</c>-based control (layout, drawing, touch, tap,
-/// double-tap, right-tap, long-press) and the <c>ScrollView</c>-based list
+/// double-tap, right-tap, long-press, drag, wheel, ctrl+wheel pinch and
+/// keyboard) and the <c>ScrollView</c>-based list
 /// hosts, which OpenMaui's own ScrollView handles; SfCarousel, SfRotator,
 /// SfSignaturePad and SfInteractiveScrollView, whose native views are
 /// supplied here; SfPopup and the controls that open one, through
 /// Syncfusion's window overlay. Not covered yet: ImageEditor and Syncfusion's
-/// MediaElement (dedicated native views), and keyboard navigation.
+/// MediaElement (dedicated native views).
 /// </para>
 /// </summary>
 public static class LinuxSyncfusionBuilderExtensions
@@ -78,6 +79,8 @@ public static class LinuxSyncfusionBuilderExtensions
         SfDropdownPatches.Install();
         SfChartPatches.Install();
         SfPanWheelBridge.Install();
+        SfKeyboardBridge.Install();
+        SfInputPositionPatches.Install();
         SfOverlayPatches.Install();
         return builder;
     }

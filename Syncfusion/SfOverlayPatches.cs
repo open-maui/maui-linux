@@ -173,9 +173,6 @@ internal static class SfOverlayPatches
     internal static SkiaSfOverlay? OverlayOf(object? popup) =>
         popup != null && s_popupOverlay?.GetValue(popup) is { } overlay && s_overlays.TryGetValue(overlay, out var state) ? state.Overlay : null;
 
-    /// <summary>Every shown window overlay (tests, diagnostics).</summary>
-    internal static IEnumerable<SkiaSfOverlay> ShownOverlays => s_overlays.Select(p => p.Value.Overlay).Where(o => o.IsShown);
-
     /// <summary>A press on the overlay outside its views: the native container's pointer handler.</summary>
     internal static void ProcessTouchInteraction(View container, float x, float y)
     {
