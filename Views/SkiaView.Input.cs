@@ -23,17 +23,37 @@ public abstract partial class SkiaView
     /// </summary>
     private void BubblePointerEvent(PointerEventArgs e, RoutedPointerKind kind, Action<Microsoft.Maui.Controls.View, double, double> action)
     {
+        var windowE = InWindowSpace(e);
         var current = MauiView as Microsoft.Maui.Controls.Element;
         while (current != null)
         {
             if (current is Microsoft.Maui.Controls.View view
                 && (view.Handler?.PlatformView is SkiaView || current == MauiView))
             {
-                action(view, e.X, e.Y);
-                RaisePointerRouted(view, kind, e);
+                action(view, windowE.X, windowE.Y);
+                RaisePointerRouted(view, kind, windowE);
             }
             current = IsPointerBubbleBoundary(current) ? null : current.Parent;
         }
+        if (windowE.Handled)
+            e.Handled = true;
+    }
+
+    /// <summary>
+    /// A view receives its pointer events in its own untransformed space (where its Bounds
+    /// are): a ScrollView adds its offset for its content. What bubbles from it (gestures,
+    /// <see cref="PointerRouted"/>, the Syncfusion bridges) is in window-logical space, as
+    /// they compare it with ScreenBounds; a view-space point in a scrolled list made a
+    /// TouchEffect release land outside the row it was pressed on (Strikeline's watchlist).
+    /// </summary>
+    private PointerEventArgs InWindowSpace(PointerEventArgs e)
+    {
+        if (float.IsNaN(e.X) || float.IsNaN(e.Y))
+            return e;
+        var p = ToWindow(e.X, e.Y);
+        if (p.X == e.X && p.Y == e.Y)
+            return e;
+        return new PointerEventArgs(p.X, p.Y, e.Button) { Handled = e.Handled };
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Microsoft.Maui.Controls.Element, object> s_pointerBubbleBoundaries = new();
@@ -101,14 +121,18 @@ public abstract partial class SkiaView
     /// </summary>
     private protected void RaisePointerRoutedChain(RoutedPointerKind kind, PointerEventArgs e)
     {
+        var windowE = InWindowSpace(e);
         for (var current = MauiView as Microsoft.Maui.Controls.Element; current != null;
              current = IsPointerBubbleBoundary(current) ? null : current.Parent)
         {
             if (current is Microsoft.Maui.Controls.View view
                 && (view.Handler?.PlatformView is SkiaView || current == MauiView))
-                RaisePointerRouted(view, kind, e);
+                RaisePointerRouted(view, kind, windowE);
         }
+        if (windowE.Handled)
+            e.Handled = true;
     }
+
 
     internal static void RaisePointerRouted(Microsoft.Maui.Controls.View? view, RoutedPointerKind kind, PointerEventArgs e)
     {

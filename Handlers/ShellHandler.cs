@@ -20,6 +20,8 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
     public static IPropertyMapper<Shell, ShellHandler> Mapper = new PropertyMapper<Shell, ShellHandler>(ViewHandler.ViewMapper)
     {
         [nameof(Shell.FlyoutIsPresented)] = MapFlyoutIsPresented,
+        // Shell reports a FlyoutIsPresented change to its handler under IFlyoutView's name.
+        [nameof(IFlyoutView.IsPresented)] = MapFlyoutIsPresented,
         [nameof(Shell.FlyoutBehavior)] = MapFlyoutBehavior,
         [nameof(Shell.FlyoutWidth)] = MapFlyoutWidth,
         [nameof(Shell.FlyoutBackgroundColor)] = MapFlyoutBackgroundColor,
@@ -450,6 +452,9 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
             if (headerView.Handler?.PlatformView is SkiaView skiaHeader)
             {
                 handler.PlatformView.FlyoutHeaderView = skiaHeader;
+                handler.PlatformView.FlyoutHeaderHeightExplicit = headerView.HeightRequest > 0;
+                if (headerView.HeightRequest > 0)
+                    handler.PlatformView.FlyoutHeaderHeight = (float)headerView.HeightRequest;
             }
         }
     }
