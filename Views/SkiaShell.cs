@@ -1715,21 +1715,21 @@ public class SkiaShell : SkiaLayoutView
                 // Check footer view for hit testing (buttons, etc.)
                 if (FlyoutFooterView != null)
                 {
-                    var footerHit = FlyoutFooterView.HitTest(x, y);
+                    var footerHit = FlyoutFooterView.HitTestAt(x, y);
                     if (footerHit != null) return footerHit;
                 }
 
                 // Check header view for hit testing
                 if (FlyoutHeaderView != null)
                 {
-                    var headerHit = FlyoutHeaderView.HitTest(x, y);
+                    var headerHit = FlyoutHeaderView.HitTestAt(x, y);
                     if (headerHit != null) return headerHit;
                 }
 
                 // Flyout content takes the item list's place, and its input.
                 if (FlyoutContentView != null)
                 {
-                    var contentHit = FlyoutContentView.HitTest(x, y);
+                    var contentHit = FlyoutContentView.HitTestAt(x, y);
                     if (contentHit != null) return contentHit;
                 }
 
@@ -1758,7 +1758,7 @@ public class SkiaShell : SkiaLayoutView
         // Check content
         if (_currentContent != null)
         {
-            var hit = _currentContent.HitTest(x, y);
+            var hit = _currentContent.HitTestAt(x, y);
             if (hit != null) return hit;
         }
 
@@ -1789,7 +1789,7 @@ public class SkiaShell : SkiaLayoutView
                 // Check footer area — dispatch to footer view for button clicks
                 if (e.Y >= itemsAreaBottom && FlyoutFooterView != null)
                 {
-                    var footerHit = FlyoutFooterView.HitTest(e.X, e.Y);
+                    var footerHit = FlyoutFooterView.HitTestAt(e.X, e.Y);
                     if (footerHit != null)
                     {
                         _pressedTarget = footerHit;
@@ -1801,7 +1801,7 @@ public class SkiaShell : SkiaLayoutView
                 // Check header area — dispatch to header view
                 if (e.Y < itemsAreaTop && FlyoutHeaderView != null)
                 {
-                    var headerHit = FlyoutHeaderView.HitTest(e.X, e.Y);
+                    var headerHit = FlyoutHeaderView.HitTestAt(e.X, e.Y);
                     if (headerHit != null)
                     {
                         _pressedTarget = headerHit;

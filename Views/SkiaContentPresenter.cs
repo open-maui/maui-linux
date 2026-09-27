@@ -211,7 +211,7 @@ public class SkiaContentPresenter : SkiaView
         // Check content first
         if (Content != null)
         {
-            var hit = Content.HitTest(x, y);
+            var hit = Content.HitTestAt(x, y);
             if (hit != null)
                 return hit;
         }

@@ -406,6 +406,8 @@ public class SkiaPage : SkiaView
     {
         // Adjust coordinates for content
         var contentTop = _showNavigationBar ? _navigationBarHeight : 0;
+        // In the content's own space: a translated content is drawn, and clicked, elsewhere.
+        if (_content != null) e = InContentSpace(e);
         if (e.Y > contentTop && _content != null && ContentContains(e))
         {
             var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
@@ -416,6 +418,8 @@ public class SkiaPage : SkiaView
     public override void OnPointerMoved(PointerEventArgs e)
     {
         var contentTop = _showNavigationBar ? _navigationBarHeight : 0;
+        // In the content's own space: a translated content is drawn, and clicked, elsewhere.
+        if (_content != null) e = InContentSpace(e);
         if (e.Y > contentTop && _content != null && ContentContains(e))
         {
             var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
@@ -426,11 +430,19 @@ public class SkiaPage : SkiaView
     public override void OnPointerReleased(PointerEventArgs e)
     {
         var contentTop = _showNavigationBar ? _navigationBarHeight : 0;
+        // In the content's own space: a translated content is drawn, and clicked, elsewhere.
+        if (_content != null) e = InContentSpace(e);
         if (e.Y > contentTop && _content != null && ContentContains(e))
         {
             var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
             _content.OnPointerReleased(contentE);
         }
+    }
+
+    private PointerEventArgs InContentSpace(PointerEventArgs e)
+    {
+        var p = _content!.ToOwnSpace(e.X, e.Y);
+        return p.X == e.X && p.Y == e.Y ? e : new PointerEventArgs(p.X, p.Y, e.Button);
     }
 
     public override void OnKeyDown(KeyEventArgs e)
@@ -459,7 +471,7 @@ public class SkiaPage : SkiaView
         // Check content
         if (_content != null)
         {
-            var hit = _content.HitTest(x, y);
+            var hit = _content.HitTestAt(x, y);
             if (hit != null)
                 return hit;
         }
