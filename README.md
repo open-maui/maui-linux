@@ -111,7 +111,7 @@ builder
     .UseLinuxSyncfusion();
 ```
 
-`SfView`-based controls (ListView, TreeView, TabView and the rest) lay out, draw and receive touch, tap, double-tap, right-tap and long-press. Not covered yet: text a control draws through Syncfusion's own canvas text API (SfButton's text, badges, busy-indicator title, text-input hints, tooltips), controls with their own native views (SignaturePad, ImageEditor, Carousel, Rotator, Syncfusion's MediaElement), popups hosted in Syncfusion's window overlay, and keyboard navigation. The package does not include Syncfusion's assemblies; you need your own Syncfusion license.
+`SfView`-based controls (ListView, TreeView, TabView, Charts, the inputs and the rest) lay out, draw their text and graphics, and receive touch, tap, double-tap, right-tap, long-press, drag, wheel, ctrl+wheel pinch and keyboard input. SfCarousel, SfRotator, SfSignaturePad and SfInteractiveScrollView get their native views from the package; SfComboBox and SfAutocomplete drop-downs and SfPopup (and the controls that open one) show as overlays. Not covered yet: ImageEditor and Syncfusion's MediaElement (dedicated native views). The package does not include Syncfusion's assemblies; you need your own Syncfusion license.
 
 ### Optional: Maps (OpenStreetMap)
 
