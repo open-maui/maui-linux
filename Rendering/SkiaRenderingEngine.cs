@@ -448,6 +448,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         try
         {
             SkiaView.PopupDpiScale = DpiScale;
+            SkiaView.PopupOriginY = csdInsetLogical;
             SkiaView.DrawPopupOverlays(canvas, PopupFilterRoot);
         }
         catch (Exception ex)

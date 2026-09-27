@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using FluentAssertions;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Syncfusion;
@@ -54,6 +55,29 @@ public sealed class SyncfusionPopupCompatTests
         AnimationMode = PopupAnimationMode.None,
     };
 
+    /// <summary>
+    /// The host as a running app has it: SfPopup finds the window's page (its
+    /// logical parent, which animations and resources resolve through)
+    /// through IPlatformApplication.Current, which LinuxApplication.Run sets.
+    /// </summary>
+    private sealed class PopupHost : IDisposable
+    {
+        public PopupHost(Page page)
+        {
+            Host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+            IPlatformApplication.Current = Host.LinuxApp;
+        }
+
+        public CompatHost Host { get; }
+
+        public void Dispose()
+        {
+            if (ReferenceEquals(IPlatformApplication.Current, Host.LinuxApp))
+                IPlatformApplication.Current = null;
+            Host.Dispose();
+        }
+    }
+
     private static void Settle(CompatHost host)
     {
         host.Render();
@@ -72,7 +96,8 @@ public sealed class SyncfusionPopupCompatTests
     public void Show_draws_the_popup_centred_over_the_page()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var popup = Popup();
@@ -84,8 +109,8 @@ public sealed class SyncfusionPopupCompatTests
         // The overlay colour dims the page around the popup.
         host.CountPixelsNot(SKColors.White, new SKRectI(0, 0, 100, 100)).Should().BeGreaterThan(9000);
         // The popup's body (PopupBackground) is centred: (250, 200) to (550, 400).
-        host.CountPixelsNear(PopupBackground, new SKRectI(260, 210, 540, 390), 12).Should().BeGreaterThan(30000);
-        host.CountPixelsNear(PopupBackground, new SKRectI(0, 0, 240, 600), 12).Should().Be(0);
+        PopupPixels(host, new SKRectI(260, 210, 540, 390)).Should().BeGreaterThan(30000);
+        PopupPixels(host, new SKRectI(0, 0, 240, 600)).Should().Be(0);
     }
 
     private static void Click(CompatHost host, double x, double y)
@@ -94,13 +119,17 @@ public sealed class SyncfusionPopupCompatTests
         host.DisplayWindow.RaisePointerReleased((float)x, (float)y);
     }
 
-    /// <summary>Renders until the open/close animations (300 ms by default) are over.</summary>
+    /// <summary>
+    /// Renders until the open/close animations (300 ms by default) are over,
+    /// pumping the animation ticker between frames as the app's run loop does.
+    /// </summary>
     private static void SettleAnimation(CompatHost host)
     {
-        for (int i = 0; i < 6; i++)
+        for (int i = 0; i < 12; i++)
         {
+            Thread.Sleep(40);
+            Microsoft.Maui.Platform.Linux.Hosting.LinuxTicker.PumpAll();
             host.Render();
-            Thread.Sleep(100);
         }
         host.Render();
     }
@@ -113,7 +142,7 @@ public sealed class SyncfusionPopupCompatTests
             for (int x = 0; x < host.DisplayWindow.Width; x++)
             {
                 var (r, g, b, _) = host.DisplayWindow.PixelAt(x, y);
-                if (Math.Abs(r - PopupBackground.Red) + Math.Abs(g - PopupBackground.Green) + Math.Abs(b - PopupBackground.Blue) > 12)
+                if (Math.Abs(r - PopupBackground.Red) + Math.Abs(g - PopupBackground.Green) + Math.Abs(b - PopupBackground.Blue) > 6)
                     continue;
                 left = Math.Min(left, x); top = Math.Min(top, y);
                 right = Math.Max(right, x + 1); bottom = Math.Max(bottom, y + 1);
@@ -121,13 +150,27 @@ public sealed class SyncfusionPopupCompatTests
         return right < 0 ? SKRectI.Empty : new SKRectI(left, top, right, bottom);
     }
 
-    private static int PopupPixels(CompatHost host, SKRectI rect) => host.CountPixelsNear(PopupBackground, rect, 12);
+    /// <summary>The accept button in the footer of the popup opened last.</summary>
+    private static Syncfusion.Maui.Core.ButtonBase OpenPopupAcceptButton()
+    {
+        const System.Reflection.BindingFlags Any = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+            | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static;
+        var open = (System.Collections.IList)typeof(SfPopup).Assembly.GetType("Syncfusion.Maui.Popup.PopupExtension")!
+            .GetField("OpenPopups", Any)!.GetValue(null)!;
+        var popup = open[open.Count - 1]!;
+        var popupView = typeof(SfPopup).GetField("PopupView", Any)!.GetValue(popup)!;
+        var footer = popupView.GetType().GetField("FooterView", Any)!.GetValue(popupView)!;
+        return (Syncfusion.Maui.Core.ButtonBase)footer.GetType().GetField("AcceptButton", Any)!.GetValue(footer)!;
+    }
+
+    private static int PopupPixels(CompatHost host, SKRectI rect) => host.CountPixelsNear(PopupBackground, rect, 6);
 
     [Fact]
     public void ShowRelativeToView_places_the_popup_below_the_anchor()
     {
         var (page, anchor) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var popup = Popup(footer: false);
@@ -148,7 +191,8 @@ public sealed class SyncfusionPopupCompatTests
     public void The_accept_button_closes_the_popup_and_runs_its_command()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         bool accepted = false, closed = false;
@@ -176,7 +220,8 @@ public sealed class SyncfusionPopupCompatTests
         var (page, anchor) = PageWithAnchor();
         int anchorClicks = 0;
         anchor.Clicked += (_, _) => anchorClicks++;
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var popup = Popup();
@@ -205,7 +250,8 @@ public sealed class SyncfusionPopupCompatTests
     public void StaysOpen_keeps_the_popup_open_on_a_press_outside()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var popup = Popup();
@@ -229,7 +275,8 @@ public sealed class SyncfusionPopupCompatTests
     public void Without_the_overlay_the_page_shows_and_a_press_outside_still_closes()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var popup = Popup();
@@ -249,7 +296,8 @@ public sealed class SyncfusionPopupCompatTests
     public void The_open_and_close_animations_run_to_completion()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var popup = Popup();
@@ -273,7 +321,8 @@ public sealed class SyncfusionPopupCompatTests
     public void Content_template_views_take_input()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         int clicks = 0;
@@ -291,7 +340,7 @@ public sealed class SyncfusionPopupCompatTests
 
         inner.Should().NotBeNull();
         var (x, y) = CompatHost.CenterOf(inner!);
-        host.CountPixelsNear(SKColors.Red, new SKRectI((int)x - 20, (int)y - 5, (int)x + 20, (int)y + 5)).Should().BeGreaterThan(300);
+        host.CountPixelsNear(SKColors.Red, new SKRectI((int)x - 100, (int)y - 5, (int)x - 60, (int)y + 5)).Should().Be(400);
         Click(host, x, y);
         Settle(host);
 
@@ -308,7 +357,8 @@ public sealed class SyncfusionPopupCompatTests
             BackgroundColor = Colors.White,
             Content = new Grid { Children = { new Label { Text = "Page" }, popup } },
         };
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
         PopupPixels(host, host.WindowRect).Should().Be(0);
 
@@ -322,7 +372,8 @@ public sealed class SyncfusionPopupCompatTests
     public async Task The_static_Show_returns_the_button_pressed()
     {
         var (page, _) = PageWithAnchor();
-        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 600);
+        using var app = new PopupHost(page);
+        var host = app.Host;
         host.Render();
 
         var result = SfPopup.Show("Delete", "Delete the file?", "YES", "NO");
@@ -330,12 +381,115 @@ public sealed class SyncfusionPopupCompatTests
         Save(host, "static");
         result.IsCompleted.Should().BeFalse();
 
-        // YES is the footer's last button, at the popup's bottom-right.
-        var rect = PopupRect(host);
-        rect.Width.Should().BeGreaterThan(100);
-        Click(host, rect.Right - 50, rect.Bottom - 44);
+        PopupRect(host).Width.Should().BeGreaterThan(100);
+        var accept = OpenPopupAcceptButton();
+        accept.Text.Should().Be("YES");
+        var (x, y) = CompatHost.CenterOf(accept);
+        Click(host, x, y);
         SettleAnimation(host);
 
         (await result.WaitAsync(TimeSpan.FromSeconds(1))).Should().BeTrue();
+    }
+
+    [Fact]
+    public void A_two_button_footer_places_decline_then_accept_inside_the_popup()
+    {
+        var (page, _) = PageWithAnchor();
+        using var app = new PopupHost(page);
+        var host = app.Host;
+        host.Render();
+
+        _ = SfPopup.Show("Delete", "Delete the file?", "YES", "NO");
+        SettleAnimation(host);
+
+        // The footer builds its columns into its grid after the grid is shown.
+        var accept = OpenPopupAcceptButton();
+        var grid = (Grid)accept.Parent;
+        var decline = grid.Children.OfType<Syncfusion.Maui.Core.ButtonBase>().Single(b => !ReferenceEquals(b, accept));
+        decline.Text.Should().Be("NO");
+        var gridBounds = ((Microsoft.Maui.Platform.SkiaView)grid.Handler!.PlatformView!).Bounds;
+        var a = ((Microsoft.Maui.Platform.SkiaView)accept.Handler!.PlatformView!).Bounds;
+        var d = ((Microsoft.Maui.Platform.SkiaView)decline.Handler!.PlatformView!).Bounds;
+        a.Left.Should().BeApproximately(d.Right + 8, 0.5);
+        a.Right.Should().BeLessThan(gridBounds.Right);
+    }
+
+    [Fact]
+    public void An_open_popup_recentres_when_the_window_resizes()
+    {
+        var (page, _) = PageWithAnchor();
+        using var app = new PopupHost(page);
+        var host = app.Host;
+        host.Render();
+
+        var popup = Popup();
+        popup.Show();
+        Settle(host);
+        PopupPixels(host, new SKRectI(260, 210, 540, 390)).Should().BeGreaterThan(30000);
+
+        host.DisplayWindow.RaiseResized(1000, 800);
+        Settle(host);
+        Save(host, "resized");
+
+        // Centred in 1000x800: (350, 300) to (650, 500).
+        PopupPixels(host, new SKRectI(360, 310, 640, 490)).Should().BeGreaterThan(30000);
+        PopupPixels(host, new SKRectI(0, 0, 340, 800)).Should().Be(0);
+        host.CountPixelsNot(SKColors.White, new SKRectI(900, 700, 1000, 800)).Should().Be(10000, "the overlay covers the grown window");
+    }
+
+    [Fact]
+    public void The_blur_overlay_blurs_the_page_and_takes_presses()
+    {
+        var (page, anchor) = PageWithAnchor();
+        int anchorClicks = 0;
+        anchor.Clicked += (_, _) => anchorClicks++;
+        using var app = new PopupHost(page);
+        var host = app.Host;
+        host.Render();
+        var label = CompatHost.RectOf(anchor);
+        int sharpText = host.CountPixelsNear(new SKColor(30, 30, 30), label, 60);
+        sharpText.Should().BeGreaterThan(20);
+
+        var popup = Popup();
+        popup.OverlayMode = PopupOverlayMode.Blur;
+        popup.PopupStyle = new PopupStyle { BlurIntensity = PopupBlurIntensity.ExtraDark };
+        popup.Show();
+        Settle(host);
+        Save(host, "blur");
+
+        host.CountPixelsNear(new SKColor(30, 30, 30), label, 60).Should().BeLessThan(sharpText / 4, "the anchor's text is blurred");
+        PopupPixels(host, new SKRectI(260, 210, 540, 390)).Should().BeGreaterThan(30000);
+
+        host.Tap(anchor);
+        Settle(host);
+        anchorClicks.Should().Be(0);
+        popup.IsOpen.Should().BeFalse();
+        host.CountPixelsNear(new SKColor(30, 30, 30), label, 60).Should().Be(sharpText, "the blur goes with the popup");
+    }
+
+    [Fact]
+    public void HasShadow_draws_a_shadow_around_the_popup()
+    {
+        var (page, _) = PageWithAnchor();
+        using var app = new PopupHost(page);
+        var host = app.Host;
+        host.Render();
+
+        var popup = Popup();
+        popup.ShowOverlayAlways = false;
+        popup.PopupStyle = new PopupStyle { HasShadow = true };
+        popup.Show();
+        Settle(host);
+        Save(host, "shadow");
+
+        // Just below the popup's bottom edge (y = 400), clear of its rounded corners.
+        host.CountPixelsNot(SKColors.White, new SKRectI(300, 402, 500, 408)).Should().BeGreaterThan(1000);
+
+        popup.PopupStyle.HasShadow = false;
+        popup.IsOpen = false;
+        Settle(host);
+        popup.Show();
+        Settle(host);
+        host.CountPixelsNot(SKColors.White, new SKRectI(300, 402, 500, 408)).Should().Be(0);
     }
 }
