@@ -162,6 +162,11 @@ public class SkiaStackLayout : SkiaLayoutView
                 {
                     childLeft = content.Left + contentWidth - useWidth;
                 }
+                else if (hAlign == LayoutAlignment.Fill && HasExplicitWidth(child) && useWidth < contentWidth)
+                {
+                    // MAUI centres a Fill view that has an explicit size (ComputeFrame).
+                    childLeft = content.Left + (contentWidth - useWidth) / 2;
+                }
                 else if (hAlign == LayoutAlignment.Fill)
                 {
                     useWidth = contentWidth;
@@ -198,6 +203,11 @@ public class SkiaStackLayout : SkiaLayoutView
                     childTop = content.Top + contentHeight - useHeight;
                     childBottomCalc = content.Top + contentHeight;
                 }
+                else if (vAlign == LayoutAlignment.Fill && HasExplicitHeight(child) && useHeight < contentHeight)
+                {
+                    childTop = content.Top + (contentHeight - useHeight) / 2;
+                    childBottomCalc = childTop + useHeight;
+                }
                 else if (vAlign == LayoutAlignment.Fill)
                 {
                     childTop = content.Top;
@@ -222,6 +232,12 @@ public class SkiaStackLayout : SkiaLayoutView
         }
         return bounds;
     }
+
+    private static bool HasExplicitWidth(SkiaView child) =>
+        child.MauiView is IView v ? v.Width >= 0 && !double.IsInfinity(v.Width) : child.WidthRequest >= 0;
+
+    private static bool HasExplicitHeight(SkiaView child) =>
+        child.MauiView is IView v ? v.Height >= 0 && !double.IsInfinity(v.Height) : child.HeightRequest >= 0;
 }
 
 /// <summary>
