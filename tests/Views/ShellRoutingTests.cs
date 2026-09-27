@@ -203,6 +203,23 @@ public class ShellRoutingTests
     }
 
     [Fact]
+    public async Task The_back_arrow_after_a_locked_rail_pops_the_pushed_page()
+    {
+        // InboxRevu: a rail (locked flyout) left of the nav bar; the arrow is drawn after it.
+        var h = CreateHost();
+        h.Shell.FlyoutBehavior = FlyoutBehavior.Locked;
+        h.Shell.FlyoutWidth = 110;
+        h.Platform.Arrange(new Rect(0, 0, 800, 600));
+        await Shell.Current.GoToAsync(DetailsRoute);
+
+        h.Platform.OnPointerPressed(new PointerEventArgs(110 + 20, h.Platform.NavBarHeight / 2, PointerButton.Left));
+        await Task.Delay(50);
+
+        h.Shell.CurrentPage.Should().BeSameAs(h.Home);
+        h.Platform.CanGoBack.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task DotDot_pops_back_to_the_section_root()
     {
         var h = CreateHost();
