@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for BoxView on Linux.
 /// </summary>
-public partial class BoxViewHandler : ViewHandler<BoxView, SkiaBoxView>
+public partial class BoxViewHandler : LinuxViewHandler<BoxView, SkiaBoxView>
 {
     public static IPropertyMapper<BoxView, BoxViewHandler> Mapper =
         new PropertyMapper<BoxView, BoxViewHandler>(ViewMapper)
