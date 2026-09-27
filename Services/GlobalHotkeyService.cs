@@ -148,7 +148,7 @@ public partial class GlobalHotkeyService : IDisposable
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("GlobalHotkeyService", $"Error: {ex.Message}");
+                DiagnosticLog.Error("GlobalHotkeyService", $"Error: {ex.Message}", ex);
             }
         }
     }

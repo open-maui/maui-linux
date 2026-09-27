@@ -84,7 +84,7 @@ public static class GtkThemeService
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("GtkThemeService", $"Error applying theme: {ex.Message}");
+            DiagnosticLog.Error("GtkThemeService", $"Error applying theme: {ex.Message}", ex);
         }
     }
 

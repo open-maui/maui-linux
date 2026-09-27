@@ -81,7 +81,7 @@ public static class DisplayServerFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("DisplayServerFactory", $"Wayland window creation failed: {ex.Message}");
+            DiagnosticLog.Error("DisplayServerFactory", $"Wayland window creation failed: {ex.Message}", ex);
 
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
             {

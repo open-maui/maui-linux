@@ -164,7 +164,7 @@ public static class GtkContextMenuService
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("GtkContextMenuService", $"Error applying menu theme: {ex.Message}");
+            DiagnosticLog.Error("GtkContextMenuService", $"Error applying menu theme: {ex.Message}", ex);
         }
     }
 }
