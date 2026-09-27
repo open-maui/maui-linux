@@ -269,6 +269,7 @@ public partial class StackLayoutHandler : LayoutHandler
     public static new IPropertyMapper<IStackLayout, StackLayoutHandler> Mapper = new PropertyMapper<IStackLayout, StackLayoutHandler>(LayoutHandler.Mapper)
     {
         [nameof(IStackLayout.Spacing)] = MapSpacing,
+        [nameof(Microsoft.Maui.Controls.StackLayout.Orientation)] = MapOrientation,
     };
 
     public StackLayoutHandler() : base(Mapper)
@@ -290,8 +291,11 @@ public partial class StackLayoutHandler : LayoutHandler
             {
                 stackLayout.Orientation = StackOrientation.Horizontal;
             }
-            else if (VirtualView is Microsoft.Maui.Controls.VerticalStackLayout ||
-                     VirtualView is Microsoft.Maui.Controls.StackLayout)
+            else if (VirtualView is Microsoft.Maui.Controls.StackLayout legacy)
+            {
+                stackLayout.Orientation = ToPlatform(legacy.Orientation);
+            }
+            else
             {
                 stackLayout.Orientation = StackOrientation.Vertical;
             }
@@ -302,6 +306,22 @@ public partial class StackLayoutHandler : LayoutHandler
         // Let base handle children
         base.ConnectHandler(platformView);
     }
+
+    /// <summary>
+    /// A legacy StackLayout's Orientation (Syncfusion's SfChipGroup lays its chips out in a
+    /// horizontal one); HorizontalStackLayout and VerticalStackLayout have none.
+    /// </summary>
+    public static void MapOrientation(StackLayoutHandler handler, IStackLayout layout)
+    {
+        if (handler.PlatformView is SkiaStackLayout stackLayout && layout is Microsoft.Maui.Controls.StackLayout legacy)
+        {
+            stackLayout.Orientation = ToPlatform(legacy.Orientation);
+            stackLayout.InvalidateMeasure();
+        }
+    }
+
+    private static StackOrientation ToPlatform(Microsoft.Maui.Controls.StackOrientation orientation) =>
+        orientation == Microsoft.Maui.Controls.StackOrientation.Horizontal ? StackOrientation.Horizontal : StackOrientation.Vertical;
 
     public static void MapSpacing(StackLayoutHandler handler, IStackLayout layout)
     {

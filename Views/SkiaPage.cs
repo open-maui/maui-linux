@@ -168,6 +168,21 @@ public class SkiaPage : SkiaView
     protected override Rect ArrangeOverride(Rect bounds)
     {
         LayoutContent(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
+        // A page placed by its platform container (a page pushed onto a Shell section)
+        // gets its MAUI frame here, as ShellPageHost gives a section's page: without it
+        // Width/Height stay -1 and OnSizeAllocated never runs (Strikeline sets its
+        // column widths there, and its pushed Search page stayed blank).
+        if (!InMauiArrange && MauiPage is { } page && page.Frame != bounds)
+        {
+            try
+            {
+                page.Frame = bounds;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaPage", $"Setting the frame of {page.GetType().Name} failed", ex);
+            }
+        }
         return bounds;
     }
 
