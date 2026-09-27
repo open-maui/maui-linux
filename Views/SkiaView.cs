@@ -151,6 +151,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             {
                 _bounds = value;
                 OnBoundsChanged();
+                BoundsChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -1030,6 +1031,9 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public event EventHandler? Invalidated;
 
+    /// <summary>Raised after <see cref="Bounds"/> changed (the view was placed or resized), whatever a subclass does in <see cref="OnBoundsChanged"/>.</summary>
+    public event EventHandler? BoundsChanged;
+
     /// <summary>
     /// Called when visibility changes.
     /// </summary>
@@ -1587,6 +1591,22 @@ public class PointerEventArgs : EventArgs
         Y = y;
         Button = button;
     }
+}
+
+/// <summary>A pointer event as routed to a view (<see cref="SkiaView.PointerRouted"/>).</summary>
+public sealed class RoutedPointerEventArgs : EventArgs
+{
+    public RoutedPointerEventArgs(SkiaView.RoutedPointerKind kind, PointerEventArgs pointer)
+    {
+        Kind = kind;
+        Pointer = pointer;
+    }
+
+    /// <summary>Which stage of the pointer interaction this is.</summary>
+    public SkiaView.RoutedPointerKind Kind { get; }
+
+    /// <summary>The event, in window-logical coordinates; <see cref="PointerEventArgs.Handled"/> is shared with the view's own handling.</summary>
+    public PointerEventArgs Pointer { get; }
 }
 
 /// <summary>

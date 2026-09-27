@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.3] - unreleased
+
+### Added
+
+- **MAUI Effects on Linux.** A `RoutingEffect` registered with `ConfigureEffects` (`effects.Add<MyEffect, MyPlatformEffect>()`) now resolves to its `PlatformEffect` when the view's handler connects, with the Skia platform view as `Control` and `Container`; the effect sees the element's property changes and is detached when removed, as on the other platforms. For the platform effect to hook, `SkiaView` gains per-view routed events: `PointerRouted` (entered, exited, moved, pressed and released, for the view under the pointer and every container the event bubbles to, whatever a subclass does in its pointer overrides), `KeyDown`/`KeyUp` while the view has focus, and `BoundsChanged`. `UseLinux()` registers MAUI's effects factory, so an app that never configured effects can still add one (the first effect threw before). A library's Linux head of an effect (MarketAlly.TouchEffect.Maui's) is an ordinary `PlatformEffect` in a plain `net10.0` target.
 ## [10.0.110.2] - 2026-09-27
 
 ### Fixed
