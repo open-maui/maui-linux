@@ -17,6 +17,9 @@ public abstract partial class SkiaView
     {
         if (!IsVisible || Opacity <= 0)
         {
+            // Nothing painted this frame; the rect of the last paint was
+            // already reported by the invalidation that hid the view.
+            _hasPaintedRect = false;
             return;
         }
 
@@ -25,41 +28,21 @@ public abstract partial class SkiaView
         // Get SKRect for internal rendering
         var skBounds = BoundsSK;
 
+        // Device matrix of the parent's coordinate space (DPI scale, CSD
+        // inset, scroll offsets and ancestor transforms included): where a
+        // later invalidation of this view will land is predicted from it.
+        _parentDeviceMatrix = canvas.TotalMatrix;
+        _hasParentDeviceMatrix = true;
+
         // Apply transforms if any are set
-        if (Scale != 1.0 || ScaleX != 1.0 || ScaleY != 1.0 ||
-            Rotation != 0.0 || RotationX != 0.0 || RotationY != 0.0 ||
-            TranslationX != 0.0 || TranslationY != 0.0)
-        {
-            // Calculate anchor point in absolute coordinates
-            float anchorAbsX = skBounds.Left + (float)(Bounds.Width * AnchorX);
-            float anchorAbsY = skBounds.Top + (float)(Bounds.Height * AnchorY);
+        if (HasRenderTransform)
+            canvas.Concat(LocalRenderTransform(skBounds));
 
-            // Move origin to anchor point
-            canvas.Translate(anchorAbsX, anchorAbsY);
-
-            // Apply translation
-            if (TranslationX != 0.0 || TranslationY != 0.0)
-            {
-                canvas.Translate((float)TranslationX, (float)TranslationY);
-            }
-
-            // Apply rotation
-            if (Rotation != 0.0)
-            {
-                canvas.RotateDegrees((float)Rotation);
-            }
-
-            // Apply scale
-            float scaleX = (float)(Scale * ScaleX);
-            float scaleY = (float)(Scale * ScaleY);
-            if (scaleX != 1f || scaleY != 1f)
-            {
-                canvas.Scale(scaleX, scaleY);
-            }
-
-            // Move origin back
-            canvas.Translate(-anchorAbsX, -anchorAbsY);
-        }
+        // Physical pixels this paint covers: partial-damage invalidation
+        // repaints them when the view changes or moves away.
+        _contentDeviceMatrix = canvas.TotalMatrix;
+        _paintedDeviceRect = _contentDeviceMatrix.MapRect(VisualOverflow(skBounds));
+        _hasPaintedRect = true;
 
         // Apply opacity
         if (Opacity < 1.0f)
@@ -86,7 +69,7 @@ public abstract partial class SkiaView
         OnDraw(canvas, skBounds);
 
         // Draw children - they draw at their own absolute bounds
-        foreach (var child in _children)
+        foreach (var child in _children.ToArray())
         {
             child.Draw(canvas);
         }
@@ -97,6 +80,90 @@ public abstract partial class SkiaView
         }
 
         canvas.Restore();
+    }
+
+    private SKMatrix _parentDeviceMatrix;
+    private bool _hasParentDeviceMatrix;
+    private SKMatrix _contentDeviceMatrix;
+    private SKRect _paintedDeviceRect;
+    private bool _hasPaintedRect;
+
+    private bool HasRenderTransform =>
+        Scale != 1.0 || ScaleX != 1.0 || ScaleY != 1.0 ||
+        Rotation != 0.0 || RotationX != 0.0 || RotationY != 0.0 ||
+        TranslationX != 0.0 || TranslationY != 0.0;
+
+    /// <summary>
+    /// The view's own transform (translation, rotation, scale about the
+    /// anchor), in its parent's coordinate space.
+    /// </summary>
+    private SKMatrix LocalRenderTransform(SKRect skBounds)
+    {
+        float anchorAbsX = skBounds.Left + (float)(Bounds.Width * AnchorX);
+        float anchorAbsY = skBounds.Top + (float)(Bounds.Height * AnchorY);
+        var m = SKMatrix.CreateTranslation(anchorAbsX, anchorAbsY);
+        if (TranslationX != 0.0 || TranslationY != 0.0)
+            m = m.PreConcat(SKMatrix.CreateTranslation((float)TranslationX, (float)TranslationY));
+        if (Rotation != 0.0)
+            m = m.PreConcat(SKMatrix.CreateRotationDegrees((float)Rotation));
+        float scaleX = (float)(Scale * ScaleX);
+        float scaleY = (float)(Scale * ScaleY);
+        if (scaleX != 1f || scaleY != 1f)
+            m = m.PreConcat(SKMatrix.CreateScale(scaleX, scaleY));
+        return m.PreConcat(SKMatrix.CreateTranslation(-anchorAbsX, -anchorAbsY));
+    }
+
+    /// <summary>
+    /// Bounds grown by what may be painted outside them: the shadow's offset
+    /// and blur, plus a small margin for antialiasing, strokes centred on the
+    /// edge and focus rings.
+    /// </summary>
+    private SKRect VisualOverflow(SKRect skBounds)
+    {
+        const float margin = 4f;
+        var r = skBounds;
+        r.Inflate(margin, margin);
+        if (Shadow != null)
+        {
+            float blur = (float)Shadow.Radius * 1.5f + margin;
+            var s = skBounds;
+            s.Offset((float)Shadow.Offset.X, (float)Shadow.Offset.Y);
+            s.Inflate(blur, blur);
+            r = SKRect.Union(r, s);
+        }
+        return r;
+    }
+
+    /// <summary>
+    /// Physical-pixel rects to repaint when this view changes: where it was
+    /// last painted and where it will be painted now (its current bounds and
+    /// transform through the parent's last device matrix; for a view never
+    /// painted yet, through the nearest painted ancestor's content matrix).
+    /// Returns false when no prediction is possible (repaint everything).
+    /// </summary>
+    internal bool TryGetDamageRects(out SKRect previous, out bool hasPrevious, out SKRect next)
+    {
+        previous = _paintedDeviceRect;
+        hasPrevious = _hasPaintedRect;
+        next = default;
+
+        SKMatrix parentMatrix;
+        if (_hasParentDeviceMatrix)
+        {
+            parentMatrix = _parentDeviceMatrix;
+        }
+        else
+        {
+            var ancestor = _parent;
+            while (ancestor != null && !ancestor._hasPaintedRect) ancestor = ancestor._parent;
+            if (ancestor == null) return false;
+            parentMatrix = ancestor._contentDeviceMatrix;
+        }
+
+        var skBounds = BoundsSK;
+        var matrix = HasRenderTransform ? parentMatrix.PreConcat(LocalRenderTransform(skBounds)) : parentMatrix;
+        next = matrix.MapRect(VisualOverflow(skBounds));
+        return true;
     }
 
     /// <summary>
@@ -201,50 +268,59 @@ public abstract partial class SkiaView
     /// </summary>
     protected virtual void DrawBackground(SKCanvas canvas, SKRect bounds)
     {
-        // First try to use Background brush
-        if (Background != null)
-        {
-            using var paint = new SKPaint { IsAntialias = true };
-
-            if (Background is SolidColorBrush scb)
-            {
-                paint.Color = scb.Color.ToSKColor();
-                canvas.DrawRect(bounds, paint);
-            }
-            else if (Background is LinearGradientBrush lgb)
-            {
-                var start = new SKPoint(
-                    bounds.Left + (float)(lgb.StartPoint.X * bounds.Width),
-                    bounds.Top + (float)(lgb.StartPoint.Y * bounds.Height));
-                var end = new SKPoint(
-                    bounds.Left + (float)(lgb.EndPoint.X * bounds.Width),
-                    bounds.Top + (float)(lgb.EndPoint.Y * bounds.Height));
-
-                var colors = lgb.GradientStops.Select(s => s.Color.ToSKColor()).ToArray();
-                var positions = lgb.GradientStops.Select(s => s.Offset).ToArray();
-
-                paint.Shader = SKShader.CreateLinearGradient(start, end, colors, positions, SKShaderTileMode.Clamp);
-                canvas.DrawRect(bounds, paint);
-            }
-            else if (Background is RadialGradientBrush rgb)
-            {
-                var center = new SKPoint(
-                    bounds.Left + (float)(rgb.Center.X * bounds.Width),
-                    bounds.Top + (float)(rgb.Center.Y * bounds.Height));
-                var radius = (float)(rgb.Radius * Math.Max(bounds.Width, bounds.Height));
-
-                var colors = rgb.GradientStops.Select(s => s.Color.ToSKColor()).ToArray();
-                var positions = rgb.GradientStops.Select(s => s.Offset).ToArray();
-
-                paint.Shader = SKShader.CreateRadialGradient(center, radius, colors, positions, SKShaderTileMode.Clamp);
-                canvas.DrawRect(bounds, paint);
-            }
-        }
-        // Fall back to BackgroundColor (skip if transparent)
-        else if (_backgroundColorSK.Alpha > 0)
-        {
-            using var paint = new SKPaint { Color = _backgroundColorSK };
+        using var paint = CreateBackgroundPaint(bounds);
+        if (paint != null)
             canvas.DrawRect(bounds, paint);
+    }
+
+    /// <summary>
+    /// The paint for this view's background over <paramref name="bounds"/>: its
+    /// Background brush (solid or gradient) when set, else BackgroundColor;
+    /// null when there is nothing to paint. MAUI's default Background is
+    /// Brush.Default, a non-null empty brush, and counts as unset. Views that
+    /// fill a shape (Border) use this so both properties paint, as in MAUI.
+    /// </summary>
+    protected SKPaint? CreateBackgroundPaint(SKRect bounds)
+    {
+        var background = Background;
+        if (!Brush.IsNullOrEmpty(background))
+        {
+            var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill };
+            switch (background)
+            {
+                case SolidColorBrush scb:
+                    paint.Color = scb.Color.ToSKColor();
+                    return paint;
+                case LinearGradientBrush lgb:
+                {
+                    var start = new SKPoint(
+                        bounds.Left + (float)(lgb.StartPoint.X * bounds.Width),
+                        bounds.Top + (float)(lgb.StartPoint.Y * bounds.Height));
+                    var end = new SKPoint(
+                        bounds.Left + (float)(lgb.EndPoint.X * bounds.Width),
+                        bounds.Top + (float)(lgb.EndPoint.Y * bounds.Height));
+                    var colors = lgb.GradientStops.Select(s => s.Color.ToSKColor()).ToArray();
+                    var positions = lgb.GradientStops.Select(s => s.Offset).ToArray();
+                    paint.Shader = SKShader.CreateLinearGradient(start, end, colors, positions, SKShaderTileMode.Clamp);
+                    return paint;
+                }
+                case RadialGradientBrush rgb:
+                {
+                    var center = new SKPoint(
+                        bounds.Left + (float)(rgb.Center.X * bounds.Width),
+                        bounds.Top + (float)(rgb.Center.Y * bounds.Height));
+                    var radius = (float)(rgb.Radius * Math.Max(bounds.Width, bounds.Height));
+                    var colors = rgb.GradientStops.Select(s => s.Color.ToSKColor()).ToArray();
+                    var positions = rgb.GradientStops.Select(s => s.Offset).ToArray();
+                    paint.Shader = SKShader.CreateRadialGradient(center, radius, colors, positions, SKShaderTileMode.Clamp);
+                    return paint;
+                }
+            }
+            paint.Dispose();
         }
+
+        if (_backgroundColorSK.Alpha > 0)
+            return new SKPaint { Color = _backgroundColorSK, Style = SKPaintStyle.Fill, IsAntialias = true };
+        return null;
     }
 }
