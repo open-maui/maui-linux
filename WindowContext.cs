@@ -207,7 +207,7 @@ public sealed class WindowContext : IDisposable
     {
         float inset = CsdPointerInsetLogical;
         if (Scale <= 1.0f && inset <= 0f) return e;
-        return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.DeltaX, e.DeltaY);
+        return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.DeltaX, e.DeltaY, e.Modifiers);
     }
 
     #endregion
@@ -391,9 +391,16 @@ public sealed class WindowContext : IDisposable
             return;
         }
 
-        if (_focusedView != null)
+        if (_focusedView is { } focused)
         {
-            _focusedView.OnKeyDown(e);
+            // Observers (Syncfusion's keyboard detectors) see the key around the
+            // focused view's own handling, as native preview and bubbling do.
+            SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.PreviewDown, e);
+            if (e.Handled)
+                return;
+            focused.OnKeyDown(e);
+            if (!e.Handled)
+                SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Down, e);
         }
     }
 
@@ -406,9 +413,11 @@ public sealed class WindowContext : IDisposable
             return;
         }
 
-        if (_focusedView != null)
+        if (_focusedView is { } focused)
         {
-            _focusedView.OnKeyUp(e);
+            focused.OnKeyUp(e);
+            if (!e.Handled)
+                SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Up, e);
         }
     }
 
@@ -621,13 +630,16 @@ public sealed class WindowContext : IDisposable
         var inputRoot = InputRoot;
         if (inputRoot != null)
         {
-            var hitView = HitTestLayers(e.X, e.Y, out _);
+            // An open popup takes the wheel over it (a drop-down's long list scrolls).
+            var hitView = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot) ?? HitTestLayers(e.X, e.Y, out _);
             DiagnosticLog.Debug("WindowContext", $"HitView: {hitView?.GetType().Name ?? "null"}");
             // Bubble scroll events up to find a ScrollView
             var view = hitView;
             while (view != null)
             {
                 DiagnosticLog.Debug("WindowContext", $"Bubbling to: {view.GetType().Name}");
+                SkiaView.RaiseScrollRouted(view, e);
+                if (e.Handled) return;
                 if (view is SkiaScrollView scrollView)
                 {
                     scrollView.OnScroll(e);
