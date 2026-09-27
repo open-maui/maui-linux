@@ -40,9 +40,10 @@ public class ScrolledTileTapTests
         await scroll.ScrollToAsync(4 * 132, 0, false);
         host.Context.Render();
 
-        // The first visible tile is tile 4, at x 6..126.
-        host.DisplayWindow.RaisePointerPressed(60, 60, Microsoft.Maui.Platform.PointerButton.Left);
-        host.DisplayWindow.RaisePointerReleased(60, 60);
+        // The first visible tile is tile 4, at x 6..126 (centred in the strip's height, as in MAUI).
+        var y = (float)((Microsoft.Maui.Platform.SkiaView)row.Children[4].Handler!.PlatformView!).Bounds.Center.Y;
+        host.DisplayWindow.RaisePointerPressed(60, y, Microsoft.Maui.Platform.PointerButton.Left);
+        host.DisplayWindow.RaisePointerReleased(60, y);
 
         taps.Should().Equal(4);
     }
