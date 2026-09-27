@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copied from maui-linux-samples/ShellDemo/Pages/PickersPage.xaml for the sample-page golden scenes. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.PickersPage"
+             Title="Pickers"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource PageBackgroundDark}}">
+
+    <Grid RowDefinitions="*,120">
+
+        <!-- Main Content -->
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20" Spacing="20">
+
+                <Label Text="Picker Controls"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                <!-- Picker Section -->
+                <Border Style="{StaticResource ThemedCard}">
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="Picker"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                        <!-- Basic picker -->
+                        <Picker x:Name="FruitPicker"
+                                Title="Select a fruit"
+                                SelectedIndexChanged="OnFruitPickerChanged">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Apple</x:String>
+                                    <x:String>Banana</x:String>
+                                    <x:String>Cherry</x:String>
+                                    <x:String>Date</x:String>
+                                    <x:String>Elderberry</x:String>
+                                    <x:String>Fig</x:String>
+                                    <x:String>Grape</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+                        <Label x:Name="FruitSelectedLabel"
+                               Text="Selected: (none)"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+
+                        <!-- Picker with default selection -->
+                        <Label Text="With Default Selection:"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                        <Picker x:Name="ColorPicker"
+                                Title="Select a color"
+                                SelectedIndex="2"
+                                SelectedIndexChanged="OnColorPickerChanged">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Red</x:String>
+                                    <x:String>Green</x:String>
+                                    <x:String>Blue</x:String>
+                                    <x:String>Yellow</x:String>
+                                    <x:String>Purple</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+
+                        <!-- Styled picker -->
+                        <Label Text="Styled Picker:"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                        <Picker x:Name="SizePicker"
+                                Title="Select size"
+                                TextColor="{AppThemeBinding Light=DarkBlue, Dark=LightBlue}"
+                                TitleColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}"
+                                SelectedIndexChanged="OnSizePickerChanged">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Small</x:String>
+                                    <x:String>Medium</x:String>
+                                    <x:String>Large</x:String>
+                                    <x:String>Extra Large</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- DatePicker Section -->
+                <Border Style="{StaticResource ThemedCard}">
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="DatePicker"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                        <!-- Basic date picker -->
+                        <DatePicker x:Name="BasicDatePicker"
+                                    DateSelected="OnDateSelected" />
+                        <Label x:Name="DateSelectedLabel"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                        <!-- Date picker with range -->
+                        <Label Text="With Date Range (this month only):"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                        <DatePicker x:Name="RangeDatePicker"
+                                    DateSelected="OnRangeDateSelected" />
+
+                        <!-- Styled date picker -->
+                        <Label Text="Styled DatePicker:"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                        <DatePicker x:Name="StyledDatePicker"
+                                    TextColor="{AppThemeBinding Light=DarkGreen, Dark=LightGreen}"
+                                    DateSelected="OnStyledDateSelected" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- TimePicker Section -->
+                <Border Style="{StaticResource ThemedCard}">
+                    <VerticalStackLayout Spacing="15">
+                        <Label Text="TimePicker"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                        <!-- Basic time picker -->
+                        <TimePicker x:Name="BasicTimePicker"
+                                    PropertyChanged="OnTimePickerPropertyChanged" />
+                        <Label x:Name="TimeSelectedLabel"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                        <!-- Styled time picker -->
+                        <Label Text="Styled TimePicker:"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                        <TimePicker x:Name="StyledTimePicker"
+                                    Time="14:30:00"
+                                    TextColor="{AppThemeBinding Light=DarkBlue, Dark=LightBlue}"
+                                    PropertyChanged="OnStyledTimePickerPropertyChanged" />
+
+                        <!-- Alarm time -->
+                        <Label Text="Alarm Time:"
+                               FontSize="12"
+                               Margin="0,10,0,0"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                        <HorizontalStackLayout Spacing="10">
+                            <TimePicker x:Name="AlarmTimePicker" Time="07:00:00" />
+                            <Button Text="Set Alarm"
+                                    BackgroundColor="{StaticResource WarningColor}"
+                                    TextColor="White"
+                                    Clicked="OnSetAlarmClicked" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Event Log Panel -->
+        <Border Grid.Row="1"
+                BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2C2C2C}"
+                StrokeThickness="0"
+                Padding="10">
+            <VerticalStackLayout>
+                <Label Text="Event Log:"
+                       FontSize="12"
+                       FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                <ScrollView HeightRequest="80">
+                    <Label x:Name="EventLogLabel"
+                           Text="Events will appear here..."
+                           FontSize="11"
+                           TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}"
+                           LineBreakMode="WordWrap" />
+                </ScrollView>
+            </VerticalStackLayout>
+        </Border>
+
+    </Grid>
+</ContentPage>

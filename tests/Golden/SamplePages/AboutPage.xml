@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copied from maui-linux-samples/ShellDemo/Pages/AboutPage.xaml for the sample-page golden scenes. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.AboutPage"
+             Title="About"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource PageBackgroundDark}}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <!-- Header -->
+            <Label Text="OpenMaui Linux"
+                   FontSize="32"
+                   FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light=#1A237E, Dark=#7986CB}"
+                   HorizontalOptions="Center" />
+
+            <Label Text="OpenMaui Version 10"
+                   FontSize="16"
+                   TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}"
+                   HorizontalOptions="Center" />
+
+            <BoxView Style="{StaticResource ThemedDivider}" />
+
+            <Label Text="OpenMaui Linux brings .NET MAUI to Linux desktops using SkiaSharp for rendering. It provides a native Linux experience while maintaining compatibility with MAUI's cross-platform API."
+                   FontSize="14"
+                   LineBreakMode="WordWrap"
+                   TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+            <!-- Info Cards -->
+            <Border Style="{StaticResource ThemedCard}">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Platform:" FontAttributes="Bold" WidthRequest="100"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Linux (X11/Wayland)"                            TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource ThemedCard}">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Rendering:" FontAttributes="Bold" WidthRequest="100"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="SkiaSharp"                            TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource ThemedCard}">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Framework:" FontAttributes="Bold" WidthRequest="100"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text=".NET MAUI"                            TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource ThemedCard}">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="License:" FontAttributes="Bold" WidthRequest="100"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="MIT License"                            TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <BoxView Style="{StaticResource ThemedDivider}" />
+
+            <!-- Features Section -->
+            <Label Text="Features"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="•" TextColor="{StaticResource SuccessColor}" FontSize="16" />
+                <Label Text="Full XAML support with styles and resources" FontSize="14"                        TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="•" TextColor="{StaticResource SuccessColor}" FontSize="16" />
+                <Label Text="Shell navigation with flyout menus" FontSize="14"                        TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="•" TextColor="{StaticResource SuccessColor}" FontSize="16" />
+                <Label Text="All standard MAUI controls" FontSize="14"                        TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="•" TextColor="{StaticResource SuccessColor}" FontSize="16" />
+                <Label Text="Data binding and MVVM" FontSize="14"                        TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="•" TextColor="{StaticResource SuccessColor}" FontSize="16" />
+                <Label Text="Keyboard and mouse input" FontSize="14"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="•" TextColor="{StaticResource SuccessColor}" FontSize="16" />
+                <Label Text="High DPI support" FontSize="14"
+                       TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </HorizontalStackLayout>
+
+            <BoxView Style="{StaticResource ThemedDivider}" />
+
+            <Label x:Name="WebsiteLink"
+                   Text="https://www.openmaui.net"
+                   FontSize="12"
+                   TextColor="{StaticResource PrimaryColor}"
+                   TextDecorations="Underline"
+                   HorizontalOptions="Center">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnWebsiteLinkTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

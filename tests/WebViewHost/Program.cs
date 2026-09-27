@@ -2,6 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.ExceptionServices;
+using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Input;
+using Microsoft.Maui.Platform.Linux.Interop;
 using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Views;
 using SkiaSharp;
@@ -12,7 +15,8 @@ namespace Microsoft.Maui.Controls.Linux.Tests.WebViewHost;
 /// Runs one named WebView scenario on the process main thread against the
 /// WPE engine (headless, no display needed). Exit code 0 = passed, 1 = a
 /// check failed (message on stderr), 2 = unknown scenario, 3 = WPE not
-/// installed. <c>--list</c> prints the scenario names.
+/// installed, 4 = this machine cannot run the scenario (e.g. no GPU EGL
+/// context; reason on stderr). <c>--list</c> prints the scenario names.
 /// </summary>
 public static class Program
 {
@@ -28,7 +32,16 @@ public static class Program
         ["frames-delivered-after-load"] = FramesDeliveredAfterLoad,
         ["cookies-round-trip"] = CookiesRoundTrip,
         ["reload-and-stop"] = ReloadAndStop,
+        ["keyboard-event-code"] = KeyboardEventCode,
+        ["frames-delivered-gpu"] = FramesDeliveredGpu,
+        ["scale-change"] = ScaleChange,
     };
+
+    /// <summary>Exit code for a scenario this machine cannot run (reported, not failed).</summary>
+    public const int NotSupportedExitCode = 4;
+
+    /// <summary>Thrown by a scenario whose prerequisites (e.g. a GPU context) are missing here.</summary>
+    private sealed class ScenarioNotSupportedException(string message) : Exception(message);
 
     public static int Main(string[] args)
     {
@@ -57,6 +70,11 @@ public static class Program
             Console.WriteLine($"ok {args[0]}");
             return 0;
         }
+        catch (ScenarioNotSupportedException ex)
+        {
+            Console.Error.WriteLine($"not supported {args[0]}: {ex.Message}");
+            return NotSupportedExitCode;
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"FAIL {args[0]}: {ex.Message}");
@@ -79,6 +97,9 @@ public static class Program
         Check(completed != null, "NavigationCompleted was not raised");
         Check(completed!.Value.Success, "navigation did not succeed");
         Check(started != null, "NavigationStarted was not raised");
+        // WebKit may finish the load before the title property is updated
+        // (notify::title arrives separately), so wait for it briefly.
+        Pump(() => view.Title == "Hello WPE", 3000);
         Check(view.Title == "Hello WPE", $"title was '{view.Title}'");
     }
 
@@ -167,6 +188,46 @@ public static class Program
         Check(view.UserAgent == "OpenMauiTest/1.0", $"UserAgent read back '{view.UserAgent}'");
     }
 
+    /// <summary>Stand-in render context: only the scale matters to the view.</summary>
+    private sealed class ScaleContext : Microsoft.Maui.Platform.Linux.Rendering.IRenderContext
+    {
+        public float DpiScale { get; set; } = 1f;
+        public Microsoft.Maui.Platform.Linux.Rendering.ResourceCache Resources { get; } = new();
+        public void Invalidate() { }
+        public void InvalidateRegion(SKRect rect) { }
+    }
+
+    /// <summary>
+    /// The window moves to a monitor with another scale: the page's
+    /// devicePixelRatio follows on the next draw, and its CSS size is kept.
+    /// </summary>
+    private static void ScaleChange()
+    {
+        var context = new ScaleContext { DpiScale = 1f };
+        using var view = Load("<html><body>scale</body></html>", out var loaded);
+        view.RenderContext = context;
+        Pump(loaded);
+
+        using var bitmap = new SKBitmap(new SKImageInfo(400, 300, SKColorType.Bgra8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(bitmap);
+        view.Draw(canvas);
+        Pump(() => false, 200);
+        var before = Await(view.EvaluateJavaScriptAsync("String(window.devicePixelRatio) + '|' + window.innerWidth"));
+        Check(before == "1|400", $"at 1x the page reported '{before}'");
+
+        context.DpiScale = 2f;
+        view.Draw(canvas);
+        string? after = null;
+        Pump(() =>
+        {
+            var t = view.EvaluateJavaScriptAsync("String(window.devicePixelRatio) + '|' + window.innerWidth");
+            Pump(() => t.IsCompleted, 1000);
+            after = t.IsCompleted ? t.Result : null;
+            return after == "2|400";
+        }, 4000);
+        Check(after == "2|400", $"after the scale change the page reported '{after}' (want devicePixelRatio 2, CSS width 400)");
+    }
+
     private static void FramesDeliveredAfterLoad()
     {
         using var view = Load("<html><body style='background:#ff0000'></body></html>", out var loaded);
@@ -233,6 +294,254 @@ public static class Program
         view.StopLoading();
         Pump(() => false, 100);
         Check(completions == before, "StopLoading on an idle view raised NavigationCompleted");
+    }
+
+    private static void KeyboardEventCode()
+    {
+        using var view = Load(
+            "<html><body><script>window.__keys = '';" +
+            "document.addEventListener('keydown', e => { window.__keys += e.code + '|' + e.key + ';'; });" +
+            "</script></body></html>", out var loaded);
+        Pump(loaded);
+        view.OnFocusGained();
+
+        // 'a' as the Wayland backend delivers it: evdev KEY_A (30) -> XKB keycode 38,
+        // a key-down (printable: held for the text) followed by the text input.
+        uint keyA = KeyMapping.EvdevToXkbKeycode(30);
+        Check(keyA == 38, $"evdev 30 should map to XKB keycode 38, got {keyA}");
+        view.OnKeyDown(new KeyEventArgs(Key.A) { HardwareKeycode = keyA });
+        view.OnTextInput(new TextInputEventArgs("a"));
+        view.OnKeyUp(new KeyEventArgs(Key.A) { HardwareKeycode = keyA });
+
+        // A non-printable key goes straight through with its keycode (evdev KEY_LEFT 105).
+        uint left = KeyMapping.EvdevToXkbKeycode(105);
+        view.OnKeyDown(new KeyEventArgs(Key.Left) { HardwareKeycode = left });
+        view.OnKeyUp(new KeyEventArgs(Key.Left) { HardwareKeycode = left });
+
+        string? keys = null;
+        Pump(() =>
+        {
+            var t = view.EvaluateJavaScriptAsync("window.__keys");
+            Pump(() => t.IsCompleted, 1000);
+            keys = t.IsCompletedSuccessfully ? t.Result : null;
+            return keys != null && keys.Contains("ArrowLeft");
+        }, 5000);
+        Console.WriteLine($"page saw: {keys}");
+        Check(keys != null && keys.Contains("KeyA|a;"), $"page should observe code 'KeyA' / key 'a', saw '{keys}'");
+        Check(keys!.Contains("ArrowLeft|ArrowLeft;"), $"page should observe code 'ArrowLeft', saw '{keys}'");
+    }
+
+    /// <summary>
+    /// The on-screen GPU path, offscreen: a surfaceless EGL context on the GPU
+    /// WebKit renders with, a Skia GL context and GPU surface, the view drawn
+    /// through the same <c>Draw</c> call the render target makes. Asserts the
+    /// colour read back and that the zero-copy import (not a pixel copy) fed it,
+    /// then times steady-state frames. With OPENMAUI_WEBVIEW_ZEROCOPY=0 the
+    /// same run asserts the copy path instead (before/after comparison).
+    /// </summary>
+    private static void FramesDeliveredGpu()
+    {
+        bool forcedCopy = Environment.GetEnvironmentVariable("OPENMAUI_WEBVIEW_ZEROCOPY") == "0";
+        using var view = Load("<html><body style='margin:0;background:#ff0000'></body></html>", out var loaded);
+        Pump(loaded);
+        Pump(() => view.FramesReceived > 0, 3000);
+        Check(view.FramesReceived > 0, "no frame was rendered after load");
+
+        using var gpu = OffscreenGl.Create(WpeWebView.RenderNode);
+        Console.WriteLine($"GL context: {gpu.Description}");
+
+        var red = DrawUntil(view, gpu, 200, 150, c => c.Red > 200 && c.Green < 60 && c.Blue < 60);
+        Check(red.Red > 200 && red.Green < 60 && red.Blue < 60, $"expected a red frame, centre pixel was {red}");
+
+        if (forcedCopy)
+        {
+            Check(view.ActiveFramePath == "PixelCopy", $"override should force the copy path, was {view.ActiveFramePath}");
+            Check(view.ZeroCopyFrameCount == 0, "override set but frames were imported zero-copy");
+        }
+        else
+        {
+            Check(view.ActiveFramePath == "ZeroCopy", $"expected the zero-copy path on a GPU canvas, was {view.ActiveFramePath}");
+            Check(view.ZeroCopyFrameCount >= 1, "no frame was imported zero-copy");
+        }
+
+        // A new frame replaces the held one (lifetime/release path).
+        long copiesBefore = view.PixelCopyFrameCount;
+        view.Eval("document.body.style.background = '#0000ff'");
+        var blue = DrawUntil(view, gpu, 200, 150, c => c.Blue > 200 && c.Red < 60 && c.Green < 60);
+        Check(blue.Blue > 200 && blue.Red < 60 && blue.Green < 60, $"expected a blue frame after the update, centre pixel was {blue}");
+        if (!forcedCopy)
+        {
+            Check(view.ZeroCopyFrameCount >= 2, $"the updated frame was not imported zero-copy ({view.ZeroCopyFrameCount} imports)");
+            Check(view.PixelCopyFrameCount == copiesBefore, "a zero-copy frame was also copied to pixels");
+        }
+
+        // Steady-state cost at a desktop-sized view: frame import + draw/flush.
+        const int W = 1280, H = 800, Frames = 30;
+        view.Bounds = new Microsoft.Maui.Graphics.Rect(0, 0, W, H);
+        DrawUntil(view, gpu, W, H, _ => true);
+        Pump(() => false, 300);
+        long importStart = view.FrameImportTicks;
+        long drawTicks = 0;
+        int measured = 0;
+        for (int i = 0; i < Frames; i++)
+        {
+            long received = view.FramesReceived;
+            view.Eval($"document.body.style.background = 'rgb({i * 8 % 256},{(255 - i * 8) % 256},128)'");
+            Pump(() => view.FramesReceived > received, 2000);
+            if (view.FramesReceived == received) continue;
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            gpu.Draw(view, W, H);
+            drawTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+            measured++;
+        }
+        Check(measured > Frames / 2, $"only {measured}/{Frames} frames arrived");
+        double ms(long ticks) => ticks * 1000.0 / System.Diagnostics.Stopwatch.Frequency / measured;
+        Console.WriteLine($"path={view.ActiveFramePath} {W}x{H} frames={measured} " +
+            $"import={ms(view.FrameImportTicks - importStart):F3} ms/frame draw+flush={ms(drawTicks):F3} ms/frame " +
+            $"zeroCopy={view.ZeroCopyFrameCount} pixelCopies={view.PixelCopyFrameCount}");
+
+        // Dispose while the GL context is alive: GL objects deleted in their context, buffers released.
+        view.Dispose();
+    }
+
+    /// <summary>Draws repeatedly (pumping WebKit between) until the centre pixel satisfies <paramref name="done"/>.</summary>
+    private static SKColor DrawUntil(WpeWebView view, OffscreenGl gpu, int w, int h, Func<SKColor, bool> done, int maxMs = 5000)
+    {
+        view.Bounds = new Microsoft.Maui.Graphics.Rect(0, 0, w, h);
+        var deadline = DateTime.UtcNow.AddMilliseconds(maxMs);
+        SKColor c;
+        while (true)
+        {
+            c = gpu.Draw(view, w, h);
+            if (done(c) || DateTime.UtcNow >= deadline) return c;
+            Pump(() => false, 50);
+        }
+    }
+
+    /// <summary>
+    /// A headless EGL + GLES + Skia GL context on the GPU WebKit renders with:
+    /// EGL_EXT_platform_device (the device whose DRM node matches), else
+    /// EGL_MESA_platform_surfaceless. Contexts are surfaceless
+    /// (EGL_KHR_surfaceless_context), with a 1x1 pbuffer as a fallback.
+    /// </summary>
+    private sealed class OffscreenGl : IDisposable
+    {
+        private IntPtr _display, _context, _surface;
+        private GRContext? _gr;
+        private SKSurface? _target;
+        private int _targetW, _targetH;
+        public string Description { get; private set; } = string.Empty;
+
+        public static OffscreenGl Create(string? renderNode)
+        {
+            var gl = new OffscreenGl();
+            try
+            {
+                gl.Initialize(renderNode);
+                return gl;
+            }
+            catch
+            {
+                gl.Dispose();
+                throw;
+            }
+        }
+
+        private void Initialize(string? renderNode)
+        {
+            string platform = "none";
+            if (Egl.HasClientExtension("EGL_EXT_platform_device") && renderNode != null)
+            {
+                foreach (var device in Egl.QueryDevices())
+                {
+                    var nodes = Egl.GetDeviceDrmNodes(device);
+                    if (!nodes.Any(n => Microsoft.Maui.Platform.Linux.Rendering.DmaBufFrameImporter.SameGpu(n, renderNode)))
+                        continue;
+                    _display = Egl.eglGetPlatformDisplay(Egl.EGL_PLATFORM_DEVICE_EXT, device, IntPtr.Zero);
+                    platform = $"device {string.Join("/", nodes)}";
+                    break;
+                }
+            }
+            if (_display == IntPtr.Zero && Egl.HasClientExtension("EGL_MESA_platform_surfaceless"))
+            {
+                _display = Egl.eglGetPlatformDisplay(Egl.EGL_PLATFORM_SURFACELESS_MESA, Egl.EGL_DEFAULT_DISPLAY, IntPtr.Zero);
+                platform = "surfaceless";
+            }
+            if (_display == IntPtr.Zero)
+                throw new ScenarioNotSupportedException("no EGL display without a window (need EGL_EXT_platform_device or EGL_MESA_platform_surfaceless)");
+            if (Egl.eglInitialize(_display, out _, out _) == Egl.EGL_FALSE)
+                throw new ScenarioNotSupportedException($"eglInitialize ({platform}) failed: {Egl.ErrorName(Egl.eglGetError())}");
+            if (Egl.eglBindAPI(Egl.EGL_OPENGL_ES_API) == Egl.EGL_FALSE)
+                throw new ScenarioNotSupportedException("eglBindAPI(OpenGL ES) failed");
+
+            bool surfaceless = Egl.HasDisplayExtension(_display, "EGL_KHR_surfaceless_context");
+            var configs = new IntPtr[1];
+            var attribs = new[]
+            {
+                Egl.EGL_SURFACE_TYPE, surfaceless ? 0 : Egl.EGL_PBUFFER_BIT,
+                Egl.EGL_RENDERABLE_TYPE, Egl.EGL_OPENGL_ES2_BIT,
+                Egl.EGL_RED_SIZE, 8, Egl.EGL_GREEN_SIZE, 8, Egl.EGL_BLUE_SIZE, 8, Egl.EGL_ALPHA_SIZE, 8,
+                Egl.EGL_NONE,
+            };
+            if (Egl.eglChooseConfig(_display, attribs, configs, 1, out int count) == Egl.EGL_FALSE || count == 0)
+                throw new ScenarioNotSupportedException($"no RGBA8 OpenGL ES config on the {platform} display");
+
+            _context = Egl.eglCreateContext(_display, configs[0], Egl.EGL_NO_CONTEXT, new[] { Egl.EGL_CONTEXT_CLIENT_VERSION, 3, Egl.EGL_NONE });
+            if (_context == IntPtr.Zero)
+                _context = Egl.eglCreateContext(_display, configs[0], Egl.EGL_NO_CONTEXT, new[] { Egl.EGL_CONTEXT_CLIENT_VERSION, 2, Egl.EGL_NONE });
+            if (_context == IntPtr.Zero)
+                throw new ScenarioNotSupportedException($"eglCreateContext failed: {Egl.ErrorName(Egl.eglGetError())}");
+
+            if (!surfaceless)
+            {
+                _surface = Egl.eglCreatePbufferSurface(_display, configs[0], new[] { Egl.EGL_WIDTH, 1, Egl.EGL_HEIGHT, 1, Egl.EGL_NONE });
+                if (_surface == IntPtr.Zero)
+                    throw new ScenarioNotSupportedException("neither EGL_KHR_surfaceless_context nor a pbuffer surface is available");
+            }
+            if (Egl.eglMakeCurrent(_display, _surface, _surface, _context) == Egl.EGL_FALSE)
+                throw new ScenarioNotSupportedException($"eglMakeCurrent failed: {Egl.ErrorName(Egl.eglGetError())}");
+
+            var glInterface = GRGlInterface.Create(name => Egl.eglGetProcAddress(name))
+                ?? throw new ScenarioNotSupportedException("GRGlInterface.Create failed");
+            _gr = GRContext.CreateGl(glInterface) ?? throw new ScenarioNotSupportedException("GRContext.CreateGl failed");
+            Description = $"{platform}, {Egl.GetGlRenderer()}";
+        }
+
+        /// <summary>Draws the view into a GPU surface of the given size and returns the centre pixel.</summary>
+        public SKColor Draw(WpeWebView view, int w, int h)
+        {
+            Egl.eglMakeCurrent(_display, _surface, _surface, _context);
+            if (_target == null || _targetW != w || _targetH != h)
+            {
+                _target?.Dispose();
+                (_targetW, _targetH) = (w, h);
+                _target = SKSurface.Create(_gr!, false, new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Premul))
+                    ?? throw new ScenarioNotSupportedException("GPU SKSurface creation failed");
+            }
+            var canvas = _target.Canvas;
+            canvas.Clear(SKColors.White);
+            view.Draw(canvas);
+            _gr!.Flush(submit: true, synchronous: true);
+
+            using var pixel = new SKBitmap(new SKImageInfo(1, 1, SKColorType.Rgba8888, SKAlphaType.Premul));
+            if (!_target.ReadPixels(pixel.Info, pixel.GetPixels(), pixel.RowBytes, w / 2, h / 2))
+                throw new InvalidOperationException("GPU read-back failed");
+            return pixel.GetPixel(0, 0);
+        }
+
+        public void Dispose()
+        {
+            if (_display == IntPtr.Zero) return;
+            if (_context != IntPtr.Zero)
+                Egl.eglMakeCurrent(_display, _surface, _surface, _context);
+            _target?.Dispose();
+            _gr?.Dispose();
+            Egl.eglMakeCurrent(_display, Egl.EGL_NO_SURFACE, Egl.EGL_NO_SURFACE, Egl.EGL_NO_CONTEXT);
+            if (_surface != IntPtr.Zero) Egl.eglDestroySurface(_display, _surface);
+            if (_context != IntPtr.Zero) Egl.eglDestroyContext(_display, _context);
+            Egl.eglTerminate(_display);
+            _display = IntPtr.Zero;
+        }
     }
 
     /// <summary>Tiny HTTP server so http-only behaviour (cookies, history, reload) is exercised for real.</summary>
