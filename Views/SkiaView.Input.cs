@@ -56,7 +56,8 @@ public abstract partial class SkiaView
     private static bool IsPointerBubbleBoundary(Microsoft.Maui.Controls.Element element) =>
         s_pointerBubbleBoundaries.TryGetValue(element, out _);
 
-    internal enum RoutedPointerKind { Entered, Exited, Moved, Pressed, Released }
+    /// <summary>The stage of a pointer event a view is told about through <see cref="PointerRouted"/>.</summary>
+    public enum RoutedPointerKind { Entered, Exited, Moved, Pressed, Released }
 
     /// <summary>
     /// Raised once for every MAUI view a pointer event reaches: the view under
@@ -64,7 +65,34 @@ public abstract partial class SkiaView
     /// coordinates. Lets extension packages feed third-party input pipelines
     /// that expect native per-view touch events (Syncfusion's detectors).
     /// </summary>
-    internal static event Action<Microsoft.Maui.Controls.View, RoutedPointerKind, PointerEventArgs>? PointerRouted;
+    internal static event Action<Microsoft.Maui.Controls.View, RoutedPointerKind, PointerEventArgs>? PointerRoutedAny;
+
+    /// <summary>
+    /// Raised on this view for every pointer event that reaches its MAUI view:
+    /// one under the pointer, or one a descendant's event bubbles to, in
+    /// window-logical coordinates. Unlike <see cref="PointerPressed"/> and the
+    /// other base-handler events, it fires whatever a subclass does in its
+    /// pointer overrides, and for a container when a child is pressed, as a
+    /// native platform's routed pointer events do: the feed a MAUI
+    /// <c>PlatformEffect</c> (whose <c>Control</c> is this view) hooks.
+    /// </summary>
+    public event EventHandler<RoutedPointerEventArgs>? PointerRouted;
+
+    /// <summary>The window's key press and release while this view has focus, after the view's own handling.</summary>
+    public event EventHandler<KeyEventArgs>? KeyDown;
+    public event EventHandler<KeyEventArgs>? KeyUp;
+
+    internal void RaiseKeyEvent(bool down, KeyEventArgs e)
+    {
+        try
+        {
+            (down ? KeyDown : KeyUp)?.Invoke(this, e);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaView", $"Key observer failed for {GetType().Name}", ex);
+        }
+    }
 
     /// <summary>
     /// Raises <see cref="PointerRouted"/> for this view and its ancestors
@@ -73,8 +101,6 @@ public abstract partial class SkiaView
     /// </summary>
     private protected void RaisePointerRoutedChain(RoutedPointerKind kind, PointerEventArgs e)
     {
-        if (PointerRouted == null)
-            return;
         for (var current = MauiView as Microsoft.Maui.Controls.Element; current != null;
              current = IsPointerBubbleBoundary(current) ? null : current.Parent)
         {
@@ -86,12 +112,13 @@ public abstract partial class SkiaView
 
     internal static void RaisePointerRouted(Microsoft.Maui.Controls.View? view, RoutedPointerKind kind, PointerEventArgs e)
     {
-        var handler = PointerRouted;
-        if (handler == null || view == null)
+        if (view == null)
             return;
         try
         {
-            handler(view, kind, e);
+            if (view.Handler?.PlatformView is SkiaView platformView && platformView.PointerRouted is { } instance)
+                instance(platformView, new RoutedPointerEventArgs(kind, e));
+            PointerRoutedAny?.Invoke(view, kind, e);
         }
         catch (Exception ex)
         {

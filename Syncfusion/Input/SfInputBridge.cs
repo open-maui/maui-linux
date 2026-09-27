@@ -45,7 +45,7 @@ internal static class SfInputBridge
             return;
         SfInternals.ReportMissingOnce();
         SkiaTextMeasurer.EnsureInstalled();
-        SkiaView.PointerRouted += OnPointerRouted;
+        SkiaView.PointerRoutedAny += OnPointerRouted;
         // Repaints come from Syncfusion's own InvalidateDrawable (SfInvalidationPatches),
         // per view, not from every animation tick for every Syncfusion view.
         SfInvalidationPatches.Install();
