@@ -38,15 +38,24 @@ string repoRoot = FindRepoRoot();
 string categoriesPath = Path.Combine(repoRoot, "tools", "Scorecard", "categories.json");
 if (run)
 {
+    // Both suites: the core tests, and tests/Compat, which feeds the third-party libraries
+    // section (running only the core suite left every library at 0 tests).
     var trxDir = Path.Combine(Path.GetTempPath(), "openmaui-scorecard");
     Directory.CreateDirectory(trxDir);
-    var trxPath = Path.Combine(trxDir, "results.trx");
-    trxPaths.Add(trxPath);
-    var psi = new ProcessStartInfo("dotnet", $"test \"{Path.Combine(repoRoot, "tests", "OpenMaui.Controls.Linux.Tests.csproj")}\" --nologo -v q --logger \"trx;LogFileName={trxPath}\"")
-    { RedirectStandardOutput = true, RedirectStandardError = true };
-    using var p = Process.Start(psi)!;
-    Console.Write(p.StandardOutput.ReadToEnd());
-    p.WaitForExit();
+    foreach (var (project, name) in new[]
+    {
+        (Path.Combine(repoRoot, "tests", "OpenMaui.Controls.Linux.Tests.csproj"), "results.trx"),
+        (Path.Combine(repoRoot, "tests", "Compat", "OpenMaui.Compat.Tests.csproj"), "compat.trx"),
+    })
+    {
+        var trxPath = Path.Combine(trxDir, name);
+        trxPaths.Add(trxPath);
+        var psi = new ProcessStartInfo("dotnet", $"test \"{project}\" --nologo -v q --logger \"trx;LogFileName={trxPath}\"")
+        { RedirectStandardOutput = true, RedirectStandardError = true };
+        using var p = Process.Start(psi)!;
+        Console.Write(p.StandardOutput.ReadToEnd());
+        p.WaitForExit();
+    }
 }
 if (trxPaths.Count == 0)
 {
@@ -86,7 +95,12 @@ var catalog = JsonSerializer.Deserialize<Catalog>(File.ReadAllText(categoriesPat
 var sb = new StringBuilder();
 sb.AppendLine("# OpenMaui Linux compatibility scorecard");
 sb.AppendLine();
-sb.AppendLine($"Generated {DateTime.UtcNow:yyyy-MM-dd} by `tools/Scorecard` from {tests.Count} executed tests ({tests.Count(t => t.Passed)} passed) in {trxPaths.Count} result file(s). " +
+// Skipped tests (NotExecuted: a library documented as not evaluated or incompatible) did not run;
+// counting them as executed made the headline read as a failure ("1829 executed, 1828 passed").
+var executed = tests.Where(t => t.Outcome != "NotExecuted").ToList();
+int skippedCount = tests.Count - executed.Count;
+var skippedNote = skippedCount > 0 ? $", {skippedCount} skipped" : "";
+sb.AppendLine($"Generated {DateTime.UtcNow:yyyy-MM-dd} by `tools/Scorecard` from {executed.Count} executed tests ({executed.Count(t => t.Passed)} passed{skippedNote}) in {trxPaths.Count} result file(s). " +
               "Coverage is computed, not asserted: an item is covered only when at least one mapped test exists and every mapped test passed. " +
               "The categories mirror the table Microsoft publishes for its maui-labs GTK4 backend so the two can be compared row for row.");
 sb.AppendLine();

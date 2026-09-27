@@ -372,7 +372,7 @@ internal static class Scenarios
             if (cycle == 2) { GC.Collect(); gc = GcWindow.Start(); }
             bool outward = cycle % 2 == 0;
             var fade = box!.FadeToAsync(outward ? 0.2 : 1.0, 500);
-            var move = box.TranslateToAsync(outward ? 300 : 0, 0, 500);
+            var move = box!.TranslateToAsync(outward ? 300 : 0, 0, 500);
             int frames = 0;
             while (!(fade.IsCompleted && move.IsCompleted))
             {
