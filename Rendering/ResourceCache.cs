@@ -24,6 +24,13 @@ public class ResourceCache : IDisposable
     }
 
     /// <summary>
+    /// The process-wide cache views resolve fonts through before they have a
+    /// render context (a view measured before it is attached): the same
+    /// registrar and fontconfig resolution, so measure and draw use one face.
+    /// </summary>
+    public static ResourceCache Shared { get; } = new();
+
+    /// <summary>
     /// Creates a cache backed by an explicit registrar (tests, custom hosts);
     /// pass <c>null</c> to resolve through fontconfig only.
     /// </summary>

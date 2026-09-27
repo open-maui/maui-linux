@@ -15,15 +15,21 @@ public enum RendererPreference
     Gpu,
     /// <summary>Always the CPU raster path (wl_shm / XPutImage).</summary>
     Raster,
+    /// <summary>
+    /// Vulkan (VK_KHR_wayland_surface / VK_KHR_xlib_surface swapchain with
+    /// Skia's Vulkan backend). Opt-in; a failure is logged once and the EGL
+    /// target is tried next, then raster.
+    /// </summary>
+    Vulkan,
 }
 
 /// <summary>
 /// Picks the render target for a window. Resolution order: the
-/// <c>OPENMAUI_RENDERER</c> environment variable (<c>gpu</c>, <c>raster</c>,
-/// <c>auto</c>), then <see cref="LinuxApplicationOptions.Renderer"/>. A GPU
-/// target that fails to initialise (no libEGL, software-only driver, headless,
-/// unusable config) falls back to <see cref="RasterRenderTarget"/> so the app
-/// always renders.
+/// <c>OPENMAUI_RENDERER</c> environment variable (<c>gpu</c>, <c>vulkan</c>,
+/// <c>raster</c>, <c>auto</c>), then <see cref="LinuxApplicationOptions.Renderer"/>.
+/// A GPU target that fails to initialise (no libEGL / libvulkan, software-only
+/// driver, headless, unusable config) falls back down the chain
+/// Vulkan → EGL → <see cref="RasterRenderTarget"/> so the app always renders.
 /// </summary>
 public static class RenderTargetFactory
 {
@@ -39,6 +45,22 @@ public static class RenderTargetFactory
             return new RasterRenderTarget(window);
         }
 
+        if (preference == RendererPreference.Vulkan)
+        {
+            try
+            {
+                var vulkan = CreateVulkan(window);
+                if (vulkan != null)
+                    return vulkan;
+
+                LogVulkanFallbackOnce($"no Vulkan target for {window.GetType().Name}");
+            }
+            catch (Exception ex)
+            {
+                LogVulkanFallbackOnce(ex.Message);
+            }
+        }
+
         try
         {
             var target = CreateGpu(window);
@@ -51,13 +73,52 @@ public static class RenderTargetFactory
         {
             // Gpu was explicitly requested: make the failure loud. Auto: it is
             // an expected condition (VMs, CI, missing drivers) so keep it quiet.
-            if (preference == RendererPreference.Gpu)
-                DiagnosticLog.Error("RenderTargetFactory", $"GPU renderer requested but unavailable: {ex.Message}");
+            if (preference is RendererPreference.Gpu or RendererPreference.Vulkan)
+                DiagnosticLog.Error("RenderTargetFactory", $"GPU renderer requested but unavailable: {ex.Message}", ex);
             else
                 DiagnosticLog.Info("RenderTargetFactory", $"GPU renderer unavailable ({ex.Message}); using raster");
         }
 
         return new RasterRenderTarget(window);
+    }
+
+    private static int s_vulkanFallbackLogged;
+
+    /// <summary>
+    /// Vulkan failures are logged once per process (every window would hit
+    /// the same missing loader/driver) as a warning: the EGL target that
+    /// follows is still a GPU path.
+    /// </summary>
+    private static void LogVulkanFallbackOnce(string reason)
+    {
+        if (Interlocked.Exchange(ref s_vulkanFallbackLogged, 1) == 0)
+            DiagnosticLog.Warn("RenderTargetFactory", $"Vulkan renderer requested but unavailable ({reason}); falling back to EGL");
+        else
+            DiagnosticLog.Debug("RenderTargetFactory", $"Vulkan unavailable ({reason}); falling back to EGL");
+    }
+
+    private static IRenderTarget? CreateVulkan(IDisplayWindow window)
+    {
+        if (window is WaylandWindow wayland)
+        {
+            // Same hand-over as EGL: the swapchain attaches buffers from now
+            // on; restore the shm path if Vulkan cannot take the surface.
+            wayland.ExternalPresentation = true;
+            try
+            {
+                return VulkanRenderTarget.CreateWayland(wayland, window.Width, window.Height);
+            }
+            catch
+            {
+                wayland.ExternalPresentation = false;
+                throw;
+            }
+        }
+
+        if (window is IX11Surface x11)
+            return VulkanRenderTarget.CreateX11(x11, window.Width, window.Height);
+
+        return null;
     }
 
     private static IRenderTarget? CreateGpu(IDisplayWindow window)
@@ -100,10 +161,13 @@ public static class RenderTargetFactory
             case "cpu":
             case "software":
                 return RendererPreference.Raster;
+            case "vulkan":
+            case "vk":
+                return RendererPreference.Vulkan;
             case "auto":
                 return RendererPreference.Auto;
             default:
-                DiagnosticLog.Warn("RenderTargetFactory", $"Unknown {EnvironmentVariable}='{env}' (expected gpu|raster|auto); ignoring");
+                DiagnosticLog.Warn("RenderTargetFactory", $"Unknown {EnvironmentVariable}='{env}' (expected gpu|vulkan|raster|auto); ignoring");
                 return configured;
         }
     }
