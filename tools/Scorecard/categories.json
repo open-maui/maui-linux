@@ -899,5 +899,89 @@
         }
       ]
     }
-  ]
+  ],
+  "thirdParty": {
+    "name": "Third-party libraries",
+    "notes": "Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or the newest usable generic asset) in their documented registration, hosted headlessly by tests/Compat. A library runs unmodified when every mapped behavioural test passes; skipped tests carry the incompatibility reason.",
+    "items": [
+      {
+        "name": "CommunityToolkit.Maui",
+        "version": "15.0.1",
+        "tests": [ "CommunityToolkitMauiCompatTests" ],
+        "notes": "Behaviors, converters, Popup, Expander, AvatarView, DrawingView. Toast/Snackbar are no-ops in the toolkit's generic build (API contract only). DrawingView needed an OpenMaui handler; AvatarView needed the Label vertical-alignment fix."
+      },
+      {
+        "name": "CommunityToolkit.Maui.MediaElement",
+        "version": "10.0.0",
+        "tests": [ "MediaElementCompatTests" ],
+        "notes": "Through OpenMaui.Controls.Linux.MediaElement (GStreamer); UseLinuxMediaElement() after the toolkit call."
+      },
+      {
+        "name": "CommunityToolkit.Mvvm",
+        "version": "8.4.2",
+        "tests": [ "CommunityToolkitMvvmCompatTests" ],
+        "notes": "Source-generated properties and commands bound to Skia views; messenger."
+      },
+      {
+        "name": "SkiaSharp.Views.Maui.Controls",
+        "version": "4.152.1",
+        "tests": [ "SkiaSharpViewsCompatTests" ],
+        "notes": "SKCanvasView/SKGLView paint, invalidate and touch; UseSkiaSharp() chained after UseLinux() does not displace OpenMaui's handlers."
+      },
+      {
+        "name": "LiveCharts2 (LiveChartsCore.SkiaSharpView.Maui)",
+        "version": "2.0.5",
+        "tests": [ "LiveChartsCompatTests" ],
+        "notes": "Cartesian and pie charts render and redraw on data changes (built against SkiaSharp 3, runs on 4). Needed the AbsoluteLayout initial-children fix. Pointer interaction is a no-op in the library's generic build."
+      },
+      {
+        "name": "Microsoft.Maui.Controls.Maps",
+        "version": "10.0.110",
+        "tests": [ "MauiMapsCompatTests" ],
+        "notes": "Through OpenMaui.Controls.Linux.Maps; UseMauiMaps().UseLinuxMaps()."
+      },
+      {
+        "name": "ReactiveUI.Maui",
+        "version": "24.3.0",
+        "tests": [ "ReactiveUiCompatTests" ],
+        "notes": "ReactiveContentPage activation, Bind/OneWayBind/BindCommand."
+      },
+      {
+        "name": "Prism.DryIoc.Maui",
+        "version": "9.0.537",
+        "tests": [ "PrismCompatTests" ],
+        "notes": "net8.0 asset. Startup window via IWindowCreator, auto-wired view models, URI navigation with parameters. Needed the startup ActivationState fix."
+      },
+      {
+        "name": "Microsoft.Extensions.DependencyInjection page resolution",
+        "version": "10.0",
+        "tests": [ "DependencyInjectionCompatTests" ],
+        "notes": "Constructor-injected root page; Shell content and routed pages from the container."
+      },
+      {
+        "name": "FFImageLoading.Maui",
+        "version": "1.3.2",
+        "tests": [ "FFImageLoadingCompatTests" ],
+        "notes": "net8.0/net9.0 assets only; the generic build has no image service or CachedImage handler."
+      },
+      {
+        "name": "Mopups",
+        "version": "1.3.4",
+        "tests": [],
+        "notEvaluated": "Popup coverage uses CommunityToolkit.Maui Popup (the task picks one popup library); Mopups ships net8.0 assets only."
+      },
+      {
+        "name": "Syncfusion .NET MAUI (Syncfusion.Maui.Charts)",
+        "version": "34.2.9",
+        "tests": [],
+        "notEvaluated": "License gate: without a registered key every control shows a 'Syncfusion License / Claim License' alert at runtime. Its generic net10.0 build's SfViewHandler/SfDrawableViewHandler throw NotImplementedException for the platform view (read from the package, not executed)."
+      },
+      {
+        "name": "Telerik UI for .NET MAUI",
+        "version": "15.0.0",
+        "tests": [],
+        "notEvaluated": "License gate: depends on Telerik.Licensing, which requires a license key from a Telerik account (no key-free trial package on nuget.org)."
+      }
+    ]
+  }
 }
