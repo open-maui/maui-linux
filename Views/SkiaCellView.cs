@@ -236,7 +236,7 @@ public class SkiaCellView : SkiaLayoutView
             DrawText(canvas, bounds);
         }
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (child.IsVisible)
                 child.Draw(canvas);

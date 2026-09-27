@@ -453,6 +453,7 @@ public class SkiaStepper : SkiaView
 
     public override void OnPointerEntered(PointerEventArgs e)
     {
+        base.OnPointerEntered(e); // PointerGestureRecognizers here and on ancestors
         if (IsEnabled)
         {
             SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
@@ -461,6 +462,7 @@ public class SkiaStepper : SkiaView
 
     public override void OnPointerExited(PointerEventArgs e)
     {
+        base.OnPointerExited(e); // PointerGestureRecognizers here and on ancestors
         SkiaVisualStateManager.GoToState(this, IsEnabled
             ? SkiaVisualStateManager.CommonStates.Normal
             : SkiaVisualStateManager.CommonStates.Disabled);

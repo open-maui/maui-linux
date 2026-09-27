@@ -72,6 +72,25 @@ public class SkiaItemsView : SkiaView
         }
     }
 
+    /// <summary>
+    /// The least height a measured row gets. A MAUI CollectionView's rows are
+    /// as tall as their template on every platform (0); a ListView's rows
+    /// keep its row height (the handler sets it). <see cref="ItemHeight"/> is
+    /// only the estimate for rows not yet measured.
+    /// </summary>
+    public float MinimumItemHeight
+    {
+        get => _minimumItemHeight;
+        set
+        {
+            _minimumItemHeight = value;
+            _itemHeights.Clear();
+            Invalidate();
+        }
+    }
+
+    private float _minimumItemHeight;
+
     public float ItemSpacing
     {
         get => _itemSpacing;
@@ -86,7 +105,11 @@ public class SkiaItemsView : SkiaView
     public ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = ScrollBarVisibility.Never;
 
     public object? EmptyView { get; set; }
-    public string? EmptyViewText { get; set; } = "No items";
+    /// <summary>
+    /// Text shown when there are no items: a string <c>EmptyView</c>. None by
+    /// default, as MAUI shows nothing for an empty list without an EmptyView.
+    /// </summary>
+    public string? EmptyViewText { get; set; }
 
     // Item rendering delegate (legacy)
     public Func<object, int, SKRect, SKCanvas, SKPaint, bool>? ItemRenderer { get; set; }
@@ -96,6 +119,56 @@ public class SkiaItemsView : SkiaView
 
     // Cache of created item views for virtualization
     protected readonly Dictionary<int, SkiaView> _itemViewCache = new();
+
+    // Recycling: item views are created as rows are drawn; views far outside
+    // the rows drawn in the last frame are released once the cache grows past
+    // a bound, so a list scrolled end to end does not keep one view per item.
+    // Measured heights (_itemHeights) are kept, so positions stay stable.
+    private int _drawnMin = int.MaxValue;
+    private int _drawnMax = -1;
+
+    /// <summary>Views kept beyond the drawn rows before recycling starts (minimum 64).</summary>
+    internal int ItemViewCacheSlack { get; set; } = 64;
+
+    /// <summary>Records that the row at <paramref name="index"/> was drawn this frame.</summary>
+    protected void NoteItemDrawn(int index)
+    {
+        if (index < _drawnMin) _drawnMin = index;
+        if (index > _drawnMax) _drawnMax = index;
+    }
+
+    public override void Draw(SKCanvas canvas)
+    {
+        _drawnMin = int.MaxValue;
+        _drawnMax = -1;
+        base.Draw(canvas);
+        TrimItemViewCache();
+    }
+
+    /// <summary>
+    /// Releases cached item views outside [first drawn - slack, last drawn + slack]
+    /// when the cache holds more than the drawn rows plus twice the slack.
+    /// </summary>
+    internal void TrimItemViewCache()
+    {
+        if (_drawnMax < 0) return;
+        int slack = Math.Max(64, ItemViewCacheSlack);
+        int drawn = _drawnMax - _drawnMin + 1;
+        if (_itemViewCache.Count <= drawn + 2 * slack) return;
+
+        int keepFrom = _drawnMin - slack, keepTo = _drawnMax + slack;
+        List<int>? evict = null;
+        foreach (var index in _itemViewCache.Keys)
+            if (index < keepFrom || index > keepTo)
+                (evict ??= new List<int>()).Add(index);
+        if (evict == null) return;
+        foreach (var index in evict)
+        {
+            if (_itemViewCache.Remove(index, out var view) && view != null && ReferenceEquals(view.Parent, this))
+                view.Parent = null;
+        }
+        DiagnosticLog.Debug("SkiaItemsView", $"Recycled {evict.Count} item views; {_itemViewCache.Count} kept around rows {_drawnMin}-{_drawnMax}");
+    }
 
     // Cache of individual item heights for variable height items
     protected readonly Dictionary<int, float> _itemHeights = new();
@@ -178,17 +251,18 @@ public class SkiaItemsView : SkiaView
             rawHeight = _itemHeight;
         }
 
-        _itemHeights[index] = Math.Max(rawHeight, _itemHeight);
+        _itemHeights[index] = Math.Max(rawHeight, _minimumItemHeight);
     }
 
     /// <summary>
-    /// Gets the height for a specific item, using cached height or default.
-    /// Always returns at least ItemHeight to allow vertical centering of smaller content.
+    /// Gets the height for a specific item: its measured height (at least
+    /// <see cref="MinimumItemHeight"/>), or the <see cref="ItemHeight"/>
+    /// estimate until it has been measured.
     /// </summary>
     protected float GetItemHeight(int index)
     {
         var cached = _itemHeights.TryGetValue(index, out var height) ? height : _itemHeight;
-        return Math.Max(cached, _itemHeight);
+        return Math.Max(cached, _minimumItemHeight);
     }
 
     /// <summary>
@@ -202,6 +276,22 @@ public class SkiaItemsView : SkiaView
             offset += GetItemHeight(i) + _itemSpacing;
         }
         return offset;
+    }
+
+    /// <summary>Rows measured for real when sizing to content; the rest use the estimate.</summary>
+    private const int NaturalMeasureLimit = 200;
+
+    /// <summary>
+    /// The height the list wants when unconstrained: its rows (the first ones
+    /// measured at <paramref name="width"/>), plus a line for the empty text.
+    /// </summary>
+    protected virtual float NaturalHeight(float width)
+    {
+        if (_items.Count == 0)
+            return string.IsNullOrEmpty(EmptyViewText) ? 0 : 44;
+        for (int i = 0; i < _items.Count && i < NaturalMeasureLimit; i++)
+            EnsureItemMeasured(i, width);
+        return TotalContentHeight;
     }
 
     /// <summary>
@@ -326,6 +416,7 @@ public class SkiaItemsView : SkiaView
         {
             DiagnosticLog.Debug("SkiaItemsView", $"DrawItem {index} - ItemViewCreator exists, item: {item}");
             // Get or create cached view for this index
+            NoteItemDrawn(index);
             if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
             {
                 itemView = ItemViewCreator(item);
@@ -412,7 +503,9 @@ public class SkiaItemsView : SkiaView
             IsAntialias = true
         };
 
-        var text = EmptyViewText ?? "No items";
+        var text = EmptyViewText;
+        if (string.IsNullOrEmpty(text))
+            return;
         font.MeasureText(text, out var textBounds);
 
         var x = bounds.MidX - textBounds.MidX;
@@ -749,7 +842,12 @@ public class SkiaItemsView : SkiaView
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = availableSize.Width < double.MaxValue ? availableSize.Width : 200;
-        var height = availableSize.Height < double.MaxValue ? availableSize.Height : 300;
+        // As tall as its content, up to the room it is given, as on the other
+        // platforms: an empty list without an EmptyView asks for no room. A
+        // Star row or Fill alignment still stretches it when it is arranged,
+        // and it scrolls when the content is taller than the room.
+        var natural = NaturalHeight((float)width);
+        var height = availableSize.Height < double.MaxValue ? Math.Min(availableSize.Height, natural) : natural;
 
         // Track width changes but don't preemptively clear caches: parent layouts often
         // probe with two different widths in a single measure pass (e.g. infinite during

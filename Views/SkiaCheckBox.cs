@@ -378,6 +378,7 @@ public class SkiaCheckBox : SkiaView
 
     public override void OnPointerEntered(PointerEventArgs e)
     {
+        base.OnPointerEntered(e); // PointerGestureRecognizers here and on ancestors
         if (IsEnabled)
         {
             IsHovered = true;
@@ -388,6 +389,7 @@ public class SkiaCheckBox : SkiaView
 
     public override void OnPointerExited(PointerEventArgs e)
     {
+        base.OnPointerExited(e); // PointerGestureRecognizers here and on ancestors
         IsHovered = false;
         SkiaVisualStateManager.GoToState(this, IsEnabled ? "Normal" : "Disabled");
         Invalidate();

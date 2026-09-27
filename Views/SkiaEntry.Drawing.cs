@@ -76,8 +76,7 @@ public partial class SkiaEntry
         canvas.ClipRect(contentBounds);
 
         var fontStyle = GetFontStyle();
-        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
-                      ?? SKTypeface.Default;
+        var typeface = Fonts.GetTypeface(GetEffectiveFontFamily(), fontStyle);
 
         using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
         using var paint = new SKPaint { IsAntialias = true };
@@ -140,20 +139,24 @@ public partial class SkiaEntry
                 DrawCursor(canvas, font, displayText, contentBounds);
             }
         }
-        else if (!string.IsNullOrEmpty(Placeholder))
+        else
         {
-            // Draw placeholder
-            paint.Color = GetEffectivePlaceholderColor();
+            if (!string.IsNullOrEmpty(Placeholder))
+            {
+                // Draw placeholder
+                paint.Color = GetEffectivePlaceholderColor();
 
-            float x = contentBounds.Left;
-            float y = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
+                float x = contentBounds.Left;
+                float y = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
 
-            canvas.DrawText(Placeholder, x, y, SKTextAlign.Left, font, paint);
-        }
-        else if (IsFocused && !IsReadOnly && _cursorVisible)
-        {
-            // Draw cursor even with no text
-            DrawCursor(canvas, font, "", contentBounds);
+                canvas.DrawText(Placeholder, x, y, SKTextAlign.Left, font, paint);
+            }
+
+            // The caret shows in an empty entry, placeholder or not, as on the
+            // other platforms: clicking into an empty search box must show where
+            // typing goes.
+            if (IsFocused && !IsReadOnly && _cursorVisible)
+                DrawCursor(canvas, font, "", contentBounds);
         }
 
         canvas.Restore();
@@ -282,8 +285,7 @@ public partial class SkiaEntry
     protected override Size MeasureOverride(Size availableSize)
     {
         var fontStyle = GetFontStyle();
-        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
-                      ?? SKTypeface.Default;
+        var typeface = Fonts.GetTypeface(GetEffectiveFontFamily(), fontStyle);
 
         using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
 
