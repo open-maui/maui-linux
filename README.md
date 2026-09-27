@@ -27,6 +27,7 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **WebView**: WPE WebKit composited inside the Skia tree (no GTK widget, no reparenting) on native Wayland and X11, with context menus, clipboard, JavaScript dialogs, file chooser, permissions, web notifications, downloads, spell checking, link cursors, `EvaluateJavaScriptAsync` results and a backend-neutral WebKit content API; WebKitGTK remains the GTK-mode fallback
 - **Blazor Hybrid**: Opt-in `OpenMaui.Controls.Linux.Blazor` package backs `BlazorWebView` (Microsoft.AspNetCore.Components.WebView.Maui) on the WPE WebView
 - **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
+- **Syncfusion**: Opt-in `OpenMaui.Controls.Linux.Syncfusion` package runs Syncfusion .NET MAUI controls (ListView, TreeView, TabView and the other `SfView`-based controls): call `.UseLinuxSyncfusion()` instead of `.ConfigureSyncfusionCore()`. Bring your own Syncfusion license
 
 ## Quick Start
 
@@ -74,7 +75,7 @@ System dependencies (GStreamer + plugin sets):
 ```bash
 # Fedora
 sudo dnf install gstreamer1-plugins-good gstreamer1-plugins-bad-free \
-                 gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-vaapi
+                 gstreamer1-plugins-ugly-free gstreamer1-plugin-libav gstreamer1-vaapi
 
 # Ubuntu/Debian
 sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
@@ -92,6 +93,25 @@ builder.UseLinuxMediaElement(MediaHardwareAcceleration.Prefer);
 ```
 
 `Auto` keeps the default behavior, `Prefer` bumps HW decoder factory ranks above SW, and `Disable` demotes them.
+
+### Optional: Syncfusion controls
+
+Linux apps build plain `net10.0` and so get Syncfusion's platform-neutral assemblies, which have no native drawing or touch. The opt-in bridge package supplies them on OpenMaui's renderer:
+
+```bash
+dotnet add package OpenMaui.Controls.Linux.Syncfusion
+```
+
+Then call `UseLinuxSyncfusion()` in place of `ConfigureSyncfusionCore()` (on the other platforms it calls `ConfigureSyncfusionCore()` for you):
+
+```csharp
+builder
+    .UseMauiApp<App>()
+    .UseLinux()
+    .UseLinuxSyncfusion();
+```
+
+`SfView`-based controls (ListView, TreeView, TabView and the rest) lay out, draw and receive touch, tap, double-tap, right-tap and long-press. Not covered yet: text a control draws through Syncfusion's own canvas text API (SfButton's text, badges, busy-indicator title, text-input hints, tooltips), controls with their own native views (SignaturePad, ImageEditor, Carousel, Rotator, Syncfusion's MediaElement), popups hosted in Syncfusion's window overlay, and keyboard navigation. The package does not include Syncfusion's assemblies; you need your own Syncfusion license.
 
 ### Optional: Maps (OpenStreetMap)
 
@@ -147,12 +167,14 @@ OSM's tile usage policy requires displaying attribution; `SkiaMap` renders the c
 `WebView` renders through WPE WebKit 2.54+ when it is installed, composited in the Skia tree like any other control, in native Wayland/X11 mode. Without WPE the GTK-hosted WebKitGTK view is used (requires `options.UseGtk = true`). `OPENMAUI_WEBVIEW=wpe|webkitgtk|auto` overrides the choice.
 
 ```bash
-# Debian / Ubuntu
+# Debian testing / sid (Debian 13 carries 2.48, which is too old)
 sudo apt install libwpewebkit-2.0-1
 
 # Fedora (not in the official repositories; maintained by an Igalia WPE developer)
 sudo dnf copr enable philn/wpewebkit && sudo dnf install wpewebkit
 ```
+
+Ubuntu has shipped no WPE WebKit package since 22.04, and Debian 13 only has 2.48. There, `WebView` uses the GTK-hosted WebKitGTK view (`options.UseGtk = true`), and `BlazorWebView` needs a WPE 2.54 installed from elsewhere. `OPENMAUI_DOCTOR=1 ./MyApp` reports which engine a machine will use.
 
 ### Optional: Blazor Hybrid (BlazorWebView)
 
@@ -290,6 +312,52 @@ sudo apt-get install libx11-dev libxrandr-dev libxcursor-dev libxi-dev libgl1-me
 ```bash
 sudo dnf install libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-libGL-devel fontconfig-devel
 ```
+
+### Diagnosing your setup
+
+Any OpenMaui app can print an environment report instead of starting. Set `OPENMAUI_DOCTOR=1` (or pass `--openmaui-doctor`); the app writes the report to stdout and exits before creating a window, with exit code 1 when a required item is missing:
+
+```bash
+OPENMAUI_DOCTOR=1 ./MyApp
+dotnet run -- --openmaui-doctor
+```
+
+The report runs inside the platform, so it shows what the app will actually select: display server and compositor, the Wayland globals it advertises, the EGL/GL renderer and the render target `RenderTargetFactory` will pick, the scale factor and which detection source won, the IME backend, and every optional native dependency and fallback font. Anything missing comes with the install command for your distro (apt, dnf or pacman). Trimmed output from a Fedora 44 KDE session on an Intel GPU:
+
+```text
+OpenMaui doctor
+===============
+
+Runtime
+  [ok]      .NET                         .NET 10.0.10 (X64, fedora.44-x64)
+  [info]    OS                           Fedora Linux 44 (KDE Plasma Desktop Edition), kernel
+                                         7.1.5-201.fc44.x86_64; install hints for: Fedora (dnf)
+
+Wayland compositor
+  [ok]      libopenmaui_wl.so            /home/me/MyApp/bin/Debug/net10.0/libopenmaui_wl.so
+  [ok]      Compositor                   kwin_wayland_wr (pid 14908)
+  [ok]      zwp_text_input_manager_v3    v2: native IME (zwp_text_input_v3)
+  [ok]      zwp_linux_dmabuf_v1          v5: dmabuf buffer sharing
+
+GPU and renderer
+  [ok]      EGL                          EGL 1.5 Mesa Project (client APIs: OpenGL OpenGL_ES)
+  [ok]      GL renderer                  Mesa Intel(R) UHD Graphics (CML GT2) (OpenGL ES 3.2 Mesa 26.1.5)
+  [ok]      RenderTargetFactory          egl-wayland (GPU)
+
+Display scale
+  [info]    Startup scale                1.75 (168 dpi)
+  [info]    Detected by                  HiDpiService: X11 (Xft.dpi / .Xresources / X server DPI)
+
+Native dependencies
+  [ok]      GStreamer                    libgstreamer-1.0.so.0, libgstapp-1.0.so.0: MediaElement playback
+  [ok]      WPE WebKit 2.54+             libWPEWebKit-2.0.so.1: composited WebView / BlazorWebView
+  [MISSING] libcups                      libcups.so.2 not found; printing unavailable
+                                         fix: sudo dnf install cups-libs
+
+Summary: 31 ok, 0 warning(s), 1 missing (0 required).
+```
+
+(The `libcups` row above is illustrative of how a missing dependency is shown.)
 
 ## Documentation
 
@@ -477,6 +545,7 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 - [x] Hot Reload — `dotnet watch` C#/XAML edits re-render the current page (Shell-rooted apps); see `docs/HOT_RELOAD.md` (10.0.90.1)
 
 - [x] MAUI 10.0.101 alignment + SkiaSharp 3 → 4 migration — ~400 call sites to the `SKFont` API; `SkiaFontFactory` (Subpixel + LinearMetrics) fixes HiDPI glyph gaps; label measurement is wrap-aware and glyph-independent (10.0.101.1)
+- [x] MAUI 10.0.110 alignment (10.0.110.1): full suite and scorecard unchanged against the new MAUI
 - [x] Multi-window support — `Application.OpenWindow`/`CloseWindow`, per-window render/input/focus, X11 + Wayland parity, MAUI `IWindow` lifecycle, last-window-close exits (10.0.101.1)
 - [x] Non-Shell-root XAML Hot Reload — raw `ContentPage`/`NavigationPage` roots rebuild and re-swap under `dotnet watch` (10.0.101.1)
 - [x] Async drag image sourcing — `StreamImageSource` payloads resolve in-flight with format sniffing and bounded honest-fail (10.0.101.1)
@@ -485,10 +554,11 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 
 OpenMaui is the Wayland-first, self-rendered Linux platform for .NET MAUI, with X11 compatibility rather than GTK as its architectural foundation. The next releases build on that (full detail in [docs/ROADMAP.md](docs/ROADMAP.md)):
 
-- [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2). Remaining: runtime scale change, hardware video zero-copy, explicit DMA-BUF and Vulkan, the full benchmark suite
-- [x] **Phase 2: WPE WebKit WebView and BlazorWebView** — WPEPlatform (WPE WebKit 2.54) embedder compositing web frames inside the platform's own render tree, identical on Wayland and X11; context menus, clipboard bridge, backend selection; JS dialogs, file chooser and link cursors through the platform; `OpenMaui.Controls.Linux.Blazor` for Blazor Hybrid (10.0.101.2). Remaining: DMA-BUF zero-copy frames, hardware keycodes
+- [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2). runtime scale change per window (10.0.110.1). Remaining: hardware video zero-copy, explicit DMA-BUF and Vulkan, the full benchmark suite
+- [x] **Phase 2: WPE WebKit WebView and BlazorWebView** — WPEPlatform (WPE WebKit 2.54) embedder compositing web frames inside the platform's own render tree, identical on Wayland and X11; context menus, clipboard bridge, backend selection; JS dialogs, file chooser and link cursors through the platform; `OpenMaui.Controls.Linux.Blazor` for Blazor Hybrid (10.0.101.2); zero-copy DMA-BUF frames on the GPU target and hardware keycodes (10.0.110.1)
 - [x] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a compatibility scorecard computed from the test run ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)), and the handlers and services it exposed as missing (AbsoluteLayout, ControlTemplate, TableView, ListView, MAUI 10 dialogs, modal navigation, animations on MAUI's pipeline, VisualStateManager/triggers/behaviors, FormattedText, context flyouts, Essentials). Remaining: third-party library compatibility as a KPI, performance regression gates
-- [ ] `openmaui doctor`, native D-Bus xdg-desktop-portal layer, deb/rpm output, multi-window round-out
+- [x] `openmaui doctor` and the multi-window round-out (live page/title/geometry, Stopped/Resumed) (10.0.110.1)
+- [ ] Native D-Bus xdg-desktop-portal layer, deb/rpm output
 
 ## License
 

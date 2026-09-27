@@ -13,7 +13,7 @@ This project follows the [.NET Foundation Code of Conduct](https://dotnetfoundat
 ### Prerequisites
 
 - .NET 9.0 SDK
-- Linux development environment (Ubuntu 22.04+ recommended)
+- Linux development environment (any current distribution; the reference machine is Fedora 44 with KDE Plasma on Wayland. See [docs/VERSIONING.md](docs/VERSIONING.md) for the support matrix)
 - Git
 
 ### Setting Up the Development Environment
