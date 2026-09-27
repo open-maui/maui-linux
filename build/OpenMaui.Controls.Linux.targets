@@ -57,18 +57,31 @@
   <!--
     Deploy the Wayland protocol shim (libopenmaui_wl.so) next to the consuming
     app's assemblies. The WaylandWindow loader does an explicit dlopen() on the
-    path adjacent to OpenMaui.Controls.Linux.dll; the SDK's normal "runtimes/
-    <RID>/native/" probing only services NativeLibrary/DllImport callers, so
-    without this copy a framework-dependent build fails with
-    "Failed to load libopenmaui_wl.so".
+    path adjacent to OpenMaui.Controls.Linux.dll, then on
+    runtimes/linux-x64/native/ and runtimes/linux-arm64/native/ under it.
+
+    With a RuntimeIdentifier (dotnet publish -r linux-x64 / linux-arm64, the
+    AppImage packager) NuGet already copies the matching RID's native asset to
+    the output root, so nothing is added here: copying a fixed architecture
+    here used to overwrite the arm64 shim with the x64 one in a linux-arm64
+    publish, and Wayland failed to start on arm64.
+
+    Without a RuntimeIdentifier (portable framework-dependent build) NuGet
+    puts both RIDs under runtimes/<rid>/native/ and this copies the shim for
+    the build machine's architecture next to the assembly; on another
+    architecture the loader falls through to the runtimes/ copies.
 
     $(MSBuildThisFileDirectory) resolves to <pkg>/build/ at consumer build time,
-    so ../runtimes/linux-x64/native/libopenmaui_wl.so points at the packaged
-    native asset. The Exists guard means non-Linux RIDs / older packages no-op
-    cleanly.
+    so ../runtimes/<rid>/native/libopenmaui_wl.so points at the packaged native
+    asset. The Exists guard means non-Linux hosts / older packages no-op cleanly.
   -->
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) AND Exists('$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libopenmaui_wl.so')">
-    <None Include="$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libopenmaui_wl.so">
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) AND '$(RuntimeIdentifier)' == ''">
+    <_OpenMauiWlRid>linux-x64</_OpenMauiWlRid>
+    <_OpenMauiWlRid Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</_OpenMauiWlRid>
+    <_OpenMauiWlShim>$(MSBuildThisFileDirectory)..\runtimes\$(_OpenMauiWlRid)\native\libopenmaui_wl.so</_OpenMauiWlShim>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(_OpenMauiWlShim)' != '' AND Exists('$(_OpenMauiWlShim)')">
+    <None Include="$(_OpenMauiWlShim)">
       <Link>libopenmaui_wl.so</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
@@ -106,52 +119,63 @@
     <Copy SourceFiles="@(MauiFont)" DestinationFolder="$(PublishDir)Resources/Fonts" SkipUnchangedFiles="true" />
   </Target>
 
-  <!-- Process MauiIcon: copy foreground SVG and generate appicon.meta for runtime icon generation -->
+  <!-- Process MauiIcon: copy the icon layers and write appicon.meta; the
+       runtime composes appicon.png from them (Services/MauiIconGenerator.cs). -->
   <Target Name="ProcessMauiIconForOutput" AfterTargets="Build" Condition="@(MauiIcon) != ''">
-    <Message Importance="normal" Text="OpenMaui: Processing MauiIcon for output..." />
-
-    <!-- Copy the foreground SVG as appicon_fg.svg -->
+    <!-- The MauiIcon file itself is the icon's background layer (for a
+         single-file icon, the whole icon); ForegroundFile is drawn on top at
+         ForegroundScale, tinted with Color. BackgroundColor fills behind both
+         and is transparent when unset, as on the other platforms. -->
+    <Copy SourceFiles="%(MauiIcon.FullPath)"
+          DestinationFiles="$(OutputPath)appicon_bg%(MauiIcon.Extension)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(MauiIcon.FullPath)')" />
     <Copy SourceFiles="%(MauiIcon.ForegroundFile)"
           DestinationFiles="$(OutputPath)appicon_fg.svg"
           SkipUnchangedFiles="true"
           Condition="'%(MauiIcon.ForegroundFile)' != '' AND Exists('%(MauiIcon.ForegroundFile)')" />
+    <Delete Files="$(OutputPath)appicon_fg.svg"
+            Condition="'%(MauiIcon.ForegroundFile)' == ''" />
 
-    <!-- Generate appicon.meta with icon metadata -->
     <PropertyGroup>
-      <_MauiIconColor Condition="'%(MauiIcon.Color)' != ''">%(MauiIcon.Color)</_MauiIconColor>
-      <_MauiIconColor Condition="'%(MauiIcon.Color)' == '' AND '%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconColor>
-      <_MauiIconColor Condition="'$(_MauiIconColor)' == ''">Purple</_MauiIconColor>
-      <_MauiIconBgColor Condition="'%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconBgColor>
-      <_MauiIconBgColor Condition="'$(_MauiIconBgColor)' == ''">$(_MauiIconColor)</_MauiIconBgColor>
+      <_MauiIconScale>%(MauiIcon.ForegroundScale)</_MauiIconScale>
+      <_MauiIconScale Condition="'$(_MauiIconScale)' == ''">0.65</_MauiIconScale>
     </PropertyGroup>
 
     <WriteLinesToFile
       File="$(OutputPath)appicon.meta"
-      Lines="Color=$(_MauiIconBgColor);Size=256;Scale=0.65"
-      Overwrite="true" />
-
-    <Message Importance="normal" Text="OpenMaui: Generated appicon.meta (Color=$(_MauiIconBgColor))" />
+      Lines="Format=2;Background=appicon_bg%(MauiIcon.Extension);BackgroundColor=%(MauiIcon.BackgroundColor);TintColor=%(MauiIcon.Color);Size=256;Scale=$(_MauiIconScale)"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true" />
   </Target>
 
   <!-- Process MauiIcon for Publish -->
   <Target Name="ProcessMauiIconForPublish" AfterTargets="Publish" Condition="@(MauiIcon) != ''">
+    <!-- The MauiIcon file itself is the icon's background layer (for a
+         single-file icon, the whole icon); ForegroundFile is drawn on top at
+         ForegroundScale, tinted with Color. BackgroundColor fills behind both
+         and is transparent when unset, as on the other platforms. -->
+    <Copy SourceFiles="%(MauiIcon.FullPath)"
+          DestinationFiles="$(PublishDir)appicon_bg%(MauiIcon.Extension)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(MauiIcon.FullPath)')" />
     <Copy SourceFiles="%(MauiIcon.ForegroundFile)"
           DestinationFiles="$(PublishDir)appicon_fg.svg"
           SkipUnchangedFiles="true"
           Condition="'%(MauiIcon.ForegroundFile)' != '' AND Exists('%(MauiIcon.ForegroundFile)')" />
+    <Delete Files="$(PublishDir)appicon_fg.svg"
+            Condition="'%(MauiIcon.ForegroundFile)' == ''" />
 
     <PropertyGroup>
-      <_MauiIconColor Condition="'%(MauiIcon.Color)' != ''">%(MauiIcon.Color)</_MauiIconColor>
-      <_MauiIconColor Condition="'%(MauiIcon.Color)' == '' AND '%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconColor>
-      <_MauiIconColor Condition="'$(_MauiIconColor)' == ''">Purple</_MauiIconColor>
-      <_MauiIconBgColor Condition="'%(MauiIcon.BackgroundColor)' != ''">%(MauiIcon.BackgroundColor)</_MauiIconBgColor>
-      <_MauiIconBgColor Condition="'$(_MauiIconBgColor)' == ''">$(_MauiIconColor)</_MauiIconBgColor>
+      <_MauiIconScale>%(MauiIcon.ForegroundScale)</_MauiIconScale>
+      <_MauiIconScale Condition="'$(_MauiIconScale)' == ''">0.65</_MauiIconScale>
     </PropertyGroup>
 
     <WriteLinesToFile
       File="$(PublishDir)appicon.meta"
-      Lines="Color=$(_MauiIconBgColor);Size=256;Scale=0.65"
-      Overwrite="true" />
+      Lines="Format=2;Background=appicon_bg%(MauiIcon.Extension);BackgroundColor=%(MauiIcon.BackgroundColor);TintColor=%(MauiIcon.Color);Size=256;Scale=$(_MauiIconScale)"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true" />
   </Target>
 
 </Project>
