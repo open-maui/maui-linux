@@ -249,6 +249,16 @@ public class DialogBridgeTests : IDisposable
 
     #endregion
 
+    [Fact]
+    public void DisplayAlert_LineBreaks_StartNewLines()
+    {
+        _ = _page.DisplayAlert("Update Available", "Version 2.3.4 is available.\r\n\r\n- [Improved] Bumped dependencies", "Download", "Later");
+        LayoutDialogs();
+        var lines = typeof(SkiaModalDialog).GetMethod("WrapText", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(null, new object[] { "Version 2.3.4 is available.\r\n\r\n- [Improved] Bumped dependencies", 400f, 15f }) as List<string>;
+        lines.Should().Equal("Version 2.3.4 is available.", "", "- [Improved] Bumped dependencies");
+    }
+
     #region DisplayActionSheet
 
     [Fact]

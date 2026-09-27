@@ -118,27 +118,28 @@ public abstract class SkiaModalDialog : SkiaView
 
         using var font = SkiaFontFactory.Create(fontSize);
 
-        var words = text.Split(' ');
-        var currentLine = "";
-
-        foreach (var word in words)
+        // Line breaks in the text start new lines (a blank line stays blank),
+        // as on the other platforms; they were drawn as missing-glyph boxes.
+        foreach (var paragraph in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
         {
-            var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
-            var width = font.MeasureText(testLine);
-
-            if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
+            var currentLine = "";
+            foreach (var word in paragraph.Split(' '))
             {
-                lines.Add(currentLine);
-                currentLine = word;
-            }
-            else
-            {
-                currentLine = testLine;
-            }
-        }
+                var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
+                var width = font.MeasureText(testLine);
 
-        if (!string.IsNullOrEmpty(currentLine))
+                if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
+                {
+                    lines.Add(currentLine);
+                    currentLine = word;
+                }
+                else
+                {
+                    currentLine = testLine;
+                }
+            }
             lines.Add(currentLine);
+        }
 
         return lines;
     }
