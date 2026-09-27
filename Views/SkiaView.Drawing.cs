@@ -112,14 +112,15 @@ public abstract partial class SkiaView
 
     /// <summary>
     /// A window point in this view's untransformed space (where its Bounds are): the
-    /// inverse of every render transform from the root down to and including this view.
+    /// inverse of every render transform from the root down to and including this view,
+    /// plus the offset of every ScrollView it is scrolled in.
     /// </summary>
     internal SKPoint FromWindow(float x, float y)
     {
-        SkiaView? transformed = null;
-        for (var v = this; v != null; v = v.Parent)
-            if (v.HasRenderTransform) { transformed = v; break; }
-        if (transformed == null)
+        bool mapped = false;
+        for (var v = this; v != null && !mapped; v = v.Parent)
+            mapped = v.HasRenderTransform || (v != this && v is SkiaScrollView);
+        if (!mapped)
             return new SKPoint(x, y);
 
         var chain = new List<SkiaView>();
@@ -131,6 +132,10 @@ public abstract partial class SkiaView
             var v = chain[i];
             if (v.HasRenderTransform && v.LocalRenderTransform(ToSKRect(v.Bounds)).TryInvert(out var inverse))
                 p = inverse.MapPoint(p);
+            // A scroller draws its content shifted by its offset; below it, points are in
+            // the content's unscrolled space (as SkiaScrollView.HitTest maps them).
+            if (i > 0 && v is SkiaScrollView scroller)
+                p = new SKPoint(p.X + scroller.ScrollX, p.Y + scroller.ScrollY);
         }
         return p;
     }
