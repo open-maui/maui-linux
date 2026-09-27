@@ -188,6 +188,9 @@ public class SkiaCollectionView : SkiaItemsView
         set => SetValue(FooterProperty, value);
     }
 
+    /// <inheritdoc />
+    protected override float NaturalHeight(float width) => base.NaturalHeight(width) + HeaderHeight + FooterHeight;
+
     public float HeaderHeight
     {
         get => (float)GetValue(HeaderHeightProperty);
@@ -208,6 +211,29 @@ public class SkiaCollectionView : SkiaItemsView
 
     /// <summary>Gets the SKColor for rendering selection highlight.</summary>
     internal SKColor SelectionColorSK => _selectionColorSK;
+
+    private bool _showSeparators;
+    private Color? _separatorColor;
+
+    /// <summary>
+    /// Row separators. A ListView draws them (SeparatorVisibility); a MAUI
+    /// CollectionView has none on any platform, so they are off by default.
+    /// </summary>
+    public bool ShowSeparators
+    {
+        get => _showSeparators;
+        set { if (_showSeparators != value) { _showSeparators = value; Invalidate(); } }
+    }
+
+    /// <summary>Separator colour (ListView.SeparatorColor); a theme hairline when null.</summary>
+    public Color? SeparatorColor
+    {
+        get => _separatorColor;
+        set { _separatorColor = value; Invalidate(); }
+    }
+
+    internal SKColor SeparatorColorSK => _separatorColor?.ToSKColor()
+        ?? (SkiaTheme.IsDarkMode ? SkiaTheme.Gray700SK : SkiaTheme.Gray300SK);
 
     public Color HeaderBackgroundColor
     {
@@ -409,9 +435,9 @@ public class SkiaCollectionView : SkiaItemsView
     {
         bool isSelected = _selectedItems.Contains(item);
 
-        if (Orientation == ItemsLayoutOrientation.Vertical && SpanCount == 1)
+        if (ShowSeparators && Orientation == ItemsLayoutOrientation.Vertical && SpanCount == 1)
         {
-            paint.Color = SkiaTheme.Gray300SK;
+            paint.Color = SeparatorColorSK;
             paint.Style = SKPaintStyle.Stroke;
             paint.StrokeWidth = 1f;
             canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, paint);
@@ -419,6 +445,7 @@ public class SkiaCollectionView : SkiaItemsView
 
         if (ItemViewCreator != null)
         {
+            NoteItemDrawn(index);
             if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
             {
                 itemView = ItemViewCreator(item);
@@ -443,7 +470,7 @@ public class SkiaCollectionView : SkiaItemsView
                     }
 
                     // Store the actual measured height for row sizing
-                    var cellHeight = Math.Max(rawHeight, ItemHeight);
+                    var cellHeight = Math.Max(rawHeight, MinimumItemHeight);
                     if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - cellHeight) > 1f)
                     {
                         _itemHeights[index] = cellHeight;

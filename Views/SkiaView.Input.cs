@@ -21,7 +21,7 @@ public abstract partial class SkiaView
     /// view-relative points here made GetPosition(element) subtract the
     /// element origin twice and GetPosition(null) return a relative point.)
     /// </summary>
-    private void BubblePointerEvent(double absX, double absY, Action<Microsoft.Maui.Controls.View, double, double> action)
+    private void BubblePointerEvent(PointerEventArgs e, RoutedPointerKind kind, Action<Microsoft.Maui.Controls.View, double, double> action)
     {
         var current = MauiView as Microsoft.Maui.Controls.Element;
         while (current != null)
@@ -29,9 +29,52 @@ public abstract partial class SkiaView
             if (current is Microsoft.Maui.Controls.View view
                 && (view.Handler?.PlatformView is SkiaView || current == MauiView))
             {
-                action(view, absX, absY);
+                action(view, e.X, e.Y);
+                RaisePointerRouted(view, kind, e);
             }
             current = current.Parent;
+        }
+    }
+
+    internal enum RoutedPointerKind { Entered, Exited, Moved, Pressed, Released }
+
+    /// <summary>
+    /// Raised once for every MAUI view a pointer event reaches: the view under
+    /// the pointer and each ancestor it bubbles to, in window-logical
+    /// coordinates. Lets extension packages feed third-party input pipelines
+    /// that expect native per-view touch events (Syncfusion's detectors).
+    /// </summary>
+    internal static event Action<Microsoft.Maui.Controls.View, RoutedPointerKind, PointerEventArgs>? PointerRouted;
+
+    /// <summary>
+    /// Raises <see cref="PointerRouted"/> for this view and its ancestors
+    /// without running their gesture recognizers: for events a layout handles
+    /// on its own surface (no child under the pointer), which do not bubble.
+    /// </summary>
+    private protected void RaisePointerRoutedChain(RoutedPointerKind kind, PointerEventArgs e)
+    {
+        if (PointerRouted == null)
+            return;
+        for (var current = MauiView as Microsoft.Maui.Controls.Element; current != null; current = current.Parent)
+        {
+            if (current is Microsoft.Maui.Controls.View view
+                && (view.Handler?.PlatformView is SkiaView || current == MauiView))
+                RaisePointerRouted(view, kind, e);
+        }
+    }
+
+    internal static void RaisePointerRouted(Microsoft.Maui.Controls.View? view, RoutedPointerKind kind, PointerEventArgs e)
+    {
+        var handler = PointerRouted;
+        if (handler == null || view == null)
+            return;
+        try
+        {
+            handler(view, kind, e);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaView", $"Pointer observer failed for {view.GetType().Name}", ex);
         }
     }
 
@@ -66,30 +109,30 @@ public abstract partial class SkiaView
     public virtual void OnPointerEntered(PointerEventArgs e)
     {
         PointerEntered?.Invoke(this, e);
-        BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerEntered);
+        BubblePointerEvent(e, RoutedPointerKind.Entered, GestureManager.ProcessPointerEntered);
     }
 
     public virtual void OnPointerExited(PointerEventArgs e)
     {
         PointerExited?.Invoke(this, e);
-        BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerExited);
+        BubblePointerEvent(e, RoutedPointerKind.Exited, GestureManager.ProcessPointerExited);
     }
 
     public virtual void OnPointerMoved(PointerEventArgs e)
     {
-        BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerMove);
+        BubblePointerEvent(e, RoutedPointerKind.Moved, GestureManager.ProcessPointerMove);
     }
 
     public virtual void OnPointerPressed(PointerEventArgs e)
     {
         PointerPressed?.Invoke(this, e);
-        BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerDown);
+        BubblePointerEvent(e, RoutedPointerKind.Pressed, GestureManager.ProcessPointerDown);
     }
 
     public virtual void OnPointerReleased(PointerEventArgs e)
     {
         PointerReleased?.Invoke(this, e);
-        BubblePointerEvent(e.X, e.Y, GestureManager.ProcessPointerUp);
+        BubblePointerEvent(e, RoutedPointerKind.Released, GestureManager.ProcessPointerUp);
     }
 
     public virtual void OnScroll(ScrollEventArgs e) { }
@@ -127,7 +170,7 @@ public abstract partial class SkiaView
                     GestureManager.CleanupView(MauiView);
                 }
 
-                foreach (var child in _children)
+                foreach (var child in _children.ToArray())
                 {
                     child.Dispose();
                 }

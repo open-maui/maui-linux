@@ -151,6 +151,10 @@ public class SkiaScrollView : SkiaView
     private float _lastPointerX;
     private float _lastPointerY;
 
+    /// <inheritdoc />
+    public override IEnumerable<SkiaView> ExtraContentRoots =>
+        _content != null ? new[] { _content } : Array.Empty<SkiaView>();
+
     /// <summary>
     /// Gets or sets the content view.
     /// </summary>
@@ -326,6 +330,14 @@ public class SkiaScrollView : SkiaView
 
             contentWidth -= (float)margin.Left + (float)margin.Right;
             contentHeight -= (float)margin.Top + (float)margin.Bottom;
+
+            // Content with an explicit size keeps it, as in MAUI; stretching it
+            // to the viewport re-spread a pinned Grid's Star columns.
+            if (_content.WidthRequest >= 0)
+                contentWidth = (float)_content.WidthRequest;
+            if (_content.HeightRequest >= 0)
+                contentHeight = (float)_content.HeightRequest;
+
             var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
             _content.Arrange(contentBounds);
 
@@ -918,6 +930,14 @@ public class SkiaScrollView : SkiaView
 
             contentWidth -= (float)margin.Left + (float)margin.Right;
             contentHeight -= (float)margin.Top + (float)margin.Bottom;
+
+            // Content with an explicit size keeps it, as in MAUI; stretching it
+            // to the viewport re-spread a pinned Grid's Star columns.
+            if (_content.WidthRequest >= 0)
+                contentWidth = (float)_content.WidthRequest;
+            if (_content.HeightRequest >= 0)
+                contentHeight = (float)_content.HeightRequest;
+
             var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
 
             _content.Arrange(contentBounds);
