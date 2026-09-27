@@ -44,7 +44,17 @@ public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandle
             // (a list placing items as it scrolls) land right too.
             if (VirtualView is Microsoft.Maui.Controls.Element { Parent: Microsoft.Maui.Controls.VisualElement { Handler.PlatformView: ILocalArrangeHost host } })
                 frame = frame.Offset(host.ArrangeOrigin.X, host.ArrangeOrigin.Y);
-            skia.Arrange(frame);
+            // MAUI's arrange (the view's ArrangeOverride included) is what called this.
+            var wasInMaui = skia.InMauiArrange;
+            skia.InMauiArrange = true;
+            try
+            {
+                skia.Arrange(frame);
+            }
+            finally
+            {
+                skia.InMauiArrange = wasInMaui;
+            }
         }
         else
             base.PlatformArrange(frame);
