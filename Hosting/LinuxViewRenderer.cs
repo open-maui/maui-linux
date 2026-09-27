@@ -212,11 +212,13 @@ public class LinuxViewRenderer
             {
                 skiaShell.FlyoutHeaderView = skiaHeader;
                 skiaShell.FlyoutHeaderHeight = (float)(headerView.HeightRequest > 0 ? headerView.HeightRequest : 140.0);
+                skiaShell.FlyoutHeaderHeightExplicit = headerView.HeightRequest > 0;
                 headerView.PropertyChanged += (_, e) =>
                 {
                     if (e.PropertyName == nameof(VisualElement.HeightRequest) && headerView.HeightRequest > 0)
                     {
                         skiaShell.FlyoutHeaderHeight = (float)headerView.HeightRequest;
+                        skiaShell.FlyoutHeaderHeightExplicit = true;
                         skiaShell.Invalidate();
                     }
                 };
@@ -555,12 +557,9 @@ public class LinuxViewRenderer
                         MauiShellContent = content
                     };
 
-                    // Create the page content
-                    var pageContent = CreateShellContentPage(content);
-                    if (pageContent != null)
-                    {
-                        shellContent.Content = pageContent;
-                    }
+                    // The page is created when its section is first shown
+                    // (SkiaShell.NavigateToSection), as MAUI creates a
+                    // templated ShellContent's page.
 
                     section.Items.Add(shellContent);
                 }
@@ -597,11 +596,7 @@ public class LinuxViewRenderer
                         MauiShellContent = content
                     };
 
-                    var pageContent = CreateShellContentPage(content);
-                    if (pageContent != null)
-                    {
-                        shellContent.Content = pageContent;
-                    }
+                    // Created when first shown (SkiaShell.NavigateToSection).
 
                     section.Items.Add(shellContent);
                 }
@@ -632,11 +627,7 @@ public class LinuxViewRenderer
                         MauiShellContent = content
                     };
 
-                    var pageContent = CreateShellContentPage(content);
-                    if (pageContent != null)
-                    {
-                        shellContent.Content = pageContent;
-                    }
+                    // Created when first shown (SkiaShell.NavigateToSection).
 
                     section.Items.Add(shellContent);
                 }

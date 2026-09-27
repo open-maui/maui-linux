@@ -70,9 +70,15 @@ public sealed class LinuxFontManager : IFontManager
     {
         var family = string.IsNullOrWhiteSpace(fontFamily) ? DefaultFontFamily : fontFamily!;
         return _registrar.TryGetTypeface(family, style)
-            ?? SKTypeface.FromFamilyName(family, style)
-            ?? SKTypeface.Default;
+            ?? s_systemTypefaces.GetOrAdd((family, style.Weight, style.Width, style.Slant),
+                static key => SKTypeface.FromFamilyName(key.Family, key.Weight, key.Width, key.Slant) ?? SKTypeface.Default);
     }
+
+    // Fontconfig lookups, kept for the process: text is measured on every layout pass and
+    // every draw (a Syncfusion chip or button measures its text in both), and resolving the
+    // family through fontconfig each time, with a new typeface every call, cost about 300 ms
+    // a frame on a page of chips and buttons while it animated.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Family, int Weight, int Width, SKFontStyleSlant Slant), SKTypeface> s_systemTypefaces = new();
 
     /// <summary>
     /// Effective font size for <paramref name="font"/>: its own size when

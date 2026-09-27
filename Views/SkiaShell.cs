@@ -355,6 +355,7 @@ public class SkiaShell : SkiaLayoutView
             _flyoutAnimationProgress = newValue ? 1f : 0f;
         }
         FlyoutIsPresentedChanged?.Invoke(this, EventArgs.Empty);
+        ReportFlyoutPresentedToMaui(newValue);
         Invalidate();
     }
 
@@ -412,6 +413,44 @@ public class SkiaShell : SkiaLayoutView
     /// Height of the flyout header.
     /// </summary>
     public float FlyoutHeaderHeight { get; set; } = 140f;
+
+    /// <summary>
+    /// True when <see cref="FlyoutHeaderHeight"/> was set for this header (its MAUI view's
+    /// HeightRequest); otherwise the header is as tall as its content, as MAUI sizes it.
+    /// </summary>
+    public bool FlyoutHeaderHeightExplicit { get; set; }
+
+    /// <summary>
+    /// The header's height at <paramref name="width"/>: its explicit height, else its
+    /// content's, at most the flyout's height. A fixed 140 cut the hit area of a taller
+    /// header (Strikeline's whole menu) at 140, so rows drawn below it took no clicks.
+    /// </summary>
+    private float ResolveFlyoutHeaderHeight(float width, float maxHeight)
+    {
+        if (FlyoutHeaderView == null)
+            return 0f;
+        if (FlyoutHeaderHeightExplicit)
+            return FlyoutHeaderHeight;
+        var desired = FlyoutHeaderView.Measure(new Size(width, double.PositiveInfinity));
+        var h = double.IsNaN(desired.Height) || double.IsInfinity(desired.Height) ? FlyoutHeaderHeight : (float)desired.Height;
+        return Math.Min(h, Math.Max(0f, maxHeight));
+    }
+
+    /// <summary>
+    /// The footer's height at <paramref name="width"/>: at least <see cref="FlyoutFooterHeight"/>,
+    /// and as tall as its content, as the flyout draws it; input uses the same value (it used the
+    /// fixed height, so rows of a taller footer took no clicks). The version-text fallback belongs
+    /// to the default item list only.
+    /// </summary>
+    private float ResolveFlyoutFooterHeight(float width)
+    {
+        if (FlyoutFooterView != null)
+        {
+            var desired = FlyoutFooterView.Measure(new Size(width, double.PositiveInfinity));
+            return Math.Max(FlyoutFooterHeight, double.IsNaN(desired.Height) || double.IsInfinity(desired.Height) ? 0f : (float)desired.Height);
+        }
+        return !string.IsNullOrEmpty(FlyoutFooterText) && FlyoutContentView == null ? FlyoutFooterHeight : 0f;
+    }
 
     private SkiaView? _flyoutContentView;
 
@@ -622,8 +661,45 @@ public class SkiaShell : SkiaLayoutView
     /// </summary>
     public Func<Microsoft.Maui.Controls.Page, SkiaView?>? PageRenderer { get; set; }
 
+    private bool _syncingFlyoutPresented;
+
+    /// <summary>
+    /// The MAUI shell's FlyoutIsPresented, both ways: code that opens or closes the drawer
+    /// (<c>Shell.Current.FlyoutIsPresented = true</c>) reaches the platform whatever handler
+    /// hosts the shell (the renderer-hosted handler maps no properties), and the hamburger
+    /// and scrim, which the platform handles itself, report back so MAUI's value is current.
+    /// </summary>
+    private void OnMauiShellPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // The selection, as MAUI moves it (GoToAsync to another item, code setting
+        // CurrentItem): the platform follows whatever handler hosts the shell. MAUI raises
+        // no Navigated for an item switch the platform has not performed.
+        if (e.PropertyName == nameof(Shell.CurrentItem))
+        {
+            SyncFromMauiShell();
+            return;
+        }
+        if (e.PropertyName != Shell.FlyoutIsPresentedProperty.PropertyName || _syncingFlyoutPresented || _mauiShell == null)
+            return;
+        _syncingFlyoutPresented = true;
+        try { FlyoutIsPresented = _mauiShell.FlyoutIsPresented; }
+        finally { _syncingFlyoutPresented = false; }
+    }
+
+    private void ReportFlyoutPresentedToMaui(bool presented)
+    {
+        if (_mauiShell == null || _syncingFlyoutPresented || _mauiShell.FlyoutIsPresented == presented)
+            return;
+        _syncingFlyoutPresented = true;
+        try { _mauiShell.SetValueFromRenderer(Shell.FlyoutIsPresentedProperty, presented); }
+        finally { _syncingFlyoutPresented = false; }
+    }
+
     private void AttachMauiShell(Shell shell)
     {
+        shell.PropertyChanged += OnMauiShellPropertyChanged;
+        if (FlyoutBehavior != ShellFlyoutBehavior.Locked)
+            OnMauiShellPropertyChanged(shell, new System.ComponentModel.PropertyChangedEventArgs(Shell.FlyoutIsPresentedProperty.PropertyName));
         shell.Navigated += OnMauiShellNavigated;
         if (shell is Microsoft.Maui.Controls.IShellController controller)
             controller.StructureChanged += OnMauiShellStructureChanged;
@@ -632,25 +708,46 @@ public class SkiaShell : SkiaLayoutView
 
     private void DetachMauiShell(Shell shell)
     {
+        shell.PropertyChanged -= OnMauiShellPropertyChanged;
         shell.Navigated -= OnMauiShellNavigated;
         if (shell is Microsoft.Maui.Controls.IShellController controller)
             controller.StructureChanged -= OnMauiShellStructureChanged;
         foreach (var section in _observedSections)
+        {
             ((Microsoft.Maui.Controls.IShellSectionController)section).NavigationRequested -= OnMauiNavigationRequested;
+            section.PropertyChanged -= OnMauiSelectionPropertyChanged;
+        }
         _observedSections.Clear();
+        foreach (var item in _observedItems)
+            item.PropertyChanged -= OnMauiSelectionPropertyChanged;
+        _observedItems.Clear();
     }
+
+    private readonly HashSet<Microsoft.Maui.Controls.ShellItem> _observedItems = new();
 
     private void ObserveMauiSections()
     {
         if (_mauiShell == null) return;
         foreach (var item in _mauiShell.Items)
         {
+            if (_observedItems.Add(item))
+                item.PropertyChanged += OnMauiSelectionPropertyChanged;
             foreach (var section in item.Items)
             {
                 if (_observedSections.Add(section))
+                {
                     ((Microsoft.Maui.Controls.IShellSectionController)section).NavigationRequested += OnMauiNavigationRequested;
+                    section.PropertyChanged += OnMauiSelectionPropertyChanged;
+                }
             }
         }
+    }
+
+    // A tab or content switch inside an item or section (their CurrentItem).
+    private void OnMauiSelectionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == "CurrentItem")
+            SyncFromMauiShell();
     }
 
     private void OnMauiShellStructureChanged(object? sender, EventArgs e) => ObserveMauiSections();
@@ -832,7 +929,25 @@ public class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Callback to render content from a ShellContent.
     /// </summary>
-    public Func<Microsoft.Maui.Controls.ShellContent, SkiaView?>? ContentRenderer { get; set; }
+    public Func<Microsoft.Maui.Controls.ShellContent, SkiaView?>? ContentRenderer
+    {
+        get => _contentRenderer;
+        set
+        {
+            _contentRenderer = value;
+            // The first section is selected as soon as it is added, which can be before the
+            // host supplies the renderer: build and show its page now.
+            if (value != null && _navigationStack.Count == 0
+                && _selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count
+                && _selectedItemIndex >= 0 && _selectedItemIndex < _sections[_selectedSectionIndex].Items.Count
+                && _sections[_selectedSectionIndex].Items[_selectedItemIndex].Content == null)
+            {
+                NavigateToSection(_selectedSectionIndex, _selectedItemIndex);
+            }
+        }
+    }
+
+    private Func<Microsoft.Maui.Controls.ShellContent, SkiaView?>? _contentRenderer;
 
     /// <summary>
     /// Callback to refresh shell colors.
@@ -890,6 +1005,11 @@ public class SkiaShell : SkiaLayoutView
         _selectedItemIndex = itemIndex;
 
         var item = section.Items[itemIndex];
+        // A ShellContent's page is built the first time it is shown, as MAUI builds a
+        // templated one: building every page up front ran the constructors of pages the
+        // app never visits (a sign-out page that needs a signed-in account threw at start).
+        if (item.Content == null && item.MauiShellContent != null && ContentRenderer != null)
+            item.Content = ContentRenderer(item.MauiShellContent);
         SetCurrentContent(item.Content);
         Title = item.Title;
         SendPageLifecycle(ResolveMauiPage(item));
@@ -947,7 +1067,8 @@ public class SkiaShell : SkiaLayoutView
             {
                 foreach (var item in section.Items)
                 {
-                    if (item.MauiShellContent != null)
+                    // Only pages already built: the others are built fresh when first shown.
+                    if (item.MauiShellContent != null && item.Content != null)
                     {
                         DiagnosticLog.Debug("SkiaShell", "Re-rendering: " + item.Title);
                         var skiaView = ContentRenderer(item.MauiShellContent);
@@ -1545,20 +1666,8 @@ public class SkiaShell : SkiaLayoutView
         canvas.DrawRect(flyoutBounds, flyoutPaint);
 
         // Calculate header and footer heights
-        float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-        float footerHeight;
-        if (FlyoutFooterView != null)
-        {
-            // Measure footer to its natural size so complex layouts aren't squished
-            var footerDesired = FlyoutFooterView.Measure(new Size(flyoutBounds.Width, double.PositiveInfinity));
-            footerHeight = Math.Max(FlyoutFooterHeight, (float)footerDesired.Height);
-        }
-        else
-        {
-            // The version-text fallback is for the default item list; flyout
-            // content is the whole flyout below the header, as on other platforms.
-            footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) && FlyoutContentView == null ? FlyoutFooterHeight : 0f;
-        }
+        float headerHeight = ResolveFlyoutHeaderHeight(flyoutBounds.Width, flyoutBounds.Height);
+        float footerHeight = ResolveFlyoutFooterHeight(flyoutBounds.Width);
 
         // Draw flyout header if present
         if (FlyoutHeaderView != null)
@@ -1779,9 +1888,8 @@ public class SkiaShell : SkiaLayoutView
             if (flyoutBounds.Contains(e.X, e.Y))
             {
                 // Calculate header and footer heights
-                float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-                float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
-                                    (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
+                float headerHeight = ResolveFlyoutHeaderHeight(flyoutBounds.Width, flyoutBounds.Height);
+                float footerHeight = ResolveFlyoutFooterHeight(flyoutBounds.Width);
 
                 float itemsAreaTop = flyoutBounds.Top + headerHeight;
                 float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
@@ -1909,9 +2017,8 @@ public class SkiaShell : SkiaLayoutView
 
             if (flyoutBounds.Contains(e.X, e.Y))
             {
-                float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
-                float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
-                                    (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
+                float headerHeight = ResolveFlyoutHeaderHeight(flyoutBounds.Width, flyoutBounds.Height);
+                float footerHeight = ResolveFlyoutFooterHeight(flyoutBounds.Width);
                 float totalItemsHeight = FlyoutItemsHeight(flyoutBounds.Width);
                 float viewableHeight = flyoutBounds.Height - headerHeight - footerHeight;
                 float maxScroll = Math.Max(0f, totalItemsHeight - viewableHeight);
