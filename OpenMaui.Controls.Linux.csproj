@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.110.2</Version>
+    <Version>10.0.110.3</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -37,7 +37,7 @@
          -p:ApiCompatGenerateSuppressionFile=true) and listed in CHANGELOG.md.
          Bump the baseline to the new version after each release. -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>10.0.110.1</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>10.0.110.2</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <!-- OpenMaui.Hosting provides the cross-platform UseLinux() stub -->
