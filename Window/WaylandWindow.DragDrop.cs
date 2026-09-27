@@ -91,7 +91,7 @@ public partial class WaylandWindow
         // negotiate — just raise DragEnter so enter/leave stay paired.
         if (offer == IntPtr.Zero)
         {
-            DragDropService.Default.RaiseDragEnter(MakeDragData(IntPtr.Zero), _dndX, _dndY);
+            DragDropService.Default.RaiseDragEnter(MakeDragData(IntPtr.Zero), _dndX, _dndY, this);
             return;
         }
 
@@ -116,7 +116,7 @@ public partial class WaylandWindow
 
         // Raise DragEnter so consumers can veto. Accepted defaults to true, so
         // the acceptance above stands unless a handler explicitly opts out.
-        var args = DragDropService.Default.RaiseDragEnter(MakeDragData(offer), _dndX, _dndY);
+        var args = DragDropService.Default.RaiseDragEnter(MakeDragData(offer), _dndX, _dndY, this);
         if (!args.Accepted)
         {
             _dndAcceptedMime = null;
@@ -134,7 +134,7 @@ public partial class WaylandWindow
 
         // Re-raise DragOver — gives the consumer a chance to flip Accepted on
         // a per-position basis (e.g. drop only allowed in certain regions).
-        var args = DragDropService.Default.RaiseDragOver(MakeDragData(_currentDnDOffer), _dndX, _dndY);
+        var args = DragDropService.Default.RaiseDragOver(MakeDragData(_currentDnDOffer), _dndX, _dndY, this);
         // We don't re-issue accept/set_actions on every motion — the compositor
         // remembers the last value from enter. Only flip when Accepted changes.
         // (Apps that flicker the accepted state would need an extra cached
@@ -232,7 +232,7 @@ public partial class WaylandWindow
                             if (paths.Count > 0) data.FilePaths = paths.ToArray();
                         }
                     }
-                    DragDropService.Default.RaiseDrop(data, text, dropX, dropY);
+                    DragDropService.Default.RaiseDrop(data, text, dropX, dropY, this);
                 }
                 finally
                 {
