@@ -103,11 +103,18 @@ public class SkiaGrid : SkiaLayoutView
         // no handler update, so a copy taken at add time went stale.
         if (MauiView is Microsoft.Maui.Controls.Grid && child.MauiView is Microsoft.Maui.Controls.BindableObject mauiChild)
         {
+            // Clamped to the rows and columns that exist (no definitions: one), as MAUI's
+            // GridStructure clamps them: a background image with RowSpan 2 in a grid with no
+            // rows made a second row and halved the page's ScrollView beside it.
+            int rows = Math.Max(1, _rowDefinitions.Count);
+            int columns = Math.Max(1, _columnDefinitions.Count);
+            int row = Math.Clamp(Microsoft.Maui.Controls.Grid.GetRow(mauiChild), 0, rows - 1);
+            int column = Math.Clamp(Microsoft.Maui.Controls.Grid.GetColumn(mauiChild), 0, columns - 1);
             return new GridPosition(
-                Microsoft.Maui.Controls.Grid.GetRow(mauiChild),
-                Microsoft.Maui.Controls.Grid.GetColumn(mauiChild),
-                Math.Max(1, Microsoft.Maui.Controls.Grid.GetRowSpan(mauiChild)),
-                Math.Max(1, Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiChild)));
+                row,
+                column,
+                Math.Clamp(Microsoft.Maui.Controls.Grid.GetRowSpan(mauiChild), 1, rows - row),
+                Math.Clamp(Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiChild), 1, columns - column));
         }
         return _childPositions.TryGetValue(child, out var pos) ? pos : new GridPosition(0, 0, 1, 1);
     }
@@ -135,12 +142,17 @@ public class SkiaGrid : SkiaLayoutView
         bool infiniteWidth = float.IsNaN(contentWidth) || float.IsInfinity(contentWidth);
         if (float.IsNaN(contentHeight) || float.IsInfinity(contentHeight)) contentHeight = float.PositiveInfinity;
 
-        var rowCount = Math.Max(1, _rowDefinitions.Count > 0 ? _rowDefinitions.Count : GetMaxRow() + 1);
-        var columnCount = Math.Max(1, _columnDefinitions.Count > 0 ? _columnDefinitions.Count : GetMaxColumn() + 1);
+        // A MAUI Grid without definitions has one row and one column (children clamped
+        // into them, GetPosition); a code-built grid still grows rows for its children.
+        bool mauiGrid = MauiView is Microsoft.Maui.Controls.Grid;
+        var rowCount = Math.Max(1, _rowDefinitions.Count > 0 || mauiGrid ? _rowDefinitions.Count : GetMaxRow() + 1);
+        var columnCount = Math.Max(1, _columnDefinitions.Count > 0 || mauiGrid ? _columnDefinitions.Count : GetMaxColumn() + 1);
 
         // First pass: measure children in Auto columns to get natural widths
         var columnNaturalWidths = new float[columnCount];
         var rowNaturalHeights = new float[rowCount];
+        var columnSpans = new Dictionary<(int Start, int Length), float>();
+        var rowSpans = new Dictionary<(int Start, int Length), float>();
 
         foreach (var child in Children.ToArray())
         {
@@ -150,7 +162,19 @@ public class SkiaGrid : SkiaLayoutView
 
             // For Auto columns, measure with infinite width to get natural size
             var def = pos.Column < _columnDefinitions.Count ? _columnDefinitions[pos.Column] : GridLength.Star;
-            if ((def.IsAuto || (infiniteWidth && def.IsStar)) && pos.ColumnSpan == 1)
+            if (pos.ColumnSpan > 1)
+            {
+                // A child spanning Auto columns widens them (resolved below).
+                if (SpanHasAuto(_columnDefinitions, pos.Column, pos.ColumnSpan))
+                {
+                    var spanMargin = child.Margin;
+                    var spanSize = child.Measure(new Size(double.PositiveInfinity,
+                        NeedsNaturalHeight(pos, contentHeight) ? double.PositiveInfinity : Inset(contentHeight, spanMargin.VerticalThickness)));
+                    if (!double.IsNaN(spanSize.Width))
+                        TrackSpan(columnSpans, pos.Column, pos.ColumnSpan, (float)(spanSize.Width + spanMargin.HorizontalThickness));
+                }
+            }
+            else if (def.IsAuto || (infiniteWidth && def.IsStar))
             {
                 // Height: unbounded only where a natural height is wanted (see
                 // NeedsNaturalHeight); otherwise the grid's height bounds it.
@@ -162,6 +186,8 @@ public class SkiaGrid : SkiaLayoutView
                 columnNaturalWidths[pos.Column] = Math.Max(columnNaturalWidths[pos.Column], childWidth);
             }
         }
+
+        ResolveSpans(_columnDefinitions, columnNaturalWidths, columnSpans, ColumnSpacing);
 
         // Calculate column widths - handle Auto, Absolute, and Star
         _columnNaturalWidths = columnNaturalWidths;
@@ -204,13 +230,25 @@ public class SkiaGrid : SkiaLayoutView
             {
                 rowNaturalHeights[pos.Row] = Math.Max(rowNaturalHeights[pos.Row], childHeight);
             }
+            else
+            {
+                // A child spanning Auto rows makes them tall enough for it (resolved
+                // below): a price pill spanning two label rows was squeezed to the
+                // labels' height and its text cut off (Strikeline's watchlist).
+                TrackSpan(rowSpans, pos.Row, pos.RowSpan, childHeight);
+            }
         }
+
+        ResolveSpans(_rowDefinitions, rowNaturalHeights, rowSpans, RowSpacing);
 
         // Calculate row heights - use natural heights when available height is infinite or very large
         // (Some layouts pass float.MaxValue instead of PositiveInfinity)
         if (float.IsInfinity(contentHeight) || contentHeight > 100000)
         {
-            _rowHeights = rowNaturalHeights;
+            // Unconstrained: Auto and Star rows take their content, Absolute rows their
+            // value (a 30 px row inside an Auto row of another grid was as tall as its
+            // label, and the rows of Strikeline's flyout items ran into each other).
+            _rowHeights = NaturalSizes(_rowDefinitions, rowCount, rowNaturalHeights);
         }
         else
         {
@@ -230,13 +268,126 @@ public class SkiaGrid : SkiaLayoutView
             child.Measure(new Size(Inset(cellWidth, cellMargin.HorizontalThickness), Inset(cellHeight, cellMargin.VerticalThickness)));
         }
 
-        // Calculate total size
-        var totalWidth = _columnWidths.Sum() + Math.Max(0, columnCount - 1) * ColumnSpacing;
-        var totalHeight = _rowHeights.Sum() + Math.Max(0, rowCount - 1) * RowSpacing;
+        // The measured size, as MAUI's GridLayoutManager reports it: a Star row (column)
+        // counts only what its content needs, up to its share (MinimizeStarsForMeasurement);
+        // it fills the space when the grid is arranged. Reporting the whole share made a
+        // parent that measures with a height it does not mean to fill (SfCardView passes 200
+        // for "unbounded") get that height back: Strikeline's option chain rows were 200 tall.
+        var measuredWidths = infiniteWidth ? _columnWidths
+            : StarMinimums(_columnDefinitions, _columnWidths, ColumnSpacing, horizontal: true);
+        var measuredHeights = float.IsInfinity(contentHeight) || contentHeight > 100000 ? _rowHeights
+            : StarMinimums(_rowDefinitions, _rowHeights, RowSpacing, horizontal: false);
+        var totalWidth = measuredWidths.Sum() + Math.Max(0, columnCount - 1) * ColumnSpacing;
+        var totalHeight = measuredHeights.Sum() + Math.Max(0, rowCount - 1) * RowSpacing;
 
         return new Size(
             totalWidth + Padding.Left + Padding.Right,
             totalHeight + Padding.Top + Padding.Bottom);
+    }
+
+    /// <summary>
+    /// The row heights (column widths) with each Star one reduced to what its children need,
+    /// capped at its share: MAUI's MinimumSize for a star definition. A child spanning several
+    /// rows shares what it still needs, after the non-star rows and spacing it spans, equally
+    /// over its star rows (GridStructure.DetermineMinimumStarSizesInSpan).
+    /// </summary>
+    private float[] StarMinimums(List<GridLength> definitions, float[] sizes, double spacing, bool horizontal)
+    {
+        bool IsStar(int i) => (i < definitions.Count ? definitions[i] : GridLength.Star).IsStar;
+        var result = (float[])sizes.Clone();
+        var minimums = new float[sizes.Length];
+        bool anyStar = false;
+        for (int i = 0; i < sizes.Length; i++)
+            anyStar |= IsStar(i);
+        if (!anyStar)
+            return result;
+
+        var spans = new List<(int Start, int End, float Needed)>();
+        foreach (var child in Children)
+        {
+            if (!child.IsVisible) continue;
+            var pos = GetPosition(child);
+            int start = horizontal ? pos.Column : pos.Row;
+            int end = Math.Min(start + (horizontal ? pos.ColumnSpan : pos.RowSpan), sizes.Length);
+            if (start >= sizes.Length) continue;
+            var margin = child.Margin;
+            float needed = horizontal
+                ? (float)(child.DesiredSize.Width + margin.HorizontalThickness)
+                : (float)(child.DesiredSize.Height + margin.VerticalThickness);
+            if (float.IsNaN(needed) || float.IsInfinity(needed)) continue;
+            if (end - start == 1)
+            {
+                if (IsStar(start))
+                    minimums[start] = Math.Max(minimums[start], needed);
+            }
+            else
+                spans.Add((start, end, needed));
+        }
+        foreach (var (start, end, needed) in spans)
+        {
+            float remaining = needed - (float)(spacing * (end - start - 1));
+            int stars = 0;
+            float starTotal = 0;
+            for (int i = start; i < end; i++)
+            {
+                if (IsStar(i)) { stars++; starTotal += minimums[i]; }
+                else remaining -= sizes[i];
+            }
+            if (stars == 0 || starTotal >= remaining) continue;
+            float share = (remaining - starTotal) / stars;
+            for (int i = start; i < end; i++)
+                if (IsStar(i))
+                    minimums[i] += share;
+        }
+        for (int i = 0; i < result.Length; i++)
+            if (IsStar(i))
+                result[i] = Math.Min(minimums[i], sizes[i]);
+        return result;
+    }
+
+    private static bool SpanHasAuto(List<GridLength> definitions, int start, int length)
+    {
+        for (int i = start; i < start + length; i++)
+            if (i < definitions.Count && definitions[i].IsAuto)
+                return true;
+        return false;
+    }
+
+    private static void TrackSpan(Dictionary<(int Start, int Length), float> spans, int start, int length, float requested)
+    {
+        if (!spans.TryGetValue((start, length), out var current) || requested > current)
+            spans[(start, length)] = requested;
+    }
+
+    /// <summary>
+    /// MAUI's span resolution (GridLayoutManager.ResolveSpan): when a child spanning
+    /// several rows (or columns) needs more than they add up to, with the spacing
+    /// between them, the difference is shared equally by the Auto ones it spans. A
+    /// span that includes a Star row or column is left to the star sizing.
+    /// </summary>
+    private static void ResolveSpans(List<GridLength> definitions, float[] naturalSizes,
+        Dictionary<(int Start, int Length), float> spans, double spacing)
+    {
+        foreach (var ((start, length), requested) in spans)
+        {
+            int end = Math.Min(start + length, naturalSizes.Length);
+            float current = (float)(spacing * (end - start - 1));
+            int autoCount = 0;
+            bool hasStar = false;
+            for (int i = start; i < end; i++)
+            {
+                var def = i < definitions.Count ? definitions[i] : GridLength.Star;
+                if (def.IsAbsolute) current += def.Value;
+                else if (def.IsAuto) { current += naturalSizes[i]; autoCount++; }
+                else hasStar = true;
+            }
+            if (hasStar || autoCount == 0 || requested <= current)
+                continue;
+            float share = (requested - current) / autoCount;
+            for (int i = start; i < end; i++)
+                if (i < definitions.Count && definitions[i].IsAuto)
+                    naturalSizes[i] += share;
+        }
     }
 
     /// <summary>
