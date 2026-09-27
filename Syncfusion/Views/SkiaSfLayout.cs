@@ -250,7 +250,12 @@ internal static class SfDrawing
 
     public static void Draw(IDrawable drawable, SKCanvas canvas, SKRect bounds, bool clip)
     {
-        canvas.Save();
+        // Restored to this depth whatever the control's drawing did: a
+        // SaveState without its RestoreState (or a stub throwing between the
+        // two) left the control's translation and clip on the canvas, so its
+        // children (a combo box's text field and buttons) drew shifted by the
+        // control's position, or clipped away entirely.
+        int depth = canvas.Save();
         try
         {
             if (clip)
@@ -278,7 +283,7 @@ internal static class SfDrawing
         }
         finally
         {
-            canvas.Restore();
+            canvas.RestoreToCount(depth);
         }
     }
 }
