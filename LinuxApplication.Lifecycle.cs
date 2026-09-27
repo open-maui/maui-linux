@@ -62,6 +62,10 @@ public partial class LinuxApplication
         configure?.Invoke(options);
         ParseCommandLineOptions(args, options);
 
+        // OPENMAUI_DOCTOR=1 / --openmaui-doctor: print the environment report and exit before any window exists.
+        if (Diagnostics.OpenMauiDoctor.IsRequested(args))
+            Environment.Exit(Diagnostics.OpenMauiDoctor.RunAndPrint(options));
+
         // Initialize the GTK host service early. Idempotent: when X11 mode is selected,
         // SkiaWebView still needs a backing GTK widget hierarchy via this hidden host
         // window; when GTK mode is selected, InitializeGtk reuses this same instance
@@ -107,8 +111,19 @@ public partial class LinuxApplication
 
             // Create MAUI context. Retained on the app so Application.OpenWindow
             // can render new windows' pages later (multi-window support).
-            var mauiContext = new LinuxMauiContext(app.Services, linuxApp);
+            // Services resolve from a window scope, as MAUI does on every
+            // platform (MakeWindowScope): scoped registrations (pages, view
+            // models, per-window services) behave as they do elsewhere instead
+            // of being resolved from the root provider.
+            var windowScope = app.Services.CreateScope();
+            var mauiContext = new LinuxMauiContext(windowScope.ServiceProvider, linuxApp);
             linuxApp.MauiContext = mauiContext;
+
+            // Before the Application and its pages are created: their
+            // constructors (and XAML-created views) may resolve services
+            // through IPlatformApplication.Current, as on every MAUI platform.
+            linuxApp.RootServices = app.Services;
+            IPlatformApplication.Current = linuxApp;
 
             // Get the application and render it
             var application = app.Services.GetService<IApplication>();
@@ -127,7 +142,7 @@ public partial class LinuxApplication
                 }
                 catch (Exception ex)
                 {
-                    DiagnosticLog.Error("LinuxApplication", $"Attaching ApplicationHandler failed: {ex.Message}");
+                    DiagnosticLog.Error("LinuxApplication", $"Attaching ApplicationHandler failed: {ex.Message}", ex);
                 }
                 // Force Application.Current to be this instance
                 var currentProperty = typeof(Application).GetProperty("Current");
@@ -203,7 +218,7 @@ public partial class LinuxApplication
                 {
                     // Use IApplication interface to call CreateWindow without reflection
                     var appInterface = (IApplication)mauiApplication;
-                    var mauiWindow = appInterface.CreateWindow(null!) as Microsoft.Maui.Controls.Window;
+                    var mauiWindow = StartupWindowFactory.Create(appInterface, mauiContext) as Microsoft.Maui.Controls.Window;
 
                     if (mauiWindow != null)
                     {
@@ -228,7 +243,7 @@ public partial class LinuxApplication
                 }
                 catch (Exception ex)
                 {
-                    DiagnosticLog.Error("LinuxApplication", $"CreateWindow failed: {ex.Message}");
+                    DiagnosticLog.Error("LinuxApplication", $"CreateWindow failed: {ex.Message}", ex);
                 }
 
                 // Fall back to MainPage if CreateWindow didn't produce a page
@@ -345,6 +360,15 @@ public partial class LinuxApplication
         if (MainWindow == null)
             throw new InvalidOperationException("No display window available");
 
+        Diagnostics.VisualTreeInspector.ScheduleDumpFromEnvironment();
+        // OPENMAUI_FIRST_CHANCE=1: log every exception where it is thrown, with
+        // its stack, including ones the app or a library catches and reduces to
+        // a message.
+        if (Environment.GetEnvironmentVariable("OPENMAUI_FIRST_CHANCE") == "1")
+        {
+            AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+                Console.Error.WriteLine($"[FirstChance] {e.Exception.GetType().Name}: {e.Exception.Message}\n{Environment.StackTrace}");
+        }
         RunEventLoop();
     }
 
