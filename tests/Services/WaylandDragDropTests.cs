@@ -84,9 +84,9 @@ public class WaylandDragDropServiceTests
             typeof(DragDropService).GetMethod("RaiseDragLeave", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
         public static DragEventArgs DragEnter(DragDropService s, DragData d, int x, int y)
-            => (DragEventArgs)MEnter.Invoke(s, new object[] { d, x, y })!;
+            => (DragEventArgs)MEnter.Invoke(s, new object?[] { d, x, y, null })!;
         public static DropEventArgs Drop(DragDropService s, DragData d, string? text)
-            => (DropEventArgs)MDrop.Invoke(s, new object?[] { d, text, 0, 0 })!;
+            => (DropEventArgs)MDrop.Invoke(s, new object?[] { d, text, 0, 0, null })!;
         public static void DragLeave(DragDropService s)
             => MLeave.Invoke(s, Array.Empty<object>());
     }
