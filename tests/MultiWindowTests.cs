@@ -297,6 +297,48 @@ public class MultiWindowTests : IDisposable
     }
 
     [Fact]
+    public void PrimaryWindow_RaisesCreatedOnceAtStartup()
+    {
+        // Created is what runs Application.OnStart; the startup sequence raises
+        // it for the primary window, once, and still no Activated.
+        var (ctx, win) = AddWindow(raisesLifecycle: false);
+        var mauiWindow = new Mock<IWindow>();
+        ctx.MauiWindow = mauiWindow.Object;
+
+        ctx.NotifyCreated(primary: true);
+        ctx.NotifyCreated(primary: true);
+        win.RaiseFocusGained();
+
+        mauiWindow.Verify(w => w.Created(), Times.Once);
+        mauiWindow.Verify(w => w.Activated(), Times.Never);
+    }
+
+    [Fact]
+    public void Application_OnStart_runs_when_the_primary_window_is_created()
+    {
+        var app = new StartRecordingApp();
+        var window = new Microsoft.Maui.Controls.Window(new Microsoft.Maui.Controls.ContentPage());
+        app.AddWindowForTest(window);
+        ((Microsoft.Maui.IApplication)app).CreateWindow(null);
+        var (ctx, _) = AddWindow(raisesLifecycle: false);
+        ctx.MauiWindow = window;
+
+        ctx.NotifyCreated(primary: true);
+
+        app.Started.Should().Be(1);
+    }
+
+    private sealed class StartRecordingApp : Microsoft.Maui.Controls.Application
+    {
+        private Microsoft.Maui.Controls.Window? _window;
+        public int Started { get; private set; }
+        protected override void OnStart() => Started++;
+        protected override Microsoft.Maui.Controls.Window CreateWindow(Microsoft.Maui.IActivationState? activationState)
+            => _window ?? new Microsoft.Maui.Controls.Window(new Microsoft.Maui.Controls.ContentPage());
+        public void AddWindowForTest(Microsoft.Maui.Controls.Window window) => _window = window;
+    }
+
+    [Fact]
     public void SecondaryWindow_LifecycleIsLatched()
     {
         var (ctx, win) = AddWindow(raisesLifecycle: true);
