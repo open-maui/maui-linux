@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Rendering;
 /// a GPU buffer to the surface (zero copy) and on X11 goes through DRI3/Present.
 /// Backend-specific native window handling lives in the subclasses.
 /// </summary>
-public abstract class EglRenderTarget : IRenderTarget
+public abstract class EglRenderTarget : IRenderTarget, IDamageAwareRenderTarget
 {
     private IntPtr _eglDisplay;
     private IntPtr _eglConfig;
@@ -29,6 +29,12 @@ public abstract class EglRenderTarget : IRenderTarget
     private int _height;
     private bool _disposed;
     private bool _swapFailureLogged;
+
+    // Partial damage (EGL_EXT_buffer_age + swap_buffers_with_damage); probed once.
+    private bool _damageProbed;
+    private bool _bufferAgeSupported;
+    private Egl.SwapBuffersWithDamageFn? _swapWithDamage;
+    private IReadOnlyList<SKRectI>? _frameDamage;
 
     public string Name { get; }
     public bool IsGpuAccelerated => true;
@@ -194,6 +200,27 @@ public abstract class EglRenderTarget : IRenderTarget
         _backendTarget = null;
     }
 
+    /// <inheritdoc />
+    public int QueryBufferAge()
+    {
+        if (_disposed || _grContext == null) return 0;
+        if (Egl.eglMakeCurrent(_eglDisplay, _eglSurface, _eglSurface, _eglContext) == Egl.EGL_FALSE)
+            return 0;
+        if (!_damageProbed)
+        {
+            _damageProbed = true;
+            _bufferAgeSupported = Egl.HasDisplayExtension(_eglDisplay, "EGL_EXT_buffer_age");
+            _swapWithDamage = Egl.GetSwapBuffersWithDamage(_eglDisplay);
+            DiagnosticLog.Debug("EglRenderTarget",
+                $"Partial damage: buffer age {(_bufferAgeSupported ? "yes" : "no")}, swap with damage {(_swapWithDamage != null ? "yes" : "no")}");
+        }
+        if (!_bufferAgeSupported) return 0;
+        return Egl.eglQuerySurface(_eglDisplay, _eglSurface, Egl.EGL_BUFFER_AGE_EXT, out int age) == Egl.EGL_FALSE ? 0 : age;
+    }
+
+    /// <inheritdoc />
+    public void SetFrameDamage(IReadOnlyList<SKRectI>? damage) => _frameDamage = damage;
+
     public SKCanvas? BeginFrame()
     {
         if (_disposed || _grContext == null) return null;
@@ -228,7 +255,29 @@ public abstract class EglRenderTarget : IRenderTarget
         _skSurface.Canvas.Flush();
         _grContext.Flush();
 
-        if (Egl.eglSwapBuffers(_eglDisplay, _eglSurface) == Egl.EGL_FALSE && !_swapFailureLogged)
+        var damage = _frameDamage;
+        _frameDamage = null;
+        int swapped;
+        if (damage != null && damage.Count > 0 && _swapWithDamage != null)
+        {
+            // EGL damage rects have a bottom-left origin.
+            var rects = new int[damage.Count * 4];
+            for (int i = 0; i < damage.Count; i++)
+            {
+                var r = damage[i];
+                rects[i * 4] = r.Left;
+                rects[i * 4 + 1] = _height - r.Bottom;
+                rects[i * 4 + 2] = r.Width;
+                rects[i * 4 + 3] = r.Height;
+            }
+            swapped = _swapWithDamage(_eglDisplay, _eglSurface, rects, damage.Count);
+        }
+        else
+        {
+            swapped = Egl.eglSwapBuffers(_eglDisplay, _eglSurface);
+        }
+
+        if (swapped == Egl.EGL_FALSE && !_swapFailureLogged)
         {
             _swapFailureLogged = true;
             DiagnosticLog.Error("EglRenderTarget", $"eglSwapBuffers failed: {Egl.ErrorName(Egl.eglGetError())}");
