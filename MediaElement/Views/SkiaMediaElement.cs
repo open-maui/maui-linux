@@ -6,7 +6,10 @@ using Microsoft.Maui;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Dispatching;
+using Microsoft.Maui.Platform.Linux.Interop;
 using Microsoft.Maui.Platform.Linux.MediaElement.Native;
+using Microsoft.Maui.Platform.Linux.MediaElement.Rendering;
+using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using static Microsoft.Maui.Platform.Linux.MediaElement.Native.GStreamerInterop;
@@ -30,6 +33,20 @@ namespace Microsoft.Maui.Platform.Linux.MediaElement.Views;
 ///      └─ audio-sink → autoaudiosink (system default)
 ///
 /// HW decode auto-negotiates via playbin when vaapi/nvdec plugins are installed.
+///
+/// Zero-copy (GPU render target): the appsink additionally offers
+/// <c>video/x-raw(memory:DMABuf),format=DMA_DRM</c> caps (first, so preferred)
+/// restricted to the formats/modifiers the window's EGL display can import,
+/// and advertises GstVideoMeta in the allocation query. A decoder that exports
+/// DMA-BUF (VA-API <c>va*dec</c>, V4L2) then hands its output surface over
+/// unchanged: the sample is kept alive, its planes are imported as one EGLImage
+/// (NV12 through GL_TEXTURE_EXTERNAL_OES, the driver doing YUV to RGB) by the
+/// shared <see cref="DmaBufTextureImporter"/>, and Skia draws the texture. No
+/// videoconvert, no CPU copy, no per-frame upload. Decoders that cannot export
+/// DMA-BUF (software, NVDEC) negotiate the BGRA caps and take the CPU path as
+/// before. On a raster target, a failed import, a different GPU, or
+/// <c>OPENMAUI_VIDEO_ZEROCOPY=0</c>, the pipeline is (re)built with BGRA-only
+/// caps and the CPU path is used for the rest of the element's life.
 /// </summary>
 public class SkiaMediaElement : SkiaView, IDisposable
 {
@@ -64,6 +81,45 @@ public class SkiaMediaElement : SkiaView, IDisposable
     public string? CurrentUri => _currentUri;
     public bool IsPlaying => _isPlaying;
 
+    // ---- zero-copy (DMA-BUF) state --------------------------------------
+    private enum FramePath
+    {
+        /// <summary>DMA-BUF caps offered; decided on the first DMA-BUF frame drawn.</summary>
+        Undecided,
+        /// <summary>DMA-BUF frames imported as EGLImage textures.</summary>
+        ZeroCopy,
+        /// <summary>System-memory BGRA frames copied into an SKImage.</summary>
+        PixelCopy,
+    }
+
+    private static int s_framePathLogged;
+    private static readonly Lazy<bool> s_drmFormatCaps = new(() =>
+    {
+        try
+        {
+            gst_version(out uint major, out uint minor, out _, out _);
+            return VideoFrameFormats.SupportsDrmFormatCaps(major, minor);
+        }
+        catch (EntryPointNotFoundException) { return false; }
+    });
+
+    private FramePath _framePath = FramePath.Undecided;
+    private bool _dmaBufOffered;                  // the current pipeline's appsink caps include memory:DMABuf
+    private GstDmaBufFrame? _pendingGpuFrame;     // newest DMA-BUF frame, not imported yet (UI thread)
+    private DmaBufTextureImporter? _gpuFrame;     // the on-screen DMA-BUF texture
+    private readonly GstSampleReleaseQueue _releaseQueue = new();
+    private IntPtr _sinkPad;
+    private nuint _allocationProbeId;
+    private GStreamerInterop.GstPadProbeCallback? _allocationProbe;
+    private SKSize _gpuFrameSize;
+
+    // Diagnostics.
+    internal long ZeroCopyFrameCount { get; private set; }
+    internal long PixelCopyFrameCount { get; private set; }
+    /// <summary>Stopwatch ticks spent installing frames on the UI thread (pixel copy: SKImage copy; zero-copy: EGLImage import).</summary>
+    internal long FrameImportTicks { get; private set; }
+    internal string ActiveFramePath => _framePath.ToString();
+
     /// <summary>
     /// Set/replace the media source. Tears down the existing pipeline (if any)
     /// and rebuilds it for the new URI. Null URI clears the source.
@@ -84,7 +140,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaMediaElement", $"Pipeline build failed for '{uri}': {ex.Message}");
+            DiagnosticLog.Error("SkiaMediaElement", $"Pipeline build failed for '{uri}': {ex.Message}", ex);
         }
     }
 
@@ -111,18 +167,25 @@ public class SkiaMediaElement : SkiaView, IDisposable
         // instead of being swallowed. Only runs once per Play() — bus
         // monitoring during the steady state isn't needed; flushing seeks
         // post pre-roll errors are vanishingly rare.
-        Task.Run(DrainBusMessages);
+        // The task holds its own ref on the bus: the pipeline may be disposed
+        // (new source, pixel-copy rebuild) while it is still popping.
+        if (_bus == IntPtr.Zero) return;
+        var bus = gst_object_ref(_bus);
+        Task.Run(() =>
+        {
+            try { DrainBusMessages(bus); }
+            finally { gst_object_unref(bus); }
+        });
     }
 
-    private void DrainBusMessages()
+    private static void DrainBusMessages(IntPtr bus)
     {
-        if (_bus == IntPtr.Zero) return;
         try
         {
             // Pull up to ~3s of messages, stopping if we see a terminal one.
             for (int i = 0; i < 30; i++)
             {
-                var msg = gst_bus_timed_pop_filtered(_bus, 100_000_000UL,
+                var msg = gst_bus_timed_pop_filtered(bus, 100_000_000UL,
                     GstMessageType.Error | GstMessageType.Eos);
                 if (msg == IntPtr.Zero) continue;
                 try
@@ -144,7 +207,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaMediaElement", $"Bus drain failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaMediaElement", $"Bus drain failed: {ex.Message}", ex);
         }
     }
 
@@ -160,6 +223,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
     public void Stop()
     {
         if (_playbin == IntPtr.Zero) return;
+        lock (_seekLock) _seekTargetNs = null; // a pending seek must not undo the stop
         gst_element_set_state(_playbin, GstState.Ready);
         gst_element_seek_simple(_playbin, GstFormat.Time, GstSeekFlags.Flush | GstSeekFlags.KeyUnit, 0);
         _isPlaying = false;
@@ -182,25 +246,103 @@ public class SkiaMediaElement : SkiaView, IDisposable
             gst_element_get_state(_playbin, out current, out _, 5_000_000_000UL);
         }
 
-        long ns = position.Ticks * 100L;
-        // FLUSH | KEY_UNIT | ACCURATE.
-        // - FLUSH: discard buffered frames so the seek shows immediately.
-        // - KEY_UNIT + ACCURATE: land precisely at the requested timestamp
-        //   (decode-and-discard from the previous keyframe). KEY_UNIT alone
-        //   lands on the nearest keyframe which is fine forward but offsets
-        //   backward seeks by several seconds.
+        long ns = Math.Max(0, position.Ticks * 100L);
         // NOTE: do NOT drain the bus here — the synchronous drain blocks the
         // main thread for up to 3 seconds per seek, freezing the UI and
         // queueing rapid scrubs. Bus errors are surfaced during Play().
-        gst_element_seek_simple(_playbin, GstFormat.Time,
-            GstSeekFlags.Flush | GstSeekFlags.KeyUnit | GstSeekFlags.Accurate, ns);
+        //
+        // The seek itself runs on a worker, one at a time, latest target wins:
+        // a flushing seek blocks its caller until the source's streaming thread
+        // lets go, and back-to-back flushing seeks on souphttpsrc can leave a
+        // range request stalled indefinitely (measured: 3 of 5 runs of twelve
+        // seeks 50 ms apart on an HTTP VP9 stream hung the seeking thread;
+        // waiting for each seek's preroll before the next, 0 of 5 did, and a
+        // scrub of twelve targets issued four seeks and settled in 0.8 s).
+        lock (_seekLock)
+        {
+            _seekTargetNs = ns;
+            if (_seekWorkerRunning) return;
+            _seekWorkerRunning = true;
+        }
+        var playbin = gst_object_ref(_playbin);
+        int generation = _pipelineGeneration;
+        Task.Run(() => RunSeeks(playbin, generation));
     }
+
+    private readonly object _seekLock = new();
+    private long? _seekTargetNs;      // newest requested target not yet issued (or in flight), under _seekLock
+    private long? _seekInFlightNs;    // target being issued/prerolled, under _seekLock
+    private bool _seekWorkerRunning;  // under _seekLock
+    private int _pipelineGeneration;  // bumped when the pipeline is disposed
+
+    private void RunSeeks(IntPtr playbin, int generation)
+    {
+        try
+        {
+            while (true)
+            {
+                long ns;
+                lock (_seekLock)
+                {
+                    if (_seekTargetNs is not long target || generation != _pipelineGeneration)
+                    {
+                        _seekTargetNs = null;
+                        _seekInFlightNs = null;
+                        _seekWorkerRunning = false;
+                        return;
+                    }
+                    ns = target;
+                    _seekTargetNs = null;
+                    _seekInFlightNs = ns;
+                }
+                gst_element_seek_simple(playbin, GstFormat.Time, AccurateSeekFlags, ns);
+                // Wait for the seek to preroll before issuing the next one.
+                gst_element_get_state(playbin, out _, out _, 5_000_000_000UL);
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaMediaElement", $"Seek failed: {ex.Message}");
+            lock (_seekLock)
+            {
+                _seekTargetNs = null;
+                _seekInFlightNs = null;
+                _seekWorkerRunning = false;
+            }
+        }
+        finally
+        {
+            gst_object_unref(playbin);
+        }
+    }
+
+    /// <summary>
+    /// FLUSH | ACCURATE, deliberately without KEY_UNIT.
+    /// - FLUSH: discard buffered frames so the seek shows immediately.
+    /// - ACCURATE: the demuxer starts at the keyframe before the target and the
+    ///   decoder decodes and discards up to the exact timestamp.
+    /// KEY_UNIT must not be added: combined with ACCURATE it wins, and the
+    /// segment starts at the previous keyframe instead (measured: a 10 s H.264
+    /// clip with keyframes at 0 and 8.33 s landed every seek below 8.33 s on
+    /// 0.0, local file and HTTP alike; the "1-2 s HTTP drift" was this). With
+    /// ACCURATE alone, position after the seek equals the request over HTTP
+    /// (souphttpsrc is seekable; qtdemux/matroskademux issue one range
+    /// request), at 50-470 ms per seek on HW decode for the decode-and-discard.
+    /// </summary>
+    internal const GstSeekFlags AccurateSeekFlags = GstSeekFlags.Flush | GstSeekFlags.Accurate;
 
     public TimeSpan Position
     {
         get
         {
             if (_playbin == IntPtr.Zero) return TimeSpan.Zero;
+            // While a seek is pending or prerolling, report where it is going
+            // (the pipeline still reports the old position until it lands).
+            lock (_seekLock)
+            {
+                if ((_seekTargetNs ?? _seekInFlightNs) is long target)
+                    return TimeSpan.FromTicks(target / 100L);
+            }
             return gst_element_query_position(_playbin, GstFormat.Time, out long ns)
                 ? TimeSpan.FromTicks(ns / 100L)
                 : TimeSpan.Zero;
@@ -251,12 +393,21 @@ public class SkiaMediaElement : SkiaView, IDisposable
             throw new InvalidOperationException("Failed to create appsink element — is gstreamer1-plugins-base installed?");
         }
 
-        // Force the appsink to negotiate BGRA so Skia can consume the bytes
-        // without a separate conversion step. The Skia BGRA format matches the
-        // SKColorType.Bgra8888 we use for image construction below.
-        var caps = gst_caps_from_string("video/x-raw,format=BGRA");
+        // CPU path: force the appsink to negotiate BGRA so Skia can consume the
+        // bytes without a separate conversion step (SKColorType.Bgra8888).
+        // Zero-copy: DMA-BUF caps first (see the class remarks), BGRA after.
+        var capsString = ChooseAppSinkCaps();
+        var caps = gst_caps_from_string(capsString);
+        if (caps == IntPtr.Zero && _dmaBufOffered)
+        {
+            DiagnosticLog.Warn("SkiaMediaElement", $"Invalid appsink caps '{capsString}'; using system memory");
+            _dmaBufOffered = false;
+            caps = gst_caps_from_string(VideoFrameFormats.SystemMemoryCaps);
+        }
         gst_app_sink_set_caps(_appsink, caps);
         gst_caps_unref(caps);
+        if (_dmaBufOffered)
+            AddAllocationProbe();
 
         // Important: max-buffers and drop control how the sink behaves when the
         // app falls behind. With max-buffers=1 + drop=true, the sink keeps only
@@ -323,11 +474,50 @@ public class SkiaMediaElement : SkiaView, IDisposable
             return GstFlowReturn.Ok;
         }
 
+        bool sampleOwnedElsewhere = false;
         try
         {
             var buffer = gst_sample_get_buffer(sample);
             var caps = gst_sample_get_caps(sample);
             if (buffer == IntPtr.Zero || caps == IntPtr.Zero) return GstFlowReturn.Ok;
+
+            if (GstDmaBufFrame.IsDmaBufCaps(caps))
+            {
+                if (!_dmaBufOffered)
+                {
+                    // Stale DMA-BUF frame of a pipeline leaving the zero-copy path: never map it.
+                    System.Threading.Interlocked.Exchange(ref _framePending, 0);
+                    return GstFlowReturn.Ok;
+                }
+
+
+                // Zero-copy: keep the decoder's surface (via the sample) and
+                // import it on the UI thread. Mapping it would give tiled or
+                // YUV bytes the BGRA path cannot use.
+                var frame = GstDmaBufFrame.TryCreate(sample, caps, _releaseQueue, out var error);
+                if (frame == null)
+                {
+                    LinuxDispatcher.Main?.Dispatch(() =>
+                    {
+                        try { FallBackToPixelCopy(error ?? "unusable DMA-BUF sample"); }
+                        finally { System.Threading.Interlocked.Exchange(ref _framePending, 0); }
+                    });
+                    return GstFlowReturn.Ok;
+                }
+                sampleOwnedElsewhere = true;
+                if (LinuxDispatcher.Main is not { } dispatcher)
+                {
+                    frame.Discard();
+                    System.Threading.Interlocked.Exchange(ref _framePending, 0);
+                    return GstFlowReturn.Ok;
+                }
+                dispatcher.Dispatch(() =>
+                {
+                    try { InstallGpuFrame(frame); }
+                    finally { System.Threading.Interlocked.Exchange(ref _framePending, 0); }
+                });
+                return GstFlowReturn.Ok;
+            }
 
             var structure = gst_caps_get_structure(caps, 0);
             if (!gst_structure_get_int(structure, "width", out int width)) return GstFlowReturn.Ok;
@@ -358,7 +548,8 @@ public class SkiaMediaElement : SkiaView, IDisposable
         }
         finally
         {
-            gst_sample_unref(sample);
+            if (!sampleOwnedElsewhere)
+                gst_sample_unref(sample);
         }
 
         return GstFlowReturn.Ok;
@@ -373,6 +564,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
     private void InstallFrame(byte[] bgra, int width, int height, int stride)
     {
         if (_disposed) return;
+        long start = System.Diagnostics.Stopwatch.GetTimestamp();
 
         // Pin the byte array, build an SKImage from a raster-direct snapshot.
         // SKImage.FromPixelCopy copies internally so we can release the pinned
@@ -397,6 +589,9 @@ public class SkiaMediaElement : SkiaView, IDisposable
             _latestFrame = image;
         }
         old?.Dispose();
+        if (PixelCopyFrameCount++ == 0 && _framePath == FramePath.Undecided)
+            LogFramePath("pixel copy (the decoder negotiated system-memory frames, not DMA-BUF)");
+        FrameImportTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
         Invalidate();
     }
 
@@ -406,6 +601,38 @@ public class SkiaMediaElement : SkiaView, IDisposable
         // the convention of every video player on every platform.
         using (var bg = new SKPaint { Color = SKColors.Black, Style = SKPaintStyle.Fill })
             canvas.DrawRect(bounds, bg);
+
+        // Samples whose GPU reads have finished go back to the decoder.
+        _releaseQueue.Drain();
+
+        if (_framePath != FramePath.PixelCopy && (_pendingGpuFrame != null || _gpuFrame?.HasFrame == true))
+        {
+            if (canvas.Context is GRContext gr)
+            {
+                try
+                {
+                    if (TryDrawZeroCopy(canvas, bounds, gr))
+                        return;
+                }
+                catch (Exception ex)
+                {
+                    // Missing entry points on an old EGL/GStreamer, driver errors: never fatal.
+                    FallBackToPixelCopy($"{ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            else if (_framePath == FramePath.ZeroCopy || PrimaryTargetIsGpu())
+            {
+                // A raster snapshot (Screenshot, offscreen render) of a view that
+                // normally draws on the GPU target: read the current texture back
+                // for this one draw rather than leaving the zero-copy path.
+                if (TryDrawSnapshot(canvas, bounds))
+                    return;
+            }
+            else
+            {
+                FallBackToPixelCopy("raster render target");
+            }
+        }
 
         SKImage? frame;
         lock (_frameLock) frame = _latestFrame;
@@ -446,10 +673,305 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     protected override Size MeasureOverride(Size availableSize) => availableSize;
 
+    // ---- zero-copy path ----------------------------------------------------
+
+    /// <summary>
+    /// The appsink caps for a new pipeline, deciding whether DMA-BUF is offered
+    /// (sets <see cref="_dmaBufOffered"/>).
+    /// </summary>
+    private string ChooseAppSinkCaps()
+    {
+        _dmaBufOffered = false;
+        if (_framePath == FramePath.PixelCopy)
+            return VideoFrameFormats.SystemMemoryCaps;
+
+        bool? gpuTarget = LinuxApplication.Current?.PrimaryContext?.RenderingEngine?.RenderTarget.IsGpuAccelerated;
+        var reason = VideoFrameFormats.ZeroCopyUnavailableReason(
+            Environment.GetEnvironmentVariable(VideoFrameFormats.EnvironmentVariable), gpuTarget);
+        if (reason != null)
+        {
+            _framePath = FramePath.PixelCopy;
+            LogFramePath($"pixel copy ({reason})");
+            return VideoFrameFormats.SystemMemoryCaps;
+        }
+
+        _dmaBufOffered = true;
+        return VideoFrameFormats.BuildAppSinkCaps(true, s_drmFormatCaps.Value, QueryImportableFormats());
+    }
+
+    /// <summary>
+    /// Format/modifier pairs the current EGL display imports (when an EGL
+    /// context is current on the UI thread, which it is between frames on the
+    /// GPU target), so the decoder only picks an importable layout. Null when
+    /// unknown: the caps then stay open and the import validates.
+    /// </summary>
+    private static List<(uint Fourcc, ulong Modifier)>? QueryImportableFormats()
+    {
+        try
+        {
+            var display = Egl.eglGetCurrentDisplay();
+            if (display == Egl.EGL_NO_DISPLAY)
+                return null;
+            var result = new List<(uint, ulong)>();
+            foreach (var fourcc in new[] { DrmFourcc.NV12, DrmFourcc.P010, DrmFourcc.XRGB8888, DrmFourcc.ARGB8888, DrmFourcc.XBGR8888, DrmFourcc.ABGR8888 })
+            {
+                var modifiers = Egl.QueryDmaBufModifiers(display, fourcc);
+                if (modifiers == null)
+                    return null; // query unavailable: leave the caps open
+                foreach (var (modifier, _) in modifiers)
+                    result.Add((fourcc, modifier));
+            }
+            return result.Count > 0 ? result : null;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// DMA-BUF import needs the buffer layout from GstVideoMeta; appsink does
+    /// not advertise it in the allocation query itself, and VA decoders refuse
+    /// DMA-BUF caps without it ("DMABuf caps negotiated without the mandatory
+    /// support of VideoMeta"). The probe adds it before appsink answers.
+    /// </summary>
+    private void AddAllocationProbe()
+    {
+        try
+        {
+            _sinkPad = gst_element_get_static_pad(_appsink, "sink");
+            if (_sinkPad == IntPtr.Zero) return;
+            _allocationProbe = OnAllocationQuery;
+            _allocationProbeId = gst_pad_add_probe(_sinkPad, GStreamerInterop.GstPadProbeType.QueryDownstream,
+                Marshal.GetFunctionPointerForDelegate(_allocationProbe), IntPtr.Zero, IntPtr.Zero);
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            DiagnosticLog.Warn("SkiaMediaElement", $"Allocation probe unavailable ({ex.Message}); DMA-BUF caps will not negotiate");
+        }
+    }
+
+    private static readonly Lazy<nuint> s_videoMetaApi = new(gst_video_meta_api_get_type);
+
+    private static GStreamerInterop.GstPadProbeReturn OnAllocationQuery(IntPtr pad, IntPtr info, IntPtr userData)
+    {
+        try
+        {
+            var query = gst_pad_probe_info_get_query(info);
+            if (query != IntPtr.Zero && GstQueryGetType(query) == GStreamerInterop.GST_QUERY_ALLOCATION)
+            {
+                var api = s_videoMetaApi.Value;
+                if (!gst_query_find_allocation_meta(query, api, out _))
+                    gst_query_add_allocation_meta(query, api, IntPtr.Zero);
+            }
+        }
+        catch
+        {
+            // Streaming thread: never let an exception reach native code.
+        }
+        return GStreamerInterop.GstPadProbeReturn.Ok;
+    }
+
+    /// <summary>A new DMA-BUF frame arrived (UI thread): it replaces any frame not yet drawn.</summary>
+    private void InstallGpuFrame(GstDmaBufFrame frame)
+    {
+        if (_disposed || _framePath == FramePath.PixelCopy || !_dmaBufOffered)
+        {
+            frame.Discard();
+            return;
+        }
+        _pendingGpuFrame?.Discard();
+        _pendingGpuFrame = frame;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Imports the pending frame (if any) and draws the current texture.
+    /// False to fall through to the CPU image.
+    /// </summary>
+    private bool TryDrawZeroCopy(SKCanvas canvas, SKRect bounds, GRContext gr)
+    {
+        var unsupported = DmaBufTextureImporter.CheckCurrentDisplay(null, out var device);
+        if (unsupported != null)
+        {
+            FallBackToPixelCopy(unsupported);
+            return false;
+        }
+
+        _gpuFrame ??= new DmaBufTextureImporter();
+        if (_pendingGpuFrame == null && _gpuFrame.HasFrame && !_gpuFrame.IsCurrentContext)
+        {
+            // Drawn by another window's context now: re-import the held frame here.
+            _pendingGpuFrame = _gpuFrame.Reset(keepFrame: true) as GstDmaBufFrame;
+        }
+
+        if (_pendingGpuFrame is { } pending)
+        {
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            var error = _gpuFrame.Import(pending, gr);
+            FrameImportTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
+            if (error != null)
+            {
+                FallBackToPixelCopy(error);
+                return false;
+            }
+            _pendingGpuFrame = null; // owned by the importer now
+            ZeroCopyFrameCount++;
+            _gpuFrameSize = new SKSize(pending.Descriptor.Width, pending.Descriptor.Height);
+            if (_framePath == FramePath.Undecided)
+            {
+                _framePath = FramePath.ZeroCopy;
+                LogFramePath($"zero-copy (DMA-BUF {pending.Descriptor} -> EGLImage " +
+                    $"{(_gpuFrame.IsExternalTexture ? "external " : "")}texture on {device})");
+            }
+        }
+
+        using var image = _gpuFrame.CreateImage(gr);
+        if (image == null)
+            return false;
+
+        var srcRect = new SKRect(0, 0, _gpuFrameSize.Width, _gpuFrameSize.Height);
+        var dstRect = ComputeAspectRect(bounds, (int)_gpuFrameSize.Width, (int)_gpuFrameSize.Height);
+        canvas.DrawImage(image, srcRect, dstRect, new SKSamplingOptions(SKFilterMode.Linear));
+        return true;
+    }
+
+    private static bool PrimaryTargetIsGpu()
+        => LinuxApplication.Current?.PrimaryContext?.RenderingEngine?.RenderTarget.IsGpuAccelerated == true;
+
+    /// <summary>
+    /// Draws the on-screen texture into a raster canvas via a GPU readback
+    /// (snapshots only; costs a full-frame read). False when there is nothing
+    /// to read back in the current context.
+    /// </summary>
+    private bool TryDrawSnapshot(SKCanvas canvas, SKRect bounds)
+    {
+        if (_gpuFrame is not { HasFrame: true, IsCurrentContext: true, Context: { } gr })
+            return false;
+        try
+        {
+            using var texture = _gpuFrame.CreateImage(gr);
+            using var raster = texture?.ToRasterImage();
+            if (raster == null)
+                return false;
+            var srcRect = new SKRect(0, 0, raster.Width, raster.Height);
+            var dstRect = ComputeAspectRect(bounds, raster.Width, raster.Height);
+            canvas.DrawImage(raster, srcRect, dstRect, new SKSamplingOptions(SKFilterMode.Linear));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("SkiaMediaElement", $"Snapshot readback failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Leaves the zero-copy path for good on this element: drops every held
+    /// DMA-BUF frame and rebuilds the pipeline with system-memory BGRA caps
+    /// at the current position and play state.
+    /// </summary>
+    private void FallBackToPixelCopy(string reason)
+    {
+        if (_framePath == FramePath.PixelCopy)
+            return;
+        bool wasZeroCopy = _framePath == FramePath.ZeroCopy;
+        _framePath = FramePath.PixelCopy;
+        if (wasZeroCopy)
+            DiagnosticLog.Warn("SkiaMediaElement", $"Video frames: zero-copy disabled for this element ({reason}); copying pixels");
+        else
+            LogFramePath($"pixel copy ({reason})");
+
+        _pendingGpuFrame?.Discard();
+        _pendingGpuFrame = null;
+        _gpuFrame?.Dispose();
+        _gpuFrame = null;
+        _releaseQueue.Drain(all: true);
+
+        if (!_dmaBufOffered || _appsink == IntPtr.Zero)
+            return;
+        _dmaBufOffered = false;
+
+        // Outside the current draw (state changes wait for the streaming thread).
+        var playbin = _playbin;
+        LinuxDispatcher.Main?.Dispatch(() =>
+        {
+            if (_disposed || _playbin != playbin || _playbin == IntPtr.Zero) return;
+            RebuildPipelineForPixelCopy();
+        });
+    }
+
+    /// <summary>
+    /// Rebuilds the pipeline with system-memory caps at the current position.
+    /// Renegotiating the live pipeline is not reliable: after a reconfigure,
+    /// playsink's videoconvert still advertises the DMA-BUF caps upstream (it
+    /// transforms any caps feature), the VA decoder picks them again and
+    /// negotiation fails (measured on GStreamer 1.28 with vavp9dec). A rebuild
+    /// is a one-time cost per element.
+    /// </summary>
+    private void RebuildPipelineForPixelCopy()
+    {
+        var uri = _currentUri;
+        if (string.IsNullOrEmpty(uri)) return;
+        bool wasPlaying = _isPlaying;
+        long position = gst_element_query_position(_playbin, GstFormat.Time, out long ns) ? ns : 0;
+
+        DisposePipeline();
+        try
+        {
+            BuildPipeline(uri);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaMediaElement", $"Pipeline rebuild for pixel copy failed: {ex.Message}");
+            return;
+        }
+
+        gst_element_set_state(_playbin, GstState.Paused);
+        if (position > 0)
+        {
+            gst_element_get_state(_playbin, out _, out _, 2_000_000_000UL);
+            gst_element_seek_simple(_playbin, GstFormat.Time, AccurateSeekFlags, position);
+        }
+        if (wasPlaying)
+            Play();
+    }
+
+    private static void LogFramePath(string message)
+    {
+        if (System.Threading.Interlocked.Exchange(ref s_framePathLogged, 1) == 0)
+            DiagnosticLog.Info("SkiaMediaElement", $"Video frames: {message}");
+    }
+
+    /// <summary>Drops GPU frames when the pipeline goes away (UI thread).</summary>
+    private void ReleaseGpuFrames()
+    {
+        _pendingGpuFrame?.Discard();
+        _pendingGpuFrame = null;
+        _gpuFrame?.Dispose();
+        _gpuFrame = null;
+        _releaseQueue.Drain(all: true);
+    }
+
     private void DisposePipeline()
     {
         _statusTimer?.Dispose();
         _statusTimer = null;
+        lock (_seekLock)
+        {
+            _pipelineGeneration++;
+            _seekTargetNs = null;
+            _seekInFlightNs = null;
+        }
+
+        if (_sinkPad != IntPtr.Zero)
+        {
+            if (_allocationProbeId != 0)
+                gst_pad_remove_probe(_sinkPad, _allocationProbeId);
+            gst_object_unref(_sinkPad);
+            _sinkPad = IntPtr.Zero;
+            _allocationProbeId = 0;
+        }
 
         if (_playbin != IntPtr.Zero)
         {
@@ -468,6 +990,10 @@ public class SkiaMediaElement : SkiaView, IDisposable
         _newSampleDelegate = null;
         _eosDelegate = null;
         _isPlaying = false;
+        _dmaBufOffered = false;
+        ReleaseGpuFrames();
+        if (_framePath == FramePath.ZeroCopy)
+            _framePath = FramePath.Undecided; // decided again for the next source
     }
 
     public void Dispose()
