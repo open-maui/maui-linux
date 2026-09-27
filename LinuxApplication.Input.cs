@@ -19,21 +19,10 @@ namespace Microsoft.Maui.Platform.Linux;
 // state — all still through the Guarded wrapper (hard invariant: a view
 // exception must never unwind into a native callback). This file keeps the
 // GTK-mode handlers (GTK stays single-window; they operate on the primary
-// context's state) and the app-level native drag-and-drop routing (primary
-// window only).
+// context's state) and the app-level native drag-and-drop routing (to the
+// window the drag is over).
 public partial class LinuxApplication
 {
-    /// <summary>
-    /// Converts physical pixel coordinates to logical pixel coordinates for HiDPI support.
-    /// </summary>
-    private float ToLogical(double physicalCoord) => (float)(physicalCoord / DpiScale);
-
-    /// <summary>
-    /// CSD titlebar inset of the PRIMARY window (drag-and-drop is wired to the
-    /// primary window only). See WindowContext.CsdPointerInsetLogical.
-    /// </summary>
-    private float CsdPointerInsetLogical => PrimaryContext?.CsdPointerInsetLogical ?? 0f;
-
     private void UpdateAnimations()
     {
         // Fire MAUI's animation ticker(s) (FadeTo, Animation.Commit, ...) for
@@ -138,7 +127,7 @@ public partial class LinuxApplication
             return;
         }
 
-        var hitView = ctx.InputRoot.HitTest((float)e.X, (float)e.Y);
+        var hitView = ctx.HitTestLayers((float)e.X, (float)e.Y, out _);
         DiagnosticLog.Debug("LinuxApplication", $"GTK HitView: {hitView?.GetType().Name ?? "null"}");
 
         if (hitView != null)
@@ -188,7 +177,7 @@ public partial class LinuxApplication
         }
         else
         {
-            var hitView = ctx.InputRoot.HitTest((float)e.X, (float)e.Y);
+            var hitView = ctx.HitTestLayers((float)e.X, (float)e.Y, out _);
             if (hitView != null)
             {
                 var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
@@ -229,7 +218,7 @@ public partial class LinuxApplication
             return;
         }
 
-        var hitView = ctx.InputRoot.HitTest((float)e.X, (float)e.Y);
+        var hitView = ctx.HitTestLayers((float)e.X, (float)e.Y, out _);
         if (hitView != ctx.HoveredView)
         {
             var args = new PointerEventArgs((float)e.X, (float)e.Y);
@@ -250,7 +239,7 @@ public partial class LinuxApplication
     {
         var key = ConvertGdkKey(e.KeyVal);
         var modifiers = ConvertGdkModifiers(e.State);
-        var args = new KeyEventArgs(key, modifiers);
+        var args = new KeyEventArgs(key, modifiers) { HardwareKeycode = e.KeyCode };
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
@@ -272,7 +261,7 @@ public partial class LinuxApplication
     {
         var key = ConvertGdkKey(e.KeyVal);
         var modifiers = ConvertGdkModifiers(e.State);
-        var args = new KeyEventArgs(key, modifiers);
+        var args = new KeyEventArgs(key, modifiers) { HardwareKeycode = e.KeyCode };
 
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
@@ -393,21 +382,26 @@ public partial class LinuxApplication
     // routing is ADDITIVE: DragDropService.Default's own events keep firing
     // for direct subscribers (the samples use those) unchanged.
     //
-    // Multi-window: drag-and-drop resolves against the PRIMARY window's tree
-    // only. On X11 only the primary window announces XdndAware (the singleton
-    // DragDropService binds first-wins to the primary display/window), so no
-    // XDND traffic ever targets a secondary window. On Wayland the per-window
-    // data devices raise into the same DragDropService.Default events without
-    // window identity, so a drag over a secondary window would mis-resolve —
-    // documented v1 limitation.
+    // Multi-window: the backend reports which window a drag is over
+    // (DragDropService.CurrentTargetWindow: Wayland per-window data devices,
+    // X11 XdndAware on every window); the drop target is resolved in that
+    // window's tree, with that window's scale and CSD inset.
     private readonly DropTargetTracker<View> _dropTargetTracker = new();
 
-    private void WireDragDropRouting()
+    internal void WireDragDropRouting()
     {
         DragDropService.Default.DragEnter += OnNativeDragEnter;
         DragDropService.Default.DragOver += OnNativeDragOver;
         DragDropService.Default.DragLeave += OnNativeDragLeave;
         DragDropService.Default.Drop += OnNativeDrop;
+    }
+
+    internal void UnwireDragDropRouting()
+    {
+        DragDropService.Default.DragEnter -= OnNativeDragEnter;
+        DragDropService.Default.DragOver -= OnNativeDragOver;
+        DragDropService.Default.DragLeave -= OnNativeDragLeave;
+        DragDropService.Default.Drop -= OnNativeDrop;
     }
 
     /// <summary>
@@ -419,12 +413,25 @@ public partial class LinuxApplication
     /// </summary>
     private View? ResolveDropTarget(int physicalX, int physicalY)
     {
-        var rootView = PrimaryContext?.InputRoot;
-        if (rootView == null) return null;
-        float x = ToLogical(physicalX);
-        float y = ToLogical(physicalY) - CsdPointerInsetLogical;
-        var hit = SkiaView.GetPopupOwnerAt(x, y) ?? rootView.HitTest(x, y);
+        var context = DropContext();
+        var rootView = context?.InputRoot;
+        if (context == null || rootView == null) return null;
+        var (x, y) = context.ToLogicalPoint(physicalX, physicalY);
+        var hit = SkiaView.GetPopupOwnerAt(x, y, context.PopupFilterRoot) ?? rootView.HitTest(x, y);
         return Handlers.GestureManager.FindDropTarget(hit?.MauiView);
+    }
+
+    /// <summary>The window context the current drag is over (the primary when unknown).</summary>
+    private WindowContext? DropContext()
+    {
+        var target = DragDropService.Default.CurrentTargetWindow;
+        if (target != null)
+        {
+            for (int i = 0; i < _windowContexts.Count; i++)
+                if (ReferenceEquals(_windowContexts[i].DisplayWindow, target))
+                    return _windowContexts[i];
+        }
+        return PrimaryContext;
     }
 
     private void OnNativeDragEnter(object? sender, Services.DragEventArgs e)
@@ -445,10 +452,9 @@ public partial class LinuxApplication
         if (leftView != null)
             Handlers.GestureManager.ProcessDragLeave(leftView);
 
-        if (current != null)
+        if (current != null && DropContext() is { } overContext)
         {
-            float x = ToLogical(e.X);
-            float y = ToLogical(e.Y) - CsdPointerInsetLogical;
+            var (x, y) = overContext.ToLogicalPoint(e.X, e.Y);
             // MAUI fires DragOver repeatedly on the current target.
             var accepted = Handlers.GestureManager.ProcessDragOver(current, x, y);
             // A recognizer that set AcceptedOperation.None flips the native
@@ -471,10 +477,9 @@ public partial class LinuxApplication
         // Prefer the tracked target; fall back to hit-testing the drop
         // position (covers a drop with no preceding positioned DragOver).
         var target = _dropTargetTracker.Clear() ?? ResolveDropTarget(e.X, e.Y);
-        if (target == null) return;
+        if (target == null || DropContext() is not { } dropContext) return;
 
-        float x = ToLogical(e.X);
-        float y = ToLogical(e.Y) - CsdPointerInsetLogical;
+        var (x, y) = dropContext.ToLogicalPoint(e.X, e.Y);
         Handlers.GestureManager.ProcessDrop(target, x, y, e.DroppedData, e.Data.FilePaths);
     }
 
