@@ -115,7 +115,28 @@ public class SkiaItemsView : SkiaView
     public Func<object, int, SKRect, SKCanvas, SKPaint, bool>? ItemRenderer { get; set; }
 
     // Item view creator - creates SkiaView from data item using DataTemplate
-    public Func<object, SkiaView?>? ItemViewCreator { get; set; }
+    private Func<object, SkiaView?>? _itemViewCreator;
+
+    /// <summary>
+    /// Creates the view for an item (the ItemTemplate). A new creator drops the
+    /// views made by the old one: a template swapped at run time (a flyout
+    /// switching its rows to rail mode) showed the old rows until they happened
+    /// to be recreated, one change behind.
+    /// </summary>
+    public Func<object, SkiaView?>? ItemViewCreator
+    {
+        get => _itemViewCreator;
+        set
+        {
+            if (ReferenceEquals(_itemViewCreator, value))
+                return;
+            _itemViewCreator = value;
+            _itemViewCache.Clear();
+            _itemHeights.Clear();
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
 
     // Cache of created item views for virtualization
     protected readonly Dictionary<int, SkiaView> _itemViewCache = new();

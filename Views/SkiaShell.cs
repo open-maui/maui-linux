@@ -1555,7 +1555,9 @@ public class SkiaShell : SkiaLayoutView
         }
         else
         {
-            footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f;
+            // The version-text fallback is for the default item list; flyout
+            // content is the whole flyout below the header, as on other platforms.
+            footerHeight = !string.IsNullOrEmpty(FlyoutFooterText) && FlyoutContentView == null ? FlyoutFooterHeight : 0f;
         }
 
         // Draw flyout header if present
@@ -1683,7 +1685,7 @@ public class SkiaShell : SkiaLayoutView
             FlyoutFooterView.Arrange(new Rect(footerBounds.Left, footerBounds.Top, footerBounds.Width, footerHeight));
             FlyoutFooterView.Draw(canvas);
         }
-        else if (!string.IsNullOrEmpty(FlyoutFooterText))
+        else if (!string.IsNullOrEmpty(FlyoutFooterText) && FlyoutContentView == null)
         {
             // Fallback: draw simple text footer
             using var footerFont = SkiaFontFactory.Create(12f);
