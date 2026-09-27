@@ -77,4 +77,19 @@ public class SkiaActivityIndicatorTests
         var exception = Record.Exception(() => indicator.Draw(canvas));
         exception.Should().BeNull();
     }
+
+    [Fact]
+    public void A_stopped_indicator_draws_nothing()
+    {
+        var indicator = new SkiaActivityIndicator { IsRunning = false, Size = 32 };
+        indicator.Bounds = new Rect(0, 0, 40, 40);
+        using var bitmap = new SKBitmap(40, 40);
+        using (var canvas = new SKCanvas(bitmap))
+        {
+            canvas.Clear(SKColors.Transparent);
+            indicator.Draw(canvas);
+        }
+
+        bitmap.Pixels.Should().OnlyContain(p => p.Alpha == 0);
+    }
 }

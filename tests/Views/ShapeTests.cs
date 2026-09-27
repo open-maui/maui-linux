@@ -444,6 +444,31 @@ public class ShapeTests
         bmp.GetPixel(5, 5).Alpha.Should().Be(0);
     }
 
+    private sealed class CornerDrawable : IDrawable
+    {
+        public RectF LastRect { get; private set; }
+
+        public void Draw(ICanvas canvas, RectF dirtyRect)
+        {
+            LastRect = dirtyRect;
+            canvas.FillColor = Colors.Red;
+            canvas.FillRectangle(0, 0, 10, 10);
+        }
+    }
+
+    [Fact]
+    public void GraphicsView_draws_in_its_own_coordinates()
+    {
+        var drawable = new CornerDrawable();
+        var view = new SkiaGraphicsView { Drawable = drawable, WidthRequest = 60, HeightRequest = 40 };
+        using var bmp = RenderAt(view, 20, 20);
+
+        drawable.LastRect.X.Should().Be(0);
+        drawable.LastRect.Y.Should().Be(0);
+        IsColor(bmp.GetPixel(25, 25), SKColors.Red).Should().BeTrue("(0,0) is the view's top-left");
+        bmp.GetPixel(5, 5).Alpha.Should().Be(0);
+    }
+
     [Fact]
     public void GraphicsView_invalidate_redraws_with_the_new_state()
     {
