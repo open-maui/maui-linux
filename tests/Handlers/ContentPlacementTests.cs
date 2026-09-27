@@ -85,4 +85,70 @@ public class ContentPlacementTests
         bar.Height.Should().BeLessThan(80);
         tabs.Height.Should().BeGreaterThan(500);
     }
+
+    [Fact]
+    public void A_button_in_a_translated_panel_is_clicked_where_it_is_drawn()
+    {
+        // SfTabView slides a tab's content into view with TranslationX; input followed the
+        // untranslated bounds and nothing on a later tab could be clicked.
+        int clicks = 0;
+        var button = new Button { Text = "Save", WidthRequest = 100, HeightRequest = 40, HorizontalOptions = LayoutOptions.Start };
+        button.Clicked += (_, _) => clicks++;
+        var panel = new VerticalStackLayout { TranslationX = 200, Children = { button } };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = panel }, withEngine: true);
+        host.Context.Render();
+
+        host.DisplayWindow.RaisePointerPressed(250, 20, Microsoft.Maui.Platform.PointerButton.Left);
+        host.DisplayWindow.RaisePointerReleased(250, 20);
+        clicks.Should().Be(1);
+
+        host.DisplayWindow.RaisePointerPressed(50, 20, Microsoft.Maui.Platform.PointerButton.Left);
+        host.DisplayWindow.RaisePointerReleased(50, 20);
+        clicks.Should().Be(1, "nothing is drawn at the untranslated position");
+    }
+
+    [Fact]
+    public void A_centred_pill_beside_a_taller_title_hugs_its_text()
+    {
+        // InboxRevu's VIP badge: Border Padding 6,1, VerticalOptions Center, in the title row.
+        var vip = new Label { Text = "VIP", FontSize = 10, FontAttributes = FontAttributes.Bold };
+        var pill = new Border { Padding = new Thickness(6, 1), StrokeThickness = 0, VerticalOptions = LayoutOptions.Center, Content = vip,
+            StrokeShape = new RoundRectangle { CornerRadius = 4 } };
+        var title = new Label { Text = "Harborline: sign the Q4 retainer", FontSize = 14, FontAttributes = FontAttributes.Bold, VerticalOptions = LayoutOptions.Center };
+        var row = new Grid { ColumnDefinitions = new ColumnDefinitionCollection(new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star)) };
+        row.Add(pill, 0, 0);
+        row.Add(title, 1, 0);
+        using var host = new HeadlessMauiHost(new ContentPage { Content = new VerticalStackLayout { row } }, withEngine: true);
+        host.Context.Render();
+
+        var p = ((Microsoft.Maui.Platform.SkiaView)pill.Handler!.PlatformView!).Bounds;
+        var v = ((Microsoft.Maui.Platform.SkiaView)vip.Handler!.PlatformView!).Bounds;
+        var t = ((Microsoft.Maui.Platform.SkiaView)title.Handler!.PlatformView!).Bounds;
+        p.Height.Should().BeApproximately(v.Height + 2, 0.5, "the pill hugs its text");
+        (p.Center.Y).Should().BeApproximately(t.Center.Y, 0.5, "centred in the row");
+        (v.Center.Y).Should().BeApproximately(p.Center.Y, 0.5);
+    }
+
+    [Fact]
+    public void Capitals_sit_in_the_middle_of_a_tight_pill()
+    {
+        var vip = new Label { Text = "VIP", FontSize = 10, FontAttributes = FontAttributes.Bold, TextColor = Colors.White };
+        var pill = new Border { Padding = new Thickness(6, 1), StrokeThickness = 0, BackgroundColor = Colors.Black, Content = vip,
+            HorizontalOptions = LayoutOptions.Start, VerticalOptions = LayoutOptions.Start };
+        using var host = new HeadlessMauiHost(new ContentPage { BackgroundColor = Colors.Red, Content = pill }, withEngine: true);
+        host.Context.Render();
+        host.Context.Render();
+        var p = ((Microsoft.Maui.Platform.SkiaView)pill.Handler!.PlatformView!).Bounds;
+        var v = ((Microsoft.Maui.Platform.SkiaView)vip.Handler!.PlatformView!).Bounds;
+        int top = -1, bottom = -1;
+        for (int y = (int)p.Top; y < (int)p.Bottom; y++)
+            for (int x = (int)p.Left; x < (int)p.Right; x++)
+            {
+                var (r, g, b, _) = host.DisplayWindow.PixelAt(x, y);
+                if (r > 128 && g > 128) { if (top < 0) top = y; bottom = y; break; }
+            }
+        // "VIP" (capitals, no descenders): as much room above as below, within a pixel.
+        top.Should().BeGreaterThan(0);
+        Math.Abs((top - p.Top) - (p.Bottom - 1 - bottom)).Should().BeLessThanOrEqualTo(1);
+    }
 }

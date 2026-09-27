@@ -184,7 +184,7 @@ public class SkiaMenuBar : SkiaView
         // Check flyout first
         if (_openFlyout != null)
         {
-            var flyoutHit = _openFlyout.HitTest(x, y);
+            var flyoutHit = _openFlyout.HitTestAt(x, y);
             if (flyoutHit != null) return flyoutHit;
         }
 
