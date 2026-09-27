@@ -153,4 +153,169 @@ public sealed class SyncfusionCompatTests
         var instance = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(helper);
         ((double)method.Invoke(instance, null)!).Should().Be(14);
     }
+
+    private sealed record Trend(string Label, double Rate);
+
+    [Fact]
+    public void A_chart_whose_data_arrives_later_draws_it()
+    {
+        // Claude Toolkit's trends: a category axis, data bound after first layout.
+        var series = new Syncfusion.Maui.Charts.LineSeries
+        {
+            XBindingPath = nameof(Trend.Label), YBindingPath = nameof(Trend.Rate),
+            Fill = new SolidColorBrush(Microsoft.Maui.Graphics.Colors.Red), StrokeWidth = 3,
+        };
+        var chart = new Syncfusion.Maui.Charts.SfCartesianChart
+        {
+            WidthRequest = 300, HeightRequest = 170,
+            HorizontalOptions = LayoutOptions.Start, VerticalOptions = LayoutOptions.Start,
+        };
+        chart.XAxes.Add(new Syncfusion.Maui.Charts.CategoryAxis { ShowMajorGridLines = false });
+        chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis { Minimum = 0 });
+        chart.Series.Add(series);
+        using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = new VerticalStackLayout { chart } }, b => b.UseLinuxSyncfusion(), 400, 300);
+        for (int i = 0; i < 3; i++) host.Render();
+
+        series.ItemsSource = new[] { new Trend("Mon", 1), new Trend("Tue", 4), new Trend("Wed", 2) };
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        host.CountPixelsNear(new SkiaSharp.SKColor(255, 0, 0), new SkiaSharp.SKRectI(0, 0, 300, 170)).Should().BeGreaterThan(100, "the late data draws");
+    }
+
+    [Fact]
+    public void A_chart_away_from_the_window_corner_draws_where_it_is()
+    {
+        var chart = new Syncfusion.Maui.Charts.SfCartesianChart
+        {
+            WidthRequest = 300, HeightRequest = 170, Margin = new Thickness(120, 90, 0, 0),
+            HorizontalOptions = LayoutOptions.Start, VerticalOptions = LayoutOptions.Start,
+        };
+        chart.XAxes.Add(new Syncfusion.Maui.Charts.CategoryAxis());
+        chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis { Minimum = 0 });
+        chart.Series.Add(new Syncfusion.Maui.Charts.LineSeries
+        {
+            ItemsSource = new[] { new Trend("Mon", 1), new Trend("Tue", 4), new Trend("Wed", 2) },
+            XBindingPath = nameof(Trend.Label), YBindingPath = nameof(Trend.Rate),
+            Fill = new SolidColorBrush(Microsoft.Maui.Graphics.Colors.Red), StrokeWidth = 3,
+        });
+        using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = new VerticalStackLayout { chart } }, b => b.UseLinuxSyncfusion(), 500, 400);
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        var red = new SkiaSharp.SKColor(255, 0, 0);
+        host.CountPixelsNear(red, new SkiaSharp.SKRectI(120, 90, 420, 260)).Should().BeGreaterThan(100, "the series draws inside the chart");
+        host.CountPixelsNear(red, new SkiaSharp.SKRectI(0, 0, 500, 400)).Should().BeLessThan(
+            host.CountPixelsNear(red, new SkiaSharp.SKRectI(120, 90, 420, 260)) + 20, "and nowhere else");
+    }
+
+    [Fact]
+    public void A_chart_in_a_tab_shown_later_draws()
+    {
+        // Claude Toolkit's Stats tab: a ScrollView hidden until its tab is picked.
+        var chart = new Syncfusion.Maui.Charts.SfCartesianChart { HeightRequest = 170 };
+        chart.XAxes.Add(new Syncfusion.Maui.Charts.CategoryAxis());
+        chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis { Minimum = 0 });
+        chart.Series.Add(new Syncfusion.Maui.Charts.LineSeries
+        {
+            ItemsSource = new[] { new Trend("Mon", 1), new Trend("Tue", 4), new Trend("Wed", 2) },
+            XBindingPath = nameof(Trend.Label), YBindingPath = nameof(Trend.Rate),
+            Fill = new SolidColorBrush(Microsoft.Maui.Graphics.Colors.Red), StrokeWidth = 3,
+        });
+        var tab = new ScrollView { IsVisible = false, Content = new VerticalStackLayout { new Label { Text = "Trends" }, chart } };
+        using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = new Grid { Children = { tab } } }, b => b.UseLinuxSyncfusion(), 500, 400);
+        for (int i = 0; i < 3; i++) host.Render();
+
+        tab.IsVisible = true;
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        host.CountPixelsNear(new SkiaSharp.SKColor(255, 0, 0), host.WindowRect).Should().BeGreaterThan(100);
+    }
+
+    [Fact]
+    public void A_chart_over_an_ObservableCollection_filled_later_draws_it()
+    {
+        // Claude Toolkit's trends: TrendPoints is cleared and refilled in place.
+        var points = new System.Collections.ObjectModel.ObservableCollection<Trend>();
+        var chart = new Syncfusion.Maui.Charts.SfCartesianChart { HeightRequest = 170 };
+        chart.XAxes.Add(new Syncfusion.Maui.Charts.CategoryAxis());
+        chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis { Minimum = 0 });
+        chart.Series.Add(new Syncfusion.Maui.Charts.LineSeries
+        {
+            ItemsSource = points,
+            XBindingPath = nameof(Trend.Label), YBindingPath = nameof(Trend.Rate),
+            Fill = new SolidColorBrush(Microsoft.Maui.Graphics.Colors.Red), StrokeWidth = 3,
+        });
+        using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = new VerticalStackLayout { chart } }, b => b.UseLinuxSyncfusion(), 500, 400);
+        for (int i = 0; i < 3; i++) host.Render();
+
+        points.Clear();
+        points.Add(new Trend("Mon", 1));
+        points.Add(new Trend("Tue", 4));
+        points.Add(new Trend("Wed", 2));
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        host.CountPixelsNear(new SkiaSharp.SKColor(255, 0, 0), host.WindowRect).Should().BeGreaterThan(100);
+    }
+
+    private sealed record ModelPoint(string Label, double Haiku, double Sonnet, double MistakeRate);
+
+    [Fact]
+    public void Claude_Toolkits_trend_charts_draw()
+    {
+        var points = new System.Collections.ObjectModel.ObservableCollection<ModelPoint>();
+        Syncfusion.Maui.Charts.SfCartesianChart Chart(bool legend)
+        {
+            var chart = new Syncfusion.Maui.Charts.SfCartesianChart { HeightRequest = 170 };
+            if (legend) chart.Legend = new Syncfusion.Maui.Charts.ChartLegend();
+            chart.XAxes.Add(new Syncfusion.Maui.Charts.CategoryAxis { ShowMajorGridLines = false, LabelStyle = new Syncfusion.Maui.Charts.ChartAxisLabelStyle { FontSize = 10 } });
+            chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis { Minimum = 0, LabelStyle = new Syncfusion.Maui.Charts.ChartAxisLabelStyle { FontSize = 10 } });
+            return chart;
+        }
+        var line = Chart(false);
+        line.Series.Add(new Syncfusion.Maui.Charts.LineSeries
+        {
+            ItemsSource = points, XBindingPath = "Label", YBindingPath = "MistakeRate",
+            StrokeWidth = 2, EnableTooltip = true, Fill = new SolidColorBrush(Microsoft.Maui.Graphics.Colors.Red),
+        });
+        var stacked = Chart(true);
+        foreach (var (name, path, color) in new[] { ("haiku", "Haiku", Microsoft.Maui.Graphics.Colors.Lime), ("sonnet", "Sonnet", Microsoft.Maui.Graphics.Colors.Blue) })
+            stacked.Series.Add(new Syncfusion.Maui.Charts.StackingColumnSeries
+            {
+                ItemsSource = points, Label = name, XBindingPath = "Label", YBindingPath = path,
+                Fill = new SolidColorBrush(color), EnableTooltip = true, StrokeWidth = 2,
+                Stroke = new SolidColorBrush(Microsoft.Maui.Graphics.Color.FromArgb("#212121")),
+            });
+        var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Star) }, ColumnSpacing = 14 };
+        grid.Add(new VerticalStackLayout { Spacing = 2, Children = { new Label { Text = "Mistakes" }, line } }, 0, 0);
+        grid.Add(new VerticalStackLayout { Spacing = 2, Children = { new Label { Text = "Tokens" }, stacked } }, 1, 0);
+        var page = new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Color.FromArgb("#1E1E1E"), Content = new ScrollView { Content = new VerticalStackLayout { grid } } };
+        using var host = new CompatHost(page, b => b.UseLinuxSyncfusion(), 800, 400);
+        for (int i = 0; i < 3; i++) host.Render();
+
+        points.Clear();
+        foreach (var (l, h, s2, m) in new[] { ("Mon", 5.0, 3.0, 1.0), ("Tue", 2.0, 6.0, 4.0), ("Wed", 4.0, 1.0, 2.0) })
+            points.Add(new ModelPoint(l, h, s2, m));
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        host.CountPixelsNear(new SkiaSharp.SKColor(255, 0, 0), host.WindowRect).Should().BeGreaterThan(100, "the line series draws");
+        host.CountPixelsNear(new SkiaSharp.SKColor(0, 255, 0), host.WindowRect).Should().BeGreaterThan(100, "the stacked columns draw");
+    }
+
+    [Fact]
+    public void An_empty_chart_still_draws_its_axes()
+    {
+        var chart = new Syncfusion.Maui.Charts.SfCartesianChart { HeightRequest = 170, WidthRequest = 300, HorizontalOptions = LayoutOptions.Start };
+        chart.XAxes.Add(new Syncfusion.Maui.Charts.CategoryAxis());
+        chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis { Minimum = 0 });
+        chart.Series.Add(new Syncfusion.Maui.Charts.LineSeries { ItemsSource = new System.Collections.ObjectModel.ObservableCollection<Trend>(), XBindingPath = "Label", YBindingPath = "Rate" });
+        using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = new VerticalStackLayout { chart } }, b => b.UseLinuxSyncfusion(), 400, 300);
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        host.CountPixelsNot(SkiaSharp.SKColors.White, new SkiaSharp.SKRectI(0, 0, 300, 170)).Should().BeGreaterThan(50, "the axes draw with no data");
+    }
 }
