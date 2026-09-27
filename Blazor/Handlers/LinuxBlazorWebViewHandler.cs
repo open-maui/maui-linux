@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Platform.Linux.Handlers;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebView;
@@ -21,7 +22,7 @@ namespace Microsoft.Maui.Platform.Linux.Blazor.Handlers;
 /// RootComponents start the web view core; UrlLoading, BlazorWebViewInitializing
 /// and BlazorWebViewInitialized are raised like on the other platforms.
 /// </summary>
-public class LinuxBlazorWebViewHandler : ViewHandler<IBlazorWebView, WpeWebView>
+public class LinuxBlazorWebViewHandler : LinuxViewHandler<IBlazorWebView, WpeWebView>
 {
     public static IPropertyMapper<IBlazorWebView, LinuxBlazorWebViewHandler> Mapper = new PropertyMapper<IBlazorWebView, LinuxBlazorWebViewHandler>(ViewHandler.ViewMapper)
     {
@@ -45,7 +46,8 @@ public class LinuxBlazorWebViewHandler : ViewHandler<IBlazorWebView, WpeWebView>
         if (!WpeWebView.IsSupported)
             throw new InvalidOperationException(
                 "BlazorWebView on Linux requires WPE WebKit 2.54+ (libWPEWebKit-2.0). " +
-                "Debian/Ubuntu: apt install libwpewebkit-2.0-1; Fedora: dnf copr enable philn/wpewebkit && dnf install wpewebkit");
+                "Debian testing/sid: apt install libwpewebkit-2.0-1; Fedora: dnf copr enable philn/wpewebkit && dnf install wpewebkit. " +
+                "Debian 13 and Ubuntu ship no WPE 2.54 package. Run with OPENMAUI_DOCTOR=1 for details.");
         return new WpeWebView();
     }
 
