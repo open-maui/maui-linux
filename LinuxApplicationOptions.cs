@@ -37,8 +37,10 @@ public class LinuxApplicationOptions
     /// <summary>
     /// How frames are presented: GPU (EGL/OpenGL ES through Skia's GL backend,
     /// zero-copy on Wayland) when available, or the CPU raster path. Default
-    /// Auto tries GPU and falls back to raster. The OPENMAUI_RENDERER
-    /// environment variable (gpu|raster|auto) overrides this at launch.
+    /// Auto tries GPU and falls back to raster. Vulkan (opt-in) uses a Vulkan
+    /// swapchain and Skia's Vulkan backend, falling back to EGL, then raster.
+    /// The OPENMAUI_RENDERER environment variable (gpu|vulkan|raster|auto)
+    /// overrides this at launch.
     /// </summary>
     public Rendering.RendererPreference Renderer { get; set; } = Rendering.RendererPreference.Auto;
     public float RegionMergeThreshold { get; set; } = 0.3f;
