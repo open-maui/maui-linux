@@ -115,10 +115,15 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // Register dispatcher provider
         builder.Services.TryAddSingleton<IDispatcherProvider>(LinuxDispatcherProvider.Instance);
 
-        // Animation ticker and manager for MAUI's ViewExtensions (FadeTo, ...);
-        // previously only reachable through the MauiContext fallback.
-        builder.Services.TryAddSingleton<Microsoft.Maui.Animations.ITicker, LinuxTicker>();
-        builder.Services.TryAddSingleton<Microsoft.Maui.Animations.IAnimationManager, LinuxAnimationManager>();
+        // Animation ticker and manager for MAUI's ViewExtensions (FadeTo, ...).
+        // Replacing MAUI's own: UseMauiApp registers a PlatformTicker first, which
+        // never runs on the platform-neutral build, and a TryAdd here lost to it,
+        // so anything animating through the app's services got no frames
+        // (Syncfusion schedules chart and list updates as one-frame animations).
+        builder.Services.RemoveAll<Microsoft.Maui.Animations.ITicker>();
+        builder.Services.RemoveAll<Microsoft.Maui.Animations.IAnimationManager>();
+        builder.Services.AddSingleton<Microsoft.Maui.Animations.ITicker, LinuxTicker>();
+        builder.Services.AddSingleton<Microsoft.Maui.Animations.IAnimationManager, LinuxAnimationManager>();
 
         // Named font sizes (FontSize="Large" etc.): MAUI's XAML converter resolves
         // them through DependencyService and throws when no platform provides it.
