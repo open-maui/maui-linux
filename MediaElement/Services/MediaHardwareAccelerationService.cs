@@ -59,7 +59,15 @@ public static class MediaHardwareAccelerationService
     // when present (some pipelines benefit from the matching post-proc).
     private static readonly string[] s_hwDecoderFactories =
     {
-        // VA-API (Intel iGPU + AMD via mesa)
+        // VA-API, current plugin (gst-plugins-bad "va", GStreamer 1.22+); these
+        // export DMA-BUF, which the GPU render target imports zero-copy.
+        "vah264dec",
+        "vah265dec",
+        "vavp9dec",
+        "vavp8dec",
+        "vaav1dec",
+        "vampeg2dec",
+        // VA-API, legacy gstreamer-vaapi (Intel iGPU + AMD via mesa)
         "vaapidecodebin",
         "vaapih264dec",
         "vaapih265dec",
