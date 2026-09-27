@@ -28,6 +28,14 @@ public abstract partial class SkiaView
     /// </summary>
     internal static float PopupDpiScale { get; set; } = 1.0f;
 
+    /// <summary>
+    /// Logical height of a client-drawn title bar above the view tree (Wayland
+    /// CSD; 0 otherwise). Overlays draw in view-tree coordinates, and pointer
+    /// input already arrives shifted by it, so the drawing is shifted too.
+    /// Set by the rendering engine.
+    /// </summary>
+    internal static float PopupOriginY { get; set; }
+
     public static void DrawPopupOverlays(SKCanvas canvas)
     {
         DrawPopupOverlays(canvas, null);
@@ -58,6 +66,8 @@ public abstract partial class SkiaView
             canvas.Save();
             if (PopupDpiScale > 1.0f)
                 canvas.Scale(PopupDpiScale);
+            if (PopupOriginY != 0)
+                canvas.Translate(0, PopupOriginY);
             draw(canvas);
             canvas.Restore();
         }
