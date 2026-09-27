@@ -124,6 +124,37 @@ internal static partial class WpeNative
     [LibraryImport(LibWpeWebKit)]
     public static partial IntPtr wpe_buffer_import_to_egl_image(IntPtr buffer, out IntPtr error);
 
+    // WPEBufferDMABuf (zero-copy import on the GPU render target) and the
+    // explicit-sync fences WebKit attaches to / accepts on a buffer.
+    [LibraryImport(LibWpeWebKit)]
+    public static partial nuint wpe_buffer_dma_buf_get_type();
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial uint wpe_buffer_dma_buf_get_format(IntPtr buffer);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial uint wpe_buffer_dma_buf_get_n_planes(IntPtr buffer);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int wpe_buffer_dma_buf_get_fd(IntPtr buffer, uint plane);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial uint wpe_buffer_dma_buf_get_offset(IntPtr buffer, uint plane);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial uint wpe_buffer_dma_buf_get_stride(IntPtr buffer, uint plane);
+
+    [LibraryImport(LibWpeWebKit)]
+    public static partial ulong wpe_buffer_dma_buf_get_modifier(IntPtr buffer);
+
+    /// <summary>Takes ownership of the rendering-done sync_file fd, or -1.</summary>
+    [LibraryImport(LibWpeWebKit)]
+    public static partial int wpe_buffer_take_rendering_fence(IntPtr buffer);
+
+    /// <summary>Hands WebKit a sync_file fd that signals when the embedder stopped reading the buffer (the buffer takes ownership).</summary>
+    [LibraryImport(LibWpeWebKit)]
+    public static partial void wpe_buffer_set_release_fence(IntPtr buffer, int fd);
+
     // Clipboard: the headless platform's WPEClipboard is an in-process store;
     // WpeWebView bridges it to the system clipboard.
     [LibraryImport(LibWpeWebKit)]
