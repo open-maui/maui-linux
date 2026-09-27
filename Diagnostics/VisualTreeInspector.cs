@@ -177,7 +177,23 @@ public sealed class VisualTreeInspector
     public string DumpTree()
     {
         var root = Root;
-        return root == null ? "(no root view)" : DumpTree(root);
+        var text = root == null ? "(no root view)" : DumpTree(root);
+        // Modal layers (modal pages, popups presented as modals) above the root.
+        if (LinuxApplication.Current?.RenderingEngine?.OverlayLayers is { Count: > 0 } layers)
+        {
+            for (int i = 0; i < layers.Count; i++)
+                text += $"--- modal layer {i} ---\n" + DumpTree(layers[i]);
+        }
+        return text;
+    }
+
+    /// <summary>With OPENMAUI_DUMP_TREE set, a dump shortly after each modal is presented.</summary>
+    internal static void DumpAfterModalIfRequested()
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(DumpVariable)))
+            return;
+        Microsoft.Maui.Dispatching.Dispatcher.GetForCurrentThread()?.DispatchDelayed(TimeSpan.FromMilliseconds(400), () =>
+            Console.Error.WriteLine("[VisualTreeInspector] Tree dump (modal presented):\n" + Instance.DumpTree()));
     }
 
     /// <summary>Produces an indented text dump rooted at an arbitrary view.</summary>
@@ -200,6 +216,11 @@ public sealed class VisualTreeInspector
         sb.Append(" [")
           .Append((int)b.X).Append(',').Append((int)b.Y).Append(' ')
           .Append((int)b.Width).Append('x').Append((int)b.Height).Append(']');
+
+        var d = view.DesiredSize;
+        sb.Append(" desired=").Append((int)d.Width).Append('x').Append((int)d.Height);
+        if (view.MauiView is { } maui)
+            sb.Append(" maui=").Append(maui.GetType().Name);
 
         var text = TryGetText(view);
         if (!string.IsNullOrEmpty(text))
@@ -332,6 +353,37 @@ public sealed class VisualTreeInspector
             return true;
         }
         return false;
+    }
+
+    #endregion
+
+    #region Startup dump
+
+    /// <summary>
+    /// <c>OPENMAUI_DUMP_TREE=&lt;seconds&gt;</c>: writes the primary window's tree
+    /// (bounds, desired size, MAUI view) to stderr once, that long after the
+    /// event loop starts. For diagnosing layout reports without a debugger.
+    /// </summary>
+    internal const string DumpVariable = "OPENMAUI_DUMP_TREE";
+
+    internal static void ScheduleDumpFromEnvironment()
+    {
+        var value = Environment.GetEnvironmentVariable(DumpVariable);
+        if (string.IsNullOrEmpty(value)
+            || !double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+            return;
+        var dispatcher = Microsoft.Maui.Dispatching.Dispatcher.GetForCurrentThread();
+        dispatcher?.DispatchDelayed(TimeSpan.FromSeconds(Math.Max(0, seconds)), () =>
+        {
+            try
+            {
+                Console.Error.WriteLine("[VisualTreeInspector] Tree dump:\n" + Instance.DumpTree());
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("VisualTreeInspector", "Tree dump failed", ex);
+            }
+        });
     }
 
     #endregion
