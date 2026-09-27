@@ -28,68 +28,123 @@ public static class MauiIconGenerator
             string path = Path.GetDirectoryName(metaFilePath) ?? "";
             var metadata = ParseMetadata(File.ReadAllText(metaFilePath));
 
-            // bg and fg paths (bg not currently used, but available for future)
-            Path.Combine(path, "appicon_bg.svg");
+            // Format 2 (current targets): the MauiIcon file is the background
+            // layer (for a single-file icon, the whole icon), BackgroundColor
+            // fills behind it (transparent when unset), the optional
+            // ForegroundFile is drawn at Scale and tinted with TintColor.
+            // Older metas carry only Color, which filled the whole square.
+            bool format2 = metadata.ContainsKey("Format");
+            string? bgPath = metadata.TryGetValue("Background", out var bgName) && bgName.Length > 0
+                ? Path.Combine(path, bgName)
+                : null;
             string fgPath = Path.Combine(path, "appicon_fg.svg");
-            string outputPath = Path.Combine(path, "appicon.png");
+            // The app folder is read-only inside an AppImage (and for system
+            // installs), so an icon is only reused from there; a fresh one is
+            // written to the user's cache and reused while it is newer than
+            // its inputs.
+            var inputsTime = LatestWriteTime(metaFilePath, fgPath, bgPath ?? metaFilePath);
+            string besideApp = Path.Combine(path, "appicon.png");
+            if (File.Exists(besideApp) && File.GetLastWriteTimeUtc(besideApp) >= inputsTime)
+                return besideApp;
+            string outputPath = CachedIconPath();
+            if (File.Exists(outputPath) && File.GetLastWriteTimeUtc(outputPath) >= inputsTime)
+                return outputPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-            // Parse size from metadata or use default
             int size = metadata.TryGetValue("Size", out var sizeStr) && int.TryParse(sizeStr, out var sizeVal)
                 ? sizeVal
                 : DefaultIconSize;
 
-            // Parse color from metadata or use default purple
-            SKColor color = metadata.TryGetValue("Color", out var colorStr)
-                ? ParseColor(colorStr)
-                : SKColors.Purple;
+            SKColor background = format2
+                ? (metadata.TryGetValue("BackgroundColor", out var bgColor) && bgColor.Length > 0 ? ParseColor(bgColor) : SKColors.Transparent)
+                : (metadata.TryGetValue("Color", out var colorStr) ? ParseColor(colorStr) : SKColors.Purple);
+            SKColor? tint = format2 && metadata.TryGetValue("TintColor", out var tintStr) && tintStr.Length > 0
+                ? ParseColor(tintStr)
+                : null;
 
-            // Parse scale from metadata or use default 0.65
-            float scale = metadata.TryGetValue("Scale", out var scaleStr) && float.TryParse(scaleStr, out var scaleVal)
+            float scale = metadata.TryGetValue("Scale", out var scaleStr)
+                && float.TryParse(scaleStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var scaleVal)
                 ? scaleVal
                 : 0.65f;
 
-            DiagnosticLog.Debug("MauiIconGenerator", $"Generating {size}x{size} icon");
-            DiagnosticLog.Debug("MauiIconGenerator", $"  Color: {color}");
-            DiagnosticLog.Debug("MauiIconGenerator", $"  Scale: {scale}");
+            DiagnosticLog.Debug("MauiIconGenerator", $"Generating {size}x{size} icon (background {bgPath ?? "none"}, color {background}, scale {scale})");
 
             using var surface = SKSurface.Create(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Premul));
             var canvas = surface.Canvas;
+            canvas.Clear(background);
 
-            // Fill background with color
-            canvas.Clear(color);
-
-            // Load and draw SVG foreground if it exists
+            if (bgPath != null && File.Exists(bgPath))
+                DrawLayer(canvas, bgPath, size, 1f, null);
             if (File.Exists(fgPath))
-            {
-                using var svg = new SKSvg();
-                if (svg.Load(fgPath) != null && svg.Picture != null)
-                {
-                    var cullRect = svg.Picture.CullRect;
-                    float svgScale = size * scale / Math.Max(cullRect.Width, cullRect.Height);
-                    float offsetX = (size - cullRect.Width * svgScale) / 2f;
-                    float offsetY = (size - cullRect.Height * svgScale) / 2f;
-
-                    canvas.Save();
-                    canvas.Translate(offsetX, offsetY);
-                    canvas.Scale(svgScale);
-                    canvas.DrawPicture(svg.Picture);
-                    canvas.Restore();
-                }
-            }
+                DrawLayer(canvas, fgPath, size, scale, tint);
 
             using var image = surface.Snapshot();
             using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-            using var fileStream = File.OpenWrite(outputPath);
-            data.SaveTo(fileStream);
+            using (var fileStream = File.Create(outputPath))
+                data.SaveTo(fileStream);
 
             DiagnosticLog.Debug("MauiIconGenerator", "Generated: " + outputPath);
             return outputPath;
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("MauiIconGenerator", "Error: " + ex.Message);
+            DiagnosticLog.Error("MauiIconGenerator", "Generating the app icon failed", ex);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Draws an SVG or raster layer centred on the icon, its longer side
+    /// <paramref name="scale"/> of the icon size, optionally tinted.
+    /// </summary>
+    private static void DrawLayer(SKCanvas canvas, string file, int size, float scale, SKColor? tint)
+    {
+        using var paint = tint is { } t
+            ? new SKPaint { ColorFilter = SKColorFilter.CreateBlendMode(t, SKBlendMode.SrcIn) }
+            : null;
+        if (file.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            using var svg = new SKSvg();
+            if (svg.Load(file) == null || svg.Picture == null)
+                return;
+            var cull = svg.Picture.CullRect;
+            float s = size * scale / Math.Max(cull.Width, cull.Height);
+            canvas.Save();
+            canvas.Translate((size - cull.Width * s) / 2f, (size - cull.Height * s) / 2f);
+            canvas.Scale(s);
+            canvas.Translate(-cull.Left, -cull.Top);
+            canvas.DrawPicture(svg.Picture, paint);
+            canvas.Restore();
+            return;
+        }
+
+        using var bitmap = SKBitmap.Decode(file);
+        if (bitmap == null)
+            return;
+        float k = size * scale / Math.Max(bitmap.Width, bitmap.Height);
+        float w = bitmap.Width * k, h = bitmap.Height * k;
+        var dest = SKRect.Create((size - w) / 2f, (size - h) / 2f, w, h);
+        using var image = SKImage.FromBitmap(bitmap);
+        canvas.DrawImage(image, dest, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint);
+    }
+
+    private static DateTime LatestWriteTime(params string[] files)
+    {
+        var latest = DateTime.MinValue;
+        foreach (var f in files)
+            if (File.Exists(f) && File.GetLastWriteTimeUtc(f) > latest)
+                latest = File.GetLastWriteTimeUtc(f);
+        return latest;
+    }
+
+    /// <summary>$XDG_CACHE_HOME/openmaui/&lt;app&gt;/appicon.png (~/.cache when unset).</summary>
+    internal static string CachedIconPath()
+    {
+        var cache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
+        if (string.IsNullOrEmpty(cache))
+            cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache");
+        var app = Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "MauiApp");
+        return Path.Combine(cache, "openmaui", app, "appicon.png");
     }
 
     private static Dictionary<string, string> ParseMetadata(string content)

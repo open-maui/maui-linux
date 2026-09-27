@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 using SkiaSharp;
 using System.Diagnostics;
 
@@ -74,14 +75,118 @@ public class SystemThemeService
     private Timer? _pollTimer;
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
+    // xdg-desktop-portal Settings (org.freedesktop.appearance): read at start
+    // and kept current through the SettingChanged signal, so dark-mode and
+    // accent changes are live without polling gsettings.
+    private static readonly TimeSpan PortalStartupWait = TimeSpan.FromMilliseconds(1500);
+    private PortalColorScheme? _portalColorScheme;
+    private (byte R, byte G, byte B)? _portalAccent;
+    private IDisposable? _portalSettingWatch;
+    private volatile bool _constructed;
+
     private SystemThemeService()
     {
         DetectDesktopEnvironment();
+        StartPortalSettings();
         DetectTheme();
         UpdateColors();
         SetupWatcher();
         SetupPolling();
+        _constructed = true;
     }
+
+    /// <summary>True while the portal SettingChanged subscription is active.</summary>
+    internal bool IsPortalSettingsLive => _portalSettingWatch != null;
+
+    private void StartPortalSettings()
+    {
+        if (!DesktopPortal.ShouldTry(PortalUse.Always))
+            return;
+
+        try
+        {
+            var init = Task.Run(() => InitializePortalSettingsAsync(DesktopPortal.Current));
+            if (!init.Wait(PortalStartupWait))
+                DiagnosticLog.Debug("SystemThemeService", "Settings portal slow to answer; using desktop detection until it does");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("SystemThemeService", "Settings portal init failed", ex);
+        }
+    }
+
+    private async Task InitializePortalSettingsAsync(IDesktopPortal portal)
+    {
+        if (await portal.GetVersionAsync(PortalInterfaces.Settings).ConfigureAwait(false) == 0)
+            return;
+
+        try
+        {
+            // Subscribe first so a change between the read and the watch is not lost.
+            _portalSettingWatch = await portal.WatchSettingChangedAsync(OnPortalSettingChanged).ConfigureAwait(false);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            ApplyPortalSetting(PortalAppearance.ColorSchemeKey,
+                await portal.ReadSettingAsync(PortalAppearance.Namespace, PortalAppearance.ColorSchemeKey, cts.Token).ConfigureAwait(false));
+            ApplyPortalSetting(PortalAppearance.AccentColorKey,
+                await portal.ReadSettingAsync(PortalAppearance.Namespace, PortalAppearance.AccentColorKey, cts.Token).ConfigureAwait(false));
+
+            DiagnosticLog.Debug("SystemThemeService", $"Settings portal: color-scheme={_portalColorScheme?.ToString() ?? "unset"}, accent={(_portalAccent.HasValue ? "set" : "unset")}");
+
+            // Finished after the constructor gave up waiting: apply now.
+            if (_constructed)
+                RefreshTheme();
+        }
+        catch (PortalUnavailableException ex)
+        {
+            DiagnosticLog.Debug("SystemThemeService", $"Settings portal unavailable: {ex.Message}");
+        }
+    }
+
+    private void OnPortalSettingChanged(string @namespace, string key, object value)
+    {
+        if (@namespace != PortalAppearance.Namespace)
+            return;
+        if (!ApplyPortalSetting(key, value))
+            return;
+
+        try
+        {
+            DiagnosticLog.Debug("SystemThemeService", $"Settings portal change: {key}");
+            RefreshTheme();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SystemThemeService", $"Error applying portal setting change: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>Stores a portal appearance value; true when it was a key this service uses.</summary>
+    private bool ApplyPortalSetting(string key, object? value)
+    {
+        switch (key)
+        {
+            case PortalAppearance.ColorSchemeKey:
+                _portalColorScheme = PortalAppearance.ParseColorScheme(value);
+                return true;
+            case PortalAppearance.AccentColorKey:
+                _portalAccent = PortalAppearance.ParseAccentColor(value);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Theme from the portal color-scheme: dark/light when the desktop states a
+    /// preference, null (use desktop-specific detection) otherwise.
+    /// </summary>
+    internal static SystemTheme? ThemeFromPortal(PortalColorScheme? scheme) => scheme switch
+    {
+        PortalColorScheme.PreferDark => SystemTheme.Dark,
+        PortalColorScheme.PreferLight => SystemTheme.Light,
+        _ => null,
+    };
 
     private void DetectDesktopEnvironment()
     {
@@ -124,7 +229,7 @@ public class SystemThemeService
 
     private void DetectTheme()
     {
-        var theme = Desktop switch
+        var theme = ThemeFromPortal(_portalColorScheme) ?? Desktop switch
         {
             DesktopEnvironment.GNOME => DetectGnomeTheme(),
             DesktopEnvironment.KDE => DetectKdeTheme(),
@@ -135,8 +240,8 @@ public class SystemThemeService
 
         CurrentTheme = theme ?? SystemTheme.Light;
 
-        // Try to get accent color
-        AccentColor = Desktop switch
+        // Try to get accent color (the portal's accent-color wins when set)
+        AccentColor = _portalAccent is { } accent ? new SKColor(accent.R, accent.G, accent.B) : Desktop switch
         {
             DesktopEnvironment.GNOME => GetGnomeAccentColor(),
             DesktopEnvironment.KDE => GetKdeAccentColor(),
@@ -378,6 +483,11 @@ public class SystemThemeService
 
     private void SetupPolling()
     {
+        // With the Settings portal live and stating a preference, changes
+        // arrive as SettingChanged signals; no polling needed.
+        if (IsPortalSettingsLive && ThemeFromPortal(_portalColorScheme) != null)
+            return;
+
         // For GNOME and other desktops that use dconf/gsettings,
         // file watching doesn't work. Use periodic polling instead.
         _pollTimer = new Timer(OnPollTimer, null, PollInterval, PollInterval);
@@ -399,7 +509,7 @@ public class SystemThemeService
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SystemThemeService", $"Error in poll timer: {ex.Message}");
+            DiagnosticLog.Error("SystemThemeService", $"Error in poll timer: {ex.Message}", ex);
         }
     }
 

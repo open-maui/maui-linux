@@ -102,7 +102,7 @@ internal static class GtkPrintDialog
 
     // Present + exports the print dialog symbols (GTK can be built without
     // printing support, in which case libgtk-3 loads but the symbol is absent).
-    private static bool IsAvailable
+    internal static bool IsAvailable
     {
         get
         {
@@ -171,7 +171,7 @@ internal static class GtkPrintDialog
                     }
                     catch (Exception ex)
                     {
-                        DiagnosticLog.Error("GtkPrintDialog", $"Reading print dialog selection failed: {ex.Message}");
+                        DiagnosticLog.Error("GtkPrintDialog", $"Reading print dialog selection failed: {ex.Message}", ex);
                     }
                     finally
                     {
@@ -187,7 +187,7 @@ internal static class GtkPrintDialog
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("GtkPrintDialog", $"Showing print dialog failed: {ex.Message}");
+                DiagnosticLog.Error("GtkPrintDialog", $"Showing print dialog failed: {ex.Message}", ex);
                 tcs.TrySetResult(null);
             }
         });
