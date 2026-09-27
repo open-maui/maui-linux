@@ -295,12 +295,63 @@ public partial class WaylandWindow
 
         window._preferredScale = newScale;
         DiagnosticLog.Debug("WaylandWindow", $"Compositor preferred scale: {newScale:F2} (raw {scale})");
+        window.ApplyBufferScale(newScale);
+    }
 
-        // Forward to the application-wide HiDpiService so SkiaRenderingEngine
-        // and views observe the updated scale on the next frame.
-        // (HiDpiService is exposed via LinuxApplication.DpiScale; surfacing this
-        // wires through to the render loop in Stage 2g once the cross-window
-        // scale change pathway is in place.)
+    /// <summary>
+    /// Re-renders the window at a new device scale while keeping its logical
+    /// size: the buffer becomes logical x scale pixels and the viewport keeps
+    /// the compositor-visible size logical. <see cref="ScaleChanged"/> fires
+    /// before the <see cref="Resized"/> that carries the new buffer size (see
+    /// <see cref="Services.IScaleAwareDisplayWindow"/>). Without wp_viewporter
+    /// the buffer cannot be decoupled from the surface size, so the scale is
+    /// only recorded.
+    /// </summary>
+    internal void ApplyBufferScale(float newScale)
+    {
+        if (newScale <= 0f || Math.Abs(newScale - _bufferToLogicalScale) < 0.01f)
+            return;
+        if (_viewport == IntPtr.Zero)
+        {
+            DiagnosticLog.Debug("WaylandWindow", "Scale change ignored: compositor has no wp_viewporter");
+            return;
+        }
+
+        float oldScale = _bufferToLogicalScale;
+        var (logicalW, logicalH, bufferW, bufferH) = RescaleSize(_width, _height, oldScale, newScale);
+        _bufferToLogicalScale = newScale;
+        DiagnosticLog.Info("WaylandWindow", $"Scale {oldScale:0.##} -> {newScale:0.##}: logical {logicalW}x{logicalH}, buffer {bufferW}x{bufferH}");
+
+        ScaleChanged?.Invoke(this, newScale);
+
+        // wp_viewport.set_destination (opcode 2) is double-buffered: it applies
+        // with the commit that attaches the new-size buffer.
+        wl_proxy_marshal(_viewport, 2, logicalW, logicalH);
+
+        // Before the first configure the pending size must follow too, or the
+        // first configure would resize back to the old-scale buffer.
+        if (!_configured)
+        {
+            _pendingWidth = bufferW;
+            _pendingHeight = bufferH;
+        }
+        ResizeBuffer(bufferW, bufferH);
+        Exposed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Buffer size for a new scale that keeps the logical size (rounded to
+    /// whole logical pixels, never below 1).
+    /// </summary>
+    internal static (int LogicalWidth, int LogicalHeight, int BufferWidth, int BufferHeight) RescaleSize(
+        int bufferWidth, int bufferHeight, float oldScale, float newScale)
+    {
+        if (oldScale <= 0f) oldScale = 1f;
+        int logicalW = Math.Max(1, (int)Math.Round(bufferWidth / oldScale));
+        int logicalH = Math.Max(1, (int)Math.Round(bufferHeight / oldScale));
+        return (logicalW, logicalH,
+            Math.Max(1, (int)Math.Round(logicalW * newScale)),
+            Math.Max(1, (int)Math.Round(logicalH * newScale)));
     }
 
     private void DisposeFractionalScale()
