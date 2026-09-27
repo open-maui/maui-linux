@@ -1,0 +1,56 @@
+<Project>
+
+  <!--
+    Release notes come from CHANGELOG.md at pack time, so a package never ships the notes of
+    an older release (the core package once carried 10.0.41.3's). The section for $(Version)
+    (the package version) is reduced to its entry titles (the bold lead of each "- **...**" line) and followed by a
+    link to the full changelog. A project that sets PackageReleaseNotes itself keeps it.
+  -->
+  <PropertyGroup>
+    <OpenMauiChangelogPath>$(MSBuildThisFileDirectory)CHANGELOG.md</OpenMauiChangelogPath>
+    <OpenMauiChangelogUrl>https://github.com/open-maui/maui-linux/blob/main/CHANGELOG.md</OpenMauiChangelogUrl>
+  </PropertyGroup>
+
+  <UsingTask TaskName="OpenMauiReadReleaseNotes" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ChangelogPath ParameterType="System.String" Required="true" />
+      <Version ParameterType="System.String" Required="true" />
+      <ChangelogUrl ParameterType="System.String" Required="true" />
+      <ReleaseNotes ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var text = System.IO.File.ReadAllText(ChangelogPath).Replace("\r", "");
+        var heading = new Regex(@"^## \[" + Regex.Escape(Version) + @"\][^\n]*\n", RegexOptions.Multiline).Match(text);
+        var sb = new StringBuilder();
+        sb.Append("OpenMaui ").Append(Version);
+        if (heading.Success)
+        {
+            int start = heading.Index + heading.Length;
+            var next = new Regex(@"^## \[", RegexOptions.Multiline).Match(text, start);
+            var section = text.Substring(start, (next.Success ? next.Index : text.Length) - start);
+            sb.Append(':').Append('\n');
+            foreach (Match m in new Regex(@"^- \*\*(.+?)\*\*", RegexOptions.Multiline).Matches(section))
+                sb.Append("- ").Append(m.Groups[1].Value.TrimEnd(':', '.')).Append('\n');
+            sb.Append('\n').Append("Full changelog: ").Append(ChangelogUrl);
+        }
+        else
+        {
+            sb.Append(". Changelog: ").Append(ChangelogUrl);
+        }
+        ReleaseNotes = sb.ToString();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="OpenMauiReleaseNotesFromChangelog"
+          BeforeTargets="GenerateNuspec"
+          Condition="'$(IsPackable)' != 'false' And '$(PackageReleaseNotes)' == '' And Exists('$(OpenMauiChangelogPath)')">
+    <OpenMauiReadReleaseNotes ChangelogPath="$(OpenMauiChangelogPath)" Version="$(PackageVersion)" ChangelogUrl="$(OpenMauiChangelogUrl)">
+      <Output TaskParameter="ReleaseNotes" PropertyName="PackageReleaseNotes" />
+    </OpenMauiReadReleaseNotes>
+  </Target>
+
+</Project>
