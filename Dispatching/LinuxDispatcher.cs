@@ -42,11 +42,11 @@ public class LinuxDispatcher : IDispatcher
     public bool Dispatch(Action action)
     {
         ArgumentNullException.ThrowIfNull(action, "action");
-        if (!IsDispatchRequired)
-        {
-            action();
-            return true;
-        }
+        // Always queued, even on the UI thread, as MAUI's dispatchers do on
+        // every platform (Android Handler.Post, WinUI TryEnqueue, iOS
+        // DispatchAsync): callers use Dispatch to run code after the current
+        // work, and running it inline broke that (a toolbar's "refit on the
+        // next tick" ran in the middle of opening its menu and closed it).
         GLibNative.IdleAdd(delegate
         {
             try
