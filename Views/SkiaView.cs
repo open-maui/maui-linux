@@ -1353,8 +1353,64 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     internal Rect LayoutBounds => _arrangingTo ?? Bounds;
 
+    /// <summary>
+    /// Set while an arrange comes from MAUI (the handler's PlatformArrange, the
+    /// view's own ArrangeOverride having already run): no second trip through MAUI.
+    /// </summary>
+    internal bool InMauiArrange
+    {
+        get => _inMauiArrange;
+        set => _inMauiArrange = value;
+    }
+
+    private bool _inMauiArrange;
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, bool> s_customArrange = new();
+
+    /// <summary>
+    /// True when <paramref name="type"/> overrides VisualElement.ArrangeOverride
+    /// outside MAUI's own controls: library layouts that place their children
+    /// there (Syncfusion's chart LegendLayout sets its chart area's bounds, then
+    /// calls the base arrange) must run it when a Skia parent arranges them.
+    /// </summary>
+    internal static bool HasCustomArrangeOverride(Type type) => s_customArrange.GetOrAdd(type, static t =>
+    {
+        var method = t.GetMethod("ArrangeOverride",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public,
+            null, new[] { typeof(Rect) }, null);
+        var declaring = method?.GetBaseDefinition() != method ? method?.DeclaringType : null;
+        return declaring != null && declaring.Assembly != typeof(Microsoft.Maui.Controls.VisualElement).Assembly;
+    });
+
     public virtual void Arrange(Rect bounds)
     {
+        // Arranged through MAUI when the view's own ArrangeOverride must run;
+        // its base call comes back here through the handler, flagged, and
+        // arranges normally. MAUI arranges a child in its slot, margin included.
+        if (!_inMauiArrange && MauiView is Microsoft.Maui.Controls.VisualElement ve && ve.Handler != null
+            && HasCustomArrangeOverride(ve.GetType()))
+        {
+            _inMauiArrange = true;
+            try
+            {
+                var margin = ve is Microsoft.Maui.Controls.View v ? v.Margin : Thickness.Zero;
+                ((IView)ve).Arrange(new Rect(bounds.X - margin.Left, bounds.Y - margin.Top,
+                    bounds.Width + margin.HorizontalThickness, bounds.Height + margin.VerticalThickness));
+                // A base call that did not reach the handler still arranges.
+                if (_arrangingTo != bounds)
+                    Arrange(bounds);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaView", $"{ve.GetType().Name} arrange failed", ex);
+            }
+            finally
+            {
+                _inMauiArrange = false;
+            }
+            return;
+        }
+
         _arrangingTo = bounds;
         try
         {
