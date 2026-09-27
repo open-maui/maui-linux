@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copied from maui-linux-samples/ShellDemo/Pages/ControlsPage.xaml for the sample-page golden scenes. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.ControlsPage"
+             Title="Controls"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource PageBackgroundDark}}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+
+            <Label Text="Control Gallery"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+            <!-- Buttons Section -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Buttons"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                    <HorizontalStackLayout Spacing="10">
+                        <Button Text="Primary"
+                                Style="{StaticResource PrimaryButton}"
+                                Clicked="OnButtonClicked" />
+                        <Button Text="Success"
+                                Style="{StaticResource SuccessButton}"
+                                Clicked="OnButtonClicked" />
+                        <Button Text="Danger"
+                                Style="{StaticResource DangerButton}"
+                                Clicked="OnButtonClicked" />
+                    </HorizontalStackLayout>
+
+                    <Label x:Name="ButtonResultLabel"
+                           FontSize="12"
+                           TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Selection Section -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Selection"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                    <!-- CheckBox Row -->
+                    <HorizontalStackLayout Spacing="20">
+                        <CheckBox x:Name="Checkbox1" IsChecked="True" />
+                        <Label Text="Option 1" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                        <CheckBox x:Name="Checkbox2" IsChecked="False" />
+                        <Label Text="Option 2" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    </HorizontalStackLayout>
+
+                    <!-- Switch Row -->
+                    <HorizontalStackLayout Spacing="10">
+                        <Switch x:Name="MainSwitch" IsToggled="False" Toggled="OnSwitchToggled" />
+                        <Label x:Name="SwitchLabel" Text="Off" VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Slider Section -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Slider"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                    <Slider x:Name="MainSlider" Minimum="0" Maximum="100" Value="50" ValueChanged="OnSliderValueChanged" />
+                    <Label x:Name="SliderLabel" Text="Value: 50"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Picker Section -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Picker"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                    <Picker x:Name="MainPicker"
+                            Title="Select a fruit"
+                            SelectedIndexChanged="OnPickerSelectedIndexChanged">
+                        <Picker.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>Apple</x:String>
+                                <x:String>Banana</x:String>
+                                <x:String>Cherry</x:String>
+                                <x:String>Date</x:String>
+                                <x:String>Elderberry</x:String>
+                            </x:Array>
+                        </Picker.ItemsSource>
+                    </Picker>
+                    <Label x:Name="PickerLabel" Text="Selected: (none)"
+                           TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Progress Section -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Progress"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+
+                    <ProgressBar Progress="0.7" ProgressColor="{StaticResource PrimaryColor}" />
+                    <Label Text="70% Complete"
+                           FontSize="12"
+                           TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+
+                    <HorizontalStackLayout Spacing="10">
+                        <ActivityIndicator IsRunning="True" Color="{StaticResource PrimaryColor}" />
+                        <Label Text="Loading..." VerticalOptions="Center"
+                               TextColor="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

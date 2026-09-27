@@ -36,12 +36,16 @@ public class LinuxDispatcherTests
     }
 
     [Fact]
-    public void On_the_main_thread_dispatch_runs_synchronously()
+    public void On_the_main_thread_dispatch_is_queued_not_run_inline()
     {
+        // As on every MAUI platform: Dispatch runs the action after the current
+        // work, even when called on the UI thread.
         var d = Dispatcher();
         d.IsDispatchRequired.Should().BeFalse();
         bool ran = false;
         d.Dispatch(() => ran = true).Should().BeTrue();
+        ran.Should().BeFalse("the caller finishes first");
+        Pump(() => ran);
         ran.Should().BeTrue();
     }
 
