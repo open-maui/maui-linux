@@ -104,6 +104,10 @@ public static class LinuxMauiAppBuilderExtensionsInternal
     {
         // Patch MAUI Essentials stubs before any services use them
         EssentialsPatches.Apply();
+        // Mopups popups as window layers, when the app uses Mopups.
+        MopupsBridge.Register(builder.Services);
+        // VisualElement.Focus()/Unfocus() through the window's focus.
+        Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register();
 
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
@@ -224,6 +228,8 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<HorizontalStackLayout, StackLayoutHandler>();
             handlers.AddHandler<AbsoluteLayout, AbsoluteLayoutHandler>();
             handlers.AddHandler<FlexLayout, FlexLayoutHandler>();
+            // Any other Layout subclass (third-party or app-defined): its own ILayoutManager.
+            handlers.AddHandler<Layout, CrossPlatformLayoutHandler>();
             handlers.AddHandler<ScrollView, ScrollViewHandler>();
             handlers.AddHandler<Frame, FrameHandler>();
             handlers.AddHandler<Border, BorderHandler>();
@@ -251,6 +257,10 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKCanvasView, SKCanvasViewHandler>();
             handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKGLView, SKGLViewHandler>();
 
+            // CommunityToolkit.Maui DrawingView (only when the toolkit is in the app)
+            if (DrawingViewHandler.ToolkitDrawingViewType is { } drawingView)
+                handlers.AddHandler(drawingView, typeof(DrawingViewHandler));
+
             // Web: WPE WebKit composited in the Skia tree when installed (works in
             // native Wayland/X11 mode), else the GTK-hosted WebKitGTK view.
             if (WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe)
@@ -260,7 +270,7 @@ public static class LinuxMauiAppBuilderExtensionsInternal
 
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
-            handlers.AddHandler<ListView, CollectionViewHandler>();
+            handlers.AddHandler<ListView, ListViewHandler>();
             handlers.AddHandler<TableView, TableViewHandler>();
             handlers.AddHandler<CarouselView, CarouselViewHandler>();
             handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
