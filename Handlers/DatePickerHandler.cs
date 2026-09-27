@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for DatePicker on Linux using Skia rendering.
 /// </summary>
-public partial class DatePickerHandler : ViewHandler<IDatePicker, SkiaDatePicker>
+public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDatePicker>
 {
     public static IPropertyMapper<IDatePicker, DatePickerHandler> Mapper =
         new PropertyMapper<IDatePicker, DatePickerHandler>(ViewHandler.ViewMapper)

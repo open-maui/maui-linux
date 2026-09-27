@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for Border on Linux using Skia rendering.
 /// </summary>
-public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
+public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
 {
     public static IPropertyMapper<IBorderView, BorderHandler> Mapper =
         new PropertyMapper<IBorderView, BorderHandler>(ViewHandler.ViewMapper)
@@ -62,7 +62,6 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
         {
             platformView.MauiView = view;
         }
-        platformView.Tapped += OnPlatformViewTapped;
 
         // Explicitly map size requests since they may be set before handler creation.
         // Background/BackgroundColor are deliberately NOT echoed here: when MauiView
@@ -85,18 +84,9 @@ public partial class BorderHandler : ViewHandler<IBorderView, SkiaBorder>
 
     protected override void DisconnectHandler(SkiaBorder platformView)
     {
-        platformView.Tapped -= OnPlatformViewTapped;
         platformView.MauiView = null;
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
-    }
-
-    private void OnPlatformViewTapped(object? sender, EventArgs e)
-    {
-        if (VirtualView is View view)
-        {
-            GestureManager.ProcessTap(view, 0.0, 0.0);
-        }
     }
 
     public static void MapContent(BorderHandler handler, IBorderView border)
