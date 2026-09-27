@@ -202,8 +202,17 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
         }
     }
 
+    /// <summary>ILayout.Update: the child at the index was replaced; replace its platform view too.</summary>
     public static void MapUpdate(LayoutHandler handler, ILayout layout, object? arg)
     {
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update
+            && update.Index >= 0 && update.Index < handler.PlatformView.Children.Count
+            && update.View.Handler?.PlatformView is SkiaView replacement
+            && !ReferenceEquals(handler.PlatformView.Children[update.Index], replacement))
+        {
+            handler.PlatformView.RemoveChildAt(update.Index);
+            handler.PlatformView.InsertChild(update.Index, replacement);
+        }
         handler.PlatformView.InvalidateMeasure();
         handler.PlatformView.Invalidate();
     }

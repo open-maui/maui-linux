@@ -202,10 +202,27 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
         MapAdd(handler, layout, arg);
     }
 
+    /// <summary>
+    /// ILayout.Update: the child at the index was replaced (Layout[i] = view;
+    /// BindableLayout swaps its rows this way when its ItemTemplate changes).
+    /// The platform child there is replaced by the new view's; before, only a
+    /// re-layout ran and the old rows stayed on screen.
+    /// </summary>
     public static void MapUpdate(LayoutHandler handler, ILayout layout, object? arg)
     {
-        // Force re-layout
-        handler.PlatformView?.InvalidateMeasure();
+        if (handler.PlatformView == null)
+            return;
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update
+            && update.Index >= 0 && update.Index < handler.PlatformView.Children.Count)
+        {
+            var current = handler.PlatformView.Children[update.Index];
+            if (!ReferenceEquals(current, update.View.Handler?.PlatformView))
+            {
+                handler.PlatformView.RemoveChildAt(update.Index);
+                MapAdd(handler, layout, arg);
+            }
+        }
+        handler.PlatformView.InvalidateMeasure();
     }
 
     public static void MapPadding(LayoutHandler handler, ILayout layout)
