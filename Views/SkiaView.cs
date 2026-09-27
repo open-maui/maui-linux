@@ -1558,7 +1558,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         // Coordinates stay in absolute space since children have absolute Bounds
         for (int i = _children.Count - 1; i >= 0; i--)
         {
-            var hit = _children[i].HitTest(x, y);
+            var hit = _children[i].HitTestAt(x, y);
             if (hit != null)
                 return hit;
         }

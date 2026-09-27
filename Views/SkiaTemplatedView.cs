@@ -360,7 +360,7 @@ public abstract class SkiaTemplatedView : SkiaView
 
         if (_templateRoot != null && _templateApplied)
         {
-            var hit = _templateRoot.HitTest(x, y);
+            var hit = _templateRoot.HitTestAt(x, y);
             if (hit != null)
                 return hit;
         }

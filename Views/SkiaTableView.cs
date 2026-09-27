@@ -373,7 +373,7 @@ public class SkiaTableView : SkiaLayoutView
         {
             // A row's editor / switch / hosted content takes the input; the
             // row's own surface is the table's (row taps).
-            var hit = cell.HitTest(x, y);
+            var hit = cell.HitTestAt(x, y);
             if (hit != null && !ReferenceEquals(hit, cell))
                 return hit;
         }
