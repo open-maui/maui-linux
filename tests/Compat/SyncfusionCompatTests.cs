@@ -113,4 +113,44 @@ public sealed class SyncfusionCompatTests
         rows.Any(r => (Microsoft.Maui.Graphics.Rect)clipRect.GetValue(r)! != Microsoft.Maui.Graphics.Rect.Zero)
             .Should().BeTrue("the row scrolled under the sticky header is clipped there");
     }
+
+    private sealed record Point2(double X, double Y);
+
+    [Fact]
+    public void A_cartesian_chart_draws_its_axes_and_series()
+    {
+        var chart = new Syncfusion.Maui.Charts.SfCartesianChart
+        {
+            WidthRequest = 300, HeightRequest = 200,
+            HorizontalOptions = LayoutOptions.Start, VerticalOptions = LayoutOptions.Start,
+        };
+        chart.XAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis());
+        chart.YAxes.Add(new Syncfusion.Maui.Charts.NumericalAxis());
+        chart.Series.Add(new Syncfusion.Maui.Charts.LineSeries
+        {
+            ItemsSource = new[] { new Point2(0, 1), new Point2(1, 3), new Point2(2, 2) },
+            XBindingPath = nameof(Point2.X), YBindingPath = nameof(Point2.Y),
+            Fill = new SolidColorBrush(Microsoft.Maui.Graphics.Colors.Red), StrokeWidth = 3,
+        });
+        using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = chart }, b => b.UseLinuxSyncfusion(), 400, 300);
+        for (int i = 0; i < 4; i++) host.Render();
+        if (Environment.GetEnvironmentVariable("CHART_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
+
+        var area = new SkiaSharp.SKRectI(0, 0, 300, 200);
+        host.CountPixelsNot(SkiaSharp.SKColors.White, area).Should().BeGreaterThan(200, "axes and gridlines draw");
+        host.CountPixelsNear(new SkiaSharp.SKColor(255, 0, 0), area).Should().BeGreaterThan(100, "the red line series draws");
+    }
+
+    [Fact]
+    public void Syncfusion_default_text_sizes_do_not_throw()
+    {
+        using var host = new CompatHost(new ContentPage(), b => b.UseLinuxSyncfusion(), 200, 200);
+        var busy = new Syncfusion.Maui.Core.SfBusyIndicator { Title = "Loading" };
+        busy.FontSize.Should().Be(14);
+        var helper = typeof(Syncfusion.Maui.Core.SfBusyIndicator).Assembly.GetType("Syncfusion.Maui.Core.TooltipHelper")!;
+        var method = helper.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .First(m => m.Name.EndsWith("FontSizeDefaultValueCreator"));
+        var instance = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(helper);
+        ((double)method.Invoke(instance, null)!).Should().Be(14);
+    }
 }
