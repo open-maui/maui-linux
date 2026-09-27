@@ -6,7 +6,7 @@ using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public partial class RectangleHandler : ViewHandler<Microsoft.Maui.Controls.Shapes.Rectangle, SkiaRectangle>
+public partial class RectangleHandler : LinuxViewHandler<Microsoft.Maui.Controls.Shapes.Rectangle, SkiaRectangle>
 {
     public static IPropertyMapper<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler> Mapper =
         new PropertyMapper<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>(ViewMapper)

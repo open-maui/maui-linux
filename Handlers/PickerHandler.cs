@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Picker on Linux using Skia rendering.
 /// Maps IPicker interface to SkiaPicker platform view.
 /// </summary>
-public partial class PickerHandler : ViewHandler<IPicker, SkiaPicker>
+public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
 {
     public static IPropertyMapper<IPicker, PickerHandler> Mapper =
         new PropertyMapper<IPicker, PickerHandler>(ViewHandler.ViewMapper)

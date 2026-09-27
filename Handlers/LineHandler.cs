@@ -6,7 +6,7 @@ using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public partial class LineHandler : ViewHandler<Line, SkiaLine>
+public partial class LineHandler : LinuxViewHandler<Line, SkiaLine>
 {
     public static IPropertyMapper<Line, LineHandler> Mapper =
         new PropertyMapper<Line, LineHandler>(ViewMapper)

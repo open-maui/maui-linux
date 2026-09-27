@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for CollectionView on Linux using Skia rendering.
 /// Maps CollectionView to SkiaCollectionView platform view.
 /// </summary>
-public partial class CollectionViewHandler : ViewHandler<CollectionView, SkiaCollectionView>
+public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, SkiaCollectionView>
 {
     private bool _isUpdatingSelection;
 

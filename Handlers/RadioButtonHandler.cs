@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for RadioButton on Linux using Skia rendering.
 /// </summary>
-public partial class RadioButtonHandler : ViewHandler<IRadioButton, SkiaRadioButton>
+public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRadioButton>
 {
     public static IPropertyMapper<IRadioButton, RadioButtonHandler> Mapper =
         new PropertyMapper<IRadioButton, RadioButtonHandler>(ViewHandler.ViewMapper)

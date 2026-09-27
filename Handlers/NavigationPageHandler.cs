@@ -17,7 +17,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for NavigationPage on Linux using Skia rendering.
 /// </summary>
-public partial class NavigationPageHandler : ViewHandler<NavigationPage, SkiaNavigationPage>
+public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, SkiaNavigationPage>
 {
     public static IPropertyMapper<NavigationPage, NavigationPageHandler> Mapper =
         new PropertyMapper<NavigationPage, NavigationPageHandler>(ViewHandler.ViewMapper)
