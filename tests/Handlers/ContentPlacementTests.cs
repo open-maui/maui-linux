@@ -151,4 +151,19 @@ public class ContentPlacementTests
         top.Should().BeGreaterThan(0);
         Math.Abs((top - p.Top) - (p.Bottom - 1 - bottom)).Should().BeLessThanOrEqualTo(1);
     }
+
+    [Fact]
+    public void A_one_pixel_separator_in_a_star_row_stays_a_line()
+    {
+        // MarketAlly.Dialogs' action list: a HeightRequest=1 BoxView lands in the * row.
+        var separator = new BoxView { HeightRequest = 1, Color = Colors.Gray };
+        var grid = new Grid { HeightRequest = 200, RowDefinitions = new RowDefinitionCollection(new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Star)) };
+        grid.Add(new Label { Text = "Title" }, 0, 0);
+        grid.Add(separator, 0, 1);
+        using var host = new HeadlessMauiHost(new ContentPage { Content = new VerticalStackLayout { grid } }, withEngine: true);
+        host.Context.Render();
+
+        var b = ((Microsoft.Maui.Platform.SkiaView)separator.Handler!.PlatformView!).Bounds;
+        b.Height.Should().BeApproximately(1, 0.1);
+    }
 }
