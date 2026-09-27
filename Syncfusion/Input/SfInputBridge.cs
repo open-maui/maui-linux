@@ -46,7 +46,9 @@ internal static class SfInputBridge
         SfInternals.ReportMissingOnce();
         SkiaTextMeasurer.EnsureInstalled();
         SkiaView.PointerRouted += OnPointerRouted;
-        LinuxTicker.Ticked += SfInvalidation.OnAnimationTick;
+        // Repaints come from Syncfusion's own InvalidateDrawable (SfInvalidationPatches),
+        // per view, not from every animation tick for every Syncfusion view.
+        SfInvalidationPatches.Install();
     }
 
     private static void OnPointerRouted(View view, SkiaView.RoutedPointerKind kind, PointerEventArgs e)
@@ -151,15 +153,22 @@ internal static class SfInputBridge
         {
             if (!s_presses.TryGetValue(view, out var current) || current.Generation != generation || current.Moved)
                 return;
+            // A dispatcher that runs delayed work early must not turn every press into a long press.
+            if (DateTime.UtcNow - current.Time < LongPressDelay)
+                return;
             current.LongPressed = true;
             SfInternals.LongPress(gesture, position, current.Start);
             SfInvalidation.InvalidateAll(drawingOnly: false);
         });
     }
 
-    private static Point OriginOf(IElement element) =>
+    /// <summary>
+    /// The element's window position. ScreenBounds, not Bounds: content inside
+    /// a scroll view (SfListView's rows) keeps unscrolled bounds.
+    /// </summary>
+    internal static Point OriginOf(IElement element) =>
         (element.Handler as IViewHandler)?.PlatformView is SkiaView skia
-            ? new Point(skia.Bounds.X, skia.Bounds.Y)
+            ? new Point(skia.ScreenBounds.X, skia.ScreenBounds.Y)
             : Point.Zero;
 
     private static double Distance(Point a, Point b)
