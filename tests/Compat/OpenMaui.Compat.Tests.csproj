@@ -46,6 +46,11 @@
     <PackageReference Include="Syncfusion.Maui.TabView" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.ListView" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Charts" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Carousel" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Rotator" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.SignaturePad" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Inputs" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Popup" Version="34.2.9" />
   </ItemGroup>
 
   <ItemGroup>
