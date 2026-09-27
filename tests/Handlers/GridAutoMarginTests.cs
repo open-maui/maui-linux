@@ -32,4 +32,24 @@ public class GridAutoMarginTests
         spaced.Width.Should().BeApproximately(plain.Width, 0.5);
         spaced.X.Should().BeApproximately(plain.Width + 2, 0.5);
     }
+
+    [Fact]
+    public void A_margin_is_around_a_stack_child_not_taken_out_of_it()
+    {
+        // MAToolbar's menu separator: a 1 px BoxView with a (8, 4) margin.
+        var separator = new BoxView { HeightRequest = 1, Margin = new Thickness(8, 4) };
+        var above = new Label { Text = "About" };
+        var below = new Label { Text = "Report Issue" };
+        var menu = new VerticalStackLayout { WidthRequest = 200, HorizontalOptions = LayoutOptions.Start, Children = { above, separator, below } };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = menu }, withEngine: true);
+        host.Context.Render();
+
+        var sep = ((Microsoft.Maui.Platform.SkiaView)separator.Handler!.PlatformView!).Bounds;
+        var a = ((Microsoft.Maui.Platform.SkiaView)above.Handler!.PlatformView!).Bounds;
+        var b = ((Microsoft.Maui.Platform.SkiaView)below.Handler!.PlatformView!).Bounds;
+        sep.Height.Should().BeApproximately(1, 0.1);
+        sep.Top.Should().BeApproximately(a.Bottom + 4, 0.5);
+        b.Top.Should().BeApproximately(sep.Bottom + 4, 0.5);
+        sep.Left.Should().BeApproximately(a.Left + 8, 0.5);
+    }
 }
