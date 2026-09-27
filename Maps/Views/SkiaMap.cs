@@ -227,7 +227,7 @@ public class SkiaMap : SkiaView
         // being upscaled blurry. The logical pixel grid at _zoom is identical
         // to the (zoom+1) grid with 128-logical-px tiles, so all center/pin
         // math is unaffected. Gated on the source's own max zoom.
-        var deviceScale = LinuxApplication.Current?.DpiScale ?? 1.0f;
+        var deviceScale = DeviceScale;
         var deepLimit = Math.Min(MaxZoom, source.MaxZoom);
         var useDeepTiles = deviceScale >= 1.5f && _zoom < deepLimit;
         var fetchZoom = useDeepTiles ? _zoom + 1 : _zoom;
