@@ -57,7 +57,7 @@ internal static class SfKeyboardBridge
             DiagnosticLog.Warn("Syncfusion", "This Syncfusion.Maui.Core release lacks the keyboard entry points; keyboard navigation is disabled.");
             return;
         }
-        SkiaView.PointerRouted += OnPointerRouted;
+        SkiaView.PointerRoutedAny += OnPointerRouted;
         SkiaView.KeyRouted += OnKeyRouted;
     }
 

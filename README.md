@@ -28,6 +28,7 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **Blazor Hybrid**: Opt-in `OpenMaui.Controls.Linux.Blazor` package backs `BlazorWebView` (Microsoft.AspNetCore.Components.WebView.Maui) on the WPE WebView
 - **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
 - **Syncfusion**: Opt-in `OpenMaui.Controls.Linux.Syncfusion` package runs Syncfusion .NET MAUI controls (lists and trees, tabs, charts, inputs and drop-downs, Carousel, Rotator, SignaturePad, SfPopup): call `.UseLinuxSyncfusion()` instead of `.ConfigureSyncfusionCore()`. Bring your own Syncfusion license
+- **Effects**: MAUI's effects pipeline (`ConfigureEffects`, `RoutingEffect` to `PlatformEffect` with the Skia view as `Control`), with per-view routed pointer, key and bounds events on `SkiaView` for a platform effect to hook
 - **Third-party libraries**: popular MAUI libraries (CommunityToolkit.Maui, CommunityToolkit.Mvvm, LiveCharts2, ReactiveUI, Prism, SkiaSharp views) run unmodified, measured by a separate compatibility suite and published in the [scorecard](docs/COMPATIBILITY.md)
 
 ## Quick Start
