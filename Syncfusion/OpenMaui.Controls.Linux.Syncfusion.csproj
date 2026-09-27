@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Microsoft.Maui.Platform.Linux.Syncfusion</RootNamespace>
+    <AssemblyName>OpenMaui.Controls.Linux.Syncfusion</AssemblyName>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>OpenMaui.Controls.Linux.Syncfusion</PackageId>
+    <Version>10.0.110.1</Version>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Product>OpenMaui Syncfusion bridge (Linux)</Product>
+    <Description>Runs Syncfusion .NET MAUI controls on Linux. Syncfusion's platform-neutral build, which Linux apps get, has no native drawing, touch or invalidation; this package supplies them on OpenMaui's Skia renderer. Call .UseLinuxSyncfusion() in place of .ConfigureSyncfusionCore(). SfView-based controls (ListView, TreeView, TabView, effects and the rest) lay out, draw and receive touch, tap, double-tap, right-tap and long-press. Requires your own Syncfusion license; this package does not include or redistribute Syncfusion assemblies.</Description>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>maui;linux;openmaui;syncfusion;skia</PackageTags>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+
+    <!-- New in 10.0.110.1: no released baseline yet. Set
+         PackageValidationBaselineVersion to 10.0.110.1 after this release. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Main package: the Skia views, handler bases and the internal pointer
+         and animation-tick hooks this bridge observes. -->
+    <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
+
+    <!-- The oldest Syncfusion release the internal-member bindings are
+         verified against (SfInternals checks them at startup). -->
+    <PackageReference Include="Syncfusion.Maui.Core" Version="34.2.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
