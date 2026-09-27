@@ -24,10 +24,11 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// <para>
 /// Covered: every <c>SfView</c>-based control (layout, drawing, touch, tap,
 /// double-tap, right-tap, long-press) and the <c>ScrollView</c>-based list
-/// hosts, which OpenMaui's own ScrollView handles. Not covered yet: controls
-/// with dedicated native views (SignaturePad, ImageEditor, Carousel, Rotator,
-/// Syncfusion's MediaElement), popups hosted in Syncfusion's window overlay,
-/// and keyboard navigation.
+/// hosts, which OpenMaui's own ScrollView handles; SfCarousel, SfRotator,
+/// SfSignaturePad and SfInteractiveScrollView, whose native views are
+/// supplied here; SfPopup and the controls that open one, through
+/// Syncfusion's window overlay. Not covered yet: ImageEditor and Syncfusion's
+/// MediaElement (dedicated native views), and keyboard navigation.
 /// </para>
 /// </summary>
 public static class LinuxSyncfusionBuilderExtensions
@@ -51,6 +52,12 @@ public static class LinuxSyncfusionBuilderExtensions
             // optional.
             if (Type.GetType("Syncfusion.Maui.Charts.ChartBase, Syncfusion.Maui.Charts") is { } chartBase)
                 handlers.AddHandler(chartBase, typeof(Microsoft.Maui.Platform.Linux.Handlers.ContentViewHandler));
+
+            // Controls whose platform-neutral handlers have no platform view.
+            handlers.AddHandler(typeof(global::Syncfusion.Maui.Core.Carousel.ICarousel), typeof(SfCarouselBridgeHandler));
+            handlers.AddHandler(typeof(global::Syncfusion.Maui.Core.Rotator.IRotator), typeof(SfRotatorBridgeHandler));
+            handlers.AddHandler(typeof(ISignaturePad), typeof(SfSignaturePadBridgeHandler));
+            handlers.AddHandler(typeof(global::Syncfusion.Maui.Core.Internals.SfInteractiveScrollView), typeof(SfInteractiveScrollViewBridgeHandler));
         });
 
         // The fonts ConfigureSyncfusionCore registers (icon glyphs used by
@@ -67,6 +74,11 @@ public static class LinuxSyncfusionBuilderExtensions
         SfInputBridge.Install();
         SfListViewPatches.Install();
         SfCanvasPatches.Install();
+        SfSignaturePadPatches.Install();
+        SfDropdownPatches.Install();
+        SfChartPatches.Install();
+        SfPanWheelBridge.Install();
+        SfOverlayPatches.Install();
         return builder;
     }
 }
