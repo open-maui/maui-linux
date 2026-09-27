@@ -413,7 +413,7 @@ internal sealed class SkiaSfOverlay : SkiaView
     {
         var placement = PlacementAt(x, y);
         onView = placement != null;
-        return placement?.View.HitTest(x, y);
+        return placement?.View.HitTestAt(x, y);
     }
 
     public override void OnPointerEntered(PointerEventArgs e) => Hover(ViewAt(e.X, e.Y, out _), e);

@@ -243,7 +243,7 @@ public class SkiaRefreshView : SkiaLayoutView
 
         if (_content != null)
         {
-            var hit = _content.HitTest(x, y);
+            var hit = _content.HitTestAt(x, y);
             if (hit != null) return hit;
         }
 

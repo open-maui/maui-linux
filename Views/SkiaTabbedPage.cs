@@ -400,7 +400,7 @@ public class SkiaTabbedPage : SkiaLayoutView
         // Check selected content
         if (_selectedIndex >= 0 && _selectedIndex < _tabs.Count)
         {
-            var hit = _tabs[_selectedIndex].Content.HitTest(x, y);
+            var hit = _tabs[_selectedIndex].Content.HitTestAt(x, y);
             if (hit != null) return hit;
         }
 
