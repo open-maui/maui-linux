@@ -164,7 +164,7 @@ public class ContextFlyoutTests : IDisposable
         using var host = new HeadlessMauiHost(page, withEngine: true);
         host.Context.Render(); // lays the page out so hit-testing finds the label
 
-        host.DisplayWindow.RaisePointerPressed(50, 20, PointerButton.Right);
+        host.DisplayWindow.RaisePointerPressed(400, 300, PointerButton.Right); // the label, centred
 
         LinuxDialogService.HasContextMenu.Should().BeTrue("the secondary click reached the flyout");
     }
@@ -178,7 +178,7 @@ public class ContextFlyoutTests : IDisposable
         using var host = new HeadlessMauiHost(page, withEngine: true);
         host.Context.Render();
 
-        host.DisplayWindow.RaisePointerPressed(50, 20, PointerButton.Left);
+        host.DisplayWindow.RaisePointerPressed(400, 300, PointerButton.Left);
 
         LinuxDialogService.HasContextMenu.Should().BeFalse();
     }

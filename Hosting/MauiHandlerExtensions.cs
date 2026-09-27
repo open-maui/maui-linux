@@ -155,6 +155,12 @@ public static class MauiHandlerExtensions
         if (handler == null)
         {
             handler = mauiContext.Handlers.GetHandler(type);
+            // A library view that implements IContentView without deriving from ContentView
+            // (Syncfusion's SfScheduler and charts, among others) resolves to MAUI's own
+            // ContentViewHandler, whose platform view throws on plain net10.0. OpenMaui's
+            // content handler lays such a view out through its ICrossPlatformLayout.
+            if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.ContentViewHandler))
+                handler = new Microsoft.Maui.Platform.Linux.Handlers.ContentViewHandler();
             DiagnosticLog.Debug("MauiHandlerExtensions", $"Using MAUI handler for {type.Name}: {handler?.GetType().Name ?? "null"}");
         }
 
