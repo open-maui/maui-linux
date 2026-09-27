@@ -404,6 +404,7 @@ public sealed class WindowContext : IDisposable
             if (e.Handled)
                 return;
             focused.OnKeyDown(e);
+            focused.RaiseKeyEvent(down: true, e);
             if (!e.Handled)
                 SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Down, e);
         }
@@ -421,6 +422,7 @@ public sealed class WindowContext : IDisposable
         if (_focusedView is { } focused)
         {
             focused.OnKeyUp(e);
+            focused.RaiseKeyEvent(down: false, e);
             if (!e.Handled)
                 SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Up, e);
         }
