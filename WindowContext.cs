@@ -291,15 +291,21 @@ public sealed class WindowContext : IDisposable
 
     private void OnWindowResized(object? sender, (int Width, int Height) size)
     {
+        // The size is the buffer's, in physical pixels; the tree is laid out in logical
+        // units below any client-drawn title bar, exactly as the renderer lays it out.
+        // Laying it out at the physical size put every view through a pass at the
+        // scale factor times its width on each resize step, then back: layouts that
+        // react to their width (a toolbar folding its items) churned while resizing.
+        float scale = Scale;
+        double width = size.Width / scale;
+        double height = (double)(size.Height / scale) - CsdPointerInsetLogical;
         if (_rootView != null)
         {
-            // Re-measure with new available size, then arrange
-            var availableSize = new Microsoft.Maui.Graphics.Size(size.Width, size.Height);
-            _rootView.Measure(availableSize);
-            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, size.Width, size.Height));
+            _rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
+            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
         }
         for (int i = 0; i < _modalViews.Count; i++)
-            LayoutModalLayer(_modalViews[i], size.Width, size.Height);
+            LayoutModalLayer(_modalViews[i], width, height);
         RenderingEngine?.InvalidateAll();
 
         // Propagate to MAUI so Window.Width/Height and SizeChanged observers
@@ -309,7 +315,6 @@ public sealed class WindowContext : IDisposable
         {
             try
             {
-                float scale = Scale;
                 MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(
                     0, 0, size.Width / scale, size.Height / scale));
             }
@@ -1062,7 +1067,7 @@ public sealed class WindowContext : IDisposable
         return (800, 600);
     }
 
-    private static void LayoutModalLayer(SkiaView view, int width, int height)
+    private static void LayoutModalLayer(SkiaView view, double width, double height)
     {
         var size = new Microsoft.Maui.Graphics.Size(width, height);
         view.Measure(size);
