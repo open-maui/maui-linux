@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Base handler for Page on Linux using Skia rendering.
 /// </summary>
-public partial class PageHandler : ViewHandler<Page, SkiaPage>
+public partial class PageHandler : LinuxViewHandler<Page, SkiaPage>
 {
     public static IPropertyMapper<Page, PageHandler> Mapper =
         new PropertyMapper<Page, PageHandler>(ViewHandler.ViewMapper)
@@ -105,7 +105,9 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
     {
         if (handler.PlatformView is null) return;
 
-        if (page.Background is SolidColorBrush solidBrush)
+        // MAUI's default Background is an empty brush (Brush.Default): leave
+        // BackgroundColor to MapBackgroundColor then.
+        if (!Brush.IsNullOrEmpty(page.Background) && page.Background is SolidColorBrush solidBrush)
         {
             handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
@@ -115,8 +117,10 @@ public partial class PageHandler : ViewHandler<Page, SkiaPage>
     {
         if (handler.PlatformView is null) return;
 
+        // An explicit Transparent is kept: a see-through page shows what is
+        // beneath it (popups presented as modal pages).
         var backgroundColor = page.BackgroundColor;
-        if (backgroundColor != null && backgroundColor != Colors.Transparent)
+        if (backgroundColor != null)
         {
             handler.PlatformView.BackgroundColor = backgroundColor;
             DiagnosticLog.Debug("PageHandler", $"MapBackgroundColor: {backgroundColor}");

@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for TimePicker on Linux using Skia rendering.
 /// </summary>
-public partial class TimePickerHandler : ViewHandler<ITimePicker, SkiaTimePicker>
+public partial class TimePickerHandler : LinuxViewHandler<ITimePicker, SkiaTimePicker>
 {
     public static IPropertyMapper<ITimePicker, TimePickerHandler> Mapper =
         new PropertyMapper<ITimePicker, TimePickerHandler>(ViewHandler.ViewMapper)

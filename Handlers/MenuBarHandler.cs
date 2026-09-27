@@ -113,7 +113,7 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         {
             Text = mauiItem.Text ?? "",
             IsEnabled = mauiItem.IsEnabled,
-            IconSource = mauiItem.IconImageSource?.ToString()
+            IconSource = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(mauiItem.IconImageSource)
         };
 
         // Map keyboard accelerator
@@ -137,7 +137,7 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         {
             Text = mauiSubItem.Text ?? "",
             IsEnabled = mauiSubItem.IsEnabled,
-            IconSource = mauiSubItem.IconImageSource?.ToString()
+            IconSource = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(mauiSubItem.IconImageSource)
         };
 
         // MenuFlyoutSubItem is enumerable
@@ -282,7 +282,7 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
         {
             Text = mauiItem.Text ?? "",
             IsEnabled = mauiItem.IsEnabled,
-            IconSource = mauiItem.IconImageSource?.ToString()
+            IconSource = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(mauiItem.IconImageSource)
         };
 
         // Map keyboard accelerator
@@ -306,7 +306,7 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
         {
             Text = mauiSubItem.Text ?? "",
             IsEnabled = mauiSubItem.IsEnabled,
-            IconSource = mauiSubItem.IconImageSource?.ToString()
+            IconSource = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(mauiSubItem.IconImageSource)
         };
 
         // MenuFlyoutSubItem is enumerable

@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// taps raise Cell.Tapped (and TextCell.Command); switch and entry cells
 /// write back to their cells through <see cref="CellViewFactory"/>.
 /// </summary>
-public partial class TableViewHandler : ViewHandler<TableView, SkiaTableView>
+public partial class TableViewHandler : LinuxViewHandler<TableView, SkiaTableView>
 {
     public static IPropertyMapper<TableView, TableViewHandler> Mapper =
         new PropertyMapper<TableView, TableViewHandler>(ViewHandler.ViewMapper)
