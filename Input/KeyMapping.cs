@@ -272,6 +272,22 @@ public static class KeyMapping
     }
 
     /// <summary>
+    /// XKB keycode (what <see cref="KeyEventArgs.HardwareKeycode"/> carries) for
+    /// a Linux evdev scancode as delivered by <c>wl_keyboard.key</c>: evdev + 8.
+    /// 0 (KEY_RESERVED) stays 0, meaning "unknown".
+    /// </summary>
+    public static uint EvdevToXkbKeycode(uint evdevKeycode)
+        => evdevKeycode == 0 ? 0 : evdevKeycode + 8;
+
+    /// <summary>
+    /// XKB keycode for an X11 keycode. On every evdev-based X server (Xorg with
+    /// libinput/evdev, Xwayland) X keycodes already are XKB keycodes; values
+    /// below 8 are not valid keycodes and map to 0.
+    /// </summary>
+    public static uint X11ToXkbKeycode(uint x11Keycode)
+        => x11Keycode < 8 ? 0 : x11Keycode;
+
+    /// <summary>
     /// Converts a Key to its character representation, if applicable.
     /// </summary>
     public static char? ToChar(Key key, KeyModifiers modifiers)
