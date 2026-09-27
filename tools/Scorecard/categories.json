@@ -971,10 +971,10 @@
         "notEvaluated": "Popup coverage uses CommunityToolkit.Maui Popup (the task picks one popup library); Mopups ships net8.0 assets only."
       },
       {
-        "name": "Syncfusion .NET MAUI (Syncfusion.Maui.Charts)",
+        "name": "Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler)",
         "version": "34.2.9",
-        "tests": [],
-        "notEvaluated": "License gate: without a registered key every control shows a 'Syncfusion License / Claim License' alert at runtime. Its generic net10.0 build's SfViewHandler/SfDrawableViewHandler throw NotImplementedException for the platform view (read from the package, not executed)."
+        "tests": [ "SyncfusionCompatTests", "SyncfusionChartsCompatTests", "SyncfusionInputCompatTests", "SyncfusionInputsCompatTests", "SyncfusionNativeViewCompatTests", "SyncfusionPopupCompatTests", "SyncfusionComboOffsetTests", "SyncfusionListAutoFitTests", "SyncfusionTabInputTests" ],
+        "notes": "Through OpenMaui.Controls.Linux.Syncfusion: UseLinuxSyncfusion() in place of ConfigureSyncfusionCore(). Its generic net10.0 build ships stub handlers; the bridge supplies layout, drawing, text, input, the native-view controls, drop-downs and the popup overlay. Not covered: ImageEditor and Syncfusion's MediaElement. Apps register their own license key."
       },
       {
         "name": "Telerik UI for .NET MAUI",
