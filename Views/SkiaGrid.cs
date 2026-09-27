@@ -97,6 +97,18 @@ public class SkiaGrid : SkiaLayoutView
     /// </summary>
     public GridPosition GetPosition(SkiaView child)
     {
+        // A MAUI Grid's child: its attached Row/Column/spans as they are now.
+        // They can change after the child is added (a flyout's settings chip
+        // spans both columns once it folds to the rail), and a change raises
+        // no handler update, so a copy taken at add time went stale.
+        if (MauiView is Microsoft.Maui.Controls.Grid && child.MauiView is Microsoft.Maui.Controls.BindableObject mauiChild)
+        {
+            return new GridPosition(
+                Microsoft.Maui.Controls.Grid.GetRow(mauiChild),
+                Microsoft.Maui.Controls.Grid.GetColumn(mauiChild),
+                Math.Max(1, Microsoft.Maui.Controls.Grid.GetRowSpan(mauiChild)),
+                Math.Max(1, Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiChild)));
+        }
         return _childPositions.TryGetValue(child, out var pos) ? pos : new GridPosition(0, 0, 1, 1);
     }
 
