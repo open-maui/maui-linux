@@ -263,7 +263,7 @@ public class AlignmentTests
     }
 
     [Fact]
-    public void VerticalStack_Child_HorizontalFill_FillsWidth()
+    public void VerticalStack_Child_HorizontalFill_WithExplicitWidth_IsCentred()
     {
         var stack = new SkiaStackLayout
         {
@@ -276,9 +276,9 @@ public class AlignmentTests
         stack.Measure(new Size(400, 600));
         stack.Arrange(new Rect(0, 0, 400, 600));
 
-        // Assert: child should fill the stack width
-        child.Bounds.Width.Should().BeApproximately(400, 1);
-        child.Bounds.Left.Should().BeApproximately(0, 1);
+        // MAUI's ComputeFrame centres a Fill view that has an explicit width.
+        child.Bounds.Width.Should().BeApproximately(100, 1);
+        child.Bounds.Left.Should().BeApproximately(150, 1);
     }
 
     #endregion
@@ -324,7 +324,7 @@ public class AlignmentTests
     }
 
     [Fact]
-    public void HorizontalStack_Child_VerticalFill_FillsHeight()
+    public void HorizontalStack_Child_VerticalFill_WithExplicitHeight_IsCentred()
     {
         var stack = new SkiaStackLayout
         {
@@ -337,9 +337,9 @@ public class AlignmentTests
         stack.Measure(new Size(600, 400));
         stack.Arrange(new Rect(0, 0, 600, 400));
 
-        // Assert: child should fill the stack height
-        child.Bounds.Height.Should().BeApproximately(400, 1);
-        child.Bounds.Top.Should().BeApproximately(0, 1);
+        // MAUI's ComputeFrame centres a Fill view that has an explicit height.
+        child.Bounds.Height.Should().BeApproximately(40, 1);
+        child.Bounds.Top.Should().BeApproximately(180, 1);
     }
 
     #endregion
