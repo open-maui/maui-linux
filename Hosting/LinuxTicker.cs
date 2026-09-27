@@ -92,6 +92,13 @@ internal class LinuxTicker : ITicker, ITickerClock
     /// <inheritdoc />
     public Action? Fire { get; set; }
 
+    /// <summary>
+    /// Raised after every animation tick. For views drawn by third-party code
+    /// that cannot report its own invalidations (the Syncfusion bridge), so
+    /// they repaint while animations run.
+    /// </summary>
+    internal static event Action? Ticked;
+
     /// <summary>Frame interval implied by <see cref="MaxFps"/>, in milliseconds.</summary>
     internal double IntervalMilliseconds => 1000.0 / _maxFps;
 
@@ -215,6 +222,7 @@ internal class LinuxTicker : ITicker, ITickerClock
         try
         {
             fire();
+            Ticked?.Invoke();
         }
         catch (Exception ex)
         {
