@@ -158,4 +158,20 @@ public class SkiaRefreshViewTests
 
         Assert.True(refreshView.IsEnabled);
     }
+
+    [Fact]
+    public void Refreshing_from_code_overlays_the_indicator_without_moving_the_content()
+    {
+        var content = new SkiaLabel { Text = "page" };
+        var refreshView = new SkiaRefreshView { Content = content };
+        refreshView.Measure(new Microsoft.Maui.Graphics.Size(300, 300));
+        refreshView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, 300, 300));
+        var before = content.Bounds;
+
+        refreshView.IsRefreshing = true;
+        refreshView.Measure(new Microsoft.Maui.Graphics.Size(300, 300));
+        refreshView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, 300, 300));
+
+        Assert.Equal(before, content.Bounds);
+    }
 }
