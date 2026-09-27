@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copied from maui-linux-samples/ShellDemo/App.xaml (Application.Resources) so the
+     sample-page golden scenes render with the sample's real theme resources. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+            <!-- Primary Colors -->
+            <Color x:Key="PrimaryColor">#2196F3</Color>
+            <Color x:Key="PrimaryDarkColor">#1976D2</Color>
+            <Color x:Key="AccentColor">#FF4081</Color>
+            <Color x:Key="SuccessColor">#4CAF50</Color>
+            <Color x:Key="WarningColor">#FF9800</Color>
+            <Color x:Key="DangerColor">#F44336</Color>
+            <Color x:Key="PurpleColor">#9C27B0</Color>
+
+            <!-- Light Theme Colors -->
+            <Color x:Key="PageBackgroundLight">#F8F8F8</Color>
+            <Color x:Key="CardBackgroundLight">#FFFFFF</Color>
+            <Color x:Key="TextPrimaryLight">#212121</Color>
+            <Color x:Key="TextSecondaryLight">#757575</Color>
+            <Color x:Key="BorderLight">#E0E0E0</Color>
+            <Color x:Key="EntryBackgroundLight">#F9F9F9</Color>
+            <Color x:Key="ShellBackgroundLight">#FFFFFF</Color>
+            <Color x:Key="FlyoutBackgroundLight">#FFFFFF</Color>
+            <Color x:Key="FlyoutHeaderBackgroundLight">#1976D2</Color>
+            <Color x:Key="ProgressTrackLight">#E0E0E0</Color>
+
+            <!-- Dark Theme Colors -->
+            <Color x:Key="PageBackgroundDark">#121212</Color>
+            <Color x:Key="CardBackgroundDark">#1E1E1E</Color>
+            <Color x:Key="TextPrimaryDark">#FFFFFF</Color>
+            <Color x:Key="TextSecondaryDark">#B0B0B0</Color>
+            <Color x:Key="BorderDark">#424242</Color>
+            <Color x:Key="EntryBackgroundDark">#2C2C2C</Color>
+            <Color x:Key="ShellBackgroundDark">#1E1E1E</Color>
+            <Color x:Key="FlyoutBackgroundDark">#1E1E1E</Color>
+            <Color x:Key="FlyoutHeaderBackgroundDark">#0D47A1</Color>
+            <Color x:Key="ProgressTrackDark">#424242</Color>
+
+            <!-- Themed Entry Style -->
+            <Style x:Key="ThemedEntry" TargetType="Entry">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource EntryBackgroundLight}, Dark={StaticResource EntryBackgroundDark}}" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+            </Style>
+
+            <!-- Themed Editor Style -->
+            <Style x:Key="ThemedEditor" TargetType="Editor">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource EntryBackgroundLight}, Dark={StaticResource EntryBackgroundDark}}" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+            </Style>
+
+            <!-- Title Label Style -->
+            <Style x:Key="TitleLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="24" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </Style>
+
+            <!-- Subtitle Label Style -->
+            <Style x:Key="SubtitleLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+            </Style>
+
+            <!-- Body Label Style -->
+            <Style x:Key="BodyLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            </Style>
+
+            <!-- Caption Label Style -->
+            <Style x:Key="CaptionLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondaryLight}, Dark={StaticResource TextSecondaryDark}}" />
+            </Style>
+
+            <!-- Themed Frame Style -->
+            <Style x:Key="ThemedFrame" TargetType="Frame">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}" />
+                <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="15" />
+            </Style>
+
+            <!-- Themed Border Style -->
+            <Style x:Key="ThemedBorder" TargetType="Border">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}" />
+                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+                <Setter Property="StrokeThickness" Value="1" />
+            </Style>
+
+            <!-- Themed Card Border Style -->
+            <Style x:Key="ThemedCard" TargetType="Border">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource CardBackgroundLight}, Dark={StaticResource CardBackgroundDark}}" />
+                <Setter Property="StrokeThickness" Value="0" />
+                <Setter Property="Padding" Value="15" />
+                <Setter Property="StrokeShape">
+                    <Setter.Value>
+                        <RoundRectangle CornerRadius="8" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Themed ProgressBar Style -->
+            <Style x:Key="ThemedProgressBar" TargetType="ProgressBar">
+                <Setter Property="ProgressColor" Value="{StaticResource PrimaryColor}" />
+            </Style>
+
+            <!-- Primary Button Style -->
+            <Style x:Key="PrimaryButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="5" />
+            </Style>
+
+            <!-- Secondary Button Style -->
+            <Style x:Key="SecondaryButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#E0E0E0, Dark=#424242}" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                <Setter Property="CornerRadius" Value="5" />
+            </Style>
+
+            <!-- Success Button Style -->
+            <Style x:Key="SuccessButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="5" />
+            </Style>
+
+            <!-- Danger Button Style -->
+            <Style x:Key="DangerButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource DangerColor}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="CornerRadius" Value="5" />
+            </Style>
+
+            <!-- Themed BoxView Divider -->
+            <Style x:Key="ThemedDivider" TargetType="BoxView">
+                <Setter Property="HeightRequest" Value="1" />
+                <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource BorderLight}, Dark={StaticResource BorderDark}}" />
+            </Style>
+
+        </ResourceDictionary>
