@@ -482,7 +482,7 @@ public partial class WaylandWindow
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("WaylandWindow", $"source send write failed: {ex.Message}");
+            DiagnosticLog.Error("WaylandWindow", $"source send write failed: {ex.Message}", ex);
         }
         finally
         {
@@ -707,7 +707,7 @@ public partial class WaylandWindow
             try { tcs.TrySetResult(core()); }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("WaylandWindow", $"selection getter failed: {ex.Message}");
+                DiagnosticLog.Error("WaylandWindow", $"selection getter failed: {ex.Message}", ex);
                 tcs.TrySetResult(Task.FromResult<string?>(null));
             }
         });
@@ -828,7 +828,7 @@ public partial class WaylandWindow
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("WaylandWindow", $"offer receive failed: {ex.Message}");
+                DiagnosticLog.Error("WaylandWindow", $"offer receive failed: {ex.Message}", ex);
                 tcs.TrySetResult(null);
             }
         }
@@ -879,7 +879,7 @@ public partial class WaylandWindow
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("WaylandWindow", $"ReadAllFromFd failed: {ex.Message}");
+            DiagnosticLog.Error("WaylandWindow", $"ReadAllFromFd failed: {ex.Message}", ex);
             return null;
         }
         finally

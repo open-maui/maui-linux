@@ -13,8 +13,67 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// X11 window implementation for Linux.
 /// </summary>
 public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
-                        Microsoft.Maui.Platform.Linux.Services.IX11Surface
+                        Microsoft.Maui.Platform.Linux.Services.IX11Surface,
+                        Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow,
+                        Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl,
+                        Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow
 {
+    private bool _isSuspended;
+
+    /// <inheritdoc />
+    public bool IsSuspended => _isSuspended;
+
+    /// <inheritdoc />
+    public event EventHandler<bool>? SuspendedChanged;
+
+    private void SetSuspended(bool suspended)
+    {
+        if (_isSuspended == suspended) return;
+        _isSuspended = suspended;
+        SuspendedChanged?.Invoke(this, suspended);
+    }
+
+    // Runtime scale on X11: the scale is global (Xft.dpi in RESOURCE_MANAGER,
+    // or the desktop's own setting), so the window watches the root window's
+    // RESOURCE_MANAGER and re-detects when a settings daemon rewrites it.
+    private IntPtr _rootWindow;
+    private IntPtr _resourceManagerAtom;
+    private float _scale = 1f;
+
+    /// <inheritdoc />
+    public float Scale => _scale;
+
+    /// <inheritdoc />
+    public event EventHandler<float>? ScaleChanged;
+
+    /// <summary>Scale detection used on RESOURCE_MANAGER changes (a seam for tests).</summary>
+    internal static Func<float> DetectScale { get; set; } = () =>
+    {
+        var hiDpi = new Microsoft.Maui.Platform.Linux.Services.HiDpiService();
+        hiDpi.DetectScaleFactor();
+        return hiDpi.ScaleFactor;
+    };
+
+    /// <summary>
+    /// Re-detects the desktop scale and raises <see cref="ScaleChanged"/> when
+    /// it moved. The window keeps its pixel size: X11 applications re-lay out
+    /// at the new logical size rather than being resized.
+    /// </summary>
+    internal void RefreshScale()
+    {
+        float detected;
+        try { detected = DetectScale(); }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("X11Window", $"Scale re-detection failed: {ex.Message}");
+            return;
+        }
+        if (detected <= 0f || Math.Abs(detected - _scale) < 0.01f) return;
+        DiagnosticLog.Info("X11Window", $"Desktop scale {_scale:0.##} -> {detected:0.##}");
+        _scale = detected;
+        ScaleChanged?.Invoke(this, detected);
+    }
+
     private IntPtr _display;
     private IntPtr _window;
     private IntPtr _wmDeleteMessage;
@@ -182,10 +241,17 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
             XEventMask.PropertyChangeMask |
             XEventMask.FocusChangeMask);
 
+        // Desktop scale changes arrive as a rewrite of RESOURCE_MANAGER (Xft.dpi)
+        // on the root window.
+        _scale = LinuxApplication.Current is { DpiScale: > 0f } scaleApp ? scaleApp.DpiScale : 1f;
+        _rootWindow = X11.XRootWindow(_display, _screen);
+        _resourceManagerAtom = X11.XInternAtom(_display, "RESOURCE_MANAGER", false);
+        X11.XSelectInput(_display, _rootWindow, XEventMask.PropertyChangeMask);
+
         // Wire drag-and-drop: interns the XDND atoms and announces XdndAware
         // on the window so drags from other apps are offered to us. XDND
         // events are routed into the service from HandleEvent below.
-        DragDropService.Default.Initialize(_display, _window);
+        DragDropService.Default.RegisterWindow(_display, _window, this);
 
         // Set up WM protocols
         _wmDeleteMessage = X11.XInternAtom(_display, "WM_DELETE_WINDOW", false);
@@ -419,6 +485,37 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         X11.XFlush(_display);
     }
 
+    /// <inheritdoc />
+    public void RequestLogicalSize(int width, int height)
+    {
+        if (width <= 0 || height <= 0) return;
+        Resize((int)Math.Round(width * _scale), (int)Math.Round(height * _scale));
+    }
+
+    /// <inheritdoc />
+    public void RequestLogicalPosition(int x, int y)
+        => SetPosition((int)Math.Round(x * _scale), (int)Math.Round(y * _scale));
+
+    /// <inheritdoc />
+    public void SetLogicalSizeLimits(int minWidth, int minHeight, int maxWidth, int maxHeight)
+    {
+        var hints = new X11.XSizeHints();
+        if (minWidth > 0 || minHeight > 0)
+        {
+            hints.Flags |= (nint)X11.PMinSize;
+            hints.MinWidth = (int)Math.Round(Math.Max(1, minWidth) * _scale);
+            hints.MinHeight = (int)Math.Round(Math.Max(1, minHeight) * _scale);
+        }
+        if (maxWidth > 0 || maxHeight > 0)
+        {
+            hints.Flags |= (nint)X11.PMaxSize;
+            hints.MaxWidth = maxWidth > 0 ? (int)Math.Round(maxWidth * _scale) : 32767;
+            hints.MaxHeight = maxHeight > 0 ? (int)Math.Round(maxHeight * _scale) : 32767;
+        }
+        X11.XSetWMNormalHints(_display, _window, ref hints);
+        X11.XFlush(_display);
+    }
+
     /// <summary>
     /// Moves the window to the specified position.
     /// </summary>
@@ -616,6 +713,7 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                     // client messages route to the drag-and-drop service; it
                     // ignores message types it doesn't own.
                     DragDropService.Default.ProcessClientMessage(
+                        _window,
                         xEvent.ClientMessageEvent.MessageType,
                         new nint[]
                         {
@@ -636,7 +734,22 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                     xEvent.SelectionEvent.Property);
                 break;
 
+            case XEventType.UnmapNotify:
+                // ICCCM: iconifying (minimizing) unmaps the toplevel.
+                SetSuspended(true);
+                break;
+
+            case XEventType.MapNotify:
+                SetSuspended(false);
+                break;
+
             case XEventType.PropertyNotify:
+                if (xEvent.PropertyEvent.Window == _rootWindow)
+                {
+                    if (xEvent.PropertyEvent.Atom == _resourceManagerAtom)
+                        RefreshScale();
+                    break;
+                }
                 // INCR chunk flow: incoming chunks arrive as new values on our
                 // window; outgoing chunk requests arrive as property deletes on
                 // the requestor's window. The service disambiguates by window.
@@ -677,7 +790,7 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         var key = KeyMapping.FromKeysym(keysym);
         var modifiers = KeyMapping.GetModifiers(keyEvent.State);
 
-        KeyDown?.Invoke(this, new KeyEventArgs(key, modifiers));
+        KeyDown?.Invoke(this, new KeyEventArgs(key, modifiers) { HardwareKeycode = KeyMapping.X11ToXkbKeycode(keyEvent.Keycode) });
 
         // Generate text input for printable characters, but NOT when Control or Alt is held
         // (those are keyboard shortcuts, not text input)
@@ -696,7 +809,7 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         var key = KeyMapping.FromKeysym(keysym);
         var modifiers = KeyMapping.GetModifiers(keyEvent.State);
 
-        KeyUp?.Invoke(this, new KeyEventArgs(key, modifiers));
+        KeyUp?.Invoke(this, new KeyEventArgs(key, modifiers) { HardwareKeycode = KeyMapping.X11ToXkbKeycode(keyEvent.Keycode) });
     }
 
     private void HandleButtonPress(ref XButtonEvent buttonEvent)
@@ -799,6 +912,8 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
     {
         if (!_disposed)
         {
+            DragDropService.Default.UnregisterWindow(_window);
+
             // Free cursor resources before closing the display
             if (_display != IntPtr.Zero)
             {
