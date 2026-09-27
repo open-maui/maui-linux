@@ -266,7 +266,7 @@ public partial class HardwareVideoService : IDisposable
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("HardwareVideoService", $"VA-API initialization failed: {ex.Message}");
+            DiagnosticLog.Error("HardwareVideoService", $"VA-API initialization failed: {ex.Message}", ex);
             return false;
         }
     }
@@ -335,7 +335,7 @@ public partial class HardwareVideoService : IDisposable
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("HardwareVideoService", $"VDPAU initialization failed: {ex.Message}");
+            DiagnosticLog.Error("HardwareVideoService", $"VDPAU initialization failed: {ex.Message}", ex);
         }
 
         return false;

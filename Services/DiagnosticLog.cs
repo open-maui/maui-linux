@@ -86,6 +86,13 @@ public static class DiagnosticLog
     /// </summary>
     public static void Error(string tag, string message, Exception ex)
     {
-        System.Console.Error.WriteLine($"[{tag}] ERROR: {message}: {ex.Message}");
+        // The whole exception: type, message, stack and inner exceptions.
+        // Reflection wrappers (TargetInvocationException from DI, handler
+        // factories) say nothing on their own; lead with the innermost cause.
+        var root = ex;
+        while ((root is System.Reflection.TargetInvocationException || root is AggregateException) && root.InnerException != null)
+            root = root.InnerException;
+        System.Console.Error.WriteLine($"[{tag}] ERROR: {message}: {root.GetType().Name}: {root.Message}");
+        System.Console.Error.WriteLine(ex.ToString());
     }
 }

@@ -78,7 +78,7 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("IBusInputMethodService", $"Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("IBusInputMethodService", $"Initialization failed - {ex.Message}", ex);
         }
     }
 

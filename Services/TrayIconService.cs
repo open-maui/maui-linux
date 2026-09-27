@@ -152,7 +152,7 @@ public static class TrayIconService
                 try { return new AppIndicatorBackend(handle, lib); }
                 catch (Exception ex)
                 {
-                    DiagnosticLog.Error("TrayIconService", $"AppIndicator backend init failed ({lib}): {ex.Message}");
+                    DiagnosticLog.Error("TrayIconService", $"AppIndicator backend init failed ({lib}): {ex.Message}", ex);
                     NativeLibrary.Free(handle);
                 }
             }
@@ -170,7 +170,7 @@ public static class TrayIconService
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("TrayIconService", $"XEmbed backend init failed: {ex.Message}");
+            DiagnosticLog.Error("TrayIconService", $"XEmbed backend init failed: {ex.Message}", ex);
         }
 
         DiagnosticLog.Warn("TrayIconService", "No supported tray backend found — TrayIcon will be a no-op");
@@ -278,7 +278,7 @@ internal sealed class AppIndicatorBackend : ITrayBackend
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("TrayIconService", $"Menu item handler threw: {ex.Message}");
+            DiagnosticLog.Error("TrayIconService", $"Menu item handler threw: {ex.Message}", ex);
         }
     }
 

@@ -167,11 +167,12 @@ public class FontFallbackManager
         if (string.IsNullOrEmpty(text))
             return runs;
 
-        var currentRun = new StringBuilder();
+        var currentRun = new System.Text.StringBuilder();
         SKTypeface? currentTypeface = null;
         int runStart = 0;
 
         int charIndex = 0;
+        Span<char> utf16 = stackalloc char[2];
         foreach (var rune in text.EnumerateRunes())
         {
             var typeface = GetTypefaceForCodepoint(rune.Value, preferred);
@@ -180,7 +181,11 @@ public class FontFallbackManager
             {
                 currentTypeface = typeface;
             }
-            else if (typeface.FamilyName != currentTypeface.FamilyName)
+            // Reference comparison: typefaces come from the per-codepoint cache,
+            // so one face is one instance. Reading FamilyName allocates a
+            // finalizable SKString per call; doing it twice per character per
+            // frame produced ~50 ms gen0 pauses on text-heavy pages.
+            else if (!ReferenceEquals(typeface, currentTypeface))
             {
                 // Typeface changed - save current run
                 if (currentRun.Length > 0)
@@ -192,7 +197,9 @@ public class FontFallbackManager
                 runStart = charIndex;
             }
 
-            currentRun.Append(rune.ToString());
+            int units = rune.EncodeToUtf16(utf16);
+            currentRun.Append(utf16[0]);
+            if (units == 2) currentRun.Append(utf16[1]);
             charIndex += rune.Utf16SequenceLength;
         }
 
@@ -258,27 +265,5 @@ public class FontFallbackManager
 
         // Glyph ID 0 is the "missing glyph" (tofu)
         return glyphs[0] != 0;
-    }
-}
-
-file class StringBuilder
-{
-    private readonly List<char> _chars = new();
-
-    public int Length => _chars.Count;
-
-    public void Append(string s)
-    {
-        _chars.AddRange(s);
-    }
-
-    public void Clear()
-    {
-        _chars.Clear();
-    }
-
-    public override string ToString()
-    {
-        return new string(_chars.ToArray());
     }
 }

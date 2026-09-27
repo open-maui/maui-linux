@@ -104,6 +104,48 @@ public static class InputMethodServiceFactory
         return new NullInputMethodService();
     }
 
+    /// <summary>
+    /// Predicts which backend <see cref="CreateService"/> would pick, without
+    /// instantiating anything (for openmaui doctor, which runs before any
+    /// window exists). Mirrors the order of <see cref="CreateAutoService"/>;
+    /// keep the two in sync. <paramref name="textInputV3Advertised"/> stands in
+    /// for <see cref="WaylandTextInputV3Service.IsAvailable"/>, which needs a
+    /// live window: true when the compositor advertises zwp_text_input_manager_v3
+    /// and the native Wayland backend will be used.
+    /// </summary>
+    internal static string DescribeSelection(bool textInputV3Advertised)
+    {
+        var imePreference = Environment.GetEnvironmentVariable("MAUI_INPUT_METHOD");
+        if (!string.IsNullOrEmpty(imePreference))
+        {
+            var forced = imePreference.ToLowerInvariant() switch
+            {
+                "wayland" or "text-input-v3" => "zwp_text_input_v3",
+                "ibus" => "IBus",
+                "fcitx" or "fcitx5" => "Fcitx5",
+                "xim" => "XIM",
+                "none" => "none",
+                _ => null,
+            };
+            if (forced != null)
+                return $"{forced} (MAUI_INPUT_METHOD={imePreference})";
+        }
+
+        if (textInputV3Advertised)
+            return "zwp_text_input_v3 (native Wayland)";
+
+        var imModule = Environment.GetEnvironmentVariable("GTK_IM_MODULE")?.ToLowerInvariant();
+        if (imModule?.Contains("fcitx") == true && Fcitx5InputMethodService.IsAvailable())
+            return "Fcitx5 (GTK_IM_MODULE)";
+        if (IsIBusAvailable())
+            return "IBus";
+        if (Fcitx5InputMethodService.IsAvailable())
+            return "Fcitx5";
+        if (IsXIMAvailable())
+            return "XIM";
+        return "none (no IME available)";
+    }
+
     private static IInputMethodService CreateWaylandTextInputV3Service()
     {
         try
@@ -112,7 +154,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create WaylandTextInputV3 service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create WaylandTextInputV3 service - {ex.Message}", ex);
             return new NullInputMethodService();
         }
     }
@@ -125,7 +167,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create IBus service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create IBus service - {ex.Message}", ex);
             return new NullInputMethodService();
         }
     }
@@ -138,7 +180,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create Fcitx5 service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create Fcitx5 service - {ex.Message}", ex);
             return new NullInputMethodService();
         }
     }
@@ -151,7 +193,7 @@ public static class InputMethodServiceFactory
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create XIM service - {ex.Message}");
+            DiagnosticLog.Error("InputMethodServiceFactory", $"Failed to create XIM service - {ex.Message}", ex);
             return new NullInputMethodService();
         }
     }

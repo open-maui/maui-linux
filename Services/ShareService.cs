@@ -3,14 +3,31 @@
 
 using System.Diagnostics;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Linux share implementation using xdg-open and portal APIs.
+/// Linux share implementation. Inside a sandbox (or with
+/// OPENMAUI_PORTALS=prefer) it uses the xdg-desktop-portal OpenURI interface:
+/// URIs through OpenURI, files through OpenFile with the "Open with" chooser
+/// (there is no dedicated share portal). Otherwise, and whenever the portal is
+/// unavailable, xdg-open and zenity as before.
 /// </summary>
 public class ShareService : IShare
 {
+    private readonly IDesktopPortal _portal;
+
+    public ShareService()
+        : this(DesktopPortal.Current)
+    {
+    }
+
+    internal ShareService(IDesktopPortal portal)
+    {
+        _portal = portal;
+    }
+
     public async Task RequestAsync(ShareTextRequest request)
     {
         if (request == null)
@@ -63,8 +80,12 @@ public class ShareService : IShare
         return $"mailto:?subject={subject}&body={body}";
     }
 
-    private static async Task OpenUrlAsync(string url)
+    private async Task OpenUrlAsync(string url)
     {
+        if (DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred)
+            && !(await new PortalLauncher(_portal).OpenUriAsync(url).ConfigureAwait(false)).ShouldFallBack())
+            return;
+
         try
         {
             var startInfo = new ProcessStartInfo
@@ -82,16 +103,21 @@ public class ShareService : IShare
         }
     }
 
-    private static async Task ShareFileAsync(string filePath)
+    private async Task ShareFileAsync(string filePath)
     {
         if (!File.Exists(filePath))
             throw new FileNotFoundException("File not found for sharing", filePath);
 
         try
         {
-            // Try to use the portal API via gdbus for proper share dialog
-            var portalResult = await TryPortalShareAsync(filePath);
-            if (portalResult)
+            // Portal "Open with" chooser for the file, when the policy allows it.
+            if (DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred)
+                && !(await new PortalLauncher(_portal).OpenFileAsync(filePath, ask: true).ConfigureAwait(false)).ShouldFallBack())
+                return;
+
+            // Otherwise tell the user where the file is (zenity)
+            var noticeShown = await TryZenityShareNoticeAsync(filePath);
+            if (noticeShown)
                 return;
 
             // Fall back to opening with default file manager
@@ -110,13 +136,11 @@ public class ShareService : IShare
         }
     }
 
-    private static async Task<bool> TryPortalShareAsync(string filePath)
+    private static async Task<bool> TryZenityShareNoticeAsync(string filePath)
     {
         try
         {
-            // Try freedesktop portal for proper share dialog
-            // This would use org.freedesktop.portal.FileChooser or similar
-            // For now, we'll use zenity --info as a fallback notification
+            // No share dialog without a portal: show where the file is.
 
             var startInfo = new ProcessStartInfo
             {

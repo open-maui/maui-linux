@@ -1,45 +1,82 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
 using Microsoft.Maui.Devices.Sensors;
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Linux geolocation. Uses GeoClue2 D-Bus service when available.
+/// Linux geolocation through the xdg-desktop-portal Location interface
+/// (native D-Bus; the portal talks to GeoClue and applies the desktop's
+/// location permission). Without a portal, or when the user or system denies
+/// location, the result is null as before.
 /// </summary>
 public class GeolocationService : IGeolocation
 {
-    public Task<Location?> GetLastKnownLocationAsync() => Task.FromResult<Location?>(null);
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
+
+    private readonly IDesktopPortal _portal;
+    private static Location? _lastKnown;
+
+    public GeolocationService()
+        : this(DesktopPortal.Current)
+    {
+    }
+
+    internal GeolocationService(IDesktopPortal portal)
+    {
+        _portal = portal;
+    }
+
+    public Task<Location?> GetLastKnownLocationAsync() => Task.FromResult(Volatile.Read(ref _lastKnown));
 
     public async Task<Location?> GetLocationAsync(GeolocationRequest request, CancellationToken cancellationToken = default)
     {
         if (cancellationToken.IsCancellationRequested)
             return null;
 
-        // Try to reach GeoClue2 via gdbus. The reply is not parsed yet (a real
-        // implementation needs a D-Bus client and the agent handshake), so the
-        // call only establishes whether the service answers; the result is null
-        // either way.
+        if (!DesktopPortal.ShouldTry(PortalUse.Always))
+            return null;
+
+        request ??= new GeolocationRequest();
         try
         {
-            await ExternalProcess.RunAsync(BuildGeoClueStartInfo(), cancellationToken);
+            var timeout = request.Timeout > TimeSpan.Zero ? request.Timeout : DefaultTimeout;
+            var fix = await new PortalGeolocation(_portal)
+                .GetFixAsync(PortalLocationFix.AccuracyFor(request.DesiredAccuracy), timeout, cancellationToken)
+                .ConfigureAwait(false);
+            var location = ToLocation(fix);
+            if (location != null)
+                Volatile.Write(ref _lastKnown, location);
+            return location;
         }
-        catch { }
-
-        return null;
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("GeolocationService", $"Location portal failed: {ex.Message}");
+            return null;
+        }
     }
 
-    internal static ProcessStartInfo BuildGeoClueStartInfo() => new()
+    /// <summary>MAUI Location for a portal fix (null stays null).</summary>
+    internal static Location? ToLocation(PortalLocationFix? fix)
     {
-        FileName = "gdbus",
-        Arguments = "call --system --dest org.freedesktop.GeoClue2 --object-path /org/freedesktop/GeoClue2/Manager --method org.freedesktop.GeoClue2.Manager.GetClient",
-        UseShellExecute = false,
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-        CreateNoWindow = true
-    };
+        if (fix == null)
+            return null;
+        var location = new Location(fix.Latitude, fix.Longitude)
+        {
+            Altitude = fix.Altitude,
+            Accuracy = fix.Accuracy,
+            Speed = fix.Speed,
+            Course = fix.Heading,
+            Timestamp = fix.Timestamp ?? DateTimeOffset.UtcNow,
+        };
+        return location;
+    }
 
     public bool IsListening => false;
     public bool IsListeningForeground => false;

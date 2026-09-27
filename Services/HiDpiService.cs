@@ -3,6 +3,7 @@
 
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -27,6 +28,12 @@ public partial class HiDpiService
     public float Dpi => _dpi;
 
     /// <summary>
+    /// Which detection method produced <see cref="ScaleFactor"/> on the last
+    /// <see cref="DetectScaleFactor"/> call (for diagnostics / openmaui doctor).
+    /// </summary>
+    internal string DetectionSource { get; private set; } = "default (none matched)";
+
+    /// <summary>
     /// Event raised when scale factor changes.
     /// </summary>
     public event EventHandler<ScaleChangedEventArgs>? ScaleChanged;
@@ -49,30 +56,38 @@ public partial class HiDpiService
     {
         float scale = 1.0f;
         float dpi = DefaultDpi;
+        string source = "default (none matched)";
 
         // Try multiple detection methods in order of preference
         if (TryGetEnvironmentScale(out float envScale))
         {
             scale = envScale;
+            source = "environment (GDK_SCALE / GDK_DPI_SCALE / QT_SCALE_FACTOR / QT_SCREEN_SCALE_FACTORS)";
         }
         else if (TryGetGnomeScale(out float gnomeScale, out float gnomeDpi))
         {
             scale = gnomeScale;
             dpi = gnomeDpi;
+            source = "GNOME (gsettings / Mutter DisplayConfig)";
         }
         else if (TryGetKdeScale(out float kdeScale))
         {
             scale = kdeScale;
+            source = "KDE (kdeglobals KScreen/ScaleFactor)";
         }
         else if (TryGetX11Scale(out float x11Scale, out float x11Dpi))
         {
             scale = x11Scale;
             dpi = x11Dpi;
+            source = "X11 (Xft.dpi / .Xresources / X server DPI)";
         }
         else if (TryGetXrandrScale(out float xrandrScale))
         {
             scale = xrandrScale;
+            source = "xrandr (output resolution / physical size)";
         }
+
+        DetectionSource = source;
 
         UpdateScale(scale, dpi);
     }
@@ -97,7 +112,7 @@ public partial class HiDpiService
 
         // GDK_SCALE (GTK3/4)
         var gdkScale = Environment.GetEnvironmentVariable("GDK_SCALE");
-        if (!string.IsNullOrEmpty(gdkScale) && float.TryParse(gdkScale, out float gdk))
+        if (!string.IsNullOrEmpty(gdkScale) && float.TryParse(gdkScale, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float gdk))
         {
             scale = gdk;
             return true;
@@ -105,7 +120,7 @@ public partial class HiDpiService
 
         // GDK_DPI_SCALE (GTK3/4)
         var gdkDpiScale = Environment.GetEnvironmentVariable("GDK_DPI_SCALE");
-        if (!string.IsNullOrEmpty(gdkDpiScale) && float.TryParse(gdkDpiScale, out float gdkDpi))
+        if (!string.IsNullOrEmpty(gdkDpiScale) && float.TryParse(gdkDpiScale, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float gdkDpi))
         {
             scale = gdkDpi;
             return true;
@@ -113,7 +128,7 @@ public partial class HiDpiService
 
         // QT_SCALE_FACTOR
         var qtScale = Environment.GetEnvironmentVariable("QT_SCALE_FACTOR");
-        if (!string.IsNullOrEmpty(qtScale) && float.TryParse(qtScale, out float qt))
+        if (!string.IsNullOrEmpty(qtScale) && float.TryParse(qtScale, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float qt))
         {
             scale = qt;
             return true;
@@ -129,7 +144,7 @@ public partial class HiDpiService
             {
                 first = first.Split('=')[1];
             }
-            if (float.TryParse(first, out float qtScreen))
+            if (float.TryParse(first, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float qtScreen))
             {
                 scale = qtScreen;
                 return true;
@@ -149,44 +164,38 @@ public partial class HiDpiService
 
         try
         {
-            // Try gsettings for GNOME
-            var result = RunCommand("gsettings", "get org.gnome.desktop.interface scaling-factor");
-            if (!string.IsNullOrEmpty(result))
+            // org.gnome.desktop.interface through the Settings portal when it
+            // exposes that namespace (xdg-desktop-portal-gnome/-gtk; the KDE
+            // backend mirrors defaults), gsettings otherwise.
+            var portal = ReadGnomeInterfaceFromPortal();
+
+            var gnomeScale = portal.ScalingFactor;
+            if (gnomeScale == null)
             {
-                var match = Regex.Match(result, @"uint32\s+(\d+)");
-                if (match.Success && int.TryParse(match.Groups[1].Value, out int gnomeScale))
-                {
-                    if (gnomeScale > 0)
-                    {
-                        scale = gnomeScale;
-                    }
-                }
+                var result = RunCommand("gsettings", "get org.gnome.desktop.interface scaling-factor");
+                gnomeScale = ParseGsettingsScalingFactor(result);
+            }
+            if (gnomeScale is > 0)
+            {
+                scale = (float)gnomeScale.Value;
             }
 
             // Also check text-scaling-factor for fractional scaling
-            result = RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float textScale))
+            var textScale = portal.TextScalingFactor ?? ParseGsettingsDouble(RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor"));
+            if (textScale is > 0.5)
             {
-                if (textScale > 0.5f)
-                {
-                    scale = Math.Max(scale, textScale);
-                }
+                scale = Math.Max(scale, (float)textScale.Value);
             }
 
             // Check for GNOME 40+ experimental fractional scaling
-            result = RunCommand("gsettings", "get org.gnome.mutter experimental-features");
-            if (result != null && result.Contains("scale-monitor-framebuffer"))
+            var features = RunCommand("gsettings", "get org.gnome.mutter experimental-features");
+            if (features != null && features.Contains("scale-monitor-framebuffer"))
             {
-                // Fractional scaling is enabled, try to get actual scale
-                result = RunCommand("gdbus", "call --session --dest org.gnome.Mutter.DisplayConfig --object-path /org/gnome/Mutter/DisplayConfig --method org.gnome.Mutter.DisplayConfig.GetCurrentState");
-                if (result != null)
+                // Fractional scaling is enabled: the primary logical monitor's
+                // scale from Mutter's DisplayConfig (native D-Bus).
+                if (TryGetMutterPrimaryScale(out float mutterScale))
                 {
-                    // Parse for scale value
-                    var scaleMatch = Regex.Match(result, @"'scale':\s*<(\d+\.?\d*)>");
-                    if (scaleMatch.Success && float.TryParse(scaleMatch.Groups[1].Value, out float mutterScale))
-                    {
-                        scale = mutterScale;
-                    }
+                    scale = mutterScale;
                 }
             }
 
@@ -196,6 +205,78 @@ public partial class HiDpiService
         {
             return false;
         }
+    }
+
+    /// <summary>scaling-factor / text-scaling-factor as read through the Settings portal (null when absent).</summary>
+    internal readonly record struct GnomeInterfaceScaling(double? ScalingFactor, double? TextScalingFactor);
+
+    private static GnomeInterfaceScaling ReadGnomeInterfaceFromPortal()
+    {
+        if (!DesktopPortal.ShouldTry(PortalUse.Always))
+            return default;
+        PortalSync.TryRun(ct => ReadGnomeInterfaceAsync(DesktopPortal.Current, ct), TimeSpan.FromSeconds(1), out var values);
+        return values;
+    }
+
+    internal static async Task<GnomeInterfaceScaling> ReadGnomeInterfaceAsync(IDesktopPortal portal, CancellationToken cancellationToken)
+    {
+        if (await portal.GetVersionAsync(PortalInterfaces.Settings, cancellationToken).ConfigureAwait(false) == 0)
+            return default;
+        try
+        {
+            var scaling = await portal.ReadSettingAsync(PortalAppearance.GnomeInterfaceNamespace, "scaling-factor", cancellationToken).ConfigureAwait(false);
+            var text = await portal.ReadSettingAsync(PortalAppearance.GnomeInterfaceNamespace, "text-scaling-factor", cancellationToken).ConfigureAwait(false);
+            return new GnomeInterfaceScaling(PortalAppearance.ParsePositiveNumber(scaling), PortalAppearance.ParsePositiveNumber(text));
+        }
+        catch (PortalUnavailableException)
+        {
+            return default;
+        }
+    }
+
+    /// <summary>"uint32 2" (gsettings output) to 2; null when unparsable.</summary>
+    internal static double? ParseGsettingsScalingFactor(string? output)
+    {
+        if (string.IsNullOrEmpty(output))
+            return null;
+        var match = Regex.Match(output, @"uint32\s+(\d+)");
+        return match.Success && int.TryParse(match.Groups[1].Value, out int value) ? value : null;
+    }
+
+    /// <summary>"1.25" (gsettings output) to 1.25 with the invariant culture; null when unparsable.</summary>
+    internal static double? ParseGsettingsDouble(string? output)
+    {
+        if (string.IsNullOrEmpty(output))
+            return null;
+        return double.TryParse(output.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value) ? value : null;
+    }
+
+    private static bool TryGetMutterPrimaryScale(out float scale)
+    {
+        scale = 1.0f;
+        if (!PortalSync.TryRun(async ct =>
+        {
+            var bus = await SessionBus.GetAsync(ct).ConfigureAwait(false);
+            var config = bus.Connection.CreateProxy<IMutterDisplayConfigProxy>("org.gnome.Mutter.DisplayConfig", new Tmds.DBus.ObjectPath("/org/gnome/Mutter/DisplayConfig"));
+            var state = await config.GetCurrentStateAsync().WaitAsync(ct).ConfigureAwait(false);
+            return PrimaryLogicalScale(state.logicalMonitors.Select(m => (m.scale, m.primary)));
+        }, TimeSpan.FromSeconds(1), out var found) || found is not > 0)
+        {
+            return false;
+        }
+
+        scale = (float)found.Value;
+        return true;
+    }
+
+    /// <summary>The primary logical monitor's scale, else the first one's; null for none.</summary>
+    internal static double? PrimaryLogicalScale(IEnumerable<(double scale, bool primary)> logicalMonitors)
+    {
+        var list = logicalMonitors.ToList();
+        if (list.Count == 0)
+            return null;
+        var primary = list.FirstOrDefault(m => m.primary);
+        return primary.primary ? primary.scale : list[0].scale;
     }
 
     /// <summary>
@@ -209,7 +290,7 @@ public partial class HiDpiService
         {
             // Try kreadconfig5 for KDE Plasma 5
             var result = RunCommand("kreadconfig5", "--file kdeglobals --group KScreen --key ScaleFactor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float kdeScale))
+            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float kdeScale))
             {
                 if (kdeScale > 0)
                 {
@@ -220,7 +301,7 @@ public partial class HiDpiService
 
             // Try KDE Plasma 6
             result = RunCommand("kreadconfig6", "--file kdeglobals --group KScreen --key ScaleFactor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float kde6Scale))
+            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float kde6Scale))
             {
                 if (kde6Scale > 0)
                 {
@@ -252,7 +333,7 @@ public partial class HiDpiService
                     if (inKScreenSection && line.StartsWith("ScaleFactor="))
                     {
                         var value = line.Substring("ScaleFactor=".Length);
-                        if (float.TryParse(value, out float fileScale))
+                        if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fileScale))
                         {
                             scale = fileScale;
                             return true;
@@ -285,7 +366,7 @@ public partial class HiDpiService
             {
                 // Look for Xft.dpi
                 var match = Regex.Match(result, @"Xft\.dpi:\s*(\d+)");
-                if (match.Success && float.TryParse(match.Groups[1].Value, out float xftDpi))
+                if (match.Success && float.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float xftDpi))
                 {
                     dpi = xftDpi;
                     scale = xftDpi / DefaultDpi;
@@ -302,7 +383,7 @@ public partial class HiDpiService
             {
                 var content = File.ReadAllText(xresourcesPath);
                 var match = Regex.Match(content, @"Xft\.dpi:\s*(\d+)");
-                if (match.Success && float.TryParse(match.Groups[1].Value, out float fileDpi))
+                if (match.Success && float.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float fileDpi))
                 {
                     dpi = fileDpi;
                     scale = fileDpi / DefaultDpi;
@@ -408,7 +489,7 @@ public partial class HiDpiService
         }
     }
 
-    private static string? RunCommand(string command, string arguments)
+    internal static string? RunCommand(string command, string arguments)
     {
         try
         {
@@ -456,10 +537,14 @@ public partial class HiDpiService
     public float GetFontScaleFactor()
     {
         // Some desktop environments use a separate text scaling factor
+        var portalText = ReadGnomeInterfaceFromPortal().TextScalingFactor;
+        if (portalText is > 0)
+            return (float)portalText.Value;
+
         try
         {
             var result = RunCommand("gsettings", "get org.gnome.desktop.interface text-scaling-factor");
-            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), out float textScale))
+            if (!string.IsNullOrEmpty(result) && float.TryParse(result.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float textScale))
             {
                 return textScale;
             }
