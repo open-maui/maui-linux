@@ -647,7 +647,7 @@ public class SkiaScrollView : SkiaView
         // Hit test content with scroll offset
         if (_content != null)
         {
-            var hit = _content.HitTest(x + _scrollX, y + _scrollY);
+            var hit = _content.HitTestAt(x + _scrollX, y + _scrollY);
             if (hit != null)
                 return hit;
         }
