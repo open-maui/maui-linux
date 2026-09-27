@@ -1115,9 +1115,16 @@ public sealed class WindowContext : IDisposable
 
     #region MAUI IWindow lifecycle
 
-    internal void NotifyCreated()
+    /// <summary>
+    /// IWindow.Created, which MAUI turns into Window.Created and, for the first
+    /// window, Application.OnStart. The primary window raises it too
+    /// (<paramref name="primary"/>) although it raises no other lifecycle
+    /// events: without it OnStart never ran, and an app that starts its work
+    /// there (loading its data and swapping in its shell) stayed on its first page.
+    /// </summary>
+    internal void NotifyCreated(bool primary = false)
     {
-        if (!RaisesMauiLifecycle || _mauiCreatedSent || MauiWindow == null) return;
+        if ((!RaisesMauiLifecycle && !primary) || _mauiCreatedSent || MauiWindow == null) return;
         _mauiCreatedSent = true;
         try { MauiWindow.Created(); }
         catch (Exception ex) { DiagnosticLog.Error("WindowContext", "IWindow.Created threw", ex); }
