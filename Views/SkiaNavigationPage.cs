@@ -475,7 +475,7 @@ public class SkiaNavigationPage : SkiaView
         {
             try
             {
-                var hit = _currentPage.HitTest(x, y);
+                var hit = _currentPage.HitTestAt(x, y);
                 if (hit != null)
                     return hit;
             }

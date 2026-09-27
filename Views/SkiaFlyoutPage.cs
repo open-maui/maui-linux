@@ -314,7 +314,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
         // If flyout is presented, check if hit is in flyout
         if (_flyoutAnimationProgress > 0 && _flyout != null)
         {
-            var flyoutHit = _flyout.HitTest(x, y);
+            var flyoutHit = _flyout.HitTestAt(x, y);
             if (flyoutHit != null) return flyoutHit;
 
             // Hit on scrim closes flyout (overlay layouts only)
@@ -327,7 +327,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
         // Check detail content
         if (_detail != null)
         {
-            var detailHit = _detail.HitTest(x, y);
+            var detailHit = _detail.HitTestAt(x, y);
             if (detailHit != null) return detailHit;
         }
 

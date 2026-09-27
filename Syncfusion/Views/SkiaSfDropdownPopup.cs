@@ -203,7 +203,7 @@ internal sealed class SkiaSfDropdownPopup : SkiaView
     }
 
     private SkiaView? ContentAt(float x, float y) =>
-        _content != null && PopupRect.Contains(x, y) ? _content.HitTest(x, y) : null;
+        _content != null && PopupRect.Contains(x, y) ? _content.HitTestAt(x, y) : null;
 
     public override void OnPointerEntered(PointerEventArgs e) => Hover(ContentAt(e.X, e.Y), e);
 
