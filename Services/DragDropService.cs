@@ -133,6 +133,65 @@ public partial class DragDropService : IDisposable
     /// (drag-and-drop is a primary-window feature in multi-window v1; only the
     /// primary announces XdndAware, so external drags never target secondaries).
     /// </summary>
+    // Additional X11 windows (Application.OpenWindow) that accept XDND drops.
+    // Everything else (selection conversion, INCR, replies) keeps using the
+    // primary connection: window ids and atoms are server-wide.
+    private readonly Dictionary<nint, IDisplayWindow?> _xdndTargets = new();
+    private nint _dropTargetWindow;
+
+    /// <summary>
+    /// The window the current drag is over, as reported by the backend that
+    /// raised the event (null when unknown: treat as the primary window).
+    /// </summary>
+    public IDisplayWindow? CurrentTargetWindow { get; private set; }
+
+    /// <summary>The X11 window XDND replies and coordinates refer to.</summary>
+    private nint TargetWindow => _dropTargetWindow != 0 ? _dropTargetWindow : _window;
+
+    /// <summary>
+    /// Registers an X11 window as a drop target. The first window binds the
+    /// service (its connection carries the XDND selection traffic); later
+    /// windows only announce XdndAware and have their XDND client messages
+    /// routed here with their identity, so drags onto secondary windows land
+    /// in those windows.
+    /// </summary>
+    public void RegisterWindow(nint display, nint window, IDisplayWindow owner)
+    {
+        if (_display == 0 || _window == 0)
+            Initialize(display, window);
+        _xdndTargets[window] = owner;
+        if (window != _window)
+        {
+            long version = 5;
+            var aware = XInternAtom(display, "XdndAware", false);
+            XChangeProperty(display, window, aware, XA_ATOM, 32, PropModeReplace, ref version, 1);
+        }
+    }
+
+    /// <summary>Forgets a window registered with <see cref="RegisterWindow"/>.</summary>
+    public void UnregisterWindow(nint window)
+    {
+        _xdndTargets.Remove(window);
+        if (_dropTargetWindow == window)
+            _dropTargetWindow = 0;
+    }
+
+    /// <summary>
+    /// Routes an XDND client message received by <paramref name="targetWindow"/>.
+    /// </summary>
+    public bool ProcessClientMessage(nint targetWindow, nint messageType, nint[] data)
+    {
+        if (targetWindow != 0 && (targetWindow == _window || _xdndTargets.ContainsKey(targetWindow)))
+        {
+            if (messageType == _xdndEnter || messageType == _xdndPosition || messageType == _xdndDrop || messageType == _xdndLeave)
+            {
+                _dropTargetWindow = targetWindow;
+                CurrentTargetWindow = _xdndTargets.TryGetValue(targetWindow, out var owner) ? owner : null;
+            }
+        }
+        return ProcessClientMessage(messageType, data);
+    }
+
     public void Initialize(nint display, nint window)
     {
         if (_display != 0 && _window != 0 && _window != window)
@@ -277,7 +336,7 @@ public partial class DragDropService : IDisposable
         int xRoot = (int)((data[2] >> 16) & 0xFFFF);
         int yRoot = (int)(data[2] & 0xFFFF);
         int x = xRoot, y = yRoot;
-        if (XTranslateCoordinates(_display, XDefaultRootWindow(_display), _window,
+        if (XTranslateCoordinates(_display, XDefaultRootWindow(_display), TargetWindow,
                 xRoot, yRoot, out int localX, out int localY, out _))
         {
             x = localX;
@@ -571,7 +630,7 @@ public partial class DragDropService : IDisposable
             format = 32
         };
 
-        ev.data0 = _window;
+        ev.data0 = TargetWindow;
         ev.data1 = accepted ? 1 : 0;
         ev.data2 = 0; // x, y of rectangle
         ev.data3 = 0; // width, height of rectangle
@@ -592,7 +651,7 @@ public partial class DragDropService : IDisposable
             format = 32
         };
 
-        ev.data0 = _window;
+        ev.data0 = TargetWindow;
         ev.data1 = accepted ? 1 : 0;
         ev.data2 = accepted ? _xdndActionCopy : IntPtr.Zero;
 
@@ -1224,8 +1283,9 @@ public partial class DragDropService : IDisposable
     // calls these to drive the public events. Kept internal so app code can only
     // subscribe to the events, not synthesize them.
 
-    internal DragEventArgs RaiseDragEnter(DragData data, int x, int y)
+    internal DragEventArgs RaiseDragEnter(DragData data, int x, int y, IDisplayWindow? target = null)
     {
+        CurrentTargetWindow = target;
         var args = new DragEventArgs(data, x, y);
         _isDragging = true;
         _currentDragData = data;
@@ -1233,8 +1293,9 @@ public partial class DragDropService : IDisposable
         return args;
     }
 
-    internal DragEventArgs RaiseDragOver(DragData data, int x, int y)
+    internal DragEventArgs RaiseDragOver(DragData data, int x, int y, IDisplayWindow? target = null)
     {
+        if (target != null) CurrentTargetWindow = target;
         var args = new DragEventArgs(data, x, y);
         DragOver?.Invoke(this, args);
         return args;
@@ -1247,8 +1308,9 @@ public partial class DragDropService : IDisposable
         DragLeave?.Invoke(this, EventArgs.Empty);
     }
 
-    internal DropEventArgs RaiseDrop(DragData data, string? text, int x = 0, int y = 0)
+    internal DropEventArgs RaiseDrop(DragData data, string? text, int x = 0, int y = 0, IDisplayWindow? target = null)
     {
+        if (target != null) CurrentTargetWindow = target;
         var args = new DropEventArgs(data, text, x, y);
         Drop?.Invoke(this, args);
         _isDragging = false;

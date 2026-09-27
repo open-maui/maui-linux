@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Platform.Linux.Native;
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -123,13 +124,52 @@ public class DeviceDisplayService : IDeviceDisplay
         return 60f;
     }
 
+    private PortalIdleInhibitor? _portalInhibitor;
+    private Task _inhibitChain = Task.CompletedTask;
+    private readonly Lock _inhibitLock = new();
+
     private void SetScreenSaverInhibit(bool inhibit)
+    {
+        if (!DesktopPortal.ShouldTry(PortalUse.Always))
+        {
+            SetScreenSaverInhibitLegacy(inhibit);
+            return;
+        }
+
+        // Portal Inhibit (idle) works on Wayland and X11 alike. Requests are
+        // chained so on/off toggles apply in order; if the portal cannot
+        // inhibit, the X11 xdg-screensaver path runs instead.
+        _portalInhibitor ??= new PortalIdleInhibitor(DesktopPortal.Current);
+        var inhibitor = _portalInhibitor;
+        lock (_inhibitLock)
+        {
+            _inhibitChain = _inhibitChain.ContinueWith(async _ =>
+            {
+                try
+                {
+                    var held = inhibitor.IsInhibiting;
+                    var handled = await inhibitor.SetAsync(inhibit, "DeviceDisplay.KeepScreenOn").ConfigureAwait(false);
+                    if (!handled && !(!inhibit && held))
+                        SetScreenSaverInhibitLegacy(inhibit);
+                }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Debug("DeviceDisplayService", "Portal screen saver inhibit failed", ex);
+                    SetScreenSaverInhibitLegacy(inhibit);
+                }
+            }, TaskScheduler.Default).Unwrap();
+        }
+    }
+
+    /// <summary>Waits for queued inhibit changes (tests).</summary>
+    internal Task WhenInhibitSettled() { lock (_inhibitLock) return _inhibitChain; }
+
+    private static void SetScreenSaverInhibitLegacy(bool inhibit)
     {
         try
         {
             // xdg-screensaver requires an X11 window ID; on Wayland the call is skipped
-            // (the compositor handles idle inhibit via the idle-inhibit-unstable-v1 protocol,
-            // wired up in a follow-up).
+            // (the portal path above covers Wayland when xdg-desktop-portal runs).
             IntPtr windowHandle = (LinuxApplication.Current?.MainWindow as IX11Surface)?.Handle ?? IntPtr.Zero;
             if (windowHandle != IntPtr.Zero)
             {
