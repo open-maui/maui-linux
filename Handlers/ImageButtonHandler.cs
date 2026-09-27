@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Maps IImageButton interface to SkiaImageButton platform view.
 /// IImageButton extends: IImage, IView, IButtonStroke, IPadding
 /// </summary>
-public partial class ImageButtonHandler : ViewHandler<IImageButton, SkiaImageButton>
+public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaImageButton>
 {
     public static IPropertyMapper<IImageButton, ImageButtonHandler> Mapper = new PropertyMapper<IImageButton, ImageButtonHandler>(ViewHandler.ViewMapper)
     {

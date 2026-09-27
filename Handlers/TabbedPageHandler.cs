@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for TabbedPage on Linux using Skia rendering.
 /// Maps ITabbedView interface to SkiaTabbedPage platform view.
 /// </summary>
-public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage>
+public partial class TabbedPageHandler : LinuxViewHandler<ITabbedView, SkiaTabbedPage>
 {
     private bool _isUpdatingSelection;
 
@@ -124,7 +124,7 @@ public partial class TabbedPageHandler : ViewHandler<ITabbedView, SkiaTabbedPage
 
                     if (page.Handler?.PlatformView is SkiaView skiaContent)
                     {
-                        PlatformView.AddTab(page.Title ?? "Tab", skiaContent, page.IconImageSource?.ToString());
+                        PlatformView.AddTab(page.Title ?? "Tab", skiaContent, Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(page.IconImageSource));
                     }
                 }
             }

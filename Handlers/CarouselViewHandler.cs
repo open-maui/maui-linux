@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for CarouselView on Linux using Skia rendering.
 /// Maps CarouselView to SkiaCarouselView platform view.
 /// </summary>
-public partial class CarouselViewHandler : ViewHandler<CarouselView, SkiaCarouselView>
+public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCarouselView>
 {
     private bool _isUpdatingPosition;
 

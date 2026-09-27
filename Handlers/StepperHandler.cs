@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Stepper on Linux using Skia rendering.
 /// Maps IStepper interface to SkiaStepper platform view.
 /// </summary>
-public partial class StepperHandler : ViewHandler<IStepper, SkiaStepper>
+public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>
 {
     public static IPropertyMapper<IStepper, StepperHandler> Mapper =
         new PropertyMapper<IStepper, StepperHandler>(ViewHandler.ViewMapper)
