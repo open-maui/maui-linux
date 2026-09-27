@@ -73,6 +73,8 @@ public class SkiaRefreshView : SkiaLayoutView
                 {
                     _pullDistance = 0;
                 }
+                // The content's offset depends on the state (see ArrangeOverride).
+                InvalidateMeasure();
                 Invalidate();
             }
         }
@@ -143,7 +145,10 @@ public class SkiaRefreshView : SkiaLayoutView
     {
         if (_content != null)
         {
-            float offset = _isRefreshing ? _refreshThreshold : _pullDistance;
+            // Only an active pull moves the content; while refreshing the
+            // indicator overlays it, as MAUI's RefreshView does on every
+            // platform (a refresh started from code must not push the page down).
+            float offset = _isRefreshing ? 0 : _pullDistance;
             var contentBounds = new Rect(bounds.Left, bounds.Top + offset, bounds.Width, bounds.Height);
             _content.Arrange(contentBounds);
         }
@@ -155,16 +160,14 @@ public class SkiaRefreshView : SkiaLayoutView
         canvas.Save();
         canvas.ClipRect(bounds);
 
-        // Draw refresh indicator
-        float indicatorY = bounds.Top + (_isRefreshing ? _refreshThreshold : _pullDistance) / 2;
+        // Content first, then the indicator on top of it.
+        _content?.Draw(canvas);
 
+        float indicatorY = bounds.Top + (_isRefreshing ? _refreshThreshold : _pullDistance) / 2;
         if (_pullDistance > 0 || _isRefreshing)
         {
             DrawRefreshIndicator(canvas, bounds.MidX, indicatorY);
         }
-
-        // Draw content
-        _content?.Draw(canvas);
 
         canvas.Restore();
     }

@@ -35,6 +35,15 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
     /// </summary>
     public AbsoluteLayoutBounds GetLayoutBounds(SkiaView child)
     {
+        // A MAUI AbsoluteLayout's child: its attached LayoutBounds as they are
+        // now. They can change at any time (a menu placed, then moved above its
+        // button once it knows its height), and a change raises no handler
+        // update, so a copy taken when the child was added went stale.
+        if (MauiView is Microsoft.Maui.Controls.AbsoluteLayout && child.MauiView is Microsoft.Maui.Controls.BindableObject mauiChild)
+        {
+            var (rect, flags) = Microsoft.Maui.Platform.Linux.Handlers.AbsoluteLayoutHandler.ReadBounds(mauiChild);
+            return new AbsoluteLayoutBounds(rect, flags);
+        }
         return _childBounds.TryGetValue(child, out var bounds)
             ? bounds
             : new AbsoluteLayoutBounds(SKRect.Empty, AbsoluteLayoutFlags.None);
@@ -52,20 +61,33 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
 
     protected override Size MeasureOverride(Size availableSize)
     {
+        double availableWidth = Math.Max(0, availableSize.Width - Padding.Left - Padding.Right);
+        double availableHeight = Math.Max(0, availableSize.Height - Padding.Top - Padding.Bottom);
         float maxRight = 0;
         float maxBottom = 0;
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
             var layout = GetLayoutBounds(child);
             var bounds = layout.Bounds;
+            var flags = layout.Flags;
 
-            child.Measure(new Size(bounds.Width, bounds.Height));
+            // Each dimension as MAUI's AbsoluteLayout measures it: a fraction of
+            // the layout when proportional, the child's own size when AutoSize
+            // (the handler passes AutoSize as 0), otherwise the given value.
+            double width = flags.HasFlag(AbsoluteLayoutFlags.WidthProportional) ? bounds.Width * availableWidth
+                : bounds.Width <= 0 ? double.PositiveInfinity : bounds.Width;
+            double height = flags.HasFlag(AbsoluteLayoutFlags.HeightProportional) ? bounds.Height * availableHeight
+                : bounds.Height <= 0 ? double.PositiveInfinity : bounds.Height;
+            var desired = child.Measure(new Size(width, height));
 
-            maxRight = Math.Max(maxRight, bounds.Right);
-            maxBottom = Math.Max(maxBottom, bounds.Bottom);
+            // Only absolutely placed extents grow the layout; proportional ones fill it.
+            if (!flags.HasFlag(AbsoluteLayoutFlags.XProportional) && !flags.HasFlag(AbsoluteLayoutFlags.WidthProportional))
+                maxRight = Math.Max(maxRight, bounds.Left + (float)(bounds.Width <= 0 ? desired.Width + child.Margin.HorizontalThickness : bounds.Width));
+            if (!flags.HasFlag(AbsoluteLayoutFlags.YProportional) && !flags.HasFlag(AbsoluteLayoutFlags.HeightProportional))
+                maxBottom = Math.Max(maxBottom, bounds.Top + (float)(bounds.Height <= 0 ? desired.Height + child.Margin.VerticalThickness : bounds.Height));
         }
 
         return new Size(
@@ -77,7 +99,7 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
     {
         var content = GetContentBounds(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
@@ -92,15 +114,15 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
             // so 0.5 centres a child rather than placing its left edge mid-way.
             if (flags.HasFlag(AbsoluteLayoutFlags.WidthProportional))
                 width = childBounds.Width * content.Width;
-            else if (childBounds.Width < 0)
-                width = (float)child.DesiredSize.Width;
+            else if (childBounds.Width <= 0)
+                width = (float)(child.DesiredSize.Width + child.Margin.HorizontalThickness); // AutoSize: the child and its margin
             else
                 width = childBounds.Width;
 
             if (flags.HasFlag(AbsoluteLayoutFlags.HeightProportional))
                 height = childBounds.Height * content.Height;
-            else if (childBounds.Height < 0)
-                height = (float)child.DesiredSize.Height;
+            else if (childBounds.Height <= 0)
+                height = (float)(child.DesiredSize.Height + child.Margin.VerticalThickness);
             else
                 height = childBounds.Height;
 
