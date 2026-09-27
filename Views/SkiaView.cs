@@ -58,6 +58,14 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// recursively to existing children, and <see cref="AddChild"/> /
     /// <see cref="InsertChild"/> propagate it to incoming children.
     /// </summary>
+    /// <summary>
+    /// Font resolution for this view: its render context's cache, or the
+    /// shared one before it has a context. Measuring with the Skia default
+    /// face while unattached and drawing with the real one made text overflow
+    /// its measured width (a bold title truncated with room to spare).
+    /// </summary>
+    internal ResourceCache Fonts => RenderContext?.Resources ?? ResourceCache.Shared;
+
     public IRenderContext? RenderContext
     {
         // Containers keep their own child lists (SkiaLayoutView, item views,
@@ -72,6 +80,38 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             _renderContext = value;
             for (int i = 0; i < _children.Count; i++)
                 _children[i].RenderContext = value;
+        }
+    }
+
+    /// <summary>
+    /// Device scale of the window this view is drawn in (its render context's,
+    /// which follows the window across monitors); the application's scale when
+    /// the view is not attached to a window yet.
+    /// </summary>
+    protected internal float DeviceScale
+    {
+        get
+        {
+            var scale = RenderContext?.DpiScale ?? 0f;
+            if (scale > 0f) return scale;
+            var app = LinuxApplication.Current;
+            return app is { DpiScale: > 0f } ? app.DpiScale : 1f;
+        }
+    }
+
+    /// <summary>
+    /// Logical size of the window this view is drawn in, for popups that must
+    /// stay on screen; the primary window's size (or 800x600) when unknown.
+    /// </summary>
+    protected internal (float Width, float Height) WindowLogicalSize
+    {
+        get
+        {
+            if (RenderContext is SkiaRenderingEngine engine && engine.LogicalWidth > 0 && engine.LogicalHeight > 0)
+                return (engine.LogicalWidth, engine.LogicalHeight);
+            var main = LinuxApplication.Current?.MainWindow;
+            float scale = DeviceScale;
+            return ((main?.Width ?? 800) / scale, (main?.Height ?? 600) / scale);
         }
     }
 
@@ -1014,7 +1054,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         base.OnBindingContextChanged();
 
         // Propagate binding context to children
-        foreach (var child in _children)
+        foreach (var child in _children.ToArray())
         {
             SetInheritedBindingContext(child, BindingContext);
         }
@@ -1090,7 +1130,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     public void ClearChildren()
     {
-        foreach (var child in _children)
+        foreach (var child in _children.ToArray())
         {
             child._parent = null;
         }
@@ -1121,22 +1161,45 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         InvalidateInternal();
     }
 
-    private void InvalidateInternal()
+    private void InvalidateInternal() => InvalidateInternal(reportDamage: true);
+
+    /// <summary>
+    /// Raises Invalidated up the parent chain and, for the view that actually
+    /// changed, reports its damage: the physical pixels it last painted plus
+    /// where it will paint now. Ancestors are notified without adding their
+    /// own (much larger) rects: the engine repaints the damaged area through
+    /// the whole tree, so their backgrounds under it are redrawn anyway.
+    /// Before this, every invalidation bubbled the root's full bounds, so no
+    /// frame was ever partial.
+    /// </summary>
+    private void InvalidateInternal(bool reportDamage)
     {
         LinuxApplication.LogInvalidate(GetType().Name);
         Invalidated?.Invoke(this, EventArgs.Empty);
 
-        // Notify rendering engine of dirty region
-        if (Bounds.Width > 0 && Bounds.Height > 0)
+        if (reportDamage)
         {
-            RenderContext?.InvalidateRegion(new SKRect(
-                (float)Bounds.Left, (float)Bounds.Top,
-                (float)Bounds.Right, (float)Bounds.Bottom));
+            var context = RenderContext;
+            if (context != null)
+            {
+                if (TryGetDamageRects(out var previous, out bool hasPrevious, out var next))
+                {
+                    if (hasPrevious && previous.Width > 0 && previous.Height > 0)
+                        context.InvalidateRegion(previous);
+                    if (next.Width > 0 && next.Height > 0)
+                        context.InvalidateRegion(next);
+                }
+                else
+                {
+                    // Never painted and no painted ancestor: position unknown.
+                    context.Invalidate();
+                }
+            }
         }
 
         if (_parent != null)
         {
-            _parent.InvalidateInternal();
+            _parent.InvalidateInternal(reportDamage: false);
         }
         else
         {
@@ -1147,8 +1210,16 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// <summary>
     /// Invalidates the cached measurement.
     /// </summary>
+    /// <summary>
+    /// Counts layout requests (UI thread). The renderer compares it across a
+    /// layout pass: a request made during the pass (a SizeChanged handler that
+    /// moves a view) is laid out before the frame is drawn.
+    /// </summary>
+    internal static int LayoutRequestCount;
+
     public void InvalidateMeasure()
     {
+        LayoutRequestCount++;
         DesiredSize = Size.Zero;
         _parent?.InvalidateMeasure();
         Invalidate();
@@ -1166,10 +1237,93 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// Measures the desired size of this view.
     /// Uses MAUI Size for public API compliance.
     /// </summary>
+    private bool _inMauiMeasure;
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, bool> s_customMeasure = new();
+
+    /// <summary>
+    /// True when <paramref name="type"/> overrides VisualElement.MeasureOverride
+    /// outside MAUI's own controls: app and library controls (SfTabView sizes
+    /// its tabs there) whose override must run when a Skia parent measures them.
+    /// </summary>
+    internal static bool HasCustomMeasureOverride(Type type) => s_customMeasure.GetOrAdd(type, static t =>
+    {
+        var method = t.GetMethod("MeasureOverride",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public,
+            null, new[] { typeof(double), typeof(double) }, null);
+        var declaring = method?.GetBaseDefinition() != method ? method?.DeclaringType : null;
+        return declaring != null && declaring.Assembly != typeof(Microsoft.Maui.Controls.VisualElement).Assembly;
+    });
+
     public Size Measure(Size availableSize)
     {
-        DesiredSize = MeasureOverride(availableSize);
+        // A Skia parent measures this view directly; a MauiView with its own
+        // MeasureOverride is measured through MAUI instead, so the override
+        // runs as on every platform (its base call comes back here through
+        // the handler, flagged, and measures normally).
+        if (!_inMauiMeasure && MauiView is Microsoft.Maui.Controls.VisualElement ve && ve.Handler != null
+            && HasCustomMeasureOverride(ve.GetType()))
+        {
+            _inMauiMeasure = true;
+            try
+            {
+                var measured = ((IView)ve).Measure(availableSize.Width, availableSize.Height);
+                var margin = ve is Microsoft.Maui.Controls.View v ? v.Margin : Thickness.Zero;
+                DesiredSize = new Size(Math.Max(0, measured.Width - margin.HorizontalThickness),
+                                       Math.Max(0, measured.Height - margin.VerticalThickness));
+                return DesiredSize;
+            }
+            finally
+            {
+                _inMauiMeasure = false;
+            }
+        }
+
+        // An explicit size is both the constraint and the result, as in MAUI.
+        // Views measured directly by a Skia parent (a ScrollView's content)
+        // bypass the handler, which applies it otherwise; without this a Grid
+        // pinned with WidthRequest inside a horizontal ScrollView measured
+        // against infinity and its Star columns took the wrong width.
+        bool fixedWidth = WidthRequest >= 0;
+        bool fixedHeight = HeightRequest >= 0;
+        if (fixedWidth || fixedHeight)
+            availableSize = new Size(fixedWidth ? WidthRequest : availableSize.Width,
+                                     fixedHeight ? HeightRequest : availableSize.Height);
+
+        // Maximum and minimum sizes bound the constraint too, before measuring
+        // (MAUI's ResolveConstraints): content that wraps (a width-capped card
+        // of text) is measured at the width it will get, not as one long line.
+        if (MauiView is Microsoft.Maui.Controls.VisualElement bounds)
+            availableSize = new Size(
+                Clamp(availableSize.Width, bounds.MinimumWidthRequest, bounds.MaximumWidthRequest),
+                Clamp(availableSize.Height, bounds.MinimumHeightRequest, bounds.MaximumHeightRequest));
+
+        var desired = MeasureOverride(availableSize);
+        if (fixedWidth || fixedHeight)
+            desired = new Size(fixedWidth ? WidthRequest : desired.Width,
+                               fixedHeight ? HeightRequest : desired.Height);
+
+        // Minimum and maximum sizes, as MAUI applies them after measuring
+        // (the handler path does the same through LinuxViewMeasure).
+        if (MauiView is Microsoft.Maui.Controls.VisualElement limits)
+        {
+            double w = desired.Width, h = desired.Height;
+            if (limits.MaximumWidthRequest >= 0 && !double.IsInfinity(limits.MaximumWidthRequest)) w = Math.Min(w, limits.MaximumWidthRequest);
+            if (limits.MaximumHeightRequest >= 0 && !double.IsInfinity(limits.MaximumHeightRequest)) h = Math.Min(h, limits.MaximumHeightRequest);
+            if (limits.MinimumWidthRequest > 0) w = Math.Max(w, limits.MinimumWidthRequest);
+            if (limits.MinimumHeightRequest > 0) h = Math.Max(h, limits.MinimumHeightRequest);
+            desired = new Size(w, h);
+        }
+
+        DesiredSize = desired;
         return DesiredSize;
+    }
+
+    private static double Clamp(double constraint, double min, double max)
+    {
+        if (max >= 0 && !double.IsInfinity(max)) constraint = Math.Min(constraint, max);
+        if (min > 0) constraint = Math.Max(constraint, min);
+        return constraint;
     }
 
     /// <summary>
@@ -1190,9 +1344,26 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     private bool _arrangingMauiView;
     private bool _loadedFired;
 
+    private Rect? _arrangingTo;
+
+    /// <summary>
+    /// Where this view is being placed: the bounds of the arrange in progress
+    /// (its children are arranged inside it, before <see cref="Bounds"/> is
+    /// updated), else its current bounds.
+    /// </summary>
+    internal Rect LayoutBounds => _arrangingTo ?? Bounds;
+
     public virtual void Arrange(Rect bounds)
     {
-        Bounds = ArrangeOverride(bounds);
+        _arrangingTo = bounds;
+        try
+        {
+            Bounds = ArrangeOverride(bounds);
+        }
+        finally
+        {
+            _arrangingTo = null;
+        }
 
         // Notify the MAUI virtual view of its final size so that
         // VisualElement.Width/Height update and SizeChanged fires.
@@ -1202,16 +1373,22 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         {
             var w = Bounds.Width;
             var h = Bounds.Height;
-            if (Math.Abs(MauiView.Width - w) > 0.5 || Math.Abs(MauiView.Height - h) > 0.5)
+            // MAUI frames are relative to the parent (apps and libraries sum
+            // X/Y up the tree to place popups); Skia bounds are window-absolute.
+            var origin = ParentOrigin(MauiView);
+            var frame = new Rect(Bounds.X - origin.X, Bounds.Y - origin.Y, w, h);
+            var current = MauiView.Frame;
+            if (Math.Abs(current.Width - w) > 0.5 || Math.Abs(current.Height - h) > 0.5
+                || Math.Abs(current.X - frame.X) > 0.5 || Math.Abs(current.Y - frame.Y) > 0.5)
             {
                 _arrangingMauiView = true;
                 try
                 {
-                    MauiView.Frame = new Rect(Bounds.X, Bounds.Y, w, h);
+                    MauiView.Frame = frame;
                 }
                 catch (Exception ex)
                 {
-                    DiagnosticLog.Error("SkiaView", $"Frame set failed for {MauiView.GetType().Name}: {ex.Message}");
+                    DiagnosticLog.Error("SkiaView", $"Frame set failed for {MauiView.GetType().Name}: {ex.Message}", ex);
                 }
                 finally
                 {
@@ -1228,6 +1405,23 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
                     FireLoadedEvent(MauiView);
             }
         }
+    }
+
+    /// <summary>
+    /// The window position of <paramref name="view"/>'s parent: a page's own
+    /// frame (pages are positioned by their host), else the parent's Skia bounds.
+    /// </summary>
+    private static Point ParentOrigin(Microsoft.Maui.Controls.VisualElement view)
+    {
+        var parent = view.Parent;
+        while (parent != null && parent is not Microsoft.Maui.Controls.VisualElement)
+            parent = parent.Parent;
+        return parent switch
+        {
+            Microsoft.Maui.Controls.Page page => new Point(Math.Max(0, page.Frame.X), Math.Max(0, page.Frame.Y)),
+            Microsoft.Maui.Controls.VisualElement { Handler.PlatformView: SkiaView skia } => new Point(skia.LayoutBounds.X, skia.LayoutBounds.Y),
+            _ => Point.Zero,
+        };
     }
 
     private static System.Reflection.FieldInfo? _loadedField;
@@ -1249,7 +1443,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaView", $"FireLoaded failed for {element.GetType().Name}: {ex.Message}");
+            DiagnosticLog.Error("SkiaView", $"FireLoaded failed for {element.GetType().Name}: {ex.Message}", ex);
         }
     }
 
@@ -1367,6 +1561,14 @@ public class KeyEventArgs : EventArgs
     public Key Key { get; }
     public KeyModifiers Modifiers { get; }
     public bool Handled { get; set; }
+
+    /// <summary>
+    /// The hardware keycode in XKB numbering (evdev scancode + 8, the value X11
+    /// and GDK report directly), or 0 when the backend did not provide one.
+    /// Layout-independent: it identifies the physical key, which is what
+    /// consumers such as the WebView need for DOM <c>KeyboardEvent.code</c>.
+    /// </summary>
+    public uint HardwareKeycode { get; init; }
 
     public KeyEventArgs(Key key, KeyModifiers modifiers = KeyModifiers.None)
     {

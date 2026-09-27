@@ -434,11 +434,8 @@ public class SkiaButton : SkiaView, IButtonController
             // Handle FileImageSource
             if (ImageSource is FileImageSource fileSource)
             {
-                var path = fileSource.File;
-                if (System.IO.File.Exists(path))
-                {
-                    _loadedImage = SKBitmap.Decode(path);
-                }
+                // App-relative names and the .png -> .svg fallback MAUI apps rely on.
+                _loadedImage = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.LoadBitmap(fileSource.File, 64);
             }
             // Handle StreamImageSource
             else if (ImageSource is StreamImageSource streamSource)
@@ -459,9 +456,9 @@ public class SkiaButton : SkiaView, IButtonController
 
             Invalidate();
         }
-        catch
+        catch (Exception ex)
         {
-            // Image loading failed - leave as null
+            DiagnosticLog.Error("SkiaButton", "Loading the button image failed", ex);
         }
     }
 
@@ -672,7 +669,7 @@ public class SkiaButton : SkiaView, IButtonController
         float fontSize = FontSize > 0 ? (float)FontSize : 14f;
 
         using var font = SkiaFontFactory.Create(
-            RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
+            Fonts.GetTypeface(fontFamily, fontStyle),
             fontSize);
 
         // Prepare text color
@@ -844,7 +841,7 @@ public class SkiaButton : SkiaView, IButtonController
     {
         if (CharacterSpacing == 0 || string.IsNullOrEmpty(text) || text.Length <= 1)
         {
-            canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
+            DrawRunsWithFallback(canvas, text, x, y, font, paint);
             return;
         }
 
@@ -855,6 +852,37 @@ public class SkiaButton : SkiaView, IButtonController
             string charStr = c.ToString();
             canvas.DrawText(charStr, currentX, y, SKTextAlign.Left, font, paint);
             currentX += font.MeasureText(charStr) + (float)CharacterSpacing;
+        }
+    }
+
+    /// <summary>
+    /// Draws the text in the button's font, switching to a fallback face for
+    /// characters it lacks (symbols such as the "⋮" overflow glyph, emoji,
+    /// CJK), as labels do.
+    /// </summary>
+    private static void DrawRunsWithFallback(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint paint)
+    {
+        if (string.IsNullOrEmpty(text) || font.Typeface == null)
+        {
+            canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
+            return;
+        }
+
+        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, font.Typeface);
+        if (runs.Count == 0 || (runs.Count == 1 && ReferenceEquals(runs[0].Typeface, font.Typeface)))
+        {
+            canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
+            return;
+        }
+
+        float currentX = x;
+        foreach (var run in runs)
+        {
+            using var runFont = SkiaFontFactory.Create(run.Typeface, font.Size);
+            runFont.Embolden = font.Embolden;
+            runFont.SkewX = font.SkewX;
+            canvas.DrawText(run.Text, currentX, y, SKTextAlign.Left, runFont, paint);
+            currentX += runFont.MeasureText(run.Text, paint);
         }
     }
 
@@ -897,6 +925,7 @@ public class SkiaButton : SkiaView, IButtonController
 
     public override void OnPointerEntered(PointerEventArgs e)
     {
+        base.OnPointerEntered(e); // PointerGestureRecognizers here and on ancestors
         if (IsEnabled)
         {
             IsPointerOver = true;
@@ -907,6 +936,7 @@ public class SkiaButton : SkiaView, IButtonController
 
     public override void OnPointerExited(PointerEventArgs e)
     {
+        base.OnPointerExited(e); // PointerGestureRecognizers here and on ancestors
         IsPointerOver = false;
         if (IsPressed)
         {
@@ -1015,7 +1045,7 @@ public class SkiaButton : SkiaView, IButtonController
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = SkiaFontFactory.Create(
-            RenderContext?.Resources.GetTypeface(fontFamily, fontStyle) ?? SKTypeface.Default,
+            Fonts.GetTypeface(fontFamily, fontStyle),
             fontSize);
 
         string displayText = ApplyTextTransform(Text);
