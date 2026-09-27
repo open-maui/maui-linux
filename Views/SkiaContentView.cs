@@ -26,6 +26,8 @@ public class SkiaContentView : SkiaLayoutView, ILocalArrangeHost
     /// </summary>
     internal ICrossPlatformLayout? CrossPlatformLayout { get; set; }
 
+    private Rect? _selfArrangedTo;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         if (CrossPlatformLayout is { } selfLayout)
@@ -82,6 +84,12 @@ public class SkiaContentView : SkiaLayoutView, ILocalArrangeHost
     {
         if (CrossPlatformLayout is { } selfLayout)
         {
+            // Unchanged since its last arrange: its content stays where it is
+            // (a chart re-plots and repaints on every arrange).
+            if (!LayoutDirty && _selfArrangedTo == bounds)
+                return bounds;
+            _selfArrangedTo = bounds;
+            LayoutDirty = false;
             try
             {
                 _arrangeOrigin = bounds.Location;
