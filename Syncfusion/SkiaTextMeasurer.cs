@@ -59,6 +59,10 @@ internal sealed class SkiaTextMeasurer : ITextMeasurer
     public Size MeasureText(string text, double width, ITextElement textElement)
         => Measure(text, textElement.FontFamily, textElement.FontSize, textElement.FontAttributes, width);
 
+    /// <summary>The size <paramref name="text"/> takes in <paramref name="element"/>'s font, on one line per paragraph.</summary>
+    internal static Size MeasureFor(string? text, ITextElement element)
+        => Measure(text, element.FontFamily, element.FontSize, element.FontAttributes, double.PositiveInfinity);
+
     private static Size Measure(string? text, string? family, double size, FontAttributes attributes, double maxWidth)
     {
         if (string.IsNullOrEmpty(text))
