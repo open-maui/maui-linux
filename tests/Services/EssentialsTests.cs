@@ -1425,8 +1425,9 @@ public class EssentialsTests
         (await Task.WhenAny(locate, Task.Delay(3000))).Should().BeSameAs(locate);
         (await locate).Should().BeNull();
 
-        capture.Single.FileName.Should().Be("gdbus");
-        capture.Single.Arguments.Should().Contain("org.freedesktop.GeoClue2");
+        // Location goes through the xdg-desktop-portal over native D-Bus (no
+        // gdbus subprocess); the test assembly disables the portal.
+        capture.Launches.Should().BeEmpty();
     }
 
     [Fact]

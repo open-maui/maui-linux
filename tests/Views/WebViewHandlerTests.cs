@@ -2,18 +2,21 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using FluentAssertions;
 using Microsoft.Maui.Platform.Linux.Views;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Microsoft.Maui.Controls.Linux.Tests.Views;
 
 /// <summary>
 /// End-to-end WebView behaviour on the WPE engine, which renders headlessly
 /// so these run without a display: HTML and URL sources, navigation events,
-/// JavaScript evaluation with real results, history, cookies, reload, frames.
+/// JavaScript evaluation with real results, history, cookies, reload, frames
+/// (raster copy and GPU zero-copy), and hardware keycodes in key events.
 /// </summary>
 /// <remarks>
 /// WebKit binds itself to the process main thread (WTF::initializeMainThread
@@ -40,7 +43,27 @@ public class WebViewHandlerTests
         "frames-delivered-after-load",
         "cookies-round-trip",
         "reload-and-stop",
+        "keyboard-event-code",
+        "frames-delivered-gpu",
+        "scale-change",
     };
+
+    /// <summary>Host exit code for "this machine cannot run the scenario" (see WebViewHost Program).</summary>
+    private const int NotSupportedExitCode = 4;
+
+    /// <summary>
+    /// Scenarios that need more than WPE (a GPU EGL context) and may report
+    /// "not supported" on machines without one; that counts as a pass with a
+    /// note, and only for these.
+    /// </summary>
+    private static readonly HashSet<string> s_mayBeUnsupported = new(StringComparer.Ordinal)
+    {
+        "frames-delivered-gpu",
+    };
+
+    private readonly ITestOutputHelper _output;
+
+    public WebViewHandlerTests(ITestOutputHelper output) => _output = output;
 
     [Fact]
     public void Host_program_is_built_next_to_the_tests()
@@ -67,6 +90,13 @@ public class WebViewHandlerTests
 
         var (code, stdout, stderr) = RunHost(scenario);
         code.Should().NotBe(3, "WPE is available in this process, so it must be in the host too");
+        if (code == NotSupportedExitCode && s_mayBeUnsupported.Contains(scenario))
+        {
+            _output.WriteLine($"NOTE: '{scenario}' is not supported on this machine: {stderr.Trim()}");
+            return;
+        }
+        if (!string.IsNullOrWhiteSpace(stdout))
+            _output.WriteLine(stdout.Trim());
         code.Should().Be(0, $"scenario '{scenario}' failed:\n{stderr}\n{stdout}");
         stdout.Should().Contain($"ok {scenario}");
     }
