@@ -140,6 +140,25 @@ public abstract partial class SkiaView
         return p;
     }
 
+    /// <summary>
+    /// The inverse of <see cref="FromWindow"/>: a point in this view's untransformed space
+    /// (where its Bounds are, and where its pointer events arrive) mapped back to the window,
+    /// through every ScrollView offset and render transform from this view up to the root.
+    /// </summary>
+    internal SKPoint ToWindow(float x, float y)
+    {
+        var p = new SKPoint(x, y);
+        bool first = true;
+        for (var v = this; v != null; v = v.Parent, first = false)
+        {
+            if (!first && v is SkiaScrollView scroller)
+                p = new SKPoint(p.X - scroller.ScrollX, p.Y - scroller.ScrollY);
+            if (v.HasRenderTransform)
+                p = v.LocalRenderTransform(ToSKRect(v.Bounds)).MapPoint(p);
+        }
+        return p;
+    }
+
     private static SKRect ToSKRect(Rect r) => new((float)r.Left, (float)r.Top, (float)r.Right, (float)r.Bottom);
 
     private bool HasRenderTransform =>
