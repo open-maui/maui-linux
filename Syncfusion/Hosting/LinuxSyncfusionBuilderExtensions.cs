@@ -42,6 +42,15 @@ public static class LinuxSyncfusionBuilderExtensions
             handlers.AddHandler(typeof(IDrawableLayout), typeof(SfLayoutBridgeHandler));
             handlers.AddHandler(typeof(SfView), typeof(SfLayoutBridgeHandler));
             handlers.AddHandler(typeof(IDrawableView), typeof(SfDrawableBridgeHandler));
+
+            // Syncfusion Charts (every chart type derives from ChartBase, a View
+            // that is an IContentView): MAUI's stock ContentViewHandler has no
+            // platform view in the platform-neutral build and threw, so no chart
+            // showed. OpenMaui's ContentView handler hosts the chart's content,
+            // whose drawing views go through the bridge above. By name: Charts is
+            // optional.
+            if (Type.GetType("Syncfusion.Maui.Charts.ChartBase, Syncfusion.Maui.Charts") is { } chartBase)
+                handlers.AddHandler(chartBase, typeof(Microsoft.Maui.Platform.Linux.Handlers.ContentViewHandler));
         });
 
         // The fonts ConfigureSyncfusionCore registers (icon glyphs used by
@@ -57,6 +66,7 @@ public static class LinuxSyncfusionBuilderExtensions
 
         SfInputBridge.Install();
         SfListViewPatches.Install();
+        SfCanvasPatches.Install();
         return builder;
     }
 }
