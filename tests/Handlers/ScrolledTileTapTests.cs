@@ -46,32 +46,4 @@ public class ScrolledTileTapTests
 
         taps.Should().Equal(4);
     }
-
-    [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(false, false)]
-    public async Task Probe(bool scrolled, bool pointer)
-    {
-        var taps = new List<int>();
-        var row = new HorizontalStackLayout();
-        for (int i = 0; i < 12; i++)
-        {
-            int index = i;
-            var content = new Grid { Children = { new Label { Text = $"Node {i}" } } };
-            var tap = new TapGestureRecognizer();
-            tap.Tapped += (_, _) => taps.Add(index);
-            content.GestureRecognizers.Add(tap);
-            if (pointer) content.GestureRecognizers.Add(new PointerGestureRecognizer());
-            row.Children.Add(new Border { StrokeThickness = 2.5, Padding = 0, Margin = new Thickness(6, 8), WidthRequest = 120, HeightRequest = 120, Content = content });
-        }
-        var scroll = new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = row };
-        using var host = new HeadlessMauiHost(new ContentPage { Content = new Grid { Children = { scroll } } }, withEngine: true);
-        host.Context.Render();
-        if (scrolled) { await scroll.ScrollToAsync(4 * 132, 0, false); host.Context.Render(); }
-        host.DisplayWindow.RaisePointerPressed(60, 60, Microsoft.Maui.Platform.PointerButton.Left);
-        host.DisplayWindow.RaisePointerReleased(60, 60);
-        var hit = host.Context.RootView!.HitTestAt(60, 60);
-        throw new Exception($"PROBE scrolled={scrolled} pointer={pointer} taps=[{string.Join(",", taps)}] hit={hit?.GetType().Name}/{hit?.MauiView?.GetType().Name}");
-    }
 }
