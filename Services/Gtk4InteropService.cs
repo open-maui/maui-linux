@@ -318,7 +318,7 @@ public partial class Gtk4InteropService : IDisposable
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("Gtk4InteropService", $"GTK4 init failed: {ex.Message}");
+                DiagnosticLog.Error("Gtk4InteropService", $"GTK4 init failed: {ex.Message}", ex);
             }
 
             // Fall back to GTK3
@@ -340,7 +340,7 @@ public partial class Gtk4InteropService : IDisposable
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("Gtk4InteropService", $"GTK3 init failed: {ex.Message}");
+                DiagnosticLog.Error("Gtk4InteropService", $"GTK3 init failed: {ex.Message}", ex);
             }
 
             return false;

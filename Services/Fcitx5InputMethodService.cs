@@ -61,7 +61,7 @@ public class Fcitx5InputMethodService : IInputMethodService, IDisposable
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("Fcitx5InputMethodService", $"Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("Fcitx5InputMethodService", $"Initialization failed - {ex.Message}", ex);
         }
     }
 
