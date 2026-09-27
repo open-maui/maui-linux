@@ -619,6 +619,7 @@ public class SkiaImageButton : SkiaView
 
     public override void OnPointerEntered(PointerEventArgs e)
     {
+        base.OnPointerEntered(e); // PointerGestureRecognizers here and on ancestors
         if (!IsEnabled) return;
         IsHovered = true;
         SkiaVisualStateManager.GoToState(this, SkiaVisualStateManager.CommonStates.PointerOver);
@@ -627,6 +628,7 @@ public class SkiaImageButton : SkiaView
 
     public override void OnPointerExited(PointerEventArgs e)
     {
+        base.OnPointerExited(e); // PointerGestureRecognizers here and on ancestors
         IsHovered = false;
         if (IsPressed)
         {
