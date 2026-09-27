@@ -61,6 +61,7 @@ public class SkiaPage : SkiaView
             {
                 _content.Parent = this;
             }
+            _contentLaidOutFor = null;
             Invalidate();
         }
     }
@@ -103,6 +104,7 @@ public class SkiaPage : SkiaView
         set
         {
             _showNavigationBar = value;
+            _contentLaidOutFor = null;
             Invalidate();
         }
     }
@@ -113,6 +115,7 @@ public class SkiaPage : SkiaView
         set
         {
             _navigationBarHeight = value;
+            _contentLaidOutFor = null;
             Invalidate();
         }
     }
@@ -120,25 +123,25 @@ public class SkiaPage : SkiaView
     public float PaddingLeft
     {
         get => _paddingLeft;
-        set { _paddingLeft = value; Invalidate(); }
+        set { _paddingLeft = value; _contentLaidOutFor = null; Invalidate(); }
     }
 
     public float PaddingTop
     {
         get => _paddingTop;
-        set { _paddingTop = value; Invalidate(); }
+        set { _paddingTop = value; _contentLaidOutFor = null; Invalidate(); }
     }
 
     public float PaddingRight
     {
         get => _paddingRight;
-        set { _paddingRight = value; Invalidate(); }
+        set { _paddingRight = value; _contentLaidOutFor = null; Invalidate(); }
     }
 
     public float PaddingBottom
     {
         get => _paddingBottom;
-        set { _paddingBottom = value; Invalidate(); }
+        set { _paddingBottom = value; _contentLaidOutFor = null; Invalidate(); }
     }
 
     public bool IsBusy { get; set; }
@@ -160,27 +163,65 @@ public class SkiaPage : SkiaView
     public event EventHandler? NavigatedFrom;
     public event EventHandler? NavigatingFrom;
 
+    private SKRect? _contentLaidOutFor;
+
+    protected override Rect ArrangeOverride(Rect bounds)
+    {
+        LayoutContent(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
+        return bounds;
+    }
+
+    /// <summary>
+    /// Measures and arranges the content below the navigation bar, inside the
+    /// page padding and the content's margin; a content view with
+    /// Start/Center/End options keeps its desired size within the page,
+    /// exactly like any other single-child container.
+    /// </summary>
+    private void LayoutContent(SKRect bounds)
+    {
+        _contentLaidOutFor = bounds;
+        if (_content == null)
+            return;
+
+        var contentTop = _showNavigationBar ? bounds.Top + _navigationBarHeight : bounds.Top;
+        var contentBounds = new SKRect(
+            bounds.Left + _paddingLeft,
+            contentTop + _paddingTop,
+            bounds.Right - _paddingRight,
+            bounds.Bottom - _paddingBottom);
+
+        var margin = _content.Margin;
+        var adjustedBounds = new SKRect(
+            contentBounds.Left + (float)margin.Left,
+            contentBounds.Top + (float)margin.Top,
+            contentBounds.Right - (float)margin.Right,
+            contentBounds.Bottom - (float)margin.Bottom);
+
+        var availableSize = new Size(adjustedBounds.Width, adjustedBounds.Height);
+        var desired = _content.Measure(availableSize);
+        _content.Arrange(AlignContent(_content, adjustedBounds, desired));
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Use BackgroundColor if explicitly set (including via AppThemeBinding),
         // otherwise fall back to theme-aware default
-        SKColor bgColor;
-        if (BackgroundColor != null && BackgroundColor != Colors.Transparent)
-        {
-            bgColor = GetEffectiveBackgroundColor();
-        }
-        else
-        {
-            // No explicit background - use theme-aware default
-            bgColor = SkiaTheme.CurrentPageBackgroundSK;
-        }
+        // Unset: the theme's page background. Set, including an explicit
+        // Transparent: that colour. A see-through page is how popups presented
+        // as modal pages (Mopups' PopupPage) show the page beneath them.
+        SKColor bgColor = BackgroundColor != null
+            ? GetEffectiveBackgroundColor()
+            : SkiaTheme.CurrentPageBackgroundSK;
 
-        using var bgPaint = new SKPaint
+        if (bgColor.Alpha > 0)
         {
-            Color = bgColor,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, bgPaint);
+            using var bgPaint = new SKPaint
+            {
+                Color = bgColor,
+                Style = SKPaintStyle.Fill
+            };
+            canvas.DrawRect(bounds, bgPaint);
+        }
 
         // Draw background image if set
         if (BackgroundImage != null)
@@ -189,37 +230,20 @@ public class SkiaPage : SkiaView
             canvas.DrawBitmap(BackgroundImage, destRect);
         }
 
-        var contentTop = bounds.Top;
-
         // Draw navigation bar if visible
         if (_showNavigationBar)
         {
             DrawNavigationBar(canvas, new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + _navigationBarHeight));
-            contentTop = bounds.Top + _navigationBarHeight;
         }
 
-        // Calculate content bounds with padding
-        var contentBounds = new SKRect(
-            bounds.Left + _paddingLeft,
-            contentTop + _paddingTop,
-            bounds.Right - _paddingRight,
-            bounds.Bottom - _paddingBottom);
-
-        // Draw content
+        // Draw content: laid out in the layout pass (ArrangeOverride), so a
+        // change a SizeChanged handler makes there settles before this frame
+        // is drawn. A page drawn at bounds it was not arranged to (a
+        // screenshot) lays its content out here.
         if (_content != null)
         {
-            // Apply content's margin to the content bounds
-            var margin = _content.Margin;
-            var adjustedBounds = new SKRect(
-                contentBounds.Left + (float)margin.Left,
-                contentBounds.Top + (float)margin.Top,
-                contentBounds.Right - (float)margin.Right,
-                contentBounds.Bottom - (float)margin.Bottom);
-
-            // Measure and arrange the content before drawing
-            var availableSize = new Size(adjustedBounds.Width, adjustedBounds.Height);
-            _content.Measure(availableSize);
-            _content.Arrange(new Rect(adjustedBounds.Left, adjustedBounds.Top, adjustedBounds.Width, adjustedBounds.Height));
+            if (_contentLaidOutFor != bounds)
+                LayoutContent(bounds);
             DiagnosticLog.Debug("SkiaPage", $"Drawing content: {_content.GetType().Name}, Bounds={_content.Bounds}, IsVisible={_content.IsVisible}");
             _content.Draw(canvas);
         }
@@ -229,6 +253,37 @@ public class SkiaPage : SkiaView
         {
             DrawBusyIndicator(canvas, bounds);
         }
+    }
+
+    /// <summary>
+    /// Places the page content within <paramref name="area"/> according to its
+    /// HorizontalOptions/VerticalOptions: Fill (the default) takes the whole
+    /// area, Start/Center/End take the desired size, clamped to the area.
+    /// </summary>
+    internal static Rect AlignContent(SkiaView content, SKRect area, Size desired)
+    {
+        var hAlign = content.MauiView is IView hv
+            ? (LayoutAlignment)(int)hv.HorizontalLayoutAlignment
+            : LayoutAlignmentHelper.MapFromMaui(content.HorizontalOptions);
+        var vAlign = content.MauiView is IView vv
+            ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
+            : LayoutAlignmentHelper.MapFromMaui(content.VerticalOptions);
+
+        static (double Start, double Length) Place(LayoutAlignment align, double start, double available, double wanted)
+        {
+            if (align == LayoutAlignment.Fill || wanted <= 0 || double.IsNaN(wanted) || wanted >= available)
+                return (start, available);
+            return align switch
+            {
+                LayoutAlignment.Center => (start + (available - wanted) / 2, wanted),
+                LayoutAlignment.End => (start + available - wanted, wanted),
+                _ => (start, wanted),
+            };
+        }
+
+        var (x, w) = Place(hAlign, area.Left, area.Width, desired.Width);
+        var (y, h) = Place(vAlign, area.Top, area.Height, desired.Height);
+        return new Rect(x, y, w, h);
     }
 
     protected virtual void DrawNavigationBar(SKCanvas canvas, SKRect bounds)
@@ -327,11 +382,21 @@ public class SkiaPage : SkiaView
         return availableSize;
     }
 
+    /// <summary>
+    /// Forwarding is for presses on the content; a press on the page area
+    /// around a Start/Center/End-aligned content view must not reach it.
+    /// </summary>
+    private bool ContentContains(PointerEventArgs e)
+    {
+        var b = _content!.Bounds;
+        return b.Width <= 0 || b.Height <= 0 || b.Contains(e.X, e.Y);
+    }
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
         // Adjust coordinates for content
         var contentTop = _showNavigationBar ? _navigationBarHeight : 0;
-        if (e.Y > contentTop && _content != null)
+        if (e.Y > contentTop && _content != null && ContentContains(e))
         {
             var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
             _content.OnPointerPressed(contentE);
@@ -341,7 +406,7 @@ public class SkiaPage : SkiaView
     public override void OnPointerMoved(PointerEventArgs e)
     {
         var contentTop = _showNavigationBar ? _navigationBarHeight : 0;
-        if (e.Y > contentTop && _content != null)
+        if (e.Y > contentTop && _content != null && ContentContains(e))
         {
             var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
             _content.OnPointerMoved(contentE);
@@ -351,7 +416,7 @@ public class SkiaPage : SkiaView
     public override void OnPointerReleased(PointerEventArgs e)
     {
         var contentTop = _showNavigationBar ? _navigationBarHeight : 0;
-        if (e.Y > contentTop && _content != null)
+        if (e.Y > contentTop && _content != null && ContentContains(e))
         {
             var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
             _content.OnPointerReleased(contentE);

@@ -60,7 +60,7 @@ public class SkiaStackLayout : SkiaLayoutView
             ? new Size(double.PositiveInfinity, contentHeight)  // Horizontal: infinite width, constrained height
             : new Size(contentWidth, double.PositiveInfinity);  // Vertical: constrained width, infinite height
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
@@ -112,7 +112,7 @@ public class SkiaStackLayout : SkiaLayoutView
 
         float offset = 0;
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 

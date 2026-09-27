@@ -501,15 +501,18 @@ public class SkiaPicker : SkiaView
             textPaint.Color = titleColorSK;
         }
 
-        font.MeasureText(displayText, out var textBounds);
-
         // Calculate horizontal position based on alignment
         float arrowWidth = 24f; // Reserve space for dropdown arrow
         float availableWidth = bounds.Width - 24 - arrowWidth; // 12px padding on each side
+
+        // Text longer than the face is cut with an ellipsis before the arrow,
+        // as the other platforms' pickers trim it; it never draws past the control.
+        displayText = TextRenderingHelper.Ellipsize(font, displayText, Math.Max(0, availableWidth));
+        float textWidth = TextRenderingHelper.MeasureWidth(font, displayText);
         float textX = HorizontalTextAlignment switch
         {
-            TextAlignment.Center => bounds.Left + 12 + (availableWidth - textBounds.Width) / 2,
-            TextAlignment.End => bounds.Right - arrowWidth - 12 - textBounds.Width,
+            TextAlignment.Center => bounds.Left + 12 + (availableWidth - textWidth) / 2,
+            TextAlignment.End => bounds.Right - arrowWidth - 12 - textWidth,
             _ => bounds.Left + 12 // Start alignment
         };
 
@@ -565,9 +568,7 @@ public class SkiaPicker : SkiaView
         var dropdownMaxHeight = (float)_dropdownMaxHeight;
         var dropdownHeight = Math.Min(_items.Count * itemHeight, dropdownMaxHeight);
 
-        var app = LinuxApplication.Current;
-        float dpiScale = app?.DpiScale ?? 1.0f;
-        float windowHeight = (app?.MainWindow?.Height ?? 600) / dpiScale;
+        float windowHeight = WindowLogicalSize.Height;
 
         float dropdownTop = pickerBounds.Bottom + 4;
 
@@ -670,7 +671,7 @@ public class SkiaPicker : SkiaView
             // Draw item text
             var textX = itemRect.Left + 12;
             var textY = TextRenderingHelper.BaselineForVerticalCenter(font, itemRect.MidY);
-            canvas.DrawText(_items[i], textX, textY, SKTextAlign.Left, font, textPaint);
+            canvas.DrawText(TextRenderingHelper.Ellipsize(font, _items[i], itemRect.Width - 24), textX, textY, SKTextAlign.Left, font, textPaint);
         }
 
         canvas.Restore();
@@ -740,6 +741,7 @@ public class SkiaPicker : SkiaView
 
     public override void OnPointerExited(PointerEventArgs e)
     {
+        base.OnPointerExited(e); // PointerGestureRecognizers here and on ancestors
         _hoveredItemIndex = -1;
         Invalidate();
     }

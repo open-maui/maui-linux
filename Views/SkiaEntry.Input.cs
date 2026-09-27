@@ -492,7 +492,7 @@ public partial class SkiaEntry
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaEntry", $"Primary-selection write failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaEntry", $"Primary-selection write failed: {ex.Message}", ex);
         }
     }
 
@@ -539,7 +539,7 @@ public partial class SkiaEntry
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaEntry", $"Primary-selection paste failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaEntry", $"Primary-selection paste failed: {ex.Message}", ex);
         }
     }
 
@@ -548,8 +548,7 @@ public partial class SkiaEntry
         if (string.IsNullOrEmpty(Text)) return 0;
 
         var fontStyle = GetFontStyle();
-        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
-                      ?? SKTypeface.Default;
+        var typeface = Fonts.GetTypeface(GetEffectiveFontFamily(), fontStyle);
 
         using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
 
@@ -772,8 +771,7 @@ public partial class SkiaEntry
 
         var screenBounds = ScreenBounds;
         var fontStyle = GetFontStyle();
-        var typeface = RenderContext?.Resources.GetTypeface(GetEffectiveFontFamily(), fontStyle)
-                      ?? SKTypeface.Default;
+        var typeface = Fonts.GetTypeface(GetEffectiveFontFamily(), fontStyle);
 
         using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
 
