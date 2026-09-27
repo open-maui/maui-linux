@@ -52,6 +52,10 @@ public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaCon
                 platformView.HeightRequest = ve.HeightRequest;
         }
 
+        // A view that lays out its own content (not a plain ContentView, whose
+        // measure the platform view already mirrors) is asked to, as elsewhere.
+        platformView.CrossPlatformLayout = VirtualView is ICrossPlatformLayout self and not Microsoft.Maui.Controls.ContentView ? self : null;
+
         MapContent(this, VirtualView);
     }
 

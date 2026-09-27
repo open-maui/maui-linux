@@ -45,6 +45,7 @@
     <PackageReference Include="FFImageLoading.Maui" Version="1.3.2" />
     <PackageReference Include="Syncfusion.Maui.TabView" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.ListView" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Charts" Version="34.2.9" />
   </ItemGroup>
 
   <ItemGroup>
