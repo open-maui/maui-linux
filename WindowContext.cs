@@ -474,7 +474,7 @@ public sealed class WindowContext : IDisposable
             // If a view has captured the pointer, send all events to it
             if (CapturedView != null)
             {
-                CapturedView.OnPointerMoved(e);
+                CapturedView.OnPointerMoved(InViewSpace(CapturedView, e));
                 return;
             }
 
@@ -486,16 +486,16 @@ public sealed class WindowContext : IDisposable
             // Track hover state changes
             if (hitView != HoveredView)
             {
-                HoveredView?.OnPointerExited(e);
+                if (HoveredView != null) HoveredView.OnPointerExited(InViewSpace(HoveredView, e));
                 HoveredView = hitView;
-                HoveredView?.OnPointerEntered(e);
+                if (HoveredView != null) HoveredView.OnPointerEntered(InViewSpace(HoveredView, e));
 
                 // Update cursor based on view's cursor type
                 CursorType cursor = hitView?.CursorType ?? CursorType.Arrow;
                 DisplayWindow?.SetCursor(cursor);
             }
 
-            hitView?.OnPointerMoved(e);
+            if (hitView != null) hitView.OnPointerMoved(InViewSpace(hitView, e));
         }
     }
 
@@ -561,7 +561,7 @@ public sealed class WindowContext : IDisposable
                 }
 
                 DiagnosticLog.Debug("WindowContext", $"Calling OnPointerPressed on {hitView.GetType().Name}");
-                hitView.OnPointerPressed(e);
+                hitView.OnPointerPressed(InViewSpace(hitView, e));
             }
             else
             {
@@ -573,6 +573,17 @@ public sealed class WindowContext : IDisposable
                 FocusedView = null;
             }
         }
+    }
+
+    /// <summary>
+    /// The event in <paramref name="view"/>'s untransformed space, where its Bounds are:
+    /// under a translated, scaled or rotated ancestor (a tab slid into view) the window
+    /// point is mapped back, so a caret or a slider thumb lands under the pointer.
+    /// </summary>
+    private static PointerEventArgs InViewSpace(SkiaView view, PointerEventArgs e)
+    {
+        var p = view.FromWindow(e.X, e.Y);
+        return p.X == e.X && p.Y == e.Y ? e : new PointerEventArgs(p.X, p.Y, e.Button);
     }
 
     internal void OnPointerReleased(object? sender, PointerEventArgs e)
@@ -605,7 +616,7 @@ public sealed class WindowContext : IDisposable
             // If a view has captured the pointer, send release to it
             if (CapturedView != null)
             {
-                CapturedView.OnPointerReleased(e);
+                CapturedView.OnPointerReleased(InViewSpace(CapturedView, e));
                 CapturedView = null; // Release capture
                 return;
             }
@@ -616,7 +627,7 @@ public sealed class WindowContext : IDisposable
             var hitView = popupOwner ?? HitTestLayers(e.X, e.Y, out backdropOf);
             if (popupOwner == null && backdropOf != null)
                 return;
-            hitView?.OnPointerReleased(e);
+            if (hitView != null) hitView.OnPointerReleased(InViewSpace(hitView, e));
         }
     }
 
@@ -934,7 +945,7 @@ public sealed class WindowContext : IDisposable
         for (int i = _modals.Count - 1; i >= 0; i--)
         {
             var layer = _modals[i];
-            var hit = layer.View.HitTest(x, y);
+            var hit = layer.View.HitTestAt(x, y);
             if (!layer.IsPopup || !IsBackdrop(hit, layer.View))
                 return hit;
             if (!MopupsBridge.IsBackgroundInputTransparent(layer.Page))
@@ -943,7 +954,7 @@ public sealed class WindowContext : IDisposable
                 return hit;
             }
         }
-        return _rootView?.HitTest(x, y);
+        return _rootView?.HitTestAt(x, y);
     }
 
     /// <summary>

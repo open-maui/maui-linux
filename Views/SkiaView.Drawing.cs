@@ -88,6 +88,55 @@ public abstract partial class SkiaView
     private SKRect _paintedDeviceRect;
     private bool _hasPaintedRect;
 
+    /// <summary>
+    /// Hit-tests in the view's own space: a point in its parent's (window) space is mapped
+    /// through the inverse of the view's render transform first, as the view is drawn
+    /// through it. Parents call this for their children. A tab's content slid into view
+    /// by TranslationX (SfTabView) took no input: its bounds are untranslated.
+    /// </summary>
+    internal SkiaView? HitTestAt(float x, float y)
+    {
+        if (HasRenderTransform && LocalRenderTransform(ToSKRect(Bounds)).TryInvert(out var inverse))
+        {
+            var p = inverse.MapPoint(x, y);
+            return HitTest(p.X, p.Y);
+        }
+        return HitTest(x, y);
+    }
+
+    /// <summary>A point in the parent's space mapped through the inverse of this view's own render transform.</summary>
+    internal SKPoint ToOwnSpace(float x, float y) =>
+        HasRenderTransform && LocalRenderTransform(ToSKRect(Bounds)).TryInvert(out var inverse)
+            ? inverse.MapPoint(x, y)
+            : new SKPoint(x, y);
+
+    /// <summary>
+    /// A window point in this view's untransformed space (where its Bounds are): the
+    /// inverse of every render transform from the root down to and including this view.
+    /// </summary>
+    internal SKPoint FromWindow(float x, float y)
+    {
+        SkiaView? transformed = null;
+        for (var v = this; v != null; v = v.Parent)
+            if (v.HasRenderTransform) { transformed = v; break; }
+        if (transformed == null)
+            return new SKPoint(x, y);
+
+        var chain = new List<SkiaView>();
+        for (var v = this; v != null; v = v.Parent)
+            chain.Add(v);
+        var p = new SKPoint(x, y);
+        for (int i = chain.Count - 1; i >= 0; i--)
+        {
+            var v = chain[i];
+            if (v.HasRenderTransform && v.LocalRenderTransform(ToSKRect(v.Bounds)).TryInvert(out var inverse))
+                p = inverse.MapPoint(p);
+        }
+        return p;
+    }
+
+    private static SKRect ToSKRect(Rect r) => new((float)r.Left, (float)r.Top, (float)r.Right, (float)r.Bottom);
+
     private bool HasRenderTransform =>
         Scale != 1.0 || ScaleX != 1.0 || ScaleY != 1.0 ||
         Rotation != 0.0 || RotationX != 0.0 || RotationY != 0.0 ||
