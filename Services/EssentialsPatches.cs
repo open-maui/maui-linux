@@ -29,6 +29,9 @@ internal static class EssentialsPatches
 
         var harmony = new Harmony("com.openmaui.essentials");
 
+        // CommunityToolkit.Maui's FolderPicker/FileSaver, when the app uses the toolkit.
+        CommunityToolkitStorageBridge.Install();
+
         try { PatchMainThread(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"MainThread patch failed: {ex.Message}", ex); }
 
@@ -224,7 +227,7 @@ internal static class EssentialsPatches
     private static void PatchLauncher(Harmony harmony)
     {
         // Launcher.Default delegates to LauncherImplementation which throws on Linux.
-        // Patch PlatformOpenAsync(Uri) to use xdg-open instead.
+        // Patch PlatformOpenAsync(Uri) to use LauncherService (portal or xdg-open) instead.
         var implType = typeof(Microsoft.Maui.ApplicationModel.Launcher).Assembly.GetType(
             "Microsoft.Maui.ApplicationModel.LauncherImplementation");
 
@@ -322,28 +325,17 @@ internal static class EssentialsPatches
 
     private static bool PlatformOpenAsync_Prefix(Uri uri, ref Task<bool> __result)
     {
-        __result = Task.Run(() =>
+        // Same path as ILauncher: the OpenURI portal inside a sandbox (or with
+        // OPENMAUI_PORTALS=prefer), xdg-open otherwise.
+        try
         {
-            try
-            {
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "xdg-open",
-                    Arguments = uri.ToString(),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-                using var process = System.Diagnostics.Process.Start(psi);
-                return process != null;
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error("EssentialsPatches", $"xdg-open failed: {ex.Message}");
-                return false;
-            }
-        });
+            __result = new LauncherService().OpenAsync(uri);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("EssentialsPatches", $"Launcher open failed: {ex.Message}");
+            __result = Task.FromResult(false);
+        }
         return false; // Skip original (which throws)
     }
 

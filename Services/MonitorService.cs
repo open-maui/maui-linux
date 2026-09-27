@@ -136,7 +136,7 @@ public class MonitorService : IDisposable
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("MonitorService", $"Initialization failed: {ex.Message}");
+                DiagnosticLog.Error("MonitorService", $"Initialization failed: {ex.Message}", ex);
                 _initialized = true;
             }
         }

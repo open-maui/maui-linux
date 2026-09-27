@@ -3,6 +3,7 @@
 
 using System.Diagnostics;
 using System.Security.Cryptography;
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 using System.Text;
 using Microsoft.Maui.Storage;
 
@@ -11,12 +12,23 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Linux secure storage implementation using secret-tool (libsecret) or encrypted file fallback.
 /// </summary>
+/// <remarks>
+/// Encrypted-file format. Version 1 (legacy, still read and written when no
+/// portal key exists): [16-byte IV][AES-CBC ciphertext] under a key derived
+/// from machine-id, user name and service name. Version 2 (written only when
+/// the xdg-desktop-portal Secret interface supplies a per-app secret, which by
+/// default means inside a sandbox, or with OPENMAUI_PORTALS=prefer):
+/// ["OMSS" 0x02][12-byte nonce][16-byte tag][AES-GCM ciphertext] under an
+/// HKDF-SHA256 key from the portal secret. Reads accept both, so existing v1
+/// files stay readable and are rewritten as v2 the next time they are set.
+/// </remarks>
 public class SecureStorageService : ISecureStorage
 {
     private const string ServiceName = "maui-secure-storage";
     private const string FallbackDirectory = ".maui-secure";
     private readonly string _fallbackPath;
     private readonly bool _useSecretService;
+    private readonly Lazy<Task<byte[]?>>? _portalKey;
 
     public SecureStorageService()
     {
@@ -24,7 +36,36 @@ public class SecureStorageService : ISecureStorage
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             FallbackDirectory);
         _useSecretService = CheckSecretServiceAvailable();
+        if (DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred))
+            _portalKey = PortalKeyFrom(DesktopPortal.Current);
     }
+
+    /// <summary>
+    /// Test/host constructor that also chooses the portal key source
+    /// (<paramref name="portal"/> null keeps the legacy machine key only).
+    /// </summary>
+    internal SecureStorageService(string fallbackPath, bool useSecretService, IDesktopPortal? portal)
+        : this(fallbackPath, useSecretService)
+    {
+        _portalKey = portal == null ? null : PortalKeyFrom(portal);
+    }
+
+    private static Lazy<Task<byte[]?>> PortalKeyFrom(IDesktopPortal portal)
+        => new(() => Task.Run(async () =>
+        {
+            try
+            {
+                return await new PortalSecretKey(portal).DeriveStorageKeyAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Debug("SecureStorageService", $"Portal secret unavailable: {ex.Message}");
+                return null;
+            }
+        }));
+
+    private async Task<byte[]?> GetPortalKeyAsync()
+        => _portalKey == null ? null : await _portalKey.Value.ConfigureAwait(false);
 
     /// <summary>
     /// Creates a store with an explicit fallback directory and backend choice
@@ -231,6 +272,14 @@ public class SecureStorageService : ISecureStorage
         try
         {
             var encryptedData = await File.ReadAllBytesAsync(filePath);
+            if (IsVersion2(encryptedData))
+            {
+                var portalKey = await GetPortalKeyAsync();
+                if (portalKey != null && TryDecryptVersion2(portalKey, encryptedData, out var plain))
+                    return plain;
+                // A v1 file whose random IV happens to start with the v2 magic
+                // is still v1; otherwise this is a v2 file without its key.
+            }
             return DecryptData(encryptedData);
         }
         catch
@@ -244,7 +293,8 @@ public class SecureStorageService : ISecureStorage
         EnsureFallbackDirectory();
 
         var filePath = GetFallbackFilePath(key);
-        var encryptedData = EncryptData(value);
+        var portalKey = await GetPortalKeyAsync();
+        var encryptedData = portalKey != null ? EncryptVersion2(portalKey, value) : EncryptData(value);
 
         await File.WriteAllBytesAsync(filePath, encryptedData);
 
@@ -280,6 +330,51 @@ public class SecureStorageService : ISecureStorage
             // Set restrictive permissions on the directory
             File.SetUnixFileMode(_fallbackPath,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    private static readonly byte[] Version2Magic = { (byte)'O', (byte)'M', (byte)'S', (byte)'S', 0x02 };
+    private const int GcmNonceSize = 12;
+    private const int GcmTagSize = 16;
+
+    internal static bool IsVersion2(byte[] data)
+        => data.Length >= Version2Magic.Length + GcmNonceSize + GcmTagSize
+           && data.AsSpan(0, Version2Magic.Length).SequenceEqual(Version2Magic);
+
+    /// <summary>v2 record: magic, nonce, tag, AES-256-GCM ciphertext (magic bound as associated data).</summary>
+    internal static byte[] EncryptVersion2(byte[] key, string value)
+    {
+        var plain = Encoding.UTF8.GetBytes(value);
+        var result = new byte[Version2Magic.Length + GcmNonceSize + GcmTagSize + plain.Length];
+        Version2Magic.CopyTo(result, 0);
+        var nonce = result.AsSpan(Version2Magic.Length, GcmNonceSize);
+        RandomNumberGenerator.Fill(nonce);
+        var tag = result.AsSpan(Version2Magic.Length + GcmNonceSize, GcmTagSize);
+        var cipher = result.AsSpan(Version2Magic.Length + GcmNonceSize + GcmTagSize);
+        using var gcm = new AesGcm(key, GcmTagSize);
+        gcm.Encrypt(nonce, plain, cipher, tag, Version2Magic);
+        return result;
+    }
+
+    internal static bool TryDecryptVersion2(byte[] key, byte[] data, out string? value)
+    {
+        value = null;
+        if (!IsVersion2(data))
+            return false;
+        try
+        {
+            var nonce = data.AsSpan(Version2Magic.Length, GcmNonceSize);
+            var tag = data.AsSpan(Version2Magic.Length + GcmNonceSize, GcmTagSize);
+            var cipher = data.AsSpan(Version2Magic.Length + GcmNonceSize + GcmTagSize);
+            var plain = new byte[cipher.Length];
+            using var gcm = new AesGcm(key, GcmTagSize);
+            gcm.Decrypt(nonce, cipher, tag, plain, Version2Magic);
+            value = Encoding.UTF8.GetString(plain);
+            return true;
+        }
+        catch (CryptographicException)
+        {
+            return false;
         }
     }
 
