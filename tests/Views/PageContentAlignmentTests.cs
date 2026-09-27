@@ -25,11 +25,22 @@ public class PageContentAlignmentTests
     [Fact]
     public void Default_options_fill_the_page()
     {
-        var (host, platform) = Host(new BoxView { Color = Colors.Red, WidthRequest = 100, HeightRequest = 40 });
+        var (host, platform) = Host(new BoxView { Color = Colors.Red });
         using (host)
         {
             platform.Bounds.Width.Should().Be(800);
             platform.Bounds.Height.Should().Be(600);
+        }
+    }
+
+    [Fact]
+    public void An_explicit_size_under_Fill_is_centred()
+    {
+        // MAUI's ComputeFrame treats Fill as Center on an axis with an explicit size.
+        var (host, platform) = Host(new BoxView { Color = Colors.Red, WidthRequest = 100, HeightRequest = 40 });
+        using (host)
+        {
+            platform.Bounds.Should().Be(new Microsoft.Maui.Graphics.Rect(350, 280, 100, 40));
         }
     }
 
@@ -45,7 +56,8 @@ public class PageContentAlignmentTests
         {
             platform.Bounds.X.Should().Be(expectedX);
             platform.Bounds.Width.Should().Be(100);
-            platform.Bounds.Height.Should().Be(600, "VerticalOptions is still Fill");
+            platform.Bounds.Height.Should().Be(40, "VerticalOptions is Fill with an explicit height: centred");
+            platform.Bounds.Y.Should().Be(280);
         }
     }
 

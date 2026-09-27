@@ -295,7 +295,16 @@ public class SkiaScrollView : SkiaView
                 // Reserve space for vertical scrollbar if content might be taller than viewport
                 effectiveWidth -= ScrollBarWidth;
             }
-            var availableSize = new Size(effectiveWidth, double.PositiveInfinity);
+            // The same constraints as MeasureOverride, per orientation: measuring a
+            // horizontal scroller's content at the viewport width folded a wrap panel
+            // (MAStatCardPanel) into a column as tall as the page, pushing what
+            // followed it out of view.
+            var availableSize = Orientation switch
+            {
+                ScrollOrientation.Horizontal => new Size(double.PositiveInfinity, bounds.Height),
+                ScrollOrientation.Neither => new Size(bounds.Width, bounds.Height),
+                _ => new Size(effectiveWidth, double.PositiveInfinity),
+            };
             // Update ContentSize with the properly constrained measurement
             var contentDesired = _content.Measure(availableSize);
             ContentSize = new SKSize((float)contentDesired.Width, (float)contentDesired.Height);
@@ -829,8 +838,11 @@ public class SkiaScrollView : SkiaView
             switch (Orientation)
             {
                 case ScrollOrientation.Horizontal:
+                    // Unbounded height stays unbounded, as MAUI measures it: a stand-in
+                    // 400 made a toolbar's row (content that fills its height) 400 tall
+                    // in an Auto row, squeezing the rows beside it to nothing.
                     contentWidth = float.PositiveInfinity;
-                    contentHeight = double.IsInfinity(availableSize.Height) ? 400f : (float)availableSize.Height;
+                    contentHeight = (float)availableSize.Height;
                     break;
                 case ScrollOrientation.Neither:
                     contentWidth = double.IsInfinity(availableSize.Width) ? 400f : (float)availableSize.Width;
@@ -876,6 +888,11 @@ public class SkiaScrollView : SkiaView
         var height = double.IsInfinity(availableSize.Height) || double.IsNaN(availableSize.Height)
             ? Math.Min(ContentSize.Height, DefaultViewportHeight)
             : availableSize.Height;
+
+        // A horizontal scroller is as tall as its content, up to the height offered, as in
+        // MAUI; taking all of it made a row of cards in a page's stack as tall as the page.
+        if (Orientation == ScrollOrientation.Horizontal && _content != null)
+            height = Math.Min(height, ContentSize.Height);
 
         return new Size(width, height);
     }

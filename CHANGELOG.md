@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.2] - unreleased
+
+### Fixed
+
+- **`Application.OnStart` never ran**: MAUI raises it from the first window's `Created`, and the primary window raised no `Created` (only secondary windows did). An app that starts its work there, loading its data and replacing a loading page with its shell, stayed on the loading page. The primary window now raises `Created`, once, when its page is set at startup, as the other platforms do.
+- **Library views that implement `IContentView` without deriving from `ContentView` were dropped**: they resolved to MAUI's own ContentViewHandler, whose platform view throws on plain net10.0, so the parent skipped them (Syncfusion's SfScheduler showed nothing). Any view that falls back to that handler now gets OpenMaui's content handler, which lays it out through its `ICrossPlatformLayout`.
+
 ## [10.0.110.1] - 2026-09-26
 
 > Built on .NET MAUI 10.0.110. Windows now follow the monitor they are on: moving a window to a display with a different scale (or changing the desktop scale) re-renders it at the new density while keeping its logical size. The MAUI `Window` is live on Linux: replacing its page, title, size, position and size limits reach the native window, and minimizing raises `Stopped`/`Resumed` (Application.OnSleep/OnResume). Plus `openmaui doctor`, a one-command report of what the platform will select on a machine and what to install. In the WebView, pages now receive hardware keycodes (`KeyboardEvent.code`), and on the GPU target web frames are imported zero-copy from WPE's DMA-BUFs instead of copied through the CPU (per-frame import 3.8 ms -> 0.08 ms at 1280x800).
