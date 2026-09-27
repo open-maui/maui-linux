@@ -1517,9 +1517,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
         float delta = value / 256.0f / 10.0f;
         if (axis == 0) // Vertical
-            window.Scroll?.Invoke(window, new ScrollEventArgs((int)window._pointerX, (int)window._pointerY, 0, delta));
+            window.Scroll?.Invoke(window, new ScrollEventArgs((int)window._pointerX, (int)window._pointerY, 0, delta, (KeyModifiers)window._modifiers));
         else // Horizontal
-            window.Scroll?.Invoke(window, new ScrollEventArgs((int)window._pointerX, (int)window._pointerY, delta, 0));
+            window.Scroll?.Invoke(window, new ScrollEventArgs((int)window._pointerX, (int)window._pointerY, delta, 0, (KeyModifiers)window._modifiers));
     }
 
     private static void PointerFrame(IntPtr data, IntPtr pointer) { }
