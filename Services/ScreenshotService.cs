@@ -54,6 +54,19 @@ public class ScreenshotService : IScreenshot
             if (scale != 1f)
                 canvas.Scale(scale);
             root!.Draw(canvas);
+
+            // What the window shows above the page, in the order the engine
+            // draws it: modal pages (popups presented as modals included), then
+            // popup overlays (dropdowns, menus, dialogs).
+            var engine = LinuxApplication.Current?.RenderingEngine;
+            if (engine?.OverlayLayers is { } layers)
+            {
+                foreach (var layer in layers)
+                    layer.Draw(canvas);
+            }
+            SkiaView.DrawPopupOverlays(canvas, engine?.PopupFilterRoot);
+            if (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu)
+                LinuxDialogService.DrawDialogs(canvas, new SKRect(0, 0, (float)width, (float)height));
             canvas.Flush();
 
             return Task.FromResult<IScreenshotResult?>(new SkiaScreenshotResult(surface.Snapshot()));
