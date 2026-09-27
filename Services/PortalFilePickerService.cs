@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Platform.Linux.Services.Portal;
 using Microsoft.Maui.Storage;
 using System.Diagnostics;
 using System.Text;
@@ -8,47 +9,43 @@ using System.Text;
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// File picker service using xdg-desktop-portal for native dialogs.
-/// Falls back to zenity/kdialog if portal is unavailable.
+/// File picker service using xdg-desktop-portal (FileChooser over native
+/// D-Bus) for native dialogs. Falls back to zenity/kdialog/yad when the
+/// portal is unavailable or answers with an error; a cancelled portal dialog
+/// is final (no second dialog).
 /// </summary>
 public class PortalFilePickerService : IFilePicker
 {
-    private bool _portalAvailable = true;
+    private readonly IDesktopPortal _portal;
+    private bool? _portalAvailable;
     private string? _fallbackTool;
+    private bool _fallbackDetected;
 
     public PortalFilePickerService()
+        : this(DesktopPortal.Current)
     {
-        DetectAvailableTools();
     }
 
-    private void DetectAvailableTools()
+    internal PortalFilePickerService(IDesktopPortal portal)
     {
-        // Check if portal is available
-        _portalAvailable = CheckPortalAvailable();
-
-        if (!_portalAvailable)
-        {
-            // Check for fallback tools
-            if (IsCommandAvailable("zenity"))
-                _fallbackTool = "zenity";
-            else if (IsCommandAvailable("kdialog"))
-                _fallbackTool = "kdialog";
-            else if (IsCommandAvailable("yad"))
-                _fallbackTool = "yad";
-        }
+        _portal = portal;
     }
 
-    private bool CheckPortalAvailable()
+    private string? FallbackTool
     {
-        try
+        get
         {
-            // Check if xdg-desktop-portal is running
-            var output = RunCommand("busctl", "--user list | grep -q org.freedesktop.portal.Desktop && echo yes");
-            return output.Trim() == "yes";
-        }
-        catch
-        {
-            return false;
+            if (!_fallbackDetected)
+            {
+                _fallbackDetected = true;
+                if (IsCommandAvailable("zenity"))
+                    _fallbackTool = "zenity";
+                else if (IsCommandAvailable("kdialog"))
+                    _fallbackTool = "kdialog";
+                else if (IsCommandAvailable("yad"))
+                    _fallbackTool = "yad";
+            }
+            return _fallbackTool;
         }
     }
 
@@ -80,85 +77,64 @@ public class PortalFilePickerService : IFilePicker
 
     private async Task<IEnumerable<FileResult>> PickFilesAsync(PickOptions options, bool allowMultiple)
     {
-        if (_portalAvailable)
+        if (_portalAvailable != false && DesktopPortal.ShouldTry(PortalUse.Always))
         {
-            return await PickWithPortalAsync(options, allowMultiple);
+            var portal = await PickWithPortalAsync(options, allowMultiple).ConfigureAwait(false);
+            if (!portal.Outcome.ShouldFallBack())
+            {
+                _portalAvailable = true;
+                return portal.Paths.Select(p => new FileResult(p)).ToList();
+            }
+            if (portal.Outcome == PortalOutcome.Unavailable)
+                _portalAvailable = false;
         }
-        else if (_fallbackTool != null)
-        {
+
+        if (FallbackTool != null)
             return await PickWithFallbackAsync(options, allowMultiple);
-        }
-        else
-        {
-            // No file picker available
-            DiagnosticLog.Warn("PortalFilePickerService", "No file picker available (install xdg-desktop-portal, zenity, or kdialog)");
-            return Enumerable.Empty<FileResult>();
-        }
+
+        DiagnosticLog.Warn("PortalFilePickerService", "No file picker available (install xdg-desktop-portal, zenity, or kdialog)");
+        return Enumerable.Empty<FileResult>();
     }
 
-    private async Task<IEnumerable<FileResult>> PickWithPortalAsync(PickOptions options, bool allowMultiple)
+    /// <summary>FileChooser request for a MAUI pick: title, multiple, one "Files" filter.</summary>
+    internal static PortalFileChooserRequest BuildPortalRequest(PickOptions options, bool allowMultiple, string? currentFolder = null)
     {
-        try
+        var filter = PortalFileFilter.FromExtensions("Files", GetExtensionsFromFileType(options.FileTypes));
+        return new PortalFileChooserRequest
         {
-            // Use gdbus to call the portal
-            var filterArgs = BuildPortalFilterArgs(options.FileTypes);
-            var multipleArg = allowMultiple ? "true" : "false";
-            var title = options.PickerTitle ?? "Open File";
+            Title = options.PickerTitle ?? "Open File",
+            Multiple = allowMultiple,
+            Filters = filter == null ? Array.Empty<PortalFileFilter>() : new[] { filter },
+            CurrentFolder = currentFolder,
+        };
+    }
 
-            // Build the D-Bus call
-            var args = new StringBuilder();
-            args.Append("call --session ");
-            args.Append("--dest org.freedesktop.portal.Desktop ");
-            args.Append("--object-path /org/freedesktop/portal/desktop ");
-            args.Append("--method org.freedesktop.portal.FileChooser.OpenFile ");
-            args.Append("\"\" "); // Parent window (empty for no parent)
-            args.Append($"\"{EscapeForShell(title)}\" "); // Title
+    private Task<PortalFileChooserResult> PickWithPortalAsync(PickOptions options, bool allowMultiple)
+        => new PortalFileChooser(_portal).OpenAsync(BuildPortalRequest(options, allowMultiple), PortalParentWindow.Current);
 
-            // Options dictionary
-            args.Append("@a{sv} {");
-            args.Append($"'multiple': <{multipleArg}>");
-            if (filterArgs != null)
-            {
-                args.Append($", 'filters': <{filterArgs}>");
-            }
-            args.Append("}");
-
-            var output = await Task.Run(() => RunCommand("gdbus", args.ToString()));
-
-            // Parse the response to get the request path
-            // Response format: (objectpath '/org/freedesktop/portal/desktop/request/...',)
-            var requestPath = ParseRequestPath(output);
-            if (string.IsNullOrEmpty(requestPath))
-            {
-                return Enumerable.Empty<FileResult>();
-            }
-
-            // Wait for the response signal (simplified - in production use D-Bus signal subscription)
-            await Task.Delay(100);
-
-            // For now, fall back to synchronous zenity if portal response parsing is complex
-            if (_fallbackTool != null)
-            {
-                return await PickWithFallbackAsync(options, allowMultiple);
-            }
-
-            return Enumerable.Empty<FileResult>();
-        }
-        catch (Exception ex)
+    /// <summary>
+    /// Save dialog through FileChooser.SaveFile. Returns the chosen path, or
+    /// null when the user cancelled or no portal is available (MAUI has no
+    /// save-picker contract, so there is no subprocess fallback here).
+    /// </summary>
+    internal async Task<string?> PickSaveFileAsync(string title, string? suggestedName, string? currentFolder, IReadOnlyCollection<string>? extensions, CancellationToken cancellationToken = default)
+    {
+        if (!DesktopPortal.ShouldTry(PortalUse.Always))
+            return null;
+        var filter = extensions == null ? null : PortalFileFilter.FromExtensions("Files", extensions);
+        var result = await new PortalFileChooser(_portal).SaveAsync(new PortalFileChooserRequest
         {
-            DiagnosticLog.Error("PortalFilePickerService", $"Portal error: {ex.Message}");
-            // Fall back to zenity/kdialog
-            if (_fallbackTool != null)
-            {
-                return await PickWithFallbackAsync(options, allowMultiple);
-            }
-            return Enumerable.Empty<FileResult>();
-        }
+            Title = title,
+            CurrentName = suggestedName,
+            CurrentFolder = currentFolder,
+            Filters = filter == null ? Array.Empty<PortalFileFilter>() : new[] { filter },
+        }, PortalParentWindow.Current, cancellationToken).ConfigureAwait(false);
+        return result.Outcome == PortalOutcome.Completed ? result.Paths.FirstOrDefault() : null;
     }
 
     private async Task<IEnumerable<FileResult>> PickWithFallbackAsync(PickOptions options, bool allowMultiple)
     {
-        return _fallbackTool switch
+        return FallbackTool switch
         {
             "zenity" => await PickWithZenityAsync(options, allowMultiple),
             "kdialog" => await PickWithKdialogAsync(options, allowMultiple),
@@ -352,9 +328,14 @@ public class PortalFilePickerService : IFilePicker
         => $"{name} | {string.Join(" ", extensions.Select(e => $"*{e}"))}";
 
     /// <summary>
+    /// GVariant text literal for the FileChooser "filters" option (gdbus form).
+    /// The native path uses <see cref="PortalFileFilter"/>; this stays for
+    /// diagnostics and existing callers.
+    /// </summary>
+    /// <remarks>
     /// GVariant literal for the portal FileChooser "filters" option:
     /// a(sa(us)) with one "Files" entry holding glob patterns (type 0).
-    /// </summary>
+    /// </remarks>
     internal static string? BuildPortalFilterArgs(FilePickerFileType? fileType)
         => BuildPortalFilterArgs(GetExtensionsFromFileType(fileType));
 
@@ -368,6 +349,7 @@ public class PortalFilePickerService : IFilePicker
     }
 
     /// <summary>
+    /// Legacy gdbus-reply parser (kept for existing callers).
     /// Pulls the request object path out of a gdbus reply such as
     /// "(objectpath '/org/freedesktop/portal/desktop/request/1_0/t',)".
     /// </summary>
@@ -410,7 +392,7 @@ public class PortalFilePickerService : IFilePicker
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("PortalFilePickerService", $"Command error: {ex.Message}");
+            DiagnosticLog.Error("PortalFilePickerService", $"Command error: {ex.Message}", ex);
             return "";
         }
     }

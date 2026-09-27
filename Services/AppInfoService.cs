@@ -61,12 +61,31 @@ public class AppInfoService : IAppInfo
             {
                 return AppPackagingModel.Packaged;
             }
-            if (Environment.GetEnvironmentVariable("APPIMAGE") != null)
+            if (IsRunningFromAppImage())
             {
                 return AppPackagingModel.Packaged;
             }
             return AppPackagingModel.Unpackaged;
         }
+    }
+
+    /// <summary>
+    /// True when this process runs from inside an AppImage. $APPIMAGE alone is
+    /// not proof: the runtime exports it to everything the AppImage starts, so
+    /// a terminal opened from an AppImage app passes it on to any app launched
+    /// there. The process must also live under the AppImage's mount ($APPDIR).
+    /// </summary>
+    internal static bool IsRunningFromAppImage() => IsRunningFromAppImage(
+        Environment.GetEnvironmentVariable("APPIMAGE"),
+        Environment.GetEnvironmentVariable("APPDIR"),
+        Environment.ProcessPath);
+
+    internal static bool IsRunningFromAppImage(string? appImage, string? appDir, string? processPath)
+    {
+        if (string.IsNullOrEmpty(appImage) || string.IsNullOrEmpty(appDir) || string.IsNullOrEmpty(processPath))
+            return false;
+        var root = appDir.EndsWith('/') ? appDir : appDir + "/";
+        return processPath.StartsWith(root, StringComparison.Ordinal);
     }
 
     public AppInfoService()
