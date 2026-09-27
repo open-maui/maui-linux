@@ -97,6 +97,27 @@ internal static partial class X11
     [LibraryImport(LibX11)]
     public static partial int XResizeWindow(IntPtr display, IntPtr window, uint width, uint height);
 
+    // WM_NORMAL_HINTS (ICCCM 4.1.2.3): min/max size for the window manager.
+    public const long PMinSize = 1L << 4;
+    public const long PMaxSize = 1L << 5;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct XSizeHints
+    {
+        public nint Flags;              // C long
+        public int X, Y, Width, Height; // obsolete, kept for layout
+        public int MinWidth, MinHeight;
+        public int MaxWidth, MaxHeight;
+        public int WidthInc, HeightInc;
+        public int MinAspectX, MinAspectY;
+        public int MaxAspectX, MaxAspectY;
+        public int BaseWidth, BaseHeight;
+        public int WinGravity;
+    }
+
+    [LibraryImport(LibX11)]
+    public static partial void XSetWMNormalHints(IntPtr display, IntPtr window, ref XSizeHints hints);
+
     [LibraryImport(LibX11)]
     public static partial int XIconifyWindow(IntPtr display, IntPtr window, int screen);
 
