@@ -204,7 +204,10 @@ public class SkiaActivityIndicator : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
-        if (!IsRunning && !IsEnabled)
+        // A stopped indicator draws nothing, as on every MAUI platform (iOS
+        // hides it when stopped; Windows' ProgressRing is invisible when
+        // inactive; Android apps get the same from the handler).
+        if (!IsRunning)
         {
             return;
         }

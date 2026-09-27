@@ -543,13 +543,13 @@ public class SkiaLabel : SkiaView
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = SkiaFontFactory.Create(
-            RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            Fonts.GetTypeface(fontFamily, GetFontStyle()),
             fontSize);
 
         for (int i = 0; i <= text.Length; i++)
         {
             var substring = text.Substring(0, i);
-            var width = font.MeasureText(substring);
+            var width = TextRenderingHelper.MeasureWidth(font, substring);
             if (CharacterSpacing != 0 && i > 0)
             {
                 width += (float)(CharacterSpacing * i);
@@ -680,7 +680,7 @@ public class SkiaLabel : SkiaView
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = SkiaFontFactory.Create(
-            RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            Fonts.GetTypeface(fontFamily, GetFontStyle()),
             fontSize);
 
         using var paint = new SKPaint
@@ -713,11 +713,12 @@ public class SkiaLabel : SkiaView
         string displayText = text;
         float availableWidth = bounds.Width;
 
-        if (textBounds.Width > availableWidth && LineBreakMode != LineBreakMode.NoWrap)
-        {
-            displayText = TruncateText(text, font, availableWidth, LineBreakMode);
+        // Truncate by advance width, the measure the label was sized with: ink
+        // bounds overhang the advance for glyphs like a bold "y", so comparing
+        // them truncated text that fits the space it measured ("Activi...").
+        displayText = FitSingleLine(text, font, availableWidth);
+        if (!ReferenceEquals(displayText, text))
             font.MeasureText(displayText, out textBounds);
-        }
 
         // Account for character spacing in measurement
         float textWidth = textBounds.Width;
@@ -761,8 +762,8 @@ public class SkiaLabel : SkiaView
         var textToStart = text.Substring(0, selStart);
         var textToEnd = text.Substring(0, selEnd);
 
-        float startX = x + font.MeasureText(textToStart);
-        float endX = x + font.MeasureText(textToEnd);
+        float startX = x + TextRenderingHelper.MeasureWidth(font, textToStart);
+        float endX = x + TextRenderingHelper.MeasureWidth(font, textToEnd);
 
         if (CharacterSpacing != 0)
         {
@@ -786,10 +787,28 @@ public class SkiaLabel : SkiaView
         // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
         double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
         float lineHeight = (float)(FontSize * effectiveLineHeight);
-        float y = bounds.Top;
         int lineCount = 0;
 
         var lines = WrapText(text, font, bounds.Width);
+
+        // Vertical alignment of the whole block (MAUI's default LineBreakMode is
+        // WordWrap, so most labels draw here). Measure sizes a label to exactly
+        // lines x lineHeight, so the offset is only non-zero when the label was
+        // given extra height (a fixed HeightRequest, a filled cell, AvatarView).
+        int visibleLines = 0;
+        for (float probe = bounds.Top; visibleLines < lines.Count; visibleLines++, probe += lineHeight)
+        {
+            if (MaxLines > 0 && visibleLines >= MaxLines) break;
+            if (probe + lineHeight > bounds.Bottom && MaxLines == 0) break;
+        }
+        float blockHeight = visibleLines * lineHeight;
+        float offsetY = VerticalTextAlignment switch
+        {
+            TextAlignment.Center => (bounds.Height - blockHeight) / 2f,
+            TextAlignment.End => bounds.Height - blockHeight,
+            _ => 0f,
+        };
+        float y = bounds.Top + Math.Max(0f, offsetY);
 
         foreach (var line in lines)
         {
@@ -822,8 +841,7 @@ public class SkiaLabel : SkiaView
 
         // Get the preferred typeface from the current paint
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
-        var preferredTypeface = RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle())
-                               ?? SKTypeface.Default;
+        var preferredTypeface = Fonts.GetTypeface(fontFamily, GetFontStyle());
 
         if (CharacterSpacing == 0 || text.Length <= 1)
         {
@@ -879,8 +897,8 @@ public class SkiaLabel : SkiaView
 
         if (runs.Count <= 1)
         {
-            // Single run or no fallback needed - draw directly
-            using var directFont = SkiaFontFactory.Create(preferredTypeface, fontSize);
+            // One run: the preferred face, or the fallback covering all of it.
+            using var directFont = SkiaFontFactory.Create(runs.Count == 1 ? runs[0].Typeface : preferredTypeface, fontSize);
             canvas.DrawText(text, x, y, directFont, paint);
             return;
         }
@@ -1070,7 +1088,7 @@ public class SkiaLabel : SkiaView
 
                 foreach (var token in Tokenize(paragraphs[p]))
                 {
-                    float width = font.MeasureText(token);
+                    float width = TextRenderingHelper.MeasureWidth(font, token);
                     if (CharacterSpacing != 0 && token.Length > 1)
                         width += (float)(CharacterSpacing * (token.Length - 1));
 
@@ -1151,7 +1169,7 @@ public class SkiaLabel : SkiaView
             isBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
             SKFontStyleWidth.Normal,
             isItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-        return RenderContext?.Resources.GetTypeface(family, style) ?? SKTypeface.Default;
+        return Fonts.GetTypeface(family, style);
     }
 
     /// <summary>
@@ -1193,15 +1211,20 @@ public class SkiaLabel : SkiaView
 
     #endregion
 
+    /// <summary>The single-line text drawn in <paramref name="availableWidth"/>: whole, or truncated per LineBreakMode.</summary>
+    internal string FitSingleLine(string text, SKFont font, float availableWidth) =>
+        TextRenderingHelper.MeasureWidth(font, text) > availableWidth + 0.5f && LineBreakMode != LineBreakMode.NoWrap
+            ? TruncateText(text, font, availableWidth, LineBreakMode)
+            : text;
+
     private string TruncateText(string text, SKFont font, float maxWidth, LineBreakMode mode)
     {
         if (string.IsNullOrEmpty(text)) return text;
 
-        font.MeasureText(text, out var bounds);
-        if (bounds.Width <= maxWidth) return text;
+        if (TextRenderingHelper.MeasureWidth(font, text) <= maxWidth + 0.5f) return text;
 
         string ellipsis = "...";
-        float ellipsisWidth = font.MeasureText(ellipsis);
+        float ellipsisWidth = TextRenderingHelper.MeasureWidth(font, ellipsis);
 
         switch (mode)
         {
@@ -1209,7 +1232,7 @@ public class SkiaLabel : SkiaView
                 for (int i = 1; i < text.Length; i++)
                 {
                     string truncated = ellipsis + text.Substring(i);
-                    if (font.MeasureText(truncated) <= maxWidth)
+                    if (TextRenderingHelper.MeasureWidth(font, truncated) <= maxWidth)
                         return truncated;
                 }
                 return ellipsis;
@@ -1219,7 +1242,7 @@ public class SkiaLabel : SkiaView
                 for (int i = 0; i < half; i++)
                 {
                     string truncated = text.Substring(0, half - i) + ellipsis + text.Substring(half + i);
-                    if (font.MeasureText(truncated) <= maxWidth)
+                    if (TextRenderingHelper.MeasureWidth(font, truncated) <= maxWidth)
                         return truncated;
                 }
                 return ellipsis;
@@ -1229,7 +1252,7 @@ public class SkiaLabel : SkiaView
                 for (int i = text.Length - 1; i > 0; i--)
                 {
                     string truncated = text.Substring(0, i) + ellipsis;
-                    if (font.MeasureText(truncated) <= maxWidth)
+                    if (TextRenderingHelper.MeasureWidth(font, truncated) <= maxWidth)
                         return truncated;
                 }
                 return ellipsis;
@@ -1254,7 +1277,7 @@ public class SkiaLabel : SkiaView
 
             // Check if the entire paragraph fits on one line - no need to wrap
             // Use small tolerance to account for floating point precision
-            float paragraphWidth = font.MeasureText(paragraph);
+            float paragraphWidth = TextRenderingHelper.MeasureWidth(font, paragraph);
             if (paragraphWidth <= maxWidth + 1.0f)
             {
                 lines.Add(paragraph);
@@ -1282,7 +1305,7 @@ public class SkiaLabel : SkiaView
         foreach (var word in words)
         {
             string testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
-            float width = font.MeasureText(testLine);
+            float width = TextRenderingHelper.MeasureWidth(font, testLine);
 
             if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
             {
@@ -1308,7 +1331,7 @@ public class SkiaLabel : SkiaView
         foreach (char c in text)
         {
             string testLine = currentLine + c;
-            float width = font.MeasureText(testLine);
+            float width = TextRenderingHelper.MeasureWidth(font, testLine);
 
             if (width > maxWidth && !string.IsNullOrEmpty(currentLine))
             {
@@ -1347,7 +1370,7 @@ public class SkiaLabel : SkiaView
         var fontFamily = string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily;
 
         using var font = SkiaFontFactory.Create(
-            RenderContext?.Resources.GetTypeface(fontFamily, GetFontStyle()) ?? SKTypeface.Default,
+            Fonts.GetTypeface(fontFamily, GetFontStyle()),
             fontSize);
 
         double width, height;
@@ -1369,7 +1392,7 @@ public class SkiaLabel : SkiaView
         {
             // Use advance width (font.MeasureText return value) not bounding box width
             // This must match what WrapText uses for consistency
-            width = font.MeasureText(displayText);  // Advance width, not textBounds.Width
+            width = TextRenderingHelper.MeasureWidth(font, displayText);  // Advance width, not textBounds.Width
             // Height comes from the line height, NOT the ink bounds: ink-bounds
             // height varies with the glyphs present ("Input" with its descender
             // measures taller than "Buttons"), which makes sibling spacing

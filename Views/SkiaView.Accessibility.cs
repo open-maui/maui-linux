@@ -338,7 +338,7 @@ public abstract partial class SkiaView
     protected virtual List<IAccessible> GetAccessibleChildren()
     {
         var children = new List<IAccessible>();
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (child is IAccessible accessible)
             {

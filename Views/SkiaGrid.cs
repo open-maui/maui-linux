@@ -47,6 +47,7 @@ public class SkiaGrid : SkiaLayoutView
 
     private float[] _rowHeights = Array.Empty<float>();
     private float[] _columnWidths = Array.Empty<float>();
+    private float[] _columnNaturalWidths = Array.Empty<float>();
 
     /// <summary>
     /// Gets the row definitions.
@@ -114,8 +115,9 @@ public class SkiaGrid : SkiaLayoutView
         var contentWidth = (float)(availableSize.Width - Padding.Left - Padding.Right);
         var contentHeight = (float)(availableSize.Height - Padding.Top - Padding.Bottom);
 
-        // Handle NaN/Infinity
-        if (float.IsNaN(contentWidth) || float.IsInfinity(contentWidth)) contentWidth = 800;
+        // Unconstrained width (a HorizontalStackLayout or horizontal ScrollView
+        // measuring us): Star columns size to their content, as MAUI's grid does.
+        bool infiniteWidth = float.IsNaN(contentWidth) || float.IsInfinity(contentWidth);
         if (float.IsNaN(contentHeight) || float.IsInfinity(contentHeight)) contentHeight = float.PositiveInfinity;
 
         var rowCount = Math.Max(1, _rowDefinitions.Count > 0 ? _rowDefinitions.Count : GetMaxRow() + 1);
@@ -125,7 +127,7 @@ public class SkiaGrid : SkiaLayoutView
         var columnNaturalWidths = new float[columnCount];
         var rowNaturalHeights = new float[rowCount];
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
@@ -133,27 +135,43 @@ public class SkiaGrid : SkiaLayoutView
 
             // For Auto columns, measure with infinite width to get natural size
             var def = pos.Column < _columnDefinitions.Count ? _columnDefinitions[pos.Column] : GridLength.Star;
-            if (def.IsAuto && pos.ColumnSpan == 1)
+            if ((def.IsAuto || (infiniteWidth && def.IsStar)) && pos.ColumnSpan == 1)
             {
-                var childSize = child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)childSize.Width;
+                // Height: unbounded only where a natural height is wanted (see
+                // NeedsNaturalHeight); otherwise the grid's height bounds it.
+                // A child's size excludes its margin; its column holds both.
+                var margin = child.Margin;
+                var childSize = child.Measure(new Size(double.PositiveInfinity,
+                    NeedsNaturalHeight(pos, contentHeight) ? double.PositiveInfinity : Inset(contentHeight, margin.VerticalThickness)));
+                var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)(childSize.Width + margin.HorizontalThickness);
                 columnNaturalWidths[pos.Column] = Math.Max(columnNaturalWidths[pos.Column], childWidth);
             }
         }
 
         // Calculate column widths - handle Auto, Absolute, and Star
-        _columnWidths = CalculateSizesWithAuto(_columnDefinitions, contentWidth, ColumnSpacing, columnCount, columnNaturalWidths);
+        _columnNaturalWidths = columnNaturalWidths;
+        _columnWidths = infiniteWidth
+            ? NaturalSizes(_columnDefinitions, columnCount, columnNaturalWidths)
+            : CalculateSizesWithAuto(_columnDefinitions, contentWidth, ColumnSpacing, columnCount, columnNaturalWidths);
 
         // Second pass: measure all children with calculated column widths
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
             var pos = GetPosition(child);
-            var cellWidth = GetCellWidth(pos.Column, pos.ColumnSpan);
 
-            // Give infinite height for initial measure
-            var childSize = child.Measure(new Size(cellWidth, double.PositiveInfinity));
+            // Only Auto rows (or an unconstrained grid) size to their content.
+            // A child in a Star or fixed row is measured once, at its real
+            // cell size, below: measuring it against infinite height first made
+            // a virtualising list realise every item it has (an SfListView of
+            // thousands of commits, on every resize).
+            if (!NeedsNaturalHeight(pos, contentHeight))
+                continue;
+
+            var cellWidth = GetCellWidth(pos.Column, pos.ColumnSpan);
+            var childMargin = child.Margin;
+            var childSize = child.Measure(new Size(Inset(cellWidth, childMargin.HorizontalThickness), double.PositiveInfinity));
 
             // Track max height for each row
             // Cap infinite/very large heights - child returning infinity means it doesn't have a natural height
@@ -162,6 +180,10 @@ public class SkiaGrid : SkiaLayoutView
             {
                 // Use a default minimum - will be expanded by Star sizing if finite height is available
                 childHeight = 44; // Standard row height
+            }
+            else
+            {
+                childHeight += (float)childMargin.VerticalThickness;
             }
             if (pos.RowSpan == 1)
             {
@@ -181,15 +203,16 @@ public class SkiaGrid : SkiaLayoutView
         }
 
         // Third pass: re-measure children with actual cell sizes
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
             var pos = GetPosition(child);
             var cellWidth = GetCellWidth(pos.Column, pos.ColumnSpan);
             var cellHeight = GetCellHeight(pos.Row, pos.RowSpan);
+            var cellMargin = child.Margin;
 
-            child.Measure(new Size(cellWidth, cellHeight));
+            child.Measure(new Size(Inset(cellWidth, cellMargin.HorizontalThickness), Inset(cellHeight, cellMargin.VerticalThickness)));
         }
 
         // Calculate total size
@@ -199,6 +222,34 @@ public class SkiaGrid : SkiaLayoutView
         return new Size(
             totalWidth + Padding.Left + Padding.Right,
             totalHeight + Padding.Top + Padding.Bottom);
+    }
+
+    /// <summary>
+    /// True when the child's rows take their height from content: the grid's
+    /// height is unconstrained, or a row the child spans is Auto.
+    /// </summary>
+    private bool NeedsNaturalHeight(GridPosition pos, float contentHeight)
+    {
+        if (float.IsInfinity(contentHeight) || contentHeight > 100000)
+            return true;
+        for (int r = pos.Row; r < pos.Row + Math.Max(1, pos.RowSpan); r++)
+        {
+            var def = r < _rowDefinitions.Count ? _rowDefinitions[r] : GridLength.Star;
+            if (def.IsAuto)
+                return true;
+        }
+        return false;
+    }
+
+    private bool HasStarColumn(int columnCount)
+    {
+        for (int i = 0; i < columnCount; i++)
+        {
+            var def = i < _columnDefinitions.Count ? _columnDefinitions[i] : GridLength.Star;
+            if (def.IsStar)
+                return true;
+        }
+        return false;
     }
 
     private int GetMaxRow()
@@ -219,6 +270,18 @@ public class SkiaGrid : SkiaLayoutView
             maxCol = Math.Max(maxCol, pos.Column + pos.ColumnSpan - 1);
         }
         return maxCol;
+    }
+
+    /// <summary>Track sizes with no constraint: absolute as declared, everything else its content.</summary>
+    private static float[] NaturalSizes(List<GridLength> definitions, int count, float[] naturalSizes)
+    {
+        var sizes = new float[count];
+        for (int i = 0; i < count; i++)
+        {
+            var def = i < definitions.Count ? definitions[i] : GridLength.Star;
+            sizes[i] = def.IsAbsolute ? (float)def.Value : naturalSizes[i];
+        }
+        return sizes;
     }
 
     private float[] CalculateSizesWithAuto(List<GridLength> definitions, float available, float spacing, int count, float[] naturalSizes)
@@ -267,6 +330,9 @@ public class SkiaGrid : SkiaLayoutView
 
         return sizes;
     }
+
+    /// <summary>A cell's extent less the child's margin, never negative (infinity stays infinite).</summary>
+    private static double Inset(double extent, double margin) => Math.Max(0, extent - margin);
 
     private float GetCellWidth(int column, int span)
     {
@@ -322,6 +388,15 @@ public class SkiaGrid : SkiaLayoutView
             var columnCount = _columnWidths.Length > 0 ? _columnWidths.Length : 1;
             var arrangeRowHeights = _rowHeights;
 
+            // Star columns take the arranged width, which can differ from the
+            // measured one (measured unconstrained, then placed in a fixed slot).
+            if (content.Width > 0 && !float.IsInfinity(content.Width) && HasStarColumn(columnCount)
+                && Math.Abs(content.Width - (_columnWidths.Sum() + Math.Max(0, columnCount - 1) * ColumnSpacing)) > 1)
+            {
+                _columnWidths = CalculateSizesWithAuto(_columnDefinitions, content.Width, ColumnSpacing, columnCount,
+                    _columnNaturalWidths.Length == columnCount ? _columnNaturalWidths : new float[columnCount]);
+            }
+
         // If we have arrange height and rows need recalculating
         if (content.Height > 0 && !float.IsInfinity(content.Height))
         {
@@ -359,7 +434,7 @@ public class SkiaGrid : SkiaLayoutView
             }
         }
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (!child.IsVisible) continue;
 
@@ -387,7 +462,7 @@ public class SkiaGrid : SkiaLayoutView
             // Clamp infinite dimensions
             if (float.IsInfinity(width) || float.IsNaN(width))
                 width = content.Width;
-            if (float.IsInfinity(height) || float.IsNaN(height) || height <= 0)
+            if (float.IsInfinity(height) || float.IsNaN(height))
                 height = content.Height;
 
             // Apply child's margin
@@ -414,10 +489,21 @@ public class SkiaGrid : SkiaLayoutView
                 ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
                 : LayoutAlignmentHelper.MapFromMaui(child.VerticalOptions);
 
-            // Apply HorizontalOptions
+            // Apply HorizontalOptions. An explicit size is kept even when it is
+            // larger than the cell, placed by the alignment (Fill as Start), as
+            // MAUI's ComputeFrame does: SfTabView's page strip is as wide as all
+            // its pages, slid inside a clipped grid one page wide.
             float finalX = cellX;
             float finalWidth = cellWidth;
-            if (hAlign != LayoutAlignment.Fill && childWidth < cellWidth && childWidth > 0)
+            if (child.WidthRequest >= 0 && childWidth > cellWidth)
+            {
+                finalWidth = childWidth;
+                if (hAlign == LayoutAlignment.Center)
+                    finalX = cellX + (cellWidth - childWidth) / 2;
+                else if (hAlign == LayoutAlignment.End)
+                    finalX = cellX + cellWidth - childWidth;
+            }
+            else if (hAlign != LayoutAlignment.Fill && childWidth < cellWidth && childWidth > 0)
             {
                 finalWidth = childWidth;
                 if (hAlign == LayoutAlignment.Center)
@@ -429,7 +515,15 @@ public class SkiaGrid : SkiaLayoutView
             // Apply VerticalOptions
             float finalY = cellY;
             float finalHeight = cellHeight;
-            if (vAlign != LayoutAlignment.Fill && childHeight < cellHeight && childHeight > 0)
+            if (child.HeightRequest >= 0 && childHeight > cellHeight)
+            {
+                finalHeight = childHeight;
+                if (vAlign == LayoutAlignment.Center)
+                    finalY = cellY + (cellHeight - childHeight) / 2;
+                else if (vAlign == LayoutAlignment.End)
+                    finalY = cellY + cellHeight - childHeight;
+            }
+            else if (vAlign != LayoutAlignment.Fill && childHeight < cellHeight && childHeight > 0)
             {
                 finalHeight = childHeight;
                 if (vAlign == LayoutAlignment.Center)

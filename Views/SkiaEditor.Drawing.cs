@@ -89,6 +89,21 @@ public partial class SkiaEditor
                 canvas.DrawText(line, contentRect.Left, y, SKTextAlign.Left, font, placeholderPaint);
                 y += lineSpacing;
             }
+
+            // The caret shows at the start of an empty editor, in front of its
+            // placeholder, as on the other platforms.
+            if (IsFocused && _cursorVisible)
+            {
+                var caretY = contentRect.Top + fontSize;
+                using var cursorPaint = new SKPaint
+                {
+                    Color = ToSKColor(CursorColor),
+                    Style = SKPaintStyle.Stroke,
+                    StrokeWidth = 2,
+                    IsAntialias = true
+                };
+                canvas.DrawLine(contentRect.Left, caretY - fontSize + 2, contentRect.Left, caretY + 2, cursorPaint);
+            }
         }
         else
         {
