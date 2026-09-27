@@ -311,6 +311,9 @@ public partial class LinuxApplication
 
             linuxApp.RootView = rootView;
 
+            // Window.Created, and with it Application.OnStart, as on the other platforms.
+            linuxApp.PrimaryContext?.NotifyCreated(primary: true);
+
             // Bridge .NET Hot Reload to the Skia render pipeline. Registration is
             // via an assembly attribute (see Diagnostics.HotReloadService); this
             // call only logs the active state and is a no-op unless launched under

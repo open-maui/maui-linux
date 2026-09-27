@@ -9,7 +9,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Syncfusion</PackageId>
-    <Version>10.0.110.1</Version>
+    <Version>10.0.110.2</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Syncfusion bridge (Linux)</Product>
@@ -25,9 +25,8 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
 
-    <!-- New in 10.0.110.1: no released baseline yet. Set
-         PackageValidationBaselineVersion to 10.0.110.1 after this release. -->
     <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>10.0.110.1</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

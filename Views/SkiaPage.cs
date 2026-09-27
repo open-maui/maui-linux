@@ -281,6 +281,16 @@ public class SkiaPage : SkiaView
             };
         }
 
+        // An explicit size under Fill is centred on that axis, as MAUI's ComputeFrame
+        // places it (a 16 px chevron in a 34 px round button sat in its corner).
+        if (content.MauiView is IView sized)
+        {
+            if (hAlign == LayoutAlignment.Fill && Microsoft.Maui.Primitives.Dimension.IsExplicitSet(sized.Width))
+                hAlign = LayoutAlignment.Center;
+            if (vAlign == LayoutAlignment.Fill && Microsoft.Maui.Primitives.Dimension.IsExplicitSet(sized.Height))
+                vAlign = LayoutAlignment.Center;
+        }
+
         var (x, w) = Place(hAlign, area.Left, area.Width, desired.Width);
         var (y, h) = Place(vAlign, area.Top, area.Height, desired.Height);
         return new Rect(x, y, w, h);

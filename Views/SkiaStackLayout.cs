@@ -140,7 +140,9 @@ public class SkiaStackLayout : SkiaLayoutView
                 // For ScrollView children, give them the remaining viewport height
                 // Clamp to avoid giving them their content size
                 var remainingHeight = Math.Max(0, contentHeight - offset);
-                var useHeight = child is SkiaScrollView
+                // (only one that scrolls vertically: a horizontal scroller keeps its content's
+                // height, and taking the rest pushed everything after it out of view).
+                var useHeight = child is SkiaScrollView { Orientation: not (ScrollOrientation.Horizontal or ScrollOrientation.Neither) }
                     ? remainingHeight
                     : Math.Min(childHeight, remainingHeight > 0 ? remainingHeight : childHeight);
 
