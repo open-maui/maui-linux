@@ -242,16 +242,19 @@ public class SkiaImageButton : SkiaView
 
     protected override void DrawBackground(SKCanvas canvas, SKRect bounds)
     {
-        // Skip base background drawing if button is transparent
-        var baseBgColor = ImageBackgroundColor != null
-            ? ToSKColor(ImageBackgroundColor)
-            : GetEffectiveBackgroundColor();
-
-        if (baseBgColor.Alpha < 10)
+        // The button paints its own background in the shape its CornerRadius gives it:
+        // a colour in OnDraw (with the pressed and hover states), a gradient brush here.
+        // The base view's square fill showed round buttons as squares.
+        var background = Background;
+        if (Brush.IsNullOrEmpty(background) || background is SolidColorBrush)
             return;
-
-        // Otherwise let base class draw
-        base.DrawBackground(canvas, bounds);
+        using var paint = CreateBackgroundPaint(bounds);
+        if (paint == null)
+            return;
+        if (CornerRadius > 0)
+            canvas.DrawRoundRect(new SKRoundRect(bounds, CornerRadius), paint);
+        else
+            canvas.DrawRect(bounds, paint);
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)

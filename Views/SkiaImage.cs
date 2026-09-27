@@ -1076,29 +1076,11 @@ public class SkiaImage : SkiaView
 
     protected override Rect ArrangeOverride(Rect bounds)
     {
-        var desiredWidth = DesiredSize.Width;
-        var desiredHeight = DesiredSize.Height;
-
-        if (desiredWidth > 0 && desiredHeight > 0 &&
-            (desiredWidth < bounds.Width || desiredHeight < bounds.Height))
-        {
-            double finalWidth = Math.Min(desiredWidth, bounds.Width);
-            double finalHeight = Math.Min(desiredHeight, bounds.Height);
-
-            double x = bounds.Left;
-            var hAlignValue = (int)HorizontalOptions.Alignment;
-            if (hAlignValue == 1) x = bounds.Left + (bounds.Width - finalWidth) / 2;
-            else if (hAlignValue == 2) x = bounds.Right - finalWidth;
-
-            double y = bounds.Top;
-            var vAlignValue = (int)VerticalOptions.Alignment;
-            if (vAlignValue == 1) y = bounds.Top + (bounds.Height - finalHeight) / 2;
-            else if (vAlignValue == 2) y = bounds.Bottom - finalHeight;
-
-            return new Rect(x, y, finalWidth, finalHeight);
-        }
-
-        return bounds;
+        // The MAUI view's alignment (Fill takes the whole slot and the image is fitted
+        // inside it; Start/Center/End place the desired size), as MAUI's ComputeFrame
+        // does. Placing the desired size by the Skia-side option ignored the MAUI view
+        // and put a Fill image at its slot's left edge (Strikeline's welcome rotator).
+        return SkiaPage.AlignContent(this, new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom), DesiredSize);
     }
 
     protected override Size MeasureOverride(Size availableSize)
