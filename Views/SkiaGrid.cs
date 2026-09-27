@@ -504,6 +504,13 @@ public class SkiaGrid : SkiaLayoutView
                 ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
                 : LayoutAlignmentHelper.MapFromMaui(child.VerticalOptions);
 
+            // An explicit size under Fill is centred in a larger cell, as MAUI's ComputeFrame
+            // treats it (a 1 px separator in a * row is a line in the middle, not a bar).
+            if (hAlign == LayoutAlignment.Fill && child.WidthRequest >= 0 && childWidth < cellWidth)
+                hAlign = LayoutAlignment.Center;
+            if (vAlign == LayoutAlignment.Fill && child.HeightRequest >= 0 && childHeight < cellHeight)
+                vAlign = LayoutAlignment.Center;
+
             // Apply HorizontalOptions. An explicit size is kept even when it is
             // larger than the cell, placed by the alignment (Fill as Start), as
             // MAUI's ComputeFrame does: SfTabView's page strip is as wide as all
