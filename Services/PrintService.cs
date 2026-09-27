@@ -217,7 +217,7 @@ public static class PrintService
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("PrintService", $"EnumeratePrinters failed: {ex.Message}");
+            DiagnosticLog.Error("PrintService", $"EnumeratePrinters failed: {ex.Message}", ex);
             return Array.Empty<PrinterInfo>();
         }
         finally
