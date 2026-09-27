@@ -13,6 +13,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Controls.Hosting;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Networking;
 using Microsoft.Maui.Platform.Linux;
@@ -108,6 +109,11 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         MopupsBridge.Register(builder.Services);
         // VisualElement.Focus()/Unfocus() through the window's focus.
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register();
+        // MAUI's effects pipeline: an Element resolves the PlatformEffect for a RoutingEffect
+        // through the EffectsFactory service, which only ConfigureEffects registers; without
+        // it the first effect added to any view threw. Registered empty here, so an app or a
+        // library's own ConfigureEffects only adds to it.
+        builder.ConfigureEffects(_ => { });
 
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
