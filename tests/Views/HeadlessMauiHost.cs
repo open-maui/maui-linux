@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls.Hosting;
 using System;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,7 +53,7 @@ internal sealed class HeadlessMauiHost : IDisposable
     /// the context gets a raster <see cref="SkiaRenderingEngine"/> whose
     /// frames land in <see cref="FakeDisplayWindow.LastFrame"/>.
     /// </summary>
-    public HeadlessMauiHost(Page rootPage, bool withEngine = false, int width = 800, int height = 600)
+    public HeadlessMauiHost(Page rootPage, bool withEngine = false, int width = 800, int height = 600, Action<Microsoft.Maui.Hosting.MauiAppBuilder>? configure = null)
     {
         LinuxApp = new LinuxApplication();
 
@@ -74,6 +75,8 @@ internal sealed class HeadlessMauiHost : IDisposable
         });
         LinuxAlertManager.Register(builder.Services);
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register(); // as RegisterLinuxServices does
+        builder.ConfigureEffects(_ => { }); // as RegisterLinuxServices does
+        configure?.Invoke(builder);
         MauiApp = builder.Build();
 
         MauiContext = new LinuxMauiContext(MauiApp.Services, LinuxApp);
