@@ -210,7 +210,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
 
     public static void MapUpdateZIndex(LayoutHandler handler, ILayout layout, object? arg)
     {
-        // Z-index is handled by child order for now
+        // Children are drawn and hit-tested by ZIndex (SkiaLayoutView.ChildrenInZOrder).
         handler.PlatformView.Invalidate();
     }
 }
