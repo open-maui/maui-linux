@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Third-party compatibility suite: popular MAUI libraries consumed exactly as
+    an app would (NuGet packages, the generic net10.0 TFM), hosted headlessly on
+    the Linux platform. Kept out of the main test project so these packages do
+    not bloat it. Results feed the "Third-party libraries" section of
+    docs/COMPATIBILITY.md (tools/Scorecard, pass both TRX files).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>OpenMaui.Compat.Tests</RootNamespace>
+    <!-- Prism.Maui / FFImageLoading.Maui ship net8.0/net9.0 assets only; they are
+         consumed as-is (that is the point of the suite). -->
+    <NoWarn>$(NoWarn);NU1608;NU1701;NU1903</NoWarn>
+    <!-- The toolkits' analyzers check syntactically that UseMauiCommunityToolkit*()
+         is chained to UseMauiApp<T>(); the test host applies UseMauiApp through a
+         delegate, so the (purely syntactic) check cannot see it. -->
+    <NoWarn>$(NoWarn);MCT001;MCTME001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+    <!-- LiveCharts asks for SkiaSharp.HarfBuzz >= 3.119; align it with the platform's SkiaSharp 4. -->
+    <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.152.1" />
+
+    <!-- Libraries under test (current releases that target MAUI 10 / net10.0 or a usable generic TFM). -->
+    <PackageReference Include="CommunityToolkit.Maui" Version="15.0.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView.Maui" Version="2.0.5" />
+    <PackageReference Include="ReactiveUI.Maui" Version="24.3.0" />
+    <PackageReference Include="Prism.DryIoc.Maui" Version="9.0.537" />
+    <PackageReference Include="FFImageLoading.Maui" Version="1.3.2" />
+    <PackageReference Include="Syncfusion.Maui.TabView" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.ListView" Version="34.2.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\OpenMaui.Controls.Linux.csproj" />
+    <ProjectReference Include="..\..\Maps\OpenMaui.Controls.Linux.Maps.csproj" />
+    <ProjectReference Include="..\..\MediaElement\OpenMaui.Controls.Linux.MediaElement.csproj" />
+    <ProjectReference Include="..\..\Syncfusion\OpenMaui.Controls.Linux.Syncfusion.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared with the main suite: the fake display window (pixel capture, input injection). -->
+    <Compile Include="..\Views\HeadlessMauiHost.cs" Link="Infrastructure\HeadlessMauiHost.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

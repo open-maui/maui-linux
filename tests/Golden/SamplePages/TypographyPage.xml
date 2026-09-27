@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Copied from maui-linux-samples/ShellDemo/Pages/TypographyPage.xaml for the sample-page golden scenes. -->
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ShellDemo.TypographyPage"
+             Title="Typography"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundLight}, Dark={StaticResource PageBackgroundDark}}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+
+            <Label Text="Typography"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+            <!-- Font attributes -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Font Attributes" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Regular: The quick brown fox jumps over the lazy dog" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Bold: The quick brown fox jumps over the lazy dog" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Italic: The quick brown fox jumps over the lazy dog" FontSize="16" FontAttributes="Italic"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Bold Italic: The quick brown fox jumps over the lazy dog" FontSize="16" FontAttributes="Bold,Italic"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Font families -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Font Families (fontconfig aliases and installed families)" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="sans-serif: Grumpy wizards make toxic brew 0123456789" FontFamily="sans-serif" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="serif: Grumpy wizards make toxic brew 0123456789" FontFamily="serif" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="monospace: Grumpy wizards make toxic brew 0123456789" FontFamily="monospace" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Noto Sans Mono Bold Italic: fi fl ff ligatures and 0O 1lI" FontFamily="Noto Sans Mono" FontAttributes="Bold,Italic" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Unknown family falls back to the default sans: Grumpy wizards" FontFamily="NoSuchFontFamily" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Named sizes -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Named Font Sizes" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Micro" FontSize="Micro" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Small" FontSize="Small" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Medium" FontSize="Medium" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Body" FontSize="Body" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Large" FontSize="Large" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Subtitle" FontSize="Subtitle" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Title" FontSize="Title" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Header" FontSize="Header" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Decorations, spacing, line height -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Decorations, Spacing, Line Height" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Underline decoration" TextDecorations="Underline" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Strikethrough decoration" TextDecorations="Strikethrough" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Character spacing 3" CharacterSpacing="3" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="UPPERCASE TRANSFORM" TextTransform="Uppercase" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Line height 1.8: wrapped paragraph text that runs long enough to need several lines so the extra leading between lines is visible at a glance."
+                           LineHeight="1.8" FontSize="15" LineBreakMode="WordWrap"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- FormattedText -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="FormattedText Spans" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label FontSize="16" TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="Mixed " />
+                                <Span Text="bold, " FontAttributes="Bold" />
+                                <Span Text="italic, " FontAttributes="Italic" />
+                                <Span Text="coloured, " TextColor="{StaticResource PrimaryColor}" />
+                                <Span Text="larger, " FontSize="22" />
+                                <Span Text="underlined " TextDecorations="Underline" />
+                                <Span Text="and " />
+                                <Span Text="monospace" FontFamily="monospace" />
+                                <Span Text=" spans in one label." />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Scripts and symbols (font fallback) -->
+            <Border Style="{StaticResource ThemedCard}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Scripts and Symbols (font fallback)" FontSize="16" FontAttributes="Bold"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Latin accents: Ærøskøbing, Œuvre, naïve, Zürich, São Paulo" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Greek and Cyrillic: Αλφάβητο, Привет мир" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="CJK: 日本語のテキスト, 中文文本, 한국어 텍스트" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Arabic and Hebrew: مرحبا بالعالم, שלום עולם" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                    <Label Text="Symbols and emoji: ✓ ✗ → ← ∑ ∞ ≠ © ® ™ 😀 🚀 🐧" FontSize="16"
+                           TextColor="{AppThemeBinding Light={StaticResource TextPrimaryLight}, Dark={StaticResource TextPrimaryDark}}" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -73,6 +73,7 @@ internal sealed class HeadlessMauiHost : IDisposable
             Microsoft.Maui.Hosting.MauiHandlersCollectionExtensions.AddHandler<Microsoft.Maui.Controls.Window, WindowHandler>(handlers);
         });
         LinuxAlertManager.Register(builder.Services);
+        Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register(); // as RegisterLinuxServices does
         MauiApp = builder.Build();
 
         MauiContext = new LinuxMauiContext(MauiApp.Services, LinuxApp);
@@ -123,8 +124,45 @@ internal sealed class HeadlessMauiHost : IDisposable
     /// tests can inject native events synchronously (as X11/Wayland do), and
     /// keeps a copy of the last presented raster frame for pixel assertions.
     /// </summary>
-    public sealed class FakeDisplayWindow : IDisplayWindow
+    public sealed class FakeDisplayWindow : IDisplayWindow, IScaleAwareDisplayWindow, IDesktopWindowControl, IVisibilityAwareDisplayWindow
     {
+        public bool IsSuspended { get; private set; }
+        public event EventHandler<bool>? SuspendedChanged;
+        public void RaiseSuspended(bool suspended) { IsSuspended = suspended; SuspendedChanged?.Invoke(this, suspended); }
+
+        public string? Title { get; private set; }
+        public (int Width, int Height)? RequestedLogicalSize { get; private set; }
+        public (int X, int Y)? RequestedLogicalPosition { get; private set; }
+        public (int MinW, int MinH, int MaxW, int MaxH)? SizeLimits { get; private set; }
+
+        public void RequestLogicalSize(int width, int height)
+        {
+            RequestedLogicalSize = (width, height);
+            RaiseResized((int)Math.Round(width * Scale), (int)Math.Round(height * Scale));
+        }
+
+        public void RequestLogicalPosition(int x, int y) => RequestedLogicalPosition = (x, y);
+
+        public void SetLogicalSizeLimits(int minWidth, int minHeight, int maxWidth, int maxHeight)
+            => SizeLimits = (minWidth, minHeight, maxWidth, maxHeight);
+
+        public float Scale { get; private set; } = 1f;
+        public event EventHandler<float>? ScaleChanged;
+
+        /// <summary>
+        /// Simulates a move to a monitor of another scale: raises ScaleChanged
+        /// and, like the Wayland backend, then resizes the buffer so the
+        /// logical size is kept (X11 behaviour: pass keepPixels = true).
+        /// </summary>
+        public void RaiseScaleChanged(float scale, bool keepPixels = false)
+        {
+            float old = Scale;
+            Scale = scale;
+            ScaleChanged?.Invoke(this, scale);
+            if (!keepPixels)
+                RaiseResized((int)Math.Round(Width / old * scale), (int)Math.Round(Height / old * scale));
+        }
+
         public int Width { get; set; } = 800;
         public int Height { get; set; } = 600;
         public bool IsRunning { get; private set; } = true;
@@ -151,7 +189,7 @@ internal sealed class HeadlessMauiHost : IDisposable
 
         public void Show() => IsRunning = true;
         public void Hide() { }
-        public void SetTitle(string title) { }
+        public void SetTitle(string title) => Title = title;
         public void Resize(int width, int height) { Width = width; Height = height; }
         public void SetCursor(CursorType cursorType) => LastCursor = cursorType;
         public void SetIcon(string iconPath) { }

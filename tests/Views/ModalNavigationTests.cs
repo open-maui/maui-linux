@@ -56,6 +56,61 @@ public class ModalNavigationTests : IDisposable
         return view;
     }
 
+    #region Transparency
+
+    [Fact]
+    public async Task A_transparent_modal_page_shows_the_page_beneath()
+    {
+        // Popups presented as modal pages (Mopups on plain net10.0) are
+        // see-through apart from their content.
+        var popup = new ContentPage
+        {
+            BackgroundColor = Colors.Transparent,
+            Content = new Label { Text = "toast", HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.End },
+        };
+        await _root.Navigation.PushModalAsync(popup, animated: false);
+        _host.Context.Render();
+
+        var (r, g, b, _) = _host.DisplayWindow.PixelAt(10, 10);
+        ((int)r).Should().BeGreaterThan(200, "the red root page shows through");
+        ((int)g).Should().BeLessThan(60);
+        ((int)b).Should().BeLessThan(60);
+    }
+
+    #endregion
+
+    #region Popup layers
+
+    [Fact]
+    public void A_popup_layer_leaves_the_page_beneath_alone_and_routes_input()
+    {
+        // Popups (Mopups) are window layers, not modal navigation: the page
+        // beneath gets no Disappearing/Appearing, a click on the popup's
+        // content reaches it, and a click on its transparent backdrop is
+        // reported as the popup's background.
+        _lifecycle.Clear();
+        var button = new Button { Text = "OK", HorizontalOptions = LayoutOptions.Center, VerticalOptions = LayoutOptions.Center, WidthRequest = 80, HeightRequest = 40 };
+        var popup = new ContentPage { BackgroundColor = Colors.Transparent, Content = button };
+
+        _host.Context.PushPopupView(popup);
+        _host.Context.Render();
+
+        _lifecycle.Should().BeEmpty("the page beneath is not navigated away from");
+        var b = ((SkiaView)button.Handler!.PlatformView!).Bounds;
+        _host.Context.HitTestLayers((float)b.Center.X, (float)b.Center.Y, out var onContent)
+            .Should().BeSameAs(button.Handler!.PlatformView);
+        onContent.Should().BeNull();
+
+        _host.Context.HitTestLayers(5, 5, out var backdrop);
+        backdrop.Should().BeSameAs(popup, "the backdrop belongs to the popup");
+
+        _host.Context.PopPopupView(popup).Should().BeTrue();
+        _host.Context.ModalViews.Should().BeEmpty();
+        _lifecycle.Should().BeEmpty();
+    }
+
+    #endregion
+
     #region Stack bookkeeping
 
     [Fact]

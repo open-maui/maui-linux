@@ -334,16 +334,34 @@ public class DialogBridgeTests : IDisposable
     }
 
     [Fact]
-    public async Task DisplayActionSheet_ClickOutsideCard_DoesNotDismiss()
+    public async Task DisplayActionSheet_ClickOutsideCard_DismissesAsCancel()
     {
+        // As an action sheet on iOS and Mac Catalyst: a click outside is cancel.
         var task = _page.DisplayActionSheet("Pick", "Cancel", null, "Copy");
         LayoutDialogs();
 
         _host.DisplayWindow.RaisePointerPressed(1, 1);
 
-        task.IsCompleted.Should().BeFalse();
-        PressKey(Key.Escape);
         (await task).Should().Be("Cancel");
+    }
+
+    [Fact]
+    public void DisplayActionSheet_LongList_FitsTheWindowAndScrolls()
+    {
+        var repos = Enumerable.Range(1, 60).Select(i => $"Gitea \u203A repo{i}").ToArray();
+        var task = _page.DisplayActionSheet("Repository", "Cancel", null, repos);
+        LayoutDialogs();
+        var sheet = (SkiaActionSheetDialog)LinuxDialogService.TopDialog!;
+
+        // The cancel button stays in the window, below the list.
+        var cancel = sheet.ButtonBounds[^1];
+        cancel.Bottom.Should().BeLessThanOrEqualTo(600);
+        var lastRowBefore = sheet.ButtonBounds[59].Top;
+
+        sheet.OnScroll(new ScrollEventArgs(400, 300, 0, 5));
+        LayoutDialogs();
+        sheet.ButtonBounds[59].Top.Should().BeLessThan(lastRowBefore, "the list scrolled");
+        task.IsCompleted.Should().BeFalse();
     }
 
     #endregion
