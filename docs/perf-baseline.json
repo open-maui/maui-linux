@@ -1,0 +1,848 @@
+{
+  "schema": 1,
+  "description": "OpenMaui performance baseline (tools/Benchmarks). Values are the per-statistic median of Runs suite runs on Machine. Gates apply in order; the first gate whose metric pattern matches decides. See docs/PERFORMANCE.md.",
+  "machine": {
+    "cpu": "Intel(R) Core(TM) i7-10875H CPU @ 2.30GHz",
+    "logicalCores": 16,
+    "memoryGb": 31,
+    "gpu": "Mesa Intel(R) UHD Graphics (CML GT2) (device /dev/dri/renderD128)",
+    "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
+    "kernel": "7.1.5-201.fc44.x86_64",
+    "runtime": ".NET 10.0.10",
+    "fingerprint": "6f476e35accd"
+  },
+  "timestamp": "2026-09-26T19:03:55Z",
+  "runs": 3,
+  "gates": [
+    {
+      "metric": "idle/*/frames",
+      "stat": "value",
+      "minAbsDelta": 0,
+      "maxAbsolute": 0
+    },
+    {
+      "metric": "idle/*/loop_us",
+      "stat": "p50",
+      "maxIncreasePct": 25,
+      "minAbsDelta": 20
+    },
+    {
+      "metric": "scroll-*/*/realised",
+      "stat": "value",
+      "maxIncreasePct": 10,
+      "minAbsDelta": 5
+    },
+    {
+      "metric": "*/gpu/frame_ms",
+      "stat": "p95",
+      "maxIncreasePct": 30,
+      "minAbsDelta": 0.5
+    },
+    {
+      "metric": "*/frame_ms",
+      "stat": "p95",
+      "maxIncreasePct": 15,
+      "minAbsDelta": 0.25
+    },
+    {
+      "metric": "resize/gpu/latency_ms",
+      "stat": "p95",
+      "maxIncreasePct": 30,
+      "minAbsDelta": 0.5
+    },
+    {
+      "metric": "resize/*/latency_ms",
+      "stat": "p95",
+      "maxIncreasePct": 15,
+      "minAbsDelta": 0.25
+    },
+    {
+      "metric": "layout-*/*/ms",
+      "stat": "p95",
+      "maxIncreasePct": 25,
+      "minAbsDelta": 0.25
+    },
+    {
+      "metric": "startup/*/first_frame_ms",
+      "stat": "p50",
+      "maxIncreasePct": 20,
+      "minAbsDelta": 10
+    },
+    {
+      "metric": "startup/*/build_ms",
+      "stat": "p50",
+      "maxIncreasePct": 20,
+      "minAbsDelta": 10
+    },
+    {
+      "metric": "memory/*/*_mb",
+      "stat": "value",
+      "maxIncreasePct": 20,
+      "minAbsDelta": 2
+    },
+    {
+      "metric": "animation/*/stalled_ticks",
+      "stat": "value",
+      "minAbsDelta": 0,
+      "maxAbsolute": 0
+    }
+  ],
+  "metrics": {
+    "animation/gpu/frame_ms": {
+      "unit": "ms",
+      "n": 300,
+      "avg": 0.7449,
+      "p50": 0.7358,
+      "p95": 0.8684,
+      "p99": 0.9121,
+      "max": 6.7397
+    },
+    "animation/gpu/frames_per_500ms": {
+      "unit": "frames",
+      "n": 10,
+      "avg": 30,
+      "p50": 30,
+      "p95": 30,
+      "p99": 30,
+      "max": 30
+    },
+    "animation/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/gpu/stalled_ticks": {
+      "unit": "ticks",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/gpu/ticks": {
+      "unit": "ticks",
+      "n": 1,
+      "avg": 300,
+      "p50": 300,
+      "p95": 300,
+      "p99": 300,
+      "max": 300
+    },
+    "animation/raster/frame_ms": {
+      "unit": "ms",
+      "n": 300,
+      "avg": 0.6347,
+      "p50": 0.6277,
+      "p95": 0.659,
+      "p99": 0.7431,
+      "max": 4.3949
+    },
+    "animation/raster/frames_per_500ms": {
+      "unit": "frames",
+      "n": 10,
+      "avg": 30,
+      "p50": 30,
+      "p95": 30,
+      "p99": 30,
+      "max": 30
+    },
+    "animation/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/raster/stalled_ticks": {
+      "unit": "ticks",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "animation/raster/ticks": {
+      "unit": "ticks",
+      "n": 1,
+      "avg": 300,
+      "p50": 300,
+      "p95": 300,
+      "p99": 300,
+      "max": 300
+    },
+    "idle/raster/cpu_pct": {
+      "unit": "%",
+      "n": 1,
+      "avg": 0.6347,
+      "p50": 0.6347,
+      "p95": 0.6347,
+      "p99": 0.6347,
+      "max": 0.6347
+    },
+    "idle/raster/frames": {
+      "unit": "frames",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "idle/raster/iterations": {
+      "unit": "count",
+      "n": 1,
+      "avg": 123,
+      "p50": 123,
+      "p95": 123,
+      "p99": 123,
+      "max": 123
+    },
+    "idle/raster/loop_us": {
+      "unit": "us",
+      "n": 124,
+      "avg": 3.6917,
+      "p50": 4.1,
+      "p95": 4.8,
+      "p99": 5,
+      "max": 6.8
+    },
+    "layout-flex/raster/ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 2.84,
+      "p50": 2.0564,
+      "p95": 3.4966,
+      "p99": 9.7813,
+      "max": 26.5058
+    },
+    "layout-grid/raster/ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 2.4343,
+      "p50": 1.8966,
+      "p95": 2.3393,
+      "p99": 18.2152,
+      "max": 38.4074
+    },
+    "memory/raster/gc_heap_after_1000_mb": {
+      "unit": "MB",
+      "n": 1,
+      "avg": 3.7793,
+      "p50": 3.7793,
+      "p95": 3.7793,
+      "p99": 3.7793,
+      "max": 3.7793
+    },
+    "memory/raster/gc_heap_first_frame_mb": {
+      "unit": "MB",
+      "n": 1,
+      "avg": 3.7208,
+      "p50": 3.7208,
+      "p95": 3.7208,
+      "p99": 3.7208,
+      "max": 3.7208
+    },
+    "memory/raster/gc_heap_growth_kb": {
+      "unit": "KB",
+      "n": 1,
+      "avg": 59.1172,
+      "p50": 59.1172,
+      "p95": 59.1172,
+      "p99": 59.1172,
+      "max": 59.1172
+    },
+    "memory/raster/ws_after_1000_mb": {
+      "unit": "MB",
+      "n": 1,
+      "avg": 145.5,
+      "p50": 145.5,
+      "p95": 145.5,
+      "p99": 145.5,
+      "max": 145.5
+    },
+    "memory/raster/ws_first_frame_mb": {
+      "unit": "MB",
+      "n": 1,
+      "avg": 121.4,
+      "p50": 121.4,
+      "p95": 121.4,
+      "p99": 121.4,
+      "max": 121.4
+    },
+    "resize/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "resize/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "resize/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "resize/gpu/latency_ms": {
+      "unit": "ms",
+      "n": 240,
+      "avg": 1.6743,
+      "p50": 1.6507,
+      "p95": 1.9041,
+      "p99": 2.1299,
+      "max": 6.012
+    },
+    "resize/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "resize/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "resize/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "resize/raster/latency_ms": {
+      "unit": "ms",
+      "n": 240,
+      "avg": 3.381,
+      "p50": 3.0807,
+      "p95": 4.979,
+      "p99": 5.3882,
+      "max": 8.7996
+    },
+    "scroll-10k/gpu/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 2.6162,
+      "p50": 1.9579,
+      "p95": 2.7378,
+      "p99": 3.796,
+      "max": 61.5699
+    },
+    "scroll-10k/gpu/frames_rendered": {
+      "unit": "frames",
+      "n": 1,
+      "avg": 400,
+      "p50": 400,
+      "p95": 400,
+      "p99": 400,
+      "max": 400
+    },
+    "scroll-10k/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "scroll-10k/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "scroll-10k/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 55.106,
+      "p50": 55.106,
+      "p95": 55.106,
+      "p99": 55.106,
+      "max": 55.106
+    },
+    "scroll-10k/gpu/realised": {
+      "unit": "views",
+      "n": 1,
+      "avg": 197,
+      "p50": 197,
+      "p95": 197,
+      "p99": 197,
+      "max": 197
+    },
+    "scroll-10k/raster/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 2.4644,
+      "p50": 1.7502,
+      "p95": 2.4185,
+      "p99": 4.5254,
+      "max": 60.9931
+    },
+    "scroll-10k/raster/frames_rendered": {
+      "unit": "frames",
+      "n": 1,
+      "avg": 400,
+      "p50": 400,
+      "p95": 400,
+      "p99": 400,
+      "max": 400
+    },
+    "scroll-10k/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "scroll-10k/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "scroll-10k/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 57.629,
+      "p50": 57.629,
+      "p95": 57.629,
+      "p99": 57.629,
+      "max": 57.629
+    },
+    "scroll-10k/raster/realised": {
+      "unit": "views",
+      "n": 1,
+      "avg": 197,
+      "p50": 197,
+      "p95": 197,
+      "p99": 197,
+      "max": 197
+    },
+    "scroll-1k/gpu/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 2.9687,
+      "p50": 2.524,
+      "p95": 3.5181,
+      "p99": 4.2308,
+      "max": 40.3341
+    },
+    "scroll-1k/gpu/frames_rendered": {
+      "unit": "frames",
+      "n": 1,
+      "avg": 400,
+      "p50": 400,
+      "p95": 400,
+      "p99": 400,
+      "max": 400
+    },
+    "scroll-1k/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "scroll-1k/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "scroll-1k/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 36.051,
+      "p50": 36.051,
+      "p95": 36.051,
+      "p99": 36.051,
+      "max": 36.051
+    },
+    "scroll-1k/gpu/realised": {
+      "unit": "views",
+      "n": 1,
+      "avg": 197,
+      "p50": 197,
+      "p95": 197,
+      "p99": 197,
+      "max": 197
+    },
+    "scroll-1k/raster/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 2.6022,
+      "p50": 2.3067,
+      "p95": 3.2197,
+      "p99": 3.904,
+      "max": 38.5087
+    },
+    "scroll-1k/raster/frames_rendered": {
+      "unit": "frames",
+      "n": 1,
+      "avg": 400,
+      "p50": 400,
+      "p95": 400,
+      "p99": 400,
+      "max": 400
+    },
+    "scroll-1k/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "scroll-1k/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "scroll-1k/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 36.029,
+      "p50": 36.029,
+      "p95": 36.029,
+      "p99": 36.029,
+      "max": 36.029
+    },
+    "scroll-1k/raster/realised": {
+      "unit": "views",
+      "n": 1,
+      "avg": 197,
+      "p50": 197,
+      "p95": 197,
+      "p99": 197,
+      "max": 197
+    },
+    "startup/raster/build_ms": {
+      "unit": "ms",
+      "n": 10,
+      "avg": 508.9,
+      "p50": 506.8,
+      "p95": 518.3,
+      "p99": 518.3,
+      "max": 518.3
+    },
+    "startup/raster/first_frame_ms": {
+      "unit": "ms",
+      "n": 10,
+      "avg": 1065.3,
+      "p50": 1059.8,
+      "p95": 1091.9,
+      "p99": 1091.9,
+      "max": 1091.9
+    },
+    "startup/raster/process_to_frame_ms": {
+      "unit": "ms",
+      "n": 10,
+      "avg": 1085.5,
+      "p50": 1077.7,
+      "p95": 1113,
+      "p99": 1113,
+      "max": 1113
+    },
+    "text-1.0x/gpu/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 5.3586,
+      "p50": 3.544,
+      "p95": 6.5154,
+      "p99": 52.6875,
+      "max": 61.5297
+    },
+    "text-1.0x/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 7,
+      "p50": 7,
+      "p95": 7,
+      "p99": 7,
+      "max": 7
+    },
+    "text-1.0x/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "text-1.0x/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 360,
+      "p50": 360,
+      "p95": 360,
+      "p99": 360,
+      "max": 360
+    },
+    "text-1.0x/raster/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 4.9505,
+      "p50": 3.5574,
+      "p95": 6.1805,
+      "p99": 52.6653,
+      "max": 54.4059
+    },
+    "text-1.0x/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 8,
+      "p50": 8,
+      "p95": 8,
+      "p99": 8,
+      "max": 8
+    },
+    "text-1.0x/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "text-1.0x/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 368.3,
+      "p50": 368.3,
+      "p95": 368.3,
+      "p99": 368.3,
+      "max": 368.3
+    },
+    "text-1.75x/gpu/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 5.425,
+      "p50": 3.713,
+      "p95": 6.4711,
+      "p99": 54.6214,
+      "max": 63.3787
+    },
+    "text-1.75x/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 8,
+      "p50": 8,
+      "p95": 8,
+      "p99": 8,
+      "max": 8
+    },
+    "text-1.75x/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "text-1.75x/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 395.1,
+      "p50": 395.1,
+      "p95": 395.1,
+      "p99": 395.1,
+      "max": 395.1
+    },
+    "text-1.75x/raster/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 5.6691,
+      "p50": 4.0698,
+      "p95": 7.1445,
+      "p99": 54.4621,
+      "max": 67.6533
+    },
+    "text-1.75x/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 7,
+      "p50": 7,
+      "p95": 7,
+      "p99": 7,
+      "max": 7
+    },
+    "text-1.75x/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "max": 0
+    },
+    "text-1.75x/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 342.7,
+      "p50": 342.7,
+      "p95": 342.7,
+      "p99": 342.7,
+      "max": 342.7
+    },
+    "text-update/gpu/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 4.5054,
+      "p50": 3.3288,
+      "p95": 5.9944,
+      "p99": 53.8889,
+      "max": 54.9346
+    },
+    "text-update/gpu/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 6,
+      "p50": 6,
+      "p95": 6,
+      "p99": 6,
+      "max": 6
+    },
+    "text-update/gpu/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "text-update/gpu/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 277.3,
+      "p50": 277.3,
+      "p95": 277.3,
+      "p99": 277.3,
+      "max": 277.3
+    },
+    "text-update/raster/frame_ms": {
+      "unit": "ms",
+      "n": 400,
+      "avg": 4.1228,
+      "p50": 3.2144,
+      "p95": 5.558,
+      "p99": 49.9135,
+      "max": 52.8472
+    },
+    "text-update/raster/gc_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 6,
+      "p50": 6,
+      "p95": 6,
+      "p99": 6,
+      "max": 6
+    },
+    "text-update/raster/gc_gen2_count": {
+      "unit": "GCs",
+      "n": 1,
+      "avg": 1,
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "max": 1
+    },
+    "text-update/raster/gc_pause_ms": {
+      "unit": "ms",
+      "n": 1,
+      "avg": 282,
+      "p50": 282,
+      "p95": 282,
+      "p99": 282,
+      "max": 282
+    }
+  }
+}
