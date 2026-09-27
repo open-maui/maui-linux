@@ -3,6 +3,7 @@
 
 using System;
 using Microsoft.Maui.Platform.Linux.Hosting;
+using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform;
@@ -63,13 +64,9 @@ public partial class LinuxApplication
             }
         }
 
-        if (_useGtk)
-        {
-            // GTK mode hosts a single GtkHostWindow; secondary toplevels are
-            // not supported there (v1 limitation — X11/Wayland modes only).
-            DiagnosticLog.Warn("LinuxApplication", "OpenWindow is not supported in GTK mode; ignoring");
-            return;
-        }
+        // GTK mode: the primary stays the GtkHostWindow; a secondary is a
+        // regular native (X11/Wayland) OpenMaui window, pumped from GTK's main
+        // loop by EnsureGtkSecondaryPump below.
 
         var mauiContext = MauiContext;
         if (mauiContext == null)
@@ -131,6 +128,8 @@ public partial class LinuxApplication
             ctx.NotifyCreated();
             native.Show();
             ctx.Render();
+            if (_useGtk)
+                EnsureGtkSecondaryPump();
 
             DiagnosticLog.Info("LinuxApplication",
                 $"Opened window '{title}' ({width}x{height}); {_windowContexts.Count} window(s) live");
@@ -144,6 +143,59 @@ public partial class LinuxApplication
                 try { ctx.Dispose(); } catch { /* best effort */ }
             }
         }
+    }
+
+    private uint _gtkSecondaryPump;
+
+    /// <summary>
+    /// In GTK mode gtk_main owns the thread, so the native secondary windows
+    /// are pumped by a GLib timeout: the same per-iteration work as the native
+    /// run loop (events, Wayland reads, animations, render, reaping), without
+    /// blocking. Removed again when the last secondary closes.
+    /// </summary>
+    private void EnsureGtkSecondaryPump()
+    {
+        if (_gtkSecondaryPump != 0) return;
+        _gtkSecondaryPump = GLibNative.TimeoutAdd(8, PumpNativeWindows);
+    }
+
+    internal bool PumpNativeWindows()
+    {
+        try
+        {
+            bool any = false;
+            for (int i = 0; i < _windowContexts.Count; i++)
+            {
+                var ctx = _windowContexts[i];
+                var window = ctx.DisplayWindow;
+                if (window == null) continue;
+                any = true;
+
+                if (window is Window.WaylandWindow wayland)
+                {
+                    var fds = new LibcNative.PollFd[1];
+                    fds[0].Fd = wayland.GetFileDescriptor();
+                    fds[0].Events = LibcNative.POLLIN;
+                    if (fds[0].Fd >= 0 && LibcNative.Poll(fds.AsSpan(), (nuint)1, 0) > 0 && (fds[0].Revents & LibcNative.POLLIN) != 0)
+                        wayland.DispatchReadEvents();
+                }
+                window.ProcessEvents();
+                window.FlushDeferredResize();
+                ctx.UpdateAnimations();
+                ctx.Render();
+                window.AcknowledgeSync();
+            }
+
+            ReapClosedContexts();
+            if (any) return true;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("LinuxApplication", "GTK-mode secondary window pump failed", ex);
+        }
+
+        _gtkSecondaryPump = 0;
+        return false;
     }
 
     /// <summary>
