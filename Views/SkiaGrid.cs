@@ -124,6 +124,9 @@ public class SkiaGrid : SkiaLayoutView
 
     protected override Size MeasureOverride(Size availableSize)
     {
+        if (MauiView is Microsoft.Maui.IGridLayout layout)
+            Microsoft.Maui.Platform.Linux.Handlers.GridHandler.SyncDefinitions(this, layout);
+
         var contentWidth = (float)(availableSize.Width - Padding.Left - Padding.Right);
         var contentHeight = (float)(availableSize.Height - Padding.Top - Padding.Bottom);
 

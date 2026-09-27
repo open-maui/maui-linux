@@ -4,10 +4,15 @@
 using FluentAssertions;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform.Linux.Syncfusion;
+using SkiaSharp;
 using Xunit;
 
 namespace OpenMaui.Compat.Tests;
 
+/// <summary>
+/// An SfComboBox's body (the text field and the clear and drop-down buttons,
+/// which Syncfusion adds after the first layout) draws inside the control.
+/// </summary>
 [Collection(CompatHost.Collection)]
 public sealed class SyncfusionComboOffsetTests
 {
@@ -23,18 +28,15 @@ public sealed class SyncfusionComboOffsetTests
         using var host = new CompatHost(new ContentPage { BackgroundColor = Microsoft.Maui.Graphics.Colors.White, Content = new VerticalStackLayout { combo } }, b => b.UseLinuxSyncfusion(), 400, 200);
         for (int i = 0; i < 4; i++) host.Render();
         if (Environment.GetEnvironmentVariable("COMBO_FRAME") is { Length: > 0 } frame) host.SaveFrame(frame);
-        // The entry and buttons Syncfusion adds after the first layout are drawn, inside the control.
+
         ((Microsoft.Maui.Platform.SkiaLayoutView)CompatHost.PlatformOf(combo)).Children.Should().NotBeEmpty();
-        var sb = new System.Text.StringBuilder();
-        void Walk(Microsoft.Maui.Platform.SkiaView v, int d)
-        {
-            sb.AppendLine($"{new string(' ', d * 2)}{v.GetType().Name}/{v.MauiView?.GetType().Name} {v.Bounds} vis={v.IsVisible}");
-            if (v is Microsoft.Maui.Platform.SkiaLayoutView l) foreach (var c in l.Children) Walk(c, d + 1);
-        }
-        Walk(CompatHost.PlatformOf(combo), 0);
-        File.WriteAllText("/tmp/claude-1000/-home-logikonline-Documents-Gitea/f31e418a-42c5-4638-9e39-ccb0289874a1/scratchpad/combo-tree.txt", sb.ToString());
-        host.CountPixelsNot(SkiaSharp.SKColors.White, new SkiaSharp.SKRectI(64, 54, 276, 90)).Should().BeGreaterThan(30, "the selected text draws");
-        // Nothing drawn below or right of the control.
-        host.CountPixelsNot(SkiaSharp.SKColors.White, new SkiaSharp.SKRectI(0, 96, 400, 200)).Should().Be(0);
+        var dark = new SKColor(40, 40, 40);
+        // The text field (60..216) shows the selected text, left in the control.
+        host.CountPixelsNear(dark, new SKRectI(64, 54, 160, 90), tolerance: 120).Should().BeGreaterThan(30, "the selected text draws in the text field");
+        // The drop-down arrow draws in its button (248..280, 56..88).
+        host.CountPixelsNear(dark, new SKRectI(250, 58, 278, 86), tolerance: 120).Should().BeGreaterThan(5, "the drop-down arrow draws in its button");
+        // Nothing is drawn shifted below or right of the control.
+        host.CountPixelsNot(SKColors.White, new SKRectI(0, 96, 400, 200)).Should().Be(0);
+        host.CountPixelsNot(SKColors.White, new SKRectI(284, 0, 400, 200)).Should().Be(0);
     }
 }

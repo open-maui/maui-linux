@@ -440,6 +440,35 @@ public partial class GridHandler : LayoutHandler
         }
     }
 
+    /// <summary>
+    /// Brings the platform grid's rows and columns up to date with the MAUI
+    /// grid's. Adding to or clearing an existing definition collection only
+    /// invalidates the grid's measure (the property itself does not change, so
+    /// the mapper never runs); SkiaGrid calls this when it measures.
+    /// </summary>
+    internal static void SyncDefinitions(SkiaGrid grid, IGridLayout layout)
+    {
+        Sync(grid.RowDefinitions, layout.RowDefinitions.Select(d => d.Height).ToList());
+        Sync(grid.ColumnDefinitions, layout.ColumnDefinitions.Select(d => d.Width).ToList());
+    }
+
+    private static void Sync(IList<Microsoft.Maui.Platform.GridLength> platform, List<Microsoft.Maui.GridLength> lengths)
+    {
+        bool same = platform.Count == lengths.Count;
+        for (int i = 0; same && i < lengths.Count; i++)
+            same = platform[i].Equals(ToPlatform(lengths[i]));
+        if (same)
+            return;
+        platform.Clear();
+        foreach (var length in lengths)
+            platform.Add(ToPlatform(length));
+    }
+
+    private static Microsoft.Maui.Platform.GridLength ToPlatform(Microsoft.Maui.GridLength length) =>
+        length.IsAbsolute ? new Microsoft.Maui.Platform.GridLength((float)length.Value, Microsoft.Maui.Platform.GridUnitType.Absolute)
+        : length.IsAuto ? Microsoft.Maui.Platform.GridLength.Auto
+        : new Microsoft.Maui.Platform.GridLength((float)length.Value, Microsoft.Maui.Platform.GridUnitType.Star);
+
     public static void MapRowDefinitions(GridHandler handler, IGridLayout layout)
     {
         if (handler.PlatformView is not SkiaGrid grid) return;
