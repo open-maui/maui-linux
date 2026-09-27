@@ -255,6 +255,15 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         if (_disposed)
             return;
 
+        // Nothing dirty, nothing to lay out: every layout request invalidates
+        // its view, and a resize or scale change asks for a whole frame. Laying
+        // the whole tree out on every loop turn kept an idle window busy.
+        lock (_dirtyLock)
+        {
+            if (!_fullRedrawNeeded && EnableDirtyRegionOptimization && _dirtyRegions.Count == 0)
+                return;
+        }
+
         // CSD reserves a titlebar strip at the top of the surface. Views see a
         // smaller window (height minus titlebar) and are drawn translated down
         // by the titlebar height inside RenderRegion. The titlebar itself is
@@ -488,6 +497,8 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
 
         // Flush and submit the frame (raster: copy to the window; GPU: swap).
         _target.EndFrame();
+        if (Microsoft.Maui.Platform.Linux.Diagnostics.InvalidationTrace.Enabled)
+            Microsoft.Maui.Platform.Linux.Diagnostics.InvalidationTrace.Frame(isFullRedraw);
         _stats?.EndFrame();
     }
 
