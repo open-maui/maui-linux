@@ -5,7 +5,7 @@ This guide will help you get started with building .NET MAUI applications for Li
 ## Prerequisites
 
 - .NET 9.0 SDK or later
-- Linux distribution (Ubuntu 22.04+, Fedora 38+, Arch Linux, etc.)
+- A current Linux distribution with X11 or Wayland (the support matrix, including which distributions ship WPE WebKit 2.54+ for the WebView, is in [VERSIONING.md](VERSIONING.md)); run `OPENMAUI_DOCTOR=1 ./YourApp` to see what your machine provides
 - X11 or Wayland display server
 
 ### Installing Dependencies
