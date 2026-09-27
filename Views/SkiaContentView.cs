@@ -22,17 +22,25 @@ public class SkiaContentView : SkiaLayoutView
         var childAvailableW = WidthRequest >= 0 ? WidthRequest : availableSize.Width;
         var childAvailableH = HeightRequest >= 0 ? HeightRequest : availableSize.Height;
 
+        // The content sits inside the padding and its own margin, as in MAUI;
+        // both count towards the size (a header stack's top margin clearing
+        // a toggle above it was dropped).
+        var inset = new Thickness(Padding.Left, Padding.Top, Padding.Right, Padding.Bottom);
+
         // Measure the single child (ContentView has one child)
         foreach (var child in Children.ToArray())
         {
             if (child.IsVisible)
             {
-                var childSize = child.Measure(new Size(childAvailableW, childAvailableH));
+                var margin = child.Margin;
+                var childSize = child.Measure(new Size(
+                    Math.Max(0, childAvailableW - inset.HorizontalThickness - margin.HorizontalThickness),
+                    Math.Max(0, childAvailableH - inset.VerticalThickness - margin.VerticalThickness)));
                 // If no explicit size, use child's desired size
                 if (WidthRequest < 0)
-                    w = Math.Max(w, childSize.Width);
+                    w = Math.Max(w, childSize.Width + margin.HorizontalThickness + inset.HorizontalThickness);
                 if (HeightRequest < 0)
-                    h = Math.Max(h, childSize.Height);
+                    h = Math.Max(h, childSize.Height + margin.VerticalThickness + inset.VerticalThickness);
             }
         }
 
@@ -52,13 +60,18 @@ public class SkiaContentView : SkiaLayoutView
             Math.Max(0, bounds.Width - Padding.Left - Padding.Right),
             Math.Max(0, bounds.Height - Padding.Top - Padding.Bottom));
 
-        var area = new SKRect((float)contentBounds.Left, (float)contentBounds.Top, (float)contentBounds.Right, (float)contentBounds.Bottom);
         foreach (var child in Children.ToArray())
         {
             if (child.IsVisible)
             {
-                // Honour the content's layout options, as in MAUI.
-                var desired = child.Measure(new Size(contentBounds.Width, contentBounds.Height));
+                // Inside the content's margin, then its layout options, as in MAUI.
+                var margin = child.Margin;
+                var area = new SKRect(
+                    (float)(contentBounds.Left + margin.Left),
+                    (float)(contentBounds.Top + margin.Top),
+                    (float)Math.Max(contentBounds.Left + margin.Left, contentBounds.Right - margin.Right),
+                    (float)Math.Max(contentBounds.Top + margin.Top, contentBounds.Bottom - margin.Bottom));
+                var desired = child.Measure(new Size(area.Width, area.Height));
                 child.Arrange(SkiaPage.AlignContent(child, area, desired));
             }
         }
