@@ -36,6 +36,55 @@ public static class TextRenderingHelper
     }
 
     /// <summary>
+    /// Advance width of <paramref name="text"/> as <see cref="DrawTextWithFallback"/>
+    /// draws it: characters the font lacks (emoji, symbols, CJK) are measured in
+    /// the fallback face that draws them. Equal to <c>font.MeasureText</c> when no
+    /// fallback is needed.
+    /// </summary>
+    public static float MeasureWidth(SKFont font, string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return 0;
+        if (font.Typeface == null)
+            return font.MeasureText(text);
+
+        var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, font.Typeface);
+        if (runs.Count == 0 || (runs.Count == 1 && ReferenceEquals(runs[0].Typeface, font.Typeface)))
+            return font.MeasureText(text);
+
+        float width = 0;
+        foreach (var run in runs)
+        {
+            using var runFont = SkiaFontFactory.Create(run.Typeface, font.Size);
+            runFont.Embolden = font.Embolden;
+            runFont.SkewX = font.SkewX;
+            width += runFont.MeasureText(run.Text);
+        }
+        return width;
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> cut to <paramref name="maxWidth"/> with a trailing
+    /// ellipsis (by advance width, with font fallback), or whole when it fits.
+    /// </summary>
+    internal static string Ellipsize(SKFont font, string? text, float maxWidth)
+    {
+        if (string.IsNullOrEmpty(text) || MeasureWidth(font, text) <= maxWidth + 0.5f)
+            return text ?? string.Empty;
+        const string ellipsis = "\u2026";
+        int lo = 0, hi = text.Length;
+        while (lo < hi)
+        {
+            int mid = (lo + hi + 1) / 2;
+            if (MeasureWidth(font, text[..mid].TrimEnd() + ellipsis) <= maxWidth)
+                lo = mid;
+            else
+                hi = mid - 1;
+        }
+        return lo == 0 ? ellipsis : text[..lo].TrimEnd() + ellipsis;
+    }
+
+    /// <summary>
     /// Draws text with font fallback for emoji, CJK, and other scripts.
     /// Uses FontFallbackManager to shape text across multiple typefaces when needed.
     /// </summary>
@@ -51,8 +100,9 @@ public static class TextRenderingHelper
 
         if (runs.Count <= 1)
         {
-            // Single run or no fallback needed - draw directly
-            using var font = SkiaFontFactory.Create(preferredTypeface, fontSize);
+            // One run: the preferred face, or a fallback when the text is made
+            // only of characters it lacks (a lone "⋮" in a UI font).
+            using var font = SkiaFontFactory.Create(runs.Count == 1 ? runs[0].Typeface : preferredTypeface, fontSize);
             canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
             return;
         }
