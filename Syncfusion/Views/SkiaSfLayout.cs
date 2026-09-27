@@ -101,7 +101,8 @@ public class SkiaSfLayout : SkiaCrossPlatformLayout
             else
                 AddChild(view);
         }
-        Invalidate();
+        // New children need a place: a layout pass, not only a repaint.
+        InvalidateMeasure();
     }
 
     private int IndexOfChild(SkiaView view)
@@ -169,6 +170,11 @@ public class SkiaSfLayout : SkiaCrossPlatformLayout
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Syncfusion adds children after the first layout (a combo box's entry
+        // and buttons) without telling the layout; the renderer only lays out
+        // what asked to be, so the children are picked up here, and a change
+        // asks for the layout they need.
+        SyncChildren();
         var order = Drawable?.DrawingOrder ?? DrawingOrder.NoDraw;
         if (order == DrawingOrder.NoDraw)
         {
@@ -239,6 +245,9 @@ internal static class SfDrawing
     private static readonly HashSet<Type> s_reportedTextStub = new();
     private static readonly HashSet<Type> s_reportedFailure = new();
 
+    [ThreadStatic]
+    private static SkiaCanvas? t_canvas;
+
     public static void Draw(IDrawable drawable, SKCanvas canvas, SKRect bounds, bool clip)
     {
         canvas.Save();
@@ -247,17 +256,20 @@ internal static class SfDrawing
             if (clip)
                 canvas.ClipRect(bounds);
             canvas.Translate(bounds.Left, bounds.Top);
-            using var mauiCanvas = new SkiaCanvas { Canvas = canvas };
+            // One MAUI canvas per thread, pointed at the frame's canvas: building
+            // a SkiaCanvas sets up its default paints and fonts, and a list or
+            // chart draws many views a frame.
+            var mauiCanvas = t_canvas ??= new SkiaCanvas();
+            mauiCanvas.Canvas = canvas;
+            mauiCanvas.ResetState();
             drawable.Draw(mauiCanvas, new RectF(0, 0, bounds.Width, bounds.Height));
         }
-        catch (NotImplementedException)
+        catch (NotImplementedException ex)
         {
-            // Syncfusion's platform-neutral CanvasExtensions.DrawText is a stub:
-            // controls that draw their own text (SfButton, badges, busy
-            // indicator title, text-input hints, tooltips) lose that text.
+            // A platform-neutral Syncfusion stub not yet supplied by the bridge.
             if (s_reportedTextStub.Add(drawable.GetType()))
                 DiagnosticLog.Warn("Syncfusion",
-                    $"{drawable.GetType().Name} draws text through Syncfusion's canvas text API, which its platform-neutral build does not implement; that text is not shown on Linux.");
+                    $"{drawable.GetType().Name} reached a Syncfusion stub the Linux bridge does not supply yet: {ex.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}");
         }
         catch (Exception ex)
         {
