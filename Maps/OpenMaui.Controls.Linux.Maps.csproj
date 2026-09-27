@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Maps</PackageId>
-    <Version>10.0.101.3</Version>
+    <Version>10.0.110.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Maps (Linux)</Product>
@@ -25,6 +25,15 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
+
+    <!-- Stable-contract gate (docs/VERSIONING.md): `dotnet pack` compares the
+         public API against the last released package and fails on an
+         unrecorded break. Intentional breaks are recorded in
+         CompatibilitySuppressions.xml (regenerate with
+         -p:ApiCompatGenerateSuppressionFile=true) and listed in CHANGELOG.md.
+         Bump the baseline to the new version after each release. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>10.0.101.3</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +42,7 @@
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
 
     <!-- Upstream Maps control + IMapHandler + Pin/Polyline types. -->
-    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.101" />
+    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.110" />
   </ItemGroup>
 
   <!-- Include icon and README in package -->
