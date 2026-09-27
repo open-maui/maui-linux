@@ -4,12 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.110.2] - unreleased
+## [10.0.110.2] - 2026-09-27
 
 ### Fixed
 
 - **`Application.OnStart` never ran**: MAUI raises it from the first window's `Created`, and the primary window raised no `Created` (only secondary windows did). An app that starts its work there, loading its data and replacing a loading page with its shell, stayed on the loading page. The primary window now raises `Created`, once, when its page is set at startup, as the other platforms do.
 - **Library views that implement `IContentView` without deriving from `ContentView` were dropped**: they resolved to MAUI's own ContentViewHandler, whose platform view throws on plain net10.0, so the parent skipped them (Syncfusion's SfScheduler showed nothing). Any view that falls back to that handler now gets OpenMaui's content handler, which lays it out through its `ICrossPlatformLayout`.
+- **Content with an explicit size under Fill alignment was stretched or pinned to a corner** instead of centred, as MAUI's `ComputeFrame` places it: a 16 px chevron in a 34 px round button (MarketAlly.Flywheel's scroll arrows) sat in its top-left corner. Pages, borders, content views and grid cells now centre such content on that axis (a 1 px separator that landed in a dialog's * row, MarketAlly.Dialogs' action list, stretched into a tall bar).
+- **A Label with `MaxLines` above 1 and a truncating `LineBreakMode` measured one line** while it drew up to `MaxLines`; its layout gave it one line's height and its second line overdrew the next row (a two-line summary in an auto-fit SfListView row). It now measures the lines it draws.
+- **A Border measured its content without the content's margin**, but arranged it inside it, so the content was measured wider than it was drawn.
+- **FlexLayout ignored its children's margins**: items spaced by a trailing margin ran together. Each item's slot now includes its margin and the child is placed inside it.
+- **Horizontal ScrollViews**: the content was re-measured at draw time at the viewport width, as a vertical scroller's is, so a wrap panel in a horizontal scroller (MarketAlly.Foundation's stat cards) folded into a column as tall as the page; unbounded height was replaced by 400, so a toolbar in an Auto row (MAToolbar) measured 400 tall; and a vertical stack gave a horizontal scroller all the remaining height. A horizontal scroller is now measured with unbounded width and the height offered, is as tall as its content, and keeps that height in a stack.
+- **Label line height follows the font, as on Windows and Mac.** A line was 1.2 x FontSize and its text was placed by its ink, so capitals sat flush against the top of the label (a "VIP" pill's text sat high) and the baseline moved with the letters in the line. A line is now the font's own line spacing (ascent, descent and line gap; about 1.36 x FontSize for Noto Sans and Open Sans), times `LineHeight` when it is set (MAUI's `LineHeight` multiplies the default line height), with the text placed by the font's metrics. Labels are about 13% taller than before; golden baselines were regenerated.
+- **Nothing on a translated, scaled or rotated view could be clicked where it was drawn**: hit-testing and pointer coordinates used the view's untransformed bounds. SfTabView slides a tab's content into view with `TranslationX`, so on any tab but the first no Editor, Switch or button took input. Hit tests now map the point through each view's render transform, and a view receives pointer coordinates in its own space.
+- **Taps on a layout inside a scrolled ScrollView were lost**: the layout received the pointer in window coordinates and hit-tested them against its unscrolled bounds, so a tile with a TapGestureRecognizer in a horizontal strip scrolled away from its start (MarketAlly.Flywheel's looping node strip) never fired. A view now receives pointer coordinates in its own space, including the offset of every ScrollView around it.
+- **The Shell's back arrow did nothing beside a locked flyout** (a rail): the nav bar and its arrow are drawn after the rail, but the arrow's hit area stayed at the window's left edge.
+- **Libraries' images and fonts for Linux apps**: the platform's build props now set `OpenMauiLinux` for a plain target built on Linux, so a library that adds its `MauiImage` items to consuming apps from `buildTransitive` only when `UseMaui` is true (a MAUI workload app) can add them to OpenMaui apps too.
 
 ## [10.0.110.1] - 2026-09-26
 
