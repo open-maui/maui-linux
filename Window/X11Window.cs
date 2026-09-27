@@ -817,12 +817,12 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         // Buttons 4 and 5 are scroll wheel
         if (buttonEvent.Button == 4)
         {
-            Scroll?.Invoke(this, new ScrollEventArgs(buttonEvent.X, buttonEvent.Y, 0, -1));
+            Scroll?.Invoke(this, new ScrollEventArgs(buttonEvent.X, buttonEvent.Y, 0, -1, KeyMapping.GetModifiers(buttonEvent.State)));
             return;
         }
         if (buttonEvent.Button == 5)
         {
-            Scroll?.Invoke(this, new ScrollEventArgs(buttonEvent.X, buttonEvent.Y, 0, 1));
+            Scroll?.Invoke(this, new ScrollEventArgs(buttonEvent.X, buttonEvent.Y, 0, 1, KeyMapping.GetModifiers(buttonEvent.State)));
             return;
         }
 

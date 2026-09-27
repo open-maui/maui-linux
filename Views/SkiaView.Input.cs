@@ -32,9 +32,29 @@ public abstract partial class SkiaView
                 action(view, e.X, e.Y);
                 RaisePointerRouted(view, kind, e);
             }
-            current = current.Parent;
+            current = IsPointerBubbleBoundary(current) ? null : current.Parent;
         }
     }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Microsoft.Maui.Controls.Element, object> s_pointerBubbleBoundaries = new();
+
+    /// <summary>
+    /// Makes <paramref name="element"/> the last view pointer events bubble
+    /// to. Content shown in a popup overlay can have the control that opened
+    /// it as its logical parent (a drop-down list parented to its combo box);
+    /// bubbling past it would hand the popup's presses to that control and the
+    /// page beneath, which native popups, separate windows, never receive.
+    /// </summary>
+    internal static void SetPointerBubbleBoundary(Microsoft.Maui.Controls.Element element, bool isBoundary)
+    {
+        if (isBoundary)
+            s_pointerBubbleBoundaries.AddOrUpdate(element, true);
+        else
+            s_pointerBubbleBoundaries.Remove(element);
+    }
+
+    private static bool IsPointerBubbleBoundary(Microsoft.Maui.Controls.Element element) =>
+        s_pointerBubbleBoundaries.TryGetValue(element, out _);
 
     internal enum RoutedPointerKind { Entered, Exited, Moved, Pressed, Released }
 
@@ -55,7 +75,8 @@ public abstract partial class SkiaView
     {
         if (PointerRouted == null)
             return;
-        for (var current = MauiView as Microsoft.Maui.Controls.Element; current != null; current = current.Parent)
+        for (var current = MauiView as Microsoft.Maui.Controls.Element; current != null;
+             current = IsPointerBubbleBoundary(current) ? null : current.Parent)
         {
             if (current is Microsoft.Maui.Controls.View view
                 && (view.Handler?.PlatformView is SkiaView || current == MauiView))
@@ -75,6 +96,59 @@ public abstract partial class SkiaView
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaView", $"Pointer observer failed for {view.GetType().Name}", ex);
+        }
+    }
+
+    /// <summary>
+    /// Raised for each view a mouse-wheel event bubbles through, before the
+    /// view's own <see cref="OnScroll"/>, in window-logical coordinates. The
+    /// wheel counterpart of <see cref="PointerRouted"/> (Syncfusion's touch
+    /// detectors take the wheel for chart zooming); an observer that sets
+    /// <see cref="ScrollEventArgs.Handled"/> stops the bubbling.
+    /// </summary>
+    internal static event Action<Microsoft.Maui.Controls.View, ScrollEventArgs>? ScrollRouted;
+
+    internal static void RaiseScrollRouted(SkiaView view, ScrollEventArgs e)
+    {
+        var handler = ScrollRouted;
+        if (handler == null || view.MauiView is not Microsoft.Maui.Controls.View mauiView)
+            return;
+        try
+        {
+            handler(mauiView, e);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaView", $"Scroll observer failed for {mauiView.GetType().Name}", ex);
+        }
+    }
+
+    internal enum RoutedKeyKind { PreviewDown, Down, Up }
+
+    /// <summary>
+    /// Raised around the focused view's own key handling, as native key events
+    /// route: <see cref="RoutedKeyKind.PreviewDown"/> before the focused view's
+    /// <see cref="OnKeyDown"/> (an observer that sets
+    /// <see cref="KeyEventArgs.Handled"/> keeps the key from it), then
+    /// <see cref="RoutedKeyKind.Down"/> or <see cref="RoutedKeyKind.Up"/> after
+    /// it when it left the key unhandled. The view is the focused view; the
+    /// observer walks its ancestors itself (Syncfusion's keyboard detectors sit
+    /// on the control, not on the focused part inside it).
+    /// </summary>
+    internal static event Action<SkiaView, RoutedKeyKind, KeyEventArgs>? KeyRouted;
+
+    internal static void RaiseKeyRouted(SkiaView focused, RoutedKeyKind kind, KeyEventArgs e)
+    {
+        var handler = KeyRouted;
+        if (handler == null)
+            return;
+        try
+        {
+            handler(focused, kind, e);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaView", $"Key observer failed for {focused.GetType().Name}", ex);
         }
     }
 
