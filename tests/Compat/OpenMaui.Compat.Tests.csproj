@@ -50,6 +50,8 @@
     <PackageReference Include="Syncfusion.Maui.Rotator" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.SignaturePad" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Inputs" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.TreeView" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Scheduler" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Popup" Version="34.2.9" />
   </ItemGroup>
 
