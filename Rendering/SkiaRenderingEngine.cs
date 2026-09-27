@@ -38,6 +38,28 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     public static int MaxDirtyRegions { get; set; } = 32;
 
     /// <summary>
+    /// Partial repaint on GPU targets that report buffer age (and damage
+    /// submission to the compositor on every target that accepts it).
+    /// <c>OPENMAUI_PARTIAL_DAMAGE=0</c> turns it off: GPU frames are then
+    /// always repainted and submitted whole, as before.
+    /// </summary>
+    public static bool EnablePartialDamage { get; set; } =
+        Environment.GetEnvironmentVariable("OPENMAUI_PARTIAL_DAMAGE") != "0";
+
+    /// <summary>A partial frame covering more than this share of the surface is drawn whole.</summary>
+    private const float FullFrameAreaRatio = 0.7f;
+    private const int MaxDamageHistory = 4;
+
+    // Damage of the most recent frames, newest first; null = that frame was whole.
+    private readonly List<List<SKRect>?> _damageHistory = new();
+    private bool _overlaysWereActive;
+
+    // What the last frame did (diagnostics and tests).
+    internal bool LastFrameWasFull { get; private set; }
+    internal IReadOnlyList<SKRect> LastFrameRepaint { get; private set; } = Array.Empty<SKRect>();
+    internal IReadOnlyList<SKRect>? LastFrameDamage { get; private set; }
+
+    /// <summary>
     /// Overlap ratio threshold (0.0-1.0) at which adjacent dirty regions are merged.
     /// </summary>
     public static float RegionMergeThreshold { get; set; } = 0.3f;
@@ -95,6 +117,12 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     /// (default) draws only the root. Set per-frame by WindowContext.Render.
     /// </summary>
     public IReadOnlyList<SkiaView>? OverlayLayers { get; set; }
+
+    /// <summary>Layout passes per frame at most (see Render).</summary>
+    private const int MaxLayoutPasses = 3;
+
+    /// <summary>The window's tooltips, drawn over everything but dialogs.</summary>
+    internal ToolTipController? ToolTips { get; set; }
 
     /// <summary>
     /// Gets the number of dirty regions in the current frame.
@@ -166,7 +194,10 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         if (region.IsEmpty || region.Width <= 0 || region.Height <= 0)
             return;
 
-        // Clamp to surface bounds
+        // Regions are physical pixels; round out and pad one pixel for
+        // antialiased edges, then clamp to the surface.
+        region = SKRect.Create(MathF.Floor(region.Left) - 1, MathF.Floor(region.Top) - 1,
+            MathF.Ceiling(region.Width) + 3, MathF.Ceiling(region.Height) + 3);
         region = SKRect.Intersect(region, new SKRect(0, 0, Width, Height));
         if (region.IsEmpty)
             return;
@@ -238,15 +269,26 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         var overlays = OverlayLayers;
         try
         {
-            rootView.Measure(availableSize);
-            rootView.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
-            if (overlays != null)
+            // Layout settles before the frame is drawn: a change asked for
+            // during the pass (a SizeChanged handler placing a view, as
+            // MAToolTip positions its card) gets another pass, as the other
+            // platforms re-run layout until it is clean. Bounded, so a view
+            // that asks every pass costs two extra passes, not a hang.
+            for (int pass = 0; pass < MaxLayoutPasses; pass++)
             {
-                for (int i = 0; i < overlays.Count; i++)
+                int requests = SkiaView.LayoutRequestCount;
+                rootView.Measure(availableSize);
+                rootView.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+                if (overlays != null)
                 {
-                    overlays[i].Measure(availableSize);
-                    overlays[i].Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+                    for (int i = 0; i < overlays.Count; i++)
+                    {
+                        overlays[i].Measure(availableSize);
+                        overlays[i].Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+                    }
                 }
+                if (SkiaView.LayoutRequestCount == requests)
+                    break;
             }
         }
         catch (Exception ex)
@@ -257,11 +299,19 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
 
         // Determine what to redraw. Nothing dirty means no frame at all, on
         // every target (a GPU swapchain simply keeps showing its last buffer).
-        // When something is dirty, a target that does not keep the previous
-        // frame (GPU) must be repainted fully; a raster target repaints only
-        // the merged dirty regions.
+        // A raster target keeps the previous frame, so it repaints only the
+        // merged dirty regions. A GPU target that reports buffer age repaints
+        // the dirty regions of this frame plus those of the frames its buffer
+        // has not seen; without buffer age it is repainted whole. Popups,
+        // dialogs and context menus are drawn unclipped over the frame, so
+        // while one is up (and on the frame it closes) frames are whole.
         List<SKRect> regionsToRedraw;
+        List<SKRect>? frameDamage;
         bool isFullRedraw;
+
+        bool overlaysActive = SkiaView.HasActivePopup || ToolTips?.ShownText != null
+            || (RendersDialogs && (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu));
+        var damageTarget = EnablePartialDamage ? _target as IDamageAwareRenderTarget : null;
 
         lock (_dirtyLock)
         {
@@ -269,18 +319,76 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             if (!anythingDirty)
                 return;
 
-            isFullRedraw = _fullRedrawNeeded || !EnableDirtyRegionOptimization || !_target.PreservesContents;
+            int bufferAge = _target.PreservesContents ? 1 : damageTarget?.QueryBufferAge() ?? 0;
+            isFullRedraw = _fullRedrawNeeded || !EnableDirtyRegionOptimization || bufferAge <= 0
+                || overlaysActive || _overlaysWereActive;
+
+            var current = MergeOverlappingRegions(_dirtyRegions.ToList());
+            _dirtyRegions.Clear();
+            _fullRedrawNeeded = false;
+
+            var repaint = new List<SKRect>(current);
+            if (!isFullRedraw && !_target.PreservesContents)
+            {
+                // Bring the buffer up to date with the frames it missed.
+                if (bufferAge - 1 > _damageHistory.Count)
+                {
+                    isFullRedraw = true;
+                }
+                else
+                {
+                    for (int i = 0; i < bufferAge - 1; i++)
+                    {
+                        var past = _damageHistory[i];
+                        if (past == null) { isFullRedraw = true; break; }
+                        repaint.AddRange(past);
+                    }
+                }
+            }
+
+            if (!isFullRedraw)
+            {
+                repaint = MergeOverlappingRegions(repaint);
+                float area = 0;
+                foreach (var r in repaint) area += r.Width * r.Height;
+                if (Width > 0 && Height > 0 && area > FullFrameAreaRatio * Width * Height)
+                    isFullRedraw = true;
+            }
+
             if (isFullRedraw)
             {
                 regionsToRedraw = new List<SKRect> { new SKRect(0, 0, Width, Height) };
-                _dirtyRegions.Clear();
-                _fullRedrawNeeded = false;
+                frameDamage = null;
             }
             else
             {
-                regionsToRedraw = MergeOverlappingRegions(_dirtyRegions.ToList());
-                _dirtyRegions.Clear();
+                regionsToRedraw = repaint;
+                frameDamage = current;
             }
+
+            LastFrameWasFull = isFullRedraw;
+            LastFrameRepaint = regionsToRedraw;
+            LastFrameDamage = frameDamage;
+
+            _damageHistory.Insert(0, frameDamage);
+            if (_damageHistory.Count > MaxDamageHistory)
+                _damageHistory.RemoveAt(_damageHistory.Count - 1);
+            _overlaysWereActive = overlaysActive;
+        }
+
+        if (damageTarget != null)
+        {
+            List<SKRectI>? submitted = null;
+            if (frameDamage != null)
+            {
+                submitted = new List<SKRectI>(frameDamage.Count + 1);
+                foreach (var r in frameDamage)
+                    submitted.Add(SKRectI.Ceiling(r));
+                // The CSD titlebar is repainted every frame; keep it in the damage.
+                if (csdActive)
+                    submitted.Add(new SKRectI(0, 0, Width, (int)MathF.Ceiling(csdInsetLogical * DpiScale)));
+            }
+            damageTarget.SetFrameDamage(submitted);
         }
 
         _stats?.BeginFrame();
@@ -336,6 +444,24 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing popup overlays", ex);
+        }
+
+        // Tooltip: over the page and its popups, in view coordinates.
+        if (ToolTips?.ShownText != null)
+        {
+            try
+            {
+                canvas.Save();
+                if (DpiScale > 1.0f)
+                    canvas.Scale(DpiScale);
+                canvas.Translate(0, csdInsetLogical);
+                ToolTips.Draw(canvas, LogicalWidth, LogicalHeight - csdInsetLogical);
+                canvas.Restore();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing the tooltip", ex);
+            }
         }
 
         // Draw modal dialogs and context menus on top of everything. The view
