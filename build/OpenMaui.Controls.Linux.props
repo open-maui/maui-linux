@@ -13,4 +13,15 @@
     <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
+  <!--
+    OpenMauiLinux marks a build OpenMaui renders: a plain (platform-less) target on a Linux
+    host. Such an app does not use the MAUI workload (UseMaui is off), so a library that
+    adds its MauiImage/MauiFont items to consuming apps from buildTransitive on
+    '$(UseMaui)' == 'true' can add them on '$(OpenMauiLinux)' == 'true' as well; OpenMaui
+    copies them to the output.
+  -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) And '$(TargetFramework)' != '' And !$(TargetFramework.Contains('-'))">
+    <OpenMauiLinux>true</OpenMauiLinux>
+  </PropertyGroup>
+
 </Project>

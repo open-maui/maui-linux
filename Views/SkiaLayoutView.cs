@@ -303,7 +303,7 @@ public abstract class SkiaLayoutView : SkiaView
         var ordered = ChildrenInZOrder();
         for (int i = ordered.Length - 1; i >= 0; i--)
         {
-            var hit = ordered[i].HitTest(x, y);
+            var hit = ordered[i].HitTestAt(x, y);
             if (hit != null)
                 return hit;
         }

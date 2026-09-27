@@ -331,7 +331,7 @@ public class SkiaCarouselView : SkiaLayoutView
         // Check items
         foreach (var item in _items)
         {
-            var hit = item.HitTest(x, y);
+            var hit = item.HitTestAt(x, y);
             if (hit != null) return hit;
         }
 
