@@ -123,15 +123,19 @@ public class SkiaFlexLayout : SkiaLayoutView
         foreach (var child in ordered)
         {
             var basis = GetBasis(child);
+            // An item's slot is its size plus its margin (chips spaced by a trailing margin
+            // ran together); the child is measured inside the margin.
+            var margin = child.Margin;
+            var inner = new Size(Math.Max(0, available.Width - margin.HorizontalThickness), Math.Max(0, available.Height - margin.VerticalThickness));
             Size size;
             if (basis.IsAuto)
-                size = child.Measure(available);
+                size = child.Measure(inner);
             else
-                size = isRow ? child.Measure(new Size(basis.Length, available.Height)) : child.Measure(new Size(available.Width, basis.Length));
+                size = isRow ? child.Measure(new Size(basis.Length, inner.Height)) : child.Measure(new Size(inner.Width, basis.Length));
 
             var item = new FlexItem(child,
-                isRow ? (float)size.Width : (float)size.Height,
-                isRow ? (float)size.Height : (float)size.Width,
+                (float)(isRow ? size.Width + margin.HorizontalThickness : size.Height + margin.VerticalThickness),
+                (float)(isRow ? size.Height + margin.VerticalThickness : size.Width + margin.HorizontalThickness),
                 GetGrow(child), GetShrink(child));
 
             if (wrap && current.Count > 0 && used + item.MainSize > mainLimit + 0.01f)
@@ -240,7 +244,9 @@ public class SkiaFlexLayout : SkiaLayoutView
                 var childBounds = isRow
                     ? new Rect(position, itemCrossPos, main, itemCross)
                     : new Rect(itemCrossPos, position, itemCross, main);
-                child.Arrange(childBounds);
+                var m = child.Margin;
+                child.Arrange(new Rect(childBounds.X + m.Left, childBounds.Y + m.Top,
+                    Math.Max(0, childBounds.Width - m.HorizontalThickness), Math.Max(0, childBounds.Height - m.VerticalThickness)));
                 position += main + spacing;
             }
 
