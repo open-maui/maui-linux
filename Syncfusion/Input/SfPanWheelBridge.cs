@@ -60,7 +60,7 @@ internal static class SfPanWheelBridge
             DiagnosticLog.Warn("Syncfusion", "This Syncfusion.Maui.Core release lacks the pan or wheel entry points; dragging or wheel zoom is disabled.");
         if (s_onPinch == null || s_pinchListeners == null)
             DiagnosticLog.Warn("Syncfusion", "This Syncfusion.Maui.Core release lacks the pinch entry point; ctrl+wheel zoom is disabled.");
-        SkiaView.PointerRouted += OnPointerRouted;
+        SkiaView.PointerRoutedAny += OnPointerRouted;
         SkiaView.ScrollRouted += OnScrollRouted;
     }
 
