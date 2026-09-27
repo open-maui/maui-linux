@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Entry on Linux using Skia rendering.
 /// Maps IEntry interface to SkiaEntry platform view.
 /// </summary>
-public partial class EntryHandler : ViewHandler<IEntry, SkiaEntry>
+public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
 {
     public static IPropertyMapper<IEntry, EntryHandler> Mapper = new PropertyMapper<IEntry, EntryHandler>(ViewHandler.ViewMapper)
     {

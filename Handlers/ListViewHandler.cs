@@ -18,7 +18,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// through <see cref="ListView.NotifyRowTapped(int, Cell)"/>, so
 /// ItemSelected / ItemTapped and SelectedItem behave exactly as MAUI defines.
 /// </summary>
-public partial class ListViewHandler : ViewHandler<ListView, SkiaCollectionView>
+public partial class ListViewHandler : LinuxViewHandler<ListView, SkiaCollectionView>
 {
     /// <summary>One platform row: a cell, its position, and whether it heads a group.</summary>
     public sealed class Row
@@ -55,6 +55,7 @@ public partial class ListViewHandler : ViewHandler<ListView, SkiaCollectionView>
             [nameof(ListView.SelectedItem)] = MapSelectedItem,
             [nameof(ListView.SelectionMode)] = MapSelectionMode,
             [nameof(ListView.SeparatorColor)] = MapSeparatorColor,
+            [nameof(ListView.SeparatorVisibility)] = MapSeparatorVisibility,
             [nameof(ListView.VerticalScrollBarVisibility)] = MapVerticalScrollBarVisibility,
             [nameof(IView.Background)] = MapBackground,
             [nameof(ListView.BackgroundColor)] = MapBackgroundColor,
@@ -87,6 +88,7 @@ public partial class ListViewHandler : ViewHandler<ListView, SkiaCollectionView>
         {
             SelectionMode = SkiaSelectionMode.Single,
             ItemHeight = SkiaCellView.DefaultHeight,
+            MinimumItemHeight = SkiaCellView.DefaultHeight,
         };
     }
 
@@ -248,6 +250,7 @@ public partial class ListViewHandler : ViewHandler<ListView, SkiaCollectionView>
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.ItemHeight = listView.RowHeight > 0 ? (float)listView.RowHeight : SkiaCellView.DefaultHeight;
+        handler.PlatformView.MinimumItemHeight = handler.PlatformView.ItemHeight; // a ListView row keeps its row height
         handler.PlatformView.RefreshTheme(); // drops cached row views so heights re-measure
     }
 
@@ -292,7 +295,14 @@ public partial class ListViewHandler : ViewHandler<ListView, SkiaCollectionView>
 
     public static void MapSeparatorColor(ListViewHandler handler, ListView listView)
     {
-        // SkiaCollectionView draws theme separators; colour is not yet configurable.
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.SeparatorColor = listView.SeparatorColor;
+    }
+
+    public static void MapSeparatorVisibility(ListViewHandler handler, ListView listView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ShowSeparators = listView.SeparatorVisibility == SeparatorVisibility.Default;
     }
 
     public static void MapVerticalScrollBarVisibility(ListViewHandler handler, ListView listView)

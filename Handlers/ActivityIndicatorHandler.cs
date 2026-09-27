@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for ActivityIndicator on Linux using Skia rendering.
 /// Maps IActivityIndicator interface to SkiaActivityIndicator platform view.
 /// </summary>
-public partial class ActivityIndicatorHandler : ViewHandler<IActivityIndicator, SkiaActivityIndicator>
+public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndicator, SkiaActivityIndicator>
 {
     public static IPropertyMapper<IActivityIndicator, ActivityIndicatorHandler> Mapper = new PropertyMapper<IActivityIndicator, ActivityIndicatorHandler>(ViewHandler.ViewMapper)
     {

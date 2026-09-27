@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for RefreshView on Linux using Skia rendering.
 /// Maps RefreshView to SkiaRefreshView platform view.
 /// </summary>
-public partial class RefreshViewHandler : ViewHandler<RefreshView, SkiaRefreshView>
+public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefreshView>
 {
     private bool _isUpdatingRefreshing;
 

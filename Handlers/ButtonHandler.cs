@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Button on Linux using Skia rendering.
 /// Maps IButton interface to SkiaButton platform view.
 /// </summary>
-public partial class ButtonHandler : ViewHandler<IButton, SkiaButton>
+public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>
 {
     public static IPropertyMapper<IButton, ButtonHandler> Mapper = new PropertyMapper<IButton, ButtonHandler>(ViewHandler.ViewMapper)
     {
@@ -157,7 +157,26 @@ public partial class TextButtonHandler : ButtonHandler
         [nameof(ITextStyle.TextColor)] = MapTextColor,
         [nameof(ITextStyle.Font)] = MapFont,
         [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+        // Button raises "Source" for ImageSource and "ContentLayout" for its placement.
+        ["Source"] = MapImageSource,
+        [nameof(Button.ImageSource)] = MapImageSource,
+        [nameof(Button.ContentLayout)] = MapContentLayout,
     };
+
+    public static void MapImageSource(TextButtonHandler handler, ITextButton button)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ImageSource = (button as Button)?.ImageSource;
+    }
+
+    public static void MapContentLayout(TextButtonHandler handler, ITextButton button)
+    {
+        if (handler.PlatformView is null || button is not Button b) return;
+        // Same enum order (Left, Top, Right, Bottom) on both sides.
+        var layout = b.ContentLayout;
+        handler.PlatformView.ContentLayout = new Microsoft.Maui.Platform.ButtonContentLayout(
+            (Microsoft.Maui.Platform.ButtonContentLayout.ImagePosition)(int)layout.Position, layout.Spacing);
+    }
 
     public TextButtonHandler() : base(Mapper)
     {
@@ -172,6 +191,8 @@ public partial class TextButtonHandler : ButtonHandler
         // for properties that were set before handler connection
         if (VirtualView is ITextButton textButton)
         {
+            MapImageSource(this, textButton);
+            MapContentLayout(this, textButton);
             MapText(this, textButton);
             MapTextColor(this, textButton);
             MapFont(this, textButton);
