@@ -133,19 +133,19 @@ Shipped in 10.0.101.2: the pipeline is now `SkiaView -> Skia GL (GRContext) -> E
 | EGL on Wayland | Done. `wl_egl_window` + EGL 1.5 platform display + `GRContext` on the default framebuffer; zero-copy submission through `eglSwapBuffers`; the existing wp_viewporter logical/physical split still applies |
 | EGL on X11 | Done. EGL config matched to the window's visual; drawable resized by the server |
 | Runtime selection and fallback | Done. `LinuxApplicationOptions.Renderer` and `OPENMAUI_RENDERER=gpu|raster|auto`; any GPU failure falls back to raster |
-| Resource lifetime | Done for resize and multi-window (one context per window, made current per frame, disposed before the connection closes). **Scale change** (moving between monitors of different scale) is still not a runtime path on either target; `wp_fractional_scale_v1.preferred_scale` is received but not applied |
+| Resource lifetime | Done for resize and multi-window (one context per window, made current per frame, disposed before the connection closes). Scale change (moving between monitors of different scale) is a runtime path since 10.0.110.1: the Wayland buffer follows `wp_fractional_scale_v1.preferred_scale` per window, X11 follows Xft.dpi changes |
 | Frame statistics | Done. `OPENMAUI_RENDER_STATS=1` prints rendered FPS and avg/p50/p95/p99/max frame time per window |
 | First numbers | MediaDemo video playback, 1400x1050 (1.75x), Mesa Intel UHD: raster avg 3.55 ms, p99 7-10 ms; egl-wayland avg 1.47 ms, p99 under 4 ms, at the same 32 rendered fps |
 
-Remaining (Phase 1b):
+Phase 1b (all done in 10.0.110.1):
 
 | Item | Description |
 |------|-------------|
-| Benchmark suite | Turn the frame statistics into a repeatable suite: startup, idle CPU, memory, scrolling FPS, resize latency, animation smoothness, 1,000 and 10,000 item virtualisation, text rendering, power, on both targets |
-| Runtime scale change | Apply `preferred_scale` (Wayland) and monitor changes (X11) at runtime: resize the EGL window / shm buffer, update `DpiScale`, re-layout |
-| Hardware video zero-copy | MediaElement frames imported as GPU textures (DMA-BUF via VA-API/NVDEC where available) instead of the CPU `SKBitmap` upload the GPU target still performs per frame |
-| Explicit DMA-BUF and Vulkan | `zwp_linux_dmabuf_v1` buffer submission and a Vulkan `GRContext` backend once the EGL path has soaked |
-| Partial-damage submission | `eglSwapBuffersWithDamageKHR` / `wl_surface_damage_buffer` from the engine's dirty rects (the rects' logical-versus-physical coordinate handling needs fixing first) |
+| Benchmark suite | Done in 10.0.110.1: `tools/Benchmarks` (startup, idle, memory, 1k/10k scrolling, resize, animation, text, layout; raster and headless GPU), numbers in `docs/PERFORMANCE.md`. Power is not measured (RAPL needs root) |
+| Runtime scale change | Done in 10.0.110.1: Wayland follows `wp_fractional_scale_v1.preferred_scale` per window (buffer re-sized, viewport keeps the logical size), X11 follows `RESOURCE_MANAGER`/Xft.dpi changes; engine, input, popups and the WebView use their own window's scale |
+| Hardware video zero-copy | Done in 10.0.110.1: VA-API DMA-BUF frames imported as EGL external textures on the GPU target; 1080p VP9 process CPU -63%, frame install 1.1 ms to 0.1 ms (`docs/MEDIAELEMENT.md`). NVDEC and software decoders keep the copy path |
+| Explicit DMA-BUF and Vulkan | Vulkan done in 10.0.110.1: `OPENMAUI_RENDERER=vulkan` (opt-in; Wayland and X11 WSI, Skia Vulkan `GRContext`, device matched to the compositor's GPU, fallback Vulkan to EGL to raster), at parity with EGL on Wayland (`docs/VULKAN.md`). Explicit `zwp_linux_dmabuf_v1` submission closed as not needed: EGL and Vulkan WSI already hand DMA-BUFs to the compositor, a hand-rolled path would measure the same |
+| Partial-damage submission | Done in 10.0.110.1: per-view physical damage rects, `EGL_EXT_buffer_age` repaint of missed damage, `eglSwapBuffersWithDamage`; whole frames when overlays are up or the damage is large; `OPENMAUI_PARTIAL_DAMAGE=0` to disable |
 
 ### Phase 2: WPE WebKit WebView and BlazorWebView
 
@@ -153,36 +153,36 @@ Shipped in 10.0.101.2. WebView was the platform's remaining architectural rough 
 
 | Item | Status |
 |------|--------|
-| WPE availability | Debian sid 2.54.0 (`libwpewebkit-2.0-1`), Ubuntu inherits; Fedora via the `philn/wpewebkit` COPR (2.54.0, Fedora 43/44, x86_64 and aarch64). Runtime selection: WPE when the library loads, else WebKitGTK; `OPENMAUI_WEBVIEW` overrides |
+| WPE availability | Debian testing and sid 2.54.0 (`libwpewebkit-2.0-1`; Debian 13 has 2.48, too old); Ubuntu has no WPE package since 22.04 (WebKitGTK fallback in GTK mode); Fedora via the `philn/wpewebkit` COPR (2.54.0, Fedora 43/44, x86_64 and aarch64). Runtime selection: WPE when the library loads, else WebKitGTK; `OPENMAUI_WEBVIEW` overrides |
 | WPEPlatform embedder | Done, without GObject subclassing: headless display on an explicit DRM render node, `buffer-rendered` frames, `wpe_view_event` input, CSS-pixel sizing with the device scale on the toplevel (`docs/WPE-EMBEDDING.md`) |
-| Frame import | Done on the raster path (`wpe_buffer_import_to_pixels` to `SKBitmap`, one copy per frame). **DMA-BUF to EGLImage to `SKImage` on the GPU target: remaining** |
+| Frame import | Done: raster path (`wpe_buffer_import_to_pixels`) and, in 10.0.110.1, DMA-BUF to EGLImage to a Skia texture on the GPU target (import 3.8 ms -> 0.08 ms per frame at 1280x800), with a same-GPU check and automatic fallback |
 | Context menus, clipboard | Done: WebKit's menu model through the platform's Skia context menu; in-process WPE clipboard bridged to the system clipboard both ways |
 | BlazorWebView | Done: `OpenMaui.Controls.Linux.Blazor` (`app://localhost/` scheme, script-message bridge, embedded `blazor.webview.js`, `UrlLoading`, root components, DI). WPE only, by decision: no new WebKitGTK-specific work |
-| Dependency reporting | **Remaining:** AppImage tool scanner and `openmaui doctor` to report WPE and the per-distro install commands |
-| JS dialogs, file chooser, link cursor | Done: `script-dialog` to the platform alert/confirm/prompt dialogs (new prompt dialog with a text field), `run-file-chooser` to the platform file picker, WPE cursor requests to the platform cursor. Permissions, web notifications, downloads, spell checking, submenus and multi-click done too. **Remaining:** hardware keycodes |
+| Dependency reporting | Done: the AppImage tool's scanner (1.2.3) and `openmaui doctor` (10.0.110.1) report WPE and the per-distro install commands |
+| JS dialogs, file chooser, link cursor | Done: `script-dialog` to the platform alert/confirm/prompt dialogs (new prompt dialog with a text field), `run-file-chooser` to the platform file picker, WPE cursor requests to the platform cursor. Permissions, web notifications, downloads, spell checking, submenus and multi-click done too; hardware keycodes (`KeyboardEvent.code`) in 10.0.110.1 |
 
 ### Phase 3: Conformance suite and visual regression
 
-In tree for 10.0.101.3. Every visual defect fixed in 10.0.101.1 (glyph gaps at fractional scale, label heights, wrap overlap, baseline drift) was found by a human screenshot, not by the 700-test suite. Phase 3 makes that impossible to repeat, and turns "runs unmodified" into a measured number: `docs/COMPATIBILITY.md` is generated from the test run by `tools/Scorecard`, an item counts as covered only when every test mapped to it passed, and the categories mirror the table Microsoft publishes for its maui-labs GTK backend so the two compare row for row.
+Shipped in 10.0.101.3. Every visual defect fixed in 10.0.101.1 (glyph gaps at fractional scale, label heights, wrap overlap, baseline drift) was found by a human screenshot, not by the 700-test suite. Phase 3 makes that impossible to repeat, and turns "runs unmodified" into a measured number: `docs/COMPATIBILITY.md` is generated from the test run by `tools/Scorecard`, an item counts as covered only when every test mapped to it passed, and the categories mirror the table Microsoft publishes for its maui-labs GTK backend so the two compare row for row.
 
 | Item | Status |
 |------|--------|
-| Golden screenshot tests | Done: `tests/Golden/` renders twelve scenes (labels, buttons, entry/editor, toggles, ranges, pickers, grid and border, shapes, formatted text, table view, collection view) through the real rendering engine at 1.0x, 1.25x, 1.5x, 1.75x and 2.0x against committed baselines with a per-channel tolerance; no display required, mismatches write actual/expected/diff images. **Remaining:** the sample pages as scenes |
+| Golden screenshot tests | Done: `tests/Golden/` renders twelve scenes (labels, buttons, entry/editor, toggles, ranges, pickers, grid and border, shapes, formatted text, table view, collection view) through the real rendering engine at 1.0x, 1.25x, 1.5x, 1.75x and 2.0x against committed baselines with a per-channel tolerance; no display required, mismatches write actual/expected/diff images. sample pages (ShellDemo's Typography, Controls, Pickers and About) rendered as full-page scenes through runtime XAML, handlers and the engine since 10.0.110.1 |
 | Compatibility scorecard | Done: 19 categories, 125 items, computed from the TRX (`dotnet run --project tools/Scorecard -- --run`). The gaps it exposed were closed in the same release: AbsoluteLayout, ControlTemplate/ContentPresenter/TemplatedView, TableView and ListView handlers; MAUI 10 alert/action-sheet/prompt dispatch; modal navigation; animations on MAUI's ticker and animation manager; VisualStateManager, triggers and behaviors; FormattedText spans; gesture dispatch per MAUI's rules; context flyouts; fonts (registrar, manager, named sizes, FontImageSource); Essentials services behind a testable process seam. WebView scenarios run out of process because WebKit requires the main thread. The suite went from about 900 to 1,415 tests, run serially in about 12 seconds; the generated scorecard reports 125 of 125 items covered |
-| Third-party compatibility as a KPI | **Remaining:** how many existing MAUI applications and libraries run without modification (CommunityToolkit.Maui, MediaElement, SkiaSharp.Views.Maui, LiveCharts2, Maps, MVVM and DI frameworks, ReactiveUI), tracked in the scorecard |
-| Performance regression gates | **Remaining:** the Phase 1 benchmark suite per release, failing on regression beyond a threshold |
+| Third-party compatibility as a KPI | Done in 10.0.110.1: `tests/Compat` runs 10 popular libraries unmodified through the real registration path and feeds a "Third-party libraries" section of the scorecard; 9 of 10 run (FFImageLoading.Maui ships no Linux image service); Syncfusion and Telerik are licence-gated and not evaluated. Fixes it drove: Prism startup window, wrapping-label vertical alignment, AbsoluteLayout XAML children, a CommunityToolkit DrawingView handler |
+| Performance regression gates | Done in 10.0.110.1: `--compare` against `docs/perf-baseline.json` with per-metric thresholds fails on regression; CI runs it warn-only on shared runners. It already found two platform issues, fixed in the same release (font-fallback GC pauses, unrecycled CollectionView item views) |
 
 ### Also planned
 
 | Item | Description |
 |------|-------------|
-| `openmaui doctor` | One command that reports .NET version, session type, compositor, available Wayland globals (fractional-scale, text-input-v3, dmabuf), GPU and renderer selection, scale factor, and the presence of GStreamer, CUPS, AT-SPI2, WebKitGTK and WPE with the exact packages to install. Builds on the AppImage tool's dependency scanner |
-| xdg-desktop-portal layer | Portal calls move from `gdbus` subprocesses to native D-Bus (Tmds.DBus is already a dependency) and expand from FileChooser to OpenURI, Notification, Screenshot, Secret, Settings, Inhibit and Background; native compositor APIs and portals side by side, which is the Flatpak-ready shape |
-| Deployment beyond AppImage | `deb` and `rpm` output from the packaging tool alongside AppImage and Flatpak; Snap later |
-| Multi-window round-out | Per-window `WindowHandler` (live title/page changes on secondaries), DnD onto secondary windows, `IWindow.Stopped`/`Resumed`, window positioning, GTK-mode secondaries |
-| ARM64 hardening | Keep `linux-arm64` boringly reliable (templates already publish both RIDs); WPE plus DRM/KMS opens embedded and kiosk targets with no desktop environment later |
-| Stable-contract commitment | Semantic versioning, API compatibility checks between releases, migration guides and a documented support matrix across the MAUI 10 lifecycle |
-| Frame-accurate HTTP scrubbing | Deferred. The 1-2s backward-seek drift on HTTP-streamed video is a byte-range re-request + decode-and-discard latency issue at the GStreamer layer; local-file scrubbing is already frame-accurate |
+| `openmaui doctor` | Done in 10.0.110.1: `OPENMAUI_DOCTOR=1 ./MyApp` reports .NET, session, compositor and its Wayland globals, EGL/GL and the render target that will be chosen, scale and its source, IME backend, and every optional native dependency with the install command for the detected distribution |
+| xdg-desktop-portal layer | Done in 10.0.110.1: native D-Bus (Tmds.DBus) on one shared connection for FileChooser, OpenURI, Notification, Screenshot, Secret, Settings (live dark mode and accent), Inhibit, Background and Location, each with its previous fallback; `OPENMAUI_PORTALS=auto|prefer|off` (`docs/PORTALS.md`) |
+| Deployment beyond AppImage | Done in OpenMaui.AppImage 1.3.0: `--format deb|rpm|all` next to AppImage and Flatpak (managed `.deb` writer, `rpmbuild` for `.rpm`), dependencies mapped per distro with WPE only recommended; verified by installing in Debian 13, Ubuntu 24.04 and Fedora 44 containers. Snap remains later |
+| Multi-window round-out | Done in 10.0.110.1: live `Window.Page` replacement, Title, Width/Height, X/Y (X11), minimum/maximum size, `Stopped`/`Resumed`, drag-and-drop onto secondary windows, secondary windows in GTK mode |
+| ARM64 hardening | Done in 10.0.110.1: the Wayland protocol shim is built and packaged for linux-arm64, and a linux-arm64 publish no longer ships the x86-64 shim; every native asset is available for arm64 (`docs/ARM64.md`). Not yet run on arm64 hardware |
+| Stable-contract commitment | Done in 10.0.110.1: package validation against the previous release fails `dotnet pack` on an unrecorded breaking change; versioning, deprecation policy and support matrix in `docs/VERSIONING.md`, upgrade notes in `docs/MIGRATION.md` |
+| Frame-accurate HTTP scrubbing | Done in 10.0.110.1: the drift was the KEY_UNIT seek flag, not HTTP; seeks are exact over HTTP and locally, serialised on a worker so rapid scrubbing cannot stall a range request |
 
 ### Not prioritised
 
@@ -216,7 +216,8 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.90.1 | .NET 10 / MAUI 10.0.90 | Q3 2026 | Released |
 | v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released |
 | v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released: Phase 1 GPU presentation and Phase 2 WPE WebView + Blazor |
-| v10.0.101.3 | .NET 10 / MAUI 10.0.101 | Q3 2026 | In development: Phase 3 conformance (scorecard, golden tests, the handlers and services it exposed) |
+| v10.0.101.3 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released: Phase 3 conformance (scorecard, golden tests, the handlers and services it exposed) |
+| v10.0.110.1 | .NET 10 / MAUI 10.0.110 | Q3 2026 | In development: MAUI 10.0.110 and the remaining roadmap: runtime scale, partial damage, Vulkan, zero-copy WebView and video, portals, multi-window round-out, third-party KPI, benchmarks and gates, ARM64, API compatibility gate, `openmaui doctor` |
 
 ## Feedback
 
