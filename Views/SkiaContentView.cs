@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Handlers;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
@@ -10,10 +11,36 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered container for a single content child (ContentView).
 /// Measures and arranges its single child within the available space by its layout options.
 /// </summary>
-public class SkiaContentView : SkiaLayoutView
+public class SkiaContentView : SkiaLayoutView, ILocalArrangeHost
 {
+    private Point _arrangeOrigin;
+
+    Point ILocalArrangeHost.ArrangeOrigin => _arrangeOrigin;
+
+    /// <summary>
+    /// A content view that lays itself out (ICrossPlatformLayout, other than a
+    /// plain ContentView): Syncfusion's charts size and place their plot area,
+    /// axes and series there. Measure and arrange go to it, in local
+    /// coordinates, as the other platforms' content panels do; without it the
+    /// chart's parts kept their default size and nothing was drawn.
+    /// </summary>
+    internal ICrossPlatformLayout? CrossPlatformLayout { get; set; }
+
     protected override Size MeasureOverride(Size availableSize)
     {
+        if (CrossPlatformLayout is { } selfLayout)
+        {
+            try
+            {
+                return selfLayout.CrossPlatformMeasure(availableSize.Width, availableSize.Height);
+            }
+            catch (Exception ex)
+            {
+                Microsoft.Maui.Platform.Linux.Services.DiagnosticLog.Error("SkiaContentView", $"{selfLayout.GetType().Name} measure failed", ex);
+                return Size.Zero;
+            }
+        }
+
         // If we have explicit size, use it; otherwise accumulate from children
         var w = WidthRequest >= 0 ? WidthRequest : 0.0;
         var h = HeightRequest >= 0 ? HeightRequest : 0.0;
@@ -53,6 +80,20 @@ public class SkiaContentView : SkiaLayoutView
 
     protected override Rect ArrangeOverride(Rect bounds)
     {
+        if (CrossPlatformLayout is { } selfLayout)
+        {
+            try
+            {
+                _arrangeOrigin = bounds.Location;
+                selfLayout.CrossPlatformArrange(new Rect(0, 0, bounds.Width, bounds.Height));
+            }
+            catch (Exception ex)
+            {
+                Microsoft.Maui.Platform.Linux.Services.DiagnosticLog.Error("SkiaContentView", $"{selfLayout.GetType().Name} arrange failed", ex);
+            }
+            return bounds;
+        }
+
         // Arrange the single child to fill the content area
         var contentBounds = new Rect(
             bounds.X + Padding.Left,
