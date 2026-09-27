@@ -4,10 +4,9 @@
 namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 
 /// <summary>
-/// The live Syncfusion platform views, repainted when the control may have
-/// changed what it draws: after input, and on every animation tick while
-/// MAUI animations run (ripples, tab indicators, busy spinners). Syncfusion's
-/// own invalidation goes to its handler type and never reaches these views.
+/// The live Syncfusion platform views, repainted after input in case the
+/// control reacted to it. Everything else repaints on the control's own
+/// request (InvalidateDrawable, see SfInvalidationPatches).
 /// </summary>
 internal static class SfInvalidation
 {
@@ -31,8 +30,6 @@ internal static class SfInvalidation
 
     internal static void Untrack(SkiaView view) =>
         s_views.RemoveAll(w => !w.TryGetTarget(out var v) || ReferenceEquals(v, view));
-
-    internal static void OnAnimationTick() => InvalidateAll(drawingOnly: true);
 
     /// <summary>
     /// Repaints the tracked views; with <paramref name="drawingOnly"/> only
