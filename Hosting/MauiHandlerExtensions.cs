@@ -49,8 +49,9 @@ public static class MauiHandlerExtensions
         [typeof(HorizontalStackLayout)] = () => new StackLayoutHandler(),
         [typeof(AbsoluteLayout)] = () => new AbsoluteLayoutHandler(),
         [typeof(FlexLayout)] = () => new FlexLayoutHandler(),
+        [typeof(Layout)] = () => new CrossPlatformLayoutHandler(),
         [typeof(CollectionView)] = () => new CollectionViewHandler(),
-        [typeof(ListView)] = () => new CollectionViewHandler(),
+        [typeof(ListView)] = () => new ListViewHandler(),
         [typeof(TableView)] = () => new TableViewHandler(),
         [typeof(Page)] = () => new PageHandler(),
         [typeof(ContentPage)] = () => new ContentPageHandler(),
@@ -76,6 +77,14 @@ public static class MauiHandlerExtensions
         [typeof(SKCanvasView)] = () => new SKCanvasViewHandler(),
         [typeof(SKGLView)] = () => new SKGLViewHandler()
     };
+
+    static MauiHandlerExtensions()
+    {
+        // Third-party controls whose generic-TFM handler has no platform view;
+        // mapped only when the library is part of the app.
+        if (DrawingViewHandler.ToolkitDrawingViewType is { } drawingView)
+            LinuxHandlerMap[drawingView] = () => new DrawingViewHandler();
+    }
 
     /// <summary>
     /// Creates an element handler for the given element.
