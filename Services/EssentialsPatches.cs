@@ -31,6 +31,8 @@ internal static class EssentialsPatches
 
         // CommunityToolkit.Maui's FolderPicker/FileSaver, when the app uses the toolkit.
         CommunityToolkitStorageBridge.Install();
+        // Arcs in MAUI Graphics paths join the current point, as on the other backends.
+        Microsoft.Maui.Platform.Linux.Rendering.GraphicsPathPatches.Install();
 
         try { PatchMainThread(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"MainThread patch failed: {ex.Message}", ex); }
