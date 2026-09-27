@@ -116,7 +116,7 @@ public class SkiaSKGLView : SkiaView
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaSKGLView", $"PaintSurface failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaSKGLView", $"PaintSurface failed: {ex.Message}", ex);
             return;
         }
 
