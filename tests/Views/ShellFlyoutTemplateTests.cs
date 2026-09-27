@@ -161,4 +161,25 @@ public class ShellFlyoutTemplateTests
         bounds.Width.Should().BeGreaterThanOrEqualTo(150, "MinimumWidthRequest");
         bounds.Height.Should().BeGreaterThan(40, "two rows of text plus padding");
     }
+
+    [Fact]
+    public void Shell_FlyoutContent_replaces_the_item_list_and_takes_input()
+    {
+        // Claude Toolkit: a custom navigation rail in FlyoutContent, the items hidden.
+        var tapped = false;
+        var railButton = new Button { Text = "Scanner" };
+        railButton.Clicked += (_, _) => tapped = true;
+        var shell = new Shell { FlyoutBehavior = FlyoutBehavior.Locked, FlyoutWidth = 240, FlyoutContent = new VerticalStackLayout { Children = { railButton } } };
+        shell.Items.Add(new FlyoutItem { Title = "Scanner", FlyoutItemIsVisible = false, Items = { new ShellContent { Content = new ContentPage() } } });
+        using var host = new HeadlessMauiHost(shell, withEngine: true);
+        host.Context.Render();
+
+        var button = (SkiaView)railButton.Handler!.PlatformView!;
+        button.Bounds.Width.Should().BeGreaterThan(0, "the flyout content is laid out in the flyout");
+        button.Bounds.Right.Should().BeLessThanOrEqualTo(241);
+
+        host.DisplayWindow.RaisePointerPressed((float)button.Bounds.Center.X, (float)button.Bounds.Center.Y);
+        host.DisplayWindow.RaisePointerReleased((float)button.Bounds.Center.X, (float)button.Bounds.Center.Y);
+        tapped.Should().BeTrue();
+    }
 }

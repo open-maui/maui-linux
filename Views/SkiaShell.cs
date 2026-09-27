@@ -413,6 +413,30 @@ public class SkiaShell : SkiaLayoutView
     /// </summary>
     public float FlyoutHeaderHeight { get; set; } = 140f;
 
+    private SkiaView? _flyoutContentView;
+
+    /// <summary>
+    /// Shell.FlyoutContent (or FlyoutContentTemplate): a view that replaces the
+    /// flyout's item list, between the header and footer, as on every platform.
+    /// Apps with their own navigation rail hide the items and put it here.
+    /// </summary>
+    public SkiaView? FlyoutContentView
+    {
+        get => _flyoutContentView;
+        set
+        {
+            if (ReferenceEquals(_flyoutContentView, value))
+                return;
+            if (_flyoutContentView != null && ReferenceEquals(_flyoutContentView.Parent, this))
+                _flyoutContentView.Parent = null;
+            _flyoutContentView = value;
+            if (value != null)
+                value.Parent = this; // invalidations reach the window
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
+
     /// <summary>
     /// Optional footer text in the flyout (fallback if no FlyoutFooterView).
     /// </summary>
@@ -1560,6 +1584,20 @@ public class SkiaShell : SkiaLayoutView
         float itemsAreaTop = flyoutBounds.Top + headerHeight;
         float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
 
+        // Flyout content replaces the item list.
+        if (FlyoutContentView is { } flyoutContent)
+        {
+            var contentRect = new Rect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Width, Math.Max(0, itemsAreaBottom - itemsAreaTop));
+            flyoutContent.Measure(new Size(contentRect.Width, contentRect.Height));
+            flyoutContent.Arrange(contentRect);
+            canvas.Save();
+            canvas.ClipRect(new SKRect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Right, itemsAreaBottom));
+            flyoutContent.Draw(canvas);
+            canvas.Restore();
+            DrawFlyoutFooter(canvas, flyoutBounds, footerHeight);
+            return;
+        }
+
         // Clip to items area (between header and footer)
         canvas.Save();
         canvas.ClipRect(new SKRect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Right, itemsAreaBottom));
@@ -1633,6 +1671,11 @@ public class SkiaShell : SkiaLayoutView
 
         canvas.Restore();
 
+        DrawFlyoutFooter(canvas, flyoutBounds, footerHeight);
+    }
+
+    private void DrawFlyoutFooter(SKCanvas canvas, SKRect flyoutBounds, float footerHeight)
+    {
         // Draw flyout footer (footerHeight already measured to natural size above)
         if (FlyoutFooterView != null)
         {
@@ -1679,6 +1722,13 @@ public class SkiaShell : SkiaLayoutView
                 {
                     var headerHit = FlyoutHeaderView.HitTest(x, y);
                     if (headerHit != null) return headerHit;
+                }
+
+                // Flyout content takes the item list's place, and its input.
+                if (FlyoutContentView != null)
+                {
+                    var contentHit = FlyoutContentView.HitTest(x, y);
+                    if (contentHit != null) return contentHit;
                 }
 
                 return this; // Flyout handles its own hits (menu items)
@@ -1759,7 +1809,7 @@ public class SkiaShell : SkiaLayoutView
                 }
 
                 // Only check items if tap is in items area
-                if (e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)
+                if (FlyoutContentView == null && e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)
                 {
                     // Apply scroll offset to find which item was tapped
                     float itemY = itemsAreaTop - _flyoutScrollOffset;

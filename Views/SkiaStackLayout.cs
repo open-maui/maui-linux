@@ -64,11 +64,17 @@ public class SkiaStackLayout : SkiaLayoutView
         {
             if (!child.IsVisible) continue;
 
-            var childSize = child.Measure(childAvailable);
+            // A child's size excludes its margin; its slot holds both, as on the
+            // other platforms (a 1 px separator with a 4 px margin is 9 px of
+            // stack, and stays 1 px itself).
+            var childMargin = child.Margin;
+            var childSize = child.Measure(new Size(
+                Math.Max(0, childAvailable.Width - childMargin.HorizontalThickness),
+                Math.Max(0, childAvailable.Height - childMargin.VerticalThickness)));
 
             // Skip NaN sizes from child measurements
-            var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)childSize.Width;
-            var childHeight = double.IsNaN(childSize.Height) ? 0f : (float)childSize.Height;
+            var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)(childSize.Width + childMargin.HorizontalThickness);
+            var childHeight = double.IsNaN(childSize.Height) ? 0f : (float)(childSize.Height + childMargin.VerticalThickness);
 
             if (Orientation == StackOrientation.Vertical)
             {
@@ -119,12 +125,14 @@ public class SkiaStackLayout : SkiaLayoutView
             var childDesired = child.DesiredSize;
 
             // Handle NaN and Infinity in desired size
+            // The slot is the child's size plus its margin (taken out again below).
+            var slotMargin = child.Margin;
             var childWidth = double.IsNaN(childDesired.Width) || double.IsInfinity(childDesired.Width)
                 ? contentWidth
-                : (float)childDesired.Width;
+                : (float)(childDesired.Width + slotMargin.HorizontalThickness);
             var childHeight = double.IsNaN(childDesired.Height) || double.IsInfinity(childDesired.Height)
                 ? contentHeight
-                : (float)childDesired.Height;
+                : (float)(childDesired.Height + slotMargin.VerticalThickness);
 
             float childBoundsLeft, childBoundsTop, childBoundsWidth, childBoundsHeight;
             if (Orientation == StackOrientation.Vertical)
