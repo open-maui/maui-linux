@@ -5,6 +5,8 @@ using System.Reflection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
@@ -180,6 +182,28 @@ public class LinuxViewRenderer
         // Apply shell colors based on theme
         ApplyShellColors(skiaShell, shell);
 
+        // FlyoutWidth (-1 means the platform default) and later changes to it
+        // and to the flyout behaviour: apps collapse a locked flyout to a rail
+        // by setting FlyoutWidth at run time.
+        if (shell.FlyoutWidth >= 0)
+            skiaShell.FlyoutWidth = (float)shell.FlyoutWidth;
+        shell.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Shell.FlyoutWidth) && shell.FlyoutWidth >= 0)
+                skiaShell.FlyoutWidth = (float)shell.FlyoutWidth;
+            else if (e.PropertyName == nameof(Shell.FlyoutBehavior))
+            {
+                skiaShell.FlyoutBehavior = shell.FlyoutBehavior switch
+                {
+                    FlyoutBehavior.Locked => ShellFlyoutBehavior.Locked,
+                    FlyoutBehavior.Disabled => ShellFlyoutBehavior.Disabled,
+                    _ => ShellFlyoutBehavior.Flyout
+                };
+                skiaShell.InvalidateMeasure();
+                skiaShell.Invalidate();
+            }
+        };
+
         // Render flyout header if present
         if (shell.FlyoutHeader is View headerView)
         {
@@ -188,6 +212,14 @@ public class LinuxViewRenderer
             {
                 skiaShell.FlyoutHeaderView = skiaHeader;
                 skiaShell.FlyoutHeaderHeight = (float)(headerView.HeightRequest > 0 ? headerView.HeightRequest : 140.0);
+                headerView.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(VisualElement.HeightRequest) && headerView.HeightRequest > 0)
+                    {
+                        skiaShell.FlyoutHeaderHeight = (float)headerView.HeightRequest;
+                        skiaShell.Invalidate();
+                    }
+                };
             }
         }
 
@@ -246,6 +278,7 @@ public class LinuxViewRenderer
         // when the first attempt landed).
         skiaShell.ResendPendingAppearing();
 
+        RendererHostedPageHandler.Attach(shell, skiaShell, _mauiContext);
         return skiaShell;
     }
 
@@ -259,7 +292,7 @@ public class LinuxViewRenderer
         {
             if (sectionIndex >= skiaShell.Sections.Count) break;
 
-            string? iconPath = item.Icon?.ToString();
+            string? iconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(item.Icon);
             skiaShell.Sections[sectionIndex].IconPath = iconPath;
             sectionIndex++;
         }
@@ -378,6 +411,110 @@ public class LinuxViewRenderer
     /// <summary>
     /// Process a ShellItem (FlyoutItem, TabBar, etc.) into SkiaShell sections.
     /// </summary>
+    /// <summary>
+    /// A shell item is listed in the flyout unless it, or (for the implicit
+    /// wrapper MAUI creates around a bare ShellContent) every content inside
+    /// it, sets <c>FlyoutItemIsVisible="False"</c>.
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ContentPage, System.ComponentModel.PropertyChangedEventHandler> s_pageContentTrackers = new();
+
+    /// <summary>
+    /// Follows <c>ContentPage.Content</c> being replaced at run time, as the
+    /// other platforms' page handlers do: controls that show a popup by
+    /// wrapping the page's content in an overlay layout (MAToolbar's overflow
+    /// menu) swap the content and expect the new tree on screen.
+    /// </summary>
+    private void TrackPageContent(ContentPage page, ShellPageHost host)
+    {
+        if (s_pageContentTrackers.TryGetValue(page, out var previous))
+        {
+            page.PropertyChanged -= previous;
+            s_pageContentTrackers.Remove(page);
+        }
+
+        bool pending = false;
+        void Apply()
+        {
+            pending = false;
+            try
+            {
+                host.ClearChildren();
+                // Content that already has a platform view (swapped back in) keeps
+                // it; RenderView would rebuild the whole tree.
+                if (page.Content is { } content
+                    && ((content.Handler?.PlatformView as SkiaView) ?? RenderView(content)) is { } view)
+                    host.AddChild(view);
+                host.InvalidateMeasure();
+                host.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("LinuxViewRenderer", $"Replacing the content of {page.GetType().Name} failed", ex);
+            }
+        }
+
+        // Applied on the next dispatcher turn, never inside the setter: the
+        // code that swaps the content usually goes on to fill it (MAToolbar sets
+        // Content to its overlay, then adds the menu), and a layout pass in the
+        // middle of that made the toolbar close the menu it was opening. Also
+        // folds a Content = null / Content = x pair into one update.
+        System.ComponentModel.PropertyChangedEventHandler handler = (_, e) =>
+        {
+            if (e.PropertyName != nameof(ContentPage.Content) || pending)
+                return;
+            pending = true;
+            var dispatcher = page.Dispatcher ?? Microsoft.Maui.Dispatching.Dispatcher.GetForCurrentThread();
+            if (dispatcher == null || !dispatcher.Dispatch(Apply))
+                Apply();
+        };
+        page.PropertyChanged += handler;
+        s_pageContentTrackers.Add(page, handler);
+    }
+
+    /// <summary>
+    /// Realises the flyout row template for <paramref name="item"/>
+    /// (<c>Shell.ItemTemplate</c> on the item, else on the shell) the way MAUI
+    /// does: the row's BindingContext is the shell item, so it can bind
+    /// <c>Title</c>, <c>FlyoutIcon</c> and <c>IsChecked</c>, and live bindings
+    /// (a rail mode toggling parts of the row) keep working. Null when no
+    /// template is set; the built-in row is drawn then.
+    /// </summary>
+    private SkiaView? RealizeFlyoutItemTemplate(Shell? shell, BaseShellItem item)
+    {
+        if (shell == null)
+            return null;
+        var template = Shell.GetItemTemplate(item) ?? shell.ItemTemplate;
+        if (template is DataTemplateSelector selector)
+            template = selector.SelectTemplate(item, shell);
+        if (template == null)
+            return null;
+        try
+        {
+            if (template.CreateContent() is not View row)
+                return null;
+            row.Parent = shell;
+            row.BindingContext = item;
+            return RenderView(row);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("LinuxViewRenderer", $"Flyout item template for '{item.Title}' failed", ex);
+            return null;
+        }
+    }
+
+    private static bool IsListedInFlyout(BaseShellItem item)
+    {
+        if (!item.FlyoutItemIsVisible) return false;
+        var contents = item switch
+        {
+            ShellItem shellItem => shellItem.Items.SelectMany(s => s.Items).ToList(),
+            Controls.ShellSection section => section.Items.ToList(),
+            _ => new List<Controls.ShellContent>(),
+        };
+        return contents.Count == 0 || contents.Any(c => c.FlyoutItemIsVisible);
+    }
+
     private void ProcessShellItem(SkiaShell skiaShell, ShellItem item)
     {
         if (item is FlyoutItem flyoutItem)
@@ -386,7 +523,10 @@ public class LinuxViewRenderer
             var section = new ShellSection
             {
                 Title = flyoutItem.Title ?? "",
-                Route = flyoutItem.Route ?? flyoutItem.Title ?? ""
+                Route = flyoutItem.Route ?? flyoutItem.Title ?? "",
+                IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(flyoutItem.Icon),
+                IsVisibleInFlyout = IsListedInFlyout(flyoutItem),
+                TemplateView = RealizeFlyoutItemTemplate(skiaShell.MauiShell, flyoutItem),
             };
 
             // Process the items within the FlyoutItem
@@ -428,7 +568,10 @@ public class LinuxViewRenderer
                 var section = new ShellSection
                 {
                     Title = tab.Title ?? "",
-                    Route = tab.Route ?? ""
+                    Route = tab.Route ?? "",
+                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(tab.Icon),
+                    IsVisibleInFlyout = IsListedInFlyout(tab),
+                TemplateView = RealizeFlyoutItemTemplate(skiaShell.MauiShell, tab),
                 };
 
                 foreach (var content in tab.Items)
@@ -458,7 +601,10 @@ public class LinuxViewRenderer
             var section = new ShellSection
             {
                 Title = item.Title ?? "",
-                Route = item.Route ?? ""
+                Route = item.Route ?? "",
+                IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(item.Icon),
+                IsVisibleInFlyout = IsListedInFlyout(item),
+                TemplateView = RealizeFlyoutItemTemplate(skiaShell.MauiShell, item),
             };
 
             foreach (var shellSection in item.Items)
@@ -515,36 +661,19 @@ public class LinuxViewRenderer
             {
                 // Extract the type from the DataTemplate via reflection
                 // DataTemplate stores the type in a private field
-                var typeField = typeof(ElementTemplate).GetProperty("Type",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                var templateType = typeField?.GetValue(content.ContentTemplate) as Type;
-
-                // First try to resolve from DI (handles constructor injection)
-                if (templateType != null)
-                {
-                    try
-                    {
-                        // Use ActivatorUtilities to create with DI - more robust than GetService
-                        page = Microsoft.Extensions.DependencyInjection.ActivatorUtilities
-                            .CreateInstance(_mauiContext.Services, templateType) as Page;
-                    }
-                    catch (Exception diEx)
-                    {
-                        DiagnosticLog.Debug("LinuxViewRenderer", $"DI resolution failed for {templateType.Name}: {diEx.Message}");
-                    }
-                }
-
-                // Fallback to CreateContent() (uses Activator.CreateInstance)
-                if (page == null)
-                {
-                    page = content.ContentTemplate.CreateContent() as Page;
-                }
+                page = ShellPageFactory.Create(content.ContentTemplate, _mauiContext.Services);
             }
 
             if (page == null && content.Content is Page contentPage)
             {
                 page = contentPage;
             }
+
+            // Render the content before parenting the page: parenting gives it a
+            // window, and MAUI raises Loaded at that moment for a page that has a
+            // handler, so a Loaded handler (measuring its views, sizing cards)
+            // must find the content realised, as on the other platforms.
+            SkiaView? contentView = page is ContentPage { Content: { } pageContent } ? RenderView(pageContent) : null;
 
             // Record which Page instance renders this ShellContent. The page is
             // created here (DI/template), never through IShellContentController,
@@ -578,8 +707,11 @@ public class LinuxViewRenderer
 
             if (page is ContentPage cp && cp.Content != null)
             {
-                // Wrap in a scroll view if not already scrollable
-                var contentView = RenderView(cp.Content);
+                // The page fills the content area and scrolls only if the app
+                // put a ScrollView in it, as on every MAUI platform. (Wrapping
+                // every page in a scroll view measured it with infinite height,
+                // so star rows collapsed to their content and page-filling
+                // overlays were pushed below the window.)
                 if (contentView != null)
                 {
                     // Get page background color if set
@@ -590,32 +722,21 @@ public class LinuxViewRenderer
                         DiagnosticLog.Debug("LinuxViewRenderer", $"CreateShellContentPage: Page BackgroundColor: {bgColor}");
                     }
 
-                    if (contentView is SkiaScrollView scrollView)
+                    var host = new ShellPageHost(cp) { Padding = cp.Padding };
+                    host.AddChild(contentView);
+                    if (bgColor != null)
                     {
-                        if (bgColor != null)
-                        {
-                            scrollView.BackgroundColor = bgColor;
-                        }
-                        return scrollView;
+                        host.BackgroundColor = bgColor;
                     }
-                    else
-                    {
-                        var newScrollView = new SkiaScrollView
-                        {
-                            Content = contentView
-                        };
-                        if (bgColor != null)
-                        {
-                            newScrollView.BackgroundColor = bgColor;
-                        }
-                        return newScrollView;
-                    }
+                    TrackPageContent(cp, host);
+                    RendererHostedPageHandler.Attach(cp, host, _mauiContext);
+                    return host;
                 }
             }
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("LinuxViewRenderer", $"CreateShellContentPage failed for route '{content.Route}': {ex.Message}\n{ex.StackTrace}");
+            DiagnosticLog.Error("LinuxViewRenderer", $"CreateShellContentPage failed for route '{content.Route}': {ex.Message}\n{ex.StackTrace}", ex);
         }
 
         return null;
@@ -671,7 +792,7 @@ public class LinuxViewRenderer
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("LinuxViewRenderer", $"RenderView failed for {typeName}: {ex.Message}");
+            DiagnosticLog.Error("LinuxViewRenderer", $"RenderView failed for {typeName}: {ex.Message}", ex);
             return CreateFallbackView(view);
         }
     }
@@ -691,3 +812,73 @@ public class LinuxViewRenderer
     }
 }
 
+/// <summary>
+/// Hosts a Shell page's content. The page has no Skia view of its own on this
+/// path, so its MAUI frame is set here: page.Width/Height are what apps and
+/// libraries position overlays and popups against (an overflow menu clamped
+/// to the page's width landed off-screen at -1).
+/// </summary>
+internal sealed class ShellPageHost : SkiaGrid
+{
+    private readonly WeakReference<Page> _page;
+
+    public ShellPageHost(Page page) => _page = new WeakReference<Page>(page);
+
+    protected override Rect ArrangeOverride(Rect bounds)
+    {
+        var result = base.ArrangeOverride(bounds);
+        if (_page.TryGetTarget(out var page) && page.Frame != bounds)
+        {
+            try
+            {
+                page.Frame = bounds;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("ShellPageHost", $"Setting the frame of {page.GetType().Name} failed", ex);
+            }
+        }
+        return result;
+    }
+}
+
+/// <summary>
+/// The handler of a page the renderer draws itself: the Shell (its
+/// <see cref="SkiaShell"/>) and the Shell's pages (their
+/// <see cref="ShellPageHost"/>). It maps nothing (the renderer already draws
+/// them) but gives the page a handler, as every platform does. MAUI subscribes
+/// a window's alert manager when the window's page gets a handler, and holds a
+/// page's alerts until it has one (IsPlatformEnabled); without it no
+/// DisplayAlert, DisplayActionSheet or DisplayPromptAsync from a Shell app
+/// ever showed, and the awaiting code never resumed.
+/// </summary>
+internal sealed class RendererHostedPageHandler : LinuxViewHandler<Page, SkiaView>
+{
+    private static readonly IPropertyMapper<Page, RendererHostedPageHandler> s_mapper =
+        new PropertyMapper<Page, RendererHostedPageHandler>(ElementHandler.ElementMapper);
+
+    private readonly SkiaView _view;
+
+    private RendererHostedPageHandler(SkiaView view)
+        : base(s_mapper, ViewHandler.ViewCommandMapper)
+        => _view = view;
+
+    protected override SkiaView CreatePlatformView() => _view;
+
+    /// <summary>Gives <paramref name="page"/> a handler over <paramref name="view"/>, unless it has one.</summary>
+    internal static void Attach(Page page, SkiaView view, IMauiContext context)
+    {
+        if (page.Handler != null)
+            return;
+        try
+        {
+            var handler = new RendererHostedPageHandler(view);
+            handler.SetMauiContext(context);
+            page.Handler = handler;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("LinuxViewRenderer", $"Attaching a handler to {page.GetType().Name} failed", ex);
+        }
+    }
+}
