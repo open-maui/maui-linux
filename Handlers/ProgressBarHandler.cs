@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Maps IProgress interface to SkiaProgressBar platform view.
 /// IProgress has: Progress (0-1), ProgressColor
 /// </summary>
-public partial class ProgressBarHandler : ViewHandler<IProgress, SkiaProgressBar>
+public partial class ProgressBarHandler : LinuxViewHandler<IProgress, SkiaProgressBar>
 {
     public static IPropertyMapper<IProgress, ProgressBarHandler> Mapper = new PropertyMapper<IProgress, ProgressBarHandler>(ViewHandler.ViewMapper)
     {

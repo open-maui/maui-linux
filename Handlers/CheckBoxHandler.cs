@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for CheckBox on Linux using Skia rendering.
 /// Maps ICheckBox interface to SkiaCheckBox platform view.
 /// </summary>
-public partial class CheckBoxHandler : ViewHandler<ICheckBox, SkiaCheckBox>
+public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>
 {
     public static IPropertyMapper<ICheckBox, CheckBoxHandler> Mapper = new PropertyMapper<ICheckBox, CheckBoxHandler>(ViewHandler.ViewMapper)
     {

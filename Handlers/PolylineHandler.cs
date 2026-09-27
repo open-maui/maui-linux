@@ -6,7 +6,7 @@ using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public partial class PolylineHandler : ViewHandler<Polyline, SkiaPolyline>
+public partial class PolylineHandler : LinuxViewHandler<Polyline, SkiaPolyline>
 {
     public static IPropertyMapper<Polyline, PolylineHandler> Mapper =
         new PropertyMapper<Polyline, PolylineHandler>(ViewMapper)

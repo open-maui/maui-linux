@@ -32,6 +32,16 @@ public class AbsoluteLayoutHandler : LayoutHandler
 
     protected override SkiaLayoutView CreatePlatformView() => new SkiaAbsoluteLayout();
 
+    protected override void ConnectHandler(SkiaLayoutView platformView)
+    {
+        base.ConnectHandler(platformView);
+        // Children present before the handler connected (XAML, or a layout that
+        // fills itself in its constructor like LiveCharts' MotionCanvas) are
+        // added by the base without going through the Add command mapper, so
+        // their LayoutBounds/LayoutFlags must be applied here.
+        SyncAllChildBounds();
+    }
+
     private static void MapAddAbsolute(AbsoluteLayoutHandler handler, AbsoluteLayout layout, object? arg)
     {
         LayoutHandler.MapAdd(handler, layout, arg);
@@ -59,8 +69,17 @@ public class AbsoluteLayoutHandler : LayoutHandler
         if (handler.PlatformView is not SkiaAbsoluteLayout absolute) return;
         if (child is not BindableObject bindable || child.Handler?.PlatformView is not SkiaView skiaView) return;
 
-        var bounds = AbsoluteLayout.GetLayoutBounds(bindable);
-        var flags = AbsoluteLayout.GetLayoutFlags(bindable);
+        var (rect, flags) = ReadBounds(bindable);
+        absolute.SetLayoutBounds(skiaView, rect, flags);
+        absolute.InvalidateMeasure();
+        absolute.Invalidate();
+    }
+
+    /// <summary>A MAUI child's LayoutBounds and LayoutFlags, as the platform layout reads them.</summary>
+    internal static (SKRect Rect, PlatformAbsoluteLayoutFlags Flags) ReadBounds(BindableObject child)
+    {
+        var bounds = AbsoluteLayout.GetLayoutBounds(child);
+        var flags = AbsoluteLayout.GetLayoutFlags(child);
 
         // AutoSize (-1) width/height: SkiaAbsoluteLayout treats <= 0 as "measure the child".
         var rect = new SKRect(
@@ -68,10 +87,7 @@ public class AbsoluteLayoutHandler : LayoutHandler
             (float)bounds.Y,
             (float)(bounds.X + (bounds.Width == AbsoluteLayout.AutoSize ? 0 : bounds.Width)),
             (float)(bounds.Y + (bounds.Height == AbsoluteLayout.AutoSize ? 0 : bounds.Height)));
-
-        absolute.SetLayoutBounds(skiaView, rect, Convert(flags));
-        absolute.InvalidateMeasure();
-        absolute.Invalidate();
+        return (rect, Convert(flags));
     }
 
     private static PlatformAbsoluteLayoutFlags Convert(MauiAbsoluteLayoutFlags flags)

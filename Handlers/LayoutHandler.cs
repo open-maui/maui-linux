@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Layout on Linux using Skia rendering.
 /// Maps ILayout interface to SkiaLayoutView platform view.
 /// </summary>
-public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
+public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
 {
     public static IPropertyMapper<ILayout, LayoutHandler> Mapper = new PropertyMapper<ILayout, LayoutHandler>(ViewHandler.ViewMapper)
     {
@@ -96,7 +96,7 @@ public partial class LayoutHandler : ViewHandler<ILayout, SkiaLayoutView>
             catch (Exception ex)
             {
                 // Skip unsupported child views (e.g. third-party controls without Linux handlers)
-                DiagnosticLog.Error("LayoutHandler", $"Skipping child {i} ({child.GetType().Name}): {ex.Message}");
+                DiagnosticLog.Error("LayoutHandler", $"Skipping child {i} ({child.GetType().Name}): {ex.Message}", ex);
             }
         }
     }
@@ -395,7 +395,7 @@ public partial class GridHandler : LayoutHandler
                 catch (Exception childEx)
                 {
                     // Skip unsupported child views (e.g. third-party controls without Linux handlers)
-                    DiagnosticLog.Error("GridHandler", $"Skipping child {i} ({child.GetType().Name}): {childEx.Message}");
+                    DiagnosticLog.Error("GridHandler", $"Skipping child {i} ({child.GetType().Name}): {childEx.Message}", childEx);
                 }
             }
             DiagnosticLog.Debug("GridHandler", "ConnectHandler complete");
@@ -456,4 +456,16 @@ public partial class GridHandler : LayoutHandler
                 grid.ColumnDefinitions.Add(new Microsoft.Maui.Platform.GridLength((float)width.Value, Microsoft.Maui.Platform.GridUnitType.Star));
         }
     }
+}
+
+/// <summary>
+/// Fallback for any <c>Layout</c> subclass without a dedicated handler (a
+/// third-party or app-defined layout with its own <c>ILayoutManager</c>):
+/// children are managed like every layout, measure and arrange are the
+/// layout's own. Before this, such layouts resolved to MAUI's portable
+/// LayoutHandler (which throws) or to a stack layout that ignored their manager.
+/// </summary>
+public class CrossPlatformLayoutHandler : LayoutHandler
+{
+    protected override SkiaLayoutView CreatePlatformView() => new SkiaCrossPlatformLayout();
 }
