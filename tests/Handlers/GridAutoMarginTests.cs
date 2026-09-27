@@ -52,4 +52,57 @@ public class GridAutoMarginTests
         b.Top.Should().BeApproximately(sep.Bottom + 4, 0.5);
         sep.Left.Should().BeApproximately(a.Left + 8, 0.5);
     }
+
+    [Fact]
+    public void A_ContentViews_content_keeps_its_margin()
+    {
+        // MAFlyoutPanel's rail header: the stack's top margin clears the rail toggle.
+        var avatar = new BoxView { HeightRequest = 40, WidthRequest = 40 };
+        var rail = new VerticalStackLayout { Margin = new Thickness(0, 28, 0, 0), Padding = new Thickness(0, 12), Children = { avatar } };
+        var header = new ContentView { Content = rail, VerticalOptions = LayoutOptions.Start };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = new Grid { Children = { header } } }, withEngine: true);
+        host.Context.Render();
+
+        ((Microsoft.Maui.Platform.SkiaView)avatar.Handler!.PlatformView!).Bounds.Top.Should().BeApproximately(40, 0.5);
+    }
+
+    [Fact]
+    public void A_child_spanning_columns_centres_across_the_spacing_too()
+    {
+        // MAFlyoutPanel's rail settings chip: spans an Auto and a Star column, centred.
+        var chip = new BoxView { WidthRequest = 40, HeightRequest = 40, HorizontalOptions = LayoutOptions.Center };
+        var row = new Grid
+        {
+            WidthRequest = 64, HorizontalOptions = LayoutOptions.Start,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) },
+            ColumnSpacing = 12,
+        };
+        row.Add(chip, 0, 0);
+        Grid.SetColumnSpan(chip, 2);
+        using var host = new HeadlessMauiHost(new ContentPage { Content = row }, withEngine: true);
+        host.Context.Render();
+
+        var b = ((Microsoft.Maui.Platform.SkiaView)chip.Handler!.PlatformView!).Bounds;
+        b.Center.X.Should().BeApproximately(32, 0.5);
+    }
+
+    [Fact]
+    public void A_span_changed_after_the_child_was_added_applies()
+    {
+        var chip = new BoxView { WidthRequest = 40, HeightRequest = 40, HorizontalOptions = LayoutOptions.Center };
+        var row = new Grid
+        {
+            WidthRequest = 64, HorizontalOptions = LayoutOptions.Start,
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Star) },
+            ColumnSpacing = 14,
+        };
+        row.Add(chip, 0, 0);
+        using var host = new HeadlessMauiHost(new ContentPage { Content = row }, withEngine: true);
+        host.Context.Render();
+
+        Grid.SetColumnSpan(chip, 2);
+        host.Context.Render();
+
+        ((Microsoft.Maui.Platform.SkiaView)chip.Handler!.PlatformView!).Bounds.Center.X.Should().BeApproximately(32, 0.5);
+    }
 }
