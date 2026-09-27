@@ -142,4 +142,56 @@ public class ListViewRefreshTests
 
         ((SkiaView)list.Handler!.PlatformView!).Bounds.Height.Should().BeApproximately(40, 1);
     }
+
+    [Fact]
+    public void A_new_ItemTemplate_rebuilds_the_rows()
+    {
+        // MAFlyoutPanel swaps its menu rows' template between full and rail rows.
+        static DataTemplate Rows(string prefix) => new(() =>
+        {
+            var label = new Label();
+            label.SetBinding(Label.TextProperty, new Binding(".", stringFormat: prefix + "{0}"));
+            return label;
+        });
+        var list = new CollectionView { ItemsSource = new[] { "one", "two" }, ItemTemplate = Rows("full:"), HeightRequest = 200 };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = list }, withEngine: true);
+        host.Context.Render();
+        ShownTexts((SkiaView)list.Handler!.PlatformView!).Should().Contain("full:one");
+
+        list.ItemTemplate = Rows("rail:");
+        host.Context.Render();
+
+        var shown = ShownTexts((SkiaView)list.Handler!.PlatformView!);
+        shown.Should().Contain("rail:one").And.NotContain("full:one");
+    }
+
+    [Fact]
+    public void A_new_BindableLayout_ItemTemplate_replaces_the_rows()
+    {
+        // MAFlyoutPanel's footer: a stack whose BindableLayout template switches to rail rows.
+        static DataTemplate Rows(string prefix) => new(() =>
+        {
+            var label = new Label();
+            label.SetBinding(Label.TextProperty, new Binding(".", stringFormat: prefix + "{0}"));
+            return label;
+        });
+        var footer = new VerticalStackLayout();
+        BindableLayout.SetItemsSource(footer, new[] { "prefs", "backups" });
+        BindableLayout.SetItemTemplate(footer, Rows("full:"));
+        using var host = new HeadlessMauiHost(new ContentPage { Content = footer }, withEngine: true);
+        host.Context.Render();
+
+        BindableLayout.SetItemTemplate(footer, Rows("rail:"));
+        host.Context.Render();
+
+        var texts = new List<string>();
+        void Walk(SkiaView v)
+        {
+            if (!v.IsVisible) return;
+            if (v is SkiaLabel { Text: { Length: > 0 } t }) texts.Add(t);
+            foreach (var c in v is SkiaLayoutView l ? l.Children : v.Children) Walk(c);
+        }
+        Walk((SkiaView)footer.Handler!.PlatformView!);
+        texts.Should().BeEquivalentTo(new[] { "rail:prefs", "rail:backups" });
+    }
 }
