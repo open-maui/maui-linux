@@ -151,8 +151,9 @@ public class AlignmentTests
     }
 
     [Fact]
-    public void Grid_Child_Fill_ExpandsToFillCell()
+    public void Grid_Child_Fill_with_an_explicit_size_is_centred_in_its_cell()
     {
+        // MAUI's ComputeFrame treats Fill as Center on an axis with an explicit size.
         var grid = new SkiaGrid();
         grid.RowDefinitions.Add(MauiPlatform.GridLength.Star);
         grid.ColumnDefinitions.Add(MauiPlatform.GridLength.Star);
@@ -163,11 +164,10 @@ public class AlignmentTests
         grid.Measure(new Size(400, 300));
         grid.Arrange(new Rect(0, 0, 400, 300));
 
-        // Assert: child should fill the entire cell
-        child.Bounds.Width.Should().BeApproximately(400, 1);
-        child.Bounds.Height.Should().BeApproximately(300, 1);
-        child.Bounds.Left.Should().BeApproximately(0, 1);
-        child.Bounds.Top.Should().BeApproximately(0, 1);
+        child.Bounds.Width.Should().BeApproximately(100, 1);
+        child.Bounds.Height.Should().BeApproximately(40, 1);
+        child.Bounds.Left.Should().BeApproximately(150, 1);
+        child.Bounds.Top.Should().BeApproximately(130, 1);
     }
 
     [Fact]
