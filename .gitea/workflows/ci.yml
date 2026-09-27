@@ -29,6 +29,15 @@ jobs:
         run: dotnet test --configuration Release --no-build --verbosity normal
         continue-on-error: true
 
+      - name: Performance benchmarks (warn only)
+        # Headless benchmark suite (tools/Benchmarks, docs/PERFORMANCE.md)
+        # compared against docs/perf-baseline.json. Shared runners are noisy
+        # and are not the baseline machine, so regressions are reported in the
+        # log (--warn-only) and never fail CI; --no-gpu keeps a software GL
+        # (llvmpipe) from standing in for the GPU variants.
+        run: dotnet run --project tools/Benchmarks -c Release -- --baseline docs/perf-baseline.json --compare --warn-only --no-gpu
+        continue-on-error: true
+
       - name: Pack OpenMaui.Hosting
         run: dotnet pack Hosting.Abstractions/OpenMaui.Hosting.csproj --configuration Release -o ./nupkg
 
@@ -49,6 +58,11 @@ jobs:
       - name: Pack OpenMaui.Controls.Linux.Blazor
         # Independent sibling (BlazorWebView on WPE); built by this pack step.
         run: dotnet pack Blazor/OpenMaui.Controls.Linux.Blazor.csproj --configuration Release -o ./nupkg
+
+      - name: Pack OpenMaui.Controls.Linux.Syncfusion
+        # Independent sibling (bridge for Syncfusion's platform-neutral build);
+        # built by this pack step.
+        run: dotnet pack Syncfusion/OpenMaui.Controls.Linux.Syncfusion.csproj --configuration Release -o ./nupkg
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v3

@@ -79,6 +79,12 @@ jobs:
         # MediaElement and Maps: built by this pack step, no --no-build.
         run: dotnet pack Blazor/OpenMaui.Controls.Linux.Blazor.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
+      - name: Pack OpenMaui.Controls.Linux.Syncfusion package
+        # Opt-in sibling for Syncfusion .NET MAUI controls: supplies the
+        # drawing, touch and invalidation Syncfusion's platform-neutral build
+        # leaves out. Independent sibling: built by this pack step.
+        run: dotnet pack Syncfusion/OpenMaui.Controls.Linux.Syncfusion.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
       - name: Pack Templates package
         run: dotnet pack templates/OpenMaui.Linux.Templates.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
