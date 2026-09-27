@@ -63,7 +63,8 @@ public class FormattedTextTests
 
         l.Width.Should().BeGreaterThan(s.Width, "a 32pt span is wider than a 14pt one");
         l.Height.Should().BeGreaterThan(s.Height, "the line is as tall as its largest span");
-        l.Height.Should().BeApproximately(32 * 1.2, 0.5, "line height = largest font size x default multiplier");
+        var plain32 = new SkiaLabel { FontSize = 32, Text = "world" }.Measure(Unbounded);
+        l.Height.Should().BeApproximately(plain32.Height, 0.5, "line height = the largest span's font line spacing");
     }
 
     [Fact]
@@ -274,7 +275,8 @@ public class FormattedTextTests
         ra.Top.Should().BeApproximately(4, 0.01);
         rb.Left.Should().BeApproximately(ra.Right, 0.01, "the second span starts where the first ends");
         rb.Width.Should().BeGreaterThan(0);
-        ra.Height.Should().BeApproximately(16 * 1.2, 0.5);
+        var plain16 = new SkiaLabel { FontSize = 16, Text = "first" }.Measure(Unbounded);
+        ra.Height.Should().BeApproximately(plain16.Height, 0.5, "one line of the font's line spacing");
     }
 
     [Fact]

@@ -730,11 +730,15 @@ public class SkiaLabel : SkiaView
         // Calculate position based on alignment and FlowDirection
         float x = GetHorizontalPosition(HorizontalTextAlignment, bounds.Left, bounds.Right, textWidth);
 
+        // The line box (FontSize x line height, as measured) sits at the top, middle or
+        // bottom, and the text in it by the font's metrics, as MAUI places it: placing it
+        // by its ink put capitals flush against the top ("VIP" in a pill sat high) and
+        // moved the baseline with the letters in the line.
+        float lineBox = LineBoxHeight(font, LineHeight);
         float y = VerticalTextAlignment switch
         {
-            TextAlignment.Start => bounds.Top - textBounds.Top,
-            TextAlignment.Center => TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY),
-            TextAlignment.End => bounds.Bottom - textBounds.Bottom,
+            TextAlignment.Start => LineBaseline(font, bounds.Top, lineBox),
+            TextAlignment.End => LineBaseline(font, bounds.Bottom - lineBox, lineBox),
             _ => TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY)
         };
 
@@ -746,6 +750,26 @@ public class SkiaLabel : SkiaView
 
         DrawTextWithSpacing(canvas, displayText, x, y, font, paint);
         DrawTextDecorations(canvas, paint, x, y, textBounds);
+    }
+
+    /// <summary>
+    /// The baseline of a line in the box [<paramref name="top"/>, top + <paramref name="height"/>]:
+    /// the font's ascent-to-descent centred in the box, but never with the descent below
+    /// its bottom (a LineHeight below 1 keeps the descenders in the label).
+    /// </summary>
+    /// <summary>
+    /// A line's height: the font's own line spacing (ascent, descent and line gap), times
+    /// LineHeight when set, as MAUI's LineHeight multiplies the default line height. The
+    /// other platforms size a line from the font's metrics; a fixed 1.2 x FontSize made
+    /// lines shorter than there and pushed the text off-centre in tight boxes.
+    /// </summary>
+    internal static float LineBoxHeight(SKFont font, double lineHeight) =>
+        font.Spacing * (float)(lineHeight > 0 ? lineHeight : 1.0);
+
+    private static float LineBaseline(SKFont font, float top, float height)
+    {
+        float centred = TextRenderingHelper.BaselineForVerticalCenter(font, top + height / 2f);
+        return Math.Min(centred, top + height - font.Metrics.Descent);
     }
 
     private void DrawSelectionHighlight(SKCanvas canvas, SKFont font, float x, float y, string text, SKRect textBounds)
@@ -784,9 +808,7 @@ public class SkiaLabel : SkiaView
 
     private void DrawMultiLineText(SKCanvas canvas, SKPaint paint, SKFont font, SKRect bounds, string text)
     {
-        // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
-        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
-        float lineHeight = (float)(FontSize * effectiveLineHeight);
+        float lineHeight = LineBoxHeight(font, LineHeight);
         int lineCount = 0;
 
         var lines = WrapText(text, font, bounds.Width);
@@ -826,7 +848,7 @@ public class SkiaLabel : SkiaView
             // Use FlowDirection-aware positioning
             float x = GetHorizontalPosition(HorizontalTextAlignment, bounds.Left, bounds.Right, textWidth);
 
-            float textY = y - textBounds.Top;
+            float textY = LineBaseline(font, y, lineHeight);
             DrawTextWithSpacing(canvas, line, x, textY, font, paint);
             DrawTextDecorations(canvas, paint, x, textY, textBounds);
 
@@ -1050,8 +1072,10 @@ public class SkiaLabel : SkiaView
     private FormattedLayout LayoutFormattedText(FormattedString formatted, float maxWidth)
     {
         var layout = new FormattedLayout();
-        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
         float baseFontSize = FontSize > 0 ? (float)FontSize : 14f;
+        float baseLineHeight;
+        using (var baseFont = SkiaFontFactory.Create(Fonts.GetTypeface(string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily, GetFontStyle()), baseFontSize))
+            baseLineHeight = LineBoxHeight(baseFont, LineHeight);
         bool canWrap = maxWidth > 0 && !float.IsInfinity(maxWidth) && !float.IsNaN(maxWidth)
                        && LineBreakMode != LineBreakMode.NoWrap;
 
@@ -1074,7 +1098,7 @@ public class SkiaLabel : SkiaView
             using var font = SkiaFontFactory.Create(typeface, spanFontSize);
             var metrics = font.Metrics;
             float ascent = -metrics.Ascent;
-            float spanLineHeight = (float)(spanFontSize * effectiveLineHeight);
+            float spanLineHeight = LineBoxHeight(font, LineHeight);
 
             var paragraphs = spanText.Split('\n');
             for (int p = 0; p < paragraphs.Length; p++)
@@ -1123,7 +1147,7 @@ public class SkiaLabel : SkiaView
         // An empty trailing line (e.g. text ending in a newline) still takes space.
         foreach (var l in layout.Lines)
         {
-            if (l.Height <= 0) l.Height = (float)(baseFontSize * effectiveLineHeight);
+            if (l.Height <= 0) l.Height = baseLineHeight;
         }
 
         var lastLine = layout.Lines[^1];
@@ -1374,8 +1398,7 @@ public class SkiaLabel : SkiaView
             fontSize);
 
         double width, height;
-        // LineHeight -1 means platform default (use 1.2 multiplier for readable line spacing)
-        double effectiveLineHeight = LineHeight < 0 ? 1.2 : LineHeight;
+        float lineBox = LineBoxHeight(font, LineHeight);
 
         if (FormattedText != null && FormattedText.Spans.Count > 0)
         {
@@ -1398,7 +1421,7 @@ public class SkiaLabel : SkiaView
             // measures taller than "Buttons"), which makes sibling spacing
             // depend on the letters in the text. Line-height measurement is
             // glyph-independent and matches the multi-line branch below.
-            height = fontSize * effectiveLineHeight;
+            height = lineBox;
 
             // Account for character spacing
             if (CharacterSpacing != 0 && displayText.Length > 1)
@@ -1422,14 +1445,14 @@ public class SkiaLabel : SkiaView
                 var wrapped = WrapText(displayText, font, contentWidth);
                 int lineCount = MaxLines > 0 ? Math.Min(wrapped.Count, MaxLines) : wrapped.Count;
                 lineCount = Math.Max(1, lineCount);
-                height = lineCount * fontSize * effectiveLineHeight;
+                height = lineCount * lineBox;
                 width = Math.Min(width, availableSize.Width);
             }
             else if (displayText.Contains('\n') || MaxLines > 1)
             {
                 var lines = displayText.Split('\n');
                 int lineCount = MaxLines > 0 ? Math.Min(lines.Length, MaxLines) : lines.Length;
-                height = lineCount * fontSize * effectiveLineHeight;
+                height = lineCount * lineBox;
             }
         }
 
