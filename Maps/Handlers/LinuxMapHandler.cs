@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Platform.Linux.Handlers;
 using System.ComponentModel;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Maps;
@@ -39,7 +40,7 @@ namespace Microsoft.Maui.Platform.Linux.Maps.Handlers;
 ///     overlay; deferred.
 ///   - <c>IsTrafficEnabled</c> — needs a traffic data source we don't ship.
 /// </summary>
-public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
+public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHandler
 {
     public static IPropertyMapper<IMap, IMapHandler> Mapper = new PropertyMapper<IMap, IMapHandler>(ViewHandler.ViewMapper)
     {
@@ -222,7 +223,7 @@ public partial class LinuxMapHandler : ViewHandler<IMap, SkiaMap>, IMapHandler
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("LinuxMapHandler", $"Skipping map element {element.GetType().Name}: {ex.Message}");
+                DiagnosticLog.Error("LinuxMapHandler", $"Skipping map element {element.GetType().Name}: {ex.Message}", ex);
             }
         }
         platformView.Invalidate();
