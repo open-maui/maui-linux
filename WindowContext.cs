@@ -39,7 +39,7 @@ public sealed class WindowContext : IDisposable
     private readonly List<ModalEntry> _modals = new();
     private readonly List<SkiaView> _modalViews = new();
 
-    private readonly record struct ModalEntry(Page Page, SkiaView View);
+    private readonly record struct ModalEntry(Page Page, SkiaView View, bool IsPopup = false);
 
     // MAUI IWindow lifecycle bookkeeping. IWindow.Created/Activated/Deactivated/
     // Destroying THROW on double invocation, so each transition is latched here.
@@ -61,7 +61,13 @@ public sealed class WindowContext : IDisposable
         _app = app ?? throw new ArgumentNullException(nameof(app));
         DisplayWindow = displayWindow;
         RenderingEngine = renderingEngine;
+        ToolTips = new ToolTipController(() => RenderingEngine?.InvalidateAll());
+        if (renderingEngine != null)
+            renderingEngine.ToolTips = ToolTips;
     }
+
+    /// <summary>This window's tooltips (MAUI <c>ToolTipProperties.Text</c>).</summary>
+    internal ToolTipController ToolTips { get; }
 
     /// <summary>The native window (X11 or Wayland). Null in GTK mode.</summary>
     public IDisplayWindow? DisplayWindow { get; }
@@ -92,6 +98,7 @@ public sealed class WindowContext : IDisposable
             {
                 oldWindow.ModalPushed -= OnMauiModalPushed;
                 oldWindow.ModalPopped -= OnMauiModalPopped;
+                oldWindow.PropertyChanged -= OnMauiWindowPropertyChanged;
             }
 
             _mauiWindow = value;
@@ -101,6 +108,8 @@ public sealed class WindowContext : IDisposable
                 AttachMauiWindowHandler(newWindow);
                 newWindow.ModalPushed += OnMauiModalPushed;
                 newWindow.ModalPopped += OnMauiModalPopped;
+                newWindow.PropertyChanged += OnMauiWindowPropertyChanged;
+                ApplyInitialGeometry(newWindow);
             }
         }
     }
@@ -166,7 +175,14 @@ public sealed class WindowContext : IDisposable
 
     #region Coordinate scaling (HiDPI + Wayland CSD)
 
-    private float ToLogical(double physicalCoord) => (float)(physicalCoord / _app.DpiScale);
+    /// <summary>
+    /// This window's device scale: its rendering engine's, which follows the
+    /// native window across monitors of different scale; the application's
+    /// startup scale when the context has no engine.
+    /// </summary>
+    internal float Scale => RenderingEngine is { DpiScale: > 0f } engine ? engine.DpiScale : (_app.DpiScale > 0f ? _app.DpiScale : 1f);
+
+    private float ToLogical(double physicalCoord) => (float)(physicalCoord / Scale);
 
     /// <summary>
     /// When CSD is active on Wayland, the view tree is rendered translated down
@@ -176,17 +192,21 @@ public sealed class WindowContext : IDisposable
     internal float CsdPointerInsetLogical =>
         DisplayWindow is WaylandWindow w && w.UseCsd ? WaylandWindow.CsdTitlebarHeightLogical : 0f;
 
+    /// <summary>Window-physical pixels to the logical view-tree space pointer dispatch uses.</summary>
+    internal (float X, float Y) ToLogicalPoint(double physicalX, double physicalY)
+        => (ToLogical(physicalX), ToLogical(physicalY) - CsdPointerInsetLogical);
+
     private PointerEventArgs ScalePointerArgs(PointerEventArgs e)
     {
         float inset = CsdPointerInsetLogical;
-        if (_app.DpiScale <= 1.0f && inset <= 0f) return e;
+        if (Scale <= 1.0f && inset <= 0f) return e;
         return new PointerEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.Button);
     }
 
     private ScrollEventArgs ScaleScrollArgs(ScrollEventArgs e)
     {
         float inset = CsdPointerInsetLogical;
-        if (_app.DpiScale <= 1.0f && inset <= 0f) return e;
+        if (Scale <= 1.0f && inset <= 0f) return e;
         return new ScrollEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.DeltaX, e.DeltaY);
     }
 
@@ -207,6 +227,15 @@ public sealed class WindowContext : IDisposable
 
         window.Resized += OnWindowResized;
         window.Exposed += OnWindowExposed;
+        if (window is IVisibilityAwareDisplayWindow visibility)
+            visibility.SuspendedChanged += Guarded<bool>("suspended-changed", OnWindowSuspendedChanged);
+        if (window is IScaleAwareDisplayWindow scaleAware)
+        {
+            scaleAware.ScaleChanged += Guarded<float>("scale-changed", OnWindowScaleChanged);
+            // A scale the compositor reported before the engine existed.
+            if (RenderingEngine != null && Math.Abs(scaleAware.Scale - RenderingEngine.DpiScale) > 0.01f)
+                OnWindowScaleChanged(scaleAware, scaleAware.Scale);
+        }
         window.KeyDown += Guarded<KeyEventArgs>("key-down", OnKeyDown);
         window.KeyUp += Guarded<KeyEventArgs>("key-up", OnKeyUp);
         window.TextInput += Guarded<TextInputEventArgs>("text-input", OnTextInput);
@@ -280,7 +309,7 @@ public sealed class WindowContext : IDisposable
         {
             try
             {
-                float scale = _app.DpiScale > 0 ? _app.DpiScale : 1f;
+                float scale = Scale;
                 MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(
                     0, 0, size.Width / scale, size.Height / scale));
             }
@@ -290,6 +319,36 @@ public sealed class WindowContext : IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// The native window moved to a monitor with a different scale (or the
+    /// desktop scale changed). The engine renders at the new density from the
+    /// next frame; on Wayland the Resized that follows carries the new buffer
+    /// size, on X11 the window keeps its pixels and only the logical size
+    /// changes, so the whole tree is invalidated here either way.
+    /// </summary>
+    private void OnWindowScaleChanged(object? sender, float scale)
+    {
+        if (scale <= 0f) return;
+        var engine = RenderingEngine;
+        if (engine != null)
+        {
+            if (Math.Abs(engine.DpiScale - scale) < 0.01f) return;
+            engine.DpiScale = scale;
+        }
+        if (ReferenceEquals(_app.MainWindow, DisplayWindow))
+            _app.UpdateDpiScale(scale);
+
+        DiagnosticLog.Info("WindowContext", $"Window scale is now {scale:0.##}");
+        _rootView?.InvalidateMeasure();
+        for (int i = 0; i < _modalViews.Count; i++)
+            _modalViews[i].InvalidateMeasure();
+        engine?.InvalidateAll();
+        ScaleChanged?.Invoke(this, scale);
+    }
+
+    /// <summary>Raised after this window's rendering scale changed.</summary>
+    internal event EventHandler<float>? ScaleChanged;
 
     private void OnWindowExposed(object? sender, EventArgs e)
     {
@@ -304,6 +363,7 @@ public sealed class WindowContext : IDisposable
 
     private void OnWindowFocusLost(object? sender, EventArgs e)
     {
+        ToolTips.Reset();
         NotifyDeactivated();
     }
 
@@ -313,7 +373,7 @@ public sealed class WindowContext : IDisposable
     /// tree may be hit here. With a single window the filter root is null,
     /// preserving the historical unfiltered behavior bit-for-bit.
     /// </summary>
-    private SkiaView? PopupFilterRoot => _app.WindowContexts.Count > 1 ? _rootView : null;
+    internal SkiaView? PopupFilterRoot => _app.WindowContexts.Count > 1 ? _rootView : null;
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
@@ -406,7 +466,8 @@ public sealed class WindowContext : IDisposable
 
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot);
-            var hitView = popupOwner ?? inputRoot.HitTest(e.X, e.Y);
+            var hitView = popupOwner ?? HitTestLayers(e.X, e.Y, out _);
+            ToolTips.OnPointerMoved(hitView, e.X, e.Y);
 
             // Track hover state changes
             if (hitView != HoveredView)
@@ -427,6 +488,8 @@ public sealed class WindowContext : IDisposable
     internal void OnPointerPressed(object? sender, PointerEventArgs e)
     {
         e = ScalePointerArgs(e);
+        GestureManager.CurrentButton = ToButtonsMask(e.Button);
+        ToolTips.Dismiss();
         DiagnosticLog.Debug("WindowContext", $"OnPointerPressed at ({e.X}, {e.Y}), Button={e.Button}");
 
         // Live Visual Tree inspector pick mode: commit the element under the
@@ -454,8 +517,18 @@ public sealed class WindowContext : IDisposable
         {
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot);
-            var hitView = popupOwner ?? inputRoot.HitTest(e.X, e.Y);
+            Page? backdropOf = null;
+            var hitView = popupOwner ?? HitTestLayers(e.X, e.Y, out backdropOf);
             DiagnosticLog.Debug("WindowContext", $"HitView: {hitView?.GetType().Name ?? "null"}, inputRoot: {inputRoot.GetType().Name}");
+
+            // A press on a popup's backdrop is the popup's background click
+            // (close on background click), as on the other platforms.
+            if (popupOwner == null && backdropOf != null)
+            {
+                if (e.Button == PointerButton.Left)
+                    MopupsBridge.SendBackgroundClick(backdropOf);
+                return;
+            }
 
             // An explicit FlyoutBase.ContextFlyout replaces the control's own
             // context menu: open it and swallow the press.
@@ -490,6 +563,19 @@ public sealed class WindowContext : IDisposable
 
     internal void OnPointerReleased(object? sender, PointerEventArgs e)
     {
+        try
+        {
+            DispatchPointerReleased(e);
+        }
+        finally
+        {
+            // The press is over: later hit tests (hover) use the default button.
+            GestureManager.CurrentButton = default;
+        }
+    }
+
+    private void DispatchPointerReleased(PointerEventArgs e)
+    {
         e = ScalePointerArgs(e);
         // Route to dialog if one is active
         if (LinuxDialogService.HasActiveDialog)
@@ -512,7 +598,10 @@ public sealed class WindowContext : IDisposable
 
             // Check for popup overlay first
             var popupOwner = SkiaView.GetPopupOwnerAt(e.X, e.Y, PopupFilterRoot);
-            var hitView = popupOwner ?? inputRoot.HitTest(e.X, e.Y);
+            Page? backdropOf = null;
+            var hitView = popupOwner ?? HitTestLayers(e.X, e.Y, out backdropOf);
+            if (popupOwner == null && backdropOf != null)
+                return;
             hitView?.OnPointerReleased(e);
         }
     }
@@ -520,13 +609,19 @@ public sealed class WindowContext : IDisposable
     private void OnScroll(object? sender, ScrollEventArgs e)
     {
         e = ScaleScrollArgs(e);
+        ToolTips.Dismiss();
         DiagnosticLog.Debug("WindowContext", $"OnScroll - X={e.X}, Y={e.Y}, DeltaX={e.DeltaX}, DeltaY={e.DeltaY}");
-        if (LinuxDialogService.HasActiveDialog && !_app.IsDialogHost(this))
+        if (LinuxDialogService.HasActiveDialog)
+        {
+            // The top dialog takes the wheel (an action sheet's long list scrolls).
+            if (_app.IsDialogHost(this))
+                LinuxDialogService.TopDialog?.OnScroll(e);
             return;
+        }
         var inputRoot = InputRoot;
         if (inputRoot != null)
         {
-            var hitView = inputRoot.HitTest(e.X, e.Y);
+            var hitView = HitTestLayers(e.X, e.Y, out _);
             DiagnosticLog.Debug("WindowContext", $"HitView: {hitView?.GetType().Name ?? "null"}");
             // Bubble scroll events up to find a ScrollView
             var view = hitView;
@@ -595,6 +690,138 @@ public sealed class WindowContext : IDisposable
     /// reports the platform as ready. Failure is logged, not thrown: the
     /// window still renders, only dialogs/modal sync are lost.
     /// </summary>
+    #region MAUI Window property sync (page swap, title, geometry)
+
+    /// <summary>
+    /// Live changes on the MAUI <see cref="Microsoft.Maui.Controls.Window"/>
+    /// reach the native window: a replaced Page (the post-login
+    /// <c>Window.Page = new AppShell()</c> / <c>MainPage =</c> swap) is
+    /// rendered into this window, and Title, Width/Height, X/Y and the
+    /// minimum/maximum sizes are applied. Geometry is logical (device-
+    /// independent) as everywhere in MAUI; values equal to the current native
+    /// state are ignored, which also absorbs the FrameChanged echo of a user
+    /// resize.
+    /// </summary>
+    private void OnMauiWindowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not Microsoft.Maui.Controls.Window window) return;
+        try
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(Microsoft.Maui.Controls.Window.Page):
+                    ReplacePage(window);
+                    break;
+                case nameof(Microsoft.Maui.Controls.Window.Title):
+                    if (!string.IsNullOrEmpty(window.Title))
+                        DisplayWindow?.SetTitle(window.Title);
+                    break;
+                case nameof(Microsoft.Maui.Controls.Window.Width):
+                case nameof(Microsoft.Maui.Controls.Window.Height):
+                    ApplyRequestedSize(window.Width, window.Height);
+                    break;
+                case nameof(Microsoft.Maui.Controls.Window.X):
+                case nameof(Microsoft.Maui.Controls.Window.Y):
+                    ApplyRequestedPosition(window.X, window.Y);
+                    break;
+                case nameof(Microsoft.Maui.Controls.Window.MinimumWidth):
+                case nameof(Microsoft.Maui.Controls.Window.MinimumHeight):
+                case nameof(Microsoft.Maui.Controls.Window.MaximumWidth):
+                case nameof(Microsoft.Maui.Controls.Window.MaximumHeight):
+                    ApplySizeLimits(window);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", $"Applying Window.{e.PropertyName} failed", ex);
+        }
+    }
+
+    /// <summary>Renders the window's new Page as this window's root.</summary>
+    private void ReplacePage(Microsoft.Maui.Controls.Window window)
+    {
+        var page = window.Page;
+        if (page == null) return;
+        if (page.Handler?.PlatformView is SkiaView current && ReferenceEquals(current, _rootView))
+            return;
+
+        var mauiContext = _app.MauiContext;
+        if (mauiContext == null)
+        {
+            DiagnosticLog.Warn("WindowContext", "Window.Page changed but no MAUI context is available");
+            return;
+        }
+
+        var renderer = new LinuxViewRenderer(mauiContext);
+        var root = renderer.RenderPage(page);
+        if (root == null) return;
+
+        CapturedView = null;
+        HoveredView = null;
+        FocusedView = null;
+        RootView = root;
+        if (ReferenceEquals(_app.PrimaryContext, this))
+            LinuxApplication.TrackRootForHotReload(renderer, window, page);
+        if (string.IsNullOrEmpty(window.Title) && !string.IsNullOrEmpty(page.Title))
+            DisplayWindow?.SetTitle(page.Title);
+        RenderingEngine?.InvalidateAll();
+        DiagnosticLog.Info("WindowContext", $"Window page replaced: {page.GetType().Name}");
+    }
+
+    /// <summary>
+    /// Limits and position the app set before the window was shown (size is
+    /// already used to create the native window).
+    /// </summary>
+    private void ApplyInitialGeometry(Microsoft.Maui.Controls.Window window)
+    {
+        try
+        {
+            if (IsSet(window.MinimumWidth) || IsSet(window.MinimumHeight) || IsSet(window.MaximumWidth) || IsSet(window.MaximumHeight))
+                ApplySizeLimits(window);
+            if (!double.IsNaN(window.X) && !double.IsNaN(window.Y))
+                ApplyRequestedPosition(window.X, window.Y);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "Applying initial window geometry failed", ex);
+        }
+    }
+
+    private static bool IsSet(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && v > 0;
+
+    private void ApplyRequestedSize(double logicalWidth, double logicalHeight)
+    {
+        var native = DisplayWindow;
+        if (native == null || !IsSet(logicalWidth) || !IsSet(logicalHeight)) return;
+        float scale = Scale;
+        int w = (int)Math.Round(logicalWidth * scale);
+        int h = (int)Math.Round(logicalHeight * scale);
+        if (Math.Abs(w - native.Width) <= 1 && Math.Abs(h - native.Height) <= 1) return;
+        if (native is IDesktopWindowControl control)
+            control.RequestLogicalSize((int)Math.Round(logicalWidth), (int)Math.Round(logicalHeight));
+        else
+            native.Resize(w, h);
+    }
+
+    private void ApplyRequestedPosition(double logicalX, double logicalY)
+    {
+        if (double.IsNaN(logicalX) || double.IsNaN(logicalY)) return;
+        if (DisplayWindow is IDesktopWindowControl control)
+            control.RequestLogicalPosition((int)Math.Round(logicalX), (int)Math.Round(logicalY));
+    }
+
+    private void ApplySizeLimits(Microsoft.Maui.Controls.Window window)
+    {
+        if (DisplayWindow is not IDesktopWindowControl control) return;
+        static int Limit(double v) => double.IsNaN(v) || double.IsInfinity(v) || v <= 0 ? 0 : (int)Math.Round(v);
+        control.SetLogicalSizeLimits(
+            Limit(window.MinimumWidth), Limit(window.MinimumHeight),
+            Limit(window.MaximumWidth), Limit(window.MaximumHeight));
+    }
+
+    #endregion
+
     private void AttachMauiWindowHandler(Microsoft.Maui.Controls.Window window)
     {
         if (window.Handler != null)
@@ -668,6 +895,7 @@ public sealed class WindowContext : IDisposable
         ResetInputState();
         RequestFullRedraw();
         DiagnosticLog.Debug("WindowContext", $"Modal pushed: {page.GetType().Name} (depth {_modals.Count})");
+        Diagnostics.VisualTreeInspector.DumpAfterModalIfRequested();
     }
 
     /// <summary>
@@ -675,6 +903,106 @@ public sealed class WindowContext : IDisposable
     /// disconnects the page's handler so its Skia tree can be collected, and
     /// returns input to whatever is now on top.
     /// </summary>
+    /// <summary>
+    /// Hit-tests the modal and popup layers from the top, then the root. A
+    /// modal page takes every point inside it. A popup takes points on its
+    /// content; its backdrop (transparent, non-interactive area) either lets
+    /// the point through to the layer beneath, for a popup with
+    /// BackgroundInputTransparent (toasts), or is reported through
+    /// <paramref name="backdropOf"/> as that popup's background.
+    /// </summary>
+    internal SkiaView? HitTestLayers(float x, float y, out Page? backdropOf)
+    {
+        backdropOf = null;
+        for (int i = _modals.Count - 1; i >= 0; i--)
+        {
+            var layer = _modals[i];
+            var hit = layer.View.HitTest(x, y);
+            if (!layer.IsPopup || !IsBackdrop(hit, layer.View))
+                return hit;
+            if (!MopupsBridge.IsBackgroundInputTransparent(layer.Page))
+            {
+                backdropOf = layer.Page;
+                return hit;
+            }
+        }
+        return _rootView?.HitTest(x, y);
+    }
+
+    /// <summary>
+    /// True when <paramref name="hit"/> is a popup's backdrop: nothing, or a
+    /// container that paints no background and takes no input, as native
+    /// hit-testing treats it (a transparent panel is not hit on WinUI, a view
+    /// with no listeners does not consume the touch on Android).
+    /// </summary>
+    private static bool IsBackdrop(SkiaView? hit, SkiaView layer)
+    {
+        for (var view = hit; view != null; view = view.Parent)
+        {
+            if (view is not (SkiaLayoutView or SkiaPage))
+                return false;
+            if (view.IsFocusable || view.BackgroundColor is { Alpha: > 0 }
+                || (view.MauiView is { } maui && (maui.GestureRecognizers.Count > 0 || !Microsoft.Maui.Controls.Brush.IsNullOrEmpty(maui.Background)
+                    || maui.BackgroundColor is { Alpha: > 0 })))
+                return false;
+            if (ReferenceEquals(view, layer))
+                break;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Presents a popup (Mopups' PopupPage) as a layer over the window without
+    /// modal navigation: the page beneath gets no Disappearing/Appearing, as
+    /// with the native popup overlays on the other platforms. Mopups raises
+    /// the popup's own lifecycle.
+    /// </summary>
+    internal void PushPopupView(Page page)
+    {
+        var mauiContext = _app.MauiContext
+            ?? (_mauiWindow as Microsoft.Maui.Controls.Window)?.Handler?.MauiContext;
+        if (mauiContext == null)
+        {
+            DiagnosticLog.Warn("WindowContext", $"Popup {page.GetType().Name}: no MAUI context; not presented");
+            return;
+        }
+
+        var view = new LinuxViewRenderer(mauiContext).RenderPage(page);
+        if (view == null)
+        {
+            DiagnosticLog.Warn("WindowContext", $"Popup {page.GetType().Name} produced no view; not presented");
+            return;
+        }
+        if (RenderingEngine != null)
+            view.RenderContext = RenderingEngine;
+
+        var (width, height) = CurrentLayoutSize();
+        LayoutModalLayer(view, width, height);
+        _modals.Add(new ModalEntry(page, view, IsPopup: true));
+        _modalViews.Add(view);
+        ResetInputState();
+        RequestFullRedraw();
+        DiagnosticLog.Debug("WindowContext", $"Popup shown: {page.GetType().Name}");
+        Diagnostics.VisualTreeInspector.DumpAfterModalIfRequested();
+    }
+
+    /// <summary>Removes a popup presented with <see cref="PushPopupView"/>.</summary>
+    internal bool PopPopupView(Page page)
+    {
+        for (int i = _modals.Count - 1; i >= 0; i--)
+        {
+            if (_modals[i].IsPopup && ReferenceEquals(_modals[i].Page, page))
+            {
+                PopModalView(page);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static ButtonsMask ToButtonsMask(PointerButton button) =>
+        button == PointerButton.Right ? ButtonsMask.Secondary : ButtonsMask.Primary;
+
     internal void PopModalView(Page page)
     {
         if (page == null) return;
@@ -792,6 +1120,38 @@ public sealed class WindowContext : IDisposable
         _mauiActivatedSent = false;
         try { MauiWindow.Deactivated(); }
         catch (Exception ex) { DiagnosticLog.Error("WindowContext", "IWindow.Deactivated threw", ex); }
+    }
+
+    private bool _mauiStoppedSent;
+
+    /// <summary>
+    /// The native window was minimized or became fully hidden (xdg-shell
+    /// <c>suspended</c> on Wayland, <c>_NET_WM_STATE_HIDDEN</c> on X11):
+    /// IWindow.Stopped, which MAUI turns into Window.Stopped and
+    /// Application.OnSleep. Raised for every context, the primary included,
+    /// since the bootstrap raises no sleep/resume of its own.
+    /// </summary>
+    internal void NotifyStopped()
+    {
+        if (_mauiStoppedSent || _mauiDestroyingSent || MauiWindow == null) return;
+        _mauiStoppedSent = true;
+        try { MauiWindow.Stopped(); }
+        catch (Exception ex) { DiagnosticLog.Error("WindowContext", "IWindow.Stopped threw", ex); }
+    }
+
+    /// <summary>The window is visible again: IWindow.Resumed (Application.OnResume).</summary>
+    internal void NotifyResumed()
+    {
+        if (!_mauiStoppedSent || _mauiDestroyingSent || MauiWindow == null) return;
+        _mauiStoppedSent = false;
+        try { MauiWindow.Resumed(); }
+        catch (Exception ex) { DiagnosticLog.Error("WindowContext", "IWindow.Resumed threw", ex); }
+    }
+
+    private void OnWindowSuspendedChanged(object? sender, bool suspended)
+    {
+        if (suspended) NotifyStopped();
+        else NotifyResumed();
     }
 
     /// <summary>
