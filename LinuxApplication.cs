@@ -25,7 +25,7 @@ namespace Microsoft.Maui.Platform.Linux;
 /// <summary>
 /// Main Linux application class that bootstraps the MAUI application.
 /// </summary>
-public partial class LinuxApplication : IDisposable
+public partial class LinuxApplication : IDisposable, IPlatformApplication
 {
     private static int _invalidateCount;
     private static int _requestRedrawCount;
@@ -398,9 +398,37 @@ public partial class LinuxApplication : IDisposable
     }
 
     /// <summary>
-    /// Gets the HiDPI scale factor detected at startup.
+    /// Gets the primary window's HiDPI scale factor: detected at startup, then following the window across monitors of different scale.
     /// </summary>
     public float DpiScale { get; private set; } = 1.0f;
+
+    /// <summary>
+    /// Raised when the primary window's scale changes at runtime (moved to a
+    /// monitor with a different scale, or the desktop scale was changed).
+    /// </summary>
+    public event EventHandler<float>? DpiScaleChanged;
+
+    // IPlatformApplication: the platform-level application MAUI exposes as
+    // IPlatformApplication.Current on every platform. Apps use
+    // IPlatformApplication.Current.Services as a service locator from views
+    // built by XAML (no constructor injection); without it those views throw.
+    // As elsewhere, Services is the app's root provider (pages resolve from
+    // the window scope through MauiContext).
+    internal IServiceProvider? RootServices { get; set; }
+
+    IServiceProvider IPlatformApplication.Services =>
+        RootServices ?? MauiContext?.Services ?? throw new InvalidOperationException("The MAUI app is not built yet");
+
+    IApplication IPlatformApplication.Application =>
+        ((IPlatformApplication)this).Services.GetService(typeof(IApplication)) as IApplication
+        ?? throw new InvalidOperationException("No IApplication is registered");
+
+    internal void UpdateDpiScale(float scale)
+    {
+        if (scale <= 0f || Math.Abs(scale - DpiScale) < 0.01f) return;
+        DpiScale = scale;
+        DpiScaleChanged?.Invoke(this, scale);
+    }
 
     /// <summary>
     /// Initializes the application with the specified options.
@@ -462,7 +490,7 @@ public partial class LinuxApplication : IDisposable
 
     /// <summary>
     /// Diagnostic name of the primary window's render target ("raster",
-    /// "egl-wayland", "egl-x11"); null in GTK-hosted mode.
+    /// "egl-wayland", "egl-x11", "vulkan-wayland", "vulkan-x11"); null in GTK-hosted mode.
     /// </summary>
     public string? RendererName => PrimaryContext?.RenderingEngine?.RenderTarget.Name;
 
@@ -470,6 +498,8 @@ public partial class LinuxApplication : IDisposable
     {
         if (target is EglRenderTarget egl)
             DiagnosticLog.Info("LinuxApplication", $"Renderer: {egl.Name} (EGL {egl.EglVersion}; {egl.Renderer})");
+        else if (target is VulkanRenderTarget vk)
+            DiagnosticLog.Info("LinuxApplication", $"Renderer: {vk.Name} ({vk.DeviceDescription}; {vk.PresentMode}, {vk.ImageCount} images; {vk.SelectionReason})");
         else
             DiagnosticLog.Info("LinuxApplication", $"Renderer: {target.Name}");
     }
@@ -608,10 +638,9 @@ public partial class LinuxApplication : IDisposable
             // Running from an AppImage: ProcessPath points into the ephemeral
             // FUSE mount (/tmp/.mount_*), so a desktop entry written here would
             // go stale the moment the AppImage unmounts — a dead launcher icon.
-            // The AppImage runtime sets $APPIMAGE to the real on-disk path, and
-            // the AppImage's own first-run installer owns desktop integration;
+            // The AppImage's own first-run installer owns desktop integration;
             // skip ours entirely.
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPIMAGE")))
+            if (AppInfoService.IsRunningFromAppImage())
             {
                 DiagnosticLog.Debug("LinuxApplication", "Running from AppImage — skipping desktop entry (AppImage installer owns it)");
                 return;
