@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for SwipeView on Linux using Skia rendering.
 /// Maps SwipeView to SkiaSwipeView platform view.
 /// </summary>
-public partial class SwipeViewHandler : ViewHandler<SwipeView, SkiaSwipeView>
+public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeView>
 {
     public static IPropertyMapper<SwipeView, SwipeViewHandler> Mapper =
         new PropertyMapper<SwipeView, SwipeViewHandler>(ViewHandler.ViewMapper)

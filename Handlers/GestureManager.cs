@@ -339,8 +339,44 @@ public static class GestureManager
     /// when its NumberOfTapsRequired is satisfied. <paramref name="trackingKey"/>
     /// distinguishes a span's taps from its host label's.
     /// </summary>
+    /// <summary>
+    /// The button of the pointer press being processed (set by the window's
+    /// input dispatch). Tap recognizers fire only for the buttons in their
+    /// <c>Buttons</c> mask, as on the other platforms: a context-menu recognizer
+    /// (<c>Buttons="Secondary"</c>) must not fire on a left click.
+    /// </summary>
+    [ThreadStatic]
+    private static ButtonsMask t_currentButton;
+
+    internal static ButtonsMask CurrentButton
+    {
+        get => t_currentButton == 0 ? ButtonsMask.Primary : t_currentButton;
+        set => t_currentButton = value;
+    }
+
+    /// <summary>
+    /// True when <paramref name="view"/> has a tap recognizer that the button
+    /// of the current press fires (<see cref="CurrentButton"/>): hit-testing
+    /// gives the press to a view that will react to that button.
+    /// </summary>
+    internal static bool HasTapRecognizerForCurrentButton(View? view)
+    {
+        if (view?.GestureRecognizers is not { } recognizers)
+            return false;
+        var button = CurrentButton;
+        foreach (var gr in recognizers)
+        {
+            if (gr is TapGestureRecognizer tap && (tap.Buttons & button) != 0)
+                return true;
+        }
+        return false;
+    }
+
     private static bool ProcessTapRecognizer(TapGestureRecognizer tapRecognizer, View sender, Element trackingKey, double x, double y)
     {
+        if ((tapRecognizer.Buttons & CurrentButton) == 0)
+            return false;
+
         DiagnosticLog.Debug(Tag,
             $"Processing TapGestureRecognizer on {sender.GetType().Name}, CommandParameter={tapRecognizer.CommandParameter}, NumberOfTapsRequired={tapRecognizer.NumberOfTapsRequired}");
 
@@ -685,7 +721,7 @@ public static class GestureManager
             // platform args carry nothing on Linux, MAUI accepts null there.
             MauiInternals.SendPointer.TryGetValue(eventType, out var method);
             InvokeInternal(method, pointerRecognizer,
-                view, CreatePositionResolver(x, y), null, ButtonsMask.Primary);
+                view, CreatePositionResolver(x, y), null, CurrentButton);
         }
     }
 

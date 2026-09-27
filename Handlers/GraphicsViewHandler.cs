@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Maps IGraphicsView interface to SkiaGraphicsView platform view.
 /// IGraphicsView has: Drawable, Invalidate()
 /// </summary>
-public partial class GraphicsViewHandler : ViewHandler<IGraphicsView, SkiaGraphicsView>
+public partial class GraphicsViewHandler : LinuxViewHandler<IGraphicsView, SkiaGraphicsView>
 {
     public static IPropertyMapper<IGraphicsView, GraphicsViewHandler> Mapper = new PropertyMapper<IGraphicsView, GraphicsViewHandler>(ViewHandler.ViewMapper)
     {
