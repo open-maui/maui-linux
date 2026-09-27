@@ -60,7 +60,7 @@ public partial class AtSpi2AccessibilityService : IAccessibilityService, IDispos
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Initialization failed - {ex.Message}");
+            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Initialization failed - {ex.Message}", ex);
         }
     }
 
@@ -172,7 +172,7 @@ public partial class AtSpi2AccessibilityService : IAccessibilityService, IDispos
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Announcement failed - {ex.Message}");
+            DiagnosticLog.Error("AtSpi2AccessibilityService", $"Announcement failed - {ex.Message}", ex);
         }
     }
 
