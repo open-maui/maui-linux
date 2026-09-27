@@ -340,7 +340,8 @@ public sealed class SyncfusionPopupCompatTests
 
         inner.Should().NotBeNull();
         var (x, y) = CompatHost.CenterOf(inner!);
-        host.CountPixelsNear(SKColors.Red, new SKRectI((int)x - 100, (int)y - 5, (int)x - 60, (int)y + 5)).Should().Be(400);
+        // The 120 px button keeps its width (centred in the Grid, as MAUI places an explicit size).
+        host.CountPixelsNear(SKColors.Red, new SKRectI((int)x - 55, (int)y - 5, (int)x - 25, (int)y + 5)).Should().Be(300);
         Click(host, x, y);
         Settle(host);
 
