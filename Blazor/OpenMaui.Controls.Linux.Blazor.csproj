@@ -8,7 +8,7 @@
     <RootNamespace>Microsoft.Maui.Platform.Linux.Blazor</RootNamespace>
     <AssemblyName>OpenMaui.Controls.Linux.Blazor</AssemblyName>
     <PackageId>OpenMaui.Controls.Linux.Blazor</PackageId>
-    <Version>10.0.101.3</Version>
+    <Version>10.0.110.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui BlazorWebView (Linux)</Product>
@@ -23,11 +23,20 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
+
+    <!-- Stable-contract gate (docs/VERSIONING.md): `dotnet pack` compares the
+         public API against the last released package and fails on an
+         unrecorded break. Intentional breaks are recorded in
+         CompatibilitySuppressions.xml (regenerate with
+         -p:ApiCompatGenerateSuppressionFile=true) and listed in CHANGELOG.md.
+         Bump the baseline to the new version after each release. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>10.0.101.3</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.101" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.110" />
     <!-- Same version WebView.Maui depends on. GeneratePathProperty exposes the
          package folder so blazor.webview.js (a static web asset that MAUI's
          asset pipeline delivers on other platforms) can be embedded here and
