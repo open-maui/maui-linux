@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// Native Wayland window implementation using xdg-shell protocol.
 /// Provides full Wayland support without XWayland dependency.
 /// </summary>
-public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IWaylandSurface
+public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IWaylandSurface, Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl, Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow
 {
     #region Native Interop - libwayland-client
 
@@ -226,6 +226,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private const uint XDG_TOPLEVEL_SET_APP_ID = 3;
     private const uint XDG_TOPLEVEL_MOVE = 5;
     private const uint XDG_TOPLEVEL_RESIZE = 6;
+    private const uint XDG_TOPLEVEL_SET_MAX_SIZE = 7;
+    private const uint XDG_TOPLEVEL_SET_MIN_SIZE = 8;
     private const uint XDG_TOPLEVEL_SET_MAXIMIZED = 9;
     private const uint XDG_TOPLEVEL_UNSET_MAXIMIZED = 10;
     private const uint XDG_TOPLEVEL_SET_MINIMIZED = 13;
@@ -501,20 +503,21 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
         // xdg-shell interfaces aren't shipped in libwayland-client; we build full
         // method/event tables here so libwayland can marshal correctly. We bind at
-        // version 2; method/event counts and signatures match v2 of the stable
-        // xdg-shell protocol (xdg-shell.xml). Higher-version events (configure_bounds,
-        // wm_capabilities) are intentionally absent: a v2-bound proxy will never
-        // receive them, and listing them with stub signatures risks demarshal errors
-        // if the compositor accidentally sends one.
+        // up to version 6 (XdgShellVersion) so the compositor can report the
+        // `suspended` toplevel state (minimized / fully hidden), which drives MAUI's
+        // IWindow.Stopped/Resumed. Every event up to v6 is therefore declared, with
+        // a listener entry for each: configure_bounds (v4) and wm_capabilities (v5)
+        // are received and ignored. Requests are unchanged since v2 for the
+        // objects we create (no positioners or popups).
 
         // We don't construct positioners or popups; their interfaces are stubs that
         // exist only so xdg_surface.get_popup / xdg_wm_base.create_positioner can
         // reference them in the methods table. Stubs are fine because we never
         // actually invoke those requests.
-        var positionerStub = BuildInterface("xdg_positioner", 2,
+        var positionerStub = BuildInterface("xdg_positioner", XdgShellVersion,
             new MessageDef[] { new("destroy", "", Array.Empty<IntPtr>()) },
             Array.Empty<MessageDef>());
-        var popupStub = BuildInterface("xdg_popup", 2,
+        var popupStub = BuildInterface("xdg_popup", XdgShellVersion,
             new MessageDef[] { new("destroy", "", Array.Empty<IntPtr>()) },
             Array.Empty<MessageDef>());
 
@@ -523,8 +526,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // Toplevel and surface must be built before wm_base; surface references
         // toplevel/popup; toplevel references wl_seat and wl_output (from libwayland).
 
-        // xdg_toplevel — 14 requests, 2 events at v2
-        _xdg_toplevel_interface = BuildInterface("xdg_toplevel", 2,
+        // xdg_toplevel — 14 requests, 4 events at v6
+        _xdg_toplevel_interface = BuildInterface("xdg_toplevel", XdgShellVersion,
             methods: new MessageDef[]
             {
                 new("destroy", "", Array.Empty<IntPtr>()),
@@ -546,10 +549,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             {
                 new("configure", "iia", NullTypes(3)),
                 new("close", "", Array.Empty<IntPtr>()),
+                new("configure_bounds", "4ii", NullTypes(2)),
+                new("wm_capabilities", "5a", NullTypes(1)),
             });
 
-        // xdg_surface — 5 requests, 1 event at v2
-        _xdg_surface_interface = BuildInterface("xdg_surface", 2,
+        // xdg_surface — 5 requests, 1 event (unchanged through v6)
+        _xdg_surface_interface = BuildInterface("xdg_surface", XdgShellVersion,
             methods: new MessageDef[]
             {
                 new("destroy", "", Array.Empty<IntPtr>()),
@@ -563,8 +568,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 new("configure", "u", new[] { IntPtr.Zero }),
             });
 
-        // xdg_wm_base — 4 requests, 1 event at v2
-        _xdg_wm_base_interface = BuildInterface("xdg_wm_base", 2,
+        // xdg_wm_base — 4 requests, 1 event (unchanged through v6)
+        _xdg_wm_base_interface = BuildInterface("xdg_wm_base", XdgShellVersion,
             methods: new MessageDef[]
             {
                 new("destroy", "", Array.Empty<IntPtr>()),
@@ -784,7 +789,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     {
         public IntPtr Configure;
         public IntPtr Close;
+        public IntPtr ConfigureBounds;  // v4
+        public IntPtr WmCapabilities;   // v5
     }
+
+    /// <summary>Highest xdg-shell version whose events the tables above declare.</summary>
+    private const int XdgShellVersion = 6;
 
     private const uint WL_SHM_FORMAT_ARGB8888 = 0;
     private const uint WL_SHM_FORMAT_XRGB8888 = 1;
@@ -819,7 +829,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private IntPtr _viewporter;
     private IntPtr _viewport;
     private IntPtr _surface;
-    private float _bufferToLogicalScale = 1.0f; // == LinuxApplication.DpiScale; cached on init.
+    private float _bufferToLogicalScale = 1.0f; // buffer pixels per logical pixel; follows wp_fractional_scale_v1
     private IntPtr _xdgSurface;
     private IntPtr _xdgToplevel;
     private IntPtr _pointer;
@@ -890,6 +900,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private XdgSurfaceConfigureDelegate? _xdgSurfaceConfigureDelegate;
     private XdgToplevelConfigureDelegate? _xdgToplevelConfigureDelegate;
     private XdgToplevelCloseDelegate? _xdgToplevelCloseDelegate;
+    private XdgToplevelConfigureBoundsDelegate? _xdgToplevelConfigureBoundsDelegate;
+    private XdgToplevelWmCapabilitiesDelegate? _xdgToplevelWmCapabilitiesDelegate;
     private XdgWmBasePingDelegate? _xdgWmBasePingDelegate;
     private BufferReleaseDelegate? _bufferReleaseDelegate;
 
@@ -921,6 +933,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     public int Stride => _stride;
     public string Title => _title;
     public float BufferToLogicalScale => _bufferToLogicalScale;
+
+    /// <inheritdoc />
+    public float Scale => _bufferToLogicalScale;
+
+    /// <inheritdoc />
+    public event EventHandler<float>? ScaleChanged;
 
     #endregion
 
@@ -1040,10 +1058,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
         _xdgToplevelConfigureDelegate = XdgToplevelConfigure; // rooted; see registry listener
         _xdgToplevelCloseDelegate = XdgToplevelClose;
+        _xdgToplevelConfigureBoundsDelegate = XdgToplevelConfigureBounds;
+        _xdgToplevelWmCapabilitiesDelegate = XdgToplevelWmCapabilities;
         _toplevelListener = new XdgToplevelListener
         {
             Configure = Marshal.GetFunctionPointerForDelegate(_xdgToplevelConfigureDelegate),
-            Close = Marshal.GetFunctionPointerForDelegate(_xdgToplevelCloseDelegate)
+            Close = Marshal.GetFunctionPointerForDelegate(_xdgToplevelCloseDelegate),
+            ConfigureBounds = Marshal.GetFunctionPointerForDelegate(_xdgToplevelConfigureBoundsDelegate),
+            WmCapabilities = Marshal.GetFunctionPointerForDelegate(_xdgToplevelWmCapabilitiesDelegate),
         };
         _toplevelListenerHandle = GCHandle.Alloc(_toplevelListener, GCHandleType.Pinned);
         xdg_toplevel_add_listener(_xdgToplevel, _toplevelListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
@@ -1074,9 +1096,14 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // pin destination = logical size (e.g. 800x600), buffer can be 1400x1050,
         // and the compositor displays at 800*1.75 = 1400 actual pixels — exactly
         // matching the X11 path.
-        if (LinuxApplication.Current is { DpiScale: > 1.01f } app && _viewporter != IntPtr.Zero)
+        // The viewport is created at every scale (not only above 1x) so a later
+        // wp_fractional_scale_v1.preferred_scale can change the buffer scale at
+        // runtime: moving the window to a monitor with a different scale keeps
+        // its logical size and re-renders at the new density.
+        if (_viewporter != IntPtr.Zero)
         {
-            _bufferToLogicalScale = app.DpiScale;
+            var app = LinuxApplication.Current;
+            _bufferToLogicalScale = app is { DpiScale: > 0f } ? app.DpiScale : 1f;
             // wp_viewporter.get_viewport: opcode 1, signature "no" (new_id, surface).
             _viewport = wl_proxy_marshal_constructor(
                 _viewporter, 1, _wp_viewport_interface, IntPtr.Zero, _surface);
@@ -1093,8 +1120,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         wl_surface_commit(_surface);
         wl_display_roundtrip(_display);
 
-        // Create shared memory buffer
-        CreateShmBuffer();
+        // Create shared memory buffer (a preferred_scale received during the
+        // roundtrip above may already have created one at the right size).
+        if (_buffer == IntPtr.Zero)
+            CreateShmBuffer();
 
         DiagnosticLog.Debug("WaylandWindow", $"Window created: {_width}x{_height}");
     }
@@ -1242,6 +1271,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private delegate void XdgSurfaceConfigureDelegate(IntPtr data, IntPtr xdgSurface, uint serial);
     private delegate void XdgToplevelConfigureDelegate(IntPtr data, IntPtr toplevel, int width, int height, IntPtr states);
     private delegate void XdgToplevelCloseDelegate(IntPtr data, IntPtr toplevel);
+    private delegate void XdgToplevelConfigureBoundsDelegate(IntPtr data, IntPtr toplevel, int width, int height);
+    private delegate void XdgToplevelWmCapabilitiesDelegate(IntPtr data, IntPtr toplevel, IntPtr capabilities);
     private delegate void BufferReleaseDelegate(IntPtr data, IntPtr buffer);
 
     #endregion
@@ -1270,7 +1301,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 window.SetupSeat();
                 break;
             case "xdg_wm_base":
-                window._xdgWmBase = wl_registry_bind(registry, name, _xdg_wm_base_interface, Math.Min(version, 2u));
+                window._xdgWmBase = wl_registry_bind(registry, name, _xdg_wm_base_interface, Math.Min(version, (uint)XdgShellVersion));
                 window.SetupXdgWmBase();
                 break;
             case "zxdg_decoration_manager_v1":
@@ -1563,7 +1594,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
 
         var (key, text) = window.TranslateKey(keycode);
         var modifiers = (KeyModifiers)window._modifiers;
-        var args = new KeyEventArgs(key, modifiers);
+        var args = new KeyEventArgs(key, modifiers) { HardwareKeycode = KeyMapping.EvdevToXkbKeycode(keycode) };
 
         if (state == WL_KEYBOARD_KEY_STATE_PRESSED)
         {
@@ -1632,6 +1663,28 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private const uint XDG_TOPLEVEL_STATE_MAXIMIZED = 1;
     private const uint XDG_TOPLEVEL_STATE_FULLSCREEN = 2;
     private const uint XDG_TOPLEVEL_STATE_ACTIVATED = 4;
+    private const uint XDG_TOPLEVEL_STATE_SUSPENDED = 9; // xdg-shell v6
+
+    private bool _isSuspended;
+
+    /// <inheritdoc />
+    public bool IsSuspended => _isSuspended;
+
+    /// <inheritdoc />
+    public event EventHandler<bool>? SuspendedChanged;
+
+    private void SetSuspended(bool suspended)
+    {
+        if (_isSuspended == suspended) return;
+        _isSuspended = suspended;
+        DiagnosticLog.Debug("WaylandWindow", suspended ? "Toplevel suspended (minimized or hidden)" : "Toplevel resumed");
+        SuspendedChanged?.Invoke(this, suspended);
+    }
+
+    // v4/v5 events: informational only (the CSD keeps its buttons; tiling
+    // compositors already constrain size through configure).
+    private static void XdgToplevelConfigureBounds(IntPtr data, IntPtr toplevel, int width, int height) { }
+    private static void XdgToplevelWmCapabilities(IntPtr data, IntPtr toplevel, IntPtr capabilities) { }
 
     private bool _isMaximized;
     public bool IsMaximized => _isMaximized;
@@ -1649,6 +1702,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // Read size (bytes), then iterate uint32_t entries from data.
         bool wasMaximized = window._isMaximized;
         bool seeMaximized = false;
+        bool seeSuspended = false;
         if (states != IntPtr.Zero)
         {
             // wl_array is { nuint size; nuint alloc; void* data; } — size is in bytes.
@@ -1659,12 +1713,12 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             {
                 uint state = (uint)Marshal.ReadInt32(dataPtr, i * sizeof(uint));
                 if (state == XDG_TOPLEVEL_STATE_MAXIMIZED)
-                {
                     seeMaximized = true;
-                    break;
-                }
+                else if (state == XDG_TOPLEVEL_STATE_SUSPENDED)
+                    seeSuspended = true;
             }
         }
+        window.SetSuspended(seeSuspended);
         if (wasMaximized != seeMaximized)
         {
             window._isMaximized = seeMaximized;
@@ -1752,6 +1806,39 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     public void Resize(int width, int height)
     {
         ResizeBuffer(width, height);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A floating Wayland window chooses its own size: the buffer becomes
+    /// logical x scale and the viewport keeps the surface logical. A tiling
+    /// or maximized configure overrides it on the next configure, as it should.
+    /// </remarks>
+    public void RequestLogicalSize(int width, int height)
+    {
+        if (width <= 0 || height <= 0) return;
+        if (_viewport != IntPtr.Zero)
+            wl_proxy_marshal(_viewport, 2, width, height);
+        ResizeBuffer((int)Math.Round(width * _bufferToLogicalScale), (int)Math.Round(height * _bufferToLogicalScale));
+        Exposed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <inheritdoc />
+    public void RequestLogicalPosition(int x, int y)
+    {
+        // xdg-shell gives clients no way to place a toplevel; the compositor decides.
+        DiagnosticLog.Debug("WaylandWindow", "Window position requests are not supported on Wayland; ignored");
+    }
+
+    /// <inheritdoc />
+    public void SetLogicalSizeLimits(int minWidth, int minHeight, int maxWidth, int maxHeight)
+    {
+        if (_xdgToplevel == IntPtr.Zero) return;
+        // xdg_toplevel sizes are in surface-local (logical) coordinates; 0 = unset.
+        wl_proxy_marshal(_xdgToplevel, XDG_TOPLEVEL_SET_MIN_SIZE, Math.Max(0, minWidth), Math.Max(0, minHeight));
+        wl_proxy_marshal(_xdgToplevel, XDG_TOPLEVEL_SET_MAX_SIZE, Math.Max(0, maxWidth), Math.Max(0, maxHeight));
+        wl_surface_commit(_surface);
+        wl_display_flush(_display);
     }
 
     public void SetCursor(CursorType cursorType)
