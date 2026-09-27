@@ -16,6 +16,8 @@ public static class XEventType
     public const int FocusOut = 10;
     public const int Expose = 12;
     public const int DestroyNotify = 17;
+    public const int UnmapNotify = 18;
+    public const int MapNotify = 19;
     public const int ConfigureNotify = 22;
     public const int PropertyNotify = 28;
     public const int SelectionClear = 29;
