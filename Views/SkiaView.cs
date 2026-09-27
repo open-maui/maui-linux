@@ -1161,7 +1161,12 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         InvalidateInternal();
     }
 
-    private void InvalidateInternal() => InvalidateInternal(reportDamage: true);
+    private void InvalidateInternal()
+    {
+        if (Microsoft.Maui.Platform.Linux.Diagnostics.InvalidationTrace.Enabled)
+            Microsoft.Maui.Platform.Linux.Diagnostics.InvalidationTrace.Record(this);
+        InvalidateInternal(reportDamage: true);
+    }
 
     /// <summary>
     /// Raises Invalidated up the parent chain and, for the view that actually
@@ -1217,8 +1222,18 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     internal static int LayoutRequestCount;
 
+    /// <summary>
+    /// Set when this view's layout was invalidated (here or below it) and
+    /// cleared once a self-laying view has re-run its own layout. Lets
+    /// <see cref="Arrange"/> skip a library layout's arrange when nothing
+    /// changed: Syncfusion's chart re-plots and asks to repaint every time it is
+    /// arranged, and the renderer lays the tree out every frame.
+    /// </summary>
+    internal bool LayoutDirty { get; set; } = true;
+
     public void InvalidateMeasure()
     {
+        LayoutDirty = true;
         LayoutRequestCount++;
         DesiredSize = Size.Zero;
         _parent?.InvalidateMeasure();
@@ -1364,6 +1379,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     }
 
     private bool _inMauiArrange;
+    private Rect? _selfArrangedTo;
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, bool> s_customArrange = new();
 
@@ -1390,6 +1406,11 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         if (!_inMauiArrange && MauiView is Microsoft.Maui.Controls.VisualElement ve && ve.Handler != null
             && HasCustomArrangeOverride(ve.GetType()))
         {
+            // Nothing changed since its last arrange: its children stay where they are.
+            if (!LayoutDirty && _selfArrangedTo == bounds)
+                return;
+            _selfArrangedTo = bounds;
+            LayoutDirty = false;
             _inMauiArrange = true;
             try
             {
