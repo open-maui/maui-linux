@@ -410,7 +410,7 @@ public partial class SkiaEditor
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaEditor", $"Primary-selection write failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaEditor", $"Primary-selection write failed: {ex.Message}", ex);
         }
     }
 
@@ -474,7 +474,7 @@ public partial class SkiaEditor
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("SkiaEditor", $"Primary-selection paste failed: {ex.Message}");
+            DiagnosticLog.Error("SkiaEditor", $"Primary-selection paste failed: {ex.Message}", ex);
         }
     }
 

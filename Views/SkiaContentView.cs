@@ -2,12 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Maui.Graphics;
+using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// Skia-rendered container for a single content child (ContentView).
-/// Measures and arranges its single child to fill the available space.
+/// Measures and arranges its single child within the available space by its layout options.
 /// </summary>
 public class SkiaContentView : SkiaLayoutView
 {
@@ -22,7 +23,7 @@ public class SkiaContentView : SkiaLayoutView
         var childAvailableH = HeightRequest >= 0 ? HeightRequest : availableSize.Height;
 
         // Measure the single child (ContentView has one child)
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (child.IsVisible)
             {
@@ -51,11 +52,14 @@ public class SkiaContentView : SkiaLayoutView
             Math.Max(0, bounds.Width - Padding.Left - Padding.Right),
             Math.Max(0, bounds.Height - Padding.Top - Padding.Bottom));
 
-        foreach (var child in Children)
+        var area = new SKRect((float)contentBounds.Left, (float)contentBounds.Top, (float)contentBounds.Right, (float)contentBounds.Bottom);
+        foreach (var child in Children.ToArray())
         {
             if (child.IsVisible)
             {
-                child.Arrange(contentBounds);
+                // Honour the content's layout options, as in MAUI.
+                var desired = child.Measure(new Size(contentBounds.Width, contentBounds.Height));
+                child.Arrange(SkiaPage.AlignContent(child, area, desired));
             }
         }
 

@@ -63,6 +63,28 @@ public abstract class SkiaLayoutView : SkiaView
     public new IReadOnlyList<SkiaView> Children => _children;
 
     /// <summary>
+    /// The children in drawing order: by ZIndex, lowest first, and in child
+    /// order within the same ZIndex, as MAUI stacks them on every platform
+    /// (a list's sticky group header, on a higher ZIndex, stays over the rows
+    /// that scroll beneath it). Hit-testing walks it from the top.
+    /// </summary>
+    internal SkiaView[] ChildrenInZOrder()
+    {
+        var children = _children.ToArray();
+        bool ordered = true;
+        for (int i = 1; i < children.Length && ordered; i++)
+            ordered = children[i - 1].ZIndex <= children[i].ZIndex;
+        if (ordered)
+            return children;
+        return children
+            .Select((child, index) => (child, index))
+            .OrderBy(x => x.child.ZIndex)
+            .ThenBy(x => x.index)
+            .Select(x => x.child)
+            .ToArray();
+    }
+
+    /// <summary>
     /// Spacing between children.
     /// </summary>
     public double Spacing
@@ -97,7 +119,9 @@ public abstract class SkiaLayoutView : SkiaView
         base.OnBindingContextChanged();
 
         // Propagate binding context to layout children
-        foreach (var child in _children)
+        // Snapshot: a child's measure/arrange/draw may add or remove siblings
+        // (a layout that builds its panes while arranging, as MALayout does).
+        foreach (var child in _children.ToArray())
         {
             SetInheritedBindingContext(child, BindingContext);
         }
@@ -182,7 +206,7 @@ public abstract class SkiaLayoutView : SkiaView
     /// </summary>
     public virtual void ClearChildren()
     {
-        foreach (var child in _children)
+        foreach (var child in _children.ToArray())
         {
             child.Parent = null;
         }
@@ -224,28 +248,37 @@ public abstract class SkiaLayoutView : SkiaView
         if (this is SkiaStackLayout)
         {
             bool hasCV = false;
-            foreach (var c in _children)
+            foreach (var c in _children.ToArray())
             {
                 if (c is SkiaCollectionView) hasCV = true;
             }
             if (hasCV)
             {
                 DiagnosticLog.Debug("SkiaLayoutView", $"[SkiaStackLayout+CV] OnDraw - bounds={bounds}, children={_children.Count}");
-                foreach (var c in _children)
+                foreach (var c in _children.ToArray())
                 {
                     DiagnosticLog.Debug("SkiaLayoutView", $"[SkiaStackLayout+CV] Child: {c.GetType().Name}, IsVisible={c.IsVisible}, Bounds={c.Bounds}");
                 }
             }
         }
 
-        // Draw children in order
-        foreach (var child in _children)
+        // Draw children in order; IsClippedToBounds keeps them inside the
+        // layout (a translated strip of pages, as SfTabView slides its tabs).
+        bool clip = ClipToBounds;
+        if (clip)
+        {
+            canvas.Save();
+            canvas.ClipRect(bounds);
+        }
+        foreach (var child in ChildrenInZOrder())
         {
             if (child.IsVisible)
             {
                 child.Draw(canvas);
             }
         }
+        if (clip)
+            canvas.Restore();
     }
 
     public override SkiaView? HitTest(float x, float y)
@@ -253,27 +286,50 @@ public abstract class SkiaLayoutView : SkiaView
         if (!IsVisible || !IsEnabled || !Bounds.Contains(x, y))
             return null;
 
-        // If this layout view has tap gesture recognizers, it should handle the hit
-        // rather than passing through to children (matches SkiaBorder behavior).
-        if (MauiView?.GestureRecognizers != null)
-        {
-            foreach (var gr in MauiView.GestureRecognizers)
-            {
-                if (gr is Microsoft.Maui.Controls.TapGestureRecognizer)
-                    return this;
-            }
-        }
+        var childHit = HitTestChildren(x, y);
 
-        // Hit test children in reverse order (top-most first)
-        for (int i = _children.Count - 1; i >= 0; i--)
+        // A tappable layout takes the pointer unless the child under it handles
+        // input itself (a Button over a tappable backdrop keeps its clicks, as
+        // in MAUI); taps on plain content still reach the layout's recognizer.
+        if (HasTapRecognizer(MauiView) && (childHit == null || !ClaimsInput(childHit, this)))
+            return this;
+
+        return childHit ?? this;
+    }
+
+    /// <summary>The top-most child hit at (x, y), or null.</summary>
+    protected SkiaView? HitTestChildren(float x, float y)
+    {
+        var ordered = ChildrenInZOrder();
+        for (int i = ordered.Length - 1; i >= 0; i--)
         {
-            var child = _children[i];
-            var hit = child.HitTest(x, y);
+            var hit = ordered[i].HitTest(x, y);
             if (hit != null)
                 return hit;
         }
+        return null;
+    }
 
-        return this;
+    /// <summary>
+    /// True when the view has a tap recognizer the current press's button fires:
+    /// a right-click-only recognizer (a context menu) does not make a layout take
+    /// left clicks away from the controls in it, and does take right clicks.
+    /// </summary>
+    internal static bool HasTapRecognizer(Microsoft.Maui.Controls.View? view) => GestureManager.HasTapRecognizerForCurrentButton(view);
+
+    /// <summary>
+    /// True when <paramref name="hit"/>, or a view between it and
+    /// <paramref name="container"/>, handles input itself: a focusable control
+    /// or a nested tappable view.
+    /// </summary>
+    internal static bool ClaimsInput(SkiaView hit, SkiaView container)
+    {
+        for (var view = hit; view != null && !ReferenceEquals(view, container); view = view.Parent)
+        {
+            if (view.IsFocusable || HasTapRecognizer(view.MauiView))
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -295,6 +351,7 @@ public abstract class SkiaLayoutView : SkiaView
             _layoutPressed = true;
             e.Handled = true;
             GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
+            RaisePointerRoutedChain(RoutedPointerKind.Pressed, e);
         }
     }
 
@@ -312,6 +369,7 @@ public abstract class SkiaLayoutView : SkiaView
             {
                 GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
             }
+            RaisePointerRoutedChain(RoutedPointerKind.Released, e);
         }
         else
         {
@@ -319,6 +377,10 @@ public abstract class SkiaLayoutView : SkiaView
             if (hit != null && hit != this)
             {
                 hit.OnPointerReleased(e);
+            }
+            else if (hit == this)
+            {
+                RaisePointerRoutedChain(RoutedPointerKind.Released, e);
             }
         }
     }
@@ -333,6 +395,10 @@ public abstract class SkiaLayoutView : SkiaView
         if (hit != null && hit != this)
         {
             hit.OnPointerMoved(e);
+        }
+        else if (hit == this)
+        {
+            RaisePointerRoutedChain(RoutedPointerKind.Moved, e);
         }
     }
 

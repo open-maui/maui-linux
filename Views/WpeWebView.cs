@@ -3,6 +3,7 @@
 
 using System.Runtime.InteropServices;
 using Microsoft.Maui.Platform.Linux.Native;
+using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
@@ -18,8 +19,11 @@ namespace Microsoft.Maui.Platform.Linux.Views;
 /// <c>WPEEvent</c>s.
 /// </summary>
 /// <remarks>
-/// Frames are copied to an <see cref="SKBitmap"/> (shared-memory import); a
-/// zero-copy EGLImage path for the GPU render target is a planned follow-up.
+/// On the GPU (EGL) render target, DMA-BUF frames are imported zero-copy as
+/// EGLImage textures on the platform's EGL display (see
+/// <see cref="DmaBufFrameImporter"/>); on the raster target, or with
+/// <c>OPENMAUI_WEBVIEW_ZEROCOPY=0</c>, they are copied to an
+/// <see cref="SKBitmap"/> (shared-memory import).
 /// The WebKit content API (custom schemes, user scripts, script messages,
 /// JavaScript evaluation) is exposed through <see cref="Content"/> and the raw
 /// <see cref="NativeWebView"/> pointer for bridges such as BlazorWebView.
@@ -42,6 +46,7 @@ public class WpeWebView : SkiaView
     private uint _lastClickButton;
     private bool _disposedNative;
     private string? _lastUri;
+    private readonly WpeKeycodeTracker _keycodes = new();
 
     // Rooted native callbacks (a collected delegate behind a live signal is a crash).
     private readonly BufferRenderedDelegate _onBufferRendered;
@@ -175,6 +180,9 @@ public class WpeWebView : SkiaView
 
         EnableSpellChecking(_webView);
 
+        if (s_zeroCopyDisabled)
+            LogFramePath("pixel copy (OPENMAUI_WEBVIEW_ZEROCOPY=0)");
+
         DiagnosticLog.Debug("WpeWebView", "Created WPE WebKit view");
     }
 
@@ -260,7 +268,10 @@ public class WpeWebView : SkiaView
             if (display == IntPtr.Zero)
                 DiagnosticLog.Debug("WpeWebView", $"Headless display for {device} failed: {WpeNative.ConsumeError(err, "unknown")}");
             else
+            {
+                RenderNode = device;
                 DiagnosticLog.Debug("WpeWebView", $"WPE headless display on {device}");
+            }
         }
 
         if (display == IntPtr.Zero)
@@ -281,38 +292,74 @@ public class WpeWebView : SkiaView
 
     #region Frames
 
+    /// <summary>How finished WebKit frames reach the canvas.</summary>
+    private enum FramePath
+    {
+        /// <summary>Not drawn yet: frames are copied AND held until the first draw shows which target this is.</summary>
+        Undecided,
+        /// <summary>GPU render target: DMA-BUFs are imported as EGLImage textures, no copy.</summary>
+        ZeroCopy,
+        /// <summary>Raster target, override, or zero-copy unavailable: pixels are copied into an SKBitmap.</summary>
+        PixelCopy,
+    }
+
+    /// <summary>OPENMAUI_WEBVIEW_ZEROCOPY=0 forces the pixel-copy path.</summary>
+    private static readonly bool s_zeroCopyDisabled =
+        Environment.GetEnvironmentVariable("OPENMAUI_WEBVIEW_ZEROCOPY") == "0";
+    private static int s_framePathLogged;
+
+    private FramePath _framePath = s_zeroCopyDisabled ? FramePath.PixelCopy : FramePath.Undecided;
+    private IntPtr _pendingBuffer;          // ref'd WPEBuffer waiting for the next GPU draw
+    private bool _pendingCopied;            // its pixels are already in _frame (Undecided)
+    private bool _bitmapStale;              // the newest frame exists only as a GPU buffer
+    private DmaBufFrameImporter? _gpuFrame; // the on-screen DMA-BUF texture (ZeroCopy)
+
+    // Diagnostics (read by tests/WebViewHost).
+    internal long FramesReceived { get; private set; }
+    internal long ZeroCopyFrameCount { get; private set; }
+    internal long PixelCopyFrameCount { get; private set; }
+    internal long FrameImportTicks { get; private set; }
+    internal string ActiveFramePath => _framePath.ToString();
+
+    /// <summary>The DRM node the WPE headless display renders on, when chosen explicitly.</summary>
+    internal static string? RenderNode { get; private set; }
+
     private void OnBufferRendered(IntPtr view, IntPtr buffer, IntPtr userData)
     {
+        bool held = false;
+        FramesReceived++;
         try
         {
-            int w = WpeNative.wpe_buffer_get_width(buffer);
-            int h = WpeNative.wpe_buffer_get_height(buffer);
-            var bytes = WpeNative.wpe_buffer_import_to_pixels(buffer, out var err);
-            if (bytes == IntPtr.Zero)
+            // DMA-BUFs are held for a GPU import unless the view is known to
+            // draw on a raster target (or the override is set). Until the
+            // first draw decides, the pixels are copied as well so a raster
+            // target shows the frame exactly as before.
+            bool hold = _framePath != FramePath.PixelCopy && DmaBufFrameImporter.IsImportable(buffer);
+            bool copied = false;
+            if (!hold || _framePath == FramePath.Undecided)
             {
-                DiagnosticLog.Debug("WpeWebView", $"import_to_pixels failed: {WpeNative.ConsumeError(err, "unknown")}");
-                return;
+                copied = CopyFramePixels(buffer);
+                if (!copied && !hold)
+                    return;
             }
 
-            var data = WpeNative.g_bytes_get_data(bytes, out var size);
-            long needed = (long)w * h * 4;
-            if (data != IntPtr.Zero && (long)size >= needed && w > 0 && h > 0)
+            if (hold)
             {
-                lock (_frameLock)
-                {
-                    if (_frame == null || _frame.Width != w || _frame.Height != h)
-                    {
-                        _frame?.Dispose();
-                        _frame = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
-                    }
-                    unsafe
-                    {
-                        Buffer.MemoryCopy((void*)data, (void*)_frame.GetPixels(), needed, needed);
-                    }
-                }
+                ReleasePendingBuffer(); // an older frame that was never drawn goes straight back
+                WpeNative.g_object_ref(buffer);
+                _pendingBuffer = buffer;
+                _pendingCopied = copied;
+                _bitmapStale = !copied;
+                held = true;
             }
-            // The GBytes is owned and cached by the WPEBuffer (transfer none);
-            // unreffing it frees pixels WPE still holds.
+            else if (_framePath == FramePath.ZeroCopy)
+            {
+                // A non-DMA-BUF frame while on the GPU path: the bitmap is newest now.
+                ReleasePendingBuffer();
+                _gpuFrame?.Reset();
+                _bitmapStale = false;
+            }
+
             Invalidate();
             PullWpeClipboardToSystem();
         }
@@ -323,12 +370,188 @@ public class WpeWebView : SkiaView
         finally
         {
             // Mandatory, including on failure: an unreleased buffer stalls the view.
-            WpeNative.wpe_view_buffer_released(view, buffer);
+            // A held buffer is released once the GPU is done with it.
+            if (!held)
+                WpeNative.wpe_view_buffer_released(view, buffer);
         }
+    }
+
+    /// <summary>Copies a buffer's pixels into <see cref="_frame"/> (the shared-memory import).</summary>
+    private bool CopyFramePixels(IntPtr buffer)
+    {
+        long start = System.Diagnostics.Stopwatch.GetTimestamp();
+        int w = WpeNative.wpe_buffer_get_width(buffer);
+        int h = WpeNative.wpe_buffer_get_height(buffer);
+        var bytes = WpeNative.wpe_buffer_import_to_pixels(buffer, out var err);
+        if (bytes == IntPtr.Zero)
+        {
+            DiagnosticLog.Debug("WpeWebView", $"import_to_pixels failed: {WpeNative.ConsumeError(err, "unknown")}");
+            return false;
+        }
+
+        // The GBytes is owned and cached by the WPEBuffer (transfer none);
+        // unreffing it frees pixels WPE still holds.
+        var data = WpeNative.g_bytes_get_data(bytes, out var size);
+        long needed = (long)w * h * 4;
+        if (data != IntPtr.Zero && (long)size >= needed && w > 0 && h > 0)
+        {
+            lock (_frameLock)
+            {
+                if (_frame == null || _frame.Width != w || _frame.Height != h)
+                {
+                    _frame?.Dispose();
+                    _frame = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
+                }
+                unsafe
+                {
+                    Buffer.MemoryCopy((void*)data, (void*)_frame.GetPixels(), needed, needed);
+                }
+            }
+            PixelCopyFrameCount++;
+        }
+        FrameImportTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
+        return true;
+    }
+
+    private void ReleasePendingBuffer()
+    {
+        if (_pendingBuffer == IntPtr.Zero) return;
+        var buffer = _pendingBuffer;
+        _pendingBuffer = IntPtr.Zero;
+        _pendingCopied = false;
+        if (_wpeView != IntPtr.Zero)
+            WpeNative.wpe_view_buffer_released(_wpeView, buffer);
+        WpeNative.g_object_unref(buffer);
+    }
+
+    private static void LogFramePath(string message)
+    {
+        if (Interlocked.Exchange(ref s_framePathLogged, 1) == 0)
+            DiagnosticLog.Info("WpeWebView", $"WebView frames: {message}");
+    }
+
+    /// <summary>
+    /// Leaves the zero-copy path for good on this view: the newest frame is
+    /// copied into the bitmap first, then every held buffer goes back to WebKit.
+    /// </summary>
+    private void FallBackToPixelCopy(string reason)
+    {
+        bool wasZeroCopy = _framePath == FramePath.ZeroCopy;
+        _framePath = FramePath.PixelCopy;
+        if (wasZeroCopy)
+            DiagnosticLog.Warn("WpeWebView", $"WebView frames: zero-copy disabled for this view ({reason}); copying pixels");
+        else
+            LogFramePath($"pixel copy ({reason})");
+
+        if (_bitmapStale)
+        {
+            var newest = _pendingBuffer != IntPtr.Zero ? _pendingBuffer : _gpuFrame?.Buffer ?? IntPtr.Zero;
+            if (newest != IntPtr.Zero)
+                CopyFramePixels(newest);
+            _bitmapStale = false;
+        }
+        ReleasePendingBuffer();
+        _gpuFrame?.Dispose();
+        _gpuFrame = null;
+    }
+
+    /// <summary>
+    /// Draws the frame as a texture when the canvas is GPU-backed (the EGL
+    /// render target's context is current). False to fall through to the bitmap.
+    /// </summary>
+    private bool TryDrawZeroCopy(SKCanvas canvas, SKRect bounds, GRContext gr)
+    {
+        // EGLImage import needs Skia's GL backend. A Vulkan target (whose
+        // thread may still have another window's EGL context current) copies.
+        string device = "unknown device";
+        var unsupported = gr.Backend != GRBackend.OpenGL
+            ? $"render target uses Skia's {gr.Backend} backend, not OpenGL"
+            : DmaBufFrameImporter.CheckCurrentDisplay(RenderNode, out device);
+        if (unsupported != null)
+        {
+            FallBackToPixelCopy(unsupported);
+            return false;
+        }
+        if (_framePath == FramePath.Undecided)
+        {
+            _framePath = FramePath.ZeroCopy;
+            LogFramePath($"zero-copy (DMA-BUF -> EGLImage texture on {device}, WebKit on {RenderNode ?? "its default device"})");
+        }
+
+        _gpuFrame ??= new DmaBufFrameImporter();
+        if (_pendingBuffer == IntPtr.Zero && _gpuFrame.HasFrame && !_gpuFrame.IsCurrentContext)
+        {
+            // Drawn by another window's context now: re-import the held buffer here.
+            _pendingBuffer = _gpuFrame.Reset(keepBuffer: true);
+            _pendingCopied = false;
+        }
+
+        if (_pendingBuffer != IntPtr.Zero)
+        {
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            var error = _gpuFrame.Import(_wpeView, _pendingBuffer, gr);
+            FrameImportTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
+            if (error != null)
+            {
+                FallBackToPixelCopy(error);
+                return false;
+            }
+            _pendingBuffer = IntPtr.Zero; // owned by the importer now
+            _pendingCopied = false;
+            ZeroCopyFrameCount++;
+        }
+
+        using var image = _gpuFrame.CreateImage(gr);
+        if (image == null)
+            return false;
+        // Same geometry as the bitmap path: logical bounds, frame at logical x scale.
+        canvas.DrawImage(image, bounds, new SKSamplingOptions(SKFilterMode.Linear));
+        return true;
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // The window may have moved to a monitor of another scale since the
+        // last frame; bounds (logical) are unchanged then, so check here.
+        if (_wpeView != IntPtr.Zero && Math.Abs(Scale - _requestedScale) > 0.001)
+            SyncSize();
+
+        if (_framePath != FramePath.PixelCopy && canvas.Context is GRContext gr)
+        {
+            try
+            {
+                if (TryDrawZeroCopy(canvas, bounds, gr))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                // Missing entry points on an old EGL/WPE, driver errors: never fatal.
+                FallBackToPixelCopy($"{ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        if (canvas.Context == null)
+        {
+            if (_framePath == FramePath.Undecided)
+            {
+                // Raster target: the plain copy path from here on.
+                _framePath = FramePath.PixelCopy;
+                LogFramePath("pixel copy (raster render target)");
+                ReleasePendingBuffer();
+                _bitmapStale = false;
+            }
+            else if (_bitmapStale)
+            {
+                // A raster snapshot of a zero-copy view: bring the bitmap up to date.
+                var newest = _pendingBuffer != IntPtr.Zero ? _pendingBuffer : _gpuFrame?.Buffer ?? IntPtr.Zero;
+                if (newest != IntPtr.Zero && CopyFramePixels(newest))
+                {
+                    _bitmapStale = false;
+                    if (newest == _pendingBuffer) _pendingCopied = true;
+                }
+            }
+        }
+
         lock (_frameLock)
         {
             if (_frame == null)
@@ -343,7 +566,11 @@ public class WpeWebView : SkiaView
         }
     }
 
-    private static float Scale => LinuxApplication.Current?.DpiScale ?? 1f;
+    /// <summary>
+    /// The device scale of the window this view is drawn in: it follows the
+    /// window across monitors, so the page re-renders at the new density.
+    /// </summary>
+    private float Scale => DeviceScale;
 
     protected override void OnBoundsChanged()
     {
@@ -1149,11 +1376,17 @@ public class WpeWebView : SkiaView
         // Printable keys arrive again as TextInput (with IME composition applied);
         // only send them here when a modifier turns them into a shortcut.
         bool shortcut = (e.Modifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Super)) != 0;
-        if (keyval == 0 || (printable && !shortcut)) return;
+        if (printable && !shortcut)
+        {
+            // The text-input event that follows carries this key's hardware keycode.
+            _keycodes.PrintableKeyDown(e.HardwareKeycode);
+            return;
+        }
+        if (keyval == 0) return;
         bool ctrl = (e.Modifiers & KeyModifiers.Control) != 0;
         if (ctrl && e.Key == Key.V)
             PushSystemClipboardToWpe();
-        Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_DOWN, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, ToWpeModifiers(e.Modifiers), 0, keyval));
+        Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_DOWN, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, ToWpeModifiers(e.Modifiers), e.HardwareKeycode, keyval));
         if (ctrl && (e.Key == Key.C || e.Key == Key.X))
             ScheduleClipboardPull();
         e.Handled = true;
@@ -1164,20 +1397,24 @@ public class WpeWebView : SkiaView
         uint keyval = Input.KeyMapping.ToKeysym(e.Key, (e.Modifiers & KeyModifiers.Shift) != 0);
         bool printable = Input.KeyMapping.IsPrintable(e.Key);
         bool shortcut = (e.Modifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Super)) != 0;
+        _keycodes.KeyUp(e.HardwareKeycode);
         if (keyval == 0 || (printable && !shortcut)) return;
-        Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_UP, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, ToWpeModifiers(e.Modifiers), 0, keyval));
+        Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_UP, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, ToWpeModifiers(e.Modifiers), e.HardwareKeycode, keyval));
         e.Handled = true;
     }
 
     public override void OnTextInput(TextInputEventArgs e)
     {
         if (string.IsNullOrEmpty(e.Text)) return;
+        // Hardware keycode of the key press that produced this text (0 for IME
+        // commits and multi-character text): WebKit derives KeyboardEvent.code from it.
+        uint keycode = _keycodes.TakeForText(e.Text);
         foreach (var rune in e.Text.EnumerateRunes())
         {
             // X keysyms: Latin-1 maps directly, everything else is 0x01000000 | codepoint.
             uint keyval = rune.Value < 0x100 ? (uint)rune.Value : 0x01000000u | (uint)rune.Value;
-            Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_DOWN, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, 0, 0, keyval));
-            Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_UP, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, 0, 0, keyval));
+            Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_DOWN, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, 0, keycode, keyval));
+            Send(WpeNative.wpe_event_keyboard_new(WpeNative.WPE_EVENT_KEYBOARD_KEY_UP, _wpeView, WpeNative.WPE_INPUT_SOURCE_KEYBOARD, Now, 0, keycode, keyval));
         }
         e.Handled = true;
     }
@@ -1202,6 +1439,11 @@ public class WpeWebView : SkiaView
         if (!_disposedNative)
         {
             _disposedNative = true;
+            // Held frames go back to WebKit (and their GL objects are deleted
+            // in the context that made them) while the WPE view still exists.
+            ReleasePendingBuffer();
+            _gpuFrame?.Dispose();
+            _gpuFrame = null;
             if (_webView != IntPtr.Zero)
             {
                 lock (s_viewsByWpeView) s_viewsByWpeView.Remove(_wpeView);
