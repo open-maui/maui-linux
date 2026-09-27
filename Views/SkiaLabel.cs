@@ -1410,8 +1410,11 @@ public class SkiaLabel : SkiaView
             // condition and DrawMultiLineText's math exactly: a wrapping label
             // that reports single-line height gets under-allocated by its
             // layout and its extra lines overdraw the next sibling.
+            // MaxLines above 1 wraps whatever the LineBreakMode (a two-line summary with
+            // TailTruncation wraps, then truncates its last line), as OnDraw does.
             bool wraps = LineBreakMode == LineBreakMode.WordWrap ||
-                         LineBreakMode == LineBreakMode.CharacterWrap;
+                         LineBreakMode == LineBreakMode.CharacterWrap ||
+                         MaxLines > 1;
             if (wraps && !double.IsInfinity(availableSize.Width) && width > availableSize.Width)
             {
                 // Wrap with the same helper and width the draw pass will use.

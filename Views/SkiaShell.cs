@@ -1845,7 +1845,10 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Check nav bar icon tap (back button or hamburger menu)
-        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X < 56)
+        // The nav bar starts after a locked flyout (a rail), as DrawNavBar draws it; the
+        // back arrow's hit area moved with it (it only ever matched with no rail).
+        float navLeft = (float)Bounds.Left + (FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0);
+        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X >= navLeft && e.X < navLeft + 56)
         {
             if (CanGoBack)
             {
