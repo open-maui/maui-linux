@@ -242,11 +242,8 @@ public class SkiaTimePicker : SkiaView
     /// </summary>
     private SKRect GetPopupRect(SKRect pickerBounds)
     {
-        var app = LinuxApplication.Current;
-        float dpiScale = app?.DpiScale ?? 1.0f;
-        // Use logical dimensions (ScreenBounds are in logical coordinates)
-        float windowWidth = (app?.MainWindow?.Width ?? 800) / dpiScale;
-        float windowHeight = (app?.MainWindow?.Height ?? 600) / dpiScale;
+        // Logical dimensions of this view's own window (ScreenBounds are logical)
+        var (windowWidth, windowHeight) = WindowLogicalSize;
 
         var popupLeft = pickerBounds.Left;
         var popupTop = pickerBounds.Bottom + 4;

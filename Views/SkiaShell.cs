@@ -51,8 +51,12 @@ public class SkiaShell : SkiaLayoutView
             typeof(SkiaShell),
             280f,
             BindingMode.TwoWay,
-            coerceValue: (b, v) => Math.Max(100f, (float)v),
-            propertyChanged: (b, o, n) => ((SkiaShell)b).Invalidate());
+            // MAUI's -1 means "platform default"; any other width is honoured
+            // (a 64 px rail included).
+            coerceValue: (b, v) => (float)v < 0 ? 280f : (float)v,
+            // The content beside a locked flyout moves with its width (a rail
+            // collapsing to 64 px), so lay out again, not just repaint.
+            propertyChanged: (b, o, n) => { var shell = (SkiaShell)b; shell.InvalidateMeasure(); shell.Invalidate(); });
 
     /// <summary>
     /// Bindable property for FlyoutBackgroundColor.
@@ -977,43 +981,11 @@ public class SkiaShell : SkiaLayoutView
         if (_iconCache.TryGetValue(iconPath, out var cached))
             return cached;
 
-        SKBitmap? bitmap = null;
-        try
-        {
-            string baseDir = AppContext.BaseDirectory;
-            string fullPath = System.IO.Path.IsPathRooted(iconPath)
-                ? iconPath
-                : System.IO.Path.Combine(baseDir, iconPath);
-
-            if (System.IO.File.Exists(fullPath))
-            {
-                if (fullPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var svg = new SKSvg();
-                    svg.Load(fullPath);
-                    if (svg.Picture != null)
-                    {
-                        var cullRect = svg.Picture.CullRect;
-                        float iconSize = 24f;
-                        float scale = iconSize / Math.Max(cullRect.Width, cullRect.Height);
-                        bitmap = new SKBitmap((int)iconSize, (int)iconSize, false);
-                        using var canvas = new SKCanvas(bitmap);
-                        canvas.Clear(SKColors.Transparent);
-                        canvas.Scale(scale);
-                        canvas.DrawPicture(svg.Picture, null);
-                    }
-                }
-                else
-                {
-                    using var stream = System.IO.File.OpenRead(fullPath);
-                    bitmap = SKBitmap.Decode(stream);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Debug("SkiaShell", $"Failed to load flyout icon: {iconPath}", ex);
-        }
+        // App-relative names and the .png -> .svg fallback, rendered sharp for
+        // the 24-logical-pixel icon at up to 2x.
+        var bitmap = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.LoadBitmap(iconPath, 48);
+        if (bitmap == null)
+            DiagnosticLog.Warn("SkiaShell", $"Flyout icon not found: {iconPath}");
 
         _iconCache[iconPath] = bitmap;
         return bitmap;
@@ -1497,6 +1469,26 @@ public class SkiaShell : SkiaLayoutView
         }
     }
 
+    private const float DefaultFlyoutRowHeight = 48f;
+
+    /// <summary>A flyout row's height: a templated row's measured height, else the built-in 48.</summary>
+    private static float FlyoutRowHeight(ShellSection section, float width)
+    {
+        if (section.TemplateView is not { } view)
+            return DefaultFlyoutRowHeight;
+        var desired = view.Measure(new Size(width, double.PositiveInfinity));
+        return desired.Height > 0 && !double.IsInfinity(desired.Height) ? (float)desired.Height : DefaultFlyoutRowHeight;
+    }
+
+    private float FlyoutItemsHeight(float width)
+    {
+        float total = 0;
+        foreach (var section in _sections)
+            if (section.IsVisibleInFlyout)
+                total += FlyoutRowHeight(section, width);
+        return total;
+    }
+
     private void DrawFlyout(SKCanvas canvas, SKRect bounds)
     {
         bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
@@ -1565,7 +1557,6 @@ public class SkiaShell : SkiaLayoutView
         }
 
         // Draw flyout items with scrolling support
-        float itemHeight = 48f;
         float itemsAreaTop = flyoutBounds.Top + headerHeight;
         float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
 
@@ -1585,7 +1576,9 @@ public class SkiaShell : SkiaLayoutView
         for (int i = 0; i < _sections.Count; i++)
         {
             var section = _sections[i];
+            if (!section.IsVisibleInFlyout) continue;
             bool isSelected = i == _selectedSectionIndex;
+            float itemHeight = FlyoutRowHeight(section, flyoutBounds.Width);
 
             // Skip items that are scrolled above the visible area
             if (itemY + itemHeight < itemsAreaTop)
@@ -1597,6 +1590,15 @@ public class SkiaShell : SkiaLayoutView
             // Stop if we're below the visible area
             if (itemY > itemsAreaBottom)
                 break;
+
+            // A templated row draws itself, selection included (it binds IsChecked).
+            if (section.TemplateView is { } rowView)
+            {
+                rowView.Arrange(new Rect(flyoutBounds.Left, itemY, flyoutBounds.Width, itemHeight));
+                rowView.Draw(canvas);
+                itemY += itemHeight;
+                continue;
+            }
 
             // Draw selection background
             if (isSelected)
@@ -1761,10 +1763,11 @@ public class SkiaShell : SkiaLayoutView
                 {
                     // Apply scroll offset to find which item was tapped
                     float itemY = itemsAreaTop - _flyoutScrollOffset;
-                    float itemHeight = 48f;
 
                     for (int i = 0; i < _sections.Count; i++)
                     {
+                        if (!_sections[i].IsVisibleInFlyout) continue;
+                        float itemHeight = FlyoutRowHeight(_sections[i], flyoutBounds.Width);
                         if (e.Y >= itemY && e.Y < itemY + itemHeight)
                         {
                             SelectSection(i, 0);
@@ -1854,8 +1857,7 @@ public class SkiaShell : SkiaLayoutView
                 float headerHeight = FlyoutHeaderView != null ? FlyoutHeaderHeight : 0f;
                 float footerHeight = FlyoutFooterView != null ? FlyoutFooterHeight :
                                     (!string.IsNullOrEmpty(FlyoutFooterText) ? FlyoutFooterHeight : 0f);
-                float itemHeight = 48f;
-                float totalItemsHeight = _sections.Count * itemHeight;
+                float totalItemsHeight = FlyoutItemsHeight(flyoutBounds.Width);
                 float viewableHeight = flyoutBounds.Height - headerHeight - footerHeight;
                 float maxScroll = Math.Max(0f, totalItemsHeight - viewableHeight);
 
@@ -1910,6 +1912,19 @@ public class ShellSection
     /// Optional icon path.
     /// </summary>
     public string? IconPath { get; set; }
+
+    /// <summary>
+    /// False for items declared with <c>FlyoutItemIsVisible="False"</c>: still
+    /// navigable by route, not listed in the flyout.
+    /// </summary>
+    public bool IsVisibleInFlyout { get; set; } = true;
+
+    /// <summary>
+    /// The flyout row realised from <c>Shell.ItemTemplate</c> (bound to the
+    /// shell item), drawn in place of the built-in icon and title; null for the
+    /// built-in row.
+    /// </summary>
+    public SkiaView? TemplateView { get; set; }
 
     /// <summary>
     /// Items in this section.

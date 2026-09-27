@@ -40,12 +40,14 @@ public class SkiaGraphicsView : SkiaView
         // Draw using IDrawable
         if (_drawable != null)
         {
-            var dirtyRect = new RectF(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
-
-            using var skiaCanvas = new SkiaCanvas();
-            skiaCanvas.Canvas = canvas;
-
-            _drawable.Draw(skiaCanvas, dirtyRect);
+            // Drawables work in the view's own coordinates, (0,0) at its
+            // top-left, as on every MAUI platform; Skia bounds are window-absolute.
+            canvas.Save();
+            canvas.ClipRect(bounds);
+            canvas.Translate(bounds.Left, bounds.Top);
+            using (var skiaCanvas = new SkiaCanvas { Canvas = canvas })
+                _drawable.Draw(skiaCanvas, new RectF(0, 0, bounds.Width, bounds.Height));
+            canvas.Restore();
         }
     }
 

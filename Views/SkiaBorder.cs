@@ -402,14 +402,13 @@ public class SkiaBorder : SkiaLayoutView
             canvas.Restore();
         }
 
-        // Draw background
-        using var bgPaint = new SKPaint
+        // Draw background: the Background brush (a colour set in code, a
+        // gradient) or BackgroundColor, filling the shape.
+        using (var bgPaint = CreateBackgroundPaint(borderRect))
         {
-            Color = GetEffectiveBackgroundColor(),
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawPath(shapePath, bgPaint);
+            if (bgPaint != null)
+                canvas.DrawPath(shapePath, bgPaint);
+        }
 
         // Draw border
         if (strokeThickness > 0f)
@@ -442,7 +441,7 @@ public class SkiaBorder : SkiaLayoutView
         // Clip to shape and draw children
         canvas.Save();
         canvas.ClipPath(shapePath);
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             if (child.IsVisible)
             {
@@ -489,7 +488,7 @@ public class SkiaBorder : SkiaLayoutView
 
         var maxChildSize = Size.Zero;
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             var childSize = child.Measure(childAvailable);
             maxChildSize = new Size(
@@ -508,16 +507,19 @@ public class SkiaBorder : SkiaLayoutView
     {
         var contentBounds = GetContentBounds(new SKRect((float)bounds.Left, (float)bounds.Top, (float)bounds.Right, (float)bounds.Bottom));
 
-        foreach (var child in Children)
+        foreach (var child in Children.ToArray())
         {
             // Apply child's margin
             var margin = child.Margin;
-            var marginedBounds = new Rect(
-                contentBounds.Left + margin.Left,
-                contentBounds.Top + margin.Top,
-                contentBounds.Width - margin.Left - margin.Right,
-                contentBounds.Height - margin.Top - margin.Bottom);
-            child.Arrange(marginedBounds);
+            var area = new SKRect(
+                contentBounds.Left + (float)margin.Left,
+                contentBounds.Top + (float)margin.Top,
+                contentBounds.Right - (float)margin.Right,
+                contentBounds.Bottom - (float)margin.Bottom);
+            // Content honours its HorizontalOptions/VerticalOptions (a centred
+            // Label in a round button), as in MAUI; Fill, the default, takes it all.
+            var desired = child.Measure(new Size(Math.Max(0, area.Width), Math.Max(0, area.Height)));
+            child.Arrange(SkiaPage.AlignContent(child, area, desired));
         }
 
         return bounds;
@@ -534,13 +536,10 @@ public class SkiaBorder : SkiaLayoutView
             return false;
         }
 
-        foreach (var gestureRecognizer in MauiView.GestureRecognizers)
-        {
-            if (gestureRecognizer is TapGestureRecognizer)
-            {
-                return true;
-            }
-        }
+        // Only recognizers the current press's button fires make the Border
+        // take the press.
+        if (GestureManager.HasTapRecognizerForCurrentButton(MauiView))
+            return true;
 
         return false;
     }
@@ -554,7 +553,9 @@ public class SkiaBorder : SkiaLayoutView
             {
                 if (HasTapGestureRecognizers())
                 {
-                    return this;
+                    // Controls on a tappable Border keep their own input.
+                    var childHit = HitTestChildren(x, y);
+                    return childHit != null && ClaimsInput(childHit, this) ? childHit : this;
                 }
                 return base.HitTest(x, y);
             }
@@ -572,6 +573,7 @@ public class SkiaBorder : SkiaLayoutView
             {
                 GestureManager.ProcessPointerDown(MauiView, e.X, e.Y);
             }
+            RaisePointerRoutedChain(RoutedPointerKind.Pressed, e);
         }
         else
         {
@@ -589,6 +591,7 @@ public class SkiaBorder : SkiaLayoutView
             {
                 GestureManager.ProcessPointerUp(MauiView, e.X, e.Y);
             }
+            RaisePointerRoutedChain(RoutedPointerKind.Released, e);
             Tapped?.Invoke(this, EventArgs.Empty);
         }
         else
