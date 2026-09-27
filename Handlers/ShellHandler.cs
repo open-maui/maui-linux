@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for Shell on Linux using Skia rendering.
 /// </summary>
-public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
+public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
 {
     private bool _isUpdatingFlyoutPresented;
 
@@ -186,7 +186,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
                 {
                     Route = flyoutItem.Route ?? flyoutItem.Title ?? "",
                     Title = flyoutItem.Title ?? "",
-                    IconPath = flyoutItem.Icon?.ToString()
+                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(flyoutItem.Icon)
                 };
 
                 // Add shell contents as items
@@ -198,7 +198,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
                         {
                             Route = content.Route ?? content.Title ?? "",
                             Title = content.Title ?? "",
-                            IconPath = content.Icon?.ToString(),
+                            IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(content.Icon),
                             MauiShellContent = content,
                             Content = RenderShellContent(content)
                         };
@@ -214,7 +214,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
                 {
                     Route = shellItem.Route ?? shellItem.Title ?? "",
                     Title = shellItem.Title ?? "",
-                    IconPath = shellItem.Icon?.ToString()
+                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(shellItem.Icon)
                 };
 
                 foreach (var shellSection in shellItem.Items)
@@ -225,7 +225,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
                         {
                             Route = content.Route ?? content.Title ?? "",
                             Title = content.Title ?? "",
-                            IconPath = content.Icon?.ToString(),
+                            IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(content.Icon),
                             MauiShellContent = content,
                             Content = RenderShellContent(content)
                         };
@@ -250,11 +250,11 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
             string? iconPath = null;
             if (item is FlyoutItem flyoutItem)
             {
-                iconPath = flyoutItem.Icon?.ToString();
+                iconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(flyoutItem.Icon);
             }
             else if (item is ShellItem shellItem)
             {
-                iconPath = shellItem.Icon?.ToString();
+                iconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(shellItem.Icon);
             }
 
             platformView.Sections[sectionIndex].IconPath = iconPath;
@@ -271,10 +271,7 @@ public partial class ShellHandler : ViewHandler<Shell, SkiaShell>
             var page = content.Content as Page;
 
             if (page == null && content.ContentTemplate != null)
-            {
-                var created = content.ContentTemplate.CreateContent();
-                page = created as Page;
-            }
+                page = Hosting.ShellPageFactory.Create(content.ContentTemplate, MauiContext.Services);
 
             if (page != null)
             {

@@ -16,7 +16,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Maps IImage interface to SkiaImage platform view.
 /// IImage has: Aspect, IsOpaque (inherits from IImageSourcePart)
 /// </summary>
-public partial class ImageHandler : ViewHandler<IImage, SkiaImage>
+public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
 {
     public static IPropertyMapper<IImage, ImageHandler> Mapper = new PropertyMapper<IImage, ImageHandler>(ViewHandler.ViewMapper)
     {

@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for ContentView on Linux using Skia rendering.
 /// ContentView is a simple container with a single Content child.
 /// </summary>
-public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentView>
+public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaContentView>
 {
     public static IPropertyMapper<IContentView, ContentViewHandler> Mapper =
         new PropertyMapper<IContentView, ContentViewHandler>(ViewHandler.ViewMapper)
@@ -78,7 +78,7 @@ public partial class ContentViewHandler : ViewHandler<IContentView, SkiaContentV
             }
             catch (Exception ex)
             {
-                DiagnosticLog.Error("ContentViewHandler", $"Failed to render content ({view.GetType().Name}): {ex.Message}");
+                DiagnosticLog.Error("ContentViewHandler", $"Failed to render content ({view.GetType().Name}): {ex.Message}", ex);
             }
         }
         else if (contentView is VisualElement ve && ve is ContentView cv)

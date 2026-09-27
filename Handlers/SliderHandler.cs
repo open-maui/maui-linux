@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Slider on Linux using Skia rendering.
 /// Maps ISlider interface to SkiaSlider platform view.
 /// </summary>
-public partial class SliderHandler : ViewHandler<ISlider, SkiaSlider>
+public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
 {
     public static IPropertyMapper<ISlider, SliderHandler> Mapper = new PropertyMapper<ISlider, SliderHandler>(ViewHandler.ViewMapper)
     {

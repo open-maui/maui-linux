@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for FlyoutPage on Linux using Skia rendering.
 /// Maps IFlyoutView interface to SkiaFlyoutPage platform view.
 /// </summary>
-public partial class FlyoutPageHandler : ViewHandler<IFlyoutView, SkiaFlyoutPage>
+public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyoutPage>
 {
     private bool _isUpdatingPresented;
 

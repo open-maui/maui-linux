@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for Editor (multiline text) on Linux using Skia rendering.
 /// </summary>
-public partial class EditorHandler : ViewHandler<IEditor, SkiaEditor>
+public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
 {
     public static IPropertyMapper<IEditor, EditorHandler> Mapper =
         new PropertyMapper<IEditor, EditorHandler>(ViewHandler.ViewMapper)

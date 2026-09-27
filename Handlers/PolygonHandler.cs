@@ -6,7 +6,7 @@ using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public partial class PolygonHandler : ViewHandler<Polygon, SkiaPolygon>
+public partial class PolygonHandler : LinuxViewHandler<Polygon, SkiaPolygon>
 {
     public static IPropertyMapper<Polygon, PolygonHandler> Mapper =
         new PropertyMapper<Polygon, PolygonHandler>(ViewMapper)

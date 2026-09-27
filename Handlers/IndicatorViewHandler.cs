@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for IndicatorView on Linux using Skia rendering.
 /// Maps IndicatorView to SkiaIndicatorView platform view.
 /// </summary>
-public partial class IndicatorViewHandler : ViewHandler<IndicatorView, SkiaIndicatorView>
+public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, SkiaIndicatorView>
 {
     private bool _isUpdatingPosition;
 
