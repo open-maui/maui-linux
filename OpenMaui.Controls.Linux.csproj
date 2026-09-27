@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.101.3</Version>
+    <Version>10.0.110.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -30,6 +30,15 @@
     <PackageIcon>logo_only.png</PackageIcon>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
+
+    <!-- Stable-contract gate (docs/VERSIONING.md): `dotnet pack` compares the
+         public API against the last released package and fails on an
+         unrecorded break. Intentional breaks are recorded in
+         CompatibilitySuppressions.xml (regenerate with
+         -p:ApiCompatGenerateSuppressionFile=true) and listed in CHANGELOG.md.
+         Bump the baseline to the new version after each release. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>10.0.101.3</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <!-- OpenMaui.Hosting provides the cross-platform UseLinux() stub -->
@@ -39,9 +48,9 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.101" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.101" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.101" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.110" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.110" />
 
     <!-- SkiaSharp for rendering (4.x — SKFont text API; legacy SKPaint text members are error-obsolete) -->
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
@@ -88,6 +97,17 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>libopenmaui_wl.so</Link>
     </None>
+    <!-- aarch64 build of the same shim (native/build.sh cross-builds it). In
+         the package it is the linux-arm64 runtime asset; in a source build it
+         lands in runtimes/linux-arm64/native/ under the output, which
+         WaylandWindow.TryLoadProtocols probes after the x64 copy next to the
+         assembly fails to dlopen on an arm64 host. -->
+    <None Include="native/linux-arm64/libopenmaui_wl.so" Condition="Exists('native/linux-arm64/libopenmaui_wl.so')">
+      <Pack>true</Pack>
+      <PackagePath>runtimes/linux-arm64/native/libopenmaui_wl.so</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>runtimes/linux-arm64/native/libopenmaui_wl.so</Link>
+    </None>
   </ItemGroup>
 
   <!-- Include build props and targets in package - auto-imports when package is referenced -->
@@ -104,6 +124,7 @@
     <Compile Remove="Handlers/*.Linux.cs" />
     <Compile Remove="MediaElement/**/*.cs" />
     <Compile Remove="Maps/**/*.cs" />
+    <Compile Remove="Syncfusion/**/*.cs" />
     <Compile Remove="Blazor/**/*.cs" />
     <Compile Remove="tools/**/*.cs" />
     <Compile Remove="samples/**/*.cs" />
