@@ -43,6 +43,27 @@ public class SkiaImage : SkiaView
         public long MemorySize { get; set; }
     }
 
+    // Bitmaps that have been put in the cache: shared by every view showing that source, so
+    // no one disposes them. Dropping them from the cache drops the reference, and SkiaSharp's
+    // finalizer frees the pixels once no view holds them. Disposing on eviction (or in a view
+    // whose source had just been evicted) freed pixels another view was still drawing or
+    // copying (SKImage.FromBitmap), a SIGSEGV in memcpy.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SKBitmap, object> s_sharedBitmaps = new();
+
+    private static bool IsShared(SKBitmap? bitmap) => bitmap != null && s_sharedBitmaps.TryGetValue(bitmap, out _);
+
+    private static void AddToCache(string key, CachedImage entry)
+    {
+        if (entry.Bitmap != null)
+            s_sharedBitmaps.AddOrUpdate(entry.Bitmap, true);
+        if (entry.Frames != null)
+            foreach (var frame in entry.Frames)
+                if (frame.Bitmap != null)
+                    s_sharedBitmaps.AddOrUpdate(frame.Bitmap, true);
+        _imageCache[key] = entry;
+        TrimCacheIfNeeded();
+    }
+
     /// <summary>
     /// Clears the image cache.
     /// </summary>
@@ -50,17 +71,7 @@ public class SkiaImage : SkiaView
     {
         lock (_cacheLock)
         {
-            foreach (var cached in _imageCache.Values)
-            {
-                cached.Bitmap?.Dispose();
-                if (cached.Frames != null)
-                {
-                    foreach (var frame in cached.Frames)
-                    {
-                        frame.Bitmap?.Dispose();
-                    }
-                }
-            }
+            // Views may still be showing these bitmaps; the finalizer frees them after.
             _imageCache.Clear();
         }
     }
@@ -90,17 +101,8 @@ public class SkiaImage : SkiaView
             int removeCount = Math.Max(1, _imageCache.Count - MaxCacheSize + 10);
             for (int i = 0; i < removeCount && i < sortedEntries.Length; i++)
             {
-                if (_imageCache.TryRemove(sortedEntries[i].Key, out var removed))
-                {
-                    removed.Bitmap?.Dispose();
-                    if (removed.Frames != null)
-                    {
-                        foreach (var frame in removed.Frames)
-                        {
-                            frame.Bitmap?.Dispose();
-                        }
-                    }
-                }
+                // Dropped, not disposed: views may still be showing it.
+                _imageCache.TryRemove(sortedEntries[i].Key, out _);
             }
         }
     }
@@ -206,8 +208,8 @@ public class SkiaImage : SkiaView
         get => _bitmap;
         set
         {
-            // Don't dispose if this is a cached bitmap
-            if (_bitmap != null && (_cacheKey == null || !_imageCache.ContainsKey(_cacheKey)))
+            // A cached bitmap is shared with other views: only one this view owns is disposed.
+            if (_bitmap != null && !ReferenceEquals(_bitmap, value) && !IsShared(_bitmap))
             {
                 _bitmap.Dispose();
             }
@@ -621,14 +623,13 @@ public class SkiaImage : SkiaView
 
                 // Cache the animation frames
                 long memorySize = _animationFrames.Sum(f => (long)(f.Bitmap?.ByteCount ?? 0));
-                _imageCache[filePath] = new CachedImage
+                AddToCache(filePath, new CachedImage
                 {
                     Frames = _animationFrames,
                     IsAnimated = true,
                     LastAccessed = DateTime.UtcNow,
                     MemorySize = memorySize
-                };
-                TrimCacheIfNeeded();
+                });
 
                 // Set first frame as current image
                 _currentFrameIndex = 0;
@@ -660,14 +661,13 @@ public class SkiaImage : SkiaView
 
     private void CacheAndSetBitmap(string cacheKey, SKBitmap bitmap, bool isAnimated)
     {
-        _imageCache[cacheKey] = new CachedImage
+        AddToCache(cacheKey, new CachedImage
         {
             Bitmap = bitmap,
             IsAnimated = isAnimated,
             LastAccessed = DateTime.UtcNow,
             MemorySize = bitmap.ByteCount
-        };
-        TrimCacheIfNeeded();
+        });
 
         _bitmap = bitmap;
         _image?.Dispose();
@@ -907,14 +907,13 @@ public class SkiaImage : SkiaView
 
                     // Cache the animation frames
                     long memorySize = _animationFrames.Sum(f => (long)(f.Bitmap?.ByteCount ?? 0));
-                    _imageCache[_cacheKey] = new CachedImage
+                    AddToCache(_cacheKey, new CachedImage
                     {
                         Frames = _animationFrames,
                         IsAnimated = true,
                         LastAccessed = DateTime.UtcNow,
                         MemorySize = memorySize
-                    };
-                    TrimCacheIfNeeded();
+                    });
 
                     _currentFrameIndex = 0;
                     if (_animationFrames.Count > 0 && _animationFrames[0].Bitmap != null)
@@ -1140,16 +1139,15 @@ public class SkiaImage : SkiaView
         {
             StopAnimation();
 
-            // Only dispose if not cached
-            if (_cacheKey == null || !_imageCache.ContainsKey(_cacheKey))
-            {
+            // Only what this view owns: a cached bitmap is shared with other views.
+            if (!IsShared(_bitmap))
                 _bitmap?.Dispose();
-                if (_animationFrames != null)
+            if (_animationFrames != null)
+            {
+                foreach (var frame in _animationFrames)
                 {
-                    foreach (var frame in _animationFrames)
-                    {
+                    if (!IsShared(frame.Bitmap))
                         frame.Bitmap?.Dispose();
-                    }
                 }
             }
             _image?.Dispose();
