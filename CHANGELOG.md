@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.5] - unreleased
+
+### Fixed
+
+- **A window with OpenMaui's own title bar (Wayland, GNOME) showed no sign it could be resized** ([#28](https://github.com/open-maui/maui-linux/issues/28)): its edges resize it, but the pointer kept the arrow over them, so the 6 px strip along each edge looked like the content and the window seemed to resize only through maximize. The pointer now shows the resize cursor for the edge or corner under it, as other Linux applications that draw their own title bar do, and the app's cursor returns over the content.
+- **Resizing a window with a complex page was slow**: each size step from the compositor laid the whole tree out on the spot, and the frame after it laid it out again, for sizes that were never drawn too; and every label was re-measured by shaping its text with font fallback, though a string's width does not depend on the window. A resize now asks for the next frame, which lays the tree out once at the size it draws, and a text's measured width is kept per font (Strikeline's pages resized at a few frames a second).
+- **An idle window kept drawing whole frames while a hidden view animated**: a hidden view (it or an ancestor not visible) that asked to be repainted and had never been drawn counted as "position unknown", and the whole window was redrawn. A hidden indeterminate progress bar (Strikeline's sync indicator) kept an idle window drawing 50 whole frames a second. A hidden view now asks for nothing, except once to clear the area it covered when it is hidden; shown, it repaints as before.
+- **Syncfusion chips and buttons redrew themselves every frame**: they assign a new, equal clip geometry each time they draw (`ButtonBase.UpdateBaseClip`), and every `Clip` change repainted the view, so drawing asked for the next draw; an idle page of chips (Strikeline's Outlook) redrew the window continuously. Only a clip of another shape (rectangle, rounded rectangle and ellipse compared by value) now repaints, as on the other platforms, where a clip is applied without running the drawing again.
+- **A crash (SIGSEGV in memcpy) when images were evicted from the image cache**: views showing the same file share its cached bitmap, and evicting the entry (past 50 images), clearing the cache, or a view whose source had just been evicted letting it go disposed the bitmap while other views still drew it; building the next image from it (`SKImage.FromBitmap`) read freed pixels. A cached bitmap is now never disposed: dropping it from the cache drops the reference, and its memory is freed once no view shows it. A view disposes only a bitmap of its own.
+- **`OPENMAUI_TRACE_INVALIDATE=1` printed nothing from a release package** (it wrote through the diagnostic log, which is off there). It now always prints when set, and `OPENMAUI_TRACE_INVALIDATE_STACK=<type>` adds the call stack of the first repaint requests from views of that type after start-up.
+
 ## [10.0.110.4] - 2026-09-28
 
 ### Fixed

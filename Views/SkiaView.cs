@@ -911,6 +911,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             if (_mauiView is BindableObject oldBo)
                 oldBo.PropertyChanged -= OnMauiViewPropertyChanged;
             _mauiView = value;
+            _lastMauiClip = _mauiView?.Clip;
             if (_mauiView is BindableObject newBo)
                 newBo.PropertyChanged += OnMauiViewPropertyChanged;
 
@@ -922,6 +923,24 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             InvalidateMeasure();
             Invalidate();
         }
+    }
+
+    private Microsoft.Maui.Controls.Shapes.Geometry? _lastMauiClip;
+
+    /// <summary>Whether two clips cut the same shape: rectangles, rounded rectangles and ellipses by value, others by identity.</summary>
+    internal static bool SameClip(Microsoft.Maui.Controls.Shapes.Geometry? a, Microsoft.Maui.Controls.Shapes.Geometry? b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        return (a, b) switch
+        {
+            (Microsoft.Maui.Controls.Shapes.RoundRectangleGeometry x, Microsoft.Maui.Controls.Shapes.RoundRectangleGeometry y)
+                => x.Rect == y.Rect && x.CornerRadius == y.CornerRadius && x.FillRule == y.FillRule,
+            (Microsoft.Maui.Controls.Shapes.RectangleGeometry x, Microsoft.Maui.Controls.Shapes.RectangleGeometry y)
+                => x.Rect == y.Rect,
+            (Microsoft.Maui.Controls.Shapes.EllipseGeometry x, Microsoft.Maui.Controls.Shapes.EllipseGeometry y)
+                => x.Center == y.Center && x.RadiusX == y.RadiusX && x.RadiusY == y.RadiusY,
+            _ => false,
+        };
     }
 
     private void OnMauiViewPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -949,9 +968,21 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             case nameof(VisualElement.AnchorX):
             case nameof(VisualElement.AnchorY):
             case nameof(VisualElement.Background):
-            case nameof(VisualElement.Clip):
             case nameof(VisualElement.Shadow):
                 Invalidate();
+                break;
+            case nameof(VisualElement.Clip):
+                // Only a clip of another shape changes what is drawn. Syncfusion's buttons and
+                // chips assign a new, equal clip geometry every time they draw (ButtonBase.
+                // UpdateBaseClip): repainting for it drew them again, which set it again, so an
+                // idle page of chips redrew the window every frame. On the other platforms a clip
+                // is applied to the native view without running the drawing again.
+                var clip = (sender as VisualElement)?.Clip;
+                if (!SameClip(clip, _lastMauiClip))
+                {
+                    _lastMauiClip = clip;
+                    Invalidate();
+                }
                 break;
             case nameof(VisualElement.WidthRequest):
             case nameof(VisualElement.HeightRequest):
@@ -1172,6 +1203,15 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         InvalidateInternal(reportDamage: true);
     }
 
+    /// <summary>True when this view and every ancestor are visible, so it is drawn.</summary>
+    internal bool IsVisibleInTree()
+    {
+        for (var v = this; v != null; v = v._parent)
+            if (!v.IsVisible)
+                return false;
+        return true;
+    }
+
     /// <summary>
     /// Raises Invalidated up the parent chain and, for the view that actually
     /// changed, reports its damage: the physical pixels it last painted plus
@@ -1183,6 +1223,21 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// </summary>
     private void InvalidateInternal(bool reportDamage)
     {
+        // A hidden view (it or an ancestor not visible) has nothing on screen to repaint.
+        // The invalidation that hides it reports the area it last painted, once, so that area
+        // is redrawn without it; after that it asks for nothing. A hidden view never painted
+        // fell through to "position unknown" below and redrew the whole window: a hidden
+        // indeterminate progress bar (Strikeline's sync indicator) kept an idle window drawing
+        // whole frames at 50 a second.
+        if (reportDamage && !IsVisibleInTree())
+        {
+            if (!_hasPaintedRect)
+                return;
+            RenderContext?.InvalidateRegion(_paintedDeviceRect);
+            _hasPaintedRect = false;
+            reportDamage = false;
+        }
+
         LinuxApplication.LogInvalidate(GetType().Name);
         Invalidated?.Invoke(this, EventArgs.Empty);
 
