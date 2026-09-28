@@ -91,6 +91,20 @@
     </None>
   </ItemGroup>
 
+  <!--
+    The shim is a Linux (glibc, Wayland) library, but the runtime identifier graph lets another
+    target take it: android-arm64 falls back through linux-bionic-arm64 to linux-arm64, so NuGet
+    resolved runtimes/linux-*/native/libopenmaui_wl.so as an Android native library and it was
+    packed into the APK (lib/arm64-v8a, lib/x86_64; the "does not have a 16 KB page size"
+    warning). Only the Linux target keeps it.
+  -->
+  <Target Name="_OpenMauiRemoveLinuxShimFromOtherTargets" AfterTargets="ResolvePackageAssets" Condition="'$(OpenMauiLinux)' != 'true'">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Filename)%(Extension)' == 'libopenmaui_wl.so'" />
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(Filename)%(Extension)' == 'libopenmaui_wl.so'" />
+    </ItemGroup>
+  </Target>
+
   <!-- Copy MauiImage items to output directory after Build -->
   <Target Name="CopyMauiImagesToOutput" AfterTargets="Build" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiImage) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to output..." />
