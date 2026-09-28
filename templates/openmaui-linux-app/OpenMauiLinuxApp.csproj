@@ -8,23 +8,27 @@
     <RootNamespace>OpenMauiLinuxApp</RootNamespace>
     <AssemblyName>OpenMauiLinuxApp</AssemblyName>
     <ApplicationTitle>OpenMauiLinuxApp</ApplicationTitle>
-    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- OpenMaui: UseLinux() stub (safe no-op on non-Linux platforms) -->
     <PackageReference Include="OpenMaui.Hosting" Version="10.0.*" />
-    <!-- OpenMaui: Full Linux platform (handlers, services, rendering) -->
-    <PackageReference Include="OpenMaui.Controls.Linux" Version="10.0.*" />
+    <!-- OpenMaui: Full Linux platform (handlers, services, rendering), for the Linux (plain
+         net10.0) target only. It also sets that target's linux-x64/linux-arm64 runtime
+         identifiers. Add net10.0-android and the other MAUI targets to TargetFrameworks as in
+         any MAUI app: they build with MAUI as usual and never get the Linux platform. -->
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="10.0.*" Condition="!$(TargetFramework.Contains('-'))" />
 
     <!-- Core MAUI packages -->
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
     <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.*" />
   </ItemGroup>
 
-  <!-- Linux platform files: only compiled on Linux -->
-  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Linux'))">
+  <!-- Linux platform files: only compiled for the Linux target, built on Linux (the other
+       targets have their own entry points under Platforms/, as in any MAUI app). -->
+  <ItemGroup Condition="$(TargetFramework.Contains('-')) Or !$([MSBuild]::IsOSPlatform('Linux'))">
     <Compile Remove="Platforms\Linux\**" />
+    <None Remove="Platforms\Linux\**" />
   </ItemGroup>
 
   <!-- Resources: use MAUI item types so they get processed properly. A blanket
