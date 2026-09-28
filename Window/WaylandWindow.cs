@@ -1444,7 +1444,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         // Wayland reverts to the compositor default cursor on every pointer.enter.
         // Re-apply our last-requested cursor so SetCursor's effect persists across
         // window re-entry.
+        window._hoverResizeEdge = XDG_TOPLEVEL_RESIZE_EDGE_NONE;
         window.TryApplyCursor(window._pendingCursor);
+        window.UpdateResizeCursor(x / 256.0f, y / 256.0f);
     }
 
     private static void PointerLeave(IntPtr data, IntPtr pointer, uint serial, IntPtr surface) { }
@@ -1459,6 +1461,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var s = window._bufferToLogicalScale;
         window._pointerX = (x / 256.0f) * s;
         window._pointerY = (y / 256.0f) * s;
+        window.UpdateResizeCursor(x / 256.0f, y / 256.0f);
         window.PointerMoved?.Invoke(window, new PointerEventArgs((int)window._pointerX, (int)window._pointerY));
     }
 
@@ -1844,6 +1847,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     public void SetCursor(CursorType cursorType)
     {
         _pendingCursor = cursorType;
+        // Over a resize edge the edge's cursor stays; the app's cursor returns when the
+        // pointer moves back over the content (UpdateResizeCursor).
+        if (_hoverResizeEdge != XDG_TOPLEVEL_RESIZE_EDGE_NONE)
+            return;
         // The pointer may not be over our surface yet (no serial → can't call
         // set_cursor). When we get pointer.enter, we re-apply automatically.
         TryApplyCursor(cursorType);
