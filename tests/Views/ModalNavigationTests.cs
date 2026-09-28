@@ -223,6 +223,8 @@ public class ModalNavigationTests : IDisposable
         layer.Bounds.Height.Should().Be(600);
 
         _host.DisplayWindow.RaiseResized(1024, 768);
+        // Laid out by the next frame, as the root is: a resize only asks for one.
+        _host.Context.Render();
 
         layer.Bounds.Width.Should().Be(1024);
         layer.Bounds.Height.Should().Be(768);
