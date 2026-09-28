@@ -9,10 +9,6 @@
     would override any value set here in .props.
   -->
 
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-    <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
-  </PropertyGroup>
-
   <!--
     OpenMauiLinux marks a build OpenMaui renders: a plain (platform-less) target on a Linux
     host. Such an app does not use the MAUI workload (UseMaui is off), so a library that
@@ -22,6 +18,16 @@
   -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) And '$(TargetFramework)' != '' And !$(TargetFramework.Contains('-'))">
     <OpenMauiLinux>true</OpenMauiLinux>
+  </PropertyGroup>
+
+  <!--
+    Everything OpenMaui adds to a build is for that target only. A project that also targets
+    net10.0-android (or iOS, Mac Catalyst, Windows) and is built on Linux runs those builds on
+    the same host: gating on the host gave them Linux runtime identifiers (no Mono runtime pack
+    for linux-x64; "Unable to determine the Android ABI from the value 'linux-x64'").
+  -->
+  <PropertyGroup Condition="'$(OpenMauiLinux)' == 'true'">
+    <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
 </Project>

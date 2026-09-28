@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.4] - 2026-09-28
+
+### Fixed
+
+- **A project built on Linux that also targets net10.0-android (or iOS, Mac Catalyst, Windows) could not build those targets** ([#27](https://github.com/open-maui/maui-linux/issues/27)): the OpenMaui.Controls.Linux build files applied everything they do to every target built on a Linux host, not just the Linux one. The Android build got the Linux runtime identifiers ("Unable to find package Microsoft.NETCore.App.Runtime.Mono.linux-x64", then "Unable to determine the Android ABI from the value 'linux-x64'"), lost Platforms/Android and SingleProject (no MainActivity, so "Error: --activity is required"), and packed the Wayland shim into the APK (the 16 KB page-size warning for libopenmaui_wl.so). They now apply to the plain net10.0 target built on Linux only (`OpenMauiLinux`), and never compile Platforms/Linux into another target. The project templates reference OpenMaui.Controls.Linux for that target only and leave the runtime identifiers to it, so adding `net10.0-android` to `TargetFrameworks`, with the Android files from the MAUI template, builds as in any MAUI app. A project made from an earlier template needs the same two changes: `Condition="!$(TargetFramework.Contains('-'))"` on its OpenMaui.Controls.Linux reference, and its `RuntimeIdentifiers` line removed.
+
 ## [10.0.110.3] - 2026-09-27
 
 ### Added
