@@ -93,6 +93,16 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     /// </summary>
     public bool EnableDirtyRegionOptimization { get; set; } = true;
 
+    /// <summary>True when something asked to be repainted: the next Render draws a frame.</summary>
+    internal bool NeedsFrame
+    {
+        get
+        {
+            lock (_dirtyLock)
+                return _fullRedrawNeeded || _dirtyRegions.Count > 0;
+        }
+    }
+
     /// <summary>
     /// Multi-window: whether this engine draws the (app-modal) dialog and
     /// context-menu overlays. True by default so the single-window path is

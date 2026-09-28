@@ -299,14 +299,24 @@ public sealed class WindowContext : IDisposable
         float scale = Scale;
         double width = size.Width / scale;
         double height = (double)(size.Height / scale) - CsdPointerInsetLogical;
-        if (_rootView != null)
+        if (RenderingEngine != null)
         {
-            _rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
-            _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
+            // The next frame lays the tree and its modal layers out at the new size before it
+            // draws. Laying it out here as well did the work twice per step, and for every
+            // size the compositor sent between two frames, sizes that were never drawn:
+            // a complex page (Strikeline's) resized at a few frames a second.
+            RenderingEngine.InvalidateAll();
         }
-        for (int i = 0; i < _modalViews.Count; i++)
-            LayoutModalLayer(_modalViews[i], width, height);
-        RenderingEngine?.InvalidateAll();
+        else
+        {
+            if (_rootView != null)
+            {
+                _rootView.Measure(new Microsoft.Maui.Graphics.Size(width, height));
+                _rootView.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, width, height));
+            }
+            for (int i = 0; i < _modalViews.Count; i++)
+                LayoutModalLayer(_modalViews[i], width, height);
+        }
 
         // Propagate to MAUI so Window.Width/Height and SizeChanged observers
         // stay accurate (secondary windows only; primary preserves the exact
