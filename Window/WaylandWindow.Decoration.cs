@@ -413,6 +413,35 @@ public partial class WaylandWindow
         _isRunning = false;
     }
 
+    /// <summary>Width of the strip along each window edge that resizes the window, in logical pixels.</summary>
+    internal const float CsdResizeMargin = 6f;
+
+    /// <summary>
+    /// The window edge (an XDG_TOPLEVEL_RESIZE_EDGE value) under a point in logical pixels, or
+    /// NONE: only while we draw the decorations and the window is not maximized. The press that
+    /// starts a resize and the resize cursor shown on hover both use it.
+    /// </summary>
+    internal uint CsdEdgeAt(float x, float y)
+    {
+        if (!_useCsd || _isMaximized || _bufferToLogicalScale <= 0f)
+            return XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+        float logicalWidth = _width / _bufferToLogicalScale;
+        float logicalHeight = _height / _bufferToLogicalScale;
+        bool atLeft = x <= CsdResizeMargin;
+        bool atRight = x >= logicalWidth - CsdResizeMargin;
+        bool atTop = y <= CsdResizeMargin;
+        bool atBottom = y >= logicalHeight - CsdResizeMargin;
+        if (atTop && atLeft) return XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT;
+        if (atTop && atRight) return XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT;
+        if (atBottom && atLeft) return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT;
+        if (atBottom && atRight) return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT;
+        if (atTop) return XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+        if (atBottom) return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+        if (atLeft) return XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+        if (atRight) return XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+        return XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+    }
+
     /// <summary>
     /// CSD pointer hit-test. Returns true if the press was consumed by the
     /// titlebar (move/resize/button); false to let the event propagate to
@@ -422,34 +451,12 @@ public partial class WaylandWindow
     {
         if (!_useCsd) return false;
 
-        // Edge resize hit-test (only when not maximized — maximized windows
-        // can't be resized by edge drag, that would just unmaximize awkwardly).
-        if (!_isMaximized)
+        // Edge resize (only when not maximized: a maximized window is not resized by its edges).
+        uint edge = CsdEdgeAt(x, y);
+        if (edge != XDG_TOPLEVEL_RESIZE_EDGE_NONE)
         {
-            const float resizeMargin = 6f;
-            float logicalWidth = _width / _bufferToLogicalScale;
-            float logicalHeight = _height / _bufferToLogicalScale;
-
-            bool atLeft = x <= resizeMargin;
-            bool atRight = x >= logicalWidth - resizeMargin;
-            bool atTop = y <= resizeMargin;
-            bool atBottom = y >= logicalHeight - resizeMargin;
-
-            uint edge = 0;
-            if (atTop && atLeft) edge = XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT;
-            else if (atTop && atRight) edge = XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT;
-            else if (atBottom && atLeft) edge = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT;
-            else if (atBottom && atRight) edge = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT;
-            else if (atTop) edge = XDG_TOPLEVEL_RESIZE_EDGE_TOP;
-            else if (atBottom) edge = XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
-            else if (atLeft) edge = XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
-            else if (atRight) edge = XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
-
-            if (edge != 0)
-            {
-                RequestCsdResize(serial, edge);
-                return true;
-            }
+            RequestCsdResize(serial, edge);
+            return true;
         }
 
         // Below the titlebar → event is for the content area; don't consume.
