@@ -89,7 +89,50 @@ public partial class WaylandWindow
             _compositor, 0, _wl_surface_interface, IntPtr.Zero);
     }
 
+    // Resize cursors for the edges we resize when drawing our own decorations
+    // (XDG_TOPLEVEL_RESIZE_EDGE_* → cursor-spec names, with X11 core-cursor aliases).
+    private static readonly Dictionary<uint, string[]> ResizeCursorNames = new()
+    {
+        [XDG_TOPLEVEL_RESIZE_EDGE_TOP] = new[] { "n-resize", "top_side" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM] = new[] { "s-resize", "bottom_side" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_LEFT] = new[] { "w-resize", "left_side" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_RIGHT] = new[] { "e-resize", "right_side" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT] = new[] { "nw-resize", "top_left_corner" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT] = new[] { "ne-resize", "top_right_corner" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT] = new[] { "sw-resize", "bottom_left_corner" },
+        [XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT] = new[] { "se-resize", "bottom_right_corner" },
+    };
+
+    // The resize edge the pointer is over (NONE when over the content): while set, the edge's
+    // resize cursor shows and the app's SetCursor is only remembered.
+    private uint _hoverResizeEdge;
+
+    /// <summary>
+    /// Shows the resize cursor while the pointer is over a window edge we resize (our own
+    /// decorations), as every other Linux client-side decoration does; the strip was otherwise
+    /// indistinguishable from the content and the window looked as if it could not be resized.
+    /// </summary>
+    private void UpdateResizeCursor(float logicalX, float logicalY)
+    {
+        uint edge = CsdEdgeAt(logicalX, logicalY);
+        if (edge == _hoverResizeEdge)
+            return;
+        _hoverResizeEdge = edge;
+        if (edge == XDG_TOPLEVEL_RESIZE_EDGE_NONE)
+            TryApplyCursor(_pendingCursor);
+        else if (ResizeCursorNames.TryGetValue(edge, out var names))
+            TryApplyCursorNames(names);
+    }
+
     private bool TryApplyCursor(CursorType cursorType)
+    {
+        if (!TryApplyCursorNames(CursorNames[cursorType]))
+            return false;
+        _appliedCursor = cursorType;
+        return true;
+    }
+
+    private bool TryApplyCursorNames(string[] names)
     {
         if (_pointer == IntPtr.Zero || _pointerSerial == 0)
             return false;
@@ -99,7 +142,7 @@ public partial class WaylandWindow
             return false;
 
         IntPtr cursor = IntPtr.Zero;
-        foreach (var name in CursorNames[cursorType])
+        foreach (var name in names)
         {
             cursor = wl_cursor_theme_get_cursor(_cursorTheme, name);
             if (cursor != IntPtr.Zero)
@@ -134,8 +177,6 @@ public partial class WaylandWindow
         // wl_pointer.set_cursor: opcode 0
         wl_proxy_marshal_set_cursor(_pointer, 0, _pointerSerial, _cursorSurface,
             (int)image.HotspotX, (int)image.HotspotY);
-
-        _appliedCursor = cursorType;
         return true;
     }
 
