@@ -48,6 +48,28 @@ public static class TextRenderingHelper
         if (font.Typeface == null)
             return font.MeasureText(text);
 
+        // A string's advance width depends only on the font and the text, never on the space it
+        // is laid out in, but measuring it shapes it with font fallback: re-measuring every label
+        // on each step of a window resize made a complex page (Strikeline's) resize at a few
+        // frames a second. Keyed by the typeface object, so a disposed typeface's reused handle
+        // cannot return another font's width; cleared when it grows past a bound.
+        var key = new WidthKey(font.Typeface, font.Size, font.Embolden, font.SkewX, text);
+        if (s_widths.TryGetValue(key, out var cached))
+            return cached;
+        var width = MeasureWidthUncached(font, text);
+        if (s_widths.Count >= MaxCachedWidths)
+            s_widths.Clear();
+        s_widths[key] = width;
+        return width;
+    }
+
+    private readonly record struct WidthKey(SKTypeface Typeface, float Size, bool Embolden, float SkewX, string Text);
+
+    private const int MaxCachedWidths = 20000;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<WidthKey, float> s_widths = new();
+
+    private static float MeasureWidthUncached(SKFont font, string text)
+    {
         var runs = FontFallbackManager.Instance.ShapeTextWithFallback(text, font.Typeface);
         if (runs.Count == 0 || (runs.Count == 1 && ReferenceEquals(runs[0].Typeface, font.Typeface)))
             return font.MeasureText(text);
