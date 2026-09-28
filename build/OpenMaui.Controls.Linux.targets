@@ -8,23 +8,24 @@
   -->
 
   <!--
-    Platform folder management: On Linux, exclude other platform folders.
-    On non-Linux, exclude the Linux platform folder.
-    This runs after the project file, so it adds Remove items for platform folders
-    that don't apply to the current build host.
-  -->
-  <!--
-    On Linux: If SingleProject was true (set by the consuming project), MAUI's
+    Platform folder management, per target (OpenMauiLinux, set in the .props: a plain net10.0
+    target built on Linux), not per build host: the Linux build compiles Platforms/Linux and
+    none of the other platform folders; every other target (net10.0-android and the rest, on any
+    host) leaves the platform folders to MAUI and never compiles Platforms/Linux. Gating on the
+    host broke a Linux-hosted multi-target project's Android build: it lost Platforms/Android
+    (MainActivity, so "Error: -activity is required"), SingleProject, and got the Linux RIDs.
+
+    In the Linux build, if SingleProject was true (set by the consuming project), MAUI's
     SingleProject.targets will have marked ALL Platforms/** files as ExcludeFromCurrentConfiguration=true.
     We undo this for Platforms/Linux/ and remove the other platform folders entirely.
   -->
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+  <PropertyGroup Condition="'$(OpenMauiLinux)' == 'true'">
     <!-- Override SingleProject to false — prevents MAUI targets from interfering further -->
     <SingleProject>false</SingleProject>
     <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+  <ItemGroup Condition="'$(OpenMauiLinux)' == 'true'">
     <!-- Re-include Linux platform files that MAUI's SingleProject.targets excluded -->
     <Compile Update="Platforms\Linux\**\*$(DefaultLanguageSourceExtension)"
              Condition="Exists('Platforms\Linux\')">
@@ -48,7 +49,7 @@
     <MauiXaml Remove="Platforms\MacCatalyst\**" />
     <MauiXaml Remove="Platforms\Tizen\**" />
   </ItemGroup>
-  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Linux'))">
+  <ItemGroup Condition="'$(OpenMauiLinux)' != 'true'">
     <Compile Remove="Platforms\Linux\**" />
     <None Remove="Platforms\Linux\**" />
     <MauiXaml Remove="Platforms\Linux\**" />
@@ -75,7 +76,7 @@
     so ../runtimes/<rid>/native/libopenmaui_wl.so points at the packaged native
     asset. The Exists guard means non-Linux hosts / older packages no-op cleanly.
   -->
-  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) AND '$(RuntimeIdentifier)' == ''">
+  <PropertyGroup Condition="'$(OpenMauiLinux)' == 'true' AND '$(RuntimeIdentifier)' == ''">
     <_OpenMauiWlRid>linux-x64</_OpenMauiWlRid>
     <_OpenMauiWlRid Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</_OpenMauiWlRid>
     <_OpenMauiWlShim>$(MSBuildThisFileDirectory)..\runtimes\$(_OpenMauiWlRid)\native\libopenmaui_wl.so</_OpenMauiWlShim>
@@ -91,13 +92,13 @@
   </ItemGroup>
 
   <!-- Copy MauiImage items to output directory after Build -->
-  <Target Name="CopyMauiImagesToOutput" AfterTargets="Build" Condition="@(MauiImage) != ''">
+  <Target Name="CopyMauiImagesToOutput" AfterTargets="Build" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiImage) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to output..." />
     <Copy SourceFiles="@(MauiImage)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- Copy MauiImage items to publish directory after Publish -->
-  <Target Name="CopyMauiImagesToPublish" AfterTargets="Publish" Condition="@(MauiImage) != ''">
+  <Target Name="CopyMauiImagesToPublish" AfterTargets="Publish" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiImage) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiImage items to publish folder..." />
     <Copy SourceFiles="@(MauiImage)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
   </Target>
@@ -109,19 +110,19 @@
     has nothing to load. LinuxFontRegistrar probes $(OutputPath)/Resources/Fonts
     first, then the output root.
   -->
-  <Target Name="CopyMauiFontsToOutput" AfterTargets="Build" Condition="@(MauiFont) != ''">
+  <Target Name="CopyMauiFontsToOutput" AfterTargets="Build" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiFont) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiFont items to output..." />
     <Copy SourceFiles="@(MauiFont)" DestinationFolder="$(OutputPath)Resources/Fonts" SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="CopyMauiFontsToPublish" AfterTargets="Publish" Condition="@(MauiFont) != ''">
+  <Target Name="CopyMauiFontsToPublish" AfterTargets="Publish" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiFont) != ''">
     <Message Importance="normal" Text="OpenMaui: Copying MauiFont items to publish folder..." />
     <Copy SourceFiles="@(MauiFont)" DestinationFolder="$(PublishDir)Resources/Fonts" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- Process MauiIcon: copy the icon layers and write appicon.meta; the
        runtime composes appicon.png from them (Services/MauiIconGenerator.cs). -->
-  <Target Name="ProcessMauiIconForOutput" AfterTargets="Build" Condition="@(MauiIcon) != ''">
+  <Target Name="ProcessMauiIconForOutput" AfterTargets="Build" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiIcon) != ''">
     <!-- The MauiIcon file itself is the icon's background layer (for a
          single-file icon, the whole icon); ForegroundFile is drawn on top at
          ForegroundScale, tinted with Color. BackgroundColor fills behind both
@@ -150,7 +151,7 @@
   </Target>
 
   <!-- Process MauiIcon for Publish -->
-  <Target Name="ProcessMauiIconForPublish" AfterTargets="Publish" Condition="@(MauiIcon) != ''">
+  <Target Name="ProcessMauiIconForPublish" AfterTargets="Publish" Condition="'$(OpenMauiLinux)' == 'true' And @(MauiIcon) != ''">
     <!-- The MauiIcon file itself is the icon's background layer (for a
          single-file icon, the whole icon); ForegroundFile is drawn on top at
          ForegroundScale, tinted with Color. BackgroundColor fills behind both
