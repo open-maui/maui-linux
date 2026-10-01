@@ -189,7 +189,7 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                 try
                 {
                     // Create view from template
-                    var content = template.CreateContent();
+                    var content = ItemTemplateContent.Create(template, item, collectionView);
                     if (content is View view)
                     {
                         // Set the parent to the CollectionView so RelativeSource AncestorType
@@ -209,12 +209,10 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                             }
                         }
 
-                        // Set binding context FIRST so bindings evaluate
+                        // The row's root takes the item; its children inherit it, as on every
+                        // platform, so a child given a context of its own (a control's
+                        // Root.BindingContext = this) keeps it.
                         view.BindingContext = item;
-
-                        // Force binding evaluation by accessing the visual tree
-                        // This ensures child bindings are evaluated before handler creation
-                        PropagateBindingContext(view, item);
 
                         // Create handler for the view
                         if (view.Handler == null && handler.MauiContext != null)
@@ -248,9 +246,9 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore template creation errors
+                    DiagnosticLog.Error("CollectionViewHandler", $"Creating the row for {item?.GetType().Name} failed", ex);
                 }
                 return null;
             };
@@ -405,34 +403,6 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         else if (scrollArgs.Item != null)
         {
             handler.PlatformView.ScrollToItem(scrollArgs.Item, scrollArgs.IsAnimated);
-        }
-    }
-
-    /// <summary>
-    /// Recursively propagates binding context to all child views to force binding evaluation.
-    /// </summary>
-    private static void PropagateBindingContext(View view, object? bindingContext)
-    {
-        view.BindingContext = bindingContext;
-
-        // Propagate to children
-        if (view is Layout layout)
-        {
-            foreach (var child in layout.Children)
-            {
-                if (child is View childView)
-                {
-                    PropagateBindingContext(childView, bindingContext);
-                }
-            }
-        }
-        else if (view is ContentView contentView && contentView.Content != null)
-        {
-            PropagateBindingContext(contentView.Content, bindingContext);
-        }
-        else if (view is Border border && border.Content is View borderContent)
-        {
-            PropagateBindingContext(borderContent, bindingContext);
         }
     }
 }
