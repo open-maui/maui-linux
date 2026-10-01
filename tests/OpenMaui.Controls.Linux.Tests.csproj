@@ -34,6 +34,7 @@
     <ProjectReference Include="..\OpenMaui.Controls.Linux.csproj" />
     <ProjectReference Include="..\Maps\OpenMaui.Controls.Linux.Maps.csproj" />
     <ProjectReference Include="..\MediaElement\OpenMaui.Controls.Linux.MediaElement.csproj" />
+    <ProjectReference Include="..\Pdf\OpenMaui.Controls.Linux.Pdf.csproj" />
     <!-- WebView scenarios run out of process (WebKit needs the main thread);
          the host is built with the tests and lands next to them. -->
     <ProjectReference Include="WebViewHost\WebViewHost.csproj" />
