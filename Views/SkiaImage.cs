@@ -434,8 +434,22 @@ public class SkiaImage : SkiaView
         using var tint = _tintColor == null ? null : SKColorFilter.CreateBlendMode(_tintColor.ToSKColor(), SKBlendMode.SrcIn);
         paint.ColorFilter = tint;
 
+        // AspectFill (and Center, for a large image) scales the picture past the view; the excess
+        // is cropped, as an Image crops it on every platform. Unclipped it drew over the views
+        // around it (CiteLynq's Daily Discovery photo, over the title under it).
+        bool overflows = destRect.Left < bounds.Left || destRect.Top < bounds.Top
+            || destRect.Right > bounds.Right || destRect.Bottom > bounds.Bottom;
+        if (overflows)
+        {
+            canvas.Save();
+            canvas.ClipRect(bounds);
+        }
+
         // SKFilterQuality.High equivalent in SkiaSharp 4: cubic (Mitchell) resampling
         canvas.DrawImage(_image, destRect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint);
+
+        if (overflows)
+            canvas.Restore();
     }
 
     private SKRect CalculateDestRect(SKRect bounds, float imageWidth, float imageHeight)
