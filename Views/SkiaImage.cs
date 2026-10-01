@@ -384,6 +384,23 @@ public class SkiaImage : SkiaView
         }
     }
 
+    private Color? _tintColor;
+
+    /// <summary>
+    /// Draws every opaque pixel of the image in this colour (null draws it as is): the tint
+    /// CommunityToolkit's IconTintColorBehavior gives an icon on the other platforms.
+    /// </summary>
+    public Color? TintColor
+    {
+        get => _tintColor;
+        set
+        {
+            if (Equals(_tintColor, value)) return;
+            _tintColor = value;
+            Invalidate();
+        }
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         // Draw background if not opaque
@@ -414,6 +431,8 @@ public class SkiaImage : SkiaView
             IsAntialias = true,
             BlendMode = SKBlendMode.SrcOver
         };
+        using var tint = _tintColor == null ? null : SKColorFilter.CreateBlendMode(_tintColor.ToSKColor(), SKBlendMode.SrcIn);
+        paint.ColorFilter = tint;
 
         // SKFilterQuality.High equivalent in SkiaSharp 4: cubic (Mitchell) resampling
         canvas.DrawImage(_image, destRect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint);
