@@ -894,6 +894,13 @@ public class SkiaScrollView : SkiaView
         if (Orientation == ScrollOrientation.Horizontal && _content != null)
             height = Math.Min(height, ContentSize.Height);
 
+        // A vertical scroller is as tall as its content, up to the height offered, as in MAUI:
+        // it scrolls only when the content is taller. A parent that fills still stretches it;
+        // a centred one (a popup's card around a scrolling form) wraps the content instead of
+        // taking the whole window.
+        if (Orientation is ScrollOrientation.Vertical or ScrollOrientation.Both && _content != null)
+            height = Math.Min(height, ContentSize.Height);
+
         return new Size(width, height);
     }
 
