@@ -66,6 +66,9 @@ internal static partial class WebKitNative
     private static IntPtr _handle;
     private static bool _initialized;
 
+    /// <summary>The WebKitGTK library <see cref="Initialize"/> loaded, or null.</summary>
+    public static string? LoadedLibraryName { get; private set; }
+
     private static readonly string[] LibraryNames = new string[4]
     {
         "libwebkit2gtk-4.1.so.0",
@@ -140,6 +143,7 @@ internal static partial class WebKitNative
             _handle = dlopen(text, 258);
             if (_handle != IntPtr.Zero)
             {
+                LoadedLibraryName = text;
                 DiagnosticLog.Debug("WebKitNative", "Loaded " + text);
                 break;
             }
