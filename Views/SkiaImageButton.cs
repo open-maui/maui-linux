@@ -349,8 +349,12 @@ public class SkiaImageButton : SkiaView
                     paint.Color = paint.Color.WithAlpha(128);
                 }
 
+                // A picture scaled past the button (AspectFill) is cropped to it, as on every platform.
+                canvas.Save();
+                canvas.ClipRect(bounds);
                 // SKFilterQuality.High equivalent in SkiaSharp 4: cubic (Mitchell) resampling
                 canvas.DrawImage(_image, destRect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint);
+                canvas.Restore();
             }
         }
 
