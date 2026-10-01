@@ -171,6 +171,60 @@ public static partial class Program
         }
     }
 
+    /// <summary>
+    /// AskWhereToSave: the Save dialog gets the server's suggested name, the file is written
+    /// where the user chose, and nothing is left behind; cancelling the dialog cancels the
+    /// download and writes nothing.
+    /// </summary>
+    private static void BrowserDownloadSaveDialog()
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes("citation export, saved");
+        using var server = new ResponseServer(("/report.csv", new ResponseServer.Reply(200, "application/octet-stream", payload,
+            new Dictionary<string, string> { ["Content-Disposition"] = "attachment; filename=\"report.csv\"" })));
+        var target = Path.Combine(Path.GetTempPath(), $"openmaui-saved-{Guid.NewGuid():N}.csv");
+        try
+        {
+            foreach (var choose in new[] { true, false })
+            {
+                using var view = NewView();
+                ILinuxWebView browser = view;
+                browser.DownloadStarting += (_, e) => e.AskWhereToSave = true;
+                LinuxWebDownloadFinishedEventArgs? finished = null;
+                browser.DownloadFinished += (_, e) => finished = e;
+                string? suggested = null;
+                WebKitBrowserController.SaveDialogOverride = name =>
+                {
+                    suggested = name;
+                    return Task.FromResult(choose ? target : null);
+                };
+
+                browser.Navigate(server.Url("/report.csv"));
+                if (choose)
+                {
+                    Pump(() => finished != null, 10000);
+                    Check(suggested == "report.csv", $"the dialog suggested '{suggested}'");
+                    Check(finished != null && finished.Success, $"DownloadFinished did not report success ({finished?.Error})");
+                    Check(finished!.Path == target, $"DownloadFinished reported '{finished.Path}'");
+                    Check(File.Exists(target) && File.ReadAllBytes(target).SequenceEqual(payload), "the file is not where the user chose");
+                }
+                else
+                {
+                    Pump(() => false, 2000);
+                    Check(suggested == "report.csv", "the dialog was not shown");
+                    Check(finished == null, "a cancelled download is not reported");
+                }
+            }
+            Check(!Directory.Exists(Path.Combine(Path.GetTempPath(), "openmaui-downloads"))
+                  || !Directory.EnumerateFiles(Path.Combine(Path.GetTempPath(), "openmaui-downloads"), "report*.csv", SearchOption.AllDirectories).Any(),
+                "the temporary download was left behind");
+        }
+        finally
+        {
+            WebKitBrowserController.SaveDialogOverride = null;
+            File.Delete(target);
+        }
+    }
+
     private static void BrowserNewWindowInPlace()
     {
         using var server = new ResponseServer(

@@ -227,6 +227,8 @@ internal sealed class HeadlessMauiHost : IDisposable
             PointerPressed?.Invoke(this, new PointerEventArgs(x, y, button));
         public void RaisePointerReleased(float x, float y) =>
             PointerReleased?.Invoke(this, new PointerEventArgs(x, y, PointerButton.Left));
+        public void RaiseScroll(float x, float y, float deltaY) =>
+            Scroll?.Invoke(this, new ScrollEventArgs(x, y, 0, deltaY));
         public void RaisePointerMoved(float x, float y) =>
             PointerMoved?.Invoke(this, new PointerEventArgs(x, y));
         public void RaiseKeyDown(Key key) =>
