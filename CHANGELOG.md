@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
-## [10.0.110.6] - unreleased
+## [10.0.110.6] - 2026-10-01
 
 ### Added
 
