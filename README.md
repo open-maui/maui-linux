@@ -24,9 +24,10 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **Theming**: AppThemeBinding live propagation across the entire view tree — CollectionView items, pushed pages, Shell content, and flyout regions all flip on theme toggle
 - **Window decorations**: Server-side decorations (KDE/Sway) or client-side titlebar drawn in Skia with full drag/resize/close/maximize/minimize (GNOME/Mutter)
 - **MediaElement**: Opt-in `OpenMaui.Controls.Linux.MediaElement` package backs `CommunityToolkit.Maui.MediaElement` with GStreamer (playbin + appsink → Skia). `MediaHardwareAcceleration.Prefer` boosts VA-API / NVDEC / V4L2 / MediaSDK decoder ranks when those plugins are installed
-- **WebView**: WPE WebKit composited inside the Skia tree (no GTK widget, no reparenting) on native Wayland and X11, with context menus, clipboard, JavaScript dialogs, file chooser, permissions, web notifications, downloads, spell checking, link cursors, `EvaluateJavaScriptAsync` results and a backend-neutral WebKit content API; WebKitGTK remains the GTK-mode fallback
+- **WebView**: WPE WebKit composited inside the Skia tree (no GTK widget, no reparenting) on native Wayland and X11, with context menus, clipboard, JavaScript dialogs, file chooser, permissions, web notifications, downloads, spell checking, link cursors, `EvaluateJavaScriptAsync` results and a backend-neutral WebKit content API; WebKitGTK remains the GTK-mode fallback. Libraries derive from the public `LinuxWebViewHandler` for what WebView2 and WKWebView give them elsewhere (`ILinuxWebView`: navigation and new-window decisions, HTTP status, response and download handling with the desktop's Save dialog, zoom, page capture and save as PDF)
 - **Blazor Hybrid**: Opt-in `OpenMaui.Controls.Linux.Blazor` package backs `BlazorWebView` (Microsoft.AspNetCore.Components.WebView.Maui) on the WPE WebView
 - **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
+- **PDF**: Opt-in `OpenMaui.Controls.Linux.Pdf` package renders PDF pages with Google's PDFium (bundled for x64 and arm64): `SkiaPdfView` for a scrolling, zoomable document view, `PdfiumDocument` for pages as bitmaps and their text, and `.UseLinuxPdf()` makes Syncfusion's `PdfToImageConverter` (and so `SfPdfViewer`) render
 - **Syncfusion**: Opt-in `OpenMaui.Controls.Linux.Syncfusion` package runs Syncfusion .NET MAUI controls (lists and trees, tabs, charts, inputs and drop-downs, Carousel, Rotator, SignaturePad, SfPopup): call `.UseLinuxSyncfusion()` instead of `.ConfigureSyncfusionCore()`. Bring your own Syncfusion license
 - **Effects**: MAUI's effects pipeline (`ConfigureEffects`, `RoutingEffect` to `PlatformEffect` with the Skia view as `Control`), with per-view routed pointer, key and bounds events on `SkiaView` for a platform effect to hook
 - **Third-party libraries**: popular MAUI libraries (CommunityToolkit.Maui, CommunityToolkit.Mvvm, LiveCharts2, ReactiveUI, Prism, SkiaSharp views) run unmodified, measured by a separate compatibility suite and published in the [scorecard](docs/COMPATIBILITY.md)
@@ -114,6 +115,25 @@ builder
 ```
 
 `SfView`-based controls (ListView, TreeView, TabView, Charts, the inputs and the rest) lay out, draw their text and graphics, and receive touch, tap, double-tap, right-tap, long-press, drag, wheel, ctrl+wheel pinch and keyboard input. SfCarousel, SfRotator, SfSignaturePad and SfInteractiveScrollView get their native views from the package; SfComboBox and SfAutocomplete drop-downs and SfPopup (and the controls that open one) show as overlays. Not covered yet: ImageEditor and Syncfusion's MediaElement (dedicated native views). The package does not include Syncfusion's assemblies; you need your own Syncfusion license.
+
+### Optional: PDF (PDFium)
+
+Showing PDFs on Linux uses the opt-in sibling package, which bundles Google's PDFium (Apache-2.0) for linux-x64 and linux-arm64, so the host needs nothing installed:
+
+```bash
+dotnet add package OpenMaui.Controls.Linux.Pdf
+```
+
+```csharp
+builder
+    .UseMauiApp<App>()
+    .UseLinux()
+    .UseLinuxPdf();   // also makes Syncfusion's PdfToImageConverter render on Linux
+```
+
+- `SkiaPdfView` shows a document's pages in a vertical or horizontal strip at 96 DPI times its zoom, rendered in the background at the screen's density: wheel, scrollbar and keys scroll, Ctrl+wheel and Ctrl +/-/0 zoom, and `PageIndex`/`PageChanged` follow the page in view. A library's PDF control maps onto it (MarketAlly.ViewEngine's PdfView does).
+- `PdfiumDocument` opens a PDF from bytes or a stream (with a password) and renders a page, or a region of it, to an `SKBitmap` or PNG, and reads its text.
+- With `.UseLinuxPdf()`, Syncfusion's `PdfToImageConverter`, whose platform-neutral build has no renderer, renders with PDFium at the Windows build's sizes, so `SfPdfViewer` works.
 
 ### Optional: Maps (OpenStreetMap)
 
@@ -500,70 +520,6 @@ All interactive controls support VSM states: Normal, PointerOver, Pressed, Focus
 </Button>
 ```
 
-## Roadmap
-
-- [x] Core control library (50+ controls)
-- [x] Platform services integration
-- [x] Accessibility (AT-SPI2)
-- [x] Input method support (IBus/XIM)
-- [x] High DPI support
-- [x] Drag and drop
-- [x] Global hotkeys
-- [x] BindableProperty for all controls
-- [x] Visual State Manager integration
-- [x] XAML styles and StaticResource
-- [x] Data binding (OneWay, TwoWay, IValueConverter)
-- [x] App icon support (MauiIcon build targets, .desktop integration)
-- [x] Dark mode for all picker popups
-- [x] DPI-aware popup rendering with edge detection
-- [x] MAUI Shapes (Ellipse, Line, Rectangle, Polygon, Polyline, Path)
-- [x] Native Wayland backend (xdg-shell, wp_viewporter, fractional-scale-v1, decoration-manager)
-- [x] Programmatic backend selection (`UseX11()` / `UseWayland()`)
-- [x] AppThemeBinding live propagation through Shell, NavigationPage, and CollectionView item trees
-- [x] GTK4 interop layer (`Gtk4InteropService` with GTK3 fallback)
-- [x] Client-side decorations for GNOME-Wayland sessions (10.0.60.10)
-- [x] Native `wl_data_device_manager` clipboard — zero subprocess overhead, works without `wl-clipboard` (10.0.60.11)
-- [x] `zwp_text_input_v3` IME for native Wayland (Fcitx5 / GNOME Pinyin) (10.0.60.12)
-- [x] MediaElement / video support via GStreamer — opt-in `OpenMaui.Controls.Linux.MediaElement` sibling package (10.0.60.13)
-- [x] MAUI 10.0.70 alignment — default-template CS1508 fix, Wayland-shim deployment fix, Essentials registration fix for MAUI 10's split `SetDefault`/`SetCurrent` naming (10.0.70.1)
-- [x] `IInputContext.DeleteSurrounding` — `zwp_text_input_v3.delete_surrounding_text` round-trips into SkiaEntry / SkiaEditor with full UTF-8 byte → UTF-16 char conversion (10.0.70.2)
-- [x] Primary-selection clipboard — `zwp_primary_selection_v1` binding + `PrimarySelectionService`, SkiaEntry / SkiaEditor push on drag-end and paste on middle-click (10.0.70.2)
-- [x] Native `wl_data_device_manager` drag-and-drop — first functional Linux DnD path, file-drop URI decoding, source-side `start_drag` (10.0.70.2)
-- [x] Hardware video acceleration tuning — `MediaHardwareAcceleration.Prefer` boosts VA-API / NVDEC / V4L2 / MediaSDK decoder ranks (10.0.70.2)
-- [x] System tray icons — `TrayIcon` over libappindicator3 / libayatana-appindicator3 (StatusNotifierItem on the session bus) (10.0.70.2)
-- [x] CUPS printing — `PrintService` enumerates printers, submits files, renders Skia pages to PDF via `SKDocument` and prints (10.0.70.2)
-- [x] Maps integration (OpenStreetMap) — opt-in `OpenMaui.Controls.Linux.Maps` sibling package backs `Microsoft.Maui.Controls.Maps` with OSM raster tiles, pin / polyline overlays, persistent XDG tile cache (10.0.70.2)
-- [x] Stability / correctness hardening from deep code review — Wayland listener-delegate rooting (crash-class), DnD protocol fixes with default-accept drops, self-paste deadlock fixes, first working X11 XDND drop path (INCR-capable), Maps tile-cache race + `MoveToRegion` zoom + `VisibleRegion` write-back + OSM tile-policy compliance + HiDPI tiles, tray binding/lifetime fixes, off-UI-thread printing, reversible HW-decode ranking (10.0.70.4)
-- [x] Full X11 XDND drag-and-drop — outgoing drags via backend-agnostic `DragDropService.TryStartDrag` (Wayland-first, XDND source fallback) (10.0.70.4)
-- [x] MAUI `DragGestureRecognizer` / `DropGestureRecognizer` wired to the native drag paths — `DragStarting` starts real drags; drops route to recognizer views with `AllowDrop`/`AcceptedOperation` feedback (10.0.70.4)
-- [x] `set_surrounding_text` for `text-input-v3` — focused entry text + caret + anchor pushed to the IME (also feeds IBus); completes the Wayland IME loop (10.0.70.4)
-- [x] Map polygon / circle overlays — `IFilledMapElement` / `ICircleMapElement` routed end-to-end with Mercator-correct circle radii (10.0.70.4)
-- [x] GTK print dialog — `PrintService.ShowPrintDialogAsync` (GtkPrintUnixDialog: printer, copies, ranges, duplex, PPD options → CUPS-ready) (10.0.70.4)
-- [x] Tray icon XEmbed fallback — freedesktop System Tray Protocol backend for desktops without an SNI host; left-click `Activated` works here (10.0.70.4)
-- [x] MAUI 10.0.90 alignment — bumped Controls/Graphics/Graphics.Skia/Controls.Maps 10.0.70 → 10.0.90 (10.0.90.1)
-- [x] Drag payload types — `DragPayload` (text/files/image) drives `TryStartDrag`; per-payload MIMEs, outgoing X11 INCR, `DataPackage` file/image extraction (10.0.90.1)
-- [x] Maps satellite / hybrid layers — `SkiaMap.LayerType` + MAUI `Map.MapType`; `TileSource` abstraction with keyless OSM/Esri defaults, layer-stacking hybrid, layer-keyed cache (10.0.90.1)
-- [x] `Tmds.DBus` migration — Fcitx5 transport off the `dbus-monitor` subprocess to typed Tmds.DBus proxies (10.0.90.1)
-- [x] Live Visual Tree — `Diagnostics/VisualTreeInspector`: tree snapshot, highlight overlay, click-to-pick, text dump; opt-in Ctrl+Shift+D (10.0.90.1)
-- [x] Hot Reload — `dotnet watch` C#/XAML edits re-render the current page (Shell-rooted apps); see `docs/HOT_RELOAD.md` (10.0.90.1)
-
-- [x] MAUI 10.0.101 alignment + SkiaSharp 3 → 4 migration — ~400 call sites to the `SKFont` API; `SkiaFontFactory` (Subpixel + LinearMetrics) fixes HiDPI glyph gaps; label measurement is wrap-aware and glyph-independent (10.0.101.1)
-- [x] MAUI 10.0.110 alignment (10.0.110.1): full suite and scorecard unchanged against the new MAUI
-- [x] Multi-window support — `Application.OpenWindow`/`CloseWindow`, per-window render/input/focus, X11 + Wayland parity, MAUI `IWindow` lifecycle, last-window-close exits (10.0.101.1)
-- [x] Non-Shell-root XAML Hot Reload — raw `ContentPage`/`NavigationPage` roots rebuild and re-swap under `dotnet watch` (10.0.101.1)
-- [x] Async drag image sourcing — `StreamImageSource` payloads resolve in-flight with format sniffing and bounded honest-fail (10.0.101.1)
-
-### Up next
-
-OpenMaui is the Wayland-first, self-rendered Linux platform for .NET MAUI, with X11 compatibility rather than GTK as its architectural foundation. The next releases build on that (full detail in [docs/ROADMAP.md](docs/ROADMAP.md)):
-
-- [x] **Phase 1: GPU-native presentation** — `IRenderTarget` boundary with EGL-backed `GRContext` surfaces on Wayland (`wl_egl_window`) and X11, automatic raster fallback, `OPENMAUI_RENDERER` override, `OPENMAUI_RENDER_STATS` frame timing (10.0.101.2); runtime scale change per window, partial damage, zero-copy DMA-BUF import for WebView and hardware-decoded video, an opt-in Vulkan target, and the benchmark suite with performance gates (10.0.110.1)
-- [x] **Phase 2: WPE WebKit WebView and BlazorWebView** — WPEPlatform (WPE WebKit 2.54) embedder compositing web frames inside the platform's own render tree, identical on Wayland and X11; context menus, clipboard bridge, backend selection; JS dialogs, file chooser and link cursors through the platform; `OpenMaui.Controls.Linux.Blazor` for Blazor Hybrid (10.0.101.2); zero-copy DMA-BUF frames on the GPU target and hardware keycodes (10.0.110.1)
-- [x] **Phase 3: Conformance suite** — golden screenshot tests at every scale factor, a compatibility scorecard computed from the test run ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)), and the handlers and services it exposed as missing (AbsoluteLayout, ControlTemplate, TableView, ListView, MAUI 10 dialogs, modal navigation, animations on MAUI's pipeline, VisualStateManager/triggers/behaviors, FormattedText, context flyouts, Essentials); third-party library compatibility measured in the scorecard (10.0.110.1)
-- [x] `openmaui doctor` and the multi-window round-out (live page/title/geometry, Stopped/Resumed) (10.0.110.1)
-- [x] Native D-Bus xdg-desktop-portal layer (10.0.110.1)
-- [x] deb/rpm output (OpenMaui.AppImage 1.3.0: `--format deb`, `--format rpm`, `--format all`)
-
 ## License
 
 Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -573,6 +529,7 @@ Copyright (c) 2025-2026 MarketAlly Pte Ltd. Licensed under the MIT License - see
 - [MarketAlly Pte Ltd](https://marketally.ai) - Project development and maintenance
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - 2D graphics library
 - [.NET MAUI](https://github.com/dotnet/maui) - Cross-platform UI framework
+- [PDFium](https://pdfium.googlesource.com/pdfium/) - PDF rendering in `OpenMaui.Controls.Linux.Pdf` (Apache-2.0), packaged by [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries)
 - The .NET community
 - A very special thank you to the [Anthropic](https://anthropic.com) team for delivering on the promise I hold most dear — that an individual with enough energy and persistence can still make a difference
  
