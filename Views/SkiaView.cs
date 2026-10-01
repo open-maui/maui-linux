@@ -1537,7 +1537,19 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             if (!_loadedFired)
             {
                 _loadedFired = true;
-                if (!MauiView.IsLoaded)
+                if (Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.IsInstalled)
+                {
+                    // Held back until the view had its platform view: sent now, once.
+                    try
+                    {
+                        Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.SendLoadedIfDue(MauiView);
+                    }
+                    catch (Exception ex)
+                    {
+                        DiagnosticLog.Error("SkiaView", $"Loaded failed for {MauiView.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}", ex.InnerException ?? ex);
+                    }
+                }
+                else if (!MauiView.IsLoaded)
                     FireLoadedEvent(MauiView);
             }
         }
