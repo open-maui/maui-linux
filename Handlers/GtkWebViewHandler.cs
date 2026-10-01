@@ -107,6 +107,7 @@ public class GtkWebViewHandler : LinuxViewHandler<IWebView, GtkWebViewProxy>
             _platformWebView.NavigationStarted -= OnNavigationStarted;
             _platformWebView.NavigationCompleted -= OnNavigationCompleted;
             _platformWebView.ScriptDialogRequested -= OnScriptDialogRequested;
+            platformView.DetachBrowser(); // its signal handlers go before the widget they are on
             CancelPendingIdleSources();
             UnregisterFromHost();
             _platformWebView.Dispose();
