@@ -105,6 +105,32 @@ public class SkiaItemsView : SkiaView
     public ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = ScrollBarVisibility.Never;
 
     public object? EmptyView { get; set; }
+
+    private SkiaView? _emptyViewContent;
+
+    /// <summary>
+    /// The view shown in the list's area while it has no items: the platform view of a View
+    /// EmptyView, or of the EmptyViewTemplate's content, as MAUI shows it on every platform
+    /// (placed by its own alignment, and taking input, so a button in it works).
+    /// </summary>
+    public SkiaView? EmptyViewContent
+    {
+        get => _emptyViewContent;
+        set
+        {
+            if (ReferenceEquals(_emptyViewContent, value))
+                return;
+            if (_emptyViewContent != null && ReferenceEquals(_emptyViewContent.Parent, this))
+                _emptyViewContent.Parent = null;
+            _emptyViewContent = value;
+            if (value != null)
+                value.Parent = this;
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
+
+    private bool ShowsEmptyView => _items.Count == 0 && _emptyViewContent is { IsVisible: true };
     /// <summary>
     /// Text shown when there are no items: a string <c>EmptyView</c>. None by
     /// default, as MAUI shows nothing for an empty list without an EmptyView.
@@ -314,6 +340,11 @@ public class SkiaItemsView : SkiaView
     /// </summary>
     protected virtual float NaturalHeight(float width)
     {
+        if (_items.Count == 0 && _emptyViewContent is { IsVisible: true } empty)
+        {
+            var size = empty.Measure(new Size(width, double.PositiveInfinity));
+            return (float)(size.Height + empty.Margin.VerticalThickness);
+        }
         if (_items.Count == 0)
             return string.IsNullOrEmpty(EmptyViewText) ? 0 : 44;
         for (int i = 0; i < _items.Count && i < NaturalMeasureLimit; i++)
@@ -517,6 +548,17 @@ public class SkiaItemsView : SkiaView
 
     protected virtual void DrawEmptyView(SKCanvas canvas, SKRect bounds)
     {
+        if (_emptyViewContent is { IsVisible: true } content)
+        {
+            var margin = content.Margin;
+            var area = new SKRect(bounds.Left + (float)margin.Left, bounds.Top + (float)margin.Top,
+                bounds.Right - (float)margin.Right, bounds.Bottom - (float)margin.Bottom);
+            var desired = content.Measure(new Size(Math.Max(0, area.Width), Math.Max(0, area.Height)));
+            content.Arrange(SkiaPage.AlignContent(content, area, desired));
+            content.Draw(canvas);
+            return;
+        }
+
         using var paint = new SKPaint
         {
             Color = SkiaTheme.TextPlaceholderSK,
@@ -862,6 +904,10 @@ public class SkiaItemsView : SkiaView
             if (trackArea.Contains(x, y))
                 return this;
         }
+
+        // The empty view takes input like any content (its "add the first one" button).
+        if (ShowsEmptyView && _emptyViewContent!.HitTestAt(x, y) is { } emptyHit)
+            return emptyHit;
 
         // A control inside a row takes the pointer, as on the other platforms: a button, an
         // entry, a view with its own tap recognizer below the row's root (CiteLynq's article
