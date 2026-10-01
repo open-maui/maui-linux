@@ -86,10 +86,10 @@ public class HandlerRegistryTests
     }
 
     [Fact]
-    public void WebView_resolves_to_the_selected_backend_in_both_registries()
+    public void WebView_resolves_to_one_handler_on_either_backend_in_both_registries()
     {
-        var expected = WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe ? typeof(WpeWebViewHandler) : typeof(GtkWebViewHandler);
-        MauiHandlerExtensions.GetLinuxHandlerType(typeof(WebView)).Should().Be(expected);
-        BuildFactory().GetHandlerType(typeof(WebView)).Should().Be(expected);
+        // LinuxWebViewHandler picks WPE WebKit or WebKitGTK itself when it makes its view.
+        MauiHandlerExtensions.GetLinuxHandlerType(typeof(WebView)).Should().Be(typeof(LinuxWebViewHandler));
+        BuildFactory().GetHandlerType(typeof(WebView)).Should().Be(typeof(LinuxWebViewHandler));
     }
 }

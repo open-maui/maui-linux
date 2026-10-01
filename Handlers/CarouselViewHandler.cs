@@ -122,7 +122,7 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
             {
                 try
                 {
-                    var content = template.CreateContent();
+                    var content = ItemTemplateContent.Create(template, item, carouselView);
                     if (content is View view)
                     {
                         // Set parent for RelativeSource AncestorType binding support.

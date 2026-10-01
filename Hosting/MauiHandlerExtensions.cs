@@ -31,9 +31,7 @@ public static class MauiHandlerExtensions
         [typeof(TimePicker)] = () => new TimePickerHandler(),
         [typeof(SearchBar)] = () => new SearchBarHandler(),
         [typeof(RadioButton)] = () => new RadioButtonHandler(),
-        [typeof(WebView)] = () => WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe
-            ? new WpeWebViewHandler()
-            : new GtkWebViewHandler(),
+        [typeof(WebView)] = () => new LinuxWebViewHandler(),
         [typeof(Image)] = () => new ImageHandler(),
         [typeof(ImageButton)] = () => new ImageButtonHandler(),
         [typeof(BoxView)] = () => new BoxViewHandler(),
@@ -118,6 +116,40 @@ public static class MauiHandlerExtensions
     /// <summary>All control types the platform map covers.</summary>
     public static IEnumerable<Type> MappedControlTypes => LinuxHandlerMap.Keys;
 
+    /// <summary>
+    /// The handler an app or library registered for <paramref name="type"/> itself, when it is more
+    /// specific than the one registered for the framework type the platform map matched
+    /// (<paramref name="mappedBase"/>) and is written for Linux; otherwise null.
+    /// </summary>
+    private static IElementHandler? LibraryHandlerFor(Type type, Type mappedBase, IMauiContext mauiContext)
+    {
+        try
+        {
+            var registered = mauiContext.Handlers.GetHandlerType(type);
+            if (registered == null || registered == mauiContext.Handlers.GetHandlerType(mappedBase) || !IsLinuxHandler(registered))
+                return null;
+            return mauiContext.Handlers.GetHandler(type);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("MauiHandlerExtensions", $"The handler registered for {type.Name} could not be created", ex);
+            return null;
+        }
+    }
+
+    /// <summary>True when <paramref name="handlerType"/> derives from an OpenMaui handler.</summary>
+    internal static bool IsLinuxHandler(Type handlerType)
+    {
+        for (var t = handlerType; t != null; t = t.BaseType)
+        {
+            var definition = t.IsGenericType ? t.GetGenericTypeDefinition() : t;
+            if (definition.Namespace?.StartsWith("Microsoft.Maui.Platform.Linux", StringComparison.Ordinal) == true
+                && definition.Assembly == typeof(MauiHandlerExtensions).Assembly)
+                return true;
+        }
+        return false;
+    }
+
     private static IElementHandler? CreateHandler(IElement element, IMauiContext mauiContext)
     {
         Type type = element.GetType();
@@ -146,8 +178,22 @@ public static class MauiHandlerExtensions
 
             if (bestFactory != null)
             {
-                handler = bestFactory();
-                DiagnosticLog.Debug("MauiHandlerExtensions", $"Using Linux handler (via base {bestMatch!.Name}) for {type.Name}: {handler.GetType().Name}");
+                // A library's own control (a subclass of a framework one) keeps the handler the
+                // library registered for it, when that handler is written for Linux (derives from
+                // an OpenMaui handler): MarketAlly.ViewEngine's WebView keeps its WebViewHandler,
+                // a LinuxWebViewHandler. A handler on MAUI's platform-neutral base cannot draw
+                // here and is still replaced by the platform's own.
+                var registered = LibraryHandlerFor(type, bestMatch!, mauiContext);
+                if (registered != null)
+                {
+                    handler = registered;
+                    DiagnosticLog.Debug("MauiHandlerExtensions", $"Using the library's Linux handler for {type.Name}: {handler.GetType().Name}");
+                }
+                else
+                {
+                    handler = bestFactory();
+                    DiagnosticLog.Debug("MauiHandlerExtensions", $"Using Linux handler (via base {bestMatch!.Name}) for {type.Name}: {handler.GetType().Name}");
+                }
             }
         }
 
