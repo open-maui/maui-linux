@@ -109,6 +109,7 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         MopupsBridge.Register(builder.Services);
         // VisualElement.Focus()/Unfocus() through the window's focus.
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register();
+        Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install();
         // MAUI's effects pipeline: an Element resolves the PlatformEffect for a RoutingEffect
         // through the EffectsFactory service, which only ConfigureEffects registers; without
         // it the first effect added to any view threw. Registered empty here, so an app or a
@@ -272,12 +273,9 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             if (DrawingViewHandler.ToolkitDrawingViewType is { } drawingView)
                 handlers.AddHandler(drawingView, typeof(DrawingViewHandler));
 
-            // Web: WPE WebKit composited in the Skia tree when installed (works in
-            // native Wayland/X11 mode), else the GTK-hosted WebKitGTK view.
-            if (WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe)
-                handlers.AddHandler<WebView, WpeWebViewHandler>();
-            else
-                handlers.AddHandler<WebView, GtkWebViewHandler>();
+            // Web: one handler on either engine, WPE WebKit composited in the Skia tree when
+            // installed (works in native Wayland/X11 mode), else the GTK-hosted WebKitGTK view.
+            handlers.AddHandler<WebView, LinuxWebViewHandler>();
 
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
