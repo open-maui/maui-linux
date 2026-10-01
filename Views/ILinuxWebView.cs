@@ -194,6 +194,14 @@ public sealed class LinuxWebDownloadEventArgs : EventArgs
 
     /// <summary>Where to save it; null keeps the default (the Downloads folder, under a unique name).</summary>
     public string? DestinationPath { get; set; }
+
+    /// <summary>
+    /// Asks where to save it with the desktop's Save dialog, under the name the server suggests,
+    /// as WebView2 and browsers do: the file downloads while the dialog is open and is moved where
+    /// the user chooses; cancelling the dialog cancels the download. Ignored when
+    /// <see cref="DestinationPath"/> is set. <see cref="LinuxWebViewHandler"/> asks by default.
+    /// </summary>
+    public bool AskWhereToSave { get; set; }
 }
 
 /// <summary>A download that finished or failed.</summary>
