@@ -135,7 +135,8 @@ internal class ToolkitFileSaver : DispatchProxy
         });
     }
 
-    private static async Task<string?> PickSavePathAsync(string? initial, string fileName, CancellationToken token)
+    /// <summary>The desktop's Save dialog (the portal, else zenity or kdialog); null when cancelled or none is available.</summary>
+    internal static async Task<string?> PickSavePathAsync(string? initial, string fileName, CancellationToken token)
     {
         var folder = Directory.Exists(initial) ? initial : null;
         var viaPortal = await new PortalFilePickerService()
