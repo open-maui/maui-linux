@@ -16,7 +16,7 @@ namespace Microsoft.Maui.Platform.Linux.Native;
 /// values); WebKitGTK 4.1 differs in the script-message-handler arity, which
 /// <see cref="ApiFlavor"/> covers.
 /// </summary>
-public sealed unsafe class WebKitContentApi
+public sealed unsafe partial class WebKitContentApi
 {
     public enum Flavor
     {

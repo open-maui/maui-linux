@@ -10,9 +10,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Proxy view that bridges SkiaView layout to GTK WebView positioning.
 /// </summary>
-public class GtkWebViewProxy : SkiaView
+public partial class GtkWebViewProxy : SkiaView
 {
-    private readonly GtkWebViewHandler _handler;
+    private readonly GtkWebViewHandler? _handler;
+    private readonly GtkWebViewHostLink? _hostLink;
     private readonly GtkWebViewPlatformView _platformView;
 
     public GtkWebViewPlatformView PlatformView => _platformView;
@@ -23,6 +24,15 @@ public class GtkWebViewProxy : SkiaView
     {
         _handler = handler;
         _platformView = platformView;
+        AttachBrowser();
+    }
+
+    /// <summary>A proxy placed in the GTK host by <paramref name="hostLink"/> (for handlers other than <see cref="GtkWebViewHandler"/>).</summary>
+    internal GtkWebViewProxy(GtkWebViewPlatformView platformView, GtkWebViewHostLink hostLink)
+    {
+        _hostLink = hostLink;
+        _platformView = platformView;
+        AttachBrowser();
     }
 
     public override void Arrange(Rect bounds)
@@ -30,7 +40,11 @@ public class GtkWebViewProxy : SkiaView
         base.Arrange(bounds);
         // Bounds are already in absolute window coordinates - use them directly
         // The Skia layout system uses absolute coordinates throughout
-        _handler.RegisterWithHost(new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom));
+        var placed = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom);
+        if (_hostLink != null)
+            _hostLink.Register(placed);
+        else
+            _handler?.RegisterWithHost(placed);
     }
 
     public override void Draw(SKCanvas canvas)
