@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Microsoft.Maui.Platform.Linux.Pdf</RootNamespace>
+    <AssemblyName>OpenMaui.Controls.Linux.Pdf</AssemblyName>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>OpenMaui.Controls.Linux.Pdf</PackageId>
+    <Version>10.0.110.6</Version>
+    <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
+    <Company>MarketAlly Pte Ltd</Company>
+    <Product>OpenMaui PDF (Linux)</Product>
+    <Description>PDF page rendering and text extraction for OpenMaui apps on Linux, on Google's PDFium (bundled for linux-x64 and linux-arm64, no host dependency). PdfiumDocument renders pages to SkiaSharp bitmaps or PNG and reads their text; .UseLinuxPdf() also makes Syncfusion's PdfToImageConverter (and so SfPdfViewer) render on Linux, where its platform-neutral build has no renderer. Opt-in: install this package only if your app shows PDFs on Linux.</Description>
+    <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/open-maui/maui-linux.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>maui;linux;openmaui;pdf;pdfium;pdfviewer;syncfusion</PackageTags>
+    <PackageIcon>logo_only.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+
+    <!-- Stable-contract gate (docs/VERSIONING.md). The first release has no baseline to
+         compare against; set PackageValidationBaselineVersion to it after it ships. -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Main package: SkiaSharp, diagnostics, and Harmony for the Syncfusion converter patch. -->
+    <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
+
+    <!-- Google's PDFium, prebuilt (Apache-2.0): runtimes/linux-*/native/libpdfium.so. -->
+    <PackageReference Include="bblanchon.PDFium.Linux" Version="156.0.8076" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenMaui.Controls.Linux.Tests" />
+    <InternalsVisibleTo Include="OpenMaui.Compat.Tests" />
+  </ItemGroup>
+
+  <!-- Include icon and README in package -->
+  <ItemGroup>
+    <None Include="../assets/logo_only.png" Pack="true" PackagePath="" />
+    <None Include="../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
