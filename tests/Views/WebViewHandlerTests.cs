@@ -46,6 +46,15 @@ public class WebViewHandlerTests
         "keyboard-event-code",
         "frames-delivered-gpu",
         "scale-change",
+        "browser-status-and-failure",
+        "browser-response-policy",
+        "browser-download-intercept",
+        "browser-new-window-in-place",
+        "browser-url-changed",
+        "browser-zoom-round-trip",
+        "browser-capture",
+        "browser-save-as-pdf",
+        "browser-zoom-gestures",
     };
 
     /// <summary>Host exit code for "this machine cannot run the scenario" (see WebViewHost Program).</summary>
