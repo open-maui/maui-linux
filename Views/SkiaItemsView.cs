@@ -148,6 +148,10 @@ public class SkiaItemsView : SkiaView
     private int _drawnMin = int.MaxValue;
     private int _drawnMax = -1;
 
+    // The rows on screen after the last frame, where their views' Bounds are (hit testing).
+    private int _shownMin = int.MaxValue;
+    private int _shownMax = -1;
+
     /// <summary>Views kept beyond the drawn rows before recycling starts (minimum 64).</summary>
     internal int ItemViewCacheSlack { get; set; } = 64;
 
@@ -163,6 +167,8 @@ public class SkiaItemsView : SkiaView
         _drawnMin = int.MaxValue;
         _drawnMax = -1;
         base.Draw(canvas);
+        _shownMin = _drawnMin;
+        _shownMax = _drawnMax;
         TrimItemViewCache();
     }
 
@@ -857,7 +863,28 @@ public class SkiaItemsView : SkiaView
                 return this;
         }
 
+        // A control inside a row takes the pointer, as on the other platforms: a button, an
+        // entry, a view with its own tap recognizer below the row's root (CiteLynq's article
+        // card: a ContentView whose Border opens the article). Taps on plain row content, and
+        // recognizers on the row's root, stay with the list (item tap, selection, drag).
+        if (RowControlAt(x, y) is { } control)
+            return control;
+
         return this;
+    }
+
+    private SkiaView? RowControlAt(float x, float y)
+    {
+        for (int i = _shownMin; i <= _shownMax; i++)
+        {
+            if (!_itemViewCache.TryGetValue(i, out var row) || row == null || !row.Bounds.Contains(x, y))
+                continue;
+            var hit = row.HitTestAt(x, y);
+            if (hit == null || ReferenceEquals(hit, row))
+                return null;
+            return SkiaLayoutView.ClaimsInput(hit, row) ? hit : null;
+        }
+        return null;
     }
 
     protected override Size MeasureOverride(Size availableSize)
