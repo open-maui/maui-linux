@@ -26,6 +26,7 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
             [nameof(ItemsView.ItemsSource)] = MapItemsSource,
             [nameof(ItemsView.ItemTemplate)] = MapItemTemplate,
             [nameof(ItemsView.EmptyView)] = MapEmptyView,
+            [nameof(ItemsView.EmptyViewTemplate)] = MapEmptyView,
             [nameof(ItemsView.HorizontalScrollBarVisibility)] = MapHorizontalScrollBarVisibility,
             [nameof(ItemsView.VerticalScrollBarVisibility)] = MapVerticalScrollBarVisibility,
 
@@ -262,9 +263,39 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         if (handler.PlatformView is null) return;
 
         handler.PlatformView.EmptyView = collectionView.EmptyView;
-        if (collectionView.EmptyView is string text)
+        handler.PlatformView.EmptyViewText = collectionView.EmptyView as string;
+        handler.PlatformView.EmptyViewContent = EmptyViewContent(handler, collectionView);
+    }
+
+    /// <summary>
+    /// The empty view as MAUI builds it: a View as it is, or the EmptyViewTemplate's content
+    /// bound to the EmptyView object (a string with no template stays text). It is the list's
+    /// child, so it inherits the list's BindingContext unless it sets its own.
+    /// </summary>
+    private static SkiaView? EmptyViewContent(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.MauiContext is null)
+            return null;
+        try
         {
-            handler.PlatformView.EmptyViewText = text;
+            View? view = collectionView.EmptyView as View;
+            if (view == null && collectionView.EmptyViewTemplate is { } template && collectionView.EmptyView is { } data)
+            {
+                view = ItemTemplateContent.Create(template, data, collectionView) as View;
+                if (view != null)
+                    view.BindingContext = data;
+            }
+            if (view == null)
+                return null;
+            if (view.Parent == null)
+                view.Parent = collectionView;
+            view.Handler ??= view.ToViewHandler(handler.MauiContext);
+            return view.Handler?.PlatformView as SkiaView;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("CollectionViewHandler", "Creating the empty view failed", ex);
+            return null;
         }
     }
 
