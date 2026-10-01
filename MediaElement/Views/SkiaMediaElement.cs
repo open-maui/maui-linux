@@ -70,6 +70,12 @@ public class SkiaMediaElement : SkiaView, IDisposable
     /// because we don't poll from the managed side otherwise.
     /// </summary>
     public event Action? StatusTick;
+
+    /// <summary>Playback reached the end and stopped (not raised while looping).</summary>
+    public event Action? MediaEnded;
+
+    /// <summary>Start again from the beginning at the end, without stopping.</summary>
+    public bool ShouldLoopPlayback { get; set; }
     private System.Threading.Timer? _statusTimer;
 
     // Current state mirror, kept in sync with playbin's state via the bus drain.
@@ -558,7 +564,24 @@ public class SkiaMediaElement : SkiaView, IDisposable
     private void OnEos(IntPtr appsink, IntPtr userData)
     {
         // Streaming thread — defer state mutation to main.
-        LinuxDispatcher.Main?.Dispatch(() => { _isPlaying = false; });
+        LinuxDispatcher.Main?.Dispatch(OnEnded);
+    }
+
+    /// <summary>
+    /// The end of the stream: a looping element starts again from the beginning and keeps
+    /// playing (the pipeline is still PLAYING at EOS, so a flushing seek restarts it), as the
+    /// toolkit's other backends loop; otherwise playback stops and <see cref="MediaEnded"/> fires.
+    /// </summary>
+    private void OnEnded()
+    {
+        if (_disposed || _playbin == IntPtr.Zero) return;
+        if (ShouldLoopPlayback && _isPlaying)
+        {
+            SeekTo(TimeSpan.Zero);
+            return;
+        }
+        _isPlaying = false;
+        MediaEnded?.Invoke();
     }
 
     private void InstallFrame(byte[] bgra, int width, int height, int stride)
@@ -596,6 +619,22 @@ public class SkiaMediaElement : SkiaView, IDisposable
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+        // AspectFill scales the picture past the view on one side; the excess is cropped, as a
+        // native player crops it. Unclipped it drew over the views around it.
+        canvas.Save();
+        canvas.ClipRect(bounds);
+        try
+        {
+            DrawVideo(canvas, bounds);
+        }
+        finally
+        {
+            canvas.Restore();
+        }
+    }
+
+    private void DrawVideo(SKCanvas canvas, SKRect bounds)
     {
         // Black background so empty regions (letterbox bars in AspectFit) match
         // the convention of every video player on every platform.
