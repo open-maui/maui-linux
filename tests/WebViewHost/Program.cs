@@ -38,6 +38,7 @@ public static partial class Program
         ["browser-status-and-failure"] = BrowserStatusAndFailure,
         ["browser-response-policy"] = BrowserResponsePolicy,
         ["browser-download-intercept"] = BrowserDownloadIntercept,
+        ["browser-download-save-dialog"] = BrowserDownloadSaveDialog,
         ["browser-new-window-in-place"] = BrowserNewWindowInPlace,
         ["browser-url-changed"] = BrowserUrlChanged,
         ["browser-zoom-round-trip"] = BrowserZoomRoundTrip,

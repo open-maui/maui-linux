@@ -307,6 +307,12 @@ internal sealed class WebKitBrowserController : IDisposable
                 s_chosenDestinations[download] = (_api, destination);
                 _api.Connect(download, "decide-destination", s_onDecideDestination);
             }
+            else if (args.AskWhereToSave)
+            {
+                // The name is known at decide-destination, where the dialog is opened.
+                s_asks[download] = new PendingSave(this, args.Url);
+                _api.Connect(download, "decide-destination", s_onDecideAsk);
+            }
             s_downloads[download] = (this, args.Url);
             _api.Connect(download, "failed", s_onDownloadFailed);
             _api.Connect(download, "finished", s_onDownloadDone);
@@ -344,6 +350,15 @@ internal sealed class WebKitBrowserController : IDisposable
     private static readonly DownloadFinishedCallback s_onDownloadDone = (download, userData) =>
     {
         s_chosenDestinations.TryRemove(download, out var ignored);
+        if (s_asks.TryGetValue(download, out var ask))
+        {
+            s_downloads.TryRemove(download, out _);
+            if (!ask.Failed)
+                ask.Finished = true;
+            if (ask.Decided)
+                ask.Owner.CompleteAsk(download, ask);
+            return;
+        }
         if (s_downloads.TryRemove(download, out var entry))
             entry.Owner.ReportDownload(download, entry.Url, true, null);
     };
@@ -352,6 +367,15 @@ internal sealed class WebKitBrowserController : IDisposable
     {
         s_chosenDestinations.TryRemove(download, out var ignored);
         var message = WebKitContentApi.GErrorMessage(error);
+        if (s_asks.TryGetValue(download, out var ask))
+        {
+            s_downloads.TryRemove(download, out _);
+            ask.Failed = true;
+            ask.Error = message;
+            if (ask.Decided)
+                ask.Owner.CompleteAsk(download, ask);
+            return;
+        }
         DiagnosticLog.Warn("WebKitBrowser", $"A download failed: {message}");
         if (s_downloads.TryRemove(download, out var entry))
             entry.Owner.ReportDownload(download, entry.Url, false, message);
@@ -359,6 +383,138 @@ internal sealed class WebKitBrowserController : IDisposable
 
     private void ReportDownload(IntPtr download, string url, bool success, string? error) =>
         Raise(DownloadFinished, new LinuxWebDownloadFinishedEventArgs(url, _api.GetDownloadDestination(download), success, error), "DownloadFinished");
+
+    // ---- Save dialog (AskWhereToSave) ------------------------------------------------------
+
+    /// <summary>A download whose destination the user is choosing; it is written to a temporary file meanwhile.</summary>
+    private sealed class PendingSave(WebKitBrowserController owner, string url)
+    {
+        public WebKitBrowserController Owner { get; } = owner;
+        public string Url { get; } = url;
+        public string TempPath { get; set; } = string.Empty;
+        public bool Finished { get; set; }
+        public bool Failed { get; set; }
+        public string? Error { get; set; }
+        public bool Decided { get; set; }
+        public string? Target { get; set; }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<IntPtr, PendingSave> s_asks = new();
+
+    /// <summary>True while the user is asked where <paramref name="download"/> goes (other handlers leave it alone).</summary>
+    internal static bool AsksWhereToSave(IntPtr download) => s_asks.ContainsKey(download);
+
+    /// <summary>Stands in for the desktop's Save dialog (tests): the suggested name in, the chosen path or null out.</summary>
+    internal static Func<string, Task<string?>>? SaveDialogOverride { get; set; }
+
+    private static readonly DecideDestinationCallback s_onDecideAsk = (download, suggestedFilename, userData) =>
+    {
+        if (!s_asks.TryGetValue(download, out var ask))
+            return 0;
+        try
+        {
+            var name = SafeFileName(Marshal.PtrToStringUTF8(suggestedFilename));
+            var folder = Path.Combine(Path.GetTempPath(), "openmaui-downloads", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            ask.TempPath = Path.Combine(folder, name);
+            ask.Owner._api.SetDownloadDestination(download, ask.TempPath);
+            ask.Owner.AskWhereToSave(download, ask, name);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WebKitBrowser", "Preparing a download's Save dialog failed", ex);
+            s_asks.TryRemove(download, out _);
+            return 0; // WebKit's default: the Downloads folder
+        }
+    };
+
+    private static string SafeFileName(string? suggested)
+    {
+        var name = Path.GetFileName(suggested ?? string.Empty);
+        foreach (var c in Path.GetInvalidFileNameChars())
+            name = name.Replace(c, '_');
+        return string.IsNullOrWhiteSpace(name) || name is "." or ".." ? "download" : name;
+    }
+
+    private async void AskWhereToSave(IntPtr download, PendingSave ask, string suggestedName)
+    {
+        string? target = null;
+        try
+        {
+            var dialog = SaveDialogOverride?.Invoke(suggestedName)
+                ?? ToolkitFileSaver.PickSavePathAsync(DownloadsFolder(), suggestedName, CancellationToken.None);
+            target = await dialog;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WebKitBrowser", "The download's Save dialog failed", ex);
+        }
+        OnMainThread(() =>
+        {
+            ask.Decided = true;
+            ask.Target = target;
+            if (target == null && !ask.Finished && !ask.Failed)
+            {
+                _api.CancelDownload(download); // "failed" (cancelled) completes it
+                return;
+            }
+            if (ask.Finished || ask.Failed)
+                CompleteAsk(download, ask);
+        });
+    }
+
+    /// <summary>Both the download and the dialog are done: the file goes where the user chose.</summary>
+    private void CompleteAsk(IntPtr download, PendingSave ask)
+    {
+        if (!s_asks.TryRemove(download, out _))
+            return;
+        var folder = Path.GetDirectoryName(ask.TempPath);
+        try
+        {
+            if (ask.Target == null)
+                return; // the user cancelled: not reported, as a cancelled download is not
+            if (ask.Failed)
+            {
+                Raise(DownloadFinished, new LinuxWebDownloadFinishedEventArgs(ask.Url, null, false, ask.Error), "DownloadFinished");
+                return;
+            }
+            File.Move(ask.TempPath, ask.Target, overwrite: true); // the dialog confirmed replacing it
+            Raise(DownloadFinished, new LinuxWebDownloadFinishedEventArgs(ask.Url, ask.Target, true, null), "DownloadFinished");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WebKitBrowser", $"Saving a download to {ask.Target} failed", ex);
+            Raise(DownloadFinished, new LinuxWebDownloadFinishedEventArgs(ask.Url, null, false, ex.Message), "DownloadFinished");
+        }
+        finally
+        {
+            try
+            {
+                if (folder != null && Directory.Exists(folder))
+                    Directory.Delete(folder, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
+    private static string? DownloadsFolder()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var downloads = Path.Combine(home, "Downloads");
+        return Directory.Exists(downloads) ? downloads : home;
+    }
+
+    private static void OnMainThread(Action action)
+    {
+        var main = Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main;
+        if (main == null || Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
+            action();
+        else
+            main.Dispatch(action);
+    }
 
     private static bool IsLoadable(string uri) =>
         Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
