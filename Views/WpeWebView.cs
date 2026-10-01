@@ -28,7 +28,7 @@ namespace Microsoft.Maui.Platform.Linux.Views;
 /// JavaScript evaluation) is exposed through <see cref="Content"/> and the raw
 /// <see cref="NativeWebView"/> pointer for bridges such as BlazorWebView.
 /// </remarks>
-public class WpeWebView : SkiaView
+public partial class WpeWebView : SkiaView
 {
     private static readonly Lazy<IntPtr> s_display = new(CreateDisplay);
 
@@ -180,6 +180,9 @@ public class WpeWebView : SkiaView
 
         EnableSpellChecking(_webView);
 
+        _browser = new WebKitBrowserController(Content, _webView, this);
+        HookBrowserEvents();
+
         if (s_zeroCopyDisabled)
             LogFramePath("pixel copy (OPENMAUI_WEBVIEW_ZEROCOPY=0)");
 
@@ -330,6 +333,13 @@ public class WpeWebView : SkiaView
         FramesReceived++;
         try
         {
+            if (_capturing)
+            {
+                // The view is the document's height for a moment: not shown, only captured.
+                TryCompleteCapture(buffer);
+                return;
+            }
+
             // DMA-BUFs are held for a GPU import unless the view is known to
             // draw on a raster target (or the override is set). Until the
             // first draw decides, the pixels are copied as well so a raster
@@ -586,7 +596,7 @@ public class WpeWebView : SkiaView
     /// </summary>
     private void SyncSize()
     {
-        if (_wpeView == IntPtr.Zero) return;
+        if (_wpeView == IntPtr.Zero || _capturing) return;
         int w = Math.Max(1, (int)Math.Round(Bounds.Width));
         int h = Math.Max(1, (int)Math.Round(Bounds.Height));
         double scale = Scale;
@@ -976,6 +986,14 @@ public class WpeWebView : SkiaView
             {
                 try
                 {
+                    // An app chose where it goes (ILinuxWebView.DownloadStarting): keep it. WebKit
+                    // takes the destination set during this signal; one set before it is not used.
+                    var chosen = WpeNative.PtrToString(WpeNative.webkit_download_get_destination(dl));
+                    if (!string.IsNullOrEmpty(chosen))
+                    {
+                        WpeNative.webkit_download_set_destination(dl, chosen);
+                        return 1;
+                    }
                     var suggested = WpeNative.PtrToString(suggestedPtr);
                     if (string.IsNullOrWhiteSpace(suggested)) suggested = "download";
                     suggested = Path.GetFileName(suggested);
@@ -1444,6 +1462,9 @@ public class WpeWebView : SkiaView
             ReleasePendingBuffer();
             _gpuFrame?.Dispose();
             _gpuFrame = null;
+            _browser?.Dispose(); // its signal handlers go before the view they are on
+            _browser = null;
+            _captureWaiter?.TrySetResult(null);
             if (_webView != IntPtr.Zero)
             {
                 lock (s_viewsByWpeView) s_viewsByWpeView.Remove(_wpeView);
