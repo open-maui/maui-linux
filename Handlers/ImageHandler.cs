@@ -53,12 +53,16 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
         base.ConnectHandler(platformView);
         platformView.ImageLoaded += OnImageLoaded;
         platformView.ImageLoadingError += OnImageLoadingError;
+        if (VirtualView is Microsoft.Maui.Controls.View view)
+            ToolkitIconTint.Attach(view, color => platformView.TintColor = color);
     }
 
     protected override void DisconnectHandler(SkiaImage platformView)
     {
         platformView.ImageLoaded -= OnImageLoaded;
         platformView.ImageLoadingError -= OnImageLoadingError;
+        if (VirtualView is Microsoft.Maui.Controls.View view)
+            ToolkitIconTint.Detach(view);
         base.DisconnectHandler(platformView);
     }
 
