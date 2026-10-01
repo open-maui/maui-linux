@@ -18,7 +18,7 @@ namespace Microsoft.Maui.Controls.Linux.Tests.WebViewHost;
 /// installed, 4 = this machine cannot run the scenario (e.g. no GPU EGL
 /// context; reason on stderr). <c>--list</c> prints the scenario names.
 /// </summary>
-public static class Program
+public static partial class Program
 {
     private static readonly Dictionary<string, Action> s_scenarios = new(StringComparer.Ordinal)
     {
@@ -35,6 +35,15 @@ public static class Program
         ["keyboard-event-code"] = KeyboardEventCode,
         ["frames-delivered-gpu"] = FramesDeliveredGpu,
         ["scale-change"] = ScaleChange,
+        ["browser-status-and-failure"] = BrowserStatusAndFailure,
+        ["browser-response-policy"] = BrowserResponsePolicy,
+        ["browser-download-intercept"] = BrowserDownloadIntercept,
+        ["browser-new-window-in-place"] = BrowserNewWindowInPlace,
+        ["browser-url-changed"] = BrowserUrlChanged,
+        ["browser-zoom-round-trip"] = BrowserZoomRoundTrip,
+        ["browser-capture"] = BrowserCapture,
+        ["browser-save-as-pdf"] = BrowserSaveAsPdf,
+        ["browser-zoom-gestures"] = BrowserZoomGestures,
     };
 
     /// <summary>Exit code for a scenario this machine cannot run (reported, not failed).</summary>
