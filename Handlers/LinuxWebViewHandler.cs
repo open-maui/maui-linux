@@ -157,9 +157,15 @@ public class LinuxWebViewHandler : LinuxViewHandler<IWebView, SkiaView>
     {
     }
 
-    /// <summary>A download is starting; cancel it or choose its destination.</summary>
+    /// <summary>
+    /// A download is starting; cancel it or choose its destination. By default the user is asked
+    /// where to save it (<see cref="LinuxWebDownloadEventArgs.AskWhereToSave"/>), as a WebView
+    /// offers on the other platforms.
+    /// </summary>
     protected virtual void OnDownloadStarting(LinuxWebDownloadEventArgs e)
     {
+        if (string.IsNullOrEmpty(e.DestinationPath))
+            e.AskWhereToSave = true;
     }
 
     /// <summary>A download finished or failed.</summary>
