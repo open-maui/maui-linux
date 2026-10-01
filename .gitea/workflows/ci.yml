@@ -64,6 +64,11 @@ jobs:
         # built by this pack step.
         run: dotnet pack Syncfusion/OpenMaui.Controls.Linux.Syncfusion.csproj --configuration Release -o ./nupkg
 
+      - name: Pack OpenMaui.Controls.Linux.Pdf
+        # Independent sibling (PDFium rendering, SkiaPdfView, Syncfusion
+        # PdfToImageConverter patches); built by this pack step.
+        run: dotnet pack Pdf/OpenMaui.Controls.Linux.Pdf.csproj --configuration Release -o ./nupkg
+
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v3
         with:

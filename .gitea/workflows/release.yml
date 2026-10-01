@@ -85,6 +85,13 @@ jobs:
         # leaves out. Independent sibling: built by this pack step.
         run: dotnet pack Syncfusion/OpenMaui.Controls.Linux.Syncfusion.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
+      - name: Pack OpenMaui.Controls.Linux.Pdf package
+        # Opt-in sibling: PDF rendering with PDFium (bundled for linux-x64 and
+        # linux-arm64 through bblanchon.PDFium.Linux), SkiaPdfView, and the
+        # Syncfusion PdfToImageConverter patches. Independent sibling: built by
+        # this pack step.
+        run: dotnet pack Pdf/OpenMaui.Controls.Linux.Pdf.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
+
       - name: Pack Templates package
         run: dotnet pack templates/OpenMaui.Linux.Templates.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
 
