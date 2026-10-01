@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform;
 /// Shell provides a common navigation experience for MAUI applications.
 /// Supports flyout menu, tabs, and URI-based navigation.
 /// </summary>
-public class SkiaShell : SkiaLayoutView
+public partial class SkiaShell : SkiaLayoutView
 {
     #region BindableProperties
 
@@ -251,17 +251,49 @@ public class SkiaShell : SkiaLayoutView
 
     private void SendPageLifecycle(Microsoft.Maui.Controls.Page? newPage)
     {
-        if (ReferenceEquals(_lifecyclePage, newPage)) return;
+        if (ReferenceEquals(_lifecyclePage, newPage))
+        {
+            ApplyPresentedPageTitle(); // a navigation back to the same page reset the title
+            return;
+        }
         try
         {
             DiagnosticLog.Debug("SkiaShell", $"lifecycle: {_lifecyclePage?.GetType().Name ?? "(none)"} -> {newPage?.GetType().Name ?? "(null)"}");
             (_lifecyclePage as Microsoft.Maui.Controls.IPageController)?.SendDisappearing();
+            if (_lifecyclePage != null)
+                _lifecyclePage.PropertyChanged -= OnPresentedPagePropertyChanged;
             _lifecyclePage = newPage;
+            if (newPage != null)
+            {
+                newPage.PropertyChanged += OnPresentedPagePropertyChanged;
+                ApplyPresentedPageTitle();
+            }
+            TrackToolbarItems(newPage);
             (newPage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
         }
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaShell", "Page lifecycle handler threw", ex);
+        }
+    }
+
+    /// <summary>
+    /// The navigation bar shows the presented page's Title whenever the page sets one, and
+    /// follows it as it changes (MAUI's ShellToolbar); otherwise the title the navigation gave
+    /// (the ShellContent's at the root) stays.
+    /// </summary>
+    private void ApplyPresentedPageTitle()
+    {
+        if (_lifecyclePage is { } page && page.IsSet(Microsoft.Maui.Controls.Page.TitleProperty))
+            Title = page.Title ?? string.Empty;
+    }
+
+    private void OnPresentedPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == Microsoft.Maui.Controls.Page.TitleProperty.PropertyName && ReferenceEquals(sender, _lifecyclePage))
+        {
+            ApplyPresentedPageTitle();
+            Invalidate();
         }
     }
 
@@ -1553,9 +1585,15 @@ public class SkiaShell : SkiaLayoutView
             IsAntialias = true
         };
 
+        float titleRight = DrawToolbarItems(canvas, navBarBounds);
+
         float titleX = (CanGoBack || (FlyoutBehavior == ShellFlyoutBehavior.Flyout && FlyoutBehavior != ShellFlyoutBehavior.Locked)) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
         float titleY = navBarBounds.MidY + 6;
+        // The title stops short of the toolbar items, as on the other platforms.
+        canvas.Save();
+        canvas.ClipRect(new SKRect(titleX, navBarBounds.Top, Math.Max(titleX, titleRight - 8), navBarBounds.Bottom));
         canvas.DrawText(Title, titleX, titleY, titleFont, titlePaint);
+        canvas.Restore();
     }
 
     private void DrawTabBar(SKCanvas canvas, SKRect bounds)
@@ -1950,6 +1988,12 @@ public class SkiaShell : SkiaLayoutView
                 e.Handled = true;
                 return;
             }
+        }
+
+        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && TryPressToolbarItem(e.X, e.Y))
+        {
+            e.Handled = true;
+            return;
         }
 
         // Check nav bar icon tap (back button or hamburger menu)
