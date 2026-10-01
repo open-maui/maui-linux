@@ -49,6 +49,7 @@ public class WebViewHandlerTests
         "browser-status-and-failure",
         "browser-response-policy",
         "browser-download-intercept",
+        "browser-download-save-dialog",
         "browser-new-window-in-place",
         "browser-url-changed",
         "browser-zoom-round-trip",
