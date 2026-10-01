@@ -32,6 +32,9 @@ public partial class SkiaShell
     /// <summary>The presented page's toolbar items, in order (for tests and the inspector).</summary>
     internal IReadOnlyList<ToolbarItem> PresentedToolbarItems => _toolbarItems;
 
+    /// <summary>Where the last frame drew each item (tests).</summary>
+    internal IReadOnlyList<(ToolbarItem? Item, SKRect Bounds)> ToolbarHitAreas => _toolbarHits;
+
     /// <summary>Follows <paramref name="page"/>'s toolbar items in the bar.</summary>
     private void TrackToolbarItems(Microsoft.Maui.Controls.Page? page)
     {
