@@ -46,6 +46,7 @@
     <PackageReference Include="Syncfusion.Maui.TabView" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.ListView" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Cards" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.PdfToImageConverter" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Charts" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Carousel" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Rotator" Version="34.2.9" />
@@ -60,6 +61,7 @@
     <ProjectReference Include="..\..\OpenMaui.Controls.Linux.csproj" />
     <ProjectReference Include="..\..\Maps\OpenMaui.Controls.Linux.Maps.csproj" />
     <ProjectReference Include="..\..\MediaElement\OpenMaui.Controls.Linux.MediaElement.csproj" />
+    <ProjectReference Include="..\..\Pdf\OpenMaui.Controls.Linux.Pdf.csproj" />
     <ProjectReference Include="..\..\Syncfusion\OpenMaui.Controls.Linux.Syncfusion.csproj" />
   </ItemGroup>
 
