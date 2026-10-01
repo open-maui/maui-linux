@@ -986,6 +986,9 @@ public partial class WpeWebView : SkiaView
             {
                 try
                 {
+                    // The user is choosing where it goes (AskWhereToSave): the browser's handler decides.
+                    if (WebKitBrowserController.AsksWhereToSave(dl))
+                        return 0;
                     // An app chose where it goes (ILinuxWebView.DownloadStarting): keep it. WebKit
                     // takes the destination set during this signal; one set before it is not used.
                     var chosen = WpeNative.PtrToString(WpeNative.webkit_download_get_destination(dl));
@@ -1016,11 +1019,15 @@ public partial class WpeWebView : SkiaView
             };
             DownloadFinishedDelegate finished = (dl, ud) =>
             {
+                if (WebKitBrowserController.AsksWhereToSave(dl))
+                    return; // the file is still on its way to where the user chooses
                 var dest = WpeNative.PtrToString(WpeNative.webkit_download_get_destination(dl));
                 _ = Notifications.ShowAsync("Download complete", dest != null ? Path.GetFileName(dest) : "File saved to Downloads");
             };
             DownloadFailedDelegate failed = (dl, error, ud) =>
             {
+                if (WebKitBrowserController.AsksWhereToSave(dl))
+                    return; // reported through DownloadFinished (a cancelled Save dialog is not a failure)
                 var message = error == IntPtr.Zero ? "unknown error" : (Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(error, 8)) ?? "unknown error");
                 var dest = WpeNative.PtrToString(WpeNative.webkit_download_get_destination(dl));
                 _ = Notifications.ShowAsync("Download failed", $"{(dest != null ? Path.GetFileName(dest) : "Download")}: {message}");
