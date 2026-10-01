@@ -58,6 +58,8 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         platformView.Released += OnReleased;
         platformView.ImageLoaded += OnImageLoaded;
         platformView.ImageLoadingError += OnImageLoadingError;
+        if (VirtualView is Microsoft.Maui.Controls.View view)
+            ToolkitIconTint.Attach(view, color => platformView.TintColor = color);
     }
 
     protected override void DisconnectHandler(SkiaImageButton platformView)
@@ -67,6 +69,8 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         platformView.Released -= OnReleased;
         platformView.ImageLoaded -= OnImageLoaded;
         platformView.ImageLoadingError -= OnImageLoadingError;
+        if (VirtualView is Microsoft.Maui.Controls.View view)
+            ToolkitIconTint.Detach(view);
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
