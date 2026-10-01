@@ -39,3 +39,50 @@ public class ShellNavBarTitleTests
         platform.Title.Should().Be("Tuesday");
     }
 }
+
+/// <summary>
+/// The presented page's ToolbarItems are in the Shell navigation bar, as on the other platforms
+/// (CiteLynq's Notifications and Search); a click raises Clicked and runs the Command.
+/// </summary>
+[Collection("LinuxApplication.Current")]
+public class ShellToolbarItemTests
+{
+    [Fact]
+    public void The_pages_toolbar_items_are_in_the_bar_and_a_click_activates_one()
+    {
+        var clicked = new List<string>();
+        var search = new ToolbarItem { Text = "Search" };
+        search.Clicked += (s, e) => clicked.Add("Search");
+        var off = new ToolbarItem { Text = "Off", IsEnabled = false };
+        off.Clicked += (s, e) => clicked.Add("Off");
+        var page = new ContentPage { Title = "Daily Outlook", Content = new Label { Text = "a" } };
+        page.ToolbarItems.Add(search);
+        page.ToolbarItems.Add(off);
+        var shell = new Shell { FlyoutBehavior = FlyoutBehavior.Disabled };
+        shell.Items.Add(new ShellContent { Route = "home", Content = page });
+        using var host = new HeadlessMauiHost(shell, withEngine: true);
+        host.Context.Render();
+        var platform = (Microsoft.Maui.Platform.SkiaShell)shell.Handler!.PlatformView!;
+
+        platform.PresentedToolbarItems.Should().Equal(search, off);
+        var areas = platform.ToolbarHitAreas;
+        areas.Select(a => a.Item).Should().Equal(new[] { off, search }, "drawn from the right end, the first item leftmost");
+        var searchArea = areas.Single(a => a.Item == search).Bounds;
+        searchArea.Left.Should().BeLessThan(areas.Single(a => a.Item == off).Bounds.Left);
+
+        void Click(SkiaSharp.SKRect r)
+        {
+            host.DisplayWindow.RaisePointerPressed(r.MidX, r.MidY);
+            host.DisplayWindow.RaisePointerReleased(r.MidX, r.MidY);
+            host.Context.Render();
+        }
+        Click(searchArea);
+        Click(areas.Single(a => a.Item == off).Bounds);
+        clicked.Should().Equal("Search");
+
+        var bell = new ToolbarItem { Text = "Notifications" };
+        page.ToolbarItems.Insert(0, bell);
+        host.Context.Render();
+        platform.PresentedToolbarItems.Should().Equal(new[] { bell, search, off }, "the bar follows the page's items");
+    }
+}
