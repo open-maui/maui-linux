@@ -39,6 +39,7 @@ public class LinuxMediaElementHandler : MediaElementHandler
             ["Speed"] = MapSpeed,
             ["Volume"] = MapVolume,
             ["ShouldMute"] = MapShouldMute,
+            ["ShouldLoopPlayback"] = MapShouldLoopPlayback,
             ["ShouldShowPlaybackControls"] = MapShouldShowPlaybackControls,
             ["ShouldKeepScreenOn"] = MapShouldKeepScreenOn,
         };
@@ -72,7 +73,19 @@ public class LinuxMediaElementHandler : MediaElementHandler
         // current Position + Duration onto the toolkit MediaElement here so
         // its bound sliders / labels see live updates.
         platform.StatusTick += PumpStatus;
+        platform.MediaEnded += OnMediaEnded;
         return platform;
+    }
+
+    private void OnMediaEnded()
+    {
+        if (VirtualView is CommunityToolkit.Maui.Core.IMediaElement media)
+            media.MediaEnded();
+    }
+
+    public static void MapShouldLoopPlayback(object handler, CommunityToolkit.Maui.Views.MediaElement media)
+    {
+        if (GetSkia(handler) is { } skia) skia.ShouldLoopPlayback = media.ShouldLoopPlayback;
     }
 
     private void PumpStatus()
