@@ -257,6 +257,23 @@ public class SkiaImageButton : SkiaView
             canvas.DrawRect(bounds, paint);
     }
 
+    private Color? _tintColor;
+
+    /// <summary>
+    /// Draws every opaque pixel of the image in this colour (null draws it as is): the tint
+    /// CommunityToolkit's IconTintColorBehavior gives an icon on the other platforms.
+    /// </summary>
+    public Color? TintColor
+    {
+        get => _tintColor;
+        set
+        {
+            if (Equals(_tintColor, value)) return;
+            _tintColor = value;
+            Invalidate();
+        }
+    }
+
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
         var padding = Padding;
@@ -323,6 +340,8 @@ public class SkiaImageButton : SkiaView
                 {
                     IsAntialias = true
                 };
+                using var tint = _tintColor == null ? null : SKColorFilter.CreateBlendMode(_tintColor.ToSKColor(), SKBlendMode.SrcIn);
+                paint.ColorFilter = tint;
 
                 // Apply opacity when disabled
                 if (!IsEnabled)
