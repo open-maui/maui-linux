@@ -75,8 +75,75 @@ public class SkiaMediaElement : SkiaView, IDisposable
     public event Action? MediaEnded;
 
     /// <summary>Start again from the beginning at the end, without stopping.</summary>
-    public bool ShouldLoopPlayback { get; set; }
+    public bool ShouldLoopPlayback
+    {
+        get => _shouldLoopPlayback;
+        set
+        {
+            _shouldLoopPlayback = value;
+            _controls.IsLooping = value;
+        }
+    }
+    private bool _shouldLoopPlayback;
     private System.Threading.Timer? _statusTimer;
+
+    // ---- playback state (UI thread) --------------------------------------
+    // Raised on the UI thread from the bus watcher; the handler forwards them
+    // to the toolkit (IMediaElement.MediaOpened / MediaFailed /
+    // CurrentStateChanged / MediaWidth / MediaHeight) as MediaManager does on
+    // Windows from MediaPlayer's events.
+
+    /// <summary>The source prerolled (MediaPlayer.MediaOpened): duration and video size are known.</summary>
+    internal event Action? MediaOpened;
+
+    /// <summary>The pipeline posted an error (MediaPlayer.MediaFailed); the argument is the message.</summary>
+    internal event Action<string>? MediaFailed;
+
+    /// <summary>A playback state change (MediaPlaybackSession.PlaybackStateChanged, plus Stop and a cleared source).</summary>
+    internal event Action<CommunityToolkit.Maui.Core.MediaElementState>? PlaybackStateChanged;
+
+    /// <summary>The decoded video size changed (MediaPlaybackSession.NaturalVideoSizeChanged); 0 x 0 without video.</summary>
+    internal event Action<int, int>? VideoSizeChanged;
+
+    /// <summary>The last requested seek landed (MediaPlaybackSession.SeekCompleted).</summary>
+    internal event Action? SeekCompleted;
+
+    private bool _opened;      // MediaOpened raised for the current source
+    private bool _failed;      // MediaFailed raised for the current source
+    private bool _ended;       // reached the end without looping (pipeline paused at the end)
+    private bool _buffering;
+    private int _videoWidth, _videoHeight;
+    private double _rate = 1.0;
+    private bool _muted;
+    private KeyValuePair<string, string>[] _httpHeaders = Array.Empty<KeyValuePair<string, string>>();
+    private GStreamerInterop.SourceSetupCallback? _sourceSetupDelegate;
+    private readonly MediaTransportControls _controls = new();
+    private System.Threading.Timer? _controlsHideTimer;
+
+    /// <summary>Width of the decoded video in pixels (0 without video).</summary>
+    internal int VideoWidth => _videoWidth;
+
+    /// <summary>Height of the decoded video in pixels (0 without video).</summary>
+    internal int VideoHeight => _videoHeight;
+
+    /// <summary>The playback rate applied to the pipeline.</summary>
+    internal double Rate => _rate;
+
+    /// <summary>The HTTP headers handed to the network source of the current pipeline.</summary>
+    internal IReadOnlyList<KeyValuePair<string, string>> HttpHeaders => _httpHeaders;
+
+    /// <summary>The playback controls overlay (MediaElement.ShouldShowPlaybackControls).</summary>
+    internal MediaTransportControls Controls => _controls;
+
+    /// <summary>Raised when the user works the playback controls overlay.</summary>
+    internal event Action<MediaTransportCommand, double>? TransportCommand;
+
+    public SkiaMediaElement()
+    {
+        _controls.Command += (command, value) => TransportCommand?.Invoke(command, value);
+        _controls.ZoomRequested += () =>
+            Aspect = Aspect == Aspect.AspectFill ? Aspect.AspectFit : Aspect.AspectFill;
+    }
 
     // Current state mirror, kept in sync with playbin's state via the bus drain.
     private string? _currentUri;
@@ -130,14 +197,36 @@ public class SkiaMediaElement : SkiaView, IDisposable
     /// Set/replace the media source. Tears down the existing pipeline (if any)
     /// and rebuilds it for the new URI. Null URI clears the source.
     /// </summary>
-    public void SetSource(string? uri)
+    public void SetSource(string? uri) => SetSource(uri, null);
+
+    /// <summary>
+    /// Set/replace the media source, with HTTP headers for a network source
+    /// (UriMediaSource.HttpHeaders): playbin's HTTP source element gets them as
+    /// extra request headers ("User-Agent" through its user-agent property).
+    /// A new source is opened right away (prerolled to PAUSED), as Windows'
+    /// MediaPlayer opens it: <see cref="MediaOpened"/> or
+    /// <see cref="MediaFailed"/> follows whether or not it is played.
+    /// </summary>
+    internal void SetSource(string? uri, IEnumerable<KeyValuePair<string, string>>? httpHeaders)
     {
-        if (_currentUri == uri) return;
+        var headers = httpHeaders?.Where(h => !string.IsNullOrWhiteSpace(h.Key)).ToArray()
+            ?? Array.Empty<KeyValuePair<string, string>>();
+        if (_currentUri == uri && headers.SequenceEqual(_httpHeaders)) return;
         _currentUri = uri;
+        _httpHeaders = headers;
 
         DisposePipeline();
+        _opened = _failed = _ended = _buffering = false;
+        SetVideoSize(0, 0);
+        _controls.HasMedia = !string.IsNullOrEmpty(uri);
+        _controls.Position = _controls.Duration = TimeSpan.Zero;
+        UpdateControlsState();
 
-        if (string.IsNullOrEmpty(uri)) return;
+        if (string.IsNullOrEmpty(uri))
+        {
+            PlaybackStateChanged?.Invoke(CommunityToolkit.Maui.Core.MediaElementState.None);
+            return;
+        }
 
         try
         {
@@ -147,7 +236,14 @@ public class SkiaMediaElement : SkiaView, IDisposable
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaMediaElement", $"Pipeline build failed for '{uri}': {ex.Message}", ex);
+            ReportFailure(ex.Message);
+            return;
         }
+
+        PlaybackStateChanged?.Invoke(CommunityToolkit.Maui.Core.MediaElementState.Opening);
+        // Open the media (preroll) so MediaOpened, the duration and the video
+        // size arrive without Play, as on Windows.
+        gst_element_set_state(_playbin, GstState.Paused);
     }
 
     public Aspect Aspect
@@ -165,56 +261,54 @@ public class SkiaMediaElement : SkiaView, IDisposable
     public void Play()
     {
         if (_playbin == IntPtr.Zero) return;
+        bool restart = _ended;
+        _ended = false;
+        if (restart)
+        {
+            // Played again after the end: from the beginning, as MediaPlayer
+            // does. The pipeline holds paused at EOS; PLAYING before the seek
+            // lands would end again at once, so a worker seeks to 0 first
+            // (a flushing seek waits for the streaming thread) and then plays.
+            RestartFromBeginning();
+            _isPlaying = true;
+            UpdateControlsState();
+            return;
+        }
         gst_element_set_state(_playbin, GstState.Playing);
         _isPlaying = true;
-
-        // Drain initial bus messages on a background thread so any terminal
-        // error (codec missing, network 4xx, etc.) makes it into the log
-        // instead of being swallowed. Only runs once per Play() — bus
-        // monitoring during the steady state isn't needed; flushing seeks
-        // post pre-roll errors are vanishingly rare.
-        // The task holds its own ref on the bus: the pipeline may be disposed
-        // (new source, pixel-copy rebuild) while it is still popping.
-        if (_bus == IntPtr.Zero) return;
-        var bus = gst_object_ref(_bus);
-        Task.Run(() =>
-        {
-            try { DrainBusMessages(bus); }
-            finally { gst_object_unref(bus); }
-        });
+        UpdateControlsState();
+        // Errors, the end and state changes reach the element through the bus
+        // watcher started with the pipeline (WatchBus).
     }
 
-    private static void DrainBusMessages(IntPtr bus)
+    private bool _restarting; // a restart after the end is seeking to 0 (UI thread)
+
+    private void RestartFromBeginning()
     {
-        try
+        lock (_seekLock) _seekTargetNs = null;
+        _restarting = true;
+        var playbin = gst_object_ref(_playbin);
+        int generation = _pipelineGeneration;
+        double rate = _rate;
+        Task.Run(() =>
         {
-            // Pull up to ~3s of messages, stopping if we see a terminal one.
-            for (int i = 0; i < 30; i++)
+            try
             {
-                var msg = gst_bus_timed_pop_filtered(bus, 100_000_000UL,
-                    GstMessageType.Error | GstMessageType.Eos);
-                if (msg == IntPtr.Zero) continue;
-                try
-                {
-                    var t = GstMessageGetType(msg);
-                    if (t == GstMessageType.Error)
-                    {
-                        gst_message_parse_error(msg, out var err, out var dbg);
-                        var errMsg = GErrorGetMessage(err);
-                        DiagnosticLog.Error("SkiaMediaElement", $"GStreamer error: {errMsg}");
-                        if (err != IntPtr.Zero) g_error_free(err);
-                        if (dbg != IntPtr.Zero) g_free(dbg);
-                        return;
-                    }
-                    if (t == GstMessageType.Eos) return;
-                }
-                finally { gst_message_unref(msg); }
+                IssueSeek(playbin, 0, rate);
+                gst_element_get_state(playbin, out _, out _, 5_000_000_000UL);
+                if (generation == Volatile.Read(ref _pipelineGeneration) && Volatile.Read(ref _isPlaying))
+                    gst_element_set_state(playbin, GstState.Playing);
             }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("SkiaMediaElement", $"Bus drain failed: {ex.Message}", ex);
-        }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaMediaElement", $"Restart failed: {ex.Message}");
+            }
+            finally
+            {
+                gst_object_unref(playbin);
+                Post(generation, () => _restarting = false);
+            }
+        });
     }
 
     /// <summary>Pause playback (keeps the current frame visible).</summary>
@@ -223,6 +317,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
         if (_playbin == IntPtr.Zero) return;
         gst_element_set_state(_playbin, GstState.Paused);
         _isPlaying = false;
+        UpdateControlsState();
     }
 
     /// <summary>Stop playback and seek back to the start.</summary>
@@ -233,6 +328,11 @@ public class SkiaMediaElement : SkiaView, IDisposable
         gst_element_set_state(_playbin, GstState.Ready);
         gst_element_seek_simple(_playbin, GstFormat.Time, GstSeekFlags.Flush | GstSeekFlags.KeyUnit, 0);
         _isPlaying = false;
+        _ended = false;
+        _buffering = false;
+        UpdateControlsState();
+        // MediaManager.PlatformStop reports Stopped itself on Windows.
+        PlaybackStateChanged?.Invoke(CommunityToolkit.Maui.Core.MediaElementState.Stopped);
     }
 
     /// <summary>Seek to a specific position (ticks of GStreamer's nanosecond clock).</summary>
@@ -253,6 +353,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
         }
 
         long ns = Math.Max(0, position.Ticks * 100L);
+        _ended = false; // a seek after the end leaves the end (Play then plays from here)
         // NOTE: do NOT drain the bus here — the synchronous drain blocks the
         // main thread for up to 3 seconds per seek, freezing the UI and
         // queueing rapid scrubs. Bus errors are surfaced during Play().
@@ -292,16 +393,19 @@ public class SkiaMediaElement : SkiaView, IDisposable
                 {
                     if (_seekTargetNs is not long target || generation != _pipelineGeneration)
                     {
+                        bool landed = _seekInFlightNs != null && generation == _pipelineGeneration;
                         _seekTargetNs = null;
                         _seekInFlightNs = null;
                         _seekWorkerRunning = false;
+                        if (landed)
+                            Post(generation, () => SeekCompleted?.Invoke());
                         return;
                     }
                     ns = target;
                     _seekTargetNs = null;
                     _seekInFlightNs = ns;
                 }
-                gst_element_seek_simple(playbin, GstFormat.Time, AccurateSeekFlags, ns);
+                IssueSeek(playbin, ns, Volatile.Read(ref _rate));
                 // Wait for the seek to preroll before issuing the next one.
                 gst_element_get_state(playbin, out _, out _, 5_000_000_000UL);
             }
@@ -336,6 +440,46 @@ public class SkiaMediaElement : SkiaView, IDisposable
     /// request), at 50-470 ms per seek on HW decode for the decode-and-discard.
     /// </summary>
     internal const GstSeekFlags AccurateSeekFlags = GstSeekFlags.Flush | GstSeekFlags.Accurate;
+
+    /// <summary>
+    /// A flushing, accurate seek to <paramref name="ns"/> that keeps the
+    /// playback rate (gst_element_seek_simple resets it to 1). At rate 1 it is
+    /// the plain seek_simple used before Speed was supported.
+    /// </summary>
+    private static void IssueSeek(IntPtr playbin, long ns, double rate)
+    {
+        if (rate == 1.0)
+            gst_element_seek_simple(playbin, GstFormat.Time, AccurateSeekFlags, ns);
+        else if (rate > 0)
+            gst_element_seek(playbin, rate, GstFormat.Time, AccurateSeekFlags, GstSeekType.Set, ns, GstSeekType.None, -1);
+        else
+            gst_element_seek(playbin, rate, GstFormat.Time, AccurateSeekFlags, GstSeekType.Set, 0, GstSeekType.Set, ns);
+    }
+
+    /// <summary>
+    /// Sets the playback rate (MediaElement.Speed; MediaPlayer.PlaybackRate on
+    /// Windows). Applied to an opened pipeline at once and to a new one when
+    /// it opens. A rate of 0 is the handler's business (it pauses); here it is
+    /// ignored.
+    /// </summary>
+    internal void SetRate(double rate)
+    {
+        if (rate == 0 || double.IsNaN(rate) || double.IsInfinity(rate)) return;
+        if (rate == _rate) return;
+        Volatile.Write(ref _rate, rate);
+        _controls.Rate = rate;
+        Invalidate();
+        if (_playbin == IntPtr.Zero || !_opened) return;
+        ApplyRate();
+    }
+
+    private void ApplyRate()
+    {
+        // A flushing seek at the current position (on the seek worker) carries
+        // the new rate. GStreamer's instant rate change (no flush) is not used:
+        // on playbin 1.28 it blocks its caller indefinitely.
+        SeekTo(Position);
+    }
 
     public TimeSpan Position
     {
@@ -375,6 +519,8 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     public void SetMute(bool mute)
     {
+        _muted = mute;
+        _controls.IsMuted = mute;
         if (_playbin == IntPtr.Zero) return;
         g_object_set_bool(_playbin, "mute", mute, IntPtr.Zero);
     }
@@ -431,6 +577,20 @@ public class SkiaMediaElement : SkiaView, IDisposable
         // caps are negotiated but no data has flowed yet).
         g_object_set_string(_playbin, "uri", uri, IntPtr.Zero);
 
+        // Speed: keep the pitch when the rate changes, as MediaPlayer does.
+        // scaletempo passes audio through untouched at rate 1.
+        var scaleTempo = gst_element_factory_make("scaletempo", null);
+        if (scaleTempo != IntPtr.Zero)
+            g_object_set(_playbin, "audio-filter", scaleTempo, IntPtr.Zero);
+
+        // UriMediaSource.HttpHeaders: set on the HTTP source when playbin creates it.
+        if (_httpHeaders.Length > 0)
+        {
+            _sourceSetupDelegate ??= OnSourceSetup;
+            g_signal_connect_data(_playbin, "source-setup",
+                Marshal.GetFunctionPointerForDelegate(_sourceSetupDelegate), IntPtr.Zero, IntPtr.Zero, 0);
+        }
+
         // Set up the streaming-thread callbacks. The delegate fields must stay
         // alive for the lifetime of the appsink (GC would otherwise collect them
         // mid-stream and crash).
@@ -445,6 +605,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
         _bus = gst_element_get_bus(_playbin);
         gst_element_set_state(_playbin, GstState.Ready);
+        StartBusWatch();
 
         // Start the status pump (250ms cadence). System.Threading.Timer runs
         // on a ThreadPool thread; we marshal each tick onto the main thread
@@ -454,7 +615,17 @@ public class SkiaMediaElement : SkiaView, IDisposable
         _statusTimer?.Dispose();
         _statusTimer = new System.Threading.Timer(_ =>
         {
-            LinuxDispatcher.Main?.Dispatch(() => StatusTick?.Invoke());
+            LinuxDispatcher.Main?.Dispatch(() =>
+            {
+                if (_disposed) return;
+                if (_controls.IsVisible)
+                {
+                    _controls.Position = Position;
+                    _controls.Duration = Duration;
+                    Invalidate();
+                }
+                StatusTick?.Invoke();
+            });
         }, null, 250, 250);
     }
 
@@ -574,14 +745,363 @@ public class SkiaMediaElement : SkiaView, IDisposable
     /// </summary>
     private void OnEnded()
     {
-        if (_disposed || _playbin == IntPtr.Zero) return;
+        if (_disposed || _playbin == IntPtr.Zero || _ended || _restarting) return;
         if (ShouldLoopPlayback && _isPlaying)
         {
             SeekTo(TimeSpan.Zero);
             return;
         }
         _isPlaying = false;
+        _ended = true;
+        // Hold at the end paused, as MediaPlayer does: a seek then stays put
+        // and Play starts again from the beginning. (_ended keeps this pause
+        // from being reported over the toolkit's Stopped.)
+        gst_element_set_state(_playbin, GstState.Paused);
+        UpdateControlsState();
         MediaEnded?.Invoke();
+    }
+
+    // ---- bus watcher -------------------------------------------------------
+
+    private const uint WatchedMessages = MessageBits.Error | MessageBits.Eos | MessageBits.StateChanged
+        | MessageBits.Buffering | MessageBits.AsyncDone;
+
+    /// <summary>
+    /// Follows the pipeline's bus for its whole life on a background thread
+    /// (one per pipeline; it ends when the pipeline is disposed) and hands
+    /// errors, the end of the stream, playbin state changes and buffering to
+    /// the UI thread. Without it nothing popped the bus after the first
+    /// seconds of Play, so later errors were lost and messages piled up.
+    /// </summary>
+    private void StartBusWatch()
+    {
+        if (_bus == IntPtr.Zero) return;
+        var bus = gst_object_ref(_bus);
+        var playbin = _playbin;
+        int generation = _pipelineGeneration;
+        var thread = new Thread(() => WatchBus(bus, playbin, generation))
+        {
+            IsBackground = true,
+            Name = "openmaui-media-bus",
+        };
+        thread.Start();
+    }
+
+    private void WatchBus(IntPtr bus, IntPtr playbin, int generation)
+    {
+        bool buffering = false;
+        try
+        {
+            while (!_disposed && Volatile.Read(ref _pipelineGeneration) == generation)
+            {
+                var msg = gst_bus_timed_pop_filtered_bits(bus, 100_000_000UL, WatchedMessages);
+                if (msg == IntPtr.Zero) continue;
+                try
+                {
+                    var type = MessageTypeBits(msg);
+                    if ((type & MessageBits.Error) != 0)
+                    {
+                        gst_message_parse_error(msg, out var err, out var dbg);
+                        var text = GErrorGetMessage(err) ?? "Unknown GStreamer error";
+                        var debug = dbg != IntPtr.Zero ? Marshal.PtrToStringUTF8(dbg) : null;
+                        if (err != IntPtr.Zero) g_error_free(err);
+                        if (dbg != IntPtr.Zero) g_free(dbg);
+                        DiagnosticLog.Error("SkiaMediaElement", $"GStreamer error: {text}{(debug != null ? $" ({debug})" : "")}");
+                        Post(generation, () => ReportFailure(text));
+                    }
+                    else if ((type & MessageBits.Eos) != 0)
+                    {
+                        Post(generation, OnBusEos);
+                    }
+                    else if ((type & MessageBits.StateChanged) != 0)
+                    {
+                        if (MessageSource(msg) != playbin) continue;
+                        gst_message_parse_state_changed(msg, out var oldState, out var newState, out var pending);
+                        Post(generation, () => OnPlaybinStateChanged(oldState, newState, pending));
+                    }
+                    else if ((type & MessageBits.Buffering) != 0)
+                    {
+                        gst_message_parse_buffering(msg, out int percent);
+                        bool now = percent < 100;
+                        if (now != buffering)
+                        {
+                            buffering = now;
+                            Post(generation, () => OnBuffering(now));
+                        }
+                    }
+                    else if ((type & MessageBits.AsyncDone) != 0)
+                    {
+                        Post(generation, QueryVideoSize);
+                    }
+                }
+                finally
+                {
+                    gst_message_unref(msg);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaMediaElement", $"Bus watch failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            gst_object_unref(bus);
+        }
+    }
+
+    /// <summary>Runs <paramref name="action"/> on the UI thread if the pipeline it came from is still current.</summary>
+    private void Post(int generation, Action action)
+    {
+        LinuxDispatcher.Main?.Dispatch(() =>
+        {
+            if (_disposed || generation != _pipelineGeneration || _playbin == IntPtr.Zero) return;
+            action();
+        });
+    }
+
+    private void ReportFailure(string message)
+    {
+        if (_failed) return;
+        _failed = true;
+        _isPlaying = false;
+        UpdateControlsState();
+        MediaFailed?.Invoke(message);
+    }
+
+    /// <summary>
+    /// The end of the whole pipeline. A source with video ends through the
+    /// appsink's EOS callback (<see cref="OnEos"/>, which the looping hero
+    /// videos have always used); one without video (audio only) has no
+    /// linked appsink, so its end comes from here.
+    /// </summary>
+    private void OnBusEos()
+    {
+        if (_videoWidth > 0) return;
+        OnEnded();
+    }
+
+    private void OnPlaybinStateChanged(GstState oldState, GstState newState, GstState pending)
+    {
+        if (oldState == GstState.Ready && newState == GstState.Paused && !_opened)
+        {
+            _opened = true;
+            QueryVideoSize();
+            if (_rate != 1.0)
+                ApplyRate();
+            _controls.Duration = Duration;
+            MediaOpened?.Invoke();
+        }
+
+        if (newState == GstState.Playing)
+        {
+            if (!_buffering)
+                PlaybackStateChanged?.Invoke(CommunityToolkit.Maui.Core.MediaElementState.Playing);
+        }
+        else if (newState == GstState.Paused && pending == GstState.VoidPending && !_ended && !_buffering)
+        {
+            // A settled pause (by Pause, or a source opened without autoplay).
+            // Transitional pauses (pending PLAYING: preroll before playing, the
+            // lost-state pause of a flushing seek) are not reported.
+            PlaybackStateChanged?.Invoke(CommunityToolkit.Maui.Core.MediaElementState.Paused);
+        }
+    }
+
+    private void OnBuffering(bool buffering)
+    {
+        if (_buffering == buffering) return;
+        _buffering = buffering;
+        if (buffering)
+            PlaybackStateChanged?.Invoke(CommunityToolkit.Maui.Core.MediaElementState.Buffering);
+        else if (_opened && !_ended)
+            PlaybackStateChanged?.Invoke(_isPlaying
+                ? CommunityToolkit.Maui.Core.MediaElementState.Playing
+                : CommunityToolkit.Maui.Core.MediaElementState.Paused);
+    }
+
+    /// <summary>Reads the negotiated video size from the appsink's caps (none for audio only).</summary>
+    private void QueryVideoSize()
+    {
+        if (_appsink == IntPtr.Zero) return;
+        var pad = gst_element_get_static_pad(_appsink, "sink");
+        if (pad == IntPtr.Zero) return;
+        try
+        {
+            var caps = gst_pad_get_current_caps(pad);
+            if (caps == IntPtr.Zero) return;
+            try
+            {
+                if (TryGetCapsSize(caps, out int width, out int height))
+                    SetVideoSize(width, height);
+            }
+            finally
+            {
+                gst_caps_unref(caps);
+            }
+        }
+        finally
+        {
+            gst_object_unref(pad);
+        }
+    }
+
+    private void SetVideoSize(int width, int height)
+    {
+        if (width == _videoWidth && height == _videoHeight) return;
+        _videoWidth = width;
+        _videoHeight = height;
+        VideoSizeChanged?.Invoke(width, height);
+    }
+
+    /// <summary>
+    /// playbin's source-setup (streaming thread): hands UriMediaSource.HttpHeaders
+    /// to an HTTP source (souphttpsrc: extra-headers and user-agent).
+    /// </summary>
+    private void OnSourceSetup(IntPtr playbin, IntPtr source, IntPtr userData)
+    {
+        try
+        {
+            var headers = Volatile.Read(ref _httpHeaders);
+            if (headers.Length == 0 || source == IntPtr.Zero) return;
+            ApplyHttpHeaders(source, headers);
+        }
+        catch (Exception ex)
+        {
+            // Never let an exception reach native code.
+            DiagnosticLog.Warn("SkiaMediaElement", $"HTTP headers not applied: {ex.Message}");
+        }
+    }
+
+    internal static void ApplyHttpHeaders(IntPtr source, IReadOnlyList<KeyValuePair<string, string>> headers)
+    {
+        var extra = new List<KeyValuePair<string, string>>();
+        foreach (var header in headers)
+        {
+            if (string.Equals(header.Key, "User-Agent", StringComparison.OrdinalIgnoreCase)
+                && HasProperty(source, "user-agent"))
+                g_object_set_string(source, "user-agent", header.Value ?? string.Empty, IntPtr.Zero);
+            else
+                extra.Add(new(header.Key, header.Value ?? string.Empty));
+        }
+        if (extra.Count == 0) return;
+        if (!HasProperty(source, "extra-headers"))
+        {
+            DiagnosticLog.Warn("SkiaMediaElement", "HttpHeaders ignored: the source element has no extra-headers property");
+            return;
+        }
+        var structure = BuildHeaderStructure(extra);
+        try
+        {
+            g_object_set(source, "extra-headers", structure, IntPtr.Zero);
+        }
+        finally
+        {
+            gst_structure_free(structure);
+        }
+    }
+
+    // ---- playback controls overlay -----------------------------------------
+
+    /// <summary>Pushes play / mute / position into the controls and keeps their auto-hide timer.</summary>
+    private void UpdateControlsState()
+    {
+        _controls.IsPlaying = _isPlaying;
+        _controls.IsMuted = _muted;
+        ScheduleControlsHide();
+        if (_controls.Enabled)
+            Invalidate();
+    }
+
+    /// <summary>Shows or hides the playback controls (MediaElement.ShouldShowPlaybackControls).</summary>
+    internal bool ShowPlaybackControls
+    {
+        get => _controls.Enabled;
+        set
+        {
+            if (_controls.Enabled == value) return;
+            _controls.Enabled = value;
+            Invalidate();
+        }
+    }
+
+    private void ScheduleControlsHide()
+    {
+        var due = _controls.TimeUntilHide;
+        if (due is not TimeSpan delay)
+        {
+            _controlsHideTimer?.Dispose();
+            _controlsHideTimer = null;
+            return;
+        }
+        _controlsHideTimer ??= new System.Threading.Timer(_ =>
+            LinuxDispatcher.Main?.Dispatch(() =>
+            {
+                if (_disposed) return;
+                Invalidate();
+                ScheduleControlsHide();
+            }), null, Timeout.Infinite, Timeout.Infinite);
+        _controlsHideTimer.Change(delay + TimeSpan.FromMilliseconds(20), Timeout.InfiniteTimeSpan);
+    }
+
+    public override void OnPointerMoved(PointerEventArgs e)
+    {
+        if (_controls.Enabled)
+        {
+            bool wasVisible = _controls.IsVisible;
+            _controls.PointerMoved(ViewRect, e.X, e.Y);
+            ScheduleControlsHide();
+            if (wasVisible || _controls.IsVisible)
+                Invalidate();
+        }
+        base.OnPointerMoved(e);
+    }
+
+    public override void OnPointerExited(PointerEventArgs e)
+    {
+        if (_controls.Enabled)
+        {
+            _controls.PointerExited();
+            Invalidate();
+        }
+        base.OnPointerExited(e);
+    }
+
+    private bool _controlsHavePress;
+
+    /// <summary>The view's bounds in window space (where pointer positions and OnDraw's bounds are).</summary>
+    private SKRect ViewRect => new((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom);
+
+    public override void OnPointerPressed(PointerEventArgs e)
+    {
+        if (_controls.Enabled)
+        {
+            bool wasVisible = _controls.IsVisible;
+            _controlsHavePress = _controls.PointerPressed(ViewRect, e.X, e.Y);
+            ScheduleControlsHide();
+            if (wasVisible || _controls.IsVisible)
+                Invalidate();
+            if (_controlsHavePress)
+            {
+                // The controls take the press; it does not reach gestures behind them.
+                e.Handled = true;
+                return;
+            }
+        }
+        base.OnPointerPressed(e);
+    }
+
+    public override void OnPointerReleased(PointerEventArgs e)
+    {
+        if (_controlsHavePress)
+        {
+            _controlsHavePress = false;
+            _controls.PointerReleased(ViewRect, e.X, e.Y);
+            ScheduleControlsHide();
+            Invalidate();
+            e.Handled = true;
+            return;
+        }
+        base.OnPointerReleased(e);
     }
 
     private void InstallFrame(byte[] bgra, int width, int height, int stride)
@@ -612,6 +1132,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
             _latestFrame = image;
         }
         old?.Dispose();
+        SetVideoSize(width, height);
         if (PixelCopyFrameCount++ == 0 && _framePath == FramePath.Undecided)
             LogFramePath("pixel copy (the decoder negotiated system-memory frames, not DMA-BUF)");
         FrameImportTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
@@ -627,6 +1148,12 @@ public class SkiaMediaElement : SkiaView, IDisposable
         try
         {
             DrawVideo(canvas, bounds);
+            if (_controls.IsVisible)
+            {
+                _controls.Position = Position;
+                _controls.Duration = Duration;
+                _controls.Draw(canvas, bounds);
+            }
         }
         finally
         {
@@ -821,6 +1348,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
         }
         _pendingGpuFrame?.Discard();
         _pendingGpuFrame = frame;
+        SetVideoSize(frame.Descriptor.Width, frame.Descriptor.Height);
         Invalidate();
     }
 
@@ -970,7 +1498,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
         if (position > 0)
         {
             gst_element_get_state(_playbin, out _, out _, 2_000_000_000UL);
-            gst_element_seek_simple(_playbin, GstFormat.Time, AccurateSeekFlags, position);
+            IssueSeek(_playbin, position, _rate);
         }
         if (wasPlaying)
             Play();
@@ -1029,24 +1557,39 @@ public class SkiaMediaElement : SkiaView, IDisposable
         _newSampleDelegate = null;
         _eosDelegate = null;
         _isPlaying = false;
+        _restarting = false;
         _dmaBufOffered = false;
         ReleaseGpuFrames();
         if (_framePath == FramePath.ZeroCopy)
             _framePath = FramePath.Undecided; // decided again for the next source
     }
 
-    public void Dispose()
+    /// <summary>Tears the pipeline down and releases the last frame.</summary>
+    public new void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        DisposePipeline();
-        SKImage? frame;
-        lock (_frameLock)
-        {
-            frame = _latestFrame;
-            _latestFrame = null;
-        }
-        frame?.Dispose();
+        Dispose(true);
         GC.SuppressFinalize(this);
     }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            DisposePipeline();
+            _controlsHideTimer?.Dispose();
+            _controlsHideTimer = null;
+            SKImage? frame;
+            lock (_frameLock)
+            {
+                frame = _latestFrame;
+                _latestFrame = null;
+            }
+            frame?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+
+    /// <summary>True once the element was disposed (its pipeline is gone for good).</summary>
+    internal bool IsDisposed => _disposed;
 }

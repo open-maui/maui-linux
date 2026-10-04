@@ -128,6 +128,48 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     /// </summary>
     public IReadOnlyList<SkiaView>? OverlayLayers { get; set; }
 
+    /// <summary>
+    /// The MAUI window overlays to draw over the page this frame (<c>Window.AddOverlay</c> and
+    /// the window's VisualDiagnosticsOverlay; initialized, visible and with elements), each an
+    /// <see cref="IDrawable"/> drawn in the page's coordinates, above its modal layers and below
+    /// popups and dialogs, as MAUI's Windows overlay sits above the window's root. Set
+    /// per-frame by WindowContext.Render.
+    /// </summary>
+    internal IReadOnlyList<IWindowOverlay>? WindowOverlays { get; set; }
+
+    /// <summary>
+    /// The platform view of the window's <c>Window.TitleBar</c> (MAUI 9+ custom title bar
+    /// content), null when it has none or it is hidden. It is shown in a strip above the page,
+    /// as Windows puts it in the window's title bar: with client-side decorations it fills the
+    /// decoration's title bar (the window buttons are drawn over it, as Windows draws its
+    /// caption buttons), otherwise the strip is the top of the client area. The view is laid out in the page's coordinates at
+    /// negative Y (the page starts below the strip). Set per-frame by WindowContext.Render.
+    /// </summary>
+    internal SkiaView? TitleBarView { get; set; }
+
+    /// <summary>The title bar strip's minimum height (MAUI's standard title bar height on Windows).</summary>
+    internal const float MinTitleBarHeightLogical = 32f;
+
+    private float _titleBarHeight;
+
+    /// <summary>
+    /// Height of the strip above the page (logical pixels): the client-side decoration's title
+    /// bar and the window's TitleBar, 0 when the window has neither. Pointer events and the
+    /// page are offset by it.
+    /// </summary>
+    internal float TopInsetLogical
+    {
+        get
+        {
+            bool csd = _window is Window.WaylandWindow { UseCsd: true };
+            float titleBar = TitleBarView is { IsVisible: true } ? _titleBarHeight : 0f;
+            return csd ? Math.Max(Window.WaylandWindow.CsdTitlebarHeightLogical, titleBar) : titleBar;
+        }
+    }
+
+    /// <summary>Where the window's TitleBar was laid out in the last frame (page coordinates).</summary>
+    internal Rect TitleBarBounds { get; private set; }
+
     /// <summary>Layout passes per frame at most (see Render).</summary>
     private const int MaxLayoutPasses = 3;
 
@@ -279,7 +321,28 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         // by the titlebar height inside RenderRegion. The titlebar itself is
         // drawn after the view passes, in the strip the view tree doesn't cover.
         bool csdActive = _window is Window.WaylandWindow waylandCsd && waylandCsd.UseCsd;
-        float csdInsetLogical = csdActive ? Window.WaylandWindow.CsdTitlebarHeightLogical : 0f;
+        // The window's TitleBar (Window.TitleBar): measured first, since its height decides
+        // the strip above the page. With CSD it fills the decoration's title bar.
+        var titleBar = TitleBarView is { IsVisible: true } shownTitleBar ? shownTitleBar : null;
+        // Full width, as on Windows: MAUI's TitleBar template keeps its content clear of the
+        // window buttons (a 150-pixel end margin), which are drawn over it.
+        double titleBarWidth = Math.Max(0, LogicalWidth);
+        if (titleBar != null)
+        {
+            try
+            {
+                var desired = titleBar.Measure(new Size(titleBarWidth, double.PositiveInfinity));
+                _titleBarHeight = Math.Max(MinTitleBarHeightLogical, (float)Math.Ceiling(desired.Height));
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaRenderingEngine", "Exception measuring the window's TitleBar", ex);
+                _titleBarHeight = MinTitleBarHeightLogical;
+            }
+        }
+        float csdInsetLogical = TopInsetLogical;
+        if (csdActive && _window is Window.WaylandWindow csdWindow)
+            csdWindow.CsdTitlebarHeight = csdInsetLogical;
 
         // Measure and arrange at logical pixel dimensions
         var logicalWidth = (double)LogicalWidth;
@@ -298,6 +361,12 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
                 int requests = SkiaView.LayoutRequestCount;
                 rootView.Measure(availableSize);
                 rootView.Arrange(new Rect(0, 0, logicalWidth, logicalHeight));
+                if (titleBar != null)
+                {
+                    TitleBarBounds = new Rect(0, -csdInsetLogical, titleBarWidth, csdInsetLogical);
+                    titleBar.Measure(new Size(titleBarWidth, csdInsetLogical));
+                    titleBar.Arrange(TitleBarBounds);
+                }
                 if (overlays != null)
                 {
                     for (int i = 0; i < overlays.Count; i++)
@@ -329,6 +398,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         bool isFullRedraw;
 
         bool overlaysActive = SkiaView.HasActivePopup || ToolTips?.ShownText != null
+            || WindowOverlays is { Count: > 0 }
             || (RendersDialogs && (LinuxDialogService.HasActiveDialog || LinuxDialogService.HasContextMenu));
         var damageTarget = EnablePartialDamage ? _target as IDamageAwareRenderTarget : null;
 
@@ -404,7 +474,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
                 foreach (var r in frameDamage)
                     submitted.Add(SKRectI.Ceiling(r));
                 // The CSD titlebar is repainted every frame; keep it in the damage.
-                if (csdActive)
+                if (csdActive && csdInsetLogical > 0f)
                     submitted.Add(new SKRectI(0, 0, Width, (int)MathF.Ceiling(csdInsetLogical * DpiScale)));
             }
             damageTarget.SetFrameDamage(submitted);
@@ -420,7 +490,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         {
             try
             {
-                RenderRegion(canvas, rootView, overlays, region, isFullRedraw, csdInsetLogical);
+                RenderRegion(canvas, rootView, overlays, region, isFullRedraw, csdInsetLogical, csdActive ? null : titleBar);
             }
             catch (Exception ex)
             {
@@ -439,11 +509,25 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
                 canvas.Save();
                 if (DpiScale > 1.0f)
                     canvas.Scale(DpiScale);
+                Action<SKCanvas>? drawTitleBar = null;
+                if (titleBar != null)
+                {
+                    // The TitleBar is laid out at negative Y in the page's coordinates.
+                    drawTitleBar = c =>
+                    {
+                        c.Save();
+                        c.Translate(0, csdInsetLogical);
+                        titleBar.Draw(c);
+                        c.Restore();
+                    };
+                }
                 Window.WaylandCsdRenderer.DrawTitlebar(
                     canvas,
                     waylandCsdDraw,
                     LogicalWidth,
-                    waylandCsdDraw.Title ?? string.Empty);
+                    waylandCsdDraw.Title ?? string.Empty,
+                    csdInsetLogical,
+                    drawTitleBar);
                 canvas.Restore();
             }
             catch (Exception ex)
@@ -513,7 +597,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         _stats?.EndFrame();
     }
 
-    private void RenderRegion(SKCanvas canvas, SkiaView rootView, IReadOnlyList<SkiaView>? overlays, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f)
+    private void RenderRegion(SKCanvas canvas, SkiaView rootView, IReadOnlyList<SkiaView>? overlays, SKRect region, bool isFullRedraw, float csdInsetLogical = 0f, SkiaView? titleBar = null)
     {
         canvas.Save();
 
@@ -542,6 +626,20 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         if (csdInsetLogical > 0f)
             canvas.Translate(0f, csdInsetLogical);
 
+        // The window's TitleBar in the strip above the page (no client-side decoration
+        // draws it): laid out at negative Y, so it lands above the page.
+        if (titleBar != null)
+        {
+            try
+            {
+                titleBar.Draw(canvas);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaRenderingEngine", "Exception drawing the window's TitleBar", ex);
+            }
+        }
+
         // Draw the view tree (views will naturally clip to their bounds)
         try
         {
@@ -564,6 +662,33 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
                 catch (Exception ex)
                 {
                     DiagnosticLog.Error("SkiaRenderingEngine", $"Exception during overlay layer {i} Draw", ex);
+                }
+            }
+        }
+
+        // MAUI window overlays (Window.AddOverlay, the visual diagnostics adorners) over the
+        // page, in its coordinates.
+        var windowOverlays = WindowOverlays;
+        if (windowOverlays is { Count: > 0 })
+        {
+            var dirty = new RectF(0, 0, LogicalWidth, LogicalHeight - csdInsetLogical);
+            using var overlayCanvas = new Microsoft.Maui.Graphics.Skia.SkiaCanvas { Canvas = canvas };
+            for (int i = 0; i < windowOverlays.Count; i++)
+            {
+                int saveCount = canvas.Save();
+                try
+                {
+                    overlayCanvas.SaveState();
+                    windowOverlays[i].Draw(overlayCanvas, dirty);
+                    overlayCanvas.RestoreState();
+                }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Error("SkiaRenderingEngine", $"Exception drawing window overlay {windowOverlays[i].GetType().Name}", ex);
+                }
+                finally
+                {
+                    canvas.RestoreToCount(saveCount);
                 }
             }
         }

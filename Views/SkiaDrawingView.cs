@@ -35,6 +35,18 @@ public class SkiaDrawingView : SkiaView
     private readonly List<INotifyCollectionChanged> _observedPoints = new();
     private List<PointF>? _currentStroke;
 
+    /// <summary>
+    /// The app's <c>IDrawingLineAdapter</c> (set through the handler's
+    /// <c>IDrawingViewHandler.SetDrawingLineAdapter</c>), or null for the toolkit's own
+    /// <c>DrawingLineAdapter</c>: it turns each finished stroke into the line added to the
+    /// DrawingView's <c>Lines</c> and passed to <c>DrawingLineCompleted</c>.
+    /// </summary>
+    internal object? LineAdapter { get; set; }
+
+    /// <summary>The toolkit's IDrawingLineAdapter interface when <paramref name="type"/> implements it.</summary>
+    internal static Type? AdapterInterfaceFor(Type type)
+        => type.GetInterface("CommunityToolkit.Maui.Core.Handlers.IDrawingLineAdapter");
+
     /// <summary>The toolkit DrawingView this view renders (null when disconnected).</summary>
     internal object? DrawingView
     {
@@ -88,7 +100,8 @@ public class SkiaDrawingView : SkiaView
             foreach (var line in c.GetLines(view))
             {
                 if (line == null) continue;
-                DrawStroke(mauiCanvas, c.GetLinePoints(line), c.GetLineColor(line), c.GetLineWidth(line));
+                // As the toolkit's MauiDrawingView draws a line: smoothed when it asks to be.
+                DrawStroke(mauiCanvas, c.GetDrawnPoints(line), c.GetLineColor(line), c.GetLineWidth(line));
             }
 
             if (_currentStroke is { Count: > 0 })
@@ -156,7 +169,7 @@ public class SkiaDrawingView : SkiaView
         if (_currentStroke is not { } stroke || _drawingView is not { } view || _contract is not { } c) return;
         _currentStroke = null;
 
-        var line = c.CreateLine(view, stroke);
+        var line = c.CreateLine(view, stroke, LineAdapter);
         c.AddLine(view, line);
         c.OnDrawingLineCompleted(view, line);
         if (c.GetShouldClearOnFinish(view))
@@ -258,13 +271,21 @@ internal sealed class DrawingViewContract
     private const string ViewInterface = "CommunityToolkit.Maui.Core.IDrawingView";
     private const string LineInterface = "CommunityToolkit.Maui.Core.IDrawingLine";
     private const string LineType = "CommunityToolkit.Maui.Core.Views.DrawingLine";
+    private const string MauiLineType = "CommunityToolkit.Maui.Core.Views.MauiDrawingLine";
+    private const string AdapterInterface = "CommunityToolkit.Maui.Core.Handlers.IDrawingLineAdapter";
+    private const string DefaultAdapterType = "CommunityToolkit.Maui.Core.Handlers.DrawingLineAdapter";
+    private const string SmoothingExtensions = "CommunityToolkit.Maui.Core.Extensions.MauiDrawingViewExtensions";
 
     private static readonly Dictionary<Type, DrawingViewContract?> s_cache = new();
 
     private readonly PropertyInfo _lines, _lineColor, _lineWidth, _multiLine, _clearOnFinish, _drawAction;
     private readonly MethodInfo _started, _cancelled, _pointDrawn, _completed;
     private readonly PropertyInfo _linePoints, _lineLineColor, _lineLineWidth;
+    private readonly PropertyInfo? _lineSmooth, _lineGranularity;
     private readonly Type _lineType;
+    private readonly Type? _mauiLineType;
+    private readonly MethodInfo? _convert, _smooth;
+    private readonly object? _defaultAdapter;
 
     private DrawingViewContract(Type view, Type line, Type lineImpl)
     {
@@ -282,7 +303,20 @@ internal sealed class DrawingViewContract
         _lineLineColor = line.GetProperty("LineColor")!;
         _lineLineWidth = line.GetProperty("LineWidth")!;
         _lineType = lineImpl;
+        _lineSmooth = line.GetProperty("ShouldSmoothPathWhenDrawn");
+        _lineGranularity = line.GetProperty("Granularity");
+
+        // The toolkit's line adapter contract: MauiDrawingLine in, IDrawingLine out.
+        var assembly = line.Assembly;
+        _mauiLineType = assembly.GetType(MauiLineType);
+        _convert = assembly.GetType(AdapterInterface)?.GetMethod("ConvertMauiDrawingLine");
+        var defaultAdapter = assembly.GetType(DefaultAdapterType);
+        _defaultAdapter = defaultAdapter == null ? null : Activator.CreateInstance(defaultAdapter);
+        _smooth = assembly.GetType(SmoothingExtensions)?.GetMethod("CreateSmoothedPathWithGranularity", BindingFlags.Static | BindingFlags.Public);
     }
+
+    /// <summary>The toolkit's <c>IDrawingLineAdapter</c> interface (null when the toolkit has none).</summary>
+    public Type? AdapterInterfaceType => _convert?.DeclaringType;
 
     /// <summary>The contract for a DrawingView type, or null if the toolkit's shape is not recognised.</summary>
     public static DrawingViewContract? For(Type drawingViewType)
@@ -337,8 +371,56 @@ internal sealed class DrawingViewContract
 
     public void AddLine(object view, object line) => GetLinesCollection(view)?.Add(line);
 
+    /// <summary>
+    /// The points a line is drawn through: smoothed with its granularity when
+    /// <c>ShouldSmoothPathWhenDrawn</c> (the toolkit's MauiDrawingView draws lines so).
+    /// </summary>
+    public IReadOnlyList<PointF> GetDrawnPoints(object line)
+    {
+        var points = GetLinePoints(line);
+        if (_smooth == null || _lineSmooth?.GetValue(line) is not true || points.Count == 0)
+            return points;
+        try
+        {
+            var granularity = _lineGranularity?.GetValue(line) is int g ? g : 5;
+            return (_smooth.Invoke(null, new object[] { points, granularity }) as IEnumerable<PointF>)?.ToArray() ?? points;
+        }
+        catch (TargetInvocationException ex)
+        {
+            DiagnosticLog.Debug("SkiaDrawingView", "Smoothing a line failed; drawn as recorded", ex);
+            return points;
+        }
+    }
+
+    /// <summary>
+    /// The line for a finished stroke, as the toolkit's handler makes it: a MauiDrawingLine with
+    /// the view's colour and width, converted by <paramref name="adapter"/> (the app's
+    /// IDrawingLineAdapter) or the toolkit's own DrawingLineAdapter.
+    /// </summary>
+    public object CreateLine(object view, IEnumerable<PointF> points, object? adapter = null)
+    {
+        adapter ??= _defaultAdapter;
+        if (adapter != null && _convert != null && _mauiLineType != null)
+        {
+            var mauiLine = Activator.CreateInstance(_mauiLineType)!;
+            _mauiLineType.GetProperty("LineColor")?.SetValue(mauiLine, GetLineColor(view) ?? Colors.Black);
+            _mauiLineType.GetProperty("LineWidth")?.SetValue(mauiLine, GetLineWidth(view));
+            _mauiLineType.GetProperty("Points")?.SetValue(mauiLine, new System.Collections.ObjectModel.ObservableCollection<PointF>(points));
+            try
+            {
+                if (_convert.Invoke(adapter, new[] { mauiLine }) is { } converted)
+                    return converted;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(ex.InnerException);
+            }
+        }
+        return CreateDefaultLine(view, points);
+    }
+
     /// <summary>A toolkit DrawingLine with the view's current colour and width.</summary>
-    public object CreateLine(object view, IEnumerable<PointF> points)
+    private object CreateDefaultLine(object view, IEnumerable<PointF> points)
     {
         var line = Activator.CreateInstance(_lineType)!;
         _lineLineColor.SetValue(line, GetLineColor(view));

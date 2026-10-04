@@ -507,7 +507,8 @@ public class SkiaNavigationPage : SkiaView
 
         using var paint = new SKPaint
         {
-            Color = _barTextColor,
+            // NavigationPage.IconColor of the current page, else the bar's text colour.
+            Color = _currentPage?.IconColor?.ToSKColor() ?? _barTextColor,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2.5f,
             IsAntialias = true,
