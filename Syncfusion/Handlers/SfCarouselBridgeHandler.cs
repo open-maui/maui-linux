@@ -19,7 +19,11 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// <see cref="SkiaSfCarousel"/>, and reports the user's selection back to the
 /// control: <c>SelectedIndex</c>, <c>SelectionChanged</c>, <c>SwipeStarted</c>
 /// and <c>SwipeEnded</c>. With <c>AllowLoadMore</c> the items come
-/// <c>LoadMoreItemsCount</c> at a time behind a "Load More" item.
+/// <c>LoadMoreItemsCount</c> at a time behind a "Load More" item. With
+/// <c>EnableVirtualization</c> (Default view mode, no load-more) only the items
+/// the carousel can show around the selection get views, as the Windows
+/// build's <c>MapEnableVirtualization</c> makes its panel realize only the
+/// visible range; the others hold an empty place until they come into view.
 /// </summary>
 public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarousel>
 {
@@ -31,6 +35,7 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
             [nameof(ICarousel.AllowLoadMore)] = MapItems,
             [nameof(ICarousel.LoadMoreItemsCount)] = MapItems,
             [nameof(ICarousel.LoadMoreView)] = MapItems,
+            [nameof(ICarousel.EnableVirtualization)] = MapItems,
             [nameof(ICarousel.SelectedIndex)] = MapSelectedIndex,
             [nameof(ICarousel.ViewMode)] = MapLayout,
             [nameof(ICarousel.ItemSpacing)] = MapLayout,
@@ -53,7 +58,18 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
             [nameof(ICarousel.LoadMore)] = (h, _, _) => h.LoadMore(),
         };
 
-    private readonly List<(object? Item, View View, bool Adopted)> _views = new();
+    /// <summary>One item: its view once realized (always, without virtualization).</summary>
+    private sealed class Slot
+    {
+        public Slot(object? item) => Item = item;
+        public object? Item { get; }
+        public View? View;
+        public bool Adopted;
+        public SkiaView? Placeholder;
+    }
+
+    private readonly List<Slot> _views = new();
+    private bool _virtualizing;
     private View? _loadMoreView;
     private bool _loadMoreAdopted;
     private int _shownCount;
@@ -74,6 +90,7 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
         platformView.ItemTapped += OnItemTapped;
         platformView.SwipeStarted += OnSwipeStarted;
         platformView.SwipeEnded += OnSwipeEnded;
+        platformView.ShownRangeChanged += OnShownRangeChanged;
         _connected = true;
     }
 
@@ -84,8 +101,9 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
         platformView.ItemTapped -= OnItemTapped;
         platformView.SwipeStarted -= OnSwipeStarted;
         platformView.SwipeEnded -= OnSwipeEnded;
+        platformView.ShownRangeChanged -= OnShownRangeChanged;
         Observe(null);
-        ReleaseViews(keep: null);
+        ReleaseViews();
         platformView.SetItems(Array.Empty<SkiaView>());
         platformView.MauiView = null;
         base.DisconnectHandler(platformView);
@@ -129,7 +147,7 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
         else if (_shownCount <= 0 || _shownCount > source.Count)
             _shownCount = Math.Min(step, source.Count);
 
-        var owner = (Element)carousel;
+        _virtualizing = carousel.EnableVirtualization && !carousel.AllowLoadMore && carousel.ViewMode == ViewMode.Default;
         var previous = _views.ToList();
         _views.Clear();
         for (int i = 0; i < _shownCount; i++)
@@ -142,16 +160,13 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
                 previous.RemoveAt(reuse);
                 continue;
             }
-            var itemView = ViewFor(item, carousel);
-            if (itemView != null)
-                _views.Add((item, itemView, SfItemViews.Adopt(itemView, owner)));
+            _views.Add(new Slot(item));
         }
-        ReleaseViews(previous);
+        foreach (var stale in previous)
+            Release(stale);
 
-        var platformItems = new List<SkiaView>();
-        foreach (var entry in _views)
-            if (SfItemViews.PlatformOf(entry.View, context) is { } skia)
-                platformItems.Add(skia);
+        var range = _virtualizing ? view.ShownRange(_views.Count) : (0, _views.Count - 1);
+        var platformItems = Realize(range, context, carousel);
 
         if (carousel.AllowLoadMore && _shownCount < source.Count)
         {
@@ -160,7 +175,7 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
             {
                 ReleaseLoadMore();
                 _loadMoreView = loadMore;
-                _loadMoreAdopted = SfItemViews.Adopt(loadMore, owner);
+                _loadMoreAdopted = SfItemViews.Adopt(loadMore, (Element)carousel);
             }
             if (SfItemViews.PlatformOf(loadMore, context) is { } skia)
                 platformItems.Add(skia);
@@ -173,6 +188,62 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
         view.SetItems(platformItems);
         view.SetSelectedIndex(carousel.SelectedIndex, animate: false);
     }
+
+    /// <summary>
+    /// Gives the items in <paramref name="range"/> (one more on each side, as
+    /// a swipe brings them in) their views and the others an empty place, and
+    /// returns the platform views in item order.
+    /// </summary>
+    private List<SkiaView> Realize((int First, int Last) range, IMauiContext context, ICarousel carousel)
+    {
+        var owner = (Element)carousel;
+        int first = range.First - 1, last = range.Last + 1;
+        var platformItems = new List<SkiaView>(_views.Count + 1);
+        for (int i = 0; i < _views.Count; i++)
+        {
+            var slot = _views[i];
+            bool wanted = !_virtualizing || (i >= first && i <= last);
+            if (wanted && slot.View == null && slot.Item is { } item && ViewFor(item, carousel) is { } itemView)
+            {
+                slot.View = itemView;
+                slot.Adopted = SfItemViews.Adopt(itemView, owner);
+            }
+            else if (!wanted && slot.View != null)
+            {
+                Release(slot);
+            }
+            if (slot.View != null && SfItemViews.PlatformOf(slot.View, context) is { } skia)
+            {
+                platformItems.Add(skia);
+                continue;
+            }
+            slot.Placeholder ??= new SkiaSfCarouselPlaceholder();
+            platformItems.Add(slot.Placeholder);
+        }
+        return platformItems;
+    }
+
+    private static void Release(Slot slot)
+    {
+        if (slot.View == null)
+            return;
+        slot.View.Handler?.DisconnectHandler();
+        if (slot.Adopted)
+            slot.View.Parent = null;
+        slot.View = null;
+        slot.Adopted = false;
+    }
+
+    /// <summary>The selection or a drag moved: realize the items now in view.</summary>
+    private void OnShownRangeChanged(object? sender, EventArgs e)
+    {
+        if (!_virtualizing || PlatformView is not { } view || MauiContext is not { } context || VirtualView is not { } carousel)
+            return;
+        view.SetItems(Realize(view.ShownRange(_views.Count), context, carousel));
+    }
+
+    /// <summary>The number of items with a view (all of them unless virtualizing).</summary>
+    internal int RealizedCount => _views.Count(slot => slot.View != null);
 
     /// <summary>The view for one item, as the native builds' item mapping builds it.</summary>
     private static View? ViewFor(object item, ICarousel carousel)
@@ -207,20 +278,12 @@ public class SfCarouselBridgeHandler : LinuxViewHandler<ICarousel, SkiaSfCarouse
         },
     };
 
-    private void ReleaseViews(List<(object? Item, View View, bool Adopted)>? keep)
+    private void ReleaseViews()
     {
-        var stale = keep ?? _views.ToList();
-        foreach (var (_, view, adopted) in stale)
-        {
-            view.Handler?.DisconnectHandler();
-            if (adopted)
-                view.Parent = null;
-        }
-        if (keep == null)
-        {
-            _views.Clear();
-            ReleaseLoadMore();
-        }
+        foreach (var slot in _views)
+            Release(slot);
+        _views.Clear();
+        ReleaseLoadMore();
     }
 
     private void ReleaseLoadMore()

@@ -305,6 +305,48 @@ public class GoldenSceneTests
 
         GoldenHarness.Verify("table-view", table, 320, 260, scale);
     }
+
+    // ---- Navigation bar ------------------------------------------------------
+
+    /// <summary>
+    /// A NavigationPage bar as MAUI's Windows toolbar lays it out: the title icon
+    /// (TitleIconImageSource) before the title; on the pushed page a TitleView in the
+    /// title's place, the back arrow in IconColor, and a gradient BarBackground.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Scales))]
+    public void Navigation_bar_title_icon_and_title_view(float scale)
+    {
+        using var icon = new SkiaSharp.SKBitmap(48, 48);
+        using (var c = new SkiaSharp.SKCanvas(icon))
+        {
+            c.Clear(SkiaSharp.SKColors.Transparent);
+            using var paint = new SkiaSharp.SKPaint { Color = new SkiaSharp.SKColor(0xFF, 0xC1, 0x07), IsAntialias = true };
+            c.DrawCircle(24, 24, 22, paint);
+        }
+        var root = new SkiaContentPage { Title = "Inbox", TitleIcon = icon };
+        root.Content = Label("Messages");
+        var titleView = Row().With(r =>
+        {
+            r.AddChild(Label("Search", 16).With(l => { l.TextColor = Colors.White; l.VerticalOptions = LayoutOptions.Center; }));
+            r.AddChild(new SkiaBoxView { Color = Colors.White, WidthRequest = 120, HeightRequest = 4, VerticalOptions = LayoutOptions.Center });
+        });
+        var detail = new SkiaContentPage
+        {
+            Title = "Hidden by the TitleView",
+            TitleView = titleView,
+            IconColor = Colors.Orange,
+            TitleBarBrush = new LinearGradientBrush(new GradientStopCollection { new GradientStop(Colors.DarkBlue, 0), new GradientStop(Colors.Teal, 1) }),
+            Content = Label("Detail"),
+        };
+
+        var first = new SkiaNavigationPage(root);
+        GoldenHarness.Verify("navigation-bar-title-icon", first, 360, 120, scale);
+
+        var second = new SkiaNavigationPage(new SkiaContentPage { Title = "Root" });
+        second.Push(detail, animated: false);
+        GoldenHarness.Verify("navigation-bar-title-view", second, 360, 120, scale);
+    }
 }
 
 internal static class GoldenExtensions

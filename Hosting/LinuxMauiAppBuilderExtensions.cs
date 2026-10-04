@@ -113,9 +113,15 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         if (Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.Enabled)
             Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.Install();
         Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install();
+        // CommunityToolkit.Maui's platform features (touch behaviors, alerts, badge, speech,
+        // DrawingView image export), when the app uses the toolkit.
+        CommunityToolkitPatches.Install();
         // VisualTreeElementExtensions' platform lookups (GetVisualTreeElements(point), a platform
         // view's element) on the Skia tree.
         Microsoft.Maui.Platform.Linux.Handlers.VisualTreeElementPatches.Install();
+        // MAUI's window overlays (Window.AddOverlay, the visual diagnostics adorners) and the
+        // view-geometry helpers they use, on the Skia tree.
+        Microsoft.Maui.Platform.Linux.Handlers.WindowOverlayPatches.Install();
         // MAUI's effects pipeline: an Element resolves the PlatformEffect for a RoutingEffect
         // through the EffectsFactory service, which only ConfigureEffects registers; without
         // it the first effect added to any view threw. Registered empty here, so an app or a
@@ -199,13 +205,14 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.TryAddSingleton<ISemanticScreenReader>(_ => SemanticScreenReader.Default);
         builder.Services.TryAddSingleton<IWebAuthenticator>(_ => WebAuthenticator.Default);
 
-        // Sensors without desktop hardware (IsSupported == false, Start throws FeatureNotSupportedException)
-        builder.Services.TryAddSingleton<IAccelerometer, UnsupportedAccelerometer>();
-        builder.Services.TryAddSingleton<IBarometer, UnsupportedBarometer>();
-        builder.Services.TryAddSingleton<ICompass, UnsupportedCompass>();
-        builder.Services.TryAddSingleton<IGyroscope, UnsupportedGyroscope>();
-        builder.Services.TryAddSingleton<IMagnetometer, UnsupportedMagnetometer>();
-        builder.Services.TryAddSingleton<IOrientationSensor, UnsupportedOrientationSensor>();
+        // Motion/environment sensors: the facades' MAUI implementations, reading the kernel's IIO
+        // devices (IsSupported only with the hardware; Start throws FeatureNotSupportedException without).
+        builder.Services.TryAddSingleton<IAccelerometer>(_ => Accelerometer.Default);
+        builder.Services.TryAddSingleton<IBarometer>(_ => Barometer.Default);
+        builder.Services.TryAddSingleton<ICompass>(_ => Compass.Default);
+        builder.Services.TryAddSingleton<IGyroscope>(_ => Gyroscope.Default);
+        builder.Services.TryAddSingleton<IMagnetometer>(_ => Magnetometer.Default);
+        builder.Services.TryAddSingleton<IOrientationSensor>(_ => OrientationSensor.Default);
 
         // Register additional Linux-specific services
         builder.Services.TryAddSingleton<FolderPickerService>();
@@ -294,11 +301,18 @@ public static class LinuxMauiAppBuilderExtensionsInternal
 
             // CommunityToolkit.Maui DrawingView (only when the toolkit is in the app)
             if (DrawingViewHandler.ToolkitDrawingViewType is { } drawingView)
-                handlers.AddHandler(drawingView, typeof(DrawingViewHandler));
+                handlers.AddHandler(drawingView, DrawingViewHandler.HandlerType);
+            // CommunityToolkit.Maui SemanticOrderView (its ViewOrder orders the AT-SPI tree)
+            if (SemanticOrderViewHandler.ToolkitSemanticOrderViewType is { } semanticOrderView)
+                handlers.AddHandler(semanticOrderView, typeof(SemanticOrderViewHandler));
 
             // Web: one handler on either engine, WPE WebKit composited in the Skia tree when
             // installed (works in native Wayland/X11 mode), else the GTK-hosted WebKitGTK view.
             handlers.AddHandler<WebView, LinuxWebViewHandler>();
+            // HybridWebView on the same engines, unless the app turned the feature off
+            // ($(MauiHybridWebViewSupported)=false), as MAUI registers its own.
+            if (IsHybridWebViewSupported)
+                handlers.AddHandler<HybridWebView, LinuxHybridWebViewHandler>();
 
             // Collection Views
             handlers.AddHandler<CollectionView, CollectionViewHandler>();
@@ -331,6 +345,10 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // Store options for later use
         builder.Services.AddSingleton(options);
     }
+
+    // MAUI's RuntimeFeature.IsHybridWebViewSupported (on unless $(MauiHybridWebViewSupported) is false).
+    private static bool IsHybridWebViewSupported =>
+        !AppContext.TryGetSwitch("Microsoft.Maui.RuntimeFeature.IsHybridWebViewSupported", out var supported) || supported;
 
     private static void RegisterTypeConverters()
     {

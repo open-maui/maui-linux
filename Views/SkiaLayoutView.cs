@@ -63,6 +63,21 @@ public abstract class SkiaLayoutView : SkiaView
     public new IReadOnlyList<SkiaView> Children => _children;
 
     /// <summary>
+    /// The layout's children in the accessibility tree (its own child list, which hides the base
+    /// view's: assistive technology saw no children inside any layout).
+    /// </summary>
+    protected override List<IAccessible> GetAccessibleChildren()
+    {
+        var children = new List<IAccessible>();
+        foreach (var child in _children.ToArray())
+        {
+            if (child is IAccessible accessible && !child.IsExcludedWithChildren)
+                children.Add(accessible);
+        }
+        return children;
+    }
+
+    /// <summary>
     /// The children in drawing order: by ZIndex, lowest first, and in child
     /// order within the same ZIndex, as MAUI stacks them on every platform
     /// (a list's sticky group header, on a higher ZIndex, stays over the rows

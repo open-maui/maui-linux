@@ -159,13 +159,15 @@ namespace Microsoft.Maui.DeviceTests
 			return (host.Window?.Handler?.PlatformView as Microsoft.Maui.Platform.Linux.Handlers.SkiaWindow)?.Toolbar;
 		}
 
-		/// <summary>The TitleView the window's navigation bar shows (SkiaShell's; NavigationPage.TitleView is not drawn).</summary>
+		/// <summary>The TitleView the window's navigation bar shows (SkiaShell's, or the current SkiaPage's in a NavigationPage).</summary>
 		protected object? GetTitleView(IElementHandler handler)
 		{
 			var bar = FindBar(HostFor(handler)) ?? throw new XunitException("The window shows no navigation bar.");
 			if (bar.Owner is SkiaShell shell)
 				return shell.TitleView;
-			throw new XunitException("OpenMaui draws no NavigationPage.TitleView: only Shell.TitleView is rendered in its navigation bar.");
+			if (bar.Owner is SkiaPage page)
+				return page.TitleView;
+			throw new XunitException($"The bar's owner {bar.Owner.GetType().Name} shows no TitleView.");
 		}
 
 		/// <summary>
@@ -175,10 +177,11 @@ namespace Microsoft.Maui.DeviceTests
 		protected Size GetTitleViewExpectedSize(IElementHandler handler)
 		{
 			var bar = FindBar(HostFor(handler)) ?? throw new XunitException("The window shows no navigation bar.");
-			if (bar.Owner is not SkiaShell shell)
-				throw new XunitException("OpenMaui draws no NavigationPage.TitleView: only Shell.TitleView is rendered in its navigation bar.");
-			var bounds = (Rect)(typeof(SkiaShell).GetProperty("TitleViewBounds", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
-				?? throw new XunitException("SkiaShell.TitleViewBounds not found (OpenMaui changed; update the Linux helper).")).GetValue(shell)!;
+			var owner = bar.Owner;
+			if (owner is not (SkiaShell or SkiaPage))
+				throw new XunitException($"The bar's owner {owner.GetType().Name} shows no TitleView.");
+			var bounds = (Rect)(owner.GetType().GetProperty("TitleViewBounds", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+				?? throw new XunitException($"{owner.GetType().Name}.TitleViewBounds not found (OpenMaui changed; update the Linux helper).")).GetValue(owner)!;
 			return bounds.Size;
 		}
 
