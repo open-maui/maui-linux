@@ -222,6 +222,30 @@ public class NotificationService
         return notificationId;
     }
 
+    /// <summary>
+    /// Shows <paramref name="options"/> (its expiry, hints and action buttons) with a callback per
+    /// action key, and returns the notification's id for <see cref="CancelAsync"/> and the
+    /// <see cref="ActionInvoked"/> / <see cref="NotificationClosed"/> events. The signal watch is
+    /// in place before the notification is sent, so neither an action nor its closing is missed.
+    /// </summary>
+    /// <remarks>
+    /// Without <paramref name="toolFallbacks"/>, a desktop without a notification server shows
+    /// nothing (rather than notify-send, which cannot report actions, or a zenity dialog).
+    /// </remarks>
+    internal async Task<uint> ShowAsync(NotificationOptions options, IReadOnlyDictionary<string, Action?> callbacks, string? tag = null, bool toolFallbacks = true)
+    {
+        var notificationId = NextLocalId();
+        _activeNotifications[notificationId] = new NotificationContext
+        {
+            Tag = tag,
+            ActionCallbacks = new Dictionary<string, Action?>(callbacks, StringComparer.Ordinal),
+        };
+        _monitoringActions = true;
+        await EnsureWatchingAsync().ConfigureAwait(false);
+        await ShowCoreAsync(options, notificationId, toolFallbacks).ConfigureAwait(false);
+        return notificationId;
+    }
+
     private static uint NextLocalId() => Interlocked.Increment(ref _notificationIdCounter) - 1;
 
     /// <summary>
@@ -277,7 +301,7 @@ public class NotificationService
             ? new[] { Transport.Portal, Transport.Server, Transport.NotifySend }
             : new[] { Transport.Server, Transport.NotifySend };
 
-    private async Task ShowCoreAsync(NotificationOptions options, uint localId)
+    private async Task ShowCoreAsync(NotificationOptions options, uint localId, bool toolFallbacks = true)
     {
         var tryPortal = DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred);
         var portalVersion = tryPortal ? await _portal.GetVersionAsync(PortalInterfaces.Notification).ConfigureAwait(false) : 0u;
@@ -327,6 +351,11 @@ public class NotificationService
                     break;
 
                 case Transport.NotifySend:
+                    if (!toolFallbacks)
+                    {
+                        DiagnosticLog.Debug("NotificationService", "No notification server; the notification is not shown");
+                        return;
+                    }
                     await ShowWithNotifySendAsync(options).ConfigureAwait(false);
                     return;
             }

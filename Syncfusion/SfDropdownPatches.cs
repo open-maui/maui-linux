@@ -87,6 +87,8 @@ internal static class SfDropdownPatches
             TextInputLayoutEntryField = typeof(SfTextInputLayout).GetField("dropdownEntry", Any);
             DownOrUpClickField = typeof(SfDropdownEntry).GetField("IsDownOrUpButtonClickEnabled", Any);
 
+            WindowContext.TabNavigating += OnTabNavigating;
+
             var harmony = new Harmony("com.openmaui.syncfusion.dropdown");
             harmony.Patch(show, postfix: new HarmonyMethod(typeof(SfDropdownPatches).GetMethod(nameof(ShowPopup_Postfix), BindingFlags.Static | BindingFlags.NonPublic)));
             harmony.Patch(hide, postfix: new HarmonyMethod(typeof(SfDropdownPatches).GetMethod(nameof(HidePopup_Postfix), BindingFlags.Static | BindingFlags.NonPublic)));
@@ -127,6 +129,22 @@ internal static class SfDropdownPatches
         if (__instance is not ContentView view || !s_controllers.TryGetValue(view, out var controller))
             return;
         Closed(controller);
+    }
+
+    /// <summary>
+    /// Tab is about to move focus out of a control whose drop-down is open:
+    /// the control hears the Tab first and closes its drop-down, as WinUI's
+    /// controls see the key before focus moves.
+    /// </summary>
+    private static void OnTabNavigating(WindowContext window, SkiaView? focused)
+    {
+        if (focused?.MauiView is not Microsoft.Maui.Controls.View view)
+            return;
+        foreach (var controller in s_open.ToArray())
+        {
+            if (controller.Popup.IsShown && controller.Contains(view))
+                controller.CloseByTab();
+        }
     }
 
     internal static void Closed(SfDropdownController controller)
@@ -400,6 +418,21 @@ internal sealed class SfDropdownController
                 return true;
         }
         return false;
+    }
+
+    /// <summary>Tab in the control: its own keyboard handling closes the drop-down.</summary>
+    internal void CloseByTab()
+    {
+        try
+        {
+            if (Entry is { } entry)
+                entry.OnKeyDown(new global::Syncfusion.Maui.Core.Internals.KeyEventArgs(KeyboardKey.Tab));
+            SfInvalidation.InvalidateAll(drawingOnly: false);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("Syncfusion", "Closing a drop-down on Tab failed", ex);
+        }
     }
 
     /// <summary>A press outside: close as the native builds do, honouring DropDownClosing.</summary>

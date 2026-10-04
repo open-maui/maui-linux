@@ -189,7 +189,11 @@ public class LinuxWebViewHandler : LinuxViewHandler<IWebView, SkiaView>
         _ => WebNavigationEvent.NewPage,
     };
 
-    private async void OnGtkScriptDialogRequested(object? sender, (ScriptDialogType Type, string Message, Action<bool> Callback) e)
+    private void OnGtkScriptDialogRequested(object? sender, (ScriptDialogType Type, string Message, Action<bool> Callback) e) =>
+        ShowGtkScriptDialog(e);
+
+    /// <summary>Answers a WebKitGTK page's alert, confirm or prompt with OpenMaui's dialog.</summary>
+    internal static async void ShowGtkScriptDialog((ScriptDialogType Type, string Message, Action<bool> Callback) e)
     {
         string title = e.Type switch
         {
