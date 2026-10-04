@@ -1,30 +1,30 @@
 # OpenMaui Linux compatibility scorecard
 
-Generated 2026-09-27 by `tools/Scorecard` from 2042 executed tests (2042 passed, 1 skipped) in 2 result file(s). Coverage is computed, not asserted: an item is covered only when at least one mapped test exists and every mapped test passed. The categories mirror the table Microsoft publishes for its maui-labs GTK4 backend so the two can be compared row for row.
+Generated 2026-10-04 by `tools/Scorecard` from 2587 executed tests (2587 passed, 1 skipped) in 2 result file(s). Coverage is computed, not asserted: an item is covered only when at least one mapped test exists and every mapped test passed. The categories mirror the table Microsoft publishes for its maui-labs GTK4 backend so the two can be compared row for row.
 
 ## Implementation parity
 
 | Category | Coverage | Items | Tests | Notes |
 |----------|----------|-------|-------|-------|
-| Core Infrastructure | 100% | 4/4 | 125 | Dispatcher, handler factory, rendering pipeline (raster and GPU targets) |
-| Pages | 100% | 5/5 | 72 | ContentPage, NavigationPage, TabbedPage, FlyoutPage, Shell |
+| Core Infrastructure | 100% | 4/4 | 131 | Dispatcher, handler factory, rendering pipeline (raster and GPU targets) |
+| Pages | 100% | 5/5 | 75 | ContentPage, NavigationPage, TabbedPage, FlyoutPage, Shell |
 | Layouts | 100% | 8/8 | 71 | StackLayout, Grid, FlexLayout, AbsoluteLayout, ScrollView, ContentView, Border, Frame |
 | Basic Controls | 100% | 14/14 | 143 | All 14 standard controls |
 | Input Controls | 100% | 4/4 | 35 | Picker, DatePicker, TimePicker, SearchBar |
-| Collection Controls | 100% | 7/7 | 126 | CollectionView, ListView, TableView, CarouselView, SwipeView, RefreshView, IndicatorView |
+| Collection Controls | 100% | 7/7 | 131 | CollectionView, ListView, TableView, CarouselView, SwipeView, RefreshView, IndicatorView |
 | Navigation & Routing | 100% | 4/4 | 30 | Push/pop, modal navigation, Shell routes, query parameters |
 | Alerts & Dialogs | 100% | 4/4 | 40 | DisplayAlert, DisplayActionSheet, DisplayPromptAsync, modal pages |
 | Gesture Recognizers | 100% | 6/6 | 85 | Tap, Pan, Pinch, Swipe, Pointer, Drag/Drop |
 | Graphics & Shapes | 100% | 7/7 | 35 | GraphicsView + all 6 shape types |
 | Font Management | 100% | 4/4 | 44 | Registrar, manager, FontImageSource, named sizes, fallback |
-| WebView | 100% | 4/4 | 78 | URL, HTML, JavaScript, navigation events (WPE WebKit) |
+| WebView | 100% | 4/4 | 94 | URL, HTML, JavaScript, navigation events (WPE WebKit) |
 | Animations | 100% | 3/3 | 48 | ViewExtensions, Animation class, ticker |
 | VisualStateManager | 100% | 3/3 | 16 | Visual states, triggers, behaviors |
 | ControlTemplate | 100% | 2/2 | 7 | ContentPresenter, TemplatedView |
-| Base View Properties | 100% | 5/5 | 62 | Opacity, visibility, transforms, shadow, clip, automation |
+| Base View Properties | 100% | 5/5 | 66 | Opacity, visibility, transforms, shadow, clip, automation |
 | FormattedText | 100% | 3/3 | 29 | Span properties, decorations, fonts, span gestures |
 | MenuBar | 100% | 2/2 | 45 | MenuBarItem, MenuFlyoutItem, submenus, separators, accelerators, context menus |
-| Essentials | 100% | 36/36 | 141 | 36 services; desktop-inapplicable sensors report IsSupported=false |
+| Essentials | 100% | 36/36 | 148 | 36 services; desktop-inapplicable sensors report IsSupported=false |
 
 **Overall: 125/125 items covered (100%).**
 
@@ -36,8 +36,8 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 
 | Library | Version | Status | Tests passed | Backing tests | Notes |
 |---------|---------|--------|--------------|---------------|-------|
-| CommunityToolkit.Maui | 15.0.1 | Runs unmodified | 43/43 | `CommunityToolkitMauiCompatTests`, `CommunityToolkitPlatformFeatureTests` | Behaviors (TouchBehavior/ImageTouchBehavior states and commands, also in list rows), converters, Popup, Expander (also in list and grid rows), AvatarView, DrawingView (image export, line adapters), SemanticOrderView. Toast/Snackbar are desktop notifications and Badge a launcher badge, as on Windows; SpeechToText reports no recognizer. DrawingView needed an OpenMaui handler; AvatarView needed the Label vertical-alignment fix. |
-| CommunityToolkit.Maui.MediaElement | 10.0.0 | Runs unmodified | 18/18 | `MediaElementCompatTests`, `MediaElementParityTests` | Through OpenMaui.Controls.Linux.MediaElement (GStreamer); UseLinuxMediaElement() after the toolkit call. Events, states, Speed, HttpHeaders, ShouldKeepScreenOn, the playback controls and MPRIS metadata as on Windows (`docs/MEDIAELEMENT.md`). |
+| CommunityToolkit.Maui | 15.0.1 | Runs unmodified | 43/43 | `CommunityToolkitMauiCompatTests`, `CommunityToolkitPlatformFeatureTests` | Behaviors (TouchBehavior/ImageTouchBehavior states and commands), converters, Popup, Expander, AvatarView, DrawingView (image export, line adapters), SemanticOrderView. Toast/Snackbar are desktop notifications and Badge a launcher badge, as on Windows; SpeechToText reports no recognizer. DrawingView needed an OpenMaui handler; AvatarView needed the Label vertical-alignment fix. |
+| CommunityToolkit.Maui.MediaElement | 10.0.0 | Runs unmodified | 6/6 | `MediaElementCompatTests` | Through OpenMaui.Controls.Linux.MediaElement (GStreamer); UseLinuxMediaElement() after the toolkit call. |
 | CommunityToolkit.Mvvm | 8.4.2 | Runs unmodified | 5/5 | `CommunityToolkitMvvmCompatTests` | Source-generated properties and commands bound to Skia views; messenger. |
 | SkiaSharp.Views.Maui.Controls | 4.152.1 | Runs unmodified | 5/5 | `SkiaSharpViewsCompatTests` | SKCanvasView/SKGLView paint, invalidate and touch; UseSkiaSharp() chained after UseLinux() does not displace OpenMaui's handlers. |
 | LiveCharts2 (LiveChartsCore.SkiaSharpView.Maui) | 2.0.5 | Runs unmodified | 3/3 | `LiveChartsCompatTests` | Cartesian and pie charts render and redraw on data changes (built against SkiaSharp 3, runs on 4). Needed the AbsoluteLayout initial-children fix. Pointer interaction is a no-op in the library's generic build. |
@@ -47,7 +47,7 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 | Microsoft.Extensions.DependencyInjection page resolution | 10.0 | Runs unmodified | 2/2 | `DependencyInjectionCompatTests` | Constructor-injected root page; Shell content and routed pages from the container. |
 | FFImageLoading.Maui | 1.3.2 | Incompatible | 1/2 | `FFImageLoadingCompatTests` | Incompatible: FFImageLoading.Maui 1.3.2's generic-TFM build registers no IImageService and has no CachedImage handler (implementations exist only for Android, iOS/Mac Catalyst and Windows); new CachedImage() throws 'No service for type FFImageLoading.IImageService has been registered'. |
 | Mopups | 1.3.4 | Not evaluated | 0/0 | - | Popup coverage uses CommunityToolkit.Maui Popup (the task picks one popup library); Mopups ships net8.0 assets only. |
-| Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler) | 34.2.9 | Runs unmodified | 97/97 | `SyncfusionChartsCompatTests`, `SyncfusionComboOffsetTests`, `SyncfusionCompatTests`, `SyncfusionInputCompatTests`, `SyncfusionInputsCompatTests`, `SyncfusionListAutoFitTests`, `SyncfusionNativeViewCompatTests`, `SyncfusionPopupCompatTests`, `SyncfusionTabInputTests` | Through OpenMaui.Controls.Linux.Syncfusion: UseLinuxSyncfusion() in place of ConfigureSyncfusionCore(). Its generic net10.0 build ships stub handlers; the bridge supplies layout, drawing, text, input, the native-view controls, drop-downs and the popup overlay. Not covered: ImageEditor and Syncfusion's MediaElement. Apps register their own license key. |
+| Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler, DataGrid, ImageEditor, PullToRefresh) | 34.2.9 | Runs unmodified | 124/124 | `SyncfusionChartsCompatTests`, `SyncfusionComboOffsetTests`, `SyncfusionCompatTests`, `SyncfusionDataGridTests`, `SyncfusionImageEditorTests`, `SyncfusionInputCompatTests`, `SyncfusionInputsCompatTests`, `SyncfusionListAutoFitTests`, `SyncfusionNarrowTextTests`, `SyncfusionNativeViewCompatTests`, `SyncfusionPopupCompatTests`, `SyncfusionPullToRefreshTests`, `SyncfusionSchedulerMouseTests`, `SyncfusionTabInputTests` | Through OpenMaui.Controls.Linux.Syncfusion: UseLinuxSyncfusion() in place of ConfigureSyncfusionCore(). Its generic net10.0 build ships stub handlers; the bridge supplies layout, drawing, text, input, the native-view controls, drop-downs, the popup overlay, SfDataGrid's and SfScheduler's desktop mouse and keyboard handling, and SfImageEditor's image editing. Not covered: SfScheduler's desktop horizontal resource view. Apps register their own license key. |
 | Telerik UI for .NET MAUI | 15.0.0 | Not evaluated | 0/0 | - | License gate: depends on Telerik.Licensing, which requires a license key from a Telerik account (no key-free trial package on nuget.org). |
 
 ## Detail
@@ -57,9 +57,9 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 | Item | Status | Tests | Backing tests |
 |------|--------|-------|---------------|
 | Dispatcher | Covered | 7 | `LinuxDispatcherTests` |
-| Handler factory | Covered | 29 | `HandlerRegistryTests` |
+| Handler factory | Covered | 30 | `HandlerRegistryTests` |
 | Rendering pipeline | Covered | 34 | `RenderContextPropagationTests`, `RenderTargetTests`, `TextRenderingHelperTests` |
-| Golden rendering at 1.0x-2.0x | Covered | 55 | `GoldenSceneTests` |
+| Golden rendering at 1.0x-2.0x | Covered | 60 | `GoldenSceneTests` |
 
 ### Pages
 
@@ -67,7 +67,7 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 |------|--------|-------|---------------|
 | ContentPage | Covered | 4 | `SkiaPageTests` |
 | NavigationPage | Covered | 6 | `SkiaNavigationPageTests` |
-| TabbedPage | Covered | 18 | `SkiaTabbedPageTests` |
+| TabbedPage | Covered | 21 | `SkiaTabbedPageTests` |
 | FlyoutPage | Covered | 22 | `SkiaFlyoutPageTests` |
 | Shell | Covered | 22 | `ShellRoutingTests` |
 
@@ -120,7 +120,7 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 | ListView | Covered | 13 | `ListViewTests` |
 | TableView | Covered | 21 | `SkiaTableViewTests` |
 | CarouselView | Covered | 21 | `SkiaCarouselViewTests` |
-| SwipeView | Covered | 19 | `SkiaSwipeViewTests` |
+| SwipeView | Covered | 24 | `SkiaSwipeViewTests` |
 | RefreshView | Covered | 16 | `SkiaRefreshViewTests` |
 | IndicatorView | Covered | 25 | `SkiaIndicatorViewTests` |
 
@@ -178,8 +178,8 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 
 | Item | Status | Tests | Backing tests |
 |------|--------|-------|---------------|
-| URL and HTML sources | Covered | 49 | `WebViewHandlerTests`, `WpeWebViewSupportTests` |
-| JavaScript evaluation | Covered | 23 | `WebViewHandlerTests`, `WpeWebViewSupportTests` |
+| URL and HTML sources | Covered | 64 | `WebViewHandlerTests`, `WpeWebViewSupportTests` |
+| JavaScript evaluation | Covered | 24 | `WebViewHandlerTests`, `WpeWebViewSupportTests` |
 | Navigation events | Covered | 2 | `WebViewHandlerTests` |
 | Backend selection | Covered | 4 | `WpeWebViewSupportTests` |
 
@@ -211,10 +211,10 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 | Item | Status | Tests | Backing tests |
 |------|--------|-------|---------------|
 | Opacity and IsVisible | Covered | 32 | `SkiaViewEdgeCaseTests`, `SkiaViewTests`, `ViewPropertyRenderingTests` |
-| Transforms (rotation, scale, translation, anchor) | Covered | 7 | `ViewPropertyRenderingTests` |
+| Transforms (rotation, scale, translation, anchor) | Covered | 10 | `ViewPropertyRenderingTests` |
 | Shadow | Covered | 3 | `ViewPropertyRenderingTests` |
 | Clip | Covered | 4 | `ViewPropertyRenderingTests` |
-| AutomationId and semantics | Covered | 16 | `SemanticMapperTests`, `ViewPropertyRenderingTests` |
+| AutomationId and semantics | Covered | 17 | `SemanticMapperTests`, `ViewPropertyRenderingTests` |
 
 ### FormattedText
 
@@ -235,7 +235,7 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 
 | Item | Status | Tests | Backing tests |
 |------|--------|-------|---------------|
-| AppInfo | Covered | 2 | `EssentialsTests` |
+| AppInfo | Covered | 6 | `EssentialsTests` |
 | AppActions | Covered | 3 | `EssentialsTests` |
 | Battery | Covered | 7 | `EssentialsTests` |
 | Browser | Covered | 5 | `EssentialsTests` |
@@ -263,7 +263,7 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 | Compass | Covered | 2 | `EssentialsTests` |
 | Contacts | Covered | 1 | `EssentialsTests` |
 | Flashlight | Covered | 2 | `EssentialsTests` |
-| Geocoding | Covered | 1 | `EssentialsTests` |
+| Geocoding | Covered | 4 | `EssentialsParityTests` |
 | Gyroscope | Covered | 1 | `EssentialsTests` |
 | HapticFeedback | Covered | 3 | `EssentialsTests` |
 | Magnetometer | Covered | 1 | `EssentialsTests` |
@@ -274,7 +274,7 @@ Popular MAUI libraries consumed unchanged from NuGet (generic net10.0 TFM, or th
 
 ## Tests not mapped to any category
 
-706 tests are not attributed to a category above (infrastructure, diagnostics, platform-only features such as tray, printing, IME, drag payloads). They still run in the suite.
+1160 tests are not attributed to a category above (infrastructure, diagnostics, platform-only features such as tray, printing, IME, drag payloads). They still run in the suite.
 
-`AbsoluteLayoutBoundsTests`, `AppIconCacheTests`, `AppImageDetectionTests`, `BindableLayoutUpdateTests`, `ButtonPropertyMappingTests`, `CheckBoxPropertyMappingTests`, `ClipToBoundsTests`, `ContentPlacementTests`, `CustomLayoutTests`, `DialogBridgeTests`, `DirtyRegionPerformanceTests`, `DmaBufTextureImporterTests`, `DragDataTests`, `DragDropServiceTests`, `DrawPerformanceTests`, `DropEventArgsCoordinateTests`, `EntryChromeTests`, `EntryPropertyMappingTests`, `EssentialsPatchesTests`, `EssentialsTests`, `FocusCommandTests`, `GestureRecognizerTests`, `GlobalHotkeyServiceTests`, `GraphicsPathArcTests`, `GridAutoMarginTests`, `GridDefinitionsChangeTests`, `GridIntegrationTests`, `GtkModeSecondaryPumpTests`, `HighContrastChangedEventArgsTests`, `HighContrastColorsTests`, `HighContrastServiceTests`, `HitTestPerformanceTests`, `HorizontalScrollWrapPanelTests`, `HotkeyEventArgsTests`, `HotkeyKeyTests`, `HotkeyModifiersTests`, `IndicatorShapeTests`, `ItemViewRecyclingTests`, `LayoutSettleTests`, `LibraryContentViewTests`, `LinuxDragEventArgsTests`, `LinuxDropEventArgsTests`, `ListViewRefreshTests`, `MauiViewAnimationTests`, `MeasureArrangePerformanceTests`, `MeasureArrangePipelineTests`, `MercatorProjectionTests`, `MultiWindowDragDropTests`, `MultiWindowTests`, `NavigatorShapeLayoutTests`, `OpenMauiDoctorTests`, `PageContentAlignmentTests`, `PartialDamageTests`, `PickerTruncationTests`, `PlatformApplicationTests`, `PopupOverlayOriginTests`, `PortalFeatureTests`, `PortalOptionsTests`, `PortalRequestTests`, `PortalServiceIntegrationTests`, `PortalSettingsParsingTests`, `PositionChangedEventArgsTests`, `PrintServiceTests`, `RemeasureAfterTextChangeTests`, `RemeasureAfterTextToggleTests`, `ResizeLogicalLayoutTests`, `ResourceCachePerformanceTests`, `RuntimeScaleTests`, `SamplePageSceneTests`, `ScaleChangedEventArgsTests`, `ScrolledTileTapTests`, `ScrollViewOffsetTests`, `ShapeTests`, `ShellFlyoutTemplateTests`, `ShellPageAlertTests`, `ShellPageFactoryTests`, `SkiaEntryEdgeCaseTests`, `SkiaEntryTextTheoryTests`, `SkiaLabelEdgeCaseTests`, `SkiaLabelTheoryTests`, `SkiaMapTests`, `SkiaSliderEdgeCaseTests`, `SkiaSliderTheoryTests`, `SkiaStackLayoutEdgeCaseTests`, `SkiaViewVisibilityTheoryTests`, `SliderPropertyMappingTests`, `StackLayoutIntegrationTests`, `TappableContainerHitTests`, `ThirdPartyCompatFixTests`, `TileSourceTests`, `ToolbarShapeLayoutTests`, `ToolTipTests`, `TrayIconServiceTests`, `VideoFrameFormatsTests`, `VisualTreeInspectorTests`, `VulkanRenderTargetTests`, `WaylandDragDropServiceTests`, `WaylandTextInputV3ServiceTests`, `WindowSyncTests`, `WpeKeycodeTests`, `WrappedCardLayoutTests`, `ZIndexTests`
+`AbsoluteLayoutBoundsTests`, `AppIconCacheTests`, `AppImageDetectionTests`, `BackgroundColorWriteBackTests`, `BindableLayoutUpdateTests`, `ButtonLineBreakModeTests`, `ButtonPropertyMappingTests`, `ButtonTextMappingTests`, `CheckBoxColorTests`, `CheckBoxPropertyMappingTests`, `ClipRepaintTests`, `ClipToBoundsTests`, `CollectionEmptyViewTests`, `CollectionHeaderFooterTests`, `CollectionRowInputTests`, `CollectionViewParityTests`, `ColumnWidthChangeTests`, `CommunityToolkitBridgeTests`, `ContentPlacementTests`, `CoreHandlerParityTests`, `CustomLayoutTests`, `DesiredSizeConstraintTests`, `DialogBridgeTests`, `DirtyRegionPerformanceTests`, `DmaBufTextureImporterTests`, `DragDataTests`, `DragDropServiceTests`, `DrawPerformanceTests`, `DropEventArgsCoordinateTests`, `EffectsPipelineTests`, `EnergySaverTests`, `EntryChromeTests`, `EntryPropertyMappingTests`, `EssentialsGapTests`, `EssentialsParityTests`, `EssentialsPatchesTests`, `EssentialsTests`, `FocusCommandTests`, `GestureRecognizerTests`, `GlobalHotkeyServiceTests`, `GraphicsPathArcTests`, `GridAutoMarginTests`, `GridDefinitionsChangeTests`, `GridFixedRowsTests`, `GridIntegrationTests`, `GridStarMeasureTests`, `GtkModeSecondaryPumpTests`, `HiddenViewRepaintTests`, `HighContrastChangedEventArgsTests`, `HighContrastColorsTests`, `HighContrastServiceTests`, `HitTestPerformanceTests`, `HorizontalScrollWrapPanelTests`, `HotkeyEventArgsTests`, `HotkeyKeyTests`, `HotkeyModifiersTests`, `HybridWebViewBridgeTests`, `IconImageSourceServiceTests`, `ImageAspectFillClipTests`, `ImageButtonCornerTests`, `ImageCacheEvictionTests`, `ImageInStarRowTests`, `ImageSourceLoadingTests`, `ImageSourceServiceTests`, `IndicatorShapeTests`, `ItemsViewUpdateParityTests`, `ItemTemplateSelectorTests`, `ItemViewRecyclingTests`, `LayoutSettleTests`, `LegacyStackLayoutTests`, `LibraryContentViewTests`, `LibraryHandlerSelectionTests`, `LinuxDragEventArgsTests`, `LinuxDropEventArgsTests`, `LinuxFontManagerCacheTests`, `ListViewRefreshTests`, `MapperParityTests`, `MauiLayoutManagerTests`, `MauiTemplateMainPageTests`, `MauiViewAnimationTests`, `MeasureArrangePerformanceTests`, `MeasureArrangePipelineTests`, `MediaElementParityTests`, `MediaTransportControlsTests`, `MercatorProjectionTests`, `MprisServiceTests`, `MultiWindowDragDropTests`, `MultiWindowTests`, `NavigationPageParityTests`, `NavigatorShapeLayoutTests`, `OpenMauiDoctorTests`, `PageContentAlignmentTests`, `PageInvariantsTests`, `PartialDamageTests`, `PdfiumDocumentTests`, `PickerIsOpenTests`, `PickerTruncationTests`, `PlatformApplicationTests`, `PopupOverlayOriginTests`, `PortalFeatureTests`, `PortalOptionsTests`, `PortalRequestTests`, `PortalServiceIntegrationTests`, `PortalSettingsParsingTests`, `PositionChangedEventArgsTests`, `PrintServiceTests`, `RadioButtonTextStyleMappingTests`, `RemeasureAfterTextChangeTests`, `RemeasureAfterTextToggleTests`, `ResizeLogicalLayoutTests`, `ResourceCachePerformanceTests`, `RuntimeScaleTests`, `SamplePageSceneTests`, `ScaleChangedEventArgsTests`, `SchemeHandlerTests`, `ScrolledGesturePositionTests`, `ScrolledTileTapTests`, `ScrollViewContentHeightTests`, `ScrollViewOffsetTests`, `ShapeTests`, `ShapeViewHandlerTests`, `ShellFlyoutHeaderBehaviorTests`, `ShellFlyoutHeaderTapTests`, `ShellFlyoutTemplateTests`, `ShellLazyPageTests`, `ShellNavBarTitleTests`, `ShellPageAlertTests`, `ShellPageFactoryTests`, `ShellPushedPageSizeTests`, `ShellTabBarTests`, `ShellTitleViewTests`, `ShellToolbarItemTests`, `SkiaButtonTruncationTests`, `SkiaEntryEdgeCaseTests`, `SkiaEntryTextTheoryTests`, `SkiaLabelEdgeCaseTests`, `SkiaLabelTheoryTests`, `SkiaMapTests`, `SkiaNavigationPageTransitionTests`, `SkiaPdfViewTests`, `SkiaSliderEdgeCaseTests`, `SkiaSliderTheoryTests`, `SkiaStackLayoutEdgeCaseTests`, `SkiaViewVisibilityTheoryTests`, `SliderPropertyMappingTests`, `SliderThumbImageTests`, `SpanningAutoRowsTests`, `StackLayoutIntegrationTests`, `SwipeViewParityTests`, `SyncfusionButtonClickTests`, `SyncfusionButtonFlyoutTests`, `SyncfusionButtonPressedStateTests`, `SyncfusionChipGroupRowTests`, `SyncfusionComboMeasureTests`, `SyncfusionControlParityTests`, `SyncfusionListChainRowTests`, `SyncfusionListEffectTests`, `SyncfusionListSpanningPillTests`, `SyncfusionListStickyHeaderTests`, `SyncfusionPdfToImageConverterTests`, `SyncfusionSchedulerResourceViewTests`, `SyncfusionStampViewTests`, `SyncfusionTextEntryParityTests`, `SyncfusionToolbarTests`, `TabNavigationAndTextHookTests`, `TappableContainerHitTests`, `TextInputParityTests`, `ThirdPartyCompatFixTests`, `TileSourceTests`, `ToolbarShapeLayoutTests`, `ToolkitIconTintTests`, `ToolTipTests`, `TrayIconServiceTests`, `VideoFrameFormatsTests`, `VisualTreeElementLookupTests`, `VisualTreeInspectorTests`, `VulkanRenderTargetTests`, `WaylandDragDropServiceTests`, `WaylandTextInputV3ServiceTests`, `WindowChromeTests`, `WindowFrameAndToolbarTests`, `WindowSyncTests`, `WpeKeycodeTests`, `WrappedCardLayoutTests`, `ZIndexTests`
 
