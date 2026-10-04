@@ -211,6 +211,7 @@ public partial class TextButtonHandler : ButtonHandler
     public static void MapImageSource(TextButtonHandler handler, ITextButton button)
     {
         if (handler.PlatformView is null) return;
+        handler.PlatformView.ImageServices = handler.MauiContext?.Services;
         handler.PlatformView.ImageSource = (button as Button)?.ImageSource;
     }
 
