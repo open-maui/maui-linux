@@ -1,0 +1,170 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MAUI handler conformance suite.
+
+    Compiles dotnet/maui's OWN shared handler device tests (Core DeviceTests,
+    tag 10.0.110) against the Linux handlers, so MAUI's assertions are the
+    specification. The MAUI sources are NOT vendored: they are compiled in place
+    from a local clone (MIT licensed, file headers untouched).
+
+      MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
+                Default: $(HOME)/.cache/openmaui-build/maui-src
+                Populate it with tests/Conformance/get-maui-sources.sh (a shallow,
+                sparse clone of the 10.0.110 tag: src/Core/tests, src/TestUtils,
+                src/Controls/tests/DeviceTests).
+                Override: dotnet test -p:MauiSrc=/path/to/maui
+
+    Without the clone the project still builds, but only contains one skipped
+    test that explains how to get the sources (MauiSourcesMissing.cs).
+
+    What lives here (Linux side, our code):
+      Infrastructure/  ports of the platform pieces MAUI's device-test runner
+                       provides (TestDispatcher/TestServices, ConfigureTestBuilder
+                       with UseLinux, AssertionExtensions for Skia views, the
+                       HandlerTestBasement platform helpers) and the handler
+                       aliases that point MAUI's handler names at the Linux ones.
+      Handlers/        the *.Linux.cs equivalents of MAUI's *.Windows.cs /
+                       *.Android.cs partials: read values back from Skia views.
+
+    Kept out of tests/OpenMaui.Controls.Linux.Tests.csproj on purpose: failures
+    here are parity gaps to report (docs/CONFORMANCE.md), not regressions.
+    Run:  dotnet test tests/Conformance/OpenMaui.Conformance.Tests.csproj
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Microsoft.Maui.DeviceTests</RootNamespace>
+    <!-- The name MAUI's own Core device-test app has: Microsoft.Maui.Core (net10.0) grants it
+         InternalsVisibleTo, which the shared test code relies on (InvokeWithResult,
+         GetDispatcher, CreateLogger, ...), exactly as on the device runners. -->
+    <AssemblyName>Microsoft.Maui.Core.DeviceTests</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- MAUI's sources are written for their own analyzer/warning set. -->
+    <NoWarn>$(NoWarn);CS0618;CS0672;CS0108;CS0114;CS0162;CS0168;CS0219;CS0414;CS0649;CS0169;CS1998;CS8632;CS0105;CA1416;xUnit1013;xUnit1026;xUnit2000;xUnit2009;xUnit1030;xUnit1031;xUnit1012;xUnit2013;xUnit1025;xUnit1004;xUnit2002;xUnit2005;xUnit2007;xUnit2015;xUnit2017;xUnit2020;xUnit1051;MCTME001</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DefineConstants>$(DefineConstants);OPENMAUI_LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src</MauiSrc>
+    <MauiSrc>$([MSBuild]::EnsureTrailingSlash('$(MauiSrc)'))</MauiSrc>
+    <MauiCoreTests>$(MauiSrc)src/Core/tests/DeviceTests/</MauiCoreTests>
+    <MauiSharedTests>$(MauiSrc)src/Core/tests/DeviceTests.Shared/</MauiSharedTests>
+    <MauiTestUtils>$(MauiSrc)src/TestUtils/src/DeviceTests/</MauiTestUtils>
+    <MauiSourcesPresent Condition="Exists('$(MauiCoreTests)Handlers/CoreHandlerTestBase.cs')">true</MauiSourcesPresent>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\OpenMaui.Controls.Linux.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    MAUI handler test files compiled in place (relative to src/Core/tests/DeviceTests/Handlers).
+    Each entry needs a Handlers/<Name>HandlerTests.Linux.cs partial with the platform helpers.
+  -->
+  <ItemGroup>
+    <MauiHandlerTest Include="Label/LabelHandlerTests.cs" />
+    <MauiHandlerTest Include="Button/ButtonHandlerTests.cs" />
+    <MauiHandlerTest Include="Entry/EntryHandlerTests.cs" />
+    <MauiHandlerTest Include="Editor/EditorHandlerTests.cs" />
+    <MauiHandlerTest Include="CheckBox/CheckBoxHandlerTests.cs" />
+    <MauiHandlerTest Include="Switch/SwitchHandlerTests.cs" />
+    <MauiHandlerTest Include="Slider/SliderHandlerTests.cs" />
+    <MauiHandlerTest Include="Stepper/StepperHandlerTests.cs" />
+    <MauiHandlerTest Include="ProgressBar/ProgressBarHandlerTests.cs" />
+    <MauiHandlerTest Include="ActivityIndicator/ActivityIndicatorHandlerTests.cs" />
+    <MauiHandlerTest Include="Image/ImageHandlerTests.cs" />
+    <MauiHandlerTest Include="ImageButton/ImageButtonHandlerTests.cs" />
+    <MauiHandlerTest Include="DatePicker/DatePickerHandlerTests.cs" />
+    <MauiHandlerTest Include="TimePicker/TimePickerHandlerTests.cs" />
+    <MauiHandlerTest Include="Picker/PickerHandlerTests.cs" />
+    <MauiHandlerTest Include="SearchBar/SearchBarHandlerTests.cs" />
+    <MauiHandlerTest Include="RadioButton/RadioButtonHandlerTests.cs" />
+    <MauiHandlerTest Include="Border/BorderHandlerTests.cs" />
+    <MauiHandlerTest Include="ScrollView/ScrollViewHandlerTests.cs" />
+    <MauiHandlerTest Include="Layout/LayoutHandlerTests.cs" />
+    <MauiHandlerTest Include="ContentView/ContentViewTests.cs" />
+    <MauiHandlerTest Include="GraphicsView/GraphicsViewHandlerTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Core stubs that only make sense with a platform image pipeline. -->
+    <MauiStubExclude Include="$(MauiCoreTests)Stubs/CountedImageHandler.cs" />
+    <MauiStubExclude Include="$(MauiCoreTests)Stubs/CountedImageSourceServiceStub.cs" />
+    <!-- Uses the platform-only PlatformImage type (WebView tests are not in scope). -->
+    <MauiStubExclude Include="$(MauiCoreTests)Stubs/WebView.cs" />
+    <!-- Set ViewHandler internals that only the platform TFMs expose (ContainerView setter, _mapper). -->
+    <MauiStubExclude Include="$(MauiCoreTests)Stubs/ButtonWithContainerStub.cs" />
+    <MauiStubExclude Include="$(MauiCoreTests)Stubs/StubBaseHandler.cs" />
+    <MauiStubExclude Include="$(MauiCoreTests)Stubs/WindowHandlerProxyStub.cs" />
+  </ItemGroup>
+
+  <!-- ===================== Without the MAUI clone ===================== -->
+  <ItemGroup Condition="'$(MauiSourcesPresent)' != 'true'">
+    <Compile Remove="**/*.cs" />
+    <Compile Include="MauiSourcesMissing.cs" />
+  </ItemGroup>
+  <Target Name="WarnMauiSourcesMissing" BeforeTargets="CoreCompile" Condition="'$(MauiSourcesPresent)' != 'true'">
+    <Warning Text="MAUI test sources not found at '$(MauiSrc)'. The conformance suite is reduced to one skipped test. Run tests/Conformance/get-maui-sources.sh or pass -p:MauiSrc=..." />
+  </Target>
+
+  <!-- ===================== With the MAUI clone ===================== -->
+  <ItemGroup Condition="'$(MauiSourcesPresent)' == 'true'">
+    <Compile Remove="MauiSourcesMissing.cs" />
+
+    <!-- Test runner infrastructure (TestUtils/src/DeviceTests) -->
+    <Compile Include="$(MauiTestUtils)AssertHelpers.cs" Link="Maui/TestUtils/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiTestUtils)AssertionExtensions.cs" Link="Maui/TestUtils/%(Filename)%(Extension)" />
+    <!-- xUnitCustomizations.cs is replaced by Infrastructure/XunitCustomizations.Linux.cs:
+         its discoverers name the device-runner assembly, so xunit would find no tests. -->
+
+    <!-- DeviceTests.Shared: handler test base classes, generic per-handler tests, stubs -->
+    <Compile Include="$(MauiSharedTests)GlobalNamespaces.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/TestBase.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBasement.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBasementOfT.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBase.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBaseOfT.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBaseOfT.Tests.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/TextStyle/TextStyleHandlerTests.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/TextInput/TextInputHandlerTests.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/Focus/FocusHandlerTests.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)Stubs/*.cs" Link="Maui/Shared/Stubs/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)ImageAnalysis/*.cs" Link="Maui/Shared/ImageAnalysis/%(Filename)%(Extension)" />
+
+    <!-- Core DeviceTests: base classes, stubs (cross-platform files only).
+         TestCategory.cs is replaced by Infrastructure/TestCategory.Linux.cs. -->
+    <Compile Include="$(MauiCoreTests)Handlers/CoreHandlerTestBase.cs" Link="Maui/Core/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiCoreTests)Handlers/CoreHandlerTestBaseOfT.cs" Link="Maui/Core/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiCoreTests)Stubs/*.cs" Exclude="$(MauiCoreTests)Stubs/*.Android.cs;$(MauiCoreTests)Stubs/*.iOS.cs;$(MauiCoreTests)Stubs/*.Windows.cs;@(MauiStubExclude)" Link="Maui/Core/Stubs/%(Filename)%(Extension)" />
+
+    <!-- Helper base used by the image tests (shared file; Linux part in Handlers/ImageHandlerTests.Linux.cs). -->
+    <Compile Include="$(MauiCoreTests)Services/ImageSource/BaseImageSourceServiceTests.cs" Link="Maui/Core/%(Filename)%(Extension)" />
+    <!-- The pictures the image tests load by file name (MAUI ships them in its device-test app). -->
+    <Content Include="$(MauiCoreTests)Resources/Images/*.png;$(MauiCoreTests)Resources/Images/*.gif" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(MauiCoreTests)Resources/Raw/*.png" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- The handler tests under test (shared files only) -->
+    <Compile Include="@(MauiHandlerTest->'$(MauiCoreTests)Handlers/%(Identity)')" Link="Maui/Handlers/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
