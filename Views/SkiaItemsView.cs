@@ -319,11 +319,20 @@ public class SkiaItemsView : SkiaView
     }
 
     /// <summary>
+    /// Content scrolled before the first item and after the last (a CollectionView's header and
+    /// footer, which scroll with the items as on every MAUI platform). Zero for a plain list.
+    /// </summary>
+    protected virtual float LeadingContentHeight => 0f;
+
+    /// <inheritdoc cref="LeadingContentHeight"/>
+    protected virtual float TrailingContentHeight => 0f;
+
+    /// <summary>
     /// Gets the Y offset for a specific item (cumulative height of all previous items).
     /// </summary>
     protected float GetItemOffset(int index)
     {
-        float offset = 0;
+        float offset = LeadingContentHeight;
         for (int i = 0; i < index && i < _items.Count; i++)
         {
             offset += GetItemHeight(i) + _itemSpacing;
@@ -359,9 +368,9 @@ public class SkiaItemsView : SkiaView
     {
         get
         {
-            if (_items.Count == 0) return 0;
+            float total = LeadingContentHeight + TrailingContentHeight;
+            if (_items.Count == 0) return total;
 
-            float total = 0;
             for (int i = 0; i < _items.Count; i++)
             {
                 total += GetItemHeight(i);
@@ -403,7 +412,7 @@ public class SkiaItemsView : SkiaView
         // Measure each item before using its height so the first frame after a
         // cache refresh positions rows correctly (no mis-layout flash).
         _firstVisibleIndex = 0;
-        float cumulativeOffset = 0;
+        float cumulativeOffset = LeadingContentHeight;
         for (int i = 0; i < _items.Count; i++)
         {
             EnsureItemMeasured(i, contentWidth);
@@ -725,7 +734,7 @@ public class SkiaItemsView : SkiaView
 
                 // Find tapped index by walking through item heights
                 int tappedIndex = -1;
-                float cumulativeY = 0;
+                float cumulativeY = LeadingContentHeight;
                 for (int i = 0; i < _items.Count; i++)
                 {
                     var itemH = GetItemHeight(i);

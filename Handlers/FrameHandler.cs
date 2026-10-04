@@ -55,10 +55,10 @@ public partial class FrameHandler : LinuxViewHandler<Frame, SkiaFrame>
 
     public static void MapBorderColor(FrameHandler handler, Frame frame)
     {
-        if (frame.BorderColor != null)
-        {
-            handler.PlatformView.Stroke = frame.BorderColor;
-        }
+        // MAUI's Frame draws a 1-unit border in its BorderColor, and none without one
+        // (its size includes that border, as on Android's and iOS's frames).
+        handler.PlatformView.Stroke = frame.BorderColor ?? Microsoft.Maui.Graphics.Colors.Transparent;
+        handler.PlatformView.StrokeThickness = frame.BorderColor != null ? 1.0 : 0.0;
     }
 
     public static void MapCornerRadius(FrameHandler handler, Frame frame)

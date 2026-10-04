@@ -204,6 +204,13 @@ public class LinuxViewRenderer
             }
         };
 
+        skiaShell.FlyoutHeaderBehavior = shell.FlyoutHeaderBehavior;
+        shell.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Shell.FlyoutHeaderBehavior))
+                skiaShell.FlyoutHeaderBehavior = shell.FlyoutHeaderBehavior;
+        };
+
         // Render flyout header if present
         if (shell.FlyoutHeader is View headerView)
         {
@@ -271,6 +278,7 @@ public class LinuxViewRenderer
         // Set up content renderer, color refresher, and icon syncer delegates
         skiaShell.ContentRenderer = CreateShellContentPage;
         skiaShell.PageRenderer = RenderPushedPage;
+        skiaShell.ViewRenderer = RenderView;
         skiaShell.ColorRefresher = ApplyShellColors;
         skiaShell.IconSyncer = s => SyncFlyoutIcons(s, shell);
 
@@ -294,7 +302,7 @@ public class LinuxViewRenderer
         // when the first attempt landed).
         skiaShell.ResendPendingAppearing();
 
-        RendererHostedPageHandler.Attach(shell, skiaShell, _mauiContext);
+        ShellHandler.AttachRendered(shell, skiaShell, _mauiContext);
         return skiaShell;
     }
 
@@ -500,6 +508,11 @@ public class LinuxViewRenderer
     {
         if (shell == null)
             return null;
+        // The row stands for the element MAUI lists in the flyout: a ShellSection or
+        // ShellContent added straight to Shell.Items is wrapped in an implicit ShellItem (and
+        // a content in an implicit section), and the flyout lists the section or content
+        // itself (ShellFlyoutItemsManager), so that element's ItemTemplate and binding apply.
+        item = FlyoutElementOf(item);
         var template = Shell.GetItemTemplate(item) ?? shell.ItemTemplate;
         if (template is DataTemplateSelector selector)
             template = selector.SelectTemplate(item, shell);
@@ -509,8 +522,10 @@ public class LinuxViewRenderer
         {
             if (template.CreateContent() is not View row)
                 return null;
-            row.Parent = shell;
-            row.BindingContext = item;
+            row.BindingContext = item; // before the parent, or it binds to the shell's context first
+            // A logical child of the element it shows, as MAUI's flyout item view adds it: its
+            // Parent is that element, and the element's visual children include it.
+            item.AddLogicalChild(row);
             return RenderView(row);
         }
         catch (Exception ex)
@@ -519,6 +534,28 @@ public class LinuxViewRenderer
             return null;
         }
     }
+
+    /// <summary>
+    /// The element MAUI's flyout lists for <paramref name="item"/>: the item itself, or for an
+    /// implicit ShellItem (a section or content added straight to Shell.Items) its section,
+    /// and for an implicit section with one content that content.
+    /// </summary>
+    private static BaseShellItem FlyoutElementOf(BaseShellItem item)
+    {
+        if (item is ShellItem shellItem && IsImplicit(shellItem)
+            && (shellItem.CurrentItem ?? shellItem.Items.FirstOrDefault()) is { } section)
+        {
+            if (IsImplicit(section) && section.Items.Count == 1)
+                return section.Items[0];
+            return section;
+        }
+        return item;
+    }
+
+    // MAUI marks the shell parts it creates around a bare section or content with an
+    // "IMPL_" route (Routing.IsImplicit is internal).
+    private static bool IsImplicit(BaseShellItem item) =>
+        Routing.GetRoute(item)?.StartsWith("IMPL_", StringComparison.Ordinal) == true;
 
     private static bool IsListedInFlyout(BaseShellItem item)
     {
@@ -714,14 +751,16 @@ public class LinuxViewRenderer
                 s_shellContentPages.Add(content, page);
             }
 
-            if (page is ContentPage cp && cp.Content != null)
+            if (page is ContentPage cp)
             {
                 // The page fills the content area and scrolls only if the app
                 // put a ScrollView in it, as on every MAUI platform. (Wrapping
                 // every page in a scroll view measured it with infinite height,
                 // so star rows collapsed to their content and page-filling
-                // overlays were pushed below the window.)
-                if (contentView != null)
+                // overlays were pushed below the window.) A page with no Content
+                // (yet) is still shown, as an empty page: it gets its handler,
+                // Loaded, Appearing and navigation like any other.
+                if (contentView != null || cp.Content == null)
                 {
                     // Get page background color if set
                     Color? bgColor = null;
@@ -732,7 +771,8 @@ public class LinuxViewRenderer
                     }
 
                     var host = new ShellPageHost(cp) { Padding = cp.Padding };
-                    host.AddChild(contentView);
+                    if (contentView != null)
+                        host.AddChild(contentView);
                     if (bgColor != null)
                     {
                         host.BackgroundColor = bgColor;
@@ -741,6 +781,12 @@ public class LinuxViewRenderer
                     RendererHostedPageHandler.Attach(cp, host, _mauiContext);
                     return host;
                 }
+            }
+            else if (page != null)
+            {
+                // Any other page (a NavigationPage, TabbedPage, ... as a ShellContent's
+                // content) renders through its own handler, as a window's page does.
+                return RenderPage(page);
             }
         }
         catch (Exception ex)
@@ -852,9 +898,9 @@ internal sealed class ShellPageHost : SkiaGrid
 }
 
 /// <summary>
-/// The handler of a page the renderer draws itself: the Shell (its
-/// <see cref="SkiaShell"/>) and the Shell's pages (their
-/// <see cref="ShellPageHost"/>). It maps nothing (the renderer already draws
+/// The handler of a page the renderer draws itself: the Shell's pages (their
+/// <see cref="ShellPageHost"/>; the Shell itself gets a ShellHandler over its
+/// SkiaShell, see ShellHandler.AttachRendered). It maps nothing (the renderer already draws
 /// them) but gives the page a handler, as every platform does. MAUI subscribes
 /// a window's alert manager when the window's page gets a handler, and holds a
 /// page's alerts until it has one (IsPlatformEnabled); without it no

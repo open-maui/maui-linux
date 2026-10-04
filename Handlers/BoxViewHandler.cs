@@ -10,10 +10,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for BoxView on Linux.
 /// </summary>
-public partial class BoxViewHandler : LinuxViewHandler<BoxView, SkiaBoxView>
+public partial class BoxViewHandler : LinuxViewHandler<BoxView, SkiaBoxView>, IShapeViewHandler
 {
     public static IPropertyMapper<BoxView, BoxViewHandler> Mapper =
-        new PropertyMapper<BoxView, BoxViewHandler>(ViewMapper)
+        new PropertyMapper<BoxView, BoxViewHandler>(ShapeViewHandler.Mapper)
         {
             [nameof(BoxView.Color)] = MapColor,
             [nameof(BoxView.CornerRadius)] = MapCornerRadius,
@@ -73,5 +73,15 @@ public partial class BoxViewHandler : LinuxViewHandler<BoxView, SkiaBoxView>
             handler.PlatformView.BackgroundColor = boxView.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
+    }
+
+    IShapeView IShapeViewHandler.VirtualView => VirtualView;
+
+    object IShapeViewHandler.PlatformView => PlatformView;
+
+    protected override void DisconnectHandler(SkiaBoxView platformView)
+    {
+        platformView.ClearShape();
+        base.DisconnectHandler(platformView);
     }
 }
