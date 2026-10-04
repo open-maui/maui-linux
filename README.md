@@ -381,6 +381,24 @@ Summary: 31 ok, 0 warning(s), 1 missing (0 required).
 
 (The `libcups` row above is illustrative of how a missing dependency is shown.)
 
+### Checking your app's pages
+
+Set `OPENMAUI_INVARIANTS=1` and use the app: each page is checked a second after it appears (and every five seconds while it stays), and what is broken is printed to stderr. The rules hold for every MAUI page, so they catch whole classes of problems in OpenMaui or in the app without a test written for that page:
+
+| Rule | Reports |
+|---|---|
+| `type-name-text` | text that is a .NET type name (an object drawn through its `ToString`) |
+| `draws-outside-bounds` | an image or video that draws outside its frame |
+| `unreachable-control` | a visible, enabled control that a click at its centre does not reach |
+| `binding-failed` | a binding that failed (MAUI's binding diagnostics are turned on for this) |
+| `error-logged` | an error OpenMaui logged while the page was shown |
+
+```text
+[Invariant] checked LibraryPage: 0 violation(s)
+[Invariant] checked EconomyPage: 1 violation(s)
+[Invariant] binding-failed: 'IsOffline' property not found on 'EconomyViewModel', target property: 'ChatPane.IsOffline' (binding)
+```
+
 ## Documentation
 
 - [Getting Started Guide](docs/GETTING_STARTED.md)

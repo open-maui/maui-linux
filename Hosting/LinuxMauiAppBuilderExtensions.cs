@@ -110,7 +110,12 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // VisualElement.Focus()/Unfocus() through the window's focus.
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register();
         Microsoft.Maui.Platform.Linux.Handlers.LinuxViewMappers.Register();
+        if (Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.Enabled)
+            Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.Install();
         Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install();
+        // VisualTreeElementExtensions' platform lookups (GetVisualTreeElements(point), a platform
+        // view's element) on the Skia tree.
+        Microsoft.Maui.Platform.Linux.Handlers.VisualTreeElementPatches.Install();
         // MAUI's effects pipeline: an Element resolves the PlatformEffect for a RoutingEffect
         // through the EffectsFactory service, which only ConfigureEffects registers; without
         // it the first effect added to any view threw. Registered empty here, so an app or a
@@ -224,8 +229,10 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, PolygonHandler>();
             handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, PolylineHandler>();
             handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Path, ShapePathHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.RoundRectangle, RoundRectangleHandler>();
             handlers.AddHandler<MenuBar, MenuBarHandler>();
             handlers.AddHandler<MenuFlyout, MenuFlyoutHandler>();
+            handlers.AddHandler<Toolbar, ToolbarHandler>();
 
             // Core controls
             handlers.AddHandler<BoxView, BoxViewHandler>();
