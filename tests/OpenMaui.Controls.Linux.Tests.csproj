@@ -44,6 +44,10 @@
     <Compile Remove="WebViewHost\**" />
     <!-- Third-party compatibility suite is its own project (tests/Compat). -->
     <Compile Remove="Compat\**" />
+    <!-- MAUI handler conformance suite is its own project (tests/Conformance). -->
+    <Compile Remove="Conformance\**" />
+    <Content Remove="Conformance\**" />
+    <None Remove="Conformance\**" />
   </ItemGroup>
 
   <ItemGroup>
