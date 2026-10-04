@@ -16,6 +16,7 @@ public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndica
     public static IPropertyMapper<IActivityIndicator, ActivityIndicatorHandler> Mapper = new PropertyMapper<IActivityIndicator, ActivityIndicatorHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IActivityIndicator.IsRunning)] = MapIsRunning,
+        [nameof(IView.Visibility)] = MapVisibility,
         [nameof(IActivityIndicator.Color)] = MapColor,
         [nameof(IView.Background)] = MapBackground,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
@@ -52,10 +53,18 @@ public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndica
         }
     }
 
+    /// <summary>It spins only while running and visible, as MAUI's handlers do on every platform.</summary>
     public static void MapIsRunning(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.IsRunning = activityIndicator.IsRunning;
+        handler.PlatformView.IsRunning = activityIndicator.IsRunning && activityIndicator.Visibility == Visibility.Visible;
+    }
+
+    /// <summary>The base visibility mapping, then the spin, which depends on it.</summary>
+    public static void MapVisibility(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    {
+        LinuxViewMappers.MapVisibility(handler, activityIndicator);
+        MapIsRunning(handler, activityIndicator);
     }
 
     public static void MapColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)

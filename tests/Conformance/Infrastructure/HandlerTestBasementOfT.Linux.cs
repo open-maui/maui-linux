@@ -41,8 +41,10 @@ namespace Microsoft.Maui.DeviceTests
 		protected string GetAutomationId(IViewHandler viewHandler) =>
 			Skia(viewHandler).AutomationId;
 
+		// MAUI's Semantics.Description is the accessible name (AutomationProperties.Name on
+		// Windows); OpenMaui exposes it as SemanticName to AT-SPI.
 		protected string GetSemanticDescription(IViewHandler viewHandler) =>
-			Skia(viewHandler).SemanticDescription;
+			Skia(viewHandler).SemanticName;
 
 		protected string GetSemanticHint(IViewHandler viewHandler) =>
 			Skia(viewHandler).SemanticHint;
@@ -67,18 +69,8 @@ namespace Microsoft.Maui.DeviceTests
 
 		protected double GetRotationY(IViewHandler viewHandler) => Skia(viewHandler).RotationY;
 
-		protected Visibility GetVisibility(IViewHandler viewHandler)
-		{
-			var v = Skia(viewHandler);
-			// A Skia view has no separate "collapsed" flag: hidden views do not
-			// take layout space through IView.Visibility, which the layout reads
-			// from the virtual view. Report what the platform view knows.
-			if (!v.IsVisible)
-				return Visibility.Collapsed;
-			if (v.Opacity == 0)
-				return Visibility.Hidden;
-			return Visibility.Visible;
-		}
+		protected Visibility GetVisibility(IViewHandler viewHandler) =>
+			Skia(viewHandler).Visibility;
 
 		protected FlowDirection GetFlowDirection(IViewHandler viewHandler) =>
 			Skia(viewHandler).FlowDirection;
