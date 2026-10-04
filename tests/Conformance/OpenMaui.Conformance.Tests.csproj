@@ -86,6 +86,11 @@
     <None Remove="Controls/**" />
     <Content Remove="Controls/**" />
     <EmbeddedResource Remove="Controls/**" />
+    <!-- The Essentials suite is its own project too (tests/Conformance/Essentials). -->
+    <Compile Remove="Essentials/**" />
+    <None Remove="Essentials/**" />
+    <Content Remove="Essentials/**" />
+    <EmbeddedResource Remove="Essentials/**" />
   </ItemGroup>
 
   <!--
@@ -116,6 +121,14 @@
     <MauiHandlerTest Include="ContentView/ContentViewTests.cs" />
     <MauiHandlerTest Include="GraphicsView/GraphicsViewHandlerTests.cs" />
     <MauiHandlerTest Include="ShapeView/ShapeViewHandlerTests.cs" />
+    <MauiHandlerTest Include="SwipeView/SwipeViewHandlerTests.cs" />
+    <MauiHandlerTest Include="RefreshView/RefreshViewHandlerTests.cs" />
+    <MauiHandlerTest Include="IndicatorView/IndicatorViewHandlerTests.cs" />
+    <MauiHandlerTest Include="Element/ElementTests.cs" />
+    <MauiHandlerTest Include="View/ViewHandlerTests.cs" />
+    <MauiHandlerTest Include="Window/WindowHandlerTests.cs" />
+    <MauiHandlerTest Include="Page/PageHandlerTests.cs" />
+    <MauiHandlerTest Include="Navigation/NavigationViewHandlerTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -125,9 +138,74 @@
     <MauiStubExclude Include="$(MauiCoreTests)Stubs/WebView.cs" />
     <!-- Set ViewHandler internals that only the platform TFMs expose (ContainerView setter, _mapper). -->
     <MauiStubExclude Include="$(MauiCoreTests)Stubs/ButtonWithContainerStub.cs" />
+    <!-- Its Linux counterpart (a LinuxViewHandler over StubBase) is Infrastructure/StubBaseHandler.Linux.cs. -->
     <MauiStubExclude Include="$(MauiCoreTests)Stubs/StubBaseHandler.cs" />
-    <MauiStubExclude Include="$(MauiCoreTests)Stubs/WindowHandlerProxyStub.cs" />
   </ItemGroup>
+
+  <!--
+    Build-time fixes (MauiPatches.Core.props): a MAUI file whose platform #if chain has no
+    Linux branch is compiled from a copy under obj/MauiPatched with the listed literal
+    replacements; every replacement must match or the build fails. Nothing is written to
+    the clone or the repository.
+  -->
+  <Import Project="MauiPatches.Core.props" />
+  <UsingTask TaskName="ApplyCoreMauiPatches" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Patches ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <SourceRoot ParameterType="System.String" Required="true" />
+      <OutputRoot ParameterType="System.String" Required="true" />
+      <PatchedFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var outputs = new List<Microsoft.Build.Framework.ITaskItem>();
+        foreach (var group in Patches.GroupBy(p => p.ItemSpec))
+        {
+            var source = Path.GetFullPath(Path.Combine(SourceRoot, group.Key));
+            var relative = group.Key.Replace("\\", "/");
+            // A key may climb out of DeviceTests (../DeviceTests.Shared/...): the copy keeps the path below the climb.
+            while (relative.StartsWith("../", StringComparison.Ordinal))
+                relative = relative.Substring(3);
+            var text = File.ReadAllText(source);
+            foreach (var patch in group)
+            {
+                var find = patch.GetMetadata("Find").Replace("\\n", "\n").Replace("\\t", "\t");
+                var replace = patch.GetMetadata("Replace").Replace("\\n", "\n").Replace("\\t", "\t");
+                // MAUI's sources use CRLF in places; match either.
+                var normalized = text.Replace("\r\n", "\n");
+                if (!normalized.Contains(find))
+                {
+                    Log.LogError("MAUI patch for " + group.Key + " no longer matches: " + find);
+                    continue;
+                }
+                text = normalized.Replace(find, replace);
+            }
+            var target = Path.Combine(OutputRoot, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            if (!File.Exists(target) || File.ReadAllText(target) != text)
+                File.WriteAllText(target, text);
+            var item = new Microsoft.Build.Utilities.TaskItem(target);
+            item.SetMetadata("Original", source);
+            item.SetMetadata("Link", "Maui/Patched/" + relative);
+            outputs.Add(item);
+        }
+        PatchedFiles = outputs.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="ApplyCoreMauiPatches" BeforeTargets="CoreCompile;CoreGenerateAssemblyInfo" Condition="'$(MauiSourcesPresent)' == 'true' and '@(MauiPatch)' != ''">
+    <ApplyCoreMauiPatches Patches="@(MauiPatch)" SourceRoot="$(MauiCoreTests)" OutputRoot="$(IntermediateOutputPath)MauiPatched/">
+      <Output TaskParameter="PatchedFiles" ItemName="_MauiPatchedFile" />
+    </ApplyCoreMauiPatches>
+    <ItemGroup>
+      <Compile Remove="@(_MauiPatchedFile->'%(Original)')" />
+      <Compile Include="@(_MauiPatchedFile)" />
+    </ItemGroup>
+  </Target>
 
   <!-- ===================== Without the MAUI clone ===================== -->
   <ItemGroup Condition="'$(MauiSourcesPresent)' != 'true'">
@@ -176,6 +254,9 @@
 
     <!-- The handler tests under test (shared files only) -->
     <Compile Include="@(MauiHandlerTest->'$(MauiCoreTests)Handlers/%(Identity)')" Link="Maui/Handlers/%(Filename)%(Extension)" />
+    <!-- MAUI's SwipeView partial for Android uses only the core stubs (no Android API): its
+         RequestOpen test is compiled as is. -->
+    <Compile Include="$(MauiCoreTests)Handlers/SwipeView/SwipeViewHandlerTests.Android.cs" Link="Maui/Handlers/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

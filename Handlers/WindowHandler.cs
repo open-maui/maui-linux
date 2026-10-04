@@ -39,6 +39,7 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     public static CommandMapper<IWindow, WindowHandler> CommandMapper =
         new(ElementHandler.ElementCommandMapper)
         {
+            [nameof(IWindow.RequestDisplayDensity)] = MapRequestDisplayDensity,
         };
 
     public WindowHandler() : base(Mapper, CommandMapper)
@@ -156,6 +157,33 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     internal static void UpdateToolbar(IElement? page)
     {
         ((page as VisualElement)?.Window?.Handler as WindowHandler)?.UpdateToolbar();
+    }
+
+    /// <summary>
+    /// The window's display density (Window.DisplayDensity, MAUI's RequestDisplayDensity
+    /// command): the scale of the monitor the window is on, the app's when the window is not
+    /// shown (yet), 1 without a display.
+    /// </summary>
+    public static void MapRequestDisplayDensity(IWindowHandler handler, IWindow window, object? args)
+    {
+        if (args is DisplayDensityRequest request)
+            request.SetResult(GetDisplayDensity(window));
+    }
+
+    internal static float GetDisplayDensity(IWindow? window)
+    {
+        var app = LinuxApplication.Current;
+        if (app == null)
+            return 1f;
+        if (window != null)
+        {
+            foreach (var context in app.WindowContexts)
+            {
+                if (ReferenceEquals(context.MauiWindow, window))
+                    return context.Scale > 0f ? context.Scale : 1f;
+            }
+        }
+        return app.DpiScale > 0f ? app.DpiScale : 1f;
     }
 
     public static void MapX(WindowHandler handler, IWindow window)

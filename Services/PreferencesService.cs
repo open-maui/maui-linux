@@ -3,7 +3,6 @@
 
 using System.Text.Json;
 using Microsoft.Maui.Storage;
-using MauiAppInfo = Microsoft.Maui.ApplicationModel.AppInfo;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -53,9 +52,7 @@ public class PreferencesService : IPreferences
 
             // AppInfo.Current is safe by the time anyone calls into us: the
             // Linux backend has been fully wired up before any preference read.
-            string appName;
-            try { appName = MauiAppInfo.Current?.Name ?? "MauiApp"; }
-            catch { appName = "MauiApp"; }
+            var appName = AppInfoService.CurrentStorageName() ?? "MauiApp";
 
             var appDir = Path.Combine(configHome, appName);
             Directory.CreateDirectory(appDir);
@@ -153,18 +150,37 @@ public class PreferencesService : IPreferences
         }
     }
 
+    /// <summary>The value types Preferences stores on every platform (MAUI's Preferences.SupportedTypes).</summary>
+    internal static readonly Type[] SupportedTypes =
+    {
+        typeof(string), typeof(int), typeof(bool), typeof(long), typeof(double), typeof(float), typeof(DateTime), typeof(DateTimeOffset),
+    };
+
+    /// <summary>NotSupportedException for any other type, with MAUI's message.</summary>
+    internal static void CheckIsSupportedType<T>()
+    {
+        if (Array.IndexOf(SupportedTypes, typeof(T)) < 0)
+            throw new NotSupportedException($"Preferences using '{typeof(T)}' type is not supported");
+    }
+
     public void Set<T>(string key, T value, string? sharedName = null)
     {
+        CheckIsSupportedType<T>();
         lock (_lock)
         {
             var container = GetContainer(sharedName);
-            container[key] = value;
+            // As on the other platforms, setting null removes the key.
+            if (value is null)
+                container.Remove(key);
+            else
+                container[key] = value;
             Save();
         }
     }
 
     public T Get<T>(string key, T defaultValue, string? sharedName = null)
     {
+        CheckIsSupportedType<T>();
         var container = GetContainer(sharedName);
 
         if (!container.TryGetValue(key, out var value))

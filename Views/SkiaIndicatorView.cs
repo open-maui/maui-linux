@@ -59,9 +59,17 @@ public class SkiaIndicatorView : SkiaView
             {
                 _position = newValue;
                 Invalidate();
+                PositionChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }
+
+    /// <summary>
+    /// Raised when <see cref="Position"/> changes, by code or because an indicator was
+    /// clicked (the handlers report a click to the virtual view's Position, as MAUI's
+    /// platform page controls do).
+    /// </summary>
+    public event EventHandler? PositionChanged;
 
     /// <summary>
     /// Gets or sets the indicator color.
