@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
@@ -312,6 +314,77 @@ public class SkiaTabbedPageTests
         platform.SelectedTabColor.Should().Be(Colors.Yellow);
         platform.IndicatorColor.Should().Be(Colors.Yellow);
         platform.UnselectedTabColor.Should().Be(Colors.Gray);
+    }
+
+    [Fact]
+    public void Handler_tabs_follow_their_pages_title_and_icon()
+    {
+        var (page, platform) = CreateMauiTabbedPage("Alpha", "Beta");
+        var icon = ImageSource.FromFile("tab.png");
+
+        page.Children[1].Title = "Gamma";
+        page.Children[1].IconImageSource = icon;
+
+        platform.Tabs[1].Title.Should().Be("Gamma");
+        platform.Tabs[1].IconSource.Should().BeSameAs(icon, "the tab draws the page's IconImageSource");
+    }
+
+    [Fact]
+    public void Handler_maps_BarBackground_and_follows_a_gradient_only_while_the_page_is_shown()
+    {
+        var (page, platform) = CreateMauiTabbedPage("Alpha", "Beta");
+        var brush = new LinearGradientBrush(new GradientStopCollection
+        {
+            new GradientStop(Colors.Purple, 0f),
+            new GradientStop(Colors.Orange, 1f),
+        });
+        static int Subscribers(GradientBrush b) =>
+            (typeof(GradientBrush).GetField("InvalidateGradientBrushRequested", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(b) as MulticastDelegate)?.GetInvocationList().Length ?? 0;
+
+        page.BarBackground = brush;
+        platform.TabBarBackground.Should().BeSameAs(brush);
+        Subscribers(brush).Should().Be(0, "the page has not appeared");
+
+        page.Handler!.DisconnectHandler();
+        Subscribers(brush).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_tab_icon_is_drawn_tinted_with_the_tabs_colour()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"openmaui-tab-{Guid.NewGuid():N}.png");
+        using (var white = new SKBitmap(24, 24))
+        {
+            white.Erase(SKColors.White);
+            using var data = SKImage.FromBitmap(white).Encode(SKEncodedImageFormat.Png, 100);
+            File.WriteAllBytes(file, data.ToArray());
+        }
+        try
+        {
+            var page = new SkiaTabbedPage { SelectedTabColor = Colors.Red, UnselectedTabColor = Colors.Blue, TabBarBackgroundColor = Colors.White };
+            page.AddTab("First", new ColorView(SKColors.White), file);
+            page.AddTab("Second", new ColorView(SKColors.White), file);
+            page.Measure(new Size(400, 300));
+            page.Arrange(new Rect(0, 0, 400, 300));
+
+            // The icons load through their image-source service; the bar draws them once loaded.
+            for (int i = 0; i < 100 && page.TabIconBounds(1).IsEmpty; i++)
+            {
+                Render(page).Dispose();
+                await Task.Delay(20);
+            }
+            page.TabIconBounds(0).IsEmpty.Should().BeFalse("the icon loaded");
+
+            using var bitmap = Render(page);
+            SKColor At(SKRect r) => bitmap.GetPixel((int)r.MidX, (int)r.MidY);
+            At(page.TabIconBounds(0)).Should().Be(SKColors.Red, "the selected tab tints its icon with SelectedTabColor");
+            At(page.TabIconBounds(1)).Should().Be(SKColors.Blue, "the other tabs tint theirs with UnselectedTabColor");
+        }
+        finally
+        {
+            File.Delete(file);
+        }
     }
 
     #endregion

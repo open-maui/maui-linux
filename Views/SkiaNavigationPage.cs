@@ -45,7 +45,8 @@ public class SkiaNavigationPage : SkiaView
     private Color _barBackgroundColorMaui = Color.FromRgb(0x21, 0x96, 0xF3);
     private Color _barTextColorMaui = Colors.White;
     private float _navigationBarHeight = 56;
-    private bool _showBackButton = true;
+    private SkiaPage? _outgoingPage;
+    private int _transitionId;
 
     public Color BarBackgroundColor
     {
@@ -90,6 +91,132 @@ public class SkiaNavigationPage : SkiaView
     public event EventHandler<NavigationEventArgs>? Popped;
     public event EventHandler<NavigationEventArgs>? PoppedToRoot;
 
+    /// <summary>True while a push or pop is animating (the stack has already changed).</summary>
+    public bool IsTransitioning => _isAnimating;
+
+    /// <summary>Raised when an animated push or pop has finished and its page is current.</summary>
+    public event EventHandler? TransitionCompleted;
+
+    /// <summary>
+    /// The back arrow is shown: a page is below the current one and the current page
+    /// shows its navigation bar with a back button (NavigationPage.HasBackButton).
+    /// </summary>
+    public bool IsBackButtonVisible =>
+        _navigationStack.Count > 0 && _currentPage is { ShowNavigationBar: true, HasBackButton: true };
+
+    /// <summary>
+    /// Asked when the user presses the back arrow (or Escape/Backspace): return true
+    /// when the request was handled (a MAUI NavigationPage pops through its own
+    /// navigation, which then drives this view). Unset or false: the view pops itself.
+    /// </summary>
+    public Func<bool>? BackRequested { get; set; }
+
+    private void RequestBack()
+    {
+        if (BackRequested?.Invoke() == true)
+            return;
+        Pop();
+    }
+
+    /// <summary>
+    /// Shows exactly <paramref name="pages"/> (bottom first): pushes or pops when the
+    /// new stack extends or shortens the current one, replaces the pages beneath when
+    /// only those changed, and otherwise swaps the whole stack.
+    /// </summary>
+    public void SetNavigationStack(IReadOnlyList<SkiaPage> pages, bool animated = true)
+    {
+        if (pages == null || pages.Count == 0)
+            return;
+        FinishTransition();
+
+        var current = _navigationStack.Reverse().ToList();
+        if (_currentPage != null)
+            current.Add(_currentPage);
+        if (current.Count == pages.Count && current.SequenceEqual(pages))
+            return;
+
+        var newTop = pages[pages.Count - 1];
+        if (current.Count == 0)
+        {
+            SetRootPage(pages[0]);
+            for (int i = 1; i < pages.Count; i++)
+                Push(pages[i], false);
+            return;
+        }
+
+        if (ReferenceEquals(current[current.Count - 1], newTop))
+        {
+            // Same page on screen; only the pages beneath it changed.
+            ReplaceBackStack(pages);
+            Invalidate();
+            return;
+        }
+
+        if (pages.Count > current.Count && pages.Take(current.Count).SequenceEqual(current))
+        {
+            for (int i = current.Count; i < pages.Count; i++)
+                Push(pages[i], animated && i == pages.Count - 1);
+            return;
+        }
+
+        if (pages.Count < current.Count && current.Take(pages.Count).SequenceEqual(pages))
+        {
+            // Pages between the new top and the current one go without a transition.
+            ReplaceBackStack(pages.Concat(new[] { _currentPage! }).ToList());
+            Pop(animated);
+            return;
+        }
+
+        // A different stack: swap to it.
+        var old = _currentPage;
+        old?.OnDisappearing();
+        if (old != null && !pages.Contains(old))
+            old.Parent = null;
+        ReplaceBackStack(pages);
+        _currentPage = newTop;
+        newTop.Parent = this;
+        ConfigurePage(newTop, _navigationStack.Count > 0);
+        InvalidateMeasure();
+        newTop.OnAppearing();
+        Invalidate();
+    }
+
+    /// <summary>Puts every page of <paramref name="pages"/> but the last beneath the current page.</summary>
+    private void ReplaceBackStack(IReadOnlyList<SkiaPage> pages)
+    {
+        foreach (var page in _navigationStack)
+            if (!pages.Contains(page) && ReferenceEquals(page.Parent, this))
+                page.Parent = null;
+        _navigationStack.Clear();
+        for (int i = 0; i < pages.Count - 1; i++)
+        {
+            pages[i].Parent = this;
+            _navigationStack.Push(pages[i]);
+        }
+    }
+
+    /// <summary>Ends a running push or pop animation at once (its page becomes current).</summary>
+    private void FinishTransition()
+    {
+        if (!_isAnimating)
+            return;
+        _transitionId++;
+        _animationProgress = 1;
+        _currentPage = _incomingPage;
+        _incomingPage = null;
+        _isAnimating = false;
+        if (_outgoingPage != null)
+        {
+            // A popped page leaves the tree; it is not on the back stack any more.
+            if (!_navigationStack.Contains(_outgoingPage))
+                _outgoingPage.Parent = null;
+            _outgoingPage = null;
+        }
+        InvalidateMeasure();
+        Invalidate();
+        TransitionCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
     public SkiaNavigationPage()
     {
     }
@@ -104,6 +231,7 @@ public class SkiaNavigationPage : SkiaView
         _navigationStack.Clear();
         _currentPage?.OnDisappearing();
         _currentPage = page;
+        InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
         _currentPage.Parent = this;
         ConfigurePage(_currentPage, false);
         _currentPage.OnAppearing();
@@ -112,7 +240,9 @@ public class SkiaNavigationPage : SkiaView
 
     public void Push(SkiaPage page, bool animated = true)
     {
-        if (_isAnimating) return;
+        // A push during a transition ends the transition first (it was dropped,
+        // losing the page, when an app pushed again as soon as PushAsync returned).
+        FinishTransition();
 
         // Disable animation in GTK mode
         if (LinuxApplication.IsGtkMode)
@@ -132,6 +262,7 @@ public class SkiaNavigationPage : SkiaView
         if (animated)
         {
             _incomingPage = page;
+            InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             _isPushAnimation = true;
             _animationProgress = 0;
             _isAnimating = true;
@@ -146,6 +277,7 @@ public class SkiaNavigationPage : SkiaView
         {
             DiagnosticLog.Debug("SkiaNavigationPage", "Push (no animation): setting _currentPage to " + page.Title);
             _currentPage = page;
+            InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             _currentPage.OnAppearing();
             DiagnosticLog.Debug("SkiaNavigationPage", "Push: calling Invalidate");
             Invalidate();
@@ -157,7 +289,8 @@ public class SkiaNavigationPage : SkiaView
 
     public SkiaPage? Pop(bool animated = true)
     {
-        if (_isAnimating || _navigationStack.Count == 0) return null;
+        FinishTransition();
+        if (_navigationStack.Count == 0) return null;
 
         // Disable animation in GTK mode
         if (LinuxApplication.IsGtkMode)
@@ -173,9 +306,11 @@ public class SkiaNavigationPage : SkiaView
         if (animated && poppedPage != null)
         {
             _incomingPage = previousPage;
+            InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             _isPushAnimation = false;
             _animationProgress = 0;
             _isAnimating = true;
+            _outgoingPage = poppedPage;
             // Fire OnAppearing BEFORE the first frame that presents the restored
             // page (matching other platforms). Apps commonly refresh state here
             // (e.g. resetting a CollectionView's ItemsSource); doing it before the
@@ -187,6 +322,7 @@ public class SkiaNavigationPage : SkiaView
         else
         {
             _currentPage = previousPage;
+            InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             _currentPage?.OnAppearing();
             Invalidate();
         }
@@ -201,7 +337,8 @@ public class SkiaNavigationPage : SkiaView
 
     public void PopToRoot(bool animated = true)
     {
-        if (_isAnimating || _navigationStack.Count == 0) return;
+        FinishTransition();
+        if (_navigationStack.Count == 0) return;
 
         _currentPage?.OnDisappearing();
 
@@ -215,6 +352,7 @@ public class SkiaNavigationPage : SkiaView
         if (rootPage != null)
         {
             _currentPage = rootPage;
+            InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             ConfigurePage(_currentPage, false);
             _currentPage.OnAppearing();
             Invalidate();
@@ -229,7 +367,6 @@ public class SkiaNavigationPage : SkiaView
         page.TitleBarColor = _barBackgroundColorMaui;
         page.TitleTextColor = _barTextColorMaui;
         page.NavigationBarHeight = _navigationBarHeight;
-        _showBackButton = showBackButton && _navigationStack.Count > 0;
     }
 
     private void UpdatePageNavigationBar()
@@ -247,20 +384,20 @@ public class SkiaNavigationPage : SkiaView
         const int durationMs = 250;
         const int frameMs = 16;
         var startTime = DateTime.Now;
+        var id = _transitionId;
 
-        while (_animationProgress < 1)
+        while (_animationProgress < 1 && id == _transitionId)
         {
             await Task.Delay(frameMs);
+            if (id != _transitionId) return; // finished early by another navigation
             var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
             _animationProgress = Math.Min(1, (float)(elapsed / durationMs));
             Invalidate();
         }
 
-        _currentPage = _incomingPage;
-        _incomingPage = null;
-        _isAnimating = false;
         // OnAppearing already fired in Push() before the animation started.
-        Invalidate();
+        if (id == _transitionId)
+            FinishTransition();
     }
 
     private async void AnimatePop(SkiaPage outgoingPage)
@@ -268,21 +405,20 @@ public class SkiaNavigationPage : SkiaView
         const int durationMs = 250;
         const int frameMs = 16;
         var startTime = DateTime.Now;
+        var id = _transitionId;
 
-        while (_animationProgress < 1)
+        while (_animationProgress < 1 && id == _transitionId)
         {
             await Task.Delay(frameMs);
+            if (id != _transitionId) return; // finished early by another navigation
             var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
             _animationProgress = Math.Min(1, (float)(elapsed / durationMs));
             Invalidate();
         }
 
-        _currentPage = _incomingPage;
-        _incomingPage = null;
-        _isAnimating = false;
         // OnAppearing already fired in Pop() before the animation started.
-        outgoingPage.Parent = null;
-        Invalidate();
+        if (id == _transitionId)
+            FinishTransition();
     }
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
@@ -358,7 +494,7 @@ public class SkiaNavigationPage : SkiaView
             _currentPage.Draw(canvas);
 
             // Draw back button if applicable
-            if (_showBackButton && _navigationStack.Count > 0)
+            if (IsBackButtonVisible)
             {
                 DrawBackButton(canvas, bounds);
             }
@@ -400,18 +536,40 @@ public class SkiaNavigationPage : SkiaView
         return availableSize;
     }
 
+    /// <summary>
+    /// The pages fill the navigation page, as on MAUI's platforms: arranging them
+    /// (not only drawing them at its bounds) lays their content out and gives each
+    /// MAUI page its Frame (SkiaPage.ArrangeOverride), so Width/Height and
+    /// SizeChanged/OnSizeAllocated reach pages inside a NavigationPage.
+    /// </summary>
+    protected override Rect ArrangeOverride(Rect bounds)
+    {
+        var size = new Size(bounds.Width, bounds.Height);
+        if (_currentPage != null)
+        {
+            _currentPage.Measure(size);
+            _currentPage.Arrange(bounds);
+        }
+        if (_isAnimating && _incomingPage != null)
+        {
+            _incomingPage.Measure(size);
+            _incomingPage.Arrange(bounds);
+        }
+        return bounds;
+    }
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
         DiagnosticLog.Debug("SkiaNavigationPage", $"OnPointerPressed at ({e.X}, {e.Y}), _isAnimating={_isAnimating}");
         if (_isAnimating) return;
 
         // Check for back button click
-        if (_showBackButton && _navigationStack.Count > 0)
+        if (IsBackButtonVisible)
         {
             if (e.X < 56 && e.Y < _navigationBarHeight)
             {
                 DiagnosticLog.Debug("SkiaNavigationPage", "Back button clicked");
-                Pop();
+                RequestBack();
                 return;
             }
         }
@@ -439,7 +597,7 @@ public class SkiaNavigationPage : SkiaView
         // Handle back navigation with Escape or Backspace
         if ((e.Key == Key.Escape || e.Key == Key.Backspace) && _navigationStack.Count > 0)
         {
-            Pop();
+            RequestBack();
             e.Handled = true;
             return;
         }
@@ -465,7 +623,7 @@ public class SkiaNavigationPage : SkiaView
             return null;
 
         // Back button area - return self so OnPointerPressed handles it
-        if (_showBackButton && _navigationStack.Count > 0 && x < 56 && y < _navigationBarHeight)
+        if (IsBackButtonVisible && x < 56 && y < _navigationBarHeight)
         {
             return this;
         }

@@ -22,13 +22,20 @@ namespace Microsoft.Maui.DeviceTests
 	/// expect a <see cref="SkiaView"/>.
 	///
 	/// "Attached" means what it means on the other platforms: the view has been
-	/// measured and arranged by a host before the action runs. Pixels come from
+	/// measured and arranged by a host before the action runs (each suite hosts
+	/// views its own way: AssertionExtensions.Attach.Core.cs for the Core suite,
+	/// Controls/Infrastructure for the Controls suite). Pixels come from
 	/// SkiaView.Draw into a raster surface, the same path a window frame takes.
 	/// </summary>
 	public static partial class AssertionExtensions
 	{
 		public static SkiaView AsSkia(this object? platformView) =>
-			platformView as SkiaView ?? throw new XunitException(
+			platformView as SkiaView
+			// MAUI's platform helpers also take the element itself (IView.GetBoundingBox(),
+			// ...); C# binds those calls to the object overloads here (the closer
+			// namespace), so an element means its platform view.
+			?? (platformView as IElement)?.Handler?.PlatformView as SkiaView
+			?? throw new XunitException(
 				$"Platform view is {platformView?.GetType().FullName ?? "null"}, expected a SkiaView.");
 
 		// ---------------- attach ----------------
@@ -48,69 +55,6 @@ namespace Microsoft.Maui.DeviceTests
 			view.Arrange(new Rect(0, 0, w, h));
 		}
 
-		public static Task AttachAndRun(this object view, Action action) =>
-			view.AttachAndRun<bool>(() => { action(); return Task.FromResult(true); });
-
-		public static Task AttachAndRun(this object view, Func<Task> action) =>
-			view.AttachAndRun<bool>(async () => { await action(); return true; });
-
-		public static Task<T> AttachAndRun<T>(this object view, Func<T> action) =>
-			view.AttachAndRun<T>(() => Task.FromResult(action()));
-
-		/// <summary>
-		/// Puts the view in a window for the duration of <paramref name="action"/>:
-		/// the root of a headless window context of a LinuxApplication (no display
-		/// connection), as the platform's window would hold it, laid out at its
-		/// size. Window services (focus, the visual tree's root) work as in an app.
-		/// </summary>
-		public static async Task<T> AttachAndRun<T>(this object view, Func<Task<T>> action)
-		{
-			var skia = view.AsSkia();
-			var root = skia;
-			while (root.Parent is not null)
-				root = root.Parent;
-			var app = HeadlessWindow.App;
-			var previous = app.RootView;
-			app.RootView = root;
-			try
-			{
-				EnsureLaidOut(skia);
-				return await action();
-			}
-			finally
-			{
-				app.RootView = previous;
-			}
-		}
-
-		static class HeadlessWindow
-		{
-			static Microsoft.Maui.Platform.Linux.LinuxApplication s_app;
-
-			public static Microsoft.Maui.Platform.Linux.LinuxApplication App =>
-				s_app ??= Microsoft.Maui.Platform.Linux.LinuxApplication.Current ?? new Microsoft.Maui.Platform.Linux.LinuxApplication();
-		}
-
-		public static object? GetParent(this object? view) => (view as SkiaView)?.Parent;
-
-		public static bool IsLoaded(this object? view) => view is SkiaView { Parent: not null } or SkiaView { Bounds.Width: > 0 };
-
-		public static IDisposable OnLoaded(this object view, Action action)
-		{
-			action();
-			return new ActionDisposable(() => { });
-		}
-
-		public static IDisposable OnUnloaded(this object view, Action action) =>
-			new ActionDisposable(() => { });
-
-		sealed class ActionDisposable : IDisposable
-		{
-			readonly Action _action;
-			public ActionDisposable(Action action) => _action = action;
-			public void Dispose() => _action();
-		}
-
 		// ---------------- accessibility ----------------
 
 		public static bool IsAccessibilityElement(this object? platformView)
@@ -123,7 +67,7 @@ namespace Microsoft.Maui.DeviceTests
 		}
 
 		public static bool IsExcludedWithChildren(this object? platformView) =>
-			platformView is SkiaView { IsInAccessibleTree: false };
+			platformView is SkiaView { IsExcludedWithChildren: true };
 
 		// ---------------- focus / keyboard ----------------
 
@@ -162,9 +106,17 @@ namespace Microsoft.Maui.DeviceTests
 
 		// ---------------- pixels ----------------
 
+		/// <summary>
+		/// Run before a view is captured (the Controls suite renders a frame of the
+		/// window the view is in, so pending layout is applied as a platform would
+		/// before a capture). Unset in the Core suite.
+		/// </summary>
+		internal static Action<SkiaView>? BeforeCapture;
+
 		public static SKBitmap ToBitmap(this object platformView)
 		{
 			var view = platformView.AsSkia();
+			BeforeCapture?.Invoke(view);
 			EnsureLaidOut(view);
 			var b = view.Bounds;
 			int w = Math.Max(1, (int)Math.Ceiling(b.Width));
@@ -259,6 +211,42 @@ namespace Microsoft.Maui.DeviceTests
 		{
 			var bmp = view.ToBitmap();
 			return view.AssertColorAtPointAsync(expectedColor, bmp.Width / 2, bmp.Height / 2, mauiContext);
+		}
+
+		// Same comparison as MAUI's ColorComparison.*.cs IsEquivalent: every channel,
+		// alpha included, within 1 of the other.
+		const int ColorPrecision = 1;
+
+		static bool IsEquivalent(SKColor a, SKColor b) =>
+			Math.Abs(a.Red - b.Red) <= ColorPrecision && Math.Abs(a.Green - b.Green) <= ColorPrecision &&
+			Math.Abs(a.Blue - b.Blue) <= ColorPrecision && Math.Abs(a.Alpha - b.Alpha) <= ColorPrecision;
+
+		static bool IsMatching(SKBitmap first, SKBitmap second)
+		{
+			for (int x = 0; x < first.Width; x++)
+				for (int y = 0; y < first.Height; y++)
+					if (!IsEquivalent(first.GetPixel(x, y), second.GetPixel(x, y)))
+						return false;
+			return true;
+		}
+
+		/// <summary>MAUI's AssertEqualAsync (pixel-identical rendering, within ColorPrecision).</summary>
+		public static Task AssertEqualAsync(this SKBitmap bitmap, SKBitmap other)
+		{
+			Assert.NotNull(bitmap);
+			Assert.NotNull(other);
+			Assert.Equal(new Size(bitmap.Width, bitmap.Height), new Size(other.Width, other.Height));
+			Assert.True(IsMatching(bitmap, other), $"Images did not match. Rendered {Describe(bitmap)} vs {Describe(other)}");
+			return Task.CompletedTask;
+		}
+
+		public static Task AssertNotEqualAsync(this SKBitmap bitmap, SKBitmap other)
+		{
+			Assert.NotNull(bitmap);
+			Assert.NotNull(other);
+			Assert.False(bitmap.Width == other.Width && bitmap.Height == other.Height && IsMatching(bitmap, other),
+				$"Images matched. Rendered {Describe(bitmap)}");
+			return Task.CompletedTask;
 		}
 
 		/// <summary>The other platforms' <c>Color.ToPlatform()</c>; Skia assertions take MAUI colors.</summary>

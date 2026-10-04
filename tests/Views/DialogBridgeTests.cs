@@ -66,8 +66,11 @@ public class DialogBridgeTests : IDisposable
     {
         _host.Window.Handler.Should().NotBeNull("MAUI's AlertManager only subscribes once the Window has a handler");
         _host.Window.Handler!.MauiContext.Should().BeSameAs(_host.MauiContext);
-        double.IsNaN(_host.Window.Width).Should().BeTrue("the passive SkiaWindow wrapper must not echo a size back into the MAUI window");
-        double.IsNaN(_host.Window.Height).Should().BeTrue();
+        // The MAUI window has the native window's size (WindowContext reports it); the passive
+        // SkiaWindow wrapper's own default size must never be echoed back into it.
+        _host.DisplayWindow.RaiseResized(640, 480);
+        _host.Window.Width.Should().Be(640);
+        _host.Window.Height.Should().Be(480);
     }
 
     [Fact]

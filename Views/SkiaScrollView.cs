@@ -958,12 +958,31 @@ public class SkiaScrollView : SkiaView
             if (_content.HeightRequest >= 0)
                 contentHeight = (float)_content.HeightRequest;
 
+            // Content smaller than the viewport is placed by its own alignment, as
+            // MAUI's ScrollView arranges it (LayoutExtensions.ComputeFrame).
+            if (_content.MauiView is IView contentView)
+            {
+                float availableWidth = (float)(actualBounds.Width - margin.Left - margin.Right);
+                float availableHeight = (float)(actualBounds.Height - margin.Top - margin.Bottom);
+                if (contentWidth < availableWidth)
+                    contentLeft += AlignmentOffset(contentView.HorizontalLayoutAlignment, availableWidth - contentWidth);
+                if (contentHeight < availableHeight)
+                    contentTop += AlignmentOffset(contentView.VerticalLayoutAlignment, availableHeight - contentHeight);
+            }
+
             var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
 
             _content.Arrange(contentBounds);
         }
         return actualBounds;
     }
+
+    private static float AlignmentOffset(Microsoft.Maui.Primitives.LayoutAlignment alignment, float extra) => alignment switch
+    {
+        Microsoft.Maui.Primitives.LayoutAlignment.Center => extra / 2f,
+        Microsoft.Maui.Primitives.LayoutAlignment.End => extra,
+        _ => 0f,
+    };
 }
 
 /// <summary>
