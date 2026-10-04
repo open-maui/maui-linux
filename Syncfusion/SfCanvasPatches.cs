@@ -104,6 +104,7 @@ internal static class SfCanvasPatches
             var weight = textElement.FontAttributes.HasFlag(Microsoft.Maui.Controls.FontAttributes.Bold) ? FontWeights.Bold : FontWeights.Normal;
             var style = textElement.FontAttributes.HasFlag(Microsoft.Maui.Controls.FontAttributes.Italic) ? FontStyleType.Italic : FontStyleType.Normal;
             canvas.Font = new Microsoft.Maui.Graphics.Font(string.IsNullOrEmpty(textElement.FontFamily) ? null : textElement.FontFamily, weight, style);
+            rect = AtLeastOneGlyphWide(rect, value, textElement, horizontal);
             canvas.DrawString(value, (float)rect.X, (float)rect.Y, (float)rect.Width, (float)rect.Height, horizontal, vertical, TextFlow.OverflowBounds);
         }
         catch (Exception ex)
@@ -114,5 +115,34 @@ internal static class SfCanvasPatches
         {
             canvas.RestoreState();
         }
+    }
+
+    /// <summary>
+    /// A text rectangle no narrower than the widest glyph of the text. MAUI Graphics' Skia text
+    /// layout breaks overflowing text into lines and, when not even one character fits the width,
+    /// never advances: the frame hangs while the line list grows (SfScheduler draws the resized
+    /// time in a strip that shrinks to nothing as an appointment edge moves). Windows draws such
+    /// text overflowing the strip; so does this, the strip widened about its alignment.
+    /// </summary>
+    private static Rect AtLeastOneGlyphWide(Rect rect, string value, ITextElement textElement, HorizontalAlignment horizontal)
+    {
+        if (rect.Width >= SkiaTextMeasurer.MeasureFor(value, textElement).Width)
+            return rect;
+        double widest = 0;
+        foreach (var rune in value.EnumerateRunes())
+        {
+            if (!System.Text.Rune.IsWhiteSpace(rune))
+                widest = Math.Max(widest, SkiaTextMeasurer.MeasureFor(rune.ToString(), textElement).Width);
+        }
+        widest = Math.Ceiling(widest) + 1;
+        if (rect.Width >= widest)
+            return rect;
+        double x = horizontal switch
+        {
+            HorizontalAlignment.Center => rect.Center.X - widest / 2,
+            HorizontalAlignment.Right => rect.Right - widest,
+            _ => rect.X,
+        };
+        return new Rect(x, rect.Y, widest, rect.Height);
     }
 }

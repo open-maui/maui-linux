@@ -172,42 +172,25 @@ public sealed unsafe partial class WebKitContentApi
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void UriSchemeRequestCallback(IntPtr request, IntPtr userData);
 
-    private readonly HashSet<string> _registeredSchemes = new();
-
     /// <summary>
     /// Registers <paramref name="scheme"/> on the view's WebKitWebContext. Must be
     /// called before the first load of that scheme. Contexts are shared, so the
-    /// registration happens once per process per scheme (WebKit rejects a
-    /// second one); the handler receives the originating view for routing.
-    /// Returns false when the scheme was already registered (the earlier
+    /// handler serves every view of the process that has no handler of its own
+    /// (<see cref="RegisterUriSchemeHandler"/>); it receives the originating view
+    /// for routing. Returns false when the scheme already has one (the earlier
     /// handler stays in place).
     /// </summary>
     public bool RegisterUriScheme(IntPtr webView, string scheme, SchemeHandler handler)
     {
-        lock (_registeredSchemes)
+        ArgumentNullException.ThrowIfNull(handler);
+        var route = EnsureScheme(webView, scheme);
+        lock (_schemeRoutes)
         {
-            if (!_registeredSchemes.Add(scheme))
+            if (route.Fallback != null)
                 return false;
+            route.Fallback = handler;
+            return true;
         }
-        var context = _webViewGetContext(webView);
-        UriSchemeRequestCallback cb = (request, _) =>
-        {
-            try
-            {
-                var uri = Marshal.PtrToStringUTF8(_schemeRequestGetUri(request)) ?? string.Empty;
-                var response = handler(_schemeRequestGetWebView(request), uri);
-                Finish(request, response);
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error("WebKitContentApi", $"Scheme handler for '{scheme}' threw", ex);
-                Finish(request, new SchemeResponse(500, "Internal Error", Array.Empty<byte>(), "text/plain"));
-            }
-        };
-        _rooted.Add(cb);
-        using var s = new Utf8(scheme);
-        _registerUriScheme(context, s, Marshal.GetFunctionPointerForDelegate(cb), IntPtr.Zero, IntPtr.Zero);
-        return true;
     }
 
     private void Finish(IntPtr request, SchemeResponse response)
