@@ -63,10 +63,14 @@ public class BatteryService : IBattery
     {
     }
 
-    internal BatteryService(PowerProfilesMonitor powerProfiles)
+    internal BatteryService(PowerProfilesMonitor powerProfiles, Action<Action>? dispatch = null)
     {
         _powerProfiles = powerProfiles;
+        _dispatch = dispatch;
     }
+
+    /// <summary>How events reach the app: the UI thread, unless a test runs them inline.</summary>
+    private readonly Action<Action>? _dispatch;
 
     /// <summary>On while the desktop's power profile is "power-saver" (power-profiles-daemon), Unknown without the daemon.</summary>
     public EnergySaverStatus EnergySaverStatus => _powerProfiles.Status;
@@ -98,6 +102,11 @@ public class BatteryService : IBattery
     private void OnEnergySaverChanged(EnergySaverStatus status)
     {
         void Raise() => _energySaverStatusChanged?.Invoke(this, new EnergySaverStatusChangedEventArgs(status));
+        if (_dispatch != null)
+        {
+            _dispatch(Raise);
+            return;
+        }
         var dispatcher = Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main;
         if (dispatcher == null || Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
             Raise();

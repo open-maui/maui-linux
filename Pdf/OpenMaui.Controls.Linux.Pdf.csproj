@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Pdf</PackageId>
-    <Version>10.0.110.6</Version>
+    <Version>10.0.110.7</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui PDF (Linux)</Product>
@@ -26,9 +26,9 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
 
-    <!-- Stable-contract gate (docs/VERSIONING.md). The first release has no baseline to
-         compare against; set PackageValidationBaselineVersion to it after it ships. -->
+    <!-- Stable-contract gate (docs/VERSIONING.md): no public API removed since the last release. -->
     <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>10.0.110.6</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
