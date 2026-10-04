@@ -65,6 +65,15 @@ public interface IInputMethodService
     void NotifySurroundingTextChanged() { }
 
     /// <summary>
+    /// Notifies the IME that the focused control's
+    /// <see cref="IInputContext.ContentType"/> changed (its keyboard, password
+    /// or prediction settings). Services that support content types (Wayland
+    /// zwp_text_input_v3.set_content_type, IBus SetContentType) send the new
+    /// value. Default no-op.
+    /// </summary>
+    void NotifyContentTypeChanged() { }
+
+    /// <summary>
     /// Resets the IME state, canceling any composition.
     /// </summary>
     void Reset();

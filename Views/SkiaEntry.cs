@@ -30,7 +30,8 @@ public partial class SkiaEntry : SkiaView, IInputContext
             typeof(SkiaEntry),
             "",
             BindingMode.OneWay,
-            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnTextPropertyChanged((string)o, (string)n));
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnTextPropertyChanged((string)o, (string)n),
+            coerceValue: (b, v) => ((SkiaEntry)b).CoerceText((string?)v));
 
     /// <summary>
     /// Bindable property for Placeholder.
@@ -187,7 +188,7 @@ public partial class SkiaEntry : SkiaView, IInputContext
             typeof(bool),
             typeof(SkiaEntry),
             false,
-            propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnContentTypePropertyChanged());
 
     /// <summary>
     /// Bindable property for PasswordChar.
@@ -201,14 +202,15 @@ public partial class SkiaEntry : SkiaView, IInputContext
             propertyChanged: (b, o, n) => ((SkiaEntry)b).Invalidate());
 
     /// <summary>
-    /// Bindable property for MaxLength.
+    /// Bindable property for MaxLength. Negative means unlimited (MAUI's -1).
     /// </summary>
     public static readonly BindableProperty MaxLengthProperty =
         BindableProperty.Create(
             nameof(MaxLength),
             typeof(int),
             typeof(SkiaEntry),
-            0);
+            -1,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnMaxLengthChanged());
 
     /// <summary>
     /// Bindable property for SelectAllOnDoubleClick.
@@ -326,7 +328,8 @@ public partial class SkiaEntry : SkiaView, IInputContext
             nameof(Keyboard),
             typeof(Keyboard),
             typeof(SkiaEntry),
-            Keyboard.Default);
+            Keyboard.Default,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnContentTypePropertyChanged());
 
     /// <summary>
     /// Bindable property for ClearButtonVisibility.
@@ -347,7 +350,8 @@ public partial class SkiaEntry : SkiaView, IInputContext
             nameof(IsTextPredictionEnabled),
             typeof(bool),
             typeof(SkiaEntry),
-            true);
+            true,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnContentTypePropertyChanged());
 
     /// <summary>
     /// Bindable property for IsSpellCheckEnabled.
@@ -357,7 +361,8 @@ public partial class SkiaEntry : SkiaView, IInputContext
             nameof(IsSpellCheckEnabled),
             typeof(bool),
             typeof(SkiaEntry),
-            true);
+            true,
+            propertyChanged: (b, o, n) => ((SkiaEntry)b).OnContentTypePropertyChanged());
 
     #endregion
 
@@ -508,7 +513,9 @@ public partial class SkiaEntry : SkiaView, IInputContext
     }
 
     /// <summary>
-    /// Gets or sets the maximum text length. 0 = unlimited.
+    /// Gets or sets the maximum text length, as MAUI's <c>MaxLength</c>: a
+    /// negative value (the default, -1) is unlimited and 0 allows no text.
+    /// Setting it truncates the current text, as text set later is truncated.
     /// </summary>
     public int MaxLength
     {
@@ -608,7 +615,9 @@ public partial class SkiaEntry : SkiaView, IInputContext
     }
 
     /// <summary>
-    /// Gets or sets the keyboard type for this entry.
+    /// Gets or sets the keyboard type for this entry. On desktop this is the
+    /// content type (purpose and hints) the input method gets while the entry
+    /// has focus.
     /// </summary>
     public Keyboard Keyboard
     {
@@ -770,8 +779,31 @@ public partial class SkiaEntry : SkiaView, IInputContext
         };
     }
 
+    /// <summary>
+    /// Text is never null (MAUI's platforms report "" for null) and never longer
+    /// than <see cref="MaxLength"/>, whoever sets it.
+    /// </summary>
+    private string CoerceText(string? value) => TextInputText.TrimToMaxLength(value ?? string.Empty, MaxLength);
+
+    /// <summary>
+    /// A lowered MaxLength truncates the current text. (BindableObject.CoerceValue
+    /// discards its coerce result, so the text is set explicitly.)
+    /// </summary>
+    private void OnMaxLengthChanged()
+    {
+        var text = Text ?? string.Empty;
+        var trimmed = TextInputText.TrimToMaxLength(text, MaxLength);
+        if (!string.Equals(text, trimmed, StringComparison.Ordinal))
+            Text = trimmed;
+    }
+
     private void OnTextPropertyChanged(string oldText, string newText)
     {
+        // A caret at the end of the text (with no selection) stays at the end
+        // when the text is replaced, as typing at the end leaves it; any other
+        // caret keeps its index, clamped to the new text.
+        if (_selectionLength == 0 && _cursorPosition == (oldText ?? "").Length)
+            _cursorPosition = (newText ?? "").Length;
         _cursorPosition = Math.Min(_cursorPosition, (newText ?? "").Length);
         _scrollOffset = 0; // Reset scroll when text changes externally
         _selectionLength = 0;
@@ -790,6 +822,13 @@ public partial class SkiaEntry : SkiaView, IInputContext
     }
 
     private SKFontStyle GetFontStyle() => TextRenderingHelper.GetFontStyle(FontAttributes);
+
+    private void OnContentTypePropertyChanged()
+    {
+        if (IsFocused)
+            _inputMethodService?.NotifyContentTypeChanged();
+        Invalidate();
+    }
 }
 
 /// <summary>
