@@ -62,6 +62,13 @@ public partial class SkiaEntry
     public void OnTextCommitted(string text)
     {
         if (IsReadOnly) return;
+        if (RaiseTextInputting(text))
+        {
+            _preEditText = string.Empty;
+            _preEditCursorPosition = 0;
+            Invalidate();
+            return;
+        }
 
         // Delete selection if any
         if (_selectionLength != 0)
@@ -152,6 +159,12 @@ public partial class SkiaEntry
         // Ignore control characters (Ctrl+key combinations send ASCII control codes)
         if (!string.IsNullOrEmpty(e.Text) && e.Text.Length == 1 && e.Text[0] < 32)
             return;
+
+        if (RaiseTextInputting(e.Text))
+        {
+            e.Handled = true;
+            return;
+        }
 
         // Delete selection if any
         if (_selectionLength != 0)
@@ -649,6 +662,11 @@ public partial class SkiaEntry
     {
         // Password fields should not allow cutting
         if (IsPassword) return;
+        if (RaiseClipboardOverride(Cutting))
+        {
+            Invalidate();
+            return;
+        }
 
         CopyToClipboard();
         DeleteSelection();
@@ -657,6 +675,12 @@ public partial class SkiaEntry
 
     private void PasteFromClipboard()
     {
+        if (RaiseClipboardOverride(Pasting))
+        {
+            Invalidate();
+            return;
+        }
+
         // Get from system clipboard
         var text = SystemClipboard.GetText();
         if (string.IsNullOrEmpty(text)) return;

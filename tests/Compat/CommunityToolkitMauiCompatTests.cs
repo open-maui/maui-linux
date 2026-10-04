@@ -211,17 +211,17 @@ public class CommunityToolkitMauiCompatTests
     // ---- Alerts ---------------------------------------------------------------
 
     /// <summary>
-    /// The toolkit's generic net10.0 build implements Toast and Snackbar as
-    /// no-ops that complete successfully (its visual implementations are per
-    /// platform: Android, iOS/Mac Catalyst, Windows). On OpenMaui they honour the
-    /// API contract (awaitable, cancellable, Snackbar raises Shown/Dismissed)
-    /// but draw nothing; that is the toolkit's behaviour on any platform it has
-    /// no visual implementation for, not an OpenMaui gap.
+    /// Toast and Snackbar keep the toolkit's API contract (awaitable, cancellable, Snackbar raises
+    /// Shown/Dismissed) now that OpenMaui shows them as desktop notifications, as the toolkit's
+    /// Windows build does (CommunityToolkitPlatformFeatureTests covers what is shown). The
+    /// notification server here is a stand-in, so no notification reaches the desktop.
     /// </summary>
     [Fact]
     public async Task Toast_and_Snackbar_complete_their_api_contract()
     {
         using var host = Host(new Label { Text = "x" });
+        Microsoft.Maui.Platform.Linux.Services.ToolkitAlertsBridge.Notifications = new Microsoft.Maui.Platform.Linux.Services.NotificationService(
+            "Compat", null, Microsoft.Maui.Platform.Linux.Services.Portal.NullDesktopPortal.Instance, new AcceptingNotificationServer());
 
         var toast = Toast.Make("Saved", CommunityToolkit.Maui.Core.ToastDuration.Short);
         await toast.Show();
@@ -369,6 +369,22 @@ public class CommunityToolkitMauiCompatTests
         drawing.Lines[0].Points.Count.Should().BeGreaterThan(10);
         drawing.Lines[0].LineColor.Should().Be(Colors.Red);
         host.CountPixelsNear(new SKColor(255, 0, 0), new SKRectI(0, 40, 300, 60)).Should().BeGreaterThan(800, "the stroke is painted");
+    }
+
+    /// <summary>A notification server that accepts every notification (and shows none).</summary>
+    private sealed class AcceptingNotificationServer : Microsoft.Maui.Platform.Linux.Services.Portal.INotificationServer
+    {
+        private uint _next;
+
+        public Task<uint> NotifyAsync(string appName, uint replacesId, string appIcon, string summary, string body, string[] actions, IDictionary<string, object> hints, int expireTimeout, CancellationToken cancellationToken)
+            => Task.FromResult(++_next);
+
+        public Task CloseNotificationAsync(uint id, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+
+        public Task<IDisposable> WatchAsync(Action<uint, string> actionInvoked, Action<uint, uint> closed)
+            => Task.FromResult<IDisposable>(new MemoryStream());
     }
 
     private sealed class TextChangedArgsConverter : IValueConverter

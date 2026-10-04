@@ -25,6 +25,7 @@ This project brings .NET MAUI to Linux desktops with native X11/Wayland support,
 - **Window decorations**: Server-side decorations (KDE/Sway) or client-side titlebar drawn in Skia with full drag/resize/close/maximize/minimize (GNOME/Mutter)
 - **MediaElement**: Opt-in `OpenMaui.Controls.Linux.MediaElement` package backs `CommunityToolkit.Maui.MediaElement` with GStreamer (playbin + appsink → Skia). `MediaHardwareAcceleration.Prefer` boosts VA-API / NVDEC / V4L2 / MediaSDK decoder ranks when those plugins are installed
 - **WebView**: WPE WebKit composited inside the Skia tree (no GTK widget, no reparenting) on native Wayland and X11, with context menus, clipboard, JavaScript dialogs, file chooser, permissions, web notifications, downloads, spell checking, link cursors, `EvaluateJavaScriptAsync` results and a backend-neutral WebKit content API; WebKitGTK remains the GTK-mode fallback. Libraries derive from the public `LinuxWebViewHandler` for what WebView2 and WKWebView give them elsewhere (`ILinuxWebView`: navigation and new-window decisions, HTTP status, response and download handling with the desktop's Save dialog, zoom, page capture and save as PDF)
+- **HybridWebView**: MAUI's `HybridWebView` on the same WebKit engines, as on iOS and Mac Catalyst: the web app served from `app://0.0.0.1/` out of `Resources/Raw/{HybridRoot}`, MAUI's own `hybridwebview.js`, `SendRawMessage`/`RawMessageReceived`, `InvokeJavaScriptAsync`, `window.HybridWebView.InvokeDotNet`, and `WebResourceRequested` for app-origin requests
 - **Blazor Hybrid**: Opt-in `OpenMaui.Controls.Linux.Blazor` package backs `BlazorWebView` (Microsoft.AspNetCore.Components.WebView.Maui) on the WPE WebView
 - **Maps**: Opt-in `OpenMaui.Controls.Linux.Maps` package backs `Microsoft.Maui.Controls.Maps` with OpenStreetMap raster tiles in Skia — pan/zoom, pin & polyline overlays, persistent XDG tile cache. Plus a standalone `SkiaMap` view for code-first map UI
 - **PDF**: Opt-in `OpenMaui.Controls.Linux.Pdf` package renders PDF pages with Google's PDFium (bundled for x64 and arm64): `SkiaPdfView` for a scrolling, zoomable document view, `PdfiumDocument` for pages as bitmaps and their text, and `.UseLinuxPdf()` makes Syncfusion's `PdfToImageConverter` (and so `SfPdfViewer`) render
@@ -114,7 +115,7 @@ builder
     .UseLinuxSyncfusion();
 ```
 
-`SfView`-based controls (ListView, TreeView, TabView, Charts, the inputs and the rest) lay out, draw their text and graphics, and receive touch, tap, double-tap, right-tap, long-press, drag, wheel, ctrl+wheel pinch and keyboard input. SfCarousel, SfRotator, SfSignaturePad and SfInteractiveScrollView get their native views from the package; SfComboBox and SfAutocomplete drop-downs and SfPopup (and the controls that open one) show as overlays. Not covered yet: ImageEditor and Syncfusion's MediaElement (dedicated native views). The package does not include Syncfusion's assemblies; you need your own Syncfusion license.
+`SfView`-based controls (ListView, TreeView, TabView, Charts, the inputs and the rest) lay out, draw their text and graphics, and receive touch, tap, double-tap, right-tap, long-press, drag, wheel, ctrl+wheel pinch and keyboard input. SfCarousel, SfRotator, SfSignaturePad, SfInteractiveScrollView, SfDataGrid's scroller and SfImageEditor's image view get their native views from the package; SfComboBox and SfAutocomplete drop-downs and SfPopup (and the controls that open one) show as overlays. SfDataGrid, SfScheduler and SfPullToRefresh take the mouse and keyboard as on Windows (column and row resizing and dragging, right-click and context menus, appointment drag and resize, pull with a mouse drag), and SfImageEditor edits, saves and exports images. Not covered yet: SfScheduler's desktop horizontal resource view. The package does not include Syncfusion's assemblies; you need your own Syncfusion license.
 
 ### Optional: PDF (PDFium)
 
@@ -186,7 +187,7 @@ OSM's tile usage policy requires displaying attribution; `SkiaMap` renders the c
 
 ### WebView (WPE WebKit)
 
-`WebView` renders through WPE WebKit 2.54+ when it is installed, composited in the Skia tree like any other control, in native Wayland/X11 mode. Without WPE the GTK-hosted WebKitGTK view is used (requires `options.UseGtk = true`). `OPENMAUI_WEBVIEW=wpe|webkitgtk|auto` overrides the choice.
+`WebView` renders through WPE WebKit 2.54+ when it is installed, composited in the Skia tree like any other control, in native Wayland/X11 mode. Without WPE the GTK-hosted WebKitGTK view is used (requires `options.UseGtk = true`). `OPENMAUI_WEBVIEW=wpe|webkitgtk|auto` overrides the choice. `HybridWebView` uses the same engine.
 
 ```bash
 # Debian testing / sid (Debian 13 carries 2.48, which is too old)
@@ -288,7 +289,7 @@ The chosen renderer is logged at startup, e.g. `Renderer: egl-wayland (EGL 1.5 M
 | **Menu** | MenuBar, MenuFlyout, context flyouts (`FlyoutBase.ContextFlyout`), MenuItem |
 | **Shapes** | Ellipse, Line, Rectangle, Polygon, Polyline, Path |
 | **Graphics** | GraphicsView, Border |
-| **Web** | WebView (WPE WebKit), BlazorWebView |
+| **Web** | WebView (WPE WebKit), HybridWebView, BlazorWebView |
 
 The measured picture is in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md): a scorecard generated from the test run (`dotnet run --project tools/Scorecard -- --run`) in the same categories Microsoft publishes for its maui-labs GTK backend. An item counts as covered only when every test mapped to it passed, so the percentages are computed, not claimed.
 

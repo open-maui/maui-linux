@@ -63,6 +63,20 @@ public partial class WaylandWindow
     // pointer hit-test agree on the inset without a back-channel.
     internal const float CsdTitlebarHeightLogical = 32f;
 
+    /// <summary>
+    /// The titlebar's height this frame (logical pixels): <see cref="CsdTitlebarHeightLogical"/>,
+    /// or taller when the window's TitleBar (MAUI's Window.TitleBar) is (set by the renderer).
+    /// </summary>
+    internal float CsdTitlebarHeight { get; set; } = CsdTitlebarHeightLogical;
+
+    /// <summary>
+    /// Asked for a left press in the titlebar (logical window coordinates): true when an
+    /// interactive part of the window's TitleBar is there (MAUI's TitleBar passthrough
+    /// elements, the parts Windows keeps out of the drag region), so the press reaches the
+    /// view instead of moving the window. Set by the window's context.
+    /// </summary>
+    internal Func<float, float, bool>? CsdTitleBarPassthrough { get; set; }
+
     private delegate void ZxdgToplevelDecorationV1ConfigureDelegate(IntPtr data, IntPtr proxy, uint mode);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -460,7 +474,7 @@ public partial class WaylandWindow
         }
 
         // Below the titlebar → event is for the content area; don't consume.
-        if (y > CsdTitlebarHeightLogical)
+        if (y > CsdTitlebarHeight)
             return false;
 
         // Button hits take priority over titlebar drag.
@@ -479,6 +493,11 @@ public partial class WaylandWindow
             Minimize();
             return true;
         }
+
+        // An interactive part of the window's TitleBar takes the press (Windows' passthrough
+        // region); the rest of the bar moves the window.
+        if (CsdTitleBarPassthrough?.Invoke(x, y) == true)
+            return false;
 
         // Any other point in the titlebar starts an interactive move.
         // Double-click on the titlebar should toggle maximize, but we don't
