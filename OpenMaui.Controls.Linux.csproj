@@ -137,6 +137,12 @@
     <MauiXaml Remove="vsix/**/*.xaml" />
     <MauiXaml Remove="templates/**/*.xaml" />
     <MauiXaml Remove="samples/**/*.xaml" />
+    <!-- Standalone tools (tools/ParityHarness is a MAUI app with WinUI XAML) are never
+         part of this package. -->
+    <None Remove="tools/**" />
+    <Content Remove="tools/**" />
+    <EmbeddedResource Remove="tools/**" />
+    <MauiXaml Remove="tools/**" />
   </ItemGroup>
 
 </Project>
