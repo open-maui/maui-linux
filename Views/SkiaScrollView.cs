@@ -875,31 +875,27 @@ public class SkiaScrollView : SkiaView
             ContentSize = SKSize.Empty;
         }
 
-        // Return available size, but clamp infinite dimensions
-        // IMPORTANT: When available is infinite, return a reasonable viewport size, NOT content size
-        // A ScrollView should NOT expand to fit its content - it should stay at a fixed viewport
-        // and scroll the content. Use a default viewport size when parent gives infinity.
-        const double DefaultViewportWidth = 400.0;
-        const double DefaultViewportHeight = 400.0;
-
-        var width = double.IsInfinity(availableSize.Width) || double.IsNaN(availableSize.Width)
-            ? Math.Min(ContentSize.Width, DefaultViewportWidth)
-            : availableSize.Width;
-        var height = double.IsInfinity(availableSize.Height) || double.IsNaN(availableSize.Height)
-            ? Math.Min(ContentSize.Height, DefaultViewportHeight)
-            : availableSize.Height;
-
-        // A horizontal scroller is as tall as its content, up to the height offered, as in
-        // MAUI; taking all of it made a row of cards in a page's stack as tall as the page.
-        if (Orientation == ScrollOrientation.Horizontal && _content != null)
-            height = Math.Min(height, ContentSize.Height);
-
-        // A vertical scroller is as tall as its content, up to the height offered, as in MAUI:
-        // it scrolls only when the content is taller. A parent that fills still stretches it;
-        // a centred one (a popup's card around a scrolling form) wraps the content instead of
-        // taking the whole window.
-        if (Orientation is ScrollOrientation.Vertical or ScrollOrientation.Both && _content != null)
-            height = Math.Min(height, ContentSize.Height);
+        // As MAUI's ScrollView: as large as its content, up to the room offered, on each axis.
+        // An unbounded axis gives the content's size, so a ScrollView in a stack layout is as tall
+        // as its content and does not scroll, as on the other platforms (MAUI's guidance is a Grid
+        // with a * row); a centred one wraps its content. A parent that fills still stretches it,
+        // and it scrolls when the content is larger than the room it is given.
+        static bool Unbounded(double value) => double.IsInfinity(value) || double.IsNaN(value);
+        double width, height;
+        if (_content == null)
+        {
+            width = Unbounded(availableSize.Width) ? 0 : availableSize.Width;
+            height = Unbounded(availableSize.Height) ? 0 : availableSize.Height;
+        }
+        else
+        {
+            // The content was measured beside a reserved vertical scrollbar: keep room for it.
+            double reserve = Orientation is ScrollOrientation.Vertical or ScrollOrientation.Both
+                && VerticalScrollBarVisibility != ScrollBarVisibility.Never ? ScrollBarWidth : 0;
+            double contentWidth = ContentSize.Width + reserve;
+            width = Unbounded(availableSize.Width) ? contentWidth : Math.Min(availableSize.Width, contentWidth);
+            height = Unbounded(availableSize.Height) ? ContentSize.Height : Math.Min(availableSize.Height, ContentSize.Height);
+        }
 
         return new Size(width, height);
     }
