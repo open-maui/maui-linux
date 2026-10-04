@@ -68,6 +68,17 @@ namespace Microsoft.Maui.TestUtils.DeviceTests.Runners
 	}
 
 	/// <summary>
+	/// The runner's window (MAUI's TestWindow): the headless runner has no app window, so it
+	/// is a platform window of OpenMaui's WindowHandler type that no context shows.
+	/// </summary>
+	public static class TestWindow
+	{
+		static Microsoft.Maui.Platform.Linux.Handlers.SkiaWindow? s_platformWindow;
+
+		public static object PlatformWindow => s_platformWindow ??= new Microsoft.Maui.Platform.Linux.Handlers.SkiaWindow();
+	}
+
+	/// <summary>
 	/// The device runners expose the test app's services here; the headless
 	/// Linux runner has no app, so only the logger lookups ContextStub makes
 	/// reach it, and those fall back to the test's own registrations.

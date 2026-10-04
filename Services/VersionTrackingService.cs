@@ -10,6 +10,12 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Linux version tracking implementation.
 /// </summary>
+/// <remarks>
+/// UseLinux no longer installs this behind <c>VersionTracking</c>: MAUI's own implementation
+/// is platform-neutral and, over the Linux Preferences and AppInfo, keeps a per-app history as on
+/// the other platforms (this class kept one JSON file shared by every app). It remains for code
+/// that constructs it directly.
+/// </remarks>
 public class VersionTrackingService : IVersionTracking
 {
     private const string VersionTrackingFile = ".maui-version-tracking.json";

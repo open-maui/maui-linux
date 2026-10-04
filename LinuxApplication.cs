@@ -483,8 +483,16 @@ public partial class LinuxApplication : IDisposable, IPlatformApplication
         {
             InitializeX11(options);
         }
+        HasDisplay = true;
         RegisterServices();
     }
+
+    /// <summary>
+    /// True once <see cref="Initialize"/> connected the app to a display (a native or GTK
+    /// window). An app that never was (embedded, or under test) opens its windows without
+    /// native toplevels: they keep their own geometry (<see cref="WindowContext.IsHeadless"/>).
+    /// </summary>
+    internal bool HasDisplay { get; private set; }
 
     private Rendering.RendererPreference _rendererPreference = Rendering.RendererPreference.Auto;
 

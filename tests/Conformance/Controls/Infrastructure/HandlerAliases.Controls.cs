@@ -75,6 +75,7 @@ global using ShellHandler = Microsoft.Maui.Platform.Linux.Handlers.ShellHandler;
 global using SliderHandler = Microsoft.Maui.Platform.Linux.Handlers.SliderHandler;
 global using StepperHandler = Microsoft.Maui.Platform.Linux.Handlers.StepperHandler;
 global using SwipeViewHandler = Microsoft.Maui.Platform.Linux.Handlers.SwipeViewHandler;
+global using SwipeItemMenuItemHandler = Microsoft.Maui.Platform.Linux.Handlers.SwipeItemMenuItemHandler;
 global using SwitchHandler = Microsoft.Maui.Platform.Linux.Handlers.SwitchHandler;
 // MAUI's TabbedPage handler is TabbedViewHandler.
 global using TabbedViewHandler = Microsoft.Maui.Platform.Linux.Handlers.TabbedPageHandler;

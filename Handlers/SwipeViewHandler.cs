@@ -11,13 +11,15 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
-/// Handler for SwipeView on Linux using Skia rendering.
-/// Maps SwipeView to SkiaSwipeView platform view.
+/// Handler for the Controls <see cref="SwipeView"/> on Linux, platform view
+/// <see cref="SkiaSwipeView"/>. It chains <see cref="CoreSwipeViewHandler"/>'s mappers (MAUI's
+/// keys, for any <see cref="ISwipeView"/>), so the swipe reports SwipeStarted, SwipeChanging,
+/// SwipeEnded and IsOpen to the SwipeView, and its items get their handlers.
 /// </summary>
-public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeView>
+public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeView>, ISwipeViewHandler
 {
     public static IPropertyMapper<SwipeView, SwipeViewHandler> Mapper =
-        new PropertyMapper<SwipeView, SwipeViewHandler>(ViewHandler.ViewMapper)
+        new PropertyMapper<SwipeView, SwipeViewHandler>(CoreSwipeViewHandler.Mapper)
         {
             [nameof(SwipeView.Content)] = MapContent,
             [nameof(SwipeView.LeftItems)] = MapLeftItems,
@@ -29,11 +31,13 @@ public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeVie
         };
 
     public static CommandMapper<SwipeView, SwipeViewHandler> CommandMapper =
-        new(ViewHandler.ViewCommandMapper)
+        new(CoreSwipeViewHandler.CommandMapper)
         {
             ["RequestOpen"] = MapRequestOpen,
             ["RequestClose"] = MapRequestClose,
         };
+
+    private SwipeViewConnection? _connection;
 
     public SwipeViewHandler() : base(Mapper, CommandMapper)
     {
@@ -44,6 +48,10 @@ public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeVie
     {
     }
 
+    ISwipeView ISwipeViewHandler.VirtualView => VirtualView;
+
+    object ISwipeViewHandler.PlatformView => PlatformView;
+
     protected override SkiaSwipeView CreatePlatformView()
     {
         return new SkiaSwipeView();
@@ -52,117 +60,39 @@ public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeVie
     protected override void ConnectHandler(SkiaSwipeView platformView)
     {
         base.ConnectHandler(platformView);
-        platformView.SwipeStarted += OnSwipeStarted;
-        platformView.SwipeEnded += OnSwipeEnded;
+        // The swipe is reported to the SwipeView (its SwipeStarted, SwipeChanging and SwipeEnded
+        // events, IsOpen), as MAUI's platform swipe views do.
+        _connection = new SwipeViewConnection(platformView, () => VirtualView);
     }
 
     protected override void DisconnectHandler(SkiaSwipeView platformView)
     {
-        platformView.SwipeStarted -= OnSwipeStarted;
-        platformView.SwipeEnded -= OnSwipeEnded;
+        _connection?.Disconnect();
+        _connection = null;
         base.DisconnectHandler(platformView);
     }
 
-    private void OnSwipeStarted(object? sender, Platform.SwipeStartedEventArgs e)
-    {
-        // SwipeView events are handled internally by the platform view
-    }
+    public static void MapContent(SwipeViewHandler handler, SwipeView swipeView) =>
+        CoreSwipeViewHandler.MapContent(handler, swipeView);
 
-    private void OnSwipeEnded(object? sender, Platform.SwipeEndedEventArgs e)
-    {
-        // SwipeView events are handled internally by the platform view
-    }
+    public static void MapLeftItems(SwipeViewHandler handler, SwipeView swipeView) =>
+        CoreSwipeViewHandler.MapLeftItems(handler, swipeView);
 
-    public static void MapContent(SwipeViewHandler handler, SwipeView swipeView)
-    {
-        if (handler.PlatformView is null || handler.MauiContext is null) return;
+    public static void MapRightItems(SwipeViewHandler handler, SwipeView swipeView) =>
+        CoreSwipeViewHandler.MapRightItems(handler, swipeView);
 
-        var content = swipeView.Content;
-        if (content == null)
-        {
-            handler.PlatformView.Content = null;
-            return;
-        }
+    public static void MapTopItems(SwipeViewHandler handler, SwipeView swipeView) =>
+        CoreSwipeViewHandler.MapTopItems(handler, swipeView);
 
-        // Create handler for content
-        if (content.Handler == null)
-        {
-            content.Handler = content.ToViewHandler(handler.MauiContext);
-        }
+    public static void MapBottomItems(SwipeViewHandler handler, SwipeView swipeView) =>
+        CoreSwipeViewHandler.MapBottomItems(handler, swipeView);
 
-        if (content.Handler?.PlatformView is SkiaView skiaContent)
-        {
-            handler.PlatformView.Content = skiaContent;
-        }
-    }
-
-    public static void MapLeftItems(SwipeViewHandler handler, SwipeView swipeView)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.LeftItems.Clear();
-
-        if (swipeView.LeftItems != null)
-        {
-            foreach (var item in swipeView.LeftItems)
-            {
-                handler.PlatformView.LeftItems.Add(CreatePlatformSwipeItem(item));
-            }
-        }
-    }
-
-    public static void MapRightItems(SwipeViewHandler handler, SwipeView swipeView)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.RightItems.Clear();
-
-        if (swipeView.RightItems != null)
-        {
-            foreach (var item in swipeView.RightItems)
-            {
-                handler.PlatformView.RightItems.Add(CreatePlatformSwipeItem(item));
-            }
-        }
-    }
-
-    public static void MapTopItems(SwipeViewHandler handler, SwipeView swipeView)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.TopItems.Clear();
-
-        if (swipeView.TopItems != null)
-        {
-            foreach (var item in swipeView.TopItems)
-            {
-                handler.PlatformView.TopItems.Add(CreatePlatformSwipeItem(item));
-            }
-        }
-    }
-
-    public static void MapBottomItems(SwipeViewHandler handler, SwipeView swipeView)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.BottomItems.Clear();
-
-        if (swipeView.BottomItems != null)
-        {
-            foreach (var item in swipeView.BottomItems)
-            {
-                handler.PlatformView.BottomItems.Add(CreatePlatformSwipeItem(item));
-            }
-        }
-    }
-
-    public static void MapThreshold(SwipeViewHandler handler, SwipeView swipeView)
-    {
-        if (handler.PlatformView is null) return;
-
-        handler.PlatformView.LeftSwipeThreshold = (float)swipeView.Threshold;
-        handler.PlatformView.RightSwipeThreshold = (float)swipeView.Threshold;
-    }
+    /// <summary>
+    /// MAUI's Threshold: how far a swipe must go for the items to open (0 means 60% of their
+    /// size), not how far they open.
+    /// </summary>
+    public static void MapThreshold(SwipeViewHandler handler, SwipeView swipeView) =>
+        CoreSwipeViewHandler.MapThreshold(handler, swipeView);
 
     public static void MapBackground(SwipeViewHandler handler, SwipeView swipeView)
     {
@@ -174,53 +104,9 @@ public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeVie
         }
     }
 
-    public static void MapRequestOpen(SwipeViewHandler handler, SwipeView swipeView, object? args)
-    {
-        if (handler.PlatformView is null) return;
+    public static void MapRequestOpen(SwipeViewHandler handler, SwipeView swipeView, object? args) =>
+        CoreSwipeViewHandler.MapRequestOpen(handler, swipeView, args);
 
-        if (args is SwipeViewOpenRequest request)
-        {
-            var direction = request.OpenSwipeItem switch
-            {
-                OpenSwipeItem.LeftItems => Platform.SwipeDirection.Right,
-                OpenSwipeItem.RightItems => Platform.SwipeDirection.Left,
-                OpenSwipeItem.TopItems => Platform.SwipeDirection.Down,
-                OpenSwipeItem.BottomItems => Platform.SwipeDirection.Up,
-                _ => Platform.SwipeDirection.Right
-            };
-
-            handler.PlatformView.Open(direction);
-        }
-    }
-
-    public static void MapRequestClose(SwipeViewHandler handler, SwipeView swipeView, object? args)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Close();
-    }
-
-    private static Platform.SwipeItem CreatePlatformSwipeItem(ISwipeItem item)
-    {
-        var platformItem = new Platform.SwipeItem();
-
-        if (item is Controls.SwipeItem swipeItem)
-        {
-            platformItem.Text = swipeItem.Text ?? "";
-
-            // Get background color
-            var bgColor = swipeItem.BackgroundColor;
-            if (bgColor is not null)
-            {
-                platformItem.BackgroundColor = bgColor;
-            }
-        }
-        else if (item is Controls.SwipeItemView swipeItemView)
-        {
-            // SwipeItemView uses custom content - use a simple representation
-            platformItem.Text = "Action";
-            platformItem.BackgroundColor = Color.FromRgb(100, 100, 100);
-        }
-
-        return platformItem;
-    }
+    public static void MapRequestClose(SwipeViewHandler handler, SwipeView swipeView, object? args) =>
+        CoreSwipeViewHandler.MapRequestClose(handler, swipeView, args);
 }

@@ -27,10 +27,27 @@ public class LauncherService : ILauncher
         _portal = portal;
     }
 
+    /// <summary>
+    /// True when the desktop has an application for the URI: a <c>file:</c> URI whose file or
+    /// folder exists, or a scheme with a registered handler (x-scheme-handler/&lt;scheme&gt; in the
+    /// XDG MIME associations xdg-open uses; inside a sandbox the portal's chooser handles any
+    /// scheme). An unknown scheme is false, as on the other platforms.
+    /// </summary>
     public Task<bool> CanOpenAsync(Uri uri)
     {
-        // On Linux, we can generally open any URI using xdg-open
-        return Task.FromResult(true);
+        if (uri == null)
+            throw new ArgumentNullException(nameof(uri));
+
+        return Task.FromResult(CanOpen(uri));
+    }
+
+    internal static bool CanOpen(Uri uri)
+    {
+        if (!uri.IsAbsoluteUri || string.IsNullOrEmpty(uri.Scheme))
+            return false;
+        if (uri.IsFile)
+            return File.Exists(uri.LocalPath) || Directory.Exists(uri.LocalPath);
+        return SchemeHandlers.HasHandler(uri.Scheme);
     }
 
     public Task<bool> OpenAsync(Uri uri)
@@ -48,8 +65,10 @@ public class LauncherService : ILauncher
 
     public Task<bool> OpenAsync(OpenFileRequest request)
     {
-        if (request?.File == null)
-            return Task.FromResult(false);
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+        if (request.File == null)
+            throw new ArgumentNullException(nameof(request.File));
 
         var filePath = request.File.FullPath;
         if (DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred))
@@ -72,9 +91,13 @@ public class LauncherService : ILauncher
         _ => fallback(),
     };
 
+    /// <summary>Opens the URI when <see cref="CanOpenAsync"/> says it can; false otherwise (nothing is launched).</summary>
     public Task<bool> TryOpenAsync(Uri uri)
     {
-        return OpenAsync(uri);
+        if (uri == null)
+            throw new ArgumentNullException(nameof(uri));
+
+        return CanOpen(uri) ? OpenAsync(uri) : Task.FromResult(false);
     }
 
     /// <summary>
