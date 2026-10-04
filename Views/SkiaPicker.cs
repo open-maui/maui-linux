@@ -466,18 +466,9 @@ public class SkiaPicker : SkiaView
         canvas.DrawRoundRect(buttonRect, borderPaint);
 
         // Draw text or title
-        SKTypeface typeface = SKTypeface.Default;
-        if (!string.IsNullOrEmpty(FontFamily))
-        {
-            var style = FontAttributes switch
-            {
-                FontAttributes.Bold => SKFontStyle.Bold,
-                FontAttributes.Italic => SKFontStyle.Italic,
-                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
-                _ => SKFontStyle.Normal
-            };
-            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
-        }
+        var typeface = Fonts.GetTypeface(
+            TextRenderingHelper.GetEffectiveFontFamily(FontFamily),
+            TextRenderingHelper.GetFontStyle(FontAttributes));
 
         using var font = SkiaFontFactory.Create(typeface, fontSize);
         using var textPaint = new SKPaint

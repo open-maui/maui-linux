@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -19,6 +20,7 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         [nameof(IImage.Aspect)] = MapAspect,
         [nameof(IImage.IsOpaque)] = MapIsOpaque,
         [nameof(IImageSourcePart.Source)] = MapSource,
+        [nameof(IImageSourcePart.IsAnimationPlaying)] = MapIsAnimationPlaying,
         [nameof(IButtonStroke.StrokeColor)] = MapStrokeColor,
         [nameof(IButtonStroke.StrokeThickness)] = MapStrokeThickness,
         [nameof(IButtonStroke.CornerRadius)] = MapCornerRadius,
@@ -56,8 +58,6 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         platformView.Clicked += OnClicked;
         platformView.Pressed += OnPressed;
         platformView.Released += OnReleased;
-        platformView.ImageLoaded += OnImageLoaded;
-        platformView.ImageLoadingError += OnImageLoadingError;
         if (VirtualView is Microsoft.Maui.Controls.View view)
             ToolkitIconTint.Attach(view, color => platformView.TintColor = color);
     }
@@ -67,8 +67,6 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         platformView.Clicked -= OnClicked;
         platformView.Pressed -= OnPressed;
         platformView.Released -= OnReleased;
-        platformView.ImageLoaded -= OnImageLoaded;
-        platformView.ImageLoadingError -= OnImageLoadingError;
         if (VirtualView is Microsoft.Maui.Controls.View view)
             ToolkitIconTint.Detach(view);
         VisualStateBridge.Detach(platformView);
@@ -90,22 +88,6 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         VirtualView?.Released();
     }
 
-    private void OnImageLoaded(object? sender, EventArgs e)
-    {
-        if (VirtualView is IImageSourcePart imageSourcePart)
-        {
-            imageSourcePart.UpdateIsLoading(false);
-        }
-    }
-
-    private void OnImageLoadingError(object? sender, ImageLoadingErrorEventArgs e)
-    {
-        if (VirtualView is IImageSourcePart imageSourcePart)
-        {
-            imageSourcePart.UpdateIsLoading(false);
-        }
-    }
-
     public static void MapAspect(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
@@ -116,6 +98,12 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.IsOpaque = imageButton.IsOpaque;
+    }
+
+    public static void MapIsAnimationPlaying(ImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsAnimationPlaying = imageButton.IsAnimationPlaying;
     }
 
     public static void MapSource(ImageButtonHandler handler, IImageButton imageButton)
@@ -232,60 +220,69 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
         {
             _cts?.Cancel();
             _cts = new CancellationTokenSource();
-            var token = _cts.Token;
 
             try
             {
-                var source = _handler.VirtualView?.Source;
-                if (source == null)
-                {
-                    _handler.PlatformView?.LoadFromData(Array.Empty<byte>());
-                    return;
-                }
-
-                if (_handler.VirtualView is IImageSourcePart imageSourcePart)
-                {
-                    imageSourcePart.UpdateIsLoading(true);
-                }
-
-                // Handle different image source types
-                if (source is IFileImageSource fileSource)
-                {
-                    var file = fileSource.File;
-                    if (!string.IsNullOrEmpty(file))
-                    {
-                        await _handler.PlatformView!.LoadFromFileAsync(file);
-                    }
-                }
-                else if (source is IUriImageSource uriSource)
-                {
-                    var uri = uriSource.Uri;
-                    if (uri != null)
-                    {
-                        await _handler.PlatformView!.LoadFromUriAsync(uri);
-                    }
-                }
-                else if (source is IStreamImageSource streamSource)
-                {
-                    var stream = await streamSource.GetStreamAsync(token);
-                    if (stream != null)
-                    {
-                        await _handler.PlatformView!.LoadFromStreamAsync(stream);
-                    }
-                }
+                await ImageSourcePartLoading.RunAsync(_handler.VirtualView, _cts.Token, LoadAsync, Clear);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex)
             {
-                // Loading was cancelled
-            }
-            catch (Exception)
-            {
-                // Handle error
-                if (_handler.VirtualView is IImageSourcePart imageSourcePart)
-                {
-                    imageSourcePart.UpdateIsLoading(false);
-                }
+                DiagnosticLog.Error("ImageButtonHandler", "Image source load failed", ex);
             }
         }
+
+        private void Clear() => _handler.PlatformView?.ClearImage();
+
+        private async Task<Exception?> LoadAsync(IImageSource source, CancellationToken token)
+        {
+            var view = _handler.PlatformView;
+            if (view is null)
+                return null;
+
+            switch (source)
+            {
+                case IFileImageSource fileSource:
+                    if (string.IsNullOrEmpty(fileSource.File))
+                    {
+                        view.ClearImage();
+                        return null;
+                    }
+                    return await CaptureAsync(view, () => view.LoadFromFileAsync(fileSource.File));
+
+                case IUriImageSource uriSource:
+                    if (uriSource.Uri is null)
+                    {
+                        view.ClearImage();
+                        return null;
+                    }
+                    return await CaptureAsync(view, () => view.LoadFromUriAsync(uriSource.Uri));
+
+                case IStreamImageSource streamSource:
+                    using (var stream = await streamSource.GetStreamAsync(token))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if (stream is null)
+                            return new InvalidOperationException("The stream image source returned no stream.");
+                        return await CaptureAsync(view, () => view.LoadFromStreamAsync(stream));
+                    }
+
+                case Microsoft.Maui.Controls.FontImageSource fontSource:
+                    var bitmap = ImageHandler.ImageSourceServiceResultManager.RenderFontImageSource(
+                        fontSource, view.WidthRequest, view.HeightRequest);
+                    if (bitmap is null)
+                    {
+                        view.ClearImage();
+                        return null;
+                    }
+                    view.LoadFromBitmap(bitmap);
+                    return null;
+
+                default:
+                    return new NotSupportedException($"Image source type {source.GetType().Name} is not supported on Linux.");
+            }
+        }
+
+        private static Task<Exception?> CaptureAsync(SkiaImageButton view, Func<Task> load) =>
+            ImageSourcePartLoading.CaptureErrorAsync(h => view.ImageLoadingError += h, h => view.ImageLoadingError -= h, load);
     }
 }

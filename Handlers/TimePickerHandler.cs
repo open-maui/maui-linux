@@ -107,6 +107,8 @@ public partial class TimePickerHandler : LinuxViewHandler<ITimePicker, SkiaTimeP
         var attrs = FontAttributes.None;
         if (font.Weight >= FontWeight.Bold)
             attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
         handler.PlatformView.FontAttributes = attrs;
     }
 

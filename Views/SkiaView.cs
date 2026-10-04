@@ -222,6 +222,28 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
     }
 
+    private Visibility _visibility = Visibility.Visible;
+
+    /// <summary>
+    /// MAUI's <see cref="Microsoft.Maui.Visibility"/>: a Hidden and a Collapsed view both draw
+    /// nothing and take no input (<see cref="IsVisible"/> is false); a layout gives a Hidden view
+    /// its space and a Collapsed one none, reading it from the virtual view.
+    /// </summary>
+    public Visibility Visibility
+    {
+        get
+        {
+            if (_mauiView is IView view) return view.Visibility;
+            if (IsVisible) return Visibility.Visible;
+            return _visibility == Visibility.Visible ? Visibility.Collapsed : _visibility;
+        }
+        set
+        {
+            _visibility = value;
+            IsVisible = value == Visibility.Visible;
+        }
+    }
+
     /// <summary>
     /// Gets or sets whether this view is enabled for interaction.
     /// </summary>
@@ -786,7 +808,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         }
         set
         {
-            if (_mauiView is Element el) { el.AutomationId = value; return; }
+            if (_mauiView is Element el) { if (el.AutomationId != value) el.AutomationId = value; return; }
             if (_automationId == value) return;
             _automationId = value;
         }

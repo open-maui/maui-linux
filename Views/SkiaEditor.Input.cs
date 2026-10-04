@@ -45,6 +45,13 @@ public partial class SkiaEditor
     int IInputContext.SelectionLength => _selectionLength;
 
     /// <summary>
+    /// The keyboard and prediction settings as the input method's content type
+    /// (always multiline).
+    /// </summary>
+    TextInputContentType IInputContext.ContentType =>
+        TextInputContentType.FromKeyboard(Keyboard, isPassword: false, IsTextPredictionEnabled, IsSpellCheckEnabled, isMultiline: true);
+
+    /// <summary>
     /// Called when IME commits text.
     /// </summary>
     public void OnTextCommitted(string text)
@@ -62,9 +69,9 @@ public partial class SkiaEditor
         _preEditCursorPosition = 0;
 
         // Check max length
-        if (MaxLength > 0 && Text.Length + text.Length > MaxLength)
+        if (MaxLength >= 0 && Text.Length + text.Length > MaxLength)
         {
-            text = text.Substring(0, MaxLength - Text.Length);
+            text = text.Substring(0, Math.Max(0, MaxLength - Text.Length));
         }
 
         // Insert committed text at cursor
@@ -451,7 +458,7 @@ public partial class SkiaEditor
                 var current = Text ?? string.Empty;
                 var pos = Math.Clamp(_cursorPosition, 0, current.Length);
                 var insert = text;
-                if (MaxLength > 0 && current.Length + insert.Length > MaxLength)
+                if (MaxLength >= 0 && current.Length + insert.Length > MaxLength)
                 {
                     var slack = MaxLength - current.Length;
                     if (slack <= 0) return;
@@ -652,7 +659,7 @@ public partial class SkiaEditor
             _selectionLength = 0;
         }
 
-        if (MaxLength > 0 && Text.Length + text.Length > MaxLength)
+        if (MaxLength >= 0 && Text.Length + text.Length > MaxLength)
         {
             text = text.Substring(0, Math.Max(0, MaxLength - Text.Length));
         }
