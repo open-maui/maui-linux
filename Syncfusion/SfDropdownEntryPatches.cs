@@ -36,6 +36,9 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// shows from its start.</item>
 /// <item><c>SelectionTextHighlightColor</c> (<c>SfInputView.SelectionColor</c>):
 /// the text box's selection colour.</item>
+/// <item><c>DropDownListBase.MeasureContent</c> / <c>UpdateBoundsSize</c>,
+/// with the <c>MinimumHeightRequest</c> the Windows <c>SfDropdownEntry</c>
+/// constructor sets: see <see cref="MeasureContent_Prefix"/>.</item>
 /// </list>
 /// The controls are optional (Syncfusion.Maui.Inputs), so their types are
 /// looked up by name; private members are reached through <see cref="SfMembers"/>.
@@ -47,6 +50,7 @@ internal static class SfDropdownEntryPatches
     private static readonly ConditionalWeakTable<object, StrongBox<double>> s_previousWidths = new();
     private static readonly ConditionalWeakTable<object, WeakReference<Page>> s_pages = new();
     private static int s_installed;
+    private static Type? s_listBase;
 
     internal static void Install()
     {
@@ -77,6 +81,20 @@ internal static class SfDropdownEntryPatches
             }
             if (autocomplete != null)
                 Postfix(harmony, autocomplete.GetMethod("UpdateTextFromSelectedItem", Any, null, Type.EmptyTypes, null), nameof(UpdateTextFromSelectedItem_Postfix));
+            // The Windows measure (DropDownListBase.MeasureContent, which the
+            // neutral build does not declare) and the minimum height the Windows
+            // SfDropdownEntry constructor sets, which that measure relies on.
+            if (listBase != null && listBase.GetMethod("MeasureContent", Any | BindingFlags.DeclaredOnly, null, [typeof(double), typeof(double)], null) == null)
+            {
+                Prefix(harmony, entry.GetMethod("MeasureContent", Any, null, [typeof(double), typeof(double)], null), nameof(MeasureContent_Prefix));
+                s_listBase = listBase;
+            }
+            foreach (var ctor in entry.GetConstructors(Any))
+            {
+                if (!SfDyn.Calls(ctor, "set_MinimumHeightRequest"))
+                    Postfix(harmony, ctor, nameof(Constructor_Postfix));
+            }
+
             if (listBase != null)
             {
                 Postfix(harmony, listBase.GetMethod("OnSizeAllocated", Any, null, [typeof(double), typeof(double)], null), nameof(OnSizeAllocated_Postfix));
@@ -91,13 +109,83 @@ internal static class SfDropdownEntryPatches
         }
     }
 
+    /// <summary>
+    /// The Windows <c>SfDropdownEntry</c> constructor's
+    /// <c>MinimumHeightRequest = buttonSize</c> (32): the box is never shorter
+    /// than its buttons. WinUI applies it as the platform view's MinHeight,
+    /// OpenMaui's measure as the view's minimum height.
+    /// </summary>
+    private static void Constructor_Postfix(SfDropdownEntry __instance)
+    {
+        try
+        {
+            if (__instance.MinimumHeightRequest < 0 && SfMembers.Get(__instance, "buttonSize") is int buttonSize)
+                __instance.MinimumHeightRequest = buttonSize;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("Syncfusion", "SfDropdownEntry minimum height failed", ex);
+        }
+    }
+
+    /// <summary>
+    /// The Windows <c>DropDownListBase.MeasureContent</c> for SfComboBox and
+    /// SfAutocomplete. With single selection, an unconstrained (infinite)
+    /// width or height is measured as 0, so the control asks for no width
+    /// there and for its minimum height (32, see <see cref="Constructor_Postfix"/>):
+    /// in a vertical stack it fills the width and is 32 high; in a horizontal
+    /// stack, an Auto grid column or anything else that offers infinite width
+    /// it gets no width, as on Windows, unless it has a WidthRequest or
+    /// MinimumWidthRequest. When its parent sits in a FlexLayout, the measure
+    /// is the constraint clamped to that parent's current size
+    /// (<c>UpdateBoundsSize</c>) and the text box is not measured.
+    /// </summary>
+    private static bool MeasureContent_Prefix(SfDropdownEntry __instance, ref double widthConstraint, ref double heightConstraint, ref Microsoft.Maui.Graphics.Size __result)
+    {
+        try
+        {
+            if (s_listBase == null || !s_listBase.IsInstanceOfType(__instance))
+                return true;
+            if (SfMembers.Get(__instance, "IsMultiSelection") is not true)
+            {
+                if (widthConstraint == -1.0 || double.IsPositiveInfinity(widthConstraint))
+                    widthConstraint = 0.0;
+                if (heightConstraint == -1.0 || double.IsPositiveInfinity(heightConstraint))
+                    heightConstraint = 0.0;
+            }
+            if (__instance.Parent is View parent && parent.Parent is FlexLayout)
+            {
+                __result = UpdateBoundsSize(__instance, parent, widthConstraint, heightConstraint);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("Syncfusion", "SfComboBox measure failed", ex);
+        }
+        return true;
+    }
+
+    /// <summary>The Windows <c>DropDownListBase.UpdateBoundsSize</c>: a constraint larger than the parent's current size is clamped to it.</summary>
+    private static Microsoft.Maui.Graphics.Size UpdateBoundsSize(SfDropdownEntry control, View parent, double width, double height)
+    {
+        bool hasDropDown = SfMembers.Get(control, "DropDownView") != null;
+        if (!double.IsNegative(parent.Width) && Math.Round(width, 0) != Math.Round(parent.Width, 0)
+            && Math.Round(width, 4) > Math.Round(parent.Width, 4) && hasDropDown && SfMembers.Get(control, "DropdownWidth") is 0.0)
+            width = parent.Width;
+        if (!double.IsNegative(parent.Height) && Math.Round(height, 0) != Math.Round(parent.Height, 0)
+            && Math.Round(height, 4) > Math.Round(parent.Height, 4) && hasDropDown)
+            height = parent.Height;
+        return new Microsoft.Maui.Graphics.Size(width, height);
+    }
+
     private static void Prefix(Harmony harmony, MethodInfo? original, string prefix)
     {
         if (original != null)
             harmony.Patch(original, new HarmonyMethod(typeof(SfDropdownEntryPatches).GetMethod(prefix, BindingFlags.Static | BindingFlags.NonPublic)));
     }
 
-    private static void Postfix(Harmony harmony, MethodInfo? original, string postfix)
+    private static void Postfix(Harmony harmony, MethodBase? original, string postfix)
     {
         if (original != null)
             harmony.Patch(original, postfix: new HarmonyMethod(typeof(SfDropdownEntryPatches).GetMethod(postfix, BindingFlags.Static | BindingFlags.NonPublic)));
