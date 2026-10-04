@@ -57,6 +57,7 @@
     <PackageReference Include="Syncfusion.Maui.Popup" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.DataGrid" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.ImageEditor" Version="34.2.9" />
+    <PackageReference Include="Syncfusion.Maui.Toolbar" Version="34.2.9" />
   </ItemGroup>
 
   <ItemGroup>
