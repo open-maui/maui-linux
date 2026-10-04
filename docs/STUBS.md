@@ -29,7 +29,7 @@ Package versions are the ones `tests/Compat` restores:
 | CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
 | CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |
 | Syncfusion.Maui.Core | 34.2.9 | 668 | 659 | 9 | 0 |
-| Syncfusion.Maui.Scheduler | 34.2.9 | 253 | 41 | 137 | 75 |
+| Syncfusion.Maui.Scheduler | 34.2.9 | 253 | 113 | 137 | 3 |
 | Syncfusion.Maui.Inputs | 34.2.9 | 33 | 30 | 3 | 0 |
 | Syncfusion.Maui.DataGrid | 34.2.9 | 24 | 22 | 2 | 0 |
 | Syncfusion.Maui.Popup | 34.2.9 | 23 | 22 | 1 | 0 |
@@ -53,7 +53,7 @@ Package versions are the ones `tests/Compat` restores:
 | Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2313** | **1926** | **311** | **76** |
+| **Total** | | **2313** | **1998** | **311** | **4** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -88,12 +88,9 @@ No open findings. Where Linux still differs from Windows:
 
 ### Syncfusion
 
-- **SfScheduler:**
-  - The desktop horizontal resource view is Windows and Mac only: resources side by side in the day, week, work-week and month views, with its own resource header, time ruler and render virtualization. The neutral build shows resources the way the mobile builds do, in the timeline views only.
-  - Dragging a timed appointment onto the all-day panel stays in the time slots (Windows routes the drag to the all-day panel).
-  - The AI assist button of a smart scheduler's header is Windows-only.
 - **SfToolbar:** hover, tool tips on hover, the "more" menu's hover highlight, and items as tab stops that Enter activates are bridged (`Syncfusion/SfToolbarPatches.cs`). What is left: the navigation and "more" buttons are tab stops but draw no focus rectangle, where Windows shows its system focus visual on them.
 - **SfComboBox and SfAutocomplete:** measure as on Windows (`Syncfusion/SfDropdownEntryPatches.cs`). With single selection, an unconstrained width or height is measured as 0, and the box is never shorter than 32 (the Windows `SfDropdownEntry` sets `MinimumHeightRequest`). So in a vertical stack it fills the width and is 32 high, while a horizontal stack, an Auto grid column or anything else that offers unlimited width gives it no width unless it has a `WidthRequest`, as on Windows. Inside a FlexLayout item it is clamped to that item's current size.
+- **SfScheduler:** the AI assist button of a smart scheduler's header (`SfSmartScheduler`) is desktop-only (Windows and Mac). The neutral SmartScheduler build also leaves the button's wiring empty, and the package is not restored by `tests/Compat`, so it is not bridged. An app can open the assist view with `SfSmartScheduler.OpenAssistView()`. The desktop horizontal resource view is bridged (`Syncfusion/SfSchedulerResourceView*.cs`): resources side by side in the day, week, work-week and month views, with the resource header, time ruler, all-day expander and the Windows build's render virtualization. Drags between the time slots and the all-day panel, in both directions, work too, because a layout that takes the press keeps the pointer.
 - **Not reported by the scan:** some Windows-only differences sit inside methods both builds have, so the scan does not see them. These are known and not bridged:
   - SfToolbar: the overlay toolbar's width and the navigation buttons' state after a measure (`SfToolbar.MeasureContent`, `SfOverlayToolbar`), and the tool tip offset in right-to-left layouts.
   - SfComboBox and SfAutocomplete with multiple selection: the chip area's size requests in `SfDropdownEntry.MeasureContent`. Also the rounded clip the Windows build sets in `OnDraw`.
