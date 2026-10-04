@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Maui.Devices;
+using Microsoft.Maui.Media;
 using ParityHarness.Gallery;
 
 namespace ParityHarness.Dump;
@@ -126,6 +127,7 @@ public sealed class DumpRunner
 
             dump.Elements = records;
             dump.PageSize = new SizeDto(Math.Round(page.Width, 2), Math.Round(page.Height, 2));
+            dump.Screenshot = await CaptureAsync(page, entry.Name, dump);
             if (page.Width <= 0 || page.Height <= 0)
                 dump.Warning = $"root page reports no size ({page.Width}x{page.Height}); the window was sized with a plain ContentPage";
             else if (Math.Abs(page.Width - HarnessOptions.Width) > SizeEpsilon || Math.Abs(page.Height - HarnessOptions.Height) > SizeEpsilon)
@@ -139,6 +141,34 @@ public sealed class DumpRunner
         }
         dump.SettleMs = (int)sw.ElapsedMilliseconds;
         return dump;
+    }
+
+    /// <summary>
+    /// The settled page as a PNG next to its JSON (MAUI's VisualElement capture: WinUI's
+    /// RenderTargetBitmap on Windows, the Skia view on Linux). A failure is a warning: the
+    /// layout dump still counts.
+    /// </summary>
+    private async Task<string?> CaptureAsync(Page page, string name, PageDump dump)
+    {
+        try
+        {
+            var shot = await page.CaptureAsync();
+            if (shot == null)
+            {
+                dump.Warning = (dump.Warning != null ? dump.Warning + "; " : "") + "screenshot: capture returned nothing";
+                return null;
+            }
+            string file = name + ".png";
+            await using var png = await shot.OpenReadAsync(ScreenshotFormat.Png);
+            await using var output = File.Create(Path.Combine(_outDir, file));
+            await png.CopyToAsync(output);
+            return file;
+        }
+        catch (Exception ex)
+        {
+            dump.Warning = (dump.Warning != null ? dump.Warning + "; " : "") + $"screenshot: {ex.GetType().Name}: {ex.Message}";
+            return null;
+        }
     }
 
     /// <summary>

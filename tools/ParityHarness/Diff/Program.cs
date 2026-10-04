@@ -17,6 +17,10 @@
 //   --out <file.md>       write the markdown report here (default: stdout only)
 //   --json <file.json>    also write a machine-readable summary
 //   --max-rows <n>        rows per page table (default 200)
+//   --images <dir>        compare the pages' screenshots too: writes a reference |
+//                         candidate | difference image per page to <dir> and a visual
+//                         section to the report (informational: text rasterises
+//                         differently per platform, so it never fails the run)
 //
 // Exit code: 0 = within tolerance, 1 = differences over tolerance (or missing elements
 // without --allow-missing, or a dump error), 2 = usage / input error.
@@ -63,6 +67,7 @@ internal sealed class PageDump
     public bool Settled { get; set; }
     public string? Error { get; set; }
     public string? Warning { get; set; }
+    public string? Screenshot { get; set; }
     public List<ElementRecord> Elements { get; set; } = new();
 }
 
@@ -80,6 +85,7 @@ internal sealed class Options
     public string? Out;
     public string? Json;
     public int MaxRows = 200;
+    public string? Images;
 }
 
 internal sealed record Difference(
@@ -116,7 +122,7 @@ public static class Program
         catch (ArgumentException ex)
         {
             Console.Error.WriteLine(ex.Message);
-            Console.Error.WriteLine("usage: ParityHarness.Diff <reference-dir> <candidate-dir> [--tol px] [--text-tol px] [--text-scope self|ancestors] [--channel frame|native|both] [--pages a,b] [--allow-missing] [--out report.md] [--json report.json] [--max-rows n]");
+            Console.Error.WriteLine("usage: ParityHarness.Diff <reference-dir> <candidate-dir> [--tol px] [--text-tol px] [--text-scope self|ancestors] [--channel frame|native|both] [--pages a,b] [--allow-missing] [--out report.md] [--json report.json] [--max-rows n] [--images dir]");
             return 2;
         }
 
@@ -151,6 +157,8 @@ public static class Program
         }
 
         string report = BuildReport(results, o, refName, candName);
+        if (o.Images != null)
+            report += Visual.Compare(names, refPages, candPages, o, refName, candName);
         Console.WriteLine(report);
         if (o.Out != null)
         {
@@ -204,6 +212,7 @@ public static class Program
                 case "--out": o.Out = Next(); break;
                 case "--json": o.Json = Next(); break;
                 case "--max-rows": o.MaxRows = (int)Num(); break;
+                case "--images": o.Images = Next(); break;
                 default:
                     if (a.StartsWith("--", StringComparison.Ordinal))
                         throw new ArgumentException($"unknown option {a}");

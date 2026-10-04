@@ -852,7 +852,7 @@
         {
           "name": "Geocoding",
           "tests": [
-            "EssentialsTests/Geocoding"
+            "EssentialsParityTests/Geocoding"
           ]
         },
         {
