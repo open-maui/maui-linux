@@ -224,8 +224,14 @@ public class SkiaCollectionView : SkiaItemsView
     }
 
     /// <inheritdoc />
-    /// <remarks>A linear horizontal ItemsLayout: the items in a row, scrolled horizontally.</remarks>
-    protected override bool IsHorizontal => Orientation == ItemsLayoutOrientation.Horizontal && SpanCount == 1;
+    /// <remarks>
+    /// A horizontal ItemsLayout: a linear one lays the items in a row, a grid one in columns of
+    /// <see cref="SpanCount"/> items (filled top to bottom); both scroll horizontally.
+    /// </remarks>
+    protected override bool IsHorizontal => Orientation == ItemsLayoutOrientation.Horizontal;
+
+    /// <inheritdoc />
+    protected override int Span => Math.Max(1, SpanCount);
 
     /// <summary>The orientation or span changed: rows are measured again along the new axis.</summary>
     private void OnLayoutChanged()
@@ -384,6 +390,49 @@ public class SkiaCollectionView : SkiaItemsView
         SetValue(SelectedItemProperty, null);
         _selectedIndex = -1;
         base.RefreshItems();
+    }
+
+    /// <summary>
+    /// The items changed in place: the selection keeps the items still in the list (MAUI keeps
+    /// a selection across collection changes), and loses those removed.
+    /// </summary>
+    protected override void OnItemsChanged()
+    {
+        if (_selectedItems.Count > 0)
+        {
+            var present = new HashSet<object>(ReferenceEqualityComparer.Instance);
+            for (int i = 0; i < ItemCount; i++)
+                if (GetItemAt(i) is { } item)
+                    present.Add(item);
+            var previous = _selectedItems.ToList();
+            _selectedItems.RemoveAll(item => !present.Contains(item) && !ContainsEqual(item));
+            if (_selectedItems.Count != previous.Count)
+            {
+                var selected = SelectedItem;
+                if (selected != null && !_selectedItems.Contains(selected))
+                {
+                    _isSelectingItem = true;
+                    try
+                    {
+                        SetValue(SelectedItemProperty, _selectedItems.FirstOrDefault());
+                    }
+                    finally
+                    {
+                        _isSelectingItem = false;
+                    }
+                }
+                SelectionChanged?.Invoke(this, new CollectionSelectionChangedEventArgs(previous, _selectedItems.ToList()));
+            }
+        }
+        _selectedIndex = SelectedItem != null ? GetIndexOf(SelectedItem) : -1;
+    }
+
+    private bool ContainsEqual(object item)
+    {
+        for (int i = 0; i < ItemCount; i++)
+            if (Equals(GetItemAt(i), item))
+                return true;
+        return false;
     }
 
     private void OnSelectionModeChanged()
@@ -602,7 +651,15 @@ public class SkiaCollectionView : SkiaItemsView
                         Math.Max(bounds.Top + (float)margin.Top, bounds.Bottom - (float)margin.Bottom));
                     var across = SkiaPage.AlignContent(itemView, area, desired);
                     SKRect actualBounds;
-                    if (horizontal)
+                    if (Span > 1)
+                    {
+                        // A grid cell is as long as its line (the line's longest item): the item
+                        // is placed in it by its layout options on both axes, as MAUI's Windows
+                        // grid stretches each item container to the line (an Expander expanding
+                        // next to it makes the whole line taller, and this item fills it).
+                        actualBounds = new SKRect((float)across.X, (float)across.Y, (float)across.Right, (float)across.Bottom);
+                    }
+                    else if (horizontal)
                     {
                         var contentWidth = Math.Min((float)desired.Width, area.Width);
                         var offset = Math.Max(0, (area.Width - contentWidth) / 2);
@@ -725,20 +782,7 @@ public class SkiaCollectionView : SkiaItemsView
             return;
         }
 
-        var contentBounds = bounds;
-
-        if (SpanCount > 1)
-        {
-            DrawGridItems(canvas, contentBounds);
-        }
-        else if (IsHorizontal)
-        {
-            DrawHorizontalListItems(canvas, contentBounds);
-        }
-        else
-        {
-            DrawListItems(canvas, contentBounds);
-        }
+        DrawLines(canvas, bounds);
 
         if (_heightsChangedDuringDraw)
         {
@@ -747,7 +791,14 @@ public class SkiaCollectionView : SkiaItemsView
         }
     }
 
-    private void DrawListItems(SKCanvas canvas, SKRect bounds)
+    /// <summary>
+    /// Draws the items line by line along the scroll axis: one item per line for a list, and
+    /// <see cref="SpanCount"/> per line for a grid (a vertical grid's rows fill left to right, a
+    /// horizontal grid's columns top to bottom, as MAUI's GridItemsLayout lays them out). A line
+    /// is as long as its longest item; the header comes before the first line and the footer
+    /// after the last, and everything scrolls together.
+    /// </summary>
+    private void DrawLines(SKCanvas canvas, SKRect bounds)
     {
         canvas.Save();
         canvas.ClipRect(bounds, SKClipOperation.Intersect, false);
@@ -757,131 +808,107 @@ public class SkiaCollectionView : SkiaItemsView
             IsAntialias = true
         };
 
-        var scrollOffset = GetScrollOffset();
+        var horizontal = IsHorizontal;
+        var span = Span;
+        var scrollOffset = _scrollOffset;
+        // A vertical list keeps a gutter for its scroll bar; a horizontal one's bar overlays the items.
+        var crossExtent = horizontal ? bounds.Height : bounds.Width - 8f;
+        var cell = CellCrossSize(crossExtent);
+        var crossStart = horizontal ? bounds.Top : bounds.Left;
+        var mainStart = horizontal ? bounds.Left : bounds.Top;
+        var mainEnd = horizontal ? bounds.Right : bounds.Bottom;
+        var lines = LineCount;
+        var dragged = DraggedItemIndex;
 
-        // Row content width (matches the itemRect below). Measure each item before
-        // using its height so the FIRST frame after an ItemsSource refresh positions
-        // rows with real heights instead of the default ItemHeight - otherwise the
-        // frame right after a refresh (e.g. OnAppearing after a navigation pop)
-        // paints squashed rows and only corrects itself a frame later (visible flash).
-        var contentWidth = bounds.Width - 8f;
-
-        int firstVisible = 0;
-        float cumulativeOffset = LeadingContentHeight;
-        for (int i = 0; i < ItemCount; i++)
+        // Measure each line before using its length, so the first frame after an ItemsSource
+        // refresh positions lines with real sizes instead of the ItemHeight estimate (otherwise
+        // the frame right after a refresh paints squashed rows and corrects itself a frame later).
+        int firstLine = lines;
+        float lineStart = LeadingContentHeight;
+        for (int l = 0; l < lines; l++)
         {
-            EnsureItemMeasured(i, contentWidth);
-            var itemH = GetItemHeight(i);
-            if (cumulativeOffset + itemH > scrollOffset)
+            MeasureLine(l, cell);
+            var extent = GetLineExtent(l);
+            if (lineStart + extent > scrollOffset)
             {
-                firstVisible = i;
+                firstLine = l;
                 break;
             }
-            cumulativeOffset += itemH + ItemSpacing;
+            lineStart += extent + ItemSpacing;
         }
 
-        float currentY = bounds.Top + GetItemOffset(firstVisible) - scrollOffset;
-        for (int i = firstVisible; i < ItemCount; i++)
+        float position = mainStart + lineStart - scrollOffset;
+        for (int l = firstLine; l < lines; l++)
         {
-            EnsureItemMeasured(i, contentWidth);
-            var itemH = GetItemHeight(i);
-            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - 8f, currentY + itemH);
-
-            if (itemRect.Top > bounds.Bottom)
-            {
+            if (position > mainEnd)
                 break;
-            }
-
-            if (itemRect.Bottom >= bounds.Top)
+            MeasureLine(l, cell);
+            var extent = GetLineExtent(l);
+            for (int k = 0; k < span; k++)
             {
-                var item = GetItemAt(i);
+                var slot = l * span + k;
+                if (slot >= ItemCount)
+                    break;
+                var index = ItemAtSlot(slot);
+                var cross = crossStart + k * (cell + CrossItemSpacing);
+                var itemRect = horizontal
+                    ? new SKRect(position, cross, position + extent, cross + cell)
+                    : new SKRect(cross, position, cross + cell, position + extent);
+                if (index == dragged || (horizontal ? itemRect.Right < bounds.Left : itemRect.Bottom < bounds.Top))
+                    continue;
+                var item = GetItemAt(index);
                 if (item != null)
                 {
-                    DrawItem(canvas, item, i, itemRect, paint);
+                    NoteCellDrawn(index, itemRect, bounds);
+                    DrawItem(canvas, item, index, itemRect, paint);
                 }
             }
-
-            currentY += itemH + ItemSpacing;
+            position += extent + ItemSpacing;
         }
 
         var total = TotalContentHeight;
-        DrawSlot(canvas, _headerView, bounds.Left, bounds.Top - scrollOffset, contentWidth);
-        DrawSlot(canvas, _footerView, bounds.Left, bounds.Top + total - TrailingContentHeight - scrollOffset, contentWidth);
+        if (horizontal)
+        {
+            DrawSlotHorizontal(canvas, _headerView, bounds.Left - scrollOffset, bounds.Top, bounds.Height);
+            DrawSlotHorizontal(canvas, _footerView, bounds.Left + total - TrailingContentHeight - scrollOffset, bounds.Top, bounds.Height);
+        }
+        else
+        {
+            DrawSlot(canvas, _headerView, bounds.Left, bounds.Top - scrollOffset, _contentWidth);
+            DrawSlot(canvas, _footerView, bounds.Left, bounds.Top + total - TrailingContentHeight - scrollOffset, _contentWidth);
+        }
 
+        DrawDraggedItem(canvas, bounds, paint);
         canvas.Restore();
 
-        var totalHeight = total;
-        if (totalHeight > bounds.Height)
+        if (horizontal)
         {
-            DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
+            if (ShowsBar(HorizontalScrollBarVisibility, total > bounds.Width))
+                DrawHorizontalScrollBar(canvas, bounds, scrollOffset, total);
+        }
+        else if (ShowsBar(VerticalScrollBarVisibility, total > bounds.Height))
+        {
+            DrawScrollBarInternal(canvas, bounds, scrollOffset, total);
         }
     }
 
     /// <summary>
-    /// A horizontal linear list: items left to right across the list's height, the header
-    /// before the first and the footer after the last, scrolled horizontally.
+    /// A scroll bar shows when its content overflows (Default), always (Always), or never (Never),
+    /// as ItemsView.Horizontal/VerticalScrollBarVisibility ask.
     /// </summary>
-    private void DrawHorizontalListItems(SKCanvas canvas, SKRect bounds)
+    private static bool ShowsBar(ScrollBarVisibility visibility, bool overflows) => visibility switch
     {
-        canvas.Save();
-        canvas.ClipRect(bounds, SKClipOperation.Intersect, false);
+        ScrollBarVisibility.Always => true,
+        ScrollBarVisibility.Never => false,
+        _ => overflows,
+    };
 
-        using var paint = new SKPaint
-        {
-            IsAntialias = true
-        };
-
-        var scrollOffset = GetScrollOffset();
-        var height = bounds.Height;
-
-        int firstVisible = 0;
-        float cumulativeOffset = LeadingContentHeight;
-        for (int i = 0; i < ItemCount; i++)
-        {
-            EnsureItemMeasured(i, height);
-            var itemW = GetItemHeight(i);
-            if (cumulativeOffset + itemW > scrollOffset)
-            {
-                firstVisible = i;
-                break;
-            }
-            cumulativeOffset += itemW + ItemSpacing;
-        }
-
-        float currentX = bounds.Left + GetItemOffset(firstVisible) - scrollOffset;
-        for (int i = firstVisible; i < ItemCount; i++)
-        {
-            EnsureItemMeasured(i, height);
-            var itemW = GetItemHeight(i);
-            var itemRect = new SKRect(currentX, bounds.Top, currentX + itemW, bounds.Bottom);
-
-            if (itemRect.Left > bounds.Right)
-            {
-                break;
-            }
-
-            if (itemRect.Right >= bounds.Left)
-            {
-                var item = GetItemAt(i);
-                if (item != null)
-                {
-                    DrawItem(canvas, item, i, itemRect, paint);
-                }
-            }
-
-            currentX += itemW + ItemSpacing;
-        }
-
-        var total = TotalContentHeight;
-        DrawSlotHorizontal(canvas, _headerView, bounds.Left - scrollOffset, bounds.Top, height);
-        DrawSlotHorizontal(canvas, _footerView, bounds.Left + total - TrailingContentHeight - scrollOffset, bounds.Top, height);
-
-        canvas.Restore();
-
-        if (total > bounds.Width)
-        {
-            DrawHorizontalScrollBar(canvas, bounds, scrollOffset, total);
-        }
+    /// <summary>Measures the items of a line not measured yet, in cells <paramref name="cell"/> wide (or tall).</summary>
+    private void MeasureLine(int line, float cell)
+    {
+        var span = Span;
+        for (int slot = line * span; slot < (line + 1) * span && slot < ItemCount; slot++)
+            EnsureItemMeasured(ItemAtSlot(slot), cell);
     }
 
     private void DrawHorizontalScrollBar(SKCanvas canvas, SKRect bounds, float scrollOffset, float totalWidth)
@@ -893,6 +920,7 @@ public class SkiaCollectionView : SkiaItemsView
         using var trackPaint = new SKPaint { Color = SkiaTheme.Shadow10SK, Style = SKPaintStyle.Fill };
         canvas.DrawRoundRect(new SKRoundRect(trackRect, 3f), trackPaint);
 
+        totalWidth = Math.Max(totalWidth, bounds.Width);
         var maxOffset = Math.Max(0f, totalWidth - bounds.Width);
         var thumbWidth = Math.Max(30f, trackRect.Width * (bounds.Width / totalWidth));
         var scrollRatio = maxOffset > 0f ? scrollOffset / maxOffset : 0f;
@@ -900,71 +928,6 @@ public class SkiaCollectionView : SkiaItemsView
 
         using var thumbPaint = new SKPaint { Color = SkiaTheme.ScrollbarThumbSK, Style = SKPaintStyle.Fill, IsAntialias = true };
         canvas.DrawRoundRect(new SKRoundRect(new SKRect(thumbX, trackRect.Top, thumbX + thumbWidth, trackRect.Bottom), 3f), thumbPaint);
-    }
-
-    private void DrawGridItems(SKCanvas canvas, SKRect bounds)
-    {
-        canvas.Save();
-        canvas.ClipRect(bounds, SKClipOperation.Intersect, false);
-
-        using var paint = new SKPaint
-        {
-            IsAntialias = true
-        };
-
-        var cellWidth = (bounds.Width - 8f) / SpanCount;
-        var cellHeight = ItemHeight;
-        var rowCount = (int)Math.Ceiling((double)ItemCount / SpanCount);
-        var totalHeight = rowCount * (cellHeight + ItemSpacing) - ItemSpacing;
-
-        var scrollOffset = GetScrollOffset();
-        var leading = LeadingContentHeight;
-        var firstVisibleRow = Math.Max(0, (int)((scrollOffset - leading) / (cellHeight + ItemSpacing)));
-        var lastVisibleRow = Math.Min(rowCount - 1, (int)((scrollOffset - leading + bounds.Height) / (cellHeight + ItemSpacing)) + 1);
-        DrawSlot(canvas, _headerView, bounds.Left, bounds.Top - scrollOffset, bounds.Width - 8f);
-        DrawSlot(canvas, _footerView, bounds.Left, bounds.Top + leading + totalHeight - scrollOffset, bounds.Width - 8f);
-        totalHeight += leading + TrailingContentHeight;
-
-        for (int row = firstVisibleRow; row <= lastVisibleRow; row++)
-        {
-            var rowY = bounds.Top + leading + row * (cellHeight + ItemSpacing) - scrollOffset;
-
-            for (int col = 0; col < SpanCount; col++)
-            {
-                var index = row * SpanCount + col;
-                if (index >= ItemCount)
-                {
-                    break;
-                }
-
-                var cellX = bounds.Left + col * cellWidth;
-                var cellRect = new SKRect(cellX + 2f, rowY, cellX + cellWidth - 2f, rowY + cellHeight);
-
-                if (cellRect.Bottom < bounds.Top || cellRect.Top > bounds.Bottom)
-                {
-                    continue;
-                }
-
-                var item = GetItemAt(index);
-                if (item != null)
-                {
-                    using var cellBgPaint = new SKPaint
-                    {
-                        Color = _selectedItems.Contains(item) ? SelectionColorSK : SkiaTheme.Gray50SK,
-                        Style = SKPaintStyle.Fill
-                    };
-                    canvas.DrawRoundRect(new SKRoundRect(cellRect, 4f), cellBgPaint);
-                    DrawItem(canvas, item, index, cellRect, paint);
-                }
-            }
-        }
-
-        canvas.Restore();
-
-        if (totalHeight > bounds.Height)
-        {
-            DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
-        }
     }
 
     private void DrawScrollBarInternal(SKCanvas canvas, SKRect bounds, float scrollOffset, float totalHeight)
@@ -985,6 +948,7 @@ public class SkiaCollectionView : SkiaItemsView
         };
         canvas.DrawRoundRect(new SKRoundRect(trackRect, 3f), trackPaint);
 
+        totalHeight = Math.Max(totalHeight, bounds.Height);
         var maxOffset = Math.Max(0f, totalHeight - bounds.Height);
         var viewportRatio = bounds.Height / totalHeight;
         var availableTrackHeight = trackRect.Height;
@@ -1002,11 +966,6 @@ public class SkiaCollectionView : SkiaItemsView
         };
 
         canvas.DrawRoundRect(new SKRoundRect(thumbRect, 3f), thumbPaint);
-    }
-
-    private float GetScrollOffset()
-    {
-        return _scrollOffset;
     }
 
 }

@@ -103,4 +103,110 @@ public class CollectionRowInputTests
         host.Context.Render();
         tapped.Should().Equal("b");
     }
+    [Fact]
+    public void A_pointer_recognizer_inside_a_row_gets_the_pointer_and_the_item_is_still_selected()
+    {
+        var events = new List<string>();
+        var list = new CollectionView
+        {
+            ItemsSource = new[] { "a", "b", "c" },
+            SelectionMode = SelectionMode.Single,
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var label = new Label { Text = "row", HeightRequest = 30 };
+                var pointer = new PointerGestureRecognizer();
+                pointer.PointerEntered += (s, e) => events.Add("entered " + ((Label)s!).BindingContext);
+                pointer.PointerExited += (s, e) => events.Add("exited " + ((Label)s!).BindingContext);
+                pointer.PointerPressed += (s, e) => events.Add("pressed " + ((Label)s!).BindingContext);
+                pointer.PointerReleased += (s, e) => events.Add("released " + ((Label)s!).BindingContext);
+                label.GestureRecognizers.Add(pointer);
+                return new VerticalStackLayout { Padding = new Thickness(0, 10), Children = { label } };
+            }),
+        };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = list }, withEngine: true);
+        host.Context.Render();
+        var skia = (SkiaCollectionView)list.Handler!.PlatformView!;
+        var label1 = ((SkiaLayoutView)skia.GetItemView(1)!).Children.Single();
+        var r = label1.Bounds;
+        float x = (float)(r.X + r.Width / 2), y = (float)(r.Y + r.Height / 2);
+
+        host.DisplayWindow.RaisePointerMoved(x, y);
+        host.DisplayWindow.RaisePointerPressed(x, y);
+        host.DisplayWindow.RaisePointerReleased(x, y);
+        host.Context.Render();
+
+        events.Should().Equal(new[] { "entered b", "pressed b", "released b" },
+            "the row content under the pointer gets its pointer events, as on Windows");
+        list.SelectedItem.Should().Be("b", "the list still selects the item the press was on");
+
+        // Over the row's padding (outside the label), then off the list.
+        host.DisplayWindow.RaisePointerMoved(x, (float)r.Y - 5);
+        events.Should().EndWith("exited b");
+        events.Clear();
+        host.DisplayWindow.RaisePointerMoved(x, (float)skia.GetItemView(2)!.Bounds.Center.Y);
+        events.Should().Equal("entered c");
+    }
+
+    [Fact]
+    public void Scrolling_a_list_by_dragging_cancels_the_row_contents_press()
+    {
+        var routed = new List<SkiaView.RoutedPointerKind>();
+        bool subscribed = false;
+        var list = new CollectionView
+        {
+            ItemsSource = Enumerable.Range(0, 50).Select(i => i.ToString()).ToArray(),
+            SelectionMode = SelectionMode.Single,
+            ItemTemplate = new DataTemplate(() => new Label { HeightRequest = 40, Text = "row" }),
+        };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = list }, withEngine: true);
+        host.Context.Render();
+        var skia = (SkiaCollectionView)list.Handler!.PlatformView!;
+        var row = skia.GetItemView(2)!;
+        row.PointerRouted += (_, e) => { if (subscribed) routed.Add(e.Kind); };
+        subscribed = true;
+        var r = row.Bounds;
+        float x = (float)r.Center.X, y = (float)r.Center.Y;
+
+        host.DisplayWindow.RaisePointerPressed(x, y);
+        host.DisplayWindow.RaisePointerMoved(x, y - 60);
+        host.DisplayWindow.RaisePointerMoved(x, y - 120);
+        host.DisplayWindow.RaisePointerReleased(x, y - 120);
+        host.Context.Render();
+
+        routed.Should().StartWith(new[] { SkiaView.RoutedPointerKind.Entered, SkiaView.RoutedPointerKind.Pressed });
+        routed.Should().ContainInOrder(SkiaView.RoutedPointerKind.Exited, SkiaView.RoutedPointerKind.Released);
+        routed.Count(k => k == SkiaView.RoutedPointerKind.Released).Should().Be(1, "the scroll ended the press once");
+        list.SelectedItem.Should().BeNull("a drag that scrolls the list is not a tap");
+    }
+
+    [Fact]
+    public void A_pointer_recognizer_in_a_ListView_cell_gets_the_pointer_and_the_row_is_still_selected()
+    {
+        int pressed = 0, released = 0;
+        var list = new ListView
+        {
+            ItemsSource = new[] { "a", "b" },
+            ItemTemplate = new DataTemplate(() =>
+            {
+                var label = new Label { Text = "row" };
+                var pointer = new PointerGestureRecognizer();
+                pointer.PointerPressed += (_, _) => pressed++;
+                pointer.PointerReleased += (_, _) => released++;
+                label.GestureRecognizers.Add(pointer);
+                return new ViewCell { View = new Grid { HeightRequest = 44, Children = { label } } };
+            }),
+        };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = list }, withEngine: true);
+        host.Context.Render();
+        var skia = (SkiaCollectionView)list.Handler!.PlatformView!;
+        var c = skia.GetItemView(1)!.Bounds.Center;
+
+        host.DisplayWindow.RaisePointerPressed((float)c.X, (float)c.Y);
+        host.DisplayWindow.RaisePointerReleased((float)c.X, (float)c.Y);
+        host.Context.Render();
+
+        pressed.Should().Be(1);
+        released.Should().Be(1);
+        list.SelectedItem.Should().Be("b");
+    }
 }

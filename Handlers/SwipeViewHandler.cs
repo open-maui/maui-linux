@@ -98,7 +98,7 @@ public partial class SwipeViewHandler : LinuxViewHandler<SwipeView, SkiaSwipeVie
     {
         if (handler.PlatformView is null) return;
 
-        if (swipeView.Background is SolidColorBrush solidBrush)
+        if (swipeView.Background is SolidColorBrush { Color: not null } solidBrush)
         {
             handler.PlatformView.BackgroundColor = solidBrush.Color;
         }

@@ -21,6 +21,7 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
         [nameof(ISlider.MinimumTrackColor)] = MapMinimumTrackColor,
         [nameof(ISlider.MaximumTrackColor)] = MapMaximumTrackColor,
         [nameof(ISlider.ThumbColor)] = MapThumbColor,
+        [nameof(ISlider.ThumbImageSource)] = MapThumbImageSource,
         [nameof(IView.Background)] = MapBackground,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
     };
@@ -66,6 +67,7 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
         platformView.ValueChanged -= OnValueChanged;
         platformView.DragStarted -= OnDragStarted;
         platformView.DragCompleted -= OnDragCompleted;
+        ReleaseThumbImage(platformView);
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
@@ -150,4 +152,54 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
         handler.PlatformView.IsEnabled = slider.IsEnabled;
         handler.PlatformView.Invalidate();
     }
+
+    private CancellationTokenSource? _thumbImageLoad;
+    private IImageSourceServiceResult<SKBitmap>? _thumbImageResult;
+
+    /// <summary>
+    /// The thumb's image (Slider.ThumbImageSource), loaded through its image-source service (file,
+    /// font, URI, stream, or an app's own source) as MAUI's Windows handler loads it; none draws
+    /// the circle thumb.
+    /// </summary>
+    public static void MapThumbImageSource(SliderHandler handler, ISlider slider) =>
+        _ = handler.LoadThumbImageAsync(slider.ThumbImageSource);
+
+    private async Task LoadThumbImageAsync(IImageSource? source)
+    {
+        ReleaseThumbImage(PlatformView);
+        if (PlatformView is not { } platform || source == null || (source is Microsoft.Maui.Controls.ImageSource { IsEmpty: true }))
+            return;
+        var load = new CancellationTokenSource();
+        _thumbImageLoad = load;
+        try
+        {
+            var result = await Microsoft.Maui.Platform.Linux.Services.LinuxImageSourceServices.LoadAsync(
+                MauiContext?.Services ?? Microsoft.Maui.Platform.Linux.Services.LinuxImageSourceServices.AppServices, source, Math.Max(1f, platform.DeviceScale), Size.Zero, load.Token);
+            if (load.IsCancellationRequested || !ReferenceEquals(_thumbImageLoad, load))
+            {
+                result?.Dispose();
+                return;
+            }
+            _thumbImageResult = result;
+            platform.ThumbImage = result?.Value;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Microsoft.Maui.Platform.Linux.Services.DiagnosticLog.Error("SliderHandler", "Loading the thumb image failed", ex);
+        }
+    }
+
+    private void ReleaseThumbImage(SkiaSlider? platform)
+    {
+        _thumbImageLoad?.Cancel();
+        _thumbImageLoad = null;
+        if (platform != null)
+            platform.ThumbImage = null;
+        _thumbImageResult?.Dispose();
+        _thumbImageResult = null;
+    }
+
 }

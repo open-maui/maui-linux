@@ -29,6 +29,8 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
             [nameof(ItemsView.EmptyViewTemplate)] = MapEmptyView,
             [nameof(ItemsView.HorizontalScrollBarVisibility)] = MapHorizontalScrollBarVisibility,
             [nameof(ItemsView.VerticalScrollBarVisibility)] = MapVerticalScrollBarVisibility,
+            [nameof(ItemsView.ItemsUpdatingScrollMode)] = MapItemsUpdatingScrollMode,
+            [nameof(VisualElement.IsVisible)] = MapIsVisible,
 
             // SelectableItemsView properties
             [nameof(SelectableItemsView.SelectedItem)] = MapSelectedItem,
@@ -41,11 +43,15 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
             [nameof(StructuredItemsView.Footer)] = MapFooter,
             [nameof(StructuredItemsView.FooterTemplate)] = MapFooter,
             [nameof(StructuredItemsView.ItemsLayout)] = MapItemsLayout,
+            [nameof(StructuredItemsView.ItemSizingStrategy)] = MapItemSizingStrategy,
 
             // GroupableItemsView properties
             [nameof(GroupableItemsView.IsGrouped)] = MapIsGrouped,
             [nameof(GroupableItemsView.GroupHeaderTemplate)] = MapIsGrouped,
             [nameof(GroupableItemsView.GroupFooterTemplate)] = MapIsGrouped,
+
+            // ReorderableItemsView properties
+            [nameof(ReorderableItemsView.CanReorderItems)] = MapCanReorderItems,
 
             [nameof(IView.Background)] = MapBackground,
             [nameof(CollectionView.BackgroundColor)] = MapBackgroundColor,
@@ -78,6 +84,9 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         platformView.Scrolled += OnScrolled;
         platformView.ItemTapped += OnItemTapped;
         platformView.ItemViewReleased += OnItemViewReleased;
+        platformView.ItemReordered += OnItemReordered;
+        platformView.CanDragItem = CanDragRow;
+        platformView.CanDropItem = CanDropRow;
         ObserveScrollToRequests(VirtualView);
     }
 
@@ -122,7 +131,11 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         platformView.SelectionChanged -= OnSelectionChanged;
         platformView.Scrolled -= OnScrolled;
         platformView.ItemTapped -= OnItemTapped;
+        platformView.ItemReordered -= OnItemReordered;
+        platformView.CanDragItem = null;
+        platformView.CanDropItem = null;
         ObserveScrollToRequests(null);
+        ObserveItemsLayout(null);
         UnobserveGroups();
         platformView.ItemsSource = null;
         platformView.ItemViewCreator = null;
@@ -203,19 +216,46 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
 
     private float _lastScrollOffset;
 
+    /// <summary>
+    /// Reports a scroll as MAUI's Windows handler does (HandleScroll): the offsets and deltas, the
+    /// first, center and last visible items, and RemainingItemsThresholdReached when no more than
+    /// RemainingItemsThreshold items are left after the last visible one.
+    /// </summary>
     private void OnScrolled(object? sender, ItemsScrolledEventArgs e)
     {
+        if (VirtualView is not { } view)
+            return;
         var delta = e.ScrollOffset - _lastScrollOffset;
         _lastScrollOffset = e.ScrollOffset;
-        var horizontal = PlatformView?.Orientation == Platform.ItemsLayoutOrientation.Horizontal && PlatformView.SpanCount == 1;
-        VirtualView?.SendScrolled(new ItemsViewScrolledEventArgs
+        var horizontal = PlatformView?.Orientation == Platform.ItemsLayoutOrientation.Horizontal;
+        view.SendScrolled(new ItemsViewScrolledEventArgs
         {
             VerticalOffset = horizontal ? 0 : e.ScrollOffset,
             VerticalDelta = horizontal ? 0 : delta,
             HorizontalOffset = horizontal ? e.ScrollOffset : 0,
-            HorizontalDelta = horizontal ? delta : 0
+            HorizontalDelta = horizontal ? delta : 0,
+            FirstVisibleItemIndex = e.FirstVisibleIndex,
+            CenterItemIndex = e.CenterIndex,
+            LastVisibleItemIndex = e.LastVisibleIndex,
         });
+
+        // Not again from inside the app's handler (items it adds can scroll the list).
+        var threshold = view.RemainingItemsThreshold;
+        if (threshold > -1 && e.ItemCount - 1 - e.LastVisibleIndex <= threshold && !_sendingThreshold)
+        {
+            _sendingThreshold = true;
+            try
+            {
+                view.SendRemainingItemsThresholdReached();
+            }
+            finally
+            {
+                _sendingThreshold = false;
+            }
+        }
     }
+
+    private bool _sendingThreshold;
 
     private void OnItemTapped(object? sender, ItemsViewItemTappedEventArgs e)
     {
@@ -271,15 +311,20 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         if (handler.PlatformView is null) return;
         if (collectionView.IsGrouped)
         {
-            handler.RebuildGroupedRows();
+            handler.RebuildGroupedRows(inPlace: false);
             return;
         }
         handler.UnobserveGroups();
+        handler.ClearGroupedRows();
         handler.PlatformView.ItemsSource = collectionView.ItemsSource;
     }
 
     public static void MapIsGrouped(CollectionViewHandler handler, CollectionView collectionView)
     {
+        // A group template changed: the rows are made again with it.
+        if (handler.PlatformView is not null)
+            handler.PlatformView.ItemViewCreator = null;
+        MapItemTemplate(handler, collectionView);
         MapItemsSource(handler, collectionView);
     }
 
@@ -288,11 +333,46 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         if (handler.PlatformView is null || handler.MauiContext is null) return;
 
         // The creator also makes group headers and footers, which have templates of their own.
-        handler.PlatformView.ItemViewCreator = collectionView.ItemTemplate != null || collectionView.IsGrouped
-            ? handler.CreateItemView
-            : null;
-
+        // A new template makes the rows again (the creator is the same delegate, so it is reset).
+        handler.PlatformView.ItemViewCreator = null;
+        handler.EnsureItemViewCreator(collectionView);
         handler.PlatformView.Invalidate();
+    }
+
+    private Func<object, SkiaView?>? _itemViewCreator;
+
+    /// <summary>Gives the list the row creator (one delegate, so setting it again keeps the rows).</summary>
+    private void EnsureItemViewCreator(CollectionView collectionView)
+    {
+        if (PlatformView is null)
+            return;
+        PlatformView.ItemViewCreator = collectionView.ItemTemplate != null || collectionView.IsGrouped
+            ? _itemViewCreator ??= CreateItemView
+            : null;
+    }
+
+    public static void MapItemsUpdatingScrollMode(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ItemsUpdatingScrollMode = collectionView.ItemsUpdatingScrollMode;
+    }
+
+    /// <summary>MAUI's items handlers map IsVisible again (Windows updates the list's visibility).</summary>
+    public static void MapIsVisible(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        LinuxViewMappers.MapVisibility(handler, collectionView);
+    }
+
+    public static void MapItemSizingStrategy(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ItemSizingStrategy = collectionView.ItemSizingStrategy;
+    }
+
+    public static void MapCanReorderItems(CollectionViewHandler handler, CollectionView collectionView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CanReorderItems = collectionView.CanReorderItems;
     }
 
     /// <summary>
@@ -396,6 +476,13 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         public object Group { get; }
         public int GroupIndex { get; }
         public override string ToString() => Group.ToString() ?? string.Empty;
+
+        // The same group's header (or footer) row when the rows are made again: it keeps its view.
+        public override bool Equals(object? obj) =>
+            obj is GroupRow other && other.GetType() == GetType() && ReferenceEquals(other.Group, Group);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(GetType(), System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Group));
     }
 
     private sealed class GroupHeaderRow : GroupRow
@@ -413,28 +500,45 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
     // is the row of group g's first item.
     private readonly List<object> _groups = new();
     private readonly List<int> _groupItemStarts = new();
+    private readonly List<int> _groupItemCounts = new();
     private readonly List<IDisposable> _groupSubscriptions = new();
+
+    // Per row: its group, and its index in the group (HeaderRow / FooterRow for those rows).
+    private readonly List<int> _rowGroups = new();
+    private readonly List<int> _rowIndexInGroup = new();
+    private const int HeaderRow = -1;
+    private const int FooterRow = -2;
+
+    private void ClearGroupedRows()
+    {
+        _groups.Clear();
+        _groupItemStarts.Clear();
+        _groupItemCounts.Clear();
+        _rowGroups.Clear();
+        _rowIndexInGroup.Clear();
+    }
 
     /// <summary>
     /// Flattens a grouped ItemsSource (an enumerable of groups, each an enumerable of items) into
     /// rows, as MAUI's grouped items sources do, and watches the groups and the list of groups
-    /// for changes.
+    /// for changes. A change of a group or of the list of groups updates the rows in place
+    /// (<paramref name="inPlace"/>): the rows still there keep their views, and the scroll
+    /// position follows ItemsUpdatingScrollMode, as for an ungrouped list.
     /// </summary>
-    private void RebuildGroupedRows()
+    private void RebuildGroupedRows(bool inPlace)
     {
         if (PlatformView is null || VirtualView is null)
             return;
 
         UnobserveGroups();
-        _groups.Clear();
-        _groupItemStarts.Clear();
+        ClearGroupedRows();
         var rows = new List<object>();
         var collectionView = VirtualView;
         if (collectionView.ItemsSource is System.Collections.IEnumerable groups)
         {
             if (groups is System.Collections.Specialized.INotifyCollectionChanged outer)
                 _groupSubscriptions.Add(new WeakCollectionChangedProxy<CollectionViewHandler>(outer, this,
-                    static (handler, _, _) => handler.RebuildGroupedRows()));
+                    static (handler, _, _) => handler.RebuildGroupedRows(inPlace: true)));
 
             int g = 0;
             foreach (var group in groups)
@@ -443,25 +547,37 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                     continue;
                 _groups.Add(group);
                 if (collectionView.GroupHeaderTemplate != null)
-                    rows.Add(new GroupHeaderRow(group, g));
+                    AddRow(rows, new GroupHeaderRow(group, g), g, HeaderRow);
                 _groupItemStarts.Add(rows.Count);
+                int count = 0;
                 if (group is System.Collections.IEnumerable items and not string)
                 {
                     foreach (var item in items)
-                        rows.Add(item!);
+                        AddRow(rows, item!, g, count++);
                     if (group is System.Collections.Specialized.INotifyCollectionChanged inner)
                         _groupSubscriptions.Add(new WeakCollectionChangedProxy<CollectionViewHandler>(inner, this,
-                            static (handler, _, _) => handler.RebuildGroupedRows()));
+                            static (handler, _, _) => handler.RebuildGroupedRows(inPlace: true)));
                 }
+                _groupItemCounts.Add(count);
                 if (collectionView.GroupFooterTemplate != null)
-                    rows.Add(new GroupFooterRow(group, g));
+                    AddRow(rows, new GroupFooterRow(group, g), g, FooterRow);
                 g++;
             }
         }
 
-        // The rows (and their views) are made again: the creator knows the group templates.
-        MapItemTemplate(this, collectionView);
-        PlatformView.ItemsSource = rows;
+        // The creator knows the group templates.
+        EnsureItemViewCreator(collectionView);
+        if (inPlace)
+            PlatformView.UpdateItemsSource(rows);
+        else
+            PlatformView.ItemsSource = rows;
+    }
+
+    private void AddRow(List<object> rows, object row, int group, int indexInGroup)
+    {
+        rows.Add(row);
+        _rowGroups.Add(group);
+        _rowIndexInGroup.Add(indexInGroup);
     }
 
     private void UnobserveGroups()
@@ -495,24 +611,31 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
     /// bound to the EmptyView object (a string with no template stays text). It is the list's
     /// child, so it inherits the list's BindingContext unless it sets its own.
     /// </summary>
-    private static SkiaView? EmptyViewContent(CollectionViewHandler handler, CollectionView collectionView)
+    private static SkiaView? EmptyViewContent(CollectionViewHandler handler, CollectionView collectionView) =>
+        CreateEmptyViewContent(collectionView, handler.MauiContext);
+
+    /// <summary>
+    /// The platform view of an items view's EmptyView (a View, or the EmptyViewTemplate's content
+    /// bound to the EmptyView object), or null for none or a string without a template.
+    /// </summary>
+    internal static SkiaView? CreateEmptyViewContent(ItemsView itemsView, IMauiContext? mauiContext)
     {
-        if (handler.MauiContext is null)
+        if (mauiContext is null)
             return null;
         try
         {
-            View? view = collectionView.EmptyView as View;
-            if (view == null && collectionView.EmptyViewTemplate is { } template && collectionView.EmptyView is { } data)
+            View? view = itemsView.EmptyView as View;
+            if (view == null && itemsView.EmptyViewTemplate is { } template && itemsView.EmptyView is { } data)
             {
-                view = ItemTemplateContent.Create(template, data, collectionView) as View;
+                view = ItemTemplateContent.Create(template, data, itemsView) as View;
                 if (view != null)
                     view.BindingContext = data;
             }
             if (view == null)
                 return null;
             if (view.Parent == null)
-                view.Parent = collectionView;
-            view.Handler ??= view.ToViewHandler(handler.MauiContext);
+                view.Parent = itemsView;
+            view.Handler ??= view.ToViewHandler(mauiContext);
             return view.Handler?.PlatformView as SkiaView;
         }
         catch (Exception ex)
@@ -650,11 +773,18 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         }
     }
 
+    /// <summary>
+    /// The ItemsLayout: a linear layout's orientation and spacing, or a grid's orientation, span
+    /// and spacings (a vertical grid's rows are VerticalItemSpacing apart and its items
+    /// HorizontalItemSpacing apart in a row; a horizontal grid the other way round). The layout's
+    /// own changes (Span, spacing) are followed, as MAUI's handlers follow them.
+    /// </summary>
     public static void MapItemsLayout(CollectionViewHandler handler, CollectionView collectionView)
     {
         if (handler.PlatformView is null) return;
 
         var layout = collectionView.ItemsLayout;
+        handler.ObserveItemsLayout(layout);
         if (layout is LinearItemsLayout linearLayout)
         {
             handler.PlatformView.Orientation = linearLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical
@@ -662,15 +792,35 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                 : Platform.ItemsLayoutOrientation.Horizontal;
             handler.PlatformView.SpanCount = 1;
             handler.PlatformView.ItemSpacing = (float)linearLayout.ItemSpacing;
+            handler.PlatformView.CrossItemSpacing = 0;
         }
         else if (layout is GridItemsLayout gridLayout)
         {
-            handler.PlatformView.Orientation = gridLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical
+            var vertical = gridLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical;
+            handler.PlatformView.Orientation = vertical
                 ? Platform.ItemsLayoutOrientation.Vertical
                 : Platform.ItemsLayoutOrientation.Horizontal;
             handler.PlatformView.SpanCount = gridLayout.Span;
-            handler.PlatformView.ItemSpacing = (float)gridLayout.VerticalItemSpacing;
+            handler.PlatformView.ItemSpacing = (float)(vertical ? gridLayout.VerticalItemSpacing : gridLayout.HorizontalItemSpacing);
+            handler.PlatformView.CrossItemSpacing = (float)(vertical ? gridLayout.HorizontalItemSpacing : gridLayout.VerticalItemSpacing);
         }
+    }
+
+    private WeakPropertyChangedProxy<CollectionViewHandler>? _itemsLayoutSubscription;
+
+    private void ObserveItemsLayout(IItemsLayout? layout)
+    {
+        if (layout != null && ReferenceEquals(_itemsLayoutSubscription?.Source, layout))
+            return;
+        _itemsLayoutSubscription?.Dispose();
+        _itemsLayoutSubscription = layout is System.ComponentModel.INotifyPropertyChanged observable
+            ? new WeakPropertyChangedProxy<CollectionViewHandler>(observable, this,
+                static (handler, _, _) =>
+                {
+                    if (handler.VirtualView is { } view)
+                        MapItemsLayout(handler, view);
+                })
+            : null;
     }
 
     public static void MapBackground(CollectionViewHandler handler, CollectionView collectionView)
@@ -694,6 +844,176 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         if (collectionView.BackgroundColor is not null)
         {
             handler.PlatformView.BackgroundColor = collectionView.BackgroundColor;
+        }
+    }
+
+    // --- Reordering (CanReorderItems) --------------------------------------------------------
+
+    private static System.Collections.IList? MutableList(object? source) =>
+        source is System.Collections.IList { IsReadOnly: false, IsFixedSize: false } list ? list : null;
+
+    /// <summary>
+    /// Whether a row can be dragged: an item (not a group header or footer) of a list the handler
+    /// can move it in (the ItemsSource, or the item's group, is a modifiable IList), as MAUI's
+    /// reorderable handlers require.
+    /// </summary>
+    private bool CanDragRow(int row)
+    {
+        if (VirtualView is not { CanReorderItems: true } collectionView || row < 0)
+            return false;
+        if (!collectionView.IsGrouped)
+            return MutableList(collectionView.ItemsSource) != null;
+        if (row >= _rowGroups.Count || _rowIndexInGroup[row] < 0)
+            return false;
+        return MutableList(_groups[_rowGroups[row]]) != null;
+    }
+
+    /// <summary>
+    /// Whether the dragged row can end up at <paramref name="to"/>: anywhere in an ungrouped list;
+    /// in a grouped one, in a group that can take it (in its own group only unless CanMixGroups,
+    /// as MAUI's grouped reorder allows).
+    /// </summary>
+    private bool CanDropRow(int from, int to)
+    {
+        if (VirtualView is not { } collectionView)
+            return false;
+        if (!collectionView.IsGrouped)
+            return true;
+        if (GroupedDropTarget(from, to) is not { } target)
+            return false;
+        if (!collectionView.CanMixGroups && target.Group != _rowGroups[from])
+            return false;
+        return MutableList(_groups[target.Group]) != null;
+    }
+
+    /// <summary>
+    /// The group, and the index in it (once the item has left its own place), that a row dragged
+    /// from <paramref name="from"/> to <paramref name="to"/> lands in: after the item above it,
+    /// first in a group whose header is above it, before the item below it, or last in a group.
+    /// </summary>
+    private (int Group, int Index)? GroupedDropTarget(int from, int to)
+    {
+        int count = _rowGroups.Count;
+        if (from < 0 || from >= count || to < 0 || to >= count || _rowIndexInGroup[from] < 0)
+            return null;
+        int fromGroup = _rowGroups[from], fromIndex = _rowIndexInGroup[from];
+
+        // The row shown at a place once the dragged row is at `to`.
+        int Original(int slot)
+        {
+            if (slot == to) return from;
+            if (from < to && slot >= from && slot < to) return slot + 1;
+            if (from > to && slot > to && slot <= from) return slot - 1;
+            return slot;
+        }
+        int After(int group, int index) => group == fromGroup && index > fromIndex ? index - 1 : index;
+        int Count(int group) => _groupItemCounts[group] - (group == fromGroup ? 1 : 0);
+
+        int prev = to > 0 ? Original(to - 1) : -1;
+        int next = to + 1 < count ? Original(to + 1) : -1;
+        if (prev >= 0 && _rowIndexInGroup[prev] >= 0)
+            return (_rowGroups[prev], After(_rowGroups[prev], _rowIndexInGroup[prev]) + 1);
+        if (prev >= 0 && _rowIndexInGroup[prev] == HeaderRow)
+            return (_rowGroups[prev], 0);
+        if (next >= 0 && _rowIndexInGroup[next] >= 0)
+            return (_rowGroups[next], After(_rowGroups[next], _rowIndexInGroup[next]));
+        if (next >= 0 && _rowIndexInGroup[next] == FooterRow)
+            return (_rowGroups[next], Count(_rowGroups[next]));
+        if (prev >= 0)
+            return (_rowGroups[prev], Count(_rowGroups[prev]));
+        if (next >= 0)
+            return (_rowGroups[next], 0);
+        return null;
+    }
+
+    /// <summary>
+    /// A reorder drag ended: the item is moved in the items source (or between groups), as MAUI's
+    /// handlers move it (an ObservableCollection's Move when it is one, else RemoveAt and Insert),
+    /// the selection is kept, and ReorderCompleted is raised, as Windows raises it at the end of
+    /// every reorder drag.
+    /// </summary>
+    private void OnItemReordered(object? sender, ItemsReorderedEventArgs e)
+    {
+        if (VirtualView is not { } collectionView || PlatformView is null)
+            return;
+        int from = e.FromIndex, to = e.ToIndex;
+        if (from != to)
+        {
+            var selected = collectionView.SelectedItem;
+            var selectedItems = collectionView.SelectedItems?.ToList() ?? new List<object>();
+            try
+            {
+                if (!collectionView.IsGrouped)
+                    MoveInList(collectionView.ItemsSource, from, to);
+                else
+                    MoveInGroups(collectionView, from, to);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("CollectionViewHandler", "Moving a reordered item failed", ex);
+            }
+            RestoreSelection(collectionView, selected, selectedItems);
+        }
+        collectionView.SendReorderCompleted();
+    }
+
+    private void MoveInList(System.Collections.IEnumerable? source, int from, int to)
+    {
+        if (MutableList(source) is not { } list || from < 0 || from >= list.Count)
+            return;
+        to = Math.Clamp(to, 0, list.Count - 1);
+        // An ObservableCollection moves the item in one change (its row keeps its view).
+        var move = list.GetType().GetMethod("Move", new[] { typeof(int), typeof(int) });
+        if (move != null && list is System.Collections.Specialized.INotifyCollectionChanged)
+        {
+            move.Invoke(list, new object[] { from, to });
+            return;
+        }
+        var item = list[from];
+        list.RemoveAt(from);
+        list.Insert(to, item);
+        if (list is not System.Collections.Specialized.INotifyCollectionChanged)
+            PlatformView?.UpdateItemsSource(list);
+    }
+
+    private void MoveInGroups(CollectionView collectionView, int from, int to)
+    {
+        if (GroupedDropTarget(from, to) is not { } target)
+            return;
+        int fromGroup = _rowGroups[from], fromIndex = _rowIndexInGroup[from];
+        if (!collectionView.CanMixGroups && target.Group != fromGroup)
+            return;
+        var fromList = MutableList(_groups[fromGroup]);
+        var toList = MutableList(_groups[target.Group]);
+        if (fromList == null || toList == null || fromIndex >= fromList.Count)
+            return;
+        if (ReferenceEquals(fromList, toList))
+        {
+            MoveInList(fromList, fromIndex, target.Index);
+            if (fromList is not System.Collections.Specialized.INotifyCollectionChanged)
+                RebuildGroupedRows(inPlace: true);
+            return;
+        }
+        var item = fromList[fromIndex];
+        fromList.RemoveAt(fromIndex);
+        toList.Insert(Math.Clamp(target.Index, 0, toList.Count), item);
+        if (fromList is not System.Collections.Specialized.INotifyCollectionChanged || toList is not System.Collections.Specialized.INotifyCollectionChanged)
+            RebuildGroupedRows(inPlace: true);
+    }
+
+    /// <summary>A moved item that was selected stays selected (its removal from the source dropped it).</summary>
+    private void RestoreSelection(CollectionView collectionView, object? selected, List<object> selectedItems)
+    {
+        if (collectionView.SelectionMode == SelectionMode.Single)
+        {
+            if (selected != null && !Equals(collectionView.SelectedItem, selected))
+                collectionView.SelectedItem = selected;
+        }
+        else if (collectionView.SelectionMode == SelectionMode.Multiple && collectionView.SelectedItems is { } current)
+        {
+            foreach (var item in selectedItems)
+                if (!current.Contains(item))
+                    current.Add(item);
         }
     }
 
