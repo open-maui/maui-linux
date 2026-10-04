@@ -58,6 +58,10 @@ public partial class WaylandWindow
     private IntPtr _textInputManager;
     private IntPtr _textInput;
 
+    // Content type sent with every enable (disable resets it compositor-side).
+    private uint _contentHint = TI3_HINT_NONE;
+    private uint _contentPurpose = TI3_PURPOSE_NORMAL;
+
     // Serial that ticks every time we send commit(). The compositor echoes it
     // back on done() so we can drop responses to stale state.
     private uint _textInputCommitSerial;
@@ -322,9 +326,23 @@ public partial class WaylandWindow
     {
         if (_textInput == IntPtr.Zero || _imeEnabled) return;
         wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_ENABLE);
-        wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_SET_CONTENT_TYPE, TI3_HINT_NONE, TI3_PURPOSE_NORMAL);
+        wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_SET_CONTENT_TYPE, _contentHint, _contentPurpose);
         CommitTextInput();
         _imeEnabled = true;
+    }
+
+    /// <summary>
+    /// Set the content type (purpose and hints) the IME applies to the focused
+    /// widget: the desktop form of MAUI's Keyboard. Rides the next enable; when
+    /// the IME is already enabled it is sent and committed immediately.
+    /// </summary>
+    public void SetContentType(TextInputHints hints, TextInputPurpose purpose)
+    {
+        _contentHint = (uint)hints;
+        _contentPurpose = (uint)purpose;
+        if (_textInput == IntPtr.Zero || !_imeEnabled) return;
+        wl_proxy_marshal(_textInput, ZWP_TEXT_INPUT_V3_SET_CONTENT_TYPE, _contentHint, _contentPurpose);
+        CommitTextInput();
     }
 
     public void DisableTextInput()

@@ -119,7 +119,7 @@ namespace Microsoft.Maui.DeviceTests
 				return false;
 			if (v.IsInAccessibleTree is bool b)
 				return b;
-			return !string.IsNullOrEmpty(v.SemanticDescription) || !string.IsNullOrEmpty(v.SemanticHint);
+			return !string.IsNullOrEmpty(v.SemanticName) || !string.IsNullOrEmpty(v.SemanticHint);
 		}
 
 		public static bool IsExcludedWithChildren(this object? platformView) =>

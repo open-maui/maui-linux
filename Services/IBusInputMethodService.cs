@@ -217,6 +217,7 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
         {
             if (context != null)
             {
+                PushContentType();
                 ibus_input_context_focus_in(_context);
                 PushSurroundingText();
             }
@@ -226,6 +227,74 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
             }
         }
     }
+
+    public void NotifyContentTypeChanged()
+    {
+        if (_disposed || _context == IntPtr.Zero || _currentContext == null) return;
+        PushContentType();
+    }
+
+    // ibus_input_context_set_content_type exists since IBus 1.5.4; older
+    // daemons simply never see the content type.
+    private bool _contentTypeUnsupported;
+
+    private void PushContentType()
+    {
+        if (_contentTypeUnsupported || _context == IntPtr.Zero || _currentContext == null) return;
+        var (purpose, hints) = ToIBusContentType(_currentContext.ContentType);
+        try
+        {
+            ibus_input_context_set_content_type(_context, purpose, hints);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            _contentTypeUnsupported = true;
+        }
+    }
+
+    /// <summary>
+    /// Translates a text-input-v3 content type to IBus's IBusInputPurpose /
+    /// IBusInputHints (the GTK values).
+    /// </summary>
+    internal static (uint Purpose, uint Hints) ToIBusContentType(TextInputContentType contentType)
+    {
+        uint purpose = contentType.Purpose switch
+        {
+            TextInputPurpose.Alpha => 1,
+            TextInputPurpose.Digits => 2,
+            TextInputPurpose.Number => 3,
+            TextInputPurpose.Phone => 4,
+            TextInputPurpose.Url => 5,
+            TextInputPurpose.Email => 6,
+            TextInputPurpose.Name => 7,
+            TextInputPurpose.Password => 8,
+            TextInputPurpose.Pin => 9,
+            TextInputPurpose.Terminal => 10,
+            // IBus has no date/time purposes: digits is the closest.
+            TextInputPurpose.Date or TextInputPurpose.Time or TextInputPurpose.DateTime => 2,
+            _ => 0,
+        };
+
+        var h = contentType.Hints;
+        uint hints = 0;
+        hints |= (h & TextInputHints.Spellcheck) != 0 ? IBUS_INPUT_HINT_SPELLCHECK : IBUS_INPUT_HINT_NO_SPELLCHECK;
+        if ((h & TextInputHints.Completion) != 0) hints |= IBUS_INPUT_HINT_WORD_COMPLETION;
+        if ((h & TextInputHints.Lowercase) != 0) hints |= IBUS_INPUT_HINT_LOWERCASE;
+        if ((h & TextInputHints.Uppercase) != 0) hints |= IBUS_INPUT_HINT_UPPERCASE_CHARS;
+        if ((h & TextInputHints.Titlecase) != 0) hints |= IBUS_INPUT_HINT_UPPERCASE_WORDS;
+        if ((h & TextInputHints.AutoCapitalization) != 0) hints |= IBUS_INPUT_HINT_UPPERCASE_SENTENCES;
+        if ((h & (TextInputHints.HiddenText | TextInputHints.SensitiveData)) != 0) hints |= IBUS_INPUT_HINT_PRIVATE;
+        return (purpose, hints);
+    }
+
+    private const uint IBUS_INPUT_HINT_SPELLCHECK = 1 << 0;
+    private const uint IBUS_INPUT_HINT_NO_SPELLCHECK = 1 << 1;
+    private const uint IBUS_INPUT_HINT_WORD_COMPLETION = 1 << 2;
+    private const uint IBUS_INPUT_HINT_LOWERCASE = 1 << 3;
+    private const uint IBUS_INPUT_HINT_UPPERCASE_CHARS = 1 << 4;
+    private const uint IBUS_INPUT_HINT_UPPERCASE_WORDS = 1 << 5;
+    private const uint IBUS_INPUT_HINT_UPPERCASE_SENTENCES = 1 << 6;
+    private const uint IBUS_INPUT_HINT_PRIVATE = 1 << 11;
 
     public void NotifySurroundingTextChanged()
     {
@@ -394,6 +463,9 @@ public partial class IBusInputMethodService : IInputMethodService, IDisposable
 
     [LibraryImport("libibus-1.0.so.5")]
     private static partial void ibus_input_context_focus_in(nint context);
+
+    [LibraryImport("libibus-1.0.so.5")]
+    private static partial void ibus_input_context_set_content_type(nint context, uint purpose, uint hints);
 
     [LibraryImport("libibus-1.0.so.5")]
     private static partial void ibus_input_context_focus_out(nint context);

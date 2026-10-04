@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -16,6 +17,7 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
     public static IPropertyMapper<ISearchBar, SearchBarHandler> Mapper = new PropertyMapper<ISearchBar, SearchBarHandler>(ViewHandler.ViewMapper)
     {
         [nameof(ITextInput.Text)] = MapText,
+        [nameof(SearchBar.TextTransform)] = MapText,
         [nameof(ITextStyle.TextColor)] = MapTextColor,
         [nameof(ITextStyle.Font)] = MapFont,
         [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
@@ -23,6 +25,16 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         [nameof(IPlaceholder.PlaceholderColor)] = MapPlaceholderColor,
         [nameof(ISearchBar.CancelButtonColor)] = MapCancelButtonColor,
         [nameof(ISearchBar.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
+        [nameof(ISearchBar.VerticalTextAlignment)] = MapVerticalTextAlignment,
+        [nameof(ITextInput.MaxLength)] = MapMaxLength,
+        [nameof(ITextInput.Keyboard)] = MapKeyboard,
+        [nameof(ITextInput.IsReadOnly)] = MapIsReadOnly,
+        [nameof(ITextInput.IsTextPredictionEnabled)] = MapIsTextPredictionEnabled,
+        [nameof(ITextInput.IsSpellCheckEnabled)] = MapIsSpellCheckEnabled,
+        [nameof(ITextInput.CursorPosition)] = MapCursorPosition,
+        [nameof(ITextInput.SelectionLength)] = MapSelectionLength,
+        [nameof(ISearchBar.ReturnType)] = MapReturnType,
+        [nameof(ISearchBar.SearchIconColor)] = MapSearchIconColor,
         [nameof(IView.Background)] = MapBackground,
     };
 
@@ -50,12 +62,18 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TextChanged += OnTextChanged;
         platformView.SearchButtonPressed += OnSearchButtonPressed;
+        platformView.SelectionChanged += OnSelectionChanged;
+        platformView.FocusGained += OnFocusGained;
+        platformView.FocusLost += OnFocusLost;
     }
 
     protected override void DisconnectHandler(SkiaSearchBar platformView)
     {
         platformView.TextChanged -= OnTextChanged;
         platformView.SearchButtonPressed -= OnSearchButtonPressed;
+        platformView.SelectionChanged -= OnSelectionChanged;
+        platformView.FocusGained -= OnFocusGained;
+        platformView.FocusLost -= OnFocusLost;
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
@@ -64,10 +82,39 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        if (VirtualView.Text != e.NewTextValue)
-        {
-            VirtualView.Text = e.NewTextValue ?? string.Empty;
-        }
+        TextInputText.UpdateVirtualText(VirtualView, e.NewTextValue);
+    }
+
+    /// <summary>
+    /// The caret or selection moved on the platform (typing, clicks, a replaced
+    /// query): report it to the MAUI view, as MAUI's search bars do.
+    /// </summary>
+    private void OnSelectionChanged(object? sender, EventArgs e)
+    {
+        // A caret the handler moved while applying the view's own Text, caret
+        // or selection is not the user's: the view already holds its values.
+        if (VirtualView is null || PlatformView is null || _isMapping) return;
+
+        var cursor = PlatformView.CursorPosition;
+        var selection = PlatformView.SelectionLength;
+        if (VirtualView.CursorPosition != cursor)
+            VirtualView.CursorPosition = cursor;
+        if (VirtualView.SelectionLength != selection)
+            VirtualView.SelectionLength = selection;
+    }
+
+    private void OnFocusGained(object? sender, EventArgs e) => UpdateIsFocused(true);
+
+    private void OnFocusLost(object? sender, EventArgs e) => UpdateIsFocused(false);
+
+    /// <summary>
+    /// Reports platform focus to the MAUI view (IView.IsFocused), as MAUI's
+    /// handlers do from the native focus events.
+    /// </summary>
+    private void UpdateIsFocused(bool isFocused)
+    {
+        if (VirtualView is { } view && view.IsFocused != isFocused)
+            view.IsFocused = isFocused;
     }
 
     private void OnSearchButtonPressed(object? sender, EventArgs e)
@@ -75,12 +122,31 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         VirtualView?.SearchButtonPressed();
     }
 
+    private bool _isMapping;
+
     public static void MapText(SearchBarHandler handler, ISearchBar searchBar)
     {
         if (handler.PlatformView is null) return;
 
-        if (handler.PlatformView.Text != searchBar.Text)
-            handler.PlatformView.Text = searchBar.Text ?? string.Empty;
+        // The platform holds the query as shown (TextTransform applied, cut to
+        // MaxLength); a difference flows back to the view through TextChanged.
+        var text = TextInputText.GetDisplayText(searchBar);
+        if (handler.PlatformView.Text != text)
+        {
+            handler._isMapping = true;
+            try
+            {
+                handler.PlatformView.Text = text;
+            }
+            finally
+            {
+                handler._isMapping = false;
+            }
+        }
+
+        // The query the platform holds (cut to MaxLength, transformed) is the
+        // view's Text, as on MAUI's platforms.
+        TextInputText.UpdateVirtualText(searchBar, handler.PlatformView.Text);
     }
 
     public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar)
@@ -102,10 +168,12 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         if (!string.IsNullOrEmpty(font.Family))
             handler.PlatformView.FontFamily = font.Family;
 
-        // Map FontAttributes from the Font weight
+        // Convert Font weight/slant to FontAttributes
         var attrs = FontAttributes.None;
         if (font.Weight >= FontWeight.Bold)
             attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
         handler.PlatformView.FontAttributes = attrs;
     }
 
@@ -119,6 +187,84 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.HorizontalTextAlignment = searchBar.HorizontalTextAlignment;
+    }
+
+    public static void MapVerticalTextAlignment(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.VerticalTextAlignment = searchBar.VerticalTextAlignment;
+    }
+
+    public static void MapMaxLength(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.MaxLength = searchBar.MaxLength;
+    }
+
+    public static void MapKeyboard(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        // On desktop the keyboard is the input method's content type.
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Keyboard = searchBar.Keyboard;
+    }
+
+    public static void MapIsReadOnly(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsReadOnly = searchBar.IsReadOnly;
+    }
+
+    public static void MapIsTextPredictionEnabled(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsTextPredictionEnabled = searchBar.IsTextPredictionEnabled;
+    }
+
+    public static void MapIsSpellCheckEnabled(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsSpellCheckEnabled = searchBar.IsSpellCheckEnabled;
+    }
+
+    public static void MapCursorPosition(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler._isMapping = true;
+        try
+        {
+            handler.PlatformView.CursorPosition = searchBar.CursorPosition;
+        }
+        finally
+        {
+            handler._isMapping = false;
+        }
+    }
+
+    public static void MapSelectionLength(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler._isMapping = true;
+        try
+        {
+            handler.PlatformView.SelectionLength = searchBar.SelectionLength;
+        }
+        finally
+        {
+            handler._isMapping = false;
+        }
+    }
+
+    public static void MapReturnType(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ReturnType = searchBar.ReturnType;
+    }
+
+    public static void MapSearchIconColor(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IconColor = searchBar.SearchIconColor ?? SkiaSearchBar.DefaultIconColor;
+        handler.PlatformView.Invalidate();
     }
 
     public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar)
