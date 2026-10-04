@@ -21,113 +21,86 @@ Package versions are the ones `tests/Compat` restores:
 
 | Package | Version | Findings | covered | n/a | open |
 |---|---|---:|---:|---:|---:|
-| Microsoft.Maui.Core | 10.0.110 | 573 | 462 | 77 | 34 |
-| Microsoft.Maui.Controls.Core | 10.0.110 | 317 | 240 | 42 | 35 |
+| Microsoft.Maui.Core | 10.0.110 | 573 | 496 | 77 | 0 |
+| Microsoft.Maui.Controls.Core | 10.0.110 | 317 | 274 | 43 | 0 |
+| Microsoft.Maui.Essentials | 10.0.110 | 208 | 186 | 22 | 0 |
 | Microsoft.Maui.Controls.Xaml | 10.0.110 | 0 | 0 | 0 | 0 |
-| Microsoft.Maui.Essentials | 10.0.110 | 208 | 124 | 21 | 63 |
-| CommunityToolkit.Maui | 15.0.1 | 27 | 14 | 0 | 13 |
-| CommunityToolkit.Maui.Core | 15.0.1 | 48 | 24 | 1 | 23 |
-| CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 20 | 5 | 14 |
-| Syncfusion.Maui.Core | 34.2.9 | 668 | 589 | 1 | 78 |
-| Syncfusion.Maui.Scheduler | 34.2.9 | 253 | 0 | 0 | 253 |
-| Syncfusion.Maui.Inputs | 34.2.9 | 33 | 0 | 0 | 33 |
-| Syncfusion.Maui.Popup | 34.2.9 | 23 | 21 | 0 | 2 |
+| CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
+| CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
+| CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |
+| Syncfusion.Maui.Core | 34.2.9 | 668 | 658 | 9 | 1 |
+| Syncfusion.Maui.Scheduler | 34.2.9 | 253 | 41 | 137 | 75 |
+| Syncfusion.Maui.Inputs | 34.2.9 | 33 | 28 | 3 | 2 |
+| Syncfusion.Maui.DataGrid | 34.2.9 | 24 | 21 | 2 | 1 |
+| Syncfusion.Maui.Popup | 34.2.9 | 23 | 22 | 1 | 0 |
+| Syncfusion.Maui.PullToRefresh | 34.2.8 | 14 | 14 | 0 | 0 |
 | Syncfusion.Maui.ListView | 34.2.9 | 13 | 12 | 1 | 0 |
 | Syncfusion.Maui.TabView | 34.2.9 | 13 | 13 | 0 | 0 |
-| Syncfusion.Maui.Buttons | 34.2.9 | 10 | 5 | 0 | 5 |
+| Syncfusion.Maui.Buttons | 34.2.9 | 10 | 9 | 1 | 0 |
 | Syncfusion.Maui.NavigationDrawer | 34.2.9 | 10 | 10 | 0 | 0 |
-| Syncfusion.Maui.TreeView | 34.2.9 | 9 | 7 | 0 | 2 |
+| Syncfusion.Maui.Toolbar | 34.2.9 | 10 | 0 | 0 | 10 |
+| Syncfusion.Maui.TreeView | 34.2.9 | 9 | 9 | 0 | 0 |
 | Syncfusion.Maui.PdfToImageConverter | 34.2.9 | 7 | 7 | 0 | 0 |
 | Syncfusion.Maui.Carousel | 34.2.9 | 4 | 4 | 0 | 0 |
-| Syncfusion.Maui.Calendar | 34.2.8 | 3 | 0 | 0 | 3 |
-| Syncfusion.Maui.Picker | 34.2.9 | 2 | 0 | 0 | 2 |
-| Syncfusion.Maui.Charts, Sliders | 34.2.9 | 1 each | 1 / 0 | 0 | 0 / 1 |
-| Syncfusion.Maui.Cards, DataSource, GridCommon, Rotator, SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2262** | **1553** | **148** | **561** |
+| Syncfusion.Maui.Calendar | 34.2.8 | 3 | 3 | 0 | 0 |
+| Syncfusion.Maui.ImageEditor | 34.2.9 | 3 | 2 | 1 | 0 |
+| Syncfusion.Maui.Picker | 34.2.9 | 2 | 2 | 0 | 0 |
+| Syncfusion.Maui.Charts | 34.2.9 | 1 | 1 | 0 | 0 |
+| Syncfusion.Maui.Sliders | 34.2.9 | 1 | 0 | 1 | 0 |
+| Syncfusion.Maui.Cards | 34.2.9 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.Data | 34.2.9 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.DataSource | 34.2.9 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
+| **Total** | | **2313** | **1912** | **311** | **90** |
 
-Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 253 open findings, for example, are a handful of desktop features.
+Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
 ## Open gaps, most impactful first
 
 ### Microsoft.Maui.Essentials
 
-- **Files:** `FileResult.OpenReadAsync()` and `ContentType` throw, because the neutral `FileBase` is a stub. A picked file is usable only through `FullPath`.
-- **Permissions:** `Permissions.CheckStatusAsync` and `RequestAsync` throw, because `BasePlatformPermission` is a stub and nothing on Linux bridges it.
-- **Static entry points:**
-  - `Launcher.Default`: only `OpenAsync(Uri)` is patched. `CanOpenAsync`, `TryOpenAsync` and `OpenAsync(OpenFileRequest)` throw.
-  - `DeviceDisplay.Current`: `KeepScreenOn` and `MainDisplayInfoChanged` do nothing.
-  - The DI-registered services work.
-- **Media picker:** camera capture returns null. The resize and compression options (`MaximumWidth`, `MaximumHeight`, `CompressionQuality`, `RotateImage`) are ignored.
-- **Contacts and geocoding:** the Linux services are stubs that return empty results.
-- **Motion and environment sensors:** they report `IsSupported=false`, since there is no iio-sensor-proxy backend. This matters little on desktops.
+No open findings. Where Linux still differs from Windows:
+
+- **Contacts** come from Evolution Data Server, where GNOME Contacts, Evolution and GNOME Online Accounts keep them. A desktop without it (KDE keeps contacts in Akonadi) throws `FeatureNotSupportedException`. A sandbox that blocks it throws `PermissionException`.
+- **Camera capture** shows OpenMaui's own capture dialog over the app window, where Windows opens its Camera app. Videos are MP4 (H.264 and AAC) when GStreamer has those encoders, and WebM otherwise. A sandboxed app reaches the camera through the xdg-desktop-portal Camera interface.
+- **Motion and environment sensors** read the kernel's IIO devices, so they are supported only on machines with the hardware: convertibles, tablets and phones.
+- **Geocoding** works only after the app names a Nominatim service (`GeocodingService.ServiceUrl` or `OPENMAUI_GEOCODING_URL`). Windows needs a Bing Maps key in the same way.
 
 ### Microsoft.Maui.Core / Controls
 
-- **HybridWebView:** there is no Linux handler, so no JavaScript bridge, raw messaging or request interception.
-- **WebView:** `WebResourceRequested` (MAUI 10) is never raised.
-- **NavigationPage:** the navigation bar does not support `TitleView`, `TitleIconImageSource`, `BackButtonTitle`, `HasBackButton`, `IconColor` or `HasNavigationBar`.
-- **CollectionView:**
-  - `CanReorderItems` (drag to reorder) is not implemented, and neither is `IsGrouped` (group headers and footers).
-  - `ItemsUpdatingScrollMode` is not implemented.
-  - CarouselView's `EmptyView` and scroll-bar visibility are not mapped.
-- **Window overlays:** `Window.AddOverlay` and the visual diagnostics overlay never draw. `Window.TitleBar` (custom title-bar content) is not supported.
-- **Shapes:**
-  - `Aspect`, `StrokeDashPattern`, `StrokeLineCap`, `StrokeLineJoin` and `StrokeMiterLimit` are not mapped.
-  - `Path.RenderTransform` is not applied.
-  - `Polyline.FillRule` is not mapped.
-  - RoundRectangle has no handler.
-- **Pickers:** `IsOpen` (opening and closing a picker from code) is not mapped.
-- **RefreshView:** `IsRefreshEnabled` is not mapped. `Button.LineBreakMode` is not mapped either.
+- **HybridWebView:** `WebResourceRequested` is raised for requests to the app origin (`app://0.0.0.1/`) only, as on iOS and Mac Catalyst. WebKit gives an embedder no way to answer http and https requests, which WebView2 on Windows intercepts too. (MAUI 10.0.110's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
+- **Items views:** CollectionView's `IsGrouped`, `CanReorderItems`, `ItemsUpdatingScrollMode` and horizontal grids, and CarouselView's `EmptyView`, scroll bars, `Loop` and vertical layout, are covered. What is left:
+  - A reorder drag starts as soon as the pointer moves, by mouse or touch. On Windows a touch drag needs a press-and-hold first; OpenMaui's pointer events do not say which device sent them.
+  - CarouselView ignores `IsBounceEnabled` and the snap points of its `ItemsLayout`, and uses the leading side of `PeekAreaInsets` on both sides. A looping carousel of two items with a peek shows one neighbour.
+  - The classic ListView still rebuilds its rows and returns to the top on every change of its items.
+- **Window.TitleBar without client-side decorations:** with client-side decorations (Wayland, when the compositor asks for them) the TitleBar fills the decoration's title bar, its leading, main and trailing content take presses and the rest of it moves the window, as on Windows. Under X11, or when the compositor draws the decorations, the system title bar stays and the TitleBar is shown as a strip at the top of the window's client area; dragging that strip does not move the window.
 - Most of these gaps are also listed in `tests/Hosting/MapperParityTests.cs` (`KnownGaps`).
 
 ### CommunityToolkit.Maui
 
-- **TouchBehavior and ImageTouchBehavior:** they never attach, so there are no pressed or hover states and no touch commands.
-- **MediaElement:**
-  - `MediaOpened`, `MediaFailed` and `CurrentState` changes are not raised.
-  - `MediaWidth` and `MediaHeight` are not reported.
-  - `Speed`, `HttpHeaders`, `ShouldKeepScreenOn` and `ShouldShowPlaybackControls` are ignored.
-  - Metadata is not published (no MPRIS).
-  - The handler does not tear down its pipeline in `DisconnectHandler`.
-- **DrawingView:** `GetImageStream` returns an empty stream. A custom `IDrawingLineAdapter` is ignored.
-- **Speech:** `SpeechToText` and `OfflineSpeechToText` throw.
-- **Toast and Snackbar:** they draw nothing.
-- **Smaller gaps:** `Badge.SetCount` throws, and `SemanticOrderView` does not change the AT-SPI reading order.
+- **MediaElement:** `UriMediaSource.HttpHeaders` are sent with the request for the source URI (a media file, or an HLS or DASH manifest), but not with the segment requests of an adaptive stream. GStreamer's adaptive demuxers fetch segments with HTTP sources of their own, which playbin never exposes.
+- **Platform differences that are not gaps** (they follow the toolkit's Windows build):
+  - Toast and Snackbar are desktop notifications, so `SnackbarOptions` and `Anchor` do not apply.
+  - `DrawingView.GetImageStream` ignores the requested size.
+  - `SpeechToText` and `OfflineSpeechToText` throw `FeatureNotSupportedException`, because Linux desktops have no speech-recognition service. The toolkit does the same on an Android device that has no recognizer.
 
 ### Syncfusion
 
-- **SfImageEditor:** it has no Linux platform view, and neither has Syncfusion's media element. `UseLinuxSyncfusion` says both are not covered.
 - **SfScheduler:**
-  - The desktop layouts are Windows-only: horizontal resource view, timeline widths and view updates.
-  - Mouse drag-and-drop and resizing of appointments (WinUI drag-and-drop with timers) are missing. Linux has the touch and long-press path, with positions from `SfInputPositionPatches`.
-  - There is no hover highlight, no resize cursor, no header right-tap, and the accessibility node positions are missing.
-- **SfNumericEntry and SfMaskedEntry:** the key-level handling is missing:
-  - SfNumericEntry: Up, Down, PageUp and PageDown, and wheel increments.
-  - SfMaskedEntry: masked typing, paste and cut.
-  - Both: hover.
-
-  The neutral build handles text changes only.
-- **SfComboBox and SfAutocomplete:**
-  - Backspace and Delete on multi-selection chips do nothing, and the chip area width is not updated.
-  - A drop-down inside a template does not close when the control loses focus.
-  - Some sizing and RTL helpers are Windows-only.
-- **SfTextInputLayout:** the inner Entry keeps its own border, background and padding, which Windows strips. There is no hover effect.
-- **SfDataGrid:** its scroll handler (scroll bars, manipulation, wheel state) has no bridge. SfDataGrid is not verified on Linux.
-- **Keyboard and focus:**
-  - Syncfusion buttons and segmented controls are not Tab stops; they get focus only on a click.
-  - SfInteractiveScrollView ignores scroll and zoom keys, and picker columns ignore the keyboard.
-- **Smaller gaps:**
-  - No inertia after a pan.
-  - Picker columns cannot be panned with a mouse drag.
-  - RTL is not applied to SfCalendar `FlowDirection` changes, SfPopup or the range slider's touch points.
-  - `PopupExtension.GetStatusBarHeight` returns 0.
-  - SfCarousel ignores `EnableVirtualization`.
-  - The TreeView drag popup has no shadow.
-  - SfView accessibility semantics are not refreshed.
+  - The desktop horizontal resource view is Windows and Mac only: resources side by side in the day, week, work-week and month views, with its own resource header, time ruler and render virtualization. The neutral build shows resources the way the mobile builds do, in the timeline views only.
+  - Dragging a timed appointment onto the all-day panel stays in the time slots (Windows routes the drag to the all-day panel).
+  - The AI assist button of a smart scheduler's header is Windows-only.
+- **SfDataGrid:** a numeric cell editor's text field is not focused when editing starts (Windows focuses it 50 ms later).
+- **SfToolbar:** no mouse hover feedback on items or on the "more" menu, and items are not Tab stops.
+- **SfComboBox and SfAutocomplete:** the Windows build overrides their measure (`DropDownListBase.MeasureContent`, `UpdateBoundsSize`): an infinite width is measured as 0 for single selection, and a FlexLayout parent clamps the size to the current one. Linux keeps the neutral measure until this is checked side by side with Windows.
+- **SfPdfViewer:** stamp annotation sizing (`StampView.OnSizeAllocated`) is Windows-only. Annotations are not verified on Linux.
 
 ## Limits of the scan
 
 - It compares against the Windows build only. Behaviour that Android or iOS implement but Windows does not is not reported.
-- It recognises a stub only by its shape: empty, a constant or `default`, or a short straight-line `throw`. A neutral body that returns a placeholder object (for example `ValueTask.FromResult(Stream.Null)`) is not reported as a stub. For that reason the CommunityToolkit `DrawingViewService` gap above was found by review and is recorded under its windows-only members.
+- It recognises a stub only by its shape: empty, a constant or `default`, or a short straight-line `throw`. A neutral body that returns a placeholder object (for example `ValueTask.FromResult(Stream.Null)`) is not reported as a stub. For that reason the CommunityToolkit `DrawingViewService` gap (now covered) was found by review, and is recorded under its windows-only members.
+- Nor does it see a body the neutral build strips down to discards. SfDataGrid's keyboard navigation (`VisualContainer.OnKeyDown`), right-click (`DataGridCell.OnRightTap`), tool tip delay and row-header long press, and SfImageEditor's `GetImageStream`, `Save` and effects, were found by comparing the decompiled builds method by method, and are bridged (`Syncfusion/SfDataGridPatches.cs`, `Syncfusion/SfImageEditorPatches.cs`).
 - Windows-only methods are matched by name, so an overload that exists only on Windows is not reported when the neutral build has another overload with the same name.
 - Source-generated binding interceptors (`Microsoft.Maui.Controls.Generated.*`) are skipped. Their names carry per-build hashes, and they contain no platform code.

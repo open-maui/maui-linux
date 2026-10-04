@@ -121,6 +121,7 @@ public class SkiaSfCarousel : SkiaLayoutView
             StartAnimation(_scroll, LinearScrollFor(index), scroll: true, animate);
         else
             StartAnimation(_position, index, scroll: false, animate);
+        CheckShownRange();
     }
 
     private void StartAnimation(float from, float to, bool scroll, bool animate)
@@ -154,6 +155,77 @@ public class SkiaSfCarousel : SkiaLayoutView
             Invalidate();
     }
 
+    #region Shown range (virtualization)
+
+    /// <summary>
+    /// Raised when the items the Default mode can show may have changed (the
+    /// selection moved, a drag passed an item, the size changed): a
+    /// virtualizing handler realizes the items in <see cref="ShownRange"/>.
+    /// </summary>
+    internal event EventHandler? ShownRangeChanged;
+
+    private (int First, int Last) _lastShownRange = (-1, -1);
+    private double _lastShownWidth = -1;
+
+    /// <summary>Runs after the current layout pass (a range change replaces children).</summary>
+    private void Dispatch(Action action)
+    {
+        var dispatcher = (MauiView as Microsoft.Maui.Controls.BindableObject)?.Dispatcher;
+        if (dispatcher == null || !dispatcher.Dispatch(action))
+            action();
+    }
+
+    /// <summary>
+    /// The items the Default mode places at least partly inside the carousel,
+    /// for the selected item and for the drag or animation position, as the
+    /// Windows build's <c>DefaultVisualModeIndex</c> finds its first and last
+    /// visible item.
+    /// </summary>
+    internal (int First, int Last) ShownRange(int count)
+    {
+        if (count <= 0)
+            return (0, -1);
+        int lo = Math.Clamp((int)Math.Floor(_position), 0, count - 1);
+        int hi = Math.Clamp((int)Math.Ceiling(_position), 0, count - 1);
+        var a = ShownRangeFor(Math.Clamp(_selectedIndex, 0, count - 1), count);
+        var b = ShownRangeFor(lo, count);
+        var c = ShownRangeFor(hi, count);
+        return (Math.Min(a.First, Math.Min(b.First, c.First)), Math.Max(a.Last, Math.Max(b.Last, c.Last)));
+    }
+
+    private (int First, int Last) ShownRangeFor(int selected, int count)
+    {
+        const int Unmeasured = 3; // before the first layout: the selection and its neighbours
+        if (Bounds.Width <= 0)
+            return (Math.Max(0, selected - Unmeasured), Math.Min(count - 1, selected + Unmeasured));
+        float width = (float)Bounds.Width;
+        bool Shown(int index)
+        {
+            var (left, scale, _, _) = DefaultPlacement(index, selected);
+            return left < width && left + SlotWidth * scale > 0;
+        }
+        int first = selected;
+        while (first > 0 && Shown(first - 1) && selected - first < 500)
+            first--;
+        int last = selected;
+        while (last < count - 1 && Shown(last + 1) && last - selected < 500)
+            last++;
+        return (first, last);
+    }
+
+    private void CheckShownRange()
+    {
+        if (ShownRangeChanged == null || Mode != CarouselViewMode.Default)
+            return;
+        var range = ShownRange(_items.Count);
+        if (range == _lastShownRange)
+            return;
+        _lastShownRange = range;
+        ShownRangeChanged.Invoke(this, EventArgs.Empty);
+    }
+
+    #endregion
+
     #region Layout
 
     private float SlotWidth => ItemWidth > 0 ? ItemWidth : (float)Math.Max(1, Bounds.Width);
@@ -181,6 +253,12 @@ public class SkiaSfCarousel : SkiaLayoutView
                 _scroll = LinearScrollFor(_selectedIndex, bounds);
             else
                 _position = _selectedIndex;
+        }
+        if (Math.Abs(bounds.Width - _lastShownWidth) > 0.5)
+        {
+            _lastShownWidth = bounds.Width;
+            _lastShownRange = (-1, -1);
+            Dispatch(CheckShownRange);
         }
         return bounds;
     }
@@ -375,6 +453,7 @@ public class SkiaSfCarousel : SkiaLayoutView
             _position = Math.Clamp(_pressValue - dx / DefaultStep, 0, Math.Max(0, _items.Count - 1));
         e.Handled = true;
         Invalidate();
+        CheckShownRange();
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
@@ -430,4 +509,15 @@ public enum CarouselViewMode
 {
     Default,
     Linear,
+}
+
+/// <summary>
+/// The place of an item a virtualizing carousel has not realized: it is
+/// arranged like an item and draws nothing.
+/// </summary>
+internal sealed class SkiaSfCarouselPlaceholder : SkiaView
+{
+    protected override void OnDraw(SKCanvas canvas, SKRect bounds)
+    {
+    }
 }

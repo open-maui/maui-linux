@@ -110,6 +110,15 @@ public sealed unsafe partial class WebKitContentApi
         ((delegate* unmanaged<IntPtr, IntPtr, void>)f)(settings, ua);
     }
 
+    /// <summary>Turns WebKit's Web Inspector (developer extras) on or off for the view.</summary>
+    public void SetDeveloperExtrasEnabled(IntPtr webView, bool enabled)
+    {
+        var settings = GetSettings(webView);
+        var f = Opt("webkit_settings_set_enable_developer_extras");
+        if (f != IntPtr.Zero && settings != IntPtr.Zero)
+            ((delegate* unmanaged<IntPtr, int, void>)f)(settings, enabled ? 1 : 0);
+    }
+
     public double GetZoomLevel(IntPtr webView)
     {
         var f = Opt("webkit_web_view_get_zoom_level");

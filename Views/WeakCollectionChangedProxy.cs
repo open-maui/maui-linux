@@ -51,3 +51,45 @@ internal sealed class WeakCollectionChangedProxy<TTarget> : IDisposable where TT
         }
     }
 }
+
+/// <summary>
+/// Subscribes to an object's <see cref="System.ComponentModel.INotifyPropertyChanged.PropertyChanged"/>
+/// without the object keeping the subscriber alive (an ItemsLayout can be shared by many lists,
+/// <c>LinearItemsLayout.Vertical</c> by every list of an app). <see cref="Dispose"/> unsubscribes.
+/// </summary>
+internal sealed class WeakPropertyChangedProxy<TTarget> : IDisposable where TTarget : class
+{
+    private readonly WeakReference<TTarget> _target;
+    private readonly Action<TTarget, object?, System.ComponentModel.PropertyChangedEventArgs> _callback;
+    private System.ComponentModel.INotifyPropertyChanged? _source;
+
+    /// <param name="callback">Called with the subscriber; must not capture it (a static lambda).</param>
+    public WeakPropertyChangedProxy(System.ComponentModel.INotifyPropertyChanged source, TTarget target,
+        Action<TTarget, object?, System.ComponentModel.PropertyChangedEventArgs> callback)
+    {
+        _target = new WeakReference<TTarget>(target);
+        _callback = callback;
+        _source = source;
+        source.PropertyChanged += OnPropertyChanged;
+    }
+
+    /// <summary>The object observed, until <see cref="Dispose"/>.</summary>
+    public System.ComponentModel.INotifyPropertyChanged? Source => _source;
+
+    private void OnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_target.TryGetTarget(out var target))
+            _callback(target, sender, e);
+        else
+            Dispose();
+    }
+
+    public void Dispose()
+    {
+        if (_source is { } source)
+        {
+            _source = null;
+            source.PropertyChanged -= OnPropertyChanged;
+        }
+    }
+}
