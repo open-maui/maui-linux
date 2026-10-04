@@ -38,6 +38,8 @@ namespace Microsoft.Maui.DeviceTests
 			protected override bool FindTestsForMethod(ITestMethod testMethod, bool includeSourceInformation, IMessageBus messageBus, ITestFrameworkDiscoveryOptions discoveryOptions)
 			{
 				var isTest = testMethod.Method.GetCustomAttributes(typeof(FactAttribute)).Any();
+				if (isTest && KnownSkips.UnskipReasonFor(testMethod.TestClass.Class.Name, testMethod.Method.Name) is not null)
+					return ReportUnskipped(testMethod, includeSourceInformation, messageBus, discoveryOptions);
 				var reason = isTest ? KnownSkips.ReasonFor(testMethod.TestClass.Class.Name, testMethod.Method.Name) : null;
 				if (reason is null)
 					return base.FindTestsForMethod(testMethod, includeSourceInformation,
@@ -51,6 +53,40 @@ namespace Microsoft.Maui.DeviceTests
 					"Linux: " + reason);
 				return ReportDiscoveredTestCase(skipped, includeSourceInformation, messageBus);
 			}
+
+			/// <summary>
+			/// A test MAUI skips (Skip on its Fact/Theory) that Linux runs: one test case per
+			/// InlineData row (or one for a Fact), with MAUI's skip reason ignored.
+			/// </summary>
+			bool ReportUnskipped(ITestMethod testMethod, bool includeSourceInformation, IMessageBus messageBus, ITestFrameworkDiscoveryOptions discoveryOptions)
+			{
+				var display = discoveryOptions.MethodDisplayOrDefault();
+				var displayOptions = discoveryOptions.MethodDisplayOptionsOrDefault();
+				var rows = testMethod.Method.GetCustomAttributes(typeof(InlineDataAttribute)).ToList();
+				if (rows.Count == 0)
+					return ReportDiscoveredTestCase(new UnskippedTestCase(DiagnosticMessageSink, display, displayOptions, testMethod, null), includeSourceInformation, messageBus);
+				foreach (var row in rows)
+				{
+					var data = (object[])row.GetConstructorArguments().First();
+					if (!ReportDiscoveredTestCase(new UnskippedTestCase(DiagnosticMessageSink, display, displayOptions, testMethod, data), includeSourceInformation, messageBus))
+						return false;
+				}
+				return true;
+			}
+		}
+
+		/// <summary>A test case that runs although its Fact/Theory attribute names a skip reason.</summary>
+		public sealed class UnskippedTestCase : XunitTestCase
+		{
+			[Obsolete("Called by the de-serializer; should only be called by deriving classes for de-serialization purposes")]
+			public UnskippedTestCase() { }
+
+			public UnskippedTestCase(IMessageSink diagnosticMessageSink, TestMethodDisplay defaultMethodDisplay, TestMethodDisplayOptions defaultMethodDisplayOptions, ITestMethod testMethod, object[] testMethodArguments)
+				: base(diagnosticMessageSink, defaultMethodDisplay, defaultMethodDisplayOptions, testMethod, testMethodArguments)
+			{
+			}
+
+			protected override string GetSkipReason(IAttributeInfo factAttribute) => null;
 		}
 
 		/// <summary>

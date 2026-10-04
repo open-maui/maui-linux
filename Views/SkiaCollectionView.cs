@@ -41,7 +41,7 @@ public class SkiaCollectionView : SkiaItemsView
         typeof(SkiaCollectionView),
         ItemsLayoutOrientation.Vertical,
         BindingMode.TwoWay,
-        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate());
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnLayoutChanged());
 
     public static readonly BindableProperty SpanCountProperty = BindableProperty.Create(
         nameof(SpanCount),
@@ -49,7 +49,7 @@ public class SkiaCollectionView : SkiaItemsView
         typeof(SkiaCollectionView),
         1,
         BindingMode.TwoWay,
-        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).Invalidate(),
+        propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnLayoutChanged(),
         coerceValue: (b, v) => Math.Max(1, (int)v));
 
     public static readonly BindableProperty GridItemWidthProperty = BindableProperty.Create(
@@ -150,7 +150,7 @@ public class SkiaCollectionView : SkiaItemsView
             if (SelectionMode != SkiaSelectionMode.None)
             {
                 var item = GetItemAt(value);
-                if (item != null)
+                if (item != null && item is not INonSelectableItem)
                 {
                     SelectedItem = item;
                 }
@@ -223,14 +223,62 @@ public class SkiaCollectionView : SkiaItemsView
         return value;
     }
 
-    /// <summary>The height a header or footer view takes in the list's content width.</summary>
+    /// <inheritdoc />
+    /// <remarks>A linear horizontal ItemsLayout: the items in a row, scrolled horizontally.</remarks>
+    protected override bool IsHorizontal => Orientation == ItemsLayoutOrientation.Horizontal && SpanCount == 1;
+
+    /// <summary>The orientation or span changed: rows are measured again along the new axis.</summary>
+    private void OnLayoutChanged()
+    {
+        _itemHeights.Clear();
+        _scrollOffset = 0;
+        InvalidateMeasure();
+        Invalidate();
+    }
+
+    /// <summary>
+    /// The length a header or footer view takes along the scroll axis: its height across the
+    /// list's content width, or its width across a horizontal list's height.
+    /// </summary>
     private float SlotHeight(SkiaView? view)
     {
         if (view is not { IsVisible: true })
             return 0f;
+        if (IsHorizontal)
+        {
+            var height = Bounds.Height > 0 ? (float)Bounds.Height : float.PositiveInfinity;
+            var desired = view.Measure(new Size(double.PositiveInfinity, Math.Max(0, height - view.Margin.VerticalThickness)));
+            return (float)(desired.Width + view.Margin.HorizontalThickness);
+        }
         var width = _contentWidth > 0 ? _contentWidth : Math.Max(0f, (float)Bounds.Width - 8f);
         var size = view.Measure(new Size(width, double.PositiveInfinity));
         return (float)(size.Height + view.Margin.VerticalThickness);
+    }
+
+    /// <inheritdoc />
+    protected override float NaturalCrossExtent(float height)
+    {
+        var cross = base.NaturalCrossExtent(height);
+        foreach (var slot in new[] { _headerView, _footerView })
+        {
+            if (slot is not { IsVisible: true })
+                continue;
+            var size = slot.Measure(new Size(double.PositiveInfinity, height));
+            cross = Math.Max(cross, (float)(size.Height + slot.Margin.VerticalThickness));
+        }
+        return cross;
+    }
+
+    /// <summary>Lays a header or footer out down a horizontal list's height at <paramref name="left"/> and draws it.</summary>
+    private void DrawSlotHorizontal(SKCanvas canvas, SkiaView? view, float left, float top, float height)
+    {
+        if (view is not { IsVisible: true })
+            return;
+        var margin = view.Margin;
+        var width = SlotHeight(view);
+        view.Arrange(new Rect(left + margin.Left, top + margin.Top,
+            Math.Max(0, width - margin.HorizontalThickness), Math.Max(0, height - margin.VerticalThickness)));
+        view.Draw(canvas);
     }
 
     /// <inheritdoc />
@@ -492,6 +540,13 @@ public class SkiaCollectionView : SkiaItemsView
             return;
         }
 
+        // A group header or footer row is tapped, not selected.
+        if (item is INonSelectableItem)
+        {
+            RaiseItemTapped(index, item);
+            return;
+        }
+
         _isSelectingItem = true;
         try
         {
@@ -522,42 +577,46 @@ public class SkiaCollectionView : SkiaItemsView
         if (ItemViewCreator != null)
         {
             NoteItemDrawn(index);
-            if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
-            {
-                itemView = ItemViewCreator(item);
-                if (itemView != null)
-                {
-                    itemView.Parent = this;
-                    _itemViewCache[index] = itemView;
-                }
-            }
+            var itemView = GetOrCreateItemView(index);
 
             if (itemView != null)
             {
                 try
                 {
-                    var availableSize = new Size(bounds.Width, float.MaxValue);
-                    var measuredSize = itemView.Measure(availableSize);
+                    // The row is the item's cell: its margin is inside the row, as MAUI's cells
+                    // hold it, and the item is placed across the row by its layout options.
+                    var horizontal = IsHorizontal;
+                    var margin = itemView.Margin;
+                    var extent = MeasureItemExtent(itemView, horizontal ? bounds.Height : bounds.Width, out var desired);
 
-                    var rawHeight = (float)measuredSize.Height;
-                    if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000f)
-                    {
-                        rawHeight = ItemHeight;
-                    }
-
-                    // Store the actual measured height for row sizing
-                    var cellHeight = Math.Max(rawHeight, MinimumItemHeight);
+                    // Store the actual measured length for row sizing
+                    var cellHeight = Math.Max(extent, MinimumItemHeight);
                     if (!_itemHeights.TryGetValue(index, out var cachedHeight) || Math.Abs(cachedHeight - cellHeight) > 1f)
                     {
                         _itemHeights[index] = cellHeight;
                         _heightsChangedDuringDraw = true;
                     }
 
-                    // Vertically center the content within the cell bounds
-                    // Use rawHeight (actual content height) for centering, not cellHeight
-                    var contentHeight = Math.Min(rawHeight, bounds.Height);
-                    var verticalOffset = Math.Max(0, (bounds.Height - contentHeight) / 2);
-                    var actualBounds = new SKRect(bounds.Left, bounds.Top + verticalOffset, bounds.Right, bounds.Top + verticalOffset + contentHeight);
+                    var area = new SKRect(bounds.Left + (float)margin.Left, bounds.Top + (float)margin.Top,
+                        Math.Max(bounds.Left + (float)margin.Left, bounds.Right - (float)margin.Right),
+                        Math.Max(bounds.Top + (float)margin.Top, bounds.Bottom - (float)margin.Bottom));
+                    var across = SkiaPage.AlignContent(itemView, area, desired);
+                    SKRect actualBounds;
+                    if (horizontal)
+                    {
+                        var contentWidth = Math.Min((float)desired.Width, area.Width);
+                        var offset = Math.Max(0, (area.Width - contentWidth) / 2);
+                        actualBounds = new SKRect(area.Left + offset, (float)across.Y, area.Left + offset + contentWidth, (float)across.Bottom);
+                    }
+                    else
+                    {
+                        // Center the content along the row when the row is taller than it
+                        // (a ListView's row height); a CollectionView's row is the item's height.
+                        var contentHeight = Math.Min((float)desired.Height, area.Height);
+                        var verticalOffset = Math.Max(0, (area.Height - contentHeight) / 2);
+                        actualBounds = new SKRect((float)across.X, area.Top + verticalOffset, (float)across.Right, area.Top + verticalOffset + contentHeight);
+                    }
+                    SetRowOrigin(itemView, bounds.Left, bounds.Top);
                     itemView.Arrange(new Rect(actualBounds.Left, actualBounds.Top, actualBounds.Width, actualBounds.Height));
                     itemView.Draw(canvas);
 
@@ -646,6 +705,16 @@ public class SkiaCollectionView : SkiaItemsView
         HeaderHeight = LeadingContentHeight;
         FooterHeight = TrailingContentHeight;
 
+        if (ItemCount == 0 && IsHorizontal)
+        {
+            // The header at the start, the footer at the end, and the empty view between them.
+            float headerWidth = HeaderHeight, footerWidth = FooterHeight;
+            DrawSlotHorizontal(canvas, _headerView, bounds.Left, bounds.Top, bounds.Height);
+            DrawSlotHorizontal(canvas, _footerView, bounds.Right - footerWidth, bounds.Top, bounds.Height);
+            DrawEmptyView(canvas, new SKRect(bounds.Left + headerWidth, bounds.Top, bounds.Right - footerWidth, bounds.Bottom));
+            return;
+        }
+
         if (ItemCount == 0)
         {
             // The header at the top, the footer under it, and the empty view in the room left.
@@ -661,6 +730,10 @@ public class SkiaCollectionView : SkiaItemsView
         if (SpanCount > 1)
         {
             DrawGridItems(canvas, contentBounds);
+        }
+        else if (IsHorizontal)
+        {
+            DrawHorizontalListItems(canvas, contentBounds);
         }
         else
         {
@@ -742,6 +815,91 @@ public class SkiaCollectionView : SkiaItemsView
         {
             DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
         }
+    }
+
+    /// <summary>
+    /// A horizontal linear list: items left to right across the list's height, the header
+    /// before the first and the footer after the last, scrolled horizontally.
+    /// </summary>
+    private void DrawHorizontalListItems(SKCanvas canvas, SKRect bounds)
+    {
+        canvas.Save();
+        canvas.ClipRect(bounds, SKClipOperation.Intersect, false);
+
+        using var paint = new SKPaint
+        {
+            IsAntialias = true
+        };
+
+        var scrollOffset = GetScrollOffset();
+        var height = bounds.Height;
+
+        int firstVisible = 0;
+        float cumulativeOffset = LeadingContentHeight;
+        for (int i = 0; i < ItemCount; i++)
+        {
+            EnsureItemMeasured(i, height);
+            var itemW = GetItemHeight(i);
+            if (cumulativeOffset + itemW > scrollOffset)
+            {
+                firstVisible = i;
+                break;
+            }
+            cumulativeOffset += itemW + ItemSpacing;
+        }
+
+        float currentX = bounds.Left + GetItemOffset(firstVisible) - scrollOffset;
+        for (int i = firstVisible; i < ItemCount; i++)
+        {
+            EnsureItemMeasured(i, height);
+            var itemW = GetItemHeight(i);
+            var itemRect = new SKRect(currentX, bounds.Top, currentX + itemW, bounds.Bottom);
+
+            if (itemRect.Left > bounds.Right)
+            {
+                break;
+            }
+
+            if (itemRect.Right >= bounds.Left)
+            {
+                var item = GetItemAt(i);
+                if (item != null)
+                {
+                    DrawItem(canvas, item, i, itemRect, paint);
+                }
+            }
+
+            currentX += itemW + ItemSpacing;
+        }
+
+        var total = TotalContentHeight;
+        DrawSlotHorizontal(canvas, _headerView, bounds.Left - scrollOffset, bounds.Top, height);
+        DrawSlotHorizontal(canvas, _footerView, bounds.Left + total - TrailingContentHeight - scrollOffset, bounds.Top, height);
+
+        canvas.Restore();
+
+        if (total > bounds.Width)
+        {
+            DrawHorizontalScrollBar(canvas, bounds, scrollOffset, total);
+        }
+    }
+
+    private void DrawHorizontalScrollBar(SKCanvas canvas, SKRect bounds, float scrollOffset, float totalWidth)
+    {
+        const float scrollBarHeight = 6f, scrollBarMargin = 2f;
+        var trackRect = new SKRect(bounds.Left + scrollBarMargin, bounds.Bottom - scrollBarHeight - scrollBarMargin,
+            bounds.Right - scrollBarMargin, bounds.Bottom - scrollBarMargin);
+
+        using var trackPaint = new SKPaint { Color = SkiaTheme.Shadow10SK, Style = SKPaintStyle.Fill };
+        canvas.DrawRoundRect(new SKRoundRect(trackRect, 3f), trackPaint);
+
+        var maxOffset = Math.Max(0f, totalWidth - bounds.Width);
+        var thumbWidth = Math.Max(30f, trackRect.Width * (bounds.Width / totalWidth));
+        var scrollRatio = maxOffset > 0f ? scrollOffset / maxOffset : 0f;
+        var thumbX = trackRect.Left + (trackRect.Width - thumbWidth) * scrollRatio;
+
+        using var thumbPaint = new SKPaint { Color = SkiaTheme.ScrollbarThumbSK, Style = SKPaintStyle.Fill, IsAntialias = true };
+        canvas.DrawRoundRect(new SKRoundRect(new SKRect(thumbX, trackRect.Top, thumbX + thumbWidth, trackRect.Bottom), 3f), thumbPaint);
     }
 
     private void DrawGridItems(SKCanvas canvas, SKRect bounds)
@@ -851,6 +1009,14 @@ public class SkiaCollectionView : SkiaItemsView
         return _scrollOffset;
     }
 
+}
+
+/// <summary>
+/// A row of an items view that is not an item (a group header or footer): it is drawn and can be
+/// tapped, but is never selected.
+/// </summary>
+internal interface INonSelectableItem
+{
 }
 
 /// <summary>
