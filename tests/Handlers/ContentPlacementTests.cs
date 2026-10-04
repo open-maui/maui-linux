@@ -66,7 +66,13 @@ public class ContentPlacementTests
 
         var ab = ((Microsoft.Maui.Platform.SkiaView)a.Handler!.PlatformView!).Bounds;
         var bb = ((Microsoft.Maui.Platform.SkiaView)b.Handler!.PlatformView!).Bounds;
-        bb.Left.Should().BeApproximately(ab.Right + 8, 0.5);
+        // MAUI's FlexLayout (its FlexLayoutManager, as on every platform) applies an
+        // item's margin twice along the line: the flex engine spaces items by their
+        // margins, and each item's measured size, which includes its margin, is then
+        // arranged inside that margin again (ComputeFrame). So the 8 px right margin
+        // leaves 16 px between the labels, as on Android, iOS and Windows.
+        bb.Left.Should().BeApproximately(ab.Right + 16, 0.5);
+        a.Frame.Width.Should().BeApproximately(ab.Width, 0.5);
     }
 
     [Fact]
