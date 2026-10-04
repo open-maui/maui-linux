@@ -91,12 +91,87 @@ public class AppInfoService : IAppInfo
     }
 
     public AppInfoService()
+        : this(Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly())
     {
-        _entryAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-        _packageName = _entryAssembly.GetName().Name ?? "Unknown";
-        _name = _entryAssembly.GetCustomAttribute<AssemblyTitleAttribute>()?.Title ?? _packageName;
-        _versionString = (_version = _entryAssembly.GetName().Version ?? new Version(1, 0)).ToString();
-        _buildString = _entryAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? _versionString;
+    }
+
+    /// <summary>
+    /// Reads the app's identity from <paramref name="entryAssembly"/>: the AppInfo metadata
+    /// OpenMaui's build targets write from ApplicationId, ApplicationTitle,
+    /// ApplicationDisplayVersion and ApplicationVersion (the MAUI single-project properties,
+    /// under the keys MAUI's Windows build uses), else the assembly's name, title and version.
+    /// </summary>
+    internal AppInfoService(Assembly entryAssembly)
+    {
+        _entryAssembly = entryAssembly;
+        var assemblyName = _entryAssembly.GetName().Name ?? "Unknown";
+        var title = _entryAssembly.GetCustomAttribute<AssemblyTitleAttribute>()?.Title;
+        StorageName = string.IsNullOrWhiteSpace(title) ? assemblyName : title;
+
+        _packageName = GetMetadata(_entryAssembly, "PackageName") ?? assemblyName;
+        _name = GetMetadata(_entryAssembly, "Name") ?? StorageName;
+
+        var displayVersion = GetMetadata(_entryAssembly, "Version");
+        if (displayVersion != null && TryParseVersion(displayVersion, out var parsed))
+        {
+            _version = parsed;
+            _versionString = displayVersion;
+        }
+        else
+        {
+            _version = _entryAssembly.GetName().Version ?? new Version(1, 0);
+            _versionString = _version.ToString();
+        }
+
+        _buildString = GetMetadata(_entryAssembly, "Build")
+            ?? _entryAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? _versionString;
+    }
+
+    /// <summary>
+    /// The directory name the app's preferences and data live under (the entry assembly's
+    /// title, else its name). It is what <see cref="Name"/> was before ApplicationTitle was
+    /// honoured, and stays so: changing it would move existing apps' data.
+    /// </summary>
+    internal string StorageName { get; }
+
+    /// <summary>The value of the <c>Microsoft.Maui.ApplicationModel.AppInfo.&lt;key&gt;</c> assembly metadata, or null.</summary>
+    internal static string? GetMetadata(Assembly assembly, string key)
+    {
+        var fullKey = "Microsoft.Maui.ApplicationModel.AppInfo." + key;
+        foreach (var attribute in assembly.GetCustomAttributes<AssemblyMetadataAttribute>())
+        {
+            if (attribute.Key == fullKey && !string.IsNullOrWhiteSpace(attribute.Value))
+                return attribute.Value.Trim();
+        }
+        return null;
+    }
+
+    /// <summary>"1.0", "2.1.3", "1.0.0-beta.2" (the pre-release and build suffixes are not part of the Version).</summary>
+    internal static bool TryParseVersion(string value, out Version version)
+    {
+        var core = value.Split('-', '+')[0].Trim();
+        if (!core.Contains('.', StringComparison.Ordinal) && int.TryParse(core, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var major))
+        {
+            version = new Version(major, 0);
+            return true;
+        }
+        return Version.TryParse(core, out version!);
+    }
+
+    /// <summary>The storage directory name of the current AppInfo (see <see cref="StorageName"/>), or null.</summary>
+    internal static string? CurrentStorageName()
+    {
+        try
+        {
+            var current = Microsoft.Maui.ApplicationModel.AppInfo.Current;
+            return current is AppInfoService linux ? linux.StorageName : current?.Name;
+        }
+        catch
+        {
+            // The portable AppInfo stub throws until EssentialsPatches has run.
+            return null;
+        }
     }
 
     public void ShowSettingsUI()

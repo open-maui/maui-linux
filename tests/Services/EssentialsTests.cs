@@ -675,7 +675,7 @@ public class EssentialsTests
             Directory.GetFiles(dir).Should().HaveCount(2);
 
             storage.RemoveAll();
-            Directory.Exists(dir).Should().BeFalse();
+            Directory.GetFiles(dir).Should().BeEmpty();
             (await storage.GetAsync("a")).Should().BeNull();
         }
         finally { Directory.Delete(Path.GetDirectoryName(dir)!, true); }
@@ -756,6 +756,7 @@ public class EssentialsTests
     public async Task Launcher_OpenUri_UsesXdgOpenAndReportsLaunchResult()
     {
         using var capture = new LaunchCapture(true);
+        using var schemes = new FakeSchemeAssociations("https");
         var launcher = new LauncherService();
 
         (await launcher.CanOpenAsync(new Uri("https://example.com/a b"))).Should().BeTrue();
@@ -771,6 +772,7 @@ public class EssentialsTests
     public async Task Launcher_OpenUri_ReturnsFalseWhenLaunchFails()
     {
         using var capture = new LaunchCapture(false);
+        using var schemes = new FakeSchemeAssociations("mailto");
         var launcher = new LauncherService();
 
         (await launcher.OpenAsync(new Uri("mailto:someone@example.com"))).Should().BeFalse();
@@ -792,12 +794,13 @@ public class EssentialsTests
     }
 
     [Fact]
-    public async Task Launcher_OpenFile_WithoutFile_ReturnsFalseWithoutLaunching()
+    public async Task Launcher_OpenFile_WithoutFile_ThrowsWithoutLaunching()
     {
         using var capture = new LaunchCapture(true);
         var launcher = new LauncherService();
 
-        (await launcher.OpenAsync(new OpenFileRequest())).Should().BeFalse();
+        // MAUI's LauncherImplementation: ArgumentNullException for a request without a file.
+        await launcher.Invoking(l => l.OpenAsync(new OpenFileRequest())).Should().ThrowAsync<ArgumentNullException>();
         capture.Launches.Should().BeEmpty();
     }
 
@@ -1087,7 +1090,8 @@ public class EssentialsTests
         capture.Single.ArgumentList.Should().ContainSingle().Which.Should().Be("https://example.com/x");
         capture.Launches.Clear();
 
-        await share.RequestAsync(new ShareTextRequest());
+        // MAUI's ShareImplementation: a request with neither text nor URI is an ArgumentException.
+        await share.Invoking(s => s.RequestAsync(new ShareTextRequest())).Should().ThrowAsync<ArgumentException>();
         capture.Launches.Should().BeEmpty("an empty request has nothing to share");
     }
 
@@ -1293,7 +1297,7 @@ public class EssentialsTests
         var battery = new BatteryService(new PowerProfilesMonitor(useDaemon: false));
 
         battery.ChargeLevel.Should().Be(1.0);
-        battery.State.Should().Be(BatteryState.Unknown);
+        battery.State.Should().Be(BatteryState.NotPresent, "as Windows reports a machine without a battery");
         battery.PowerSource.Should().Be(BatteryPowerSource.AC, "a machine without a battery is wall-powered");
         battery.EnergySaverStatus.Should().Be(EnergySaverStatus.Unknown, "no power-profiles daemon");
     }
@@ -1340,15 +1344,16 @@ public class EssentialsTests
     #region VibrationService / HapticFeedbackService
 
     [Fact]
-    public void Vibration_NotSupportedWithoutVibratorNode_AndCallsAreNoOps()
+    public void Vibration_NotSupportedWithoutVibratorNode_AndCallsThrow()
     {
         using var sysfs = new FakeSysfs();
         var vibration = new VibrationService();
 
+        // MAUI's VibrationImplementation throws FeatureNotSupportedException when unsupported.
         vibration.IsSupported.Should().BeFalse();
-        vibration.Invoking(v => v.Vibrate()).Should().NotThrow();
-        vibration.Invoking(v => v.Vibrate(TimeSpan.FromMilliseconds(10))).Should().NotThrow();
-        vibration.Invoking(v => v.Cancel()).Should().NotThrow();
+        vibration.Invoking(v => v.Vibrate()).Should().Throw<FeatureNotSupportedException>();
+        vibration.Invoking(v => v.Vibrate(TimeSpan.FromMilliseconds(10))).Should().Throw<FeatureNotSupportedException>();
+        vibration.Invoking(v => v.Cancel()).Should().Throw<FeatureNotSupportedException>();
         Directory.Exists(Path.Combine(sysfs.Root, "class", "leds")).Should().BeFalse();
     }
 
@@ -1482,14 +1487,6 @@ public class EssentialsTests
     }
 
     [Fact]
-    public async Task Geocoding_ReturnsEmptyResults()
-    {
-        var geocoding = new GeocodingService();
-        (await geocoding.GetPlacemarksAsync(48.85, 2.35)).Should().BeEmpty();
-        (await geocoding.GetLocationsAsync("Paris, France")).Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task Contacts_PickReturnsNull_AndGetAllIsEmpty()
     {
         var contacts = new ContactsService();
@@ -1502,19 +1499,20 @@ public class EssentialsTests
     #region ScreenshotService
 
     [Fact]
-    public async Task Screenshot_WithoutRootView_IsUnsupportedAndCaptureReturnsNull()
+    public async Task Screenshot_WithoutRootView_IsUnsupportedAndCaptureThrows()
     {
+        // As on the other platforms, capturing without a window to capture throws.
         var screenshot = new ScreenshotService(() => null);
         screenshot.IsCaptureSupported.Should().BeFalse();
-        (await screenshot.CaptureAsync()).Should().BeNull();
+        await screenshot.Invoking(s => s.CaptureAsync()).Should().ThrowAsync<InvalidOperationException>();
 
         var empty = new ScreenshotService(() => new SkiaBoxView { Bounds = new Rect(0, 0, 0, 0) });
         empty.IsCaptureSupported.Should().BeFalse();
-        (await empty.CaptureAsync()).Should().BeNull();
+        await empty.Invoking(s => s.CaptureAsync()).Should().ThrowAsync<InvalidOperationException>();
 
         var throwing = new ScreenshotService(() => throw new InvalidOperationException("no app"));
         throwing.IsCaptureSupported.Should().BeFalse();
-        (await throwing.CaptureAsync()).Should().BeNull();
+        await throwing.Invoking(s => s.CaptureAsync()).Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]

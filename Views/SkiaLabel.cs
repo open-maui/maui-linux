@@ -1401,6 +1401,24 @@ public class SkiaLabel : SkiaView
 
     protected override Size MeasureOverride(Size availableSize)
     {
+        var size = MeasureText(availableSize);
+        if (string.IsNullOrEmpty(GetDisplayText()) && !ShowsFormattedText)
+            return size;
+        // Respect explicit size requests
+        return new Size(
+            Math.Max(WidthRequest >= 0 ? WidthRequest : size.Width, 1.0),
+            Math.Max(HeightRequest >= 0 ? HeightRequest : size.Height, 1.0));
+    }
+
+    /// <summary>
+    /// The height the text needs at <paramref name="width"/> (padding included, MaxLines and
+    /// LineBreakMode applied, HeightRequest ignored): what the label shows uncut.
+    /// </summary>
+    internal double NeededTextHeight(double width) =>
+        MeasureText(new Size(width, double.PositiveInfinity)).Height;
+
+    private Size MeasureText(Size availableSize)
+    {
         var padding = Padding;
         double paddingH = padding.Left + padding.Right;
         double paddingV = padding.Top + padding.Bottom;
@@ -1467,7 +1485,21 @@ public class SkiaLabel : SkiaView
                 int lineCount = MaxLines > 0 ? Math.Min(wrapped.Count, MaxLines) : wrapped.Count;
                 lineCount = Math.Max(1, lineCount);
                 height = lineCount * lineBox;
-                width = Math.Min(width, availableSize.Width);
+                // The wrapped text is as wide as its widest line, as WinUI's TextBlock and
+                // UIKit's UILabel measure it (not the whole width offered): a Start-aligned
+                // label of wrapped text, and a frame around it, end where the text does.
+                double widest = 0;
+                for (int i = 0; i < lineCount; i++)
+                {
+                    var line = wrapped[i];
+                    double lineWidth = TextRenderingHelper.MeasureWidth(font, line);
+                    if (CharacterSpacing != 0 && line.Length > 1)
+                        lineWidth += CharacterSpacing * (line.Length - 1);
+                    widest = Math.Max(widest, lineWidth);
+                }
+                // (A hundredth of a pixel over, so the draw pass, which wraps again at the
+                // arranged width, finds the widest line still fits after float rounding.)
+                width = Math.Min(widest + 0.01, Math.Max(0, availableSize.Width - paddingH));
             }
             else if (displayText.Contains('\n') || MaxLines > 1)
             {
@@ -1479,18 +1511,7 @@ public class SkiaLabel : SkiaView
 
         width += paddingH;
         height += paddingV;
-
-        // Respect explicit size requests
-        if (WidthRequest >= 0)
-        {
-            width = WidthRequest;
-        }
-        if (HeightRequest >= 0)
-        {
-            height = HeightRequest;
-        }
-
-        return new Size(Math.Max(width, 1.0), Math.Max(height, 1.0));
+        return new Size(width, height);
     }
 
     #endregion
