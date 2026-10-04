@@ -379,10 +379,13 @@ internal sealed class SkiaSfOverlay : SkiaView
     /// <summary>
     /// The points the overlay takes while it is shown: those on its views, and
     /// every point when its container paints a background (Transparent
-    /// included), as the native canvas is hit there.
+    /// included), as the native canvas is hit there. An input-transparent
+    /// container (SfToolbar's tool tip popup) takes none, as WinUI's
+    /// IsHitTestVisible = false leaves its whole subtree out of hit testing.
     /// </summary>
     protected override bool HitTestPopupArea(float x, float y) =>
         _registered && IsVisible && IsWindowLive && Window?.RootView is { } root && ReferenceEquals(Parent, root)
+        && Container is not { InputTransparent: true }
         && (TakesBackdropInput || PlacementAt(x, y) != null);
 
     /// <summary>A container with a background, or a blurred page beneath, takes every press.</summary>

@@ -176,6 +176,25 @@ public sealed class SyncfusionDataGridTests
         }
     }
 
+    [Fact]
+    public void A_numeric_cell_editor_focuses_its_text_box()
+    {
+        var (host, grid) = Host(g => g.AllowEditing = true);
+        using (host)
+        {
+            Click(host, 250, 150); // a Salary cell (third column), selecting it
+            grid.BeginEdit(3, 2);
+            Pump(host);
+            var editor = Descendants(grid).OfType<Syncfusion.Maui.Inputs.SfNumericEntry>().FirstOrDefault();
+            editor.Should().NotBeNull("the Salary column edits in an SfNumericEntry");
+            var textBox = ((Syncfusion.Maui.Core.SfView)(object)editor!).Children[0].Should().BeAssignableTo<Entry>().Subject;
+            for (int i = 0; i < 10 && !textBox.IsFocused; i++)
+                Pump(host, 2);
+            textBox.IsFocused.Should().BeTrue("Windows focuses the editor's text box 50 ms after editing starts (SetFocusForEditElement)");
+            host.Context.FocusedView.Should().BeSameAs(CompatHost.PlatformOf(textBox));
+        }
+    }
+
     private static string? Text(Element e) =>
         Descendants(e).OfType<Label>().FirstOrDefault(l => !string.IsNullOrEmpty(l.Text))?.Text;
 

@@ -49,6 +49,10 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// which the neutral build does not declare).</item>
 /// <item><b>Column chooser.</b> <c>ShowColumnChooser</c> set before the grid
 /// loads opens the chooser once the grid is loaded.</item>
+/// <item><b>Numeric editors.</b> When a cell editor that is an
+/// SfNumericEntry (numeric, currency and percent columns) takes focus, its
+/// text box is focused 50 ms later (<c>SetFocusForEditElement</c>, called
+/// from <c>DataGridCellRenderer&lt;,&gt;.SetFocus</c>).</item>
 /// </list>
 /// The DataGrid is optional, so every type is looked up by name. A patch is
 /// applied only over the neutral stub; a build that implements a method keeps
@@ -125,6 +129,26 @@ internal static class SfDataGridPatches
 
         Patch(harmony, grid, "Setup", nameof(Setup_Postfix), postfix: true, when: _ => !HasMethod(grid, "OnDataGridLoaded"));
         Patch(harmony, grid, "SetClippedToBounds", nameof(SetClippedToBounds_Prefix), when: m => Il(m).Length <= 2);
+
+        // DataGridCellRenderer<,> is generic; its instantiations over reference
+        // types share one body, so patching the numeric editors' instantiation
+        // (<SfDataGridLabel, SfNumericEntry>) covers every renderer, as the
+        // Windows SetFocus calls SetFocusForEditElement for all of them.
+        if (Type("Syncfusion.Maui.DataGrid.DataGridNumericCellRenderer", Asm)?.BaseType is { IsGenericType: true } numericBase
+            && numericBase.GetGenericTypeDefinition().GetMethod("SetFocusForEditElement", Any) == null
+            && numericBase.GetMethod("SetFocus", Any, null, new[] { typeof(View), typeof(bool) }, null) is { } setFocus)
+        {
+            try
+            {
+                harmony.Patch(setFocus,
+                    prefix: new HarmonyMethod(typeof(SfDataGridPatches).GetMethod(nameof(SetFocus_Prefix), BindingFlags.Static | BindingFlags.NonPublic)),
+                    postfix: new HarmonyMethod(typeof(SfDataGridPatches).GetMethod(nameof(SetFocus_Postfix), BindingFlags.Static | BindingFlags.NonPublic)));
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("Syncfusion", "Patching SfDataGrid DataGridCellRenderer.SetFocus failed", ex);
+            }
+        }
         Patch(harmony, Type("Syncfusion.Maui.DataGrid.DataGridExportHelper", Asm), "HelperStream", nameof(HelperStream_Prefix),
             when: m => Il(m).Length <= 2);
 
@@ -492,6 +516,40 @@ internal static class SfDataGridPatches
     // ---- Column chooser ------------------------------------------------------------------------
 
     // SfDataGrid.Setup: Windows opens the column chooser once the grid is loaded (OnDataGridLoaded).
+    /// <summary>
+    /// Whether the Windows <c>SetFocus(View, bool)</c> focuses the editor, and
+    /// so calls <c>SetFocusForEditElement</c>: asked to focus while editing
+    /// (or for a renderer without render optimization), unless the renderer
+    /// already has focus and the editor too. Taken before the body runs.
+    /// </summary>
+    private static void SetFocus_Prefix(object __instance, View view, bool needToFocus, out bool __state)
+    {
+        __state = false;
+        try
+        {
+            __state = view != null && needToFocus && Is(__instance, "IsFocusable")
+                && (Is(__instance, "IsInEditing") || !Is(__instance, "SupportsRenderOptimization"))
+                && !(Is(__instance, "IsFocused") && view.IsFocused);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("Syncfusion", "SfDataGrid editor focus failed", ex);
+        }
+    }
+
+    /// <summary>
+    /// The Windows <c>SetFocusForEditElement</c>: an SfNumericEntry editor's
+    /// text box (its first child) is focused 50 ms after the editor.
+    /// </summary>
+    private static void SetFocus_Postfix(View view, bool __state)
+    {
+        if (!__state || !SfMembers.Is(view?.GetType(), "Syncfusion.Maui.Inputs.SfNumericEntry"))
+            return;
+        if (view is not global::Syncfusion.Maui.Core.SfView { Children.Count: > 0 } numeric || numeric.Children[0] is not Entry entry)
+            return;
+        view.Dispatcher?.DispatchDelayed(TimeSpan.FromMilliseconds(50), () => Guard("editor focus", () => entry.Focus()));
+    }
+
     private static void Setup_Postfix(VisualElement __instance)
     {
         if (s_loadedHooked.TryGetValue(__instance, out _))
