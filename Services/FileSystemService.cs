@@ -3,7 +3,6 @@
 
 using System.Reflection;
 using Microsoft.Maui.Storage;
-using MauiAppInfo = Microsoft.Maui.ApplicationModel.AppInfo;
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
@@ -133,9 +132,9 @@ public class FileSystemService : IFileSystem
             if (!string.IsNullOrWhiteSpace(_appNameOverride))
                 return _appNameOverride;
 
-            string? name = null;
-            try { name = MauiAppInfo.Current?.Name; }
-            catch { /* portable AppInfo stub throws until EssentialsPatches runs */ }
+            // The storage name, not AppInfo.Name: Name follows ApplicationTitle, and the
+            // directory must not move when an app sets one (AppInfoService.StorageName).
+            string? name = AppInfoService.CurrentStorageName();
 
             if (string.IsNullOrWhiteSpace(name))
             {

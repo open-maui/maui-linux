@@ -12,9 +12,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for RefreshView on Linux using Skia rendering.
-/// Maps RefreshView to SkiaRefreshView platform view.
+/// Maps RefreshView to SkiaRefreshView platform view. A core <see cref="IRefreshView"/>
+/// that is not a Controls RefreshView gets <see cref="CoreRefreshViewHandler"/>.
 /// </summary>
-public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefreshView>
+public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefreshView>, IRefreshViewHandler
 {
     private bool _isUpdatingRefreshing;
 
@@ -27,6 +28,7 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
             [nameof(RefreshView.Command)] = MapCommand,
             [nameof(RefreshView.CommandParameter)] = MapCommandParameter,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(IRefreshView.IsRefreshEnabled)] = MapIsRefreshEnabled,
         };
 
     public static CommandMapper<RefreshView, RefreshViewHandler> CommandMapper =
@@ -42,6 +44,10 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
         : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
     {
     }
+
+    IRefreshView IRefreshViewHandler.VirtualView => VirtualView;
+
+    object IRefreshViewHandler.PlatformView => PlatformView;
 
     protected override SkiaRefreshView CreatePlatformView()
     {
@@ -147,5 +153,12 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
         {
             handler.PlatformView.RefreshBackgroundColor = solidBrush.Color;
         }
+    }
+
+    /// <summary>A pull starts a refresh only while <c>RefreshView.IsRefreshEnabled</c> is true.</summary>
+    public static void MapIsRefreshEnabled(RefreshViewHandler handler, RefreshView refreshView)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsPullEnabled = ((IRefreshView)refreshView).IsRefreshEnabled;
     }
 }

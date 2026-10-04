@@ -11,5 +11,6 @@ git -C "$DEST" sparse-checkout set \
   src/Core/tests/DeviceTests \
   src/Core/tests/DeviceTests.Shared \
   src/Controls/tests/DeviceTests \
+  src/Essentials/test/DeviceTests \
   src/TestUtils
 echo "MAUI test sources at $DEST ($(git -C "$DEST" describe --tags 2>/dev/null || echo "$TAG"))"
