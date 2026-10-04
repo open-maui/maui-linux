@@ -19,6 +19,15 @@
     SingleProject.targets will have marked ALL Platforms/** files as ExcludeFromCurrentConfiguration=true.
     We undo this for Platforms/Linux/ and remove the other platform folders entirely.
   -->
+  <!--
+    The .props decides OpenMauiLinux before the project body is read, so for a project with a
+    single <TargetFramework> (the template's shape) the target framework is not known there yet.
+    By the time the .targets are read it is: decide it here when the .props could not.
+  -->
+  <PropertyGroup Condition="'$(OpenMauiLinux)' == '' And $([MSBuild]::IsOSPlatform('Linux')) And '$(TargetFramework)' != '' And !$(TargetFramework.Contains('-'))">
+    <OpenMauiLinux>true</OpenMauiLinux>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(OpenMauiLinux)' == 'true'">
     <!-- Override SingleProject to false — prevents MAUI targets from interfering further -->
     <SingleProject>false</SingleProject>
@@ -102,6 +111,37 @@
     <ItemGroup>
       <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Filename)%(Extension)' == 'libopenmaui_wl.so'" />
       <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(Filename)%(Extension)' == 'libopenmaui_wl.so'" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    App identity for Essentials' AppInfo, from the same MSBuild properties MAUI's single project
+    uses on every platform: ApplicationId (AppInfo.PackageName), ApplicationTitle (AppInfo.Name),
+    ApplicationDisplayVersion (AppInfo.VersionString / Version) and ApplicationVersion
+    (AppInfo.BuildString). Written as assembly metadata under the keys MAUI's Windows build uses
+    for unpackaged apps (Microsoft.Maui.ApplicationModel.AppInfo.*); AppInfoService reads them
+    from the entry assembly and falls back to the assembly's name and version when absent.
+  -->
+  <ItemGroup Condition="'$(OpenMauiLinux)' == 'true' And '$(GenerateAssemblyInfo)' != 'false'">
+    <AssemblyMetadata Include="Microsoft.Maui.ApplicationModel.AppInfo.PackageName" Value="$(ApplicationId)" Condition="'$(ApplicationId)' != ''" />
+    <AssemblyMetadata Include="Microsoft.Maui.ApplicationModel.AppInfo.Name" Value="$(ApplicationTitle)" Condition="'$(ApplicationTitle)' != ''" />
+    <AssemblyMetadata Include="Microsoft.Maui.ApplicationModel.AppInfo.Version" Value="$(ApplicationDisplayVersion)" Condition="'$(ApplicationDisplayVersion)' != ''" />
+    <AssemblyMetadata Include="Microsoft.Maui.ApplicationModel.AppInfo.Build" Value="$(ApplicationVersion)" Condition="'$(ApplicationVersion)' != ''" />
+  </ItemGroup>
+
+  <!--
+    MauiAsset items (Resources/Raw) next to the app, where FileSystem.OpenAppPackageFileAsync
+    reads them. MAUI's Resizetizer only packages them for Android, iOS, Windows and Tizen; on
+    the plain target it does nothing with them. The path inside the app follows MAUI's
+    GetMauiAssetPath: LogicalName when set (the templates set it to keep the folder below
+    Resources/Raw), else Link, else the path relative to the project (a file outside the
+    project keeps only its name).
+  -->
+  <Target Name="_OpenMauiAddMauiAssets" BeforeTargets="AssignTargetPaths" Condition="'$(OpenMauiLinux)' == 'true' And '@(MauiAsset)' != ''">
+    <ItemGroup>
+      <_OpenMauiAsset Include="@(MauiAsset)" Link="%(MauiAsset.LogicalName)" Condition="'%(MauiAsset.LogicalName)' != ''" />
+      <_OpenMauiAsset Include="@(MauiAsset)" Condition="'%(MauiAsset.LogicalName)' == ''" />
+      <None Include="@(_OpenMauiAsset)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
   </Target>
 
