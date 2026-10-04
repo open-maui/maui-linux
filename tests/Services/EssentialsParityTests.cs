@@ -312,13 +312,27 @@ public class EssentialsParityTests : IDisposable
     }
 
     [Fact]
-    public async Task Requesting_location_off_the_main_thread_throws_PermissionException()
+    public void Requesting_location_off_the_main_thread_throws_PermissionException()
     {
-        await Task.Run(async () =>
+        // A thread of its own: another test may have made a thread-pool thread the
+        // dispatcher's main thread, and Task.Run could land on it.
+        Exception? failure = null;
+        var thread = new Thread(() =>
         {
-            await FluentActions.Awaiting(() => Permissions.RequestAsync<Permissions.LocationWhenInUse>()).Should().ThrowAsync<PermissionException>();
-            await FluentActions.Awaiting(() => Permissions.RequestAsync<Permissions.LocationAlways>()).Should().ThrowAsync<PermissionException>();
+            try
+            {
+                FluentActions.Awaiting(() => Permissions.RequestAsync<Permissions.LocationWhenInUse>()).Should().ThrowAsync<PermissionException>().GetAwaiter().GetResult();
+                FluentActions.Awaiting(() => Permissions.RequestAsync<Permissions.LocationAlways>()).Should().ThrowAsync<PermissionException>().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
         });
+        thread.Start();
+        thread.Join();
+        if (failure != null)
+            throw failure;
     }
 
     // ---------------- SecureStorage ----------------
