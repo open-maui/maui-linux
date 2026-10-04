@@ -32,7 +32,8 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// text boxes of SfNumericEntry, SfMaskedEntry, SfComboBox, SfAutocomplete and
 /// SfTextInputLayout, with the key, clipboard and hover handling of the
 /// Windows build; the desktop mouse and keyboard handling of SfDataGrid,
-/// SfScheduler and SfPullToRefresh, and SfImageEditor's image editing.
+/// SfScheduler, SfPullToRefresh and SfToolbar, and SfImageEditor's image
+/// editing.
 /// Syncfusion's MediaElement base has nothing to host in the neutral build (no
 /// control there derives from it).
 /// </para>
@@ -100,6 +101,8 @@ public static class LinuxSyncfusionBuilderExtensions
         SfImageEditorPatches.Install();
         SfSchedulerPatches.Install();
         SfPullToRefreshPatches.Install();
+        SfToolbarPatches.Install();
+        SfStampViewPatches.Install();
         return builder;
     }
 }
