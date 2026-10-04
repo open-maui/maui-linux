@@ -4,14 +4,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace Microsoft.Maui.Platform;
 
@@ -25,6 +23,12 @@ public class SkiaImageButton : SkiaView
     #region Private Fields
     private SKBitmap? _bitmap;
     private SKImage? _image;
+    // The image-source result _bitmap came from: it owns the bitmap, so the view disposes
+    // the result, never its bitmap. Null for a bitmap set directly, which the view owns
+    // unless the image cache shares it.
+    private IImageSourceServiceResult? _result;
+    // Pixels per logical unit of _bitmap (the scale an SVG or glyph was rendered at).
+    private float _density = 1f;
     private bool _isLoading;
     #endregion
 
@@ -95,14 +99,7 @@ public class SkiaImageButton : SkiaView
     public SKBitmap? Bitmap
     {
         get => _bitmap;
-        set
-        {
-            _bitmap?.Dispose();
-            _bitmap = value;
-            _image?.Dispose();
-            _image = value != null ? SKImage.FromBitmap(value) : null;
-            Invalidate();
-        }
+        set => ShowBitmap(value, null, 1f);
     }
 
     public Aspect Aspect
@@ -341,8 +338,9 @@ public class SkiaImageButton : SkiaView
         // Draw image
         if (_image != null)
         {
-            var imageWidth = _image.Width;
-            var imageHeight = _image.Height;
+            // Logical size: a picture rendered for a HiDPI scale draws at its logical size.
+            var imageWidth = _image.Width / _density;
+            var imageHeight = _image.Height / _density;
 
             if (imageWidth > 0 && imageHeight > 0)
             {
@@ -457,160 +455,34 @@ public class SkiaImageButton : SkiaView
 
     #region Image Loading
 
-    public async Task LoadFromFileAsync(string filePath)
+    public Task LoadFromFileAsync(string filePath)
     {
-        _isLoading = true;
-        Invalidate();
-        DiagnosticLog.Debug("SkiaImageButton", "LoadFromFileAsync: " + filePath);
-
-        try
-        {
-            var searchPaths = new List<string>
-            {
-                filePath,
-                Path.Combine(AppContext.BaseDirectory, filePath),
-                Path.Combine(AppContext.BaseDirectory, "Resources", "Images", filePath),
-                Path.Combine(AppContext.BaseDirectory, "Resources", filePath)
-            };
-
-            // Also check for SVG version if PNG was requested
-            if (filePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-            {
-                var svgPath = Path.ChangeExtension(filePath, ".svg");
-                searchPaths.Add(svgPath);
-                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, svgPath));
-                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", "Images", svgPath));
-                searchPaths.Add(Path.Combine(AppContext.BaseDirectory, "Resources", svgPath));
-            }
-
-            string? foundPath = null;
-            foreach (var path in searchPaths)
-            {
-                if (File.Exists(path))
-                {
-                    foundPath = path;
-                    DiagnosticLog.Debug("SkiaImageButton", "Found file at: " + path);
-                    break;
-                }
-            }
-
-            if (foundPath == null)
-            {
-                DiagnosticLog.Warn("SkiaImageButton", "File not found: " + filePath);
-                DiagnosticLog.Debug("SkiaImageButton", "Searched paths: " + string.Join(", ", searchPaths));
-                _isLoading = false;
-                ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(new FileNotFoundException(filePath)));
-                return;
-            }
-
-            var padding = Padding;
-            var decoded = await Task.Run(SKBitmap? () =>
-            {
-                if (foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
-                {
-                    using var svg = new SKSvg();
-                    svg.Load(foundPath);
-                    if (svg.Picture != null)
-                    {
-                        var cullRect = svg.Picture.CullRect;
-                        bool hasWidth = WidthRequest > 0;
-                        bool hasHeight = HeightRequest > 0;
-
-                        // Default to 24x24 for icons when no size specified
-                        const float DefaultIconSize = 24f;
-                        float targetWidth = hasWidth
-                            ? (float)(WidthRequest - padding.Left - padding.Right)
-                            : DefaultIconSize;
-                        float targetHeight = hasHeight
-                            ? (float)(HeightRequest - padding.Top - padding.Bottom)
-                            : DefaultIconSize;
-
-                        float scale = Math.Min(targetWidth / cullRect.Width, targetHeight / cullRect.Height);
-                        int width = Math.Max(1, (int)(cullRect.Width * scale));
-                        int height = Math.Max(1, (int)(cullRect.Height * scale));
-
-                        var bitmap = new SKBitmap(width, height, false);
-                        using var canvas = new SKCanvas(bitmap);
-                        canvas.Clear(SKColors.Transparent);
-                        canvas.Scale(scale);
-                        // Translate to handle negative viewBox coordinates (e.g., Material icons use 0 -960 960 960)
-                        canvas.Translate(-cullRect.Left, -cullRect.Top);
-                        canvas.DrawPicture(svg.Picture);
-                        DiagnosticLog.Debug("SkiaImageButton", $"Loaded SVG: {foundPath} ({width}x{height}), cullRect={cullRect}");
-                        return bitmap;
-                    }
-                    return null;
-                }
-                else
-                {
-                    using var stream = File.OpenRead(foundPath);
-                    var bitmap = SKBitmap.Decode(stream);
-                    if (bitmap != null)
-                        DiagnosticLog.Debug("SkiaImageButton", "Loaded image: " + foundPath);
-                    return bitmap;
-                }
-            });
-
-            // Decoded off the UI thread, shown on it: the picture is in place when ImageLoaded is raised.
-            if (decoded != null)
-                Bitmap = decoded;
-
-            _isLoading = false;
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            _isLoading = false;
-            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
-        }
-
-        Invalidate();
+        // An SVG is rendered for the content area (the request less the padding), 24 when unsized.
+        const double DefaultIconSize = 24.0;
+        var padding = Padding;
+        var size = new Size(
+            WidthRequest > 0 ? WidthRequest - padding.Left - padding.Right : DefaultIconSize,
+            HeightRequest > 0 ? HeightRequest - padding.Top - padding.Bottom : DefaultIconSize);
+        return LoadAsync(scale => LinuxFileImageSourceService.LoadFileAsync(filePath, scale, size, CancellationToken.None));
     }
 
-    public async Task LoadFromStreamAsync(Stream stream)
+    public Task LoadFromStreamAsync(Stream stream) =>
+        LoadAsync(_ => LinuxStreamImageSourceService.LoadStreamAsync(stream, CancellationToken.None));
+
+    public Task LoadFromUriAsync(Uri uri) =>
+        LoadAsync(_ => LinuxUriImageSourceService.LoadUriAsync(uri, true, CancellationToken.None));
+
+    // The view's own loads go through the built-in services' loaders, as the handler's do;
+    // failures are reported through ImageLoadingError, not thrown.
+    private async Task LoadAsync(Func<float, Task<LinuxImageSourceServiceResult>> load)
     {
         _isLoading = true;
         Invalidate();
 
+        float scale = DeviceScale;
         try
         {
-            var bitmap = await Task.Run(() => SKBitmap.Decode(stream));
-            if (bitmap != null)
-            {
-                Bitmap = bitmap;
-            }
-
-            _isLoading = false;
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            _isLoading = false;
-            ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
-        }
-
-        Invalidate();
-    }
-
-    public async Task LoadFromUriAsync(Uri uri)
-    {
-        _isLoading = true;
-        Invalidate();
-
-        try
-        {
-            using var httpClient = new HttpClient();
-            var data = await httpClient.GetByteArrayAsync(uri);
-
-            using var stream = new MemoryStream(data);
-            var bitmap = SKBitmap.Decode(stream);
-            if (bitmap != null)
-            {
-                Bitmap = bitmap;
-            }
-
-            _isLoading = false;
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
+            ApplyResult(await load(scale), scale);
         }
         catch (Exception ex)
         {
@@ -632,12 +504,9 @@ public class SkiaImageButton : SkiaView
             }
 
             using var stream = new MemoryStream(data);
-            var bitmap = SKBitmap.Decode(stream);
-            if (bitmap != null)
-            {
-                Bitmap = bitmap;
-            }
-            ImageLoaded?.Invoke(this, EventArgs.Empty);
+            var decoded = LinuxImageLoader.Decode(stream)
+                ?? throw new InvalidOperationException("Unable to decode the image data.");
+            ApplyResult(LinuxImageSourceServices.Owned(decoded), 1f);
         }
         catch (Exception ex)
         {
@@ -660,6 +529,44 @@ public class SkiaImageButton : SkiaView
     {
         Bitmap = bitmap;
         ImageLoaded?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Shows a bitmap an image-source service loaded (the first frame of an animation).
+    /// The view keeps the result while it shows the bitmap and disposes it when the
+    /// picture changes (see <see cref="LinuxImageSourceServiceResult"/>).
+    /// </summary>
+    /// <param name="result">The loaded image.</param>
+    /// <param name="scale">The scale the image was requested at.</param>
+    internal void ApplyResult(IImageSourceServiceResult<SKBitmap> result, float scale)
+    {
+        _isLoading = false;
+        ShowBitmap(result.Value, result, result.IsResolutionDependent && scale > 0f ? scale : 1f);
+        ImageLoaded?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ShowBitmap(SKBitmap? bitmap, IImageSourceServiceResult? result, float density)
+    {
+        var oldBitmap = _bitmap;
+        var oldResult = _result;
+        _bitmap = bitmap;
+        _result = result;
+        _density = density > 0f ? density : 1f;
+        _image?.Dispose();
+        _image = bitmap != null ? SKImage.FromBitmap(bitmap) : null;
+
+        // Released after the new picture is in place. A cached bitmap is shared with
+        // other views: only one this view owns is disposed.
+        if (oldResult != null)
+        {
+            if (!ReferenceEquals(oldResult, result))
+                oldResult.Dispose();
+        }
+        else if (oldBitmap != null && !ReferenceEquals(oldBitmap, bitmap) && !LinuxImageCache.IsShared(oldBitmap))
+        {
+            oldBitmap.Dispose();
+        }
+        Invalidate();
     }
 
     #endregion
@@ -773,7 +680,7 @@ public class SkiaImageButton : SkiaView
         {
             // Fixed width, calculate height from aspect ratio or use width
             double height = HeightRequest > 0 ? HeightRequest
-                         : _image != null ? WidthRequest * _image.Height / _image.Width
+                         : _image != null ? WidthRequest * (double)_image.Height / _image.Width
                          : WidthRequest;
             return new Size(WidthRequest, height);
         }
@@ -781,7 +688,7 @@ public class SkiaImageButton : SkiaView
         {
             // Fixed height, calculate width from aspect ratio or use height
             double width = WidthRequest > 0 ? WidthRequest
-                        : _image != null ? HeightRequest * _image.Width / _image.Height
+                        : _image != null ? HeightRequest * (double)_image.Width / _image.Height
                         : HeightRequest;
             return new Size(width, HeightRequest);
         }
@@ -790,8 +697,8 @@ public class SkiaImageButton : SkiaView
         if (_image == null)
             return new Size(44 + paddingWidth, 44 + paddingHeight); // Default touch target size
 
-        var imageWidth = _image.Width;
-        var imageHeight = _image.Height;
+        var imageWidth = _image.Width / (double)_density;
+        var imageHeight = _image.Height / (double)_density;
 
         if (availableSize.Width < double.MaxValue && availableSize.Height < double.MaxValue)
         {
@@ -877,7 +784,13 @@ public class SkiaImageButton : SkiaView
                 Command.CanExecuteChanged -= OnCommandCanExecuteChanged;
             }
 
-            _bitmap?.Dispose();
+            // Only what this view owns: a result releases its own bitmap, and a cached
+            // bitmap is shared with other views.
+            if (_result != null)
+                _result.Dispose();
+            else if (!LinuxImageCache.IsShared(_bitmap))
+                _bitmap?.Dispose();
+            _result = null;
             _image?.Dispose();
         }
         base.Dispose(disposing);
