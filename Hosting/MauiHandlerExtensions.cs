@@ -223,29 +223,9 @@ public static class MauiHandlerExtensions
                 skiaView.MauiView = mauiView;
                 VisualStateBridge.Attach(mauiView, skiaView);
 
-                // Sync visual properties from MAUI view to platform view,
-                // and subscribe to future changes. MAUI's ViewMapper doesn't
-                // call platform-specific mappers for these on Linux.
-                skiaView.IsVisible = mauiView.IsVisible;
-                skiaView.Opacity = (float)mauiView.Opacity;
-                skiaView.InputTransparent = mauiView.InputTransparent;
-                SemanticMapper.Apply(mauiView, skiaView);
-
-                mauiView.PropertyChanged += (s, e) =>
-                {
-                    switch (e.PropertyName)
-                    {
-                        case nameof(View.IsVisible):
-                            skiaView.IsVisible = mauiView.IsVisible;
-                            break;
-                        case nameof(View.Opacity):
-                            skiaView.Opacity = (float)mauiView.Opacity;
-                            break;
-                        case nameof(View.InputTransparent):
-                            skiaView.InputTransparent = mauiView.InputTransparent;
-                            break;
-                    }
-                };
+                // Opacity, Visibility, InputTransparent, semantics and the other base view
+                // properties reach the platform view through ViewHandler.ViewMapper
+                // (LinuxViewMappers), as on the other platforms.
             }
 
             // NOTE: Loaded event is fired from SkiaView.Arrange after the

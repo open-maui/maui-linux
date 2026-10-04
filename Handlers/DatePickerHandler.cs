@@ -121,7 +121,8 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         var attrs = FontAttributes.None;
         if (font.Weight >= FontWeight.Bold)
             attrs |= FontAttributes.Bold;
-        // Note: Font.Slant for italic would require checking FontSlant
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
         handler.PlatformView.FontAttributes = attrs;
     }
 
