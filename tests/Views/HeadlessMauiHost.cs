@@ -75,6 +75,7 @@ internal sealed class HeadlessMauiHost : IDisposable
         });
         LinuxAlertManager.Register(builder.Services);
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register(); // as RegisterLinuxServices does
+        Microsoft.Maui.Platform.Linux.Handlers.LinuxViewMappers.Register();
         Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install(); // as RegisterLinuxServices does
         builder.ConfigureEffects(_ => { }); // as RegisterLinuxServices does
         configure?.Invoke(builder);

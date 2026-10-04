@@ -119,6 +119,13 @@ public class SkiaImageButton : SkiaView
 
     public bool IsLoading => _isLoading;
 
+    /// <summary>
+    /// Whether an animated image would play. The button shows the first frame of an
+    /// animated image (as MAUI's image buttons do), so the value is kept for the
+    /// mapper only and does not change what is drawn.
+    /// </summary>
+    public bool IsAnimationPlaying { get; set; }
+
     public Color StrokeColor
     {
         get => (Color)GetValue(StrokeColorProperty);
@@ -185,6 +192,11 @@ public class SkiaImageButton : SkiaView
     public event EventHandler? Released;
     public event EventHandler? ImageLoaded;
     public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
+
+    /// <summary>
+    /// Raised by <see cref="ClearImage"/> once the picture has been removed.
+    /// </summary>
+    public event EventHandler? ImageCleared;
     #endregion
 
     #region Constructor
@@ -492,7 +504,7 @@ public class SkiaImageButton : SkiaView
             }
 
             var padding = Padding;
-            await Task.Run(() =>
+            var decoded = await Task.Run(SKBitmap? () =>
             {
                 if (foundPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
                 {
@@ -524,21 +536,24 @@ public class SkiaImageButton : SkiaView
                         // Translate to handle negative viewBox coordinates (e.g., Material icons use 0 -960 960 960)
                         canvas.Translate(-cullRect.Left, -cullRect.Top);
                         canvas.DrawPicture(svg.Picture);
-                        Bitmap = bitmap;
                         DiagnosticLog.Debug("SkiaImageButton", $"Loaded SVG: {foundPath} ({width}x{height}), cullRect={cullRect}");
+                        return bitmap;
                     }
+                    return null;
                 }
                 else
                 {
                     using var stream = File.OpenRead(foundPath);
                     var bitmap = SKBitmap.Decode(stream);
                     if (bitmap != null)
-                    {
-                        Bitmap = bitmap;
                         DiagnosticLog.Debug("SkiaImageButton", "Loaded image: " + foundPath);
-                    }
+                    return bitmap;
                 }
             });
+
+            // Decoded off the UI thread, shown on it: the picture is in place when ImageLoaded is raised.
+            if (decoded != null)
+                Bitmap = decoded;
 
             _isLoading = false;
             ImageLoaded?.Invoke(this, EventArgs.Empty);
@@ -559,14 +574,11 @@ public class SkiaImageButton : SkiaView
 
         try
         {
-            await Task.Run(() =>
+            var bitmap = await Task.Run(() => SKBitmap.Decode(stream));
+            if (bitmap != null)
             {
-                var bitmap = SKBitmap.Decode(stream);
-                if (bitmap != null)
-                {
-                    Bitmap = bitmap;
-                }
-            });
+                Bitmap = bitmap;
+            }
 
             _isLoading = false;
             ImageLoaded?.Invoke(this, EventArgs.Empty);
@@ -631,6 +643,17 @@ public class SkiaImageButton : SkiaView
         {
             ImageLoadingError?.Invoke(this, new ImageLoadingErrorEventArgs(ex));
         }
+    }
+
+    /// <summary>
+    /// Removes the displayed picture, as MAUI's image handlers set a null image when
+    /// the source is null or fails to load.
+    /// </summary>
+    public void ClearImage()
+    {
+        _isLoading = false;
+        Bitmap = null;
+        ImageCleared?.Invoke(this, EventArgs.Empty);
     }
 
     public void LoadFromBitmap(SKBitmap bitmap)
