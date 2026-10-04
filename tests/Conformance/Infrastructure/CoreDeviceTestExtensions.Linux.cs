@@ -16,7 +16,8 @@ namespace Microsoft.Maui.DeviceTests
 	/// Linux counterpart of MAUI's CoreDeviceTestExtensions.ConfigureTestBuilder
 	/// (src/Core/tests/DeviceTests/CoreDeviceTestExtensions.cs): the app the
 	/// handler tests build is a Linux app (UseLinux, as a real app calls it),
-	/// plus the stub-to-handler registrations MAUI's version makes. The
+	/// plus the stub-to-handler and stub image-source service registrations MAUI's
+	/// version makes. The
 	/// handler names resolve to the Linux handlers (see HandlerAliases.cs).
 	/// MAUI's font registrations point at fonts bundled with its device-test
 	/// app, which this suite does not ship, so they are left out.
@@ -39,6 +40,10 @@ namespace Microsoft.Maui.DeviceTests
 				{
 					handlers.AddHandler(typeof(ElementStub), typeof(ElementHandlerStub));
 					HandlerAliases.Register(handlers);
+				})
+				.ConfigureImageSources(services =>
+				{
+					services.AddService<ICountedImageSourceStub, CountedImageSourceServiceStub>();
 				});
 		}
 	}

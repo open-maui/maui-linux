@@ -116,6 +116,11 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // it the first effect added to any view threw. Registered empty here, so an app or a
         // library's own ConfigureEffects only adds to it.
         builder.ConfigureEffects(_ => { });
+        // MAUI's image-source services, with the Linux load method: the Image and ImageButton
+        // handlers resolve the service for a source's type through IImageSourceServiceProvider,
+        // so an app or library adds its own source type with
+        // ConfigureImageSources(s => s.AddService<TSource, TService>()) as on any platform.
+        builder.ConfigureImageSources(LinuxImageSourceServices.Register);
 
         var options = new LinuxApplicationOptions();
         configure?.Invoke(options);
