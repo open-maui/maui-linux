@@ -160,7 +160,8 @@ public class SkiaLabel : SkiaView
         typeof(TextTransform),
         typeof(SkiaLabel),
         TextTransform.Default,
-        propertyChanged: (b, o, n) => ((SkiaLabel)b).Invalidate());
+        // The transformed text is what is measured and drawn.
+        propertyChanged: (b, o, n) => ((SkiaLabel)b).OnTextChanged());
 
     /// <summary>
     /// Bindable property for TextType.
@@ -605,6 +606,12 @@ public class SkiaLabel : SkiaView
         OnTextChanged();
     }
 
+    /// <summary>
+    /// True when the label shows its FormattedText spans: it has some, and its TextType is
+    /// not Html (an Html label shows its Text, its spans are ignored, as on MAUI's platforms).
+    /// </summary>
+    internal bool ShowsFormattedText => TextType != TextType.Html && FormattedText is { Spans.Count: > 0 };
+
     private SKColor ToSKColor(Color? color) => TextRenderingHelper.ToSKColor(color, SkiaTheme.TextPrimarySK);
 
     private string GetDisplayText()
@@ -623,6 +630,22 @@ public class SkiaLabel : SkiaView
             TextTransform.Uppercase => text.ToUpperInvariant(),
             TextTransform.Lowercase => text.ToLowerInvariant(),
             _ => text
+        };
+    }
+
+    /// <summary>
+    /// A span's text as drawn: its own TextTransform, or the label's when the span's
+    /// is Default (MAUI's FormattedString conversion on every platform).
+    /// </summary>
+    internal string GetSpanDisplayText(Span span)
+    {
+        var text = span.Text ?? string.Empty;
+        var transform = span.TextTransform == TextTransform.Default ? TextTransform : span.TextTransform;
+        return transform switch
+        {
+            TextTransform.Uppercase => text.ToUpperInvariant(),
+            TextTransform.Lowercase => text.ToLowerInvariant(),
+            _ => text,
         };
     }
 
@@ -667,7 +690,7 @@ public class SkiaLabel : SkiaView
             bounds.Bottom - (float)padding.Bottom);
 
         // If we have FormattedText, draw that instead
-        if (FormattedText != null && FormattedText.Spans.Count > 0)
+        if (ShowsFormattedText)
         {
             DrawFormattedText(canvas, contentBounds);
             return;
@@ -720,8 +743,9 @@ public class SkiaLabel : SkiaView
         if (!ReferenceEquals(displayText, text))
             font.MeasureText(displayText, out textBounds);
 
-        // Account for character spacing in measurement
-        float textWidth = textBounds.Width;
+        // Aligned by the advance width, as a platform text layout aligns a line (and as
+        // formatted text is); character spacing added.
+        float textWidth = TextRenderingHelper.MeasureWidth(font, displayText);
         if (CharacterSpacing != 0 && displayText.Length > 1)
         {
             textWidth += (float)(CharacterSpacing * (displayText.Length - 1));
@@ -839,7 +863,9 @@ public class SkiaLabel : SkiaView
 
             font.MeasureText(line, out var textBounds);
 
-            float textWidth = textBounds.Width;
+            // Aligned by the line's advance width, as a platform text layout aligns it (and
+            // as formatted text is): the ink bounds put "short long" a pixel off its spans.
+            float textWidth = TextRenderingHelper.MeasureWidth(font, line);
             if (CharacterSpacing != 0 && line.Length > 1)
             {
                 textWidth += (float)(CharacterSpacing * (line.Length - 1));
@@ -1086,12 +1112,7 @@ public class SkiaLabel : SkiaView
         {
             var spanText = span.Text;
             if (string.IsNullOrEmpty(spanText)) continue;
-            spanText = span.TextTransform switch
-            {
-                TextTransform.Uppercase => spanText.ToUpperInvariant(),
-                TextTransform.Lowercase => spanText.ToLowerInvariant(),
-                _ => spanText,
-            };
+            spanText = GetSpanDisplayText(span);
 
             float spanFontSize = span.FontSize > 0 ? (float)span.FontSize : baseFontSize;
             var typeface = ResolveSpanTypeface(span);
@@ -1385,7 +1406,7 @@ public class SkiaLabel : SkiaView
         double paddingV = padding.Top + padding.Bottom;
 
         string displayText = GetDisplayText();
-        if (string.IsNullOrEmpty(displayText) && (FormattedText == null || FormattedText.Spans.Count == 0))
+        if (string.IsNullOrEmpty(displayText) && !ShowsFormattedText)
         {
             return new Size(paddingH, paddingV + FontSize);
         }
@@ -1400,14 +1421,14 @@ public class SkiaLabel : SkiaView
         double width, height;
         float lineBox = LineBoxHeight(font, LineHeight);
 
-        if (FormattedText != null && FormattedText.Spans.Count > 0)
+        if (ShowsFormattedText)
         {
             // Same layout the draw pass uses: per-span fonts, word wrapping at
             // the available content width, line height from the largest span.
             float maxWidth = double.IsInfinity(availableSize.Width) || double.IsNaN(availableSize.Width)
                 ? float.PositiveInfinity
                 : (float)Math.Max(1.0, availableSize.Width - paddingH);
-            var layout = LayoutFormattedText(FormattedText, maxWidth);
+            var layout = LayoutFormattedText(FormattedText!, maxWidth);
             width = layout.Width;
             height = layout.Height;
         }

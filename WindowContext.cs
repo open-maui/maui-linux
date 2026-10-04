@@ -105,11 +105,17 @@ public sealed class WindowContext : IDisposable
 
             if (value is Microsoft.Maui.Controls.Window newWindow)
             {
+                LoadedEventPatches.SetWindowClosed(newWindow, false);
                 AttachMauiWindowHandler(newWindow);
                 newWindow.ModalPushed += OnMauiModalPushed;
                 newWindow.ModalPopped += OnMauiModalPopped;
                 newWindow.PropertyChanged += OnMauiWindowPropertyChanged;
                 ApplyInitialGeometry(newWindow);
+                // The native window is already mapped at its size; report it now rather than
+                // at the first resize, which may never come.
+                if (DisplayWindow is { } native)
+                    ReportFrame(native.Width, native.Height);
+                PresentPendingModals(newWindow);
             }
         }
     }
@@ -318,20 +324,30 @@ public sealed class WindowContext : IDisposable
                 LayoutModalLayer(_modalViews[i], width, height);
         }
 
-        // Propagate to MAUI so Window.Width/Height and SizeChanged observers
-        // stay accurate (secondary windows only; primary preserves the exact
-        // historical single-window behavior of not reporting frames).
-        if (RaisesMauiLifecycle && MauiWindow != null)
+        ReportFrame(size.Width, size.Height);
+    }
+
+    /// <summary>
+    /// Tells MAUI the window's size (<paramref name="physicalWidth"/> by
+    /// <paramref name="physicalHeight"/> buffer pixels, in logical units), as every MAUI
+    /// platform does for every window: Window.Width/Height and Window.SizeChanged are what
+    /// apps and MAUI's own layout checks read. The startup window reported nothing, so its
+    /// Window.Width stayed NaN for the app's whole life. MAUI applies a platform frame without
+    /// echoing it to the handler, so this never resizes the native window.
+    /// </summary>
+    private void ReportFrame(int physicalWidth, int physicalHeight)
+    {
+        if (MauiWindow == null || physicalWidth <= 0 || physicalHeight <= 0)
+            return;
+        float scale = Scale;
+        try
         {
-            try
-            {
-                MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(
-                    0, 0, size.Width / scale, size.Height / scale));
-            }
-            catch (Exception ex)
-            {
-                DiagnosticLog.Error("WindowContext", "IWindow.FrameChanged threw", ex);
-            }
+            MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(
+                0, 0, physicalWidth / scale, physicalHeight / scale));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "IWindow.FrameChanged threw", ex);
         }
     }
 
@@ -885,6 +901,31 @@ public sealed class WindowContext : IDisposable
         }
     }
 
+    /// <summary>
+    /// Modal pages pushed before the window was shown (Navigation.PushModalAsync in a
+    /// page constructor or before the app's window opened) are presented when the
+    /// window adopts the MAUI window, as MAUI's platforms present their pending
+    /// modal stack once the window is ready.
+    /// </summary>
+    private void PresentPendingModals(Microsoft.Maui.Controls.Window window)
+    {
+        try
+        {
+            foreach (var page in window.Navigation.ModalStack)
+            {
+                bool presented = false;
+                for (int i = 0; i < _modals.Count; i++)
+                    presented |= ReferenceEquals(_modals[i].Page, page);
+                if (!presented)
+                    PushModalView(page);
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "Presenting the modal pages pushed before the window opened failed", ex);
+        }
+    }
+
     private void OnMauiModalPushed(object? sender, ModalPushedEventArgs e)
     {
         try { PushModalView(e.Modal); }
@@ -1131,7 +1172,59 @@ public sealed class WindowContext : IDisposable
             RenderingEngine.PopupFilterRoot = PopupFilterRoot;
             RenderingEngine.OverlayLayers = _modalViews.Count > 0 ? _modalViews : null;
             RenderingEngine.Render(_rootView);
+            if (Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.Enabled)
+                ScheduleInvariantCheck();
         }
+    }
+
+    private System.Threading.Timer? _invariantTimer;
+    private object? _invariantPage;
+    private DateTime _invariantPageSince, _lastInvariantCheck;
+
+    /// <summary>
+    /// OPENMAUI_INVARIANTS: checks the window's page once it has been shown for a second, then
+    /// every five seconds while it stays (content that loads later); a page that animates
+    /// (a looping video) never stops drawing, so this does not wait for drawing to stop.
+    /// </summary>
+    private void ScheduleInvariantCheck()
+    {
+        _invariantTimer ??= new System.Threading.Timer(
+            _ => Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main?.Dispatch(CheckInvariantsWhenDue), null, 500, 500);
+    }
+
+    private void CheckInvariantsWhenDue()
+    {
+        var top = _modalViews.Count > 0 ? _modalViews[^1] : _rootView;
+        if (top == null)
+            return;
+        object pageKey = PresentedPage((MauiWindow as Microsoft.Maui.Controls.Window)?.Page) ?? (object)top;
+        var now = DateTime.UtcNow;
+        if (!ReferenceEquals(pageKey, _invariantPage))
+        {
+            _invariantPage = pageKey;
+            _invariantPageSince = now;
+            return;
+        }
+        if (now - _invariantPageSince < TimeSpan.FromSeconds(1) || now - _lastInvariantCheck < TimeSpan.FromSeconds(5))
+            return;
+        _lastInvariantCheck = now;
+        Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.CheckWindow(
+            pageKey, top, (int)Math.Ceiling(top.Bounds.Width), (int)Math.Ceiling(top.Bounds.Height));
+    }
+
+    /// <summary>The page the user sees: through Shell, navigation, flyout, tabs and modals.</summary>
+    private static Microsoft.Maui.Controls.Page? PresentedPage(Microsoft.Maui.Controls.Page? page)
+    {
+        if (page?.Navigation?.ModalStack is { Count: > 0 } modals)
+            return PresentedPage(modals[^1]);
+        return page switch
+        {
+            Microsoft.Maui.Controls.Shell shell => PresentedPage(shell.CurrentPage) ?? shell,
+            Microsoft.Maui.Controls.NavigationPage navigation => navigation.CurrentPage ?? navigation,
+            Microsoft.Maui.Controls.FlyoutPage flyout => PresentedPage(flyout.Detail) ?? flyout,
+            Microsoft.Maui.Controls.TabbedPage tabs => tabs.CurrentPage ?? tabs,
+            _ => page,
+        };
     }
 
     #endregion
@@ -1223,6 +1316,37 @@ public sealed class WindowContext : IDisposable
 
     #endregion
 
+    /// <summary>
+    /// The native window is gone: its views are no longer on screen, so they get
+    /// Unloaded, as a platform unloads a closed window's visual tree (apps and
+    /// libraries release resources there).
+    /// </summary>
+    private void UnloadMauiTree()
+    {
+        try
+        {
+            var roots = new List<Microsoft.Maui.Controls.Page>();
+            if (_mauiWindow is Microsoft.Maui.Controls.Window closedWindow)
+                LoadedEventPatches.SetWindowClosed(closedWindow, true);
+            if ((_mauiWindow as Microsoft.Maui.Controls.Window)?.Page is { } page)
+                roots.Add(page);
+            foreach (var modal in _modals)
+                roots.Add(modal.Page);
+            foreach (var root in roots)
+            {
+                foreach (var element in root.GetVisualTreeDescendants())
+                {
+                    if (element is Microsoft.Maui.Controls.VisualElement visual)
+                        LoadedEventPatches.SendUnloadedIfLoaded(visual);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "Unloading the closed window's views failed", ex);
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -1237,6 +1361,7 @@ public sealed class WindowContext : IDisposable
         _focusedView = null;
         HoveredView = null;
         CapturedView = null;
+        UnloadMauiTree();
         _rootView = null;
         _modals.Clear();
         _modalViews.Clear();
