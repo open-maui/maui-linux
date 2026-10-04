@@ -165,6 +165,14 @@ internal static class LinuxViewMeasure
 
         double width = IsSet(view.Width) ? view.Width : measured.Width;
         double height = IsSet(view.Height) ? view.Height : measured.Height;
+        // A platform view's desired size never exceeds the space it was offered
+        // (Android measures AT_MOST, WinUI's DesiredSize is capped to the available
+        // size): a no-wrap or truncated label in a 100-wide stack is 100 wide.
+        // Explicit sizes and minimums still win, as on MAUI's platforms.
+        if (!IsSet(view.Width) && !double.IsInfinity(widthConstraint) && !double.IsNaN(widthConstraint))
+            width = Math.Min(width, widthConstraint);
+        if (!IsSet(view.Height) && !double.IsInfinity(heightConstraint) && !double.IsNaN(heightConstraint))
+            height = Math.Min(height, heightConstraint);
         if (IsSet(view.MinimumWidth)) width = Math.Max(width, view.MinimumWidth);
         if (IsSet(view.MinimumHeight)) height = Math.Max(height, view.MinimumHeight);
         if (IsSet(view.MaximumWidth)) width = Math.Min(width, view.MaximumWidth);

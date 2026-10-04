@@ -48,4 +48,25 @@ internal static class TextInputText
             text = inputView.UpdateFormsText(text, inputView.TextTransform) ?? string.Empty;
         return TrimToMaxLength(text, textInput.MaxLength);
     }
+
+    /// <summary>
+    /// MAUI's selection length rule (TextInputExtensions.GetSelectionLength): never
+    /// past the end of the text from the caret.
+    /// </summary>
+    public static int ClampSelectionLength(string? text, int cursorPosition, int selectionLength) =>
+        Math.Clamp(selectionLength, 0, Math.Max(0, (text ?? string.Empty).Length - cursorPosition));
+
+    /// <summary>
+    /// Reports the platform's caret and selection to the MAUI view, as MAUI's
+    /// platforms do from their selection-changed events (a capped CursorPosition or
+    /// SelectionLength, the caret moved by a replaced text). Only differences are
+    /// written.
+    /// </summary>
+    public static void ReportSelection(ITextInput textInput, int cursorPosition, int selectionLength)
+    {
+        if (textInput.CursorPosition != cursorPosition)
+            textInput.CursorPosition = cursorPosition;
+        if (textInput.SelectionLength != selectionLength)
+            textInput.SelectionLength = selectionLength;
+    }
 }

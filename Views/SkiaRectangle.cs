@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered Rectangle shape.
 /// </summary>
-public class SkiaRectangle : SkiaView
+public class SkiaRectangle : SkiaShapeView
 {
     public static readonly BindableProperty FillProperty =
         BindableProperty.Create(nameof(Fill), typeof(Brush), typeof(SkiaRectangle), null,
@@ -51,6 +51,13 @@ public class SkiaRectangle : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         var halfStroke = (float)StrokeThickness / 2f;
         var rect = new SKRect(bounds.Left + halfStroke, bounds.Top + halfStroke, bounds.Right - halfStroke, bounds.Bottom - halfStroke);
 

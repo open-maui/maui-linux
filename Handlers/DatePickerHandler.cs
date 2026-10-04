@@ -60,9 +60,13 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         base.DisconnectHandler(platformView);
     }
 
+    // True while MapDate pushes the view's Date to the platform: that change is not
+    // the user's pick and must not be written back (a null Date would become today).
+    private bool _mappingDate;
+
     private void OnDateSelected(object? sender, DateChangedEventArgs e)
     {
-        if (VirtualView is null || PlatformView is null) return;
+        if (VirtualView is null || PlatformView is null || _mappingDate) return;
 
         VirtualView.Date = e.NewDate;
     }
@@ -70,7 +74,17 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
     public static void MapDate(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Date = datePicker.Date ?? DateTime.Today;
+        handler._mappingDate = true;
+        try
+        {
+            handler.PlatformView.Date = datePicker.Date ?? DateTime.Today;
+        }
+        finally
+        {
+            handler._mappingDate = false;
+        }
+        // A null Date shows no date (the calendar still opens on today).
+        handler.PlatformView.HasDate = datePicker.Date.HasValue;
     }
 
     public static void MapMinimumDate(DatePickerHandler handler, IDatePicker datePicker)
