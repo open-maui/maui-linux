@@ -45,6 +45,11 @@ public static partial class Program
         ["browser-capture"] = BrowserCapture,
         ["browser-save-as-pdf"] = BrowserSaveAsPdf,
         ["browser-zoom-gestures"] = BrowserZoomGestures,
+        ["hybrid-serves-app-and-raw-messages"] = HybridServesAppAndRawMessages,
+        ["hybrid-invoke-javascript"] = HybridInvokeJavaScript,
+        ["hybrid-invoke-dotnet"] = HybridInvokeDotNet,
+        ["hybrid-web-resource-requested"] = HybridWebResourceRequested,
+        ["scheme-fallback-and-per-view-routing"] = SchemeFallbackAndPerViewRouting,
     };
 
     /// <summary>Exit code for a scenario this machine cannot run (reported, not failed).</summary>
@@ -630,6 +635,7 @@ public static partial class Program
         while (!until() && DateTime.UtcNow < deadline)
         {
             GLibNative.ProcessPendingEvents(50);
+            DrainMainLoopContext();
             Thread.Sleep(5);
         }
     }

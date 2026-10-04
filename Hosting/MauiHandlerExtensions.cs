@@ -32,6 +32,7 @@ public static class MauiHandlerExtensions
         [typeof(SearchBar)] = () => new SearchBarHandler(),
         [typeof(RadioButton)] = () => new RadioButtonHandler(),
         [typeof(WebView)] = () => new LinuxWebViewHandler(),
+        [typeof(HybridWebView)] = () => new LinuxHybridWebViewHandler(),
         [typeof(Image)] = () => new ImageHandler(),
         [typeof(ImageButton)] = () => new ImageButtonHandler(),
         [typeof(BoxView)] = () => new BoxViewHandler(),
@@ -84,7 +85,9 @@ public static class MauiHandlerExtensions
         // Third-party controls whose generic-TFM handler has no platform view;
         // mapped only when the library is part of the app.
         if (DrawingViewHandler.ToolkitDrawingViewType is { } drawingView)
-            LinuxHandlerMap[drawingView] = () => new DrawingViewHandler();
+            LinuxHandlerMap[drawingView] = DrawingViewHandler.Create;
+        if (SemanticOrderViewHandler.ToolkitSemanticOrderViewType is { } semanticOrderView)
+            LinuxHandlerMap[semanticOrderView] = () => new SemanticOrderViewHandler();
     }
 
     /// <summary>

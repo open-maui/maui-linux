@@ -104,6 +104,14 @@ internal interface ILocationProxy : IDBusObject
     Task<object> GetAsync(string prop);
 }
 
+[DBusInterface("org.freedesktop.portal.Camera")]
+internal interface ICameraPortalProxy : IDBusObject
+{
+    Task<ObjectPath> AccessCameraAsync(IDictionary<string, object> options);
+    Task<CloseSafeHandle> OpenPipeWireRemoteAsync(IDictionary<string, object> options);
+    Task<object> GetAsync(string prop);
+}
+
 /// <summary>
 /// The desktop notification server (not a portal). Used directly for
 /// unsandboxed apps, where it gives numeric ids, close reasons and the
