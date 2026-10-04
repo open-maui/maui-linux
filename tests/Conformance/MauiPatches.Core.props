@@ -1,0 +1,57 @@
+<Project>
+  <!--
+    Core suite counterpart of Controls/MauiPatches.props: literal fixes applied to copies of
+    MAUI's Core handler test files under obj/MauiPatched (see the ApplyMauiPatches target in
+    OpenMaui.Conformance.Tests.csproj). Each entry: the file (relative to
+    src/Core/tests/DeviceTests), the text to find (every occurrence is replaced) and its
+    replacement ("\n" is a newline, "\t" a tab). A fix adds the Linux branch to a platform
+    #if chain; it must not change what a test asserts.
+  -->
+  <ItemGroup>
+    <!-- The tooltip read-back has a branch per platform and returns null on any other: the
+         Linux branch reads the Skia view's tooltip (SkiaView.ToolTipText). -->
+    <MauiPatch Include="Handlers/View/ViewHandlerTests.cs">
+      <Find>#elif WINDOWS\n\t\t\t\treturn Microsoft.UI.Xaml.Controls.ToolTipService.GetToolTip(handler.ToPlatform()) as string;\n#else</Find>
+      <Replace>#elif WINDOWS\n\t\t\t\treturn Microsoft.UI.Xaml.Controls.ToolTipService.GetToolTip(handler.ToPlatform()) as string;\n#elif OPENMAUI_LINUX\n\t\t\t\treturn (handler.PlatformView as Microsoft.Maui.Platform.SkiaView)?.ToolTipText;\n#else</Replace>
+    </MauiPatch>
+
+    <!-- The desktop window tests (MacCatalyst and Windows) run on Linux, a desktop platform,
+         with the Windows expectations: a window takes the position and size it is given. -->
+    <MauiPatch Include="Handlers/Window/WindowHandlerTests.cs">
+      <Find>#if MACCATALYST || WINDOWS\n</Find>
+      <Replace>#if MACCATALYST || WINDOWS || OPENMAUI_LINUX\n</Replace>
+    </MauiPatch>
+    <MauiPatch Include="Handlers/Window/WindowHandlerTests.cs">
+      <Find>#elif WINDOWS\n\t\t\t\tAssert.Equal(</Find>
+      <Replace>#elif WINDOWS || OPENMAUI_LINUX\n\t\t\t\tAssert.Equal(</Replace>
+    </MauiPatch>
+
+    <!-- MAUI resolves the view and window capture hooks of a platform it has no screenshot
+         code for (IView.CaptureAsync, keyed services) through the handler's MauiContext
+         services, which must be keyed. The test context stub forwards keyed lookups to the
+         app's services, as an app's context does (on MAUI's own platforms it never needs to). -->
+    <MauiPatch Include="../DeviceTests.Shared/Stubs/ContextStub.cs">
+      <Find>	public class ContextStub : IMauiContext, IServiceProvider
+	{
+</Find>
+      <Replace>	public class ContextStub : IMauiContext, IServiceProvider, IKeyedServiceProvider
+	{
+		public object GetKeyedService(Type serviceType, object serviceKey) =>
+			(_services as IKeyedServiceProvider)?.GetKeyedService(serviceType, serviceKey);
+
+		public object GetRequiredKeyedService(Type serviceType, object serviceKey) =>
+			((IKeyedServiceProvider)_services).GetRequiredKeyedService(serviceType, serviceKey);
+
+</Replace>
+    </MauiPatch>
+
+    <!-- Starting a navigation view with several pages is tested on the platforms whose
+         navigation view shows a stack (Android, Windows); Linux's does. -->
+    <MauiPatch Include="Handlers/Navigation/NavigationViewHandlerTests.cs">
+      <Find>#if ANDROID || WINDOWS
+</Find>
+      <Replace>#if ANDROID || WINDOWS || OPENMAUI_LINUX
+</Replace>
+    </MauiPatch>
+  </ItemGroup>
+</Project>
