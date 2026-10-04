@@ -109,6 +109,7 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         MopupsBridge.Register(builder.Services);
         // VisualElement.Focus()/Unfocus() through the window's focus.
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register();
+        Microsoft.Maui.Platform.Linux.Handlers.LinuxViewMappers.Register();
         Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install();
         // MAUI's effects pipeline: an Element resolves the PlatformEffect for a RoutingEffect
         // through the EffectsFactory service, which only ConfigureEffects registers; without

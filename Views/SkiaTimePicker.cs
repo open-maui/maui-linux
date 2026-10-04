@@ -311,29 +311,9 @@ public class SkiaTimePicker : SkiaView
         canvas.DrawRoundRect(new SKRoundRect(bounds, cornerRadius), borderPaint);
 
         // Get typeface based on FontFamily and FontAttributes
-        SKTypeface typeface = SKTypeface.Default;
-        if (!string.IsNullOrEmpty(FontFamily))
-        {
-            var style = FontAttributes switch
-            {
-                FontAttributes.Bold => SKFontStyle.Bold,
-                FontAttributes.Italic => SKFontStyle.Italic,
-                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
-                _ => SKFontStyle.Normal
-            };
-            typeface = SKTypeface.FromFamilyName(FontFamily, style) ?? SKTypeface.Default;
-        }
-        else if (FontAttributes != FontAttributes.None)
-        {
-            var style = FontAttributes switch
-            {
-                FontAttributes.Bold => SKFontStyle.Bold,
-                FontAttributes.Italic => SKFontStyle.Italic,
-                FontAttributes.Bold | FontAttributes.Italic => SKFontStyle.BoldItalic,
-                _ => SKFontStyle.Normal
-            };
-            typeface = SKTypeface.FromFamilyName(null, style) ?? SKTypeface.Default;
-        }
+        var typeface = Fonts.GetTypeface(
+            TextRenderingHelper.GetEffectiveFontFamily(FontFamily),
+            TextRenderingHelper.GetFontStyle(FontAttributes));
 
         using var font = SkiaFontFactory.Create(typeface, fontSize);
         using var textPaint = new SKPaint
