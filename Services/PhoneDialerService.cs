@@ -11,12 +11,15 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class PhoneDialerService : IPhoneDialer
 {
-    public bool IsSupported => true; // Most Linux desktops handle tel: via apps
+    /// <summary>An application handles tel: URIs (KDE Connect, GNOME Calls, a softphone).</summary>
+    public bool IsSupported => SchemeHandlers.HasHandler("tel");
 
     public void Open(string number)
     {
         if (string.IsNullOrWhiteSpace(number))
             throw new ArgumentNullException(nameof(number));
+        if (!IsSupported)
+            throw new FeatureNotSupportedException("No application handles tel: links on this desktop.");
 
         var psi = new ProcessStartInfo
         {

@@ -12,7 +12,8 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class EmailService : IEmail
 {
-    public bool IsComposeSupported => true;
+    /// <summary>A mail application handles mailto: URIs.</summary>
+    public bool IsComposeSupported => SchemeHandlers.HasHandler("mailto");
 
     public async Task ComposeAsync()
     {
@@ -39,6 +40,8 @@ public class EmailService : IEmail
     {
         if (message == null)
             throw new ArgumentNullException(nameof(message));
+        if (!IsComposeSupported)
+            throw new FeatureNotSupportedException("No mail application handles mailto: links on this desktop.");
 
         var mailto = BuildMailtoUri(message);
 

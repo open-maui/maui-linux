@@ -590,7 +590,27 @@ public class EssentialsTests
         info.Version.Should().NotBeNull();
         Enum.IsDefined(info.PackagingModel).Should().BeTrue();
         Enum.IsDefined(info.RequestedTheme).Should().BeTrue();
-        info.RequestedLayoutDirection.Should().Be(LayoutDirection.LeftToRight);
+        info.RequestedLayoutDirection.Should().Be(
+            System.Globalization.CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? LayoutDirection.RightToLeft : LayoutDirection.LeftToRight);
+    }
+
+    [Theory]
+    [InlineData("ar-SA", LayoutDirection.RightToLeft)]
+    [InlineData("he-IL", LayoutDirection.RightToLeft)]
+    [InlineData("en-US", LayoutDirection.LeftToRight)]
+    [InlineData("ja-JP", LayoutDirection.LeftToRight)]
+    public void AppInfo_layout_direction_follows_the_UI_language(string culture, LayoutDirection expected)
+    {
+        var previous = System.Globalization.CultureInfo.CurrentUICulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentUICulture = new System.Globalization.CultureInfo(culture);
+            AppInfoService.Instance.RequestedLayoutDirection.Should().Be(expected);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentUICulture = previous;
+        }
     }
 
     #endregion
@@ -869,6 +889,7 @@ public class EssentialsTests
     public async Task Email_Compose_LaunchesXdgOpenWithMailto()
     {
         using var capture = new LaunchCapture(true);
+        using var schemes = new FakeSchemeAssociations("mailto", "tel");
         var email = new EmailService();
         email.IsComposeSupported.Should().BeTrue();
 
@@ -883,6 +904,7 @@ public class EssentialsTests
     public async Task Email_Compose_NullMessage_ThrowsAndLaunchFailureIsSilent()
     {
         using var capture = new LaunchCapture(false);
+        using var schemes = new FakeSchemeAssociations("mailto", "tel");
         var email = new EmailService();
 
         await email.Invoking(e => e.ComposeAsync((EmailMessage?)null)).Should().ThrowAsync<ArgumentNullException>();
@@ -910,14 +932,17 @@ public class EssentialsTests
     }
 
     [Fact]
-    public async Task Sms_Compose_LaunchesXdgOpen_AndIgnoresNullMessage()
+    public async Task Sms_Compose_LaunchesXdgOpen_AndANullMessageIsEmpty()
     {
+        using var schemes = new FakeSchemeAssociations("sms");
         using var capture = new LaunchCapture(true);
         var sms = new SmsService();
         sms.IsComposeSupported.Should().BeTrue();
 
+        // As MAUI does: a null message composes an empty one.
         await sms.ComposeAsync(null);
-        capture.Launches.Should().BeEmpty();
+        capture.Single.ArgumentList.Should().ContainSingle().Which.Should().Be("sms:");
+        capture.Launches.Clear();
 
         await sms.ComposeAsync(new SmsMessage("yo", new[] { "555" }));
         var psi = capture.Single;
@@ -944,6 +969,7 @@ public class EssentialsTests
     public void PhoneDialer_Open_LaunchesXdgOpenWithTelUri()
     {
         using var capture = new LaunchCapture(true);
+        using var schemes = new FakeSchemeAssociations("mailto", "tel");
         var dialer = new PhoneDialerService();
         dialer.IsSupported.Should().BeTrue();
 
@@ -958,6 +984,7 @@ public class EssentialsTests
     public void PhoneDialer_Open_EmptyNumber_Throws()
     {
         using var capture = new LaunchCapture(true);
+        using var schemes = new FakeSchemeAssociations("mailto", "tel");
         var dialer = new PhoneDialerService();
         dialer.Invoking(d => d.Open("")).Should().Throw<ArgumentNullException>();
         dialer.Invoking(d => d.Open(null!)).Should().Throw<ArgumentNullException>();
@@ -1263,12 +1290,12 @@ public class EssentialsTests
     public void Battery_NoPowerSupplies_ReportsDesktopDefaults()
     {
         using var sysfs = new FakeSysfs();
-        var battery = new BatteryService();
+        var battery = new BatteryService(new PowerProfilesMonitor(useDaemon: false));
 
         battery.ChargeLevel.Should().Be(1.0);
         battery.State.Should().Be(BatteryState.Unknown);
         battery.PowerSource.Should().Be(BatteryPowerSource.AC, "a machine without a battery is wall-powered");
-        battery.EnergySaverStatus.Should().Be(EnergySaverStatus.Unknown);
+        battery.EnergySaverStatus.Should().Be(EnergySaverStatus.Unknown, "no power-profiles daemon");
     }
 
     [Theory]

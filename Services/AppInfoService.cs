@@ -33,7 +33,9 @@ public class AppInfoService : IAppInfo
 
     public string BuildString => _buildString;
 
-    public LayoutDirection RequestedLayoutDirection => LayoutDirection.LeftToRight;
+    /// <summary>Right-to-left for a right-to-left UI language (Arabic, Hebrew, ...), as on the other platforms.</summary>
+    public LayoutDirection RequestedLayoutDirection =>
+        System.Globalization.CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? LayoutDirection.RightToLeft : LayoutDirection.LeftToRight;
 
     public AppTheme RequestedTheme
     {
