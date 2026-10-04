@@ -33,6 +33,10 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>
         [nameof(IView.VerticalLayoutAlignment)] = MapVerticalLayoutAlignment,
         [nameof(IView.HorizontalLayoutAlignment)] = MapHorizontalLayoutAlignment,
         ["FormattedText"] = MapFormattedText,
+        // Controls' Label remaps these on MAUI's LabelHandler.Mapper (Label.Mapper.cs),
+        // which never reaches this handler's own mapper.
+        [nameof(Microsoft.Maui.Controls.Label.TextTransform)] = MapTextTransform,
+        [nameof(Microsoft.Maui.Controls.Label.TextType)] = MapTextType,
     };
 
     public static CommandMapper<ILabel, LabelHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -73,6 +77,7 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>
         if (VirtualView is Microsoft.Maui.Controls.Label mauiLabel)
         {
             platformView.LineBreakMode = mauiLabel.LineBreakMode;
+            platformView.MaxLines = EffectiveMaxLines(mauiLabel.LineBreakMode, mauiLabel.MaxLines);
         }
     }
 
@@ -176,7 +181,42 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>
         if (label is Microsoft.Maui.Controls.Label mauiLabel)
         {
             handler.PlatformView.LineBreakMode = mauiLabel.LineBreakMode;
+            // The line limit depends on the mode (truncating modes are single-line).
+            handler.PlatformView.MaxLines = EffectiveMaxLines(mauiLabel.LineBreakMode, mauiLabel.MaxLines);
         }
+    }
+
+    /// <summary>
+    /// The number of lines a label shows, by MAUI's rules on its platforms
+    /// (Controls' TextViewExtensions.SetLineBreakMode on Android, the UILabel
+    /// equivalent on iOS): NoWrap, HeadTruncation and MiddleTruncation are one line;
+    /// an unset (or non-positive) MaxLines is one line for TailTruncation and
+    /// unlimited (int.MaxValue) otherwise.
+    /// </summary>
+    internal static int EffectiveMaxLines(LineBreakMode lineBreakMode, int maxLines)
+    {
+        if (maxLines <= 0)
+            maxLines = lineBreakMode == LineBreakMode.TailTruncation ? 1 : int.MaxValue;
+        return lineBreakMode switch
+        {
+            LineBreakMode.NoWrap or LineBreakMode.HeadTruncation or LineBreakMode.MiddleTruncation => 1,
+            _ => maxLines,
+        };
+    }
+
+    /// <summary>The label shows its text (and spans without their own transform) transformed, as MAUI's platforms do.</summary>
+    public static void MapTextTransform(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+        if (label is Microsoft.Maui.Controls.Label mauiLabel)
+            handler.PlatformView.TextTransform = mauiLabel.TextTransform;
+    }
+
+    public static void MapTextType(LabelHandler handler, ILabel label)
+    {
+        if (handler.PlatformView is null) return;
+        if (label is Microsoft.Maui.Controls.Label mauiLabel)
+            handler.PlatformView.TextType = mauiLabel.TextType;
     }
 
     public static void MapMaxLines(LabelHandler handler, ILabel label)
@@ -186,7 +226,7 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>
         // MaxLines is on Label control, not ILabel interface
         if (label is Microsoft.Maui.Controls.Label mauiLabel)
         {
-            handler.PlatformView.MaxLines = mauiLabel.MaxLines;
+            handler.PlatformView.MaxLines = EffectiveMaxLines(mauiLabel.LineBreakMode, mauiLabel.MaxLines);
         }
     }
 

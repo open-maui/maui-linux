@@ -39,6 +39,9 @@ namespace Microsoft.Maui.DeviceTests
 		{
 		};
 
+		/// <summary>Single theory rows to skip (none in the Core suite).</summary>
+		public static string ReasonForCase(string testClassFullName, string method, string displayName) => null;
+
 		public static string ReasonFor(string testClassFullName, string method)
 		{
 			var simple = testClassFullName.Substring(testClassFullName.LastIndexOfAny(new[] { '.', '+' }) + 1);

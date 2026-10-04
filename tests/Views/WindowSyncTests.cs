@@ -146,3 +146,43 @@ public class WindowSyncTests
         resumed.Should().Be(0);
     }
 }
+
+/// <summary>
+/// The window tells MAUI its size (Window.Width/Height), and MAUI's toolbar element gets a handler
+/// whose platform element is the window's toolbar, as on MAUI's platforms.
+/// </summary>
+[Collection("LinuxApplication.Current")]
+public class WindowFrameAndToolbarTests
+{
+    [Fact]
+    public void The_window_reports_its_size_when_shown_and_when_resized()
+    {
+        using var host = new HeadlessMauiHost(new ContentPage(), width: 640, height: 480);
+
+        host.Window.Width.Should().Be(640);
+        host.Window.Height.Should().Be(480);
+
+        host.DisplayWindow.RaiseResized(1000, 700);
+        host.Window.Width.Should().Be(1000);
+        host.Window.Height.Should().Be(700);
+    }
+
+    [Fact]
+    public void A_NavigationPages_toolbar_is_the_windows_platform_toolbar()
+    {
+        var page = new ContentPage { Title = "Home" };
+        using var host = new HeadlessMauiHost(new NavigationPage(page), withEngine: true);
+        host.Context.Render();
+        var skiaWindow = (Microsoft.Maui.Platform.Linux.Handlers.SkiaWindow)host.Window.Handler!.PlatformView!;
+
+        var toolbar = (host.Window as IToolbarElement).Toolbar;
+        toolbar.Should().NotBeNull("MAUI's NavigationPage puts its toolbar on the window");
+        toolbar!.Handler.Should().BeOfType<Microsoft.Maui.Platform.Linux.Handlers.ToolbarHandler>();
+        skiaWindow.Toolbar.Should().NotBeNull().And.BeSameAs(toolbar.Handler!.PlatformView);
+        skiaWindow.Toolbar!.Title.Should().Be("Home");
+
+        host.Window.Page = new ContentPage();
+        host.Context.Render();
+        skiaWindow.Toolbar.Should().BeNull("a page with no navigation bar has no toolbar");
+    }
+}

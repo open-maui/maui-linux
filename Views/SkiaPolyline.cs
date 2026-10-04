@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered Polyline shape - open path of connected points (not closed).
 /// </summary>
-public class SkiaPolyline : SkiaView
+public class SkiaPolyline : SkiaShapeView
 {
     public static readonly BindableProperty PointsProperty =
         BindableProperty.Create(nameof(Points), typeof(PointCollection), typeof(SkiaPolyline), null,
@@ -45,6 +45,13 @@ public class SkiaPolyline : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         var pts = Points;
         if (pts == null || pts.Count < 2) return;
 

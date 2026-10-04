@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered view for MAUI Shapes.Path control.
 /// Converts PathGeometry (PathFigure, LineSegment, BezierSegment, etc.) to SKPath for rendering.
 /// </summary>
-public class SkiaShapePath : SkiaView
+public class SkiaShapePath : SkiaShapeView
 {
     #region BindableProperties
 
@@ -258,6 +258,13 @@ public class SkiaShapePath : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         var source = GetOrBuildPath();
         if (source == null) return;
 

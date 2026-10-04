@@ -7,7 +7,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-[assembly: TestFramework("Microsoft.Maui.DeviceTests.LinuxTestFramework", "Microsoft.Maui.Core.DeviceTests")]
+[assembly: TestFramework("Microsoft.Maui.DeviceTests.LinuxTestFramework", Microsoft.Maui.DeviceTests.ConformanceAssembly.Name)]
 
 namespace Microsoft.Maui.DeviceTests
 {
@@ -40,7 +40,8 @@ namespace Microsoft.Maui.DeviceTests
 				var isTest = testMethod.Method.GetCustomAttributes(typeof(FactAttribute)).Any();
 				var reason = isTest ? KnownSkips.ReasonFor(testMethod.TestClass.Class.Name, testMethod.Method.Name) : null;
 				if (reason is null)
-					return base.FindTestsForMethod(testMethod, includeSourceInformation, messageBus, discoveryOptions);
+					return base.FindTestsForMethod(testMethod, includeSourceInformation,
+						new DataRowSkipBus(messageBus, testMethod, DiagnosticMessageSink, discoveryOptions), discoveryOptions);
 
 				var skipped = new XunitSkippedDataRowTestCase(
 					DiagnosticMessageSink,
@@ -50,6 +51,46 @@ namespace Microsoft.Maui.DeviceTests
 					"Linux: " + reason);
 				return ReportDiscoveredTestCase(skipped, includeSourceInformation, messageBus);
 			}
+		}
+
+		/// <summary>
+		/// Skips single data rows of a theory (KnownSkips.ReasonForCase, matched on the
+		/// row's display name), for a row that needs a mechanism Linux lacks while the
+		/// theory's other rows run.
+		/// </summary>
+		sealed class DataRowSkipBus : IMessageBus
+		{
+			readonly IMessageBus _inner;
+			readonly ITestMethod _method;
+			readonly IMessageSink _diagnostics;
+			readonly ITestFrameworkDiscoveryOptions _options;
+
+			public DataRowSkipBus(IMessageBus inner, ITestMethod method, IMessageSink diagnostics, ITestFrameworkDiscoveryOptions options)
+			{
+				_inner = inner;
+				_method = method;
+				_diagnostics = diagnostics;
+				_options = options;
+			}
+
+			public bool QueueMessage(IMessageSinkMessage message)
+			{
+				if (message is ITestCaseDiscoveryMessage discovered &&
+					KnownSkips.ReasonForCase(_method.TestClass.Class.Name, _method.Method.Name, discovered.TestCase.DisplayName) is string reason)
+				{
+					var skipped = new XunitSkippedDataRowTestCase(
+						_diagnostics,
+						_options.MethodDisplayOrDefault(),
+						_options.MethodDisplayOptionsOrDefault(),
+						_method,
+						"Linux: " + reason,
+						discovered.TestCase.TestMethodArguments);
+					return _inner.QueueMessage(new TestCaseDiscoveryMessage(skipped));
+				}
+				return _inner.QueueMessage(message);
+			}
+
+			public void Dispose() { }
 		}
 	}
 }

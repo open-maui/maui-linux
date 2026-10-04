@@ -1,0 +1,60 @@
+<Project>
+  <!--
+    Literal compile fixes applied to copies of MAUI's Controls test files under
+    obj/MauiPatched (see the ApplyMauiPatches target). Each entry: the file
+    (relative to src/Controls/tests/DeviceTests), the text to find and its
+    replacement ("\n" is a newline, "\t" a tab). A fix may only make a file compile on the
+    platform-neutral TFM; it must not change what a test asserts.
+  -->
+  <ItemGroup>
+    <!-- IPlatformViewHandler is IViewHandler here (HandlerAliases.Controls.cs); naming both is a duplicate constraint. -->
+    <MauiPatch Include="Elements/TextInput/TextInputTests.cs">
+      <Find>where THandler : class, IViewHandler, IPlatformViewHandler, new()</Find>
+      <Replace>where THandler : class, IViewHandler, new()</Replace>
+    </MauiPatch>
+
+    <!-- Platform #if chains with no fallback branch: the Linux branch reads the Skia view (Elements/LabelTests.Linux.cs). -->
+    <MauiPatch Include="Elements/Label/LabelTests.cs">
+      <Find>#elif WINDOWS\n\t\t\treturn handler.PlatformView.Text;\n#endif</Find>
+      <Replace>#elif WINDOWS\n\t\t\treturn handler.PlatformView.Text;\n#else\n\t\t\treturn LinuxTextForHandler(handler);\n#endif</Replace>
+    </MauiPatch>
+    <MauiPatch Include="Elements/Label/LabelTests.cs">
+      <Find>#elif WINDOWS\n\t\t\treturn (GetPlatformLabel(handler).Foreground as UI.Xaml.Media.SolidColorBrush).Color.ToColor();\n#endif</Find>
+      <Replace>#elif WINDOWS\n\t\t\treturn (GetPlatformLabel(handler).Foreground as UI.Xaml.Media.SolidColorBrush).Color.ToColor();\n#else\n\t\t\treturn LinuxTextColor(handler);\n#endif</Replace>
+    </MauiPatch>
+
+    <!-- A desktop window has no safe-area insets: the Windows/Android branch's Thickness.Zero is Linux's value. -->
+    <MauiPatch Include="Elements/Shell/ShellFlyoutTests.cs">
+      <Find>#if WINDOWS || ANDROID\n\t\t\treturn Thickness.Zero;\n#endif</Find>
+      <Replace>#if WINDOWS || ANDROID || OPENMAUI_LINUX\n\t\t\treturn Thickness.Zero;\n#endif</Replace>
+    </MauiPatch>
+
+    <!-- NestingView's platform view: a Skia stack layout on Linux (the #else branch is UIKit). -->
+    <MauiPatch Include="TestClasses/NestingView.cs">
+      <Find>#else\nusing PlatformView = System.Object;</Find>
+      <Replace>#elif OPENMAUI_LINUX\nusing PlatformView = Microsoft.Maui.Platform.SkiaView;\nusing ParentView = Microsoft.Maui.Platform.SkiaView;\n#else\nusing PlatformView = System.Object;</Replace>
+    </MauiPatch>
+    <MauiPatch Include="TestClasses/NestingView.cs">
+      <Find>#else\n\t\t\tUIKit.UIView\n#endif</Find>
+      <Replace>#elif OPENMAUI_LINUX\n\t\t\tMicrosoft.Maui.Platform.SkiaStackLayout\n#else\n\t\t\tUIKit.UIView\n#endif</Replace>
+    </MauiPatch>
+    <MauiPatch Include="TestClasses/NestingView.cs">
+      <Find>#else\n\t\t\tthis.AddSubview(platformView);\n#endif</Find>
+      <Replace>#elif OPENMAUI_LINUX\n\t\t\tbase.AddChild(platformView);\n#else\n\t\t\tthis.AddSubview(platformView);\n#endif</Replace>
+    </MauiPatch>
+    <MauiPatch Include="TestClasses/NestingView.cs">
+      <Find>sh.PlatformView.AddChild(element.ToPlatform(Handler.MauiContext));</Find>
+      <Replace>sh.PlatformView.AddChild((PlatformView)element.ToPlatform(Handler.MauiContext));</Replace>
+    </MauiPatch>
+    <MauiPatch Include="TestClasses/NestingView.cs">
+      <Find>var platformView = view.ToPlatform(rootNestingView.Handler.MauiContext);</Find>
+      <Replace>var platformView = (PlatformView)view.ToPlatform(rootNestingView.Handler.MauiContext);</Replace>
+    </MauiPatch>
+
+    <!-- MAUI's RawBitmap capture has no branch for this TFM ("TODO"): the Linux branch draws the Skia view (Infrastructure/RawBitmap.Linux.cs). -->
+    <MauiPatch Include="../../../Core/tests/DeviceTests.Shared/ImageAnalysis/RawBitmap.cs">
+      <Find>#else\n\t\t\tthrow new PlatformNotSupportedException("TODO");\n#endif</Find>
+      <Replace>#elif OPENMAUI_LINUX\n\t\t\treturn CaptureView(platformView);\n#else\n\t\t\tthrow new PlatformNotSupportedException("TODO");\n#endif</Replace>
+    </MauiPatch>
+  </ItemGroup>
+</Project>

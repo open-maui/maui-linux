@@ -66,12 +66,14 @@ public static class MauiHandlerExtensions
         [typeof(Microsoft.Maui.Controls.Shapes.Line)] = () => new LineHandler(),
         [typeof(Microsoft.Maui.Controls.Shapes.Polygon)] = () => new PolygonHandler(),
         [typeof(Microsoft.Maui.Controls.Shapes.Polyline)] = () => new PolylineHandler(),
+        [typeof(Microsoft.Maui.Controls.Shapes.RoundRectangle)] = () => new RoundRectangleHandler(),
         [typeof(CarouselView)] = () => new CarouselViewHandler(),
         [typeof(SwipeView)] = () => new SwipeViewHandler(),
         [typeof(RefreshView)] = () => new RefreshViewHandler(),
         [typeof(IndicatorView)] = () => new IndicatorViewHandler(),
         [typeof(MenuBar)] = () => new MenuBarHandler(),
         [typeof(MenuFlyout)] = () => new MenuFlyoutHandler(),
+        [typeof(Toolbar)] = () => new ToolbarHandler(),
         [typeof(SKCanvasView)] = () => new SKCanvasViewHandler(),
         [typeof(SKGLView)] = () => new SKGLViewHandler()
     };
@@ -207,6 +209,9 @@ public static class MauiHandlerExtensions
             // content handler lays such a view out through its ICrossPlatformLayout.
             if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.ContentViewHandler))
                 handler = new Microsoft.Maui.Platform.Linux.Handlers.ContentViewHandler();
+            // Likewise a core IShapeView (MAUI's ShapeViewHandler draws nothing on plain net10.0).
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.ShapeViewHandler))
+                handler = new Microsoft.Maui.Platform.Linux.Handlers.ShapeViewHandler();
             DiagnosticLog.Debug("MauiHandlerExtensions", $"Using MAUI handler for {type.Name}: {handler?.GetType().Name ?? "null"}");
         }
 

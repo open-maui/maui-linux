@@ -125,12 +125,13 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
                     var content = ItemTemplateContent.Create(template, item, carouselView);
                     if (content is View view)
                     {
-                        // Set parent for RelativeSource AncestorType binding support.
+                        // The item first, then the parent (for RelativeSource AncestorType
+                        // bindings): parented first, the page would bind to the carousel's context.
+                        view.BindingContext = item;
                         if (view.Parent == null)
                         {
                             try { view.Parent = carouselView; } catch { }
                         }
-                        view.BindingContext = item;
 
                         if (view.Handler == null)
                         {
