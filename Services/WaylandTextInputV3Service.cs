@@ -17,7 +17,9 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 ///
 /// State plumbing:
 ///   App side                       This service                    WaylandWindow
-///   SetFocus(entry)            →   EnableTextInput()           →   text_input.enable+commit
+///   SetFocus(entry)            →   EnableTextInput()           →   text_input.enable+set_content_type+commit
+///   NotifyContentType-         →   SetContentType(...)         →   text_input.set_content_type+commit
+///   Changed()
 ///   SetCursorLocation(x,y,w,h) →   SetCursorRectangle(...)     →   text_input.set_cursor_rectangle+commit
 ///   NotifySurroundingText-     →   SetSurroundingText(...)     →   text_input.set_surrounding_text
 ///   Changed()                                                      +set_text_change_cause+commit
@@ -91,12 +93,21 @@ public class WaylandTextInputV3Service : IInputMethodService
             // is double-buffered, so staging before EnableTextInput lets it
             // ride the enable's own commit instead of costing a second one.
             PushSurroundingText(TextInputChangeCause.Other);
+            var contentType = context.ContentType;
+            _wlWindow.SetContentType(contentType.Hints, contentType.Purpose);
             _wlWindow.EnableTextInput();
         }
         else
         {
             _wlWindow.DisableTextInput();
         }
+    }
+
+    public void NotifyContentTypeChanged()
+    {
+        if (_wlWindow == null || _context == null) return;
+        var contentType = _context.ContentType;
+        _wlWindow.SetContentType(contentType.Hints, contentType.Purpose);
     }
 
     public void SetCursorLocation(int x, int y, int width, int height)

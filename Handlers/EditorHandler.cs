@@ -18,6 +18,7 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
         new PropertyMapper<IEditor, EditorHandler>(ViewHandler.ViewMapper)
         {
             [nameof(IEditor.Text)] = MapText,
+            [nameof(Editor.TextTransform)] = MapText,
             [nameof(IEditor.Placeholder)] = MapPlaceholder,
             [nameof(IEditor.PlaceholderColor)] = MapPlaceholderColor,
             [nameof(IEditor.TextColor)] = MapTextColor,
@@ -61,12 +62,16 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
         VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TextChanged += OnTextChanged;
         platformView.Completed += OnCompleted;
+        platformView.FocusGained += OnFocusGained;
+        platformView.FocusLost += OnFocusLost;
     }
 
     protected override void DisconnectHandler(SkiaEditor platformView)
     {
         platformView.TextChanged -= OnTextChanged;
         platformView.Completed -= OnCompleted;
+        platformView.FocusGained -= OnFocusGained;
+        platformView.FocusLost -= OnFocusLost;
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
@@ -75,7 +80,21 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
     {
         if (VirtualView is null || PlatformView is null) return;
 
-        VirtualView.Text = PlatformView.Text;
+        TextInputText.UpdateVirtualText(VirtualView, PlatformView.Text);
+    }
+
+    private void OnFocusGained(object? sender, EventArgs e) => UpdateIsFocused(true);
+
+    private void OnFocusLost(object? sender, EventArgs e) => UpdateIsFocused(false);
+
+    /// <summary>
+    /// Reports platform focus to the MAUI view (IView.IsFocused), as MAUI's
+    /// handlers do from the native focus events.
+    /// </summary>
+    private void UpdateIsFocused(bool isFocused)
+    {
+        if (VirtualView is { } view && view.IsFocused != isFocused)
+            view.IsFocused = isFocused;
     }
 
     private void OnCompleted(object? sender, EventArgs e)
@@ -86,14 +105,26 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
     public static void MapText(EditorHandler handler, IEditor editor)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Text = editor.Text ?? "";
-        handler.PlatformView.Invalidate();
+
+        // The platform holds the text as shown (TextTransform applied, cut to
+        // MaxLength); a difference flows back to the view through TextChanged.
+        var text = TextInputText.GetDisplayText(editor);
+        if (handler.PlatformView.Text != text)
+        {
+            handler.PlatformView.Text = text;
+            handler.PlatformView.Invalidate();
+        }
+
+        // The text the platform holds (cut to MaxLength, transformed) is the
+        // view's Text, as on MAUI's platforms.
+        TextInputText.UpdateVirtualText(editor, handler.PlatformView.Text);
     }
 
     public static void MapPlaceholder(EditorHandler handler, IEditor editor)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Placeholder = editor.Placeholder ?? "";
+        // No placeholder stays null, as on MAUI's Android and iOS editors.
+        handler.PlatformView.Placeholder = editor.Placeholder;
     }
 
     public static void MapPlaceholderColor(EditorHandler handler, IEditor editor)
@@ -178,7 +209,9 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
 
     public static void MapKeyboard(EditorHandler handler, IEditor editor)
     {
-        // Virtual keyboard type not applicable to desktop - stored for future use
+        // On desktop the keyboard is the input method's content type.
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Keyboard = editor.Keyboard;
     }
 
     public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor)
