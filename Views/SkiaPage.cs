@@ -147,6 +147,12 @@ public class SkiaPage : SkiaView
     public bool IsBusy { get; set; }
 
     /// <summary>
+    /// Whether a navigation container shows a back arrow for this page when there is
+    /// a page to go back to (MAUI's NavigationPage.HasBackButton). Default true.
+    /// </summary>
+    public bool HasBackButton { get; set; } = true;
+
+    /// <summary>
     /// Icon image source for this page (used by navigation containers).
     /// </summary>
     public SKBitmap? IconImage { get; set; }

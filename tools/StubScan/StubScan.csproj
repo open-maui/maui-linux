@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Third-party stub scan (docs/STUBS.md). Compares the platform-neutral lib/net10.0
+    build of each supported library with its lib/net10.0-windows* build and reports
+    what the neutral build (the one OpenMaui apps load) leaves unimplemented.
+    Run from the repo root (after restoring tests/Compat): dotnet run, project tools/StubScan.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>OpenMaui.StubScan</RootNamespace>
+  </PropertyGroup>
+</Project>

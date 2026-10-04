@@ -13,6 +13,8 @@ namespace Microsoft.Maui.Platform;
 public class SkiaTabbedPage : SkiaLayoutView
 {
     private readonly List<TabItem> _tabs = new();
+    private readonly TabIconCache _icons;
+    private Microsoft.Maui.Controls.Brush? _tabBarBackground;
     private int _selectedIndex = 0;
     private float _tabBarHeight = 48f;
     private bool _tabBarOnBottom = false;
@@ -28,6 +30,25 @@ public class SkiaTabbedPage : SkiaLayoutView
     private Color _selectedTabColor = Colors.White;
     private Color _unselectedTabColor = Color.FromRgba(255, 255, 255, 180);
     private Color _indicatorColor = Colors.White;
+
+    public SkiaTabbedPage()
+    {
+        _icons = new TabIconCache(this);
+    }
+
+    /// <summary>
+    /// The tab bar's background brush (TabbedPage.BarBackground); when set it paints the bar
+    /// instead of <see cref="TabBarBackgroundColor"/>, gradients included.
+    /// </summary>
+    public Microsoft.Maui.Controls.Brush? TabBarBackground
+    {
+        get => _tabBarBackground;
+        set
+        {
+            _tabBarBackground = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the height of the tab bar.
@@ -168,7 +189,8 @@ public class SkiaTabbedPage : SkiaLayoutView
         {
             Title = title,
             Content = content,
-            IconPath = iconPath
+            IconPath = iconPath,
+            IconSource = string.IsNullOrEmpty(iconPath) ? null : Microsoft.Maui.Controls.ImageSource.FromFile(iconPath),
         };
 
         _tabs.Add(tab);
@@ -214,6 +236,7 @@ public class SkiaTabbedPage : SkiaLayoutView
             RemoveChild(tab.Content);
         }
         _tabs.Clear();
+        _icons.Clear();
         _selectedIndex = 0;
         InvalidateMeasure();
         Invalidate();
@@ -301,8 +324,8 @@ public class SkiaTabbedPage : SkiaLayoutView
                 (float)Bounds.Top + TabBarHeight);
         }
 
-        // Draw background
-        using var bgPaint = new SKPaint
+        // Draw background: BarBackground (a brush, gradients included), else BarBackgroundColor.
+        using var bgPaint = BrushPaint.Create(_tabBarBackground, tabBarBounds) ?? new SKPaint
         {
             Color = _tabBarBackgroundColorSK,
             Style = SKPaintStyle.Fill,
@@ -311,6 +334,7 @@ public class SkiaTabbedPage : SkiaLayoutView
         canvas.DrawRect(tabBarBounds, bgPaint);
 
         if (_tabs.Count == 0) return;
+        _icons.Retain(_tabs.Select(t => t.IconSource));
 
         // Calculate tab width
         float tabWidth = tabBarBounds.Width / _tabs.Count;
@@ -332,14 +356,30 @@ public class SkiaTabbedPage : SkiaLayoutView
                 tabBarBounds.Bottom);
 
             bool isSelected = i == _selectedIndex;
-            textPaint.Color = isSelected ? _selectedTabColorSK : _unselectedTabColorSK;
+            var color = isSelected ? _selectedTabColorSK : _unselectedTabColorSK;
+            textPaint.Color = color;
             textFont.Embolden = isSelected;
+
+            // The icon (tinted with the tab's colour, as every platform tints it) above the
+            // title; the title alone is centred.
+            var icon = _icons.Get(tab.IconSource);
+            float titleCenterY = tabBounds.MidY;
+            if (icon != null)
+            {
+                TabIconCache.DrawTinted(canvas, icon, IconBounds(tabBounds), color);
+                titleCenterY = tabBounds.Bottom - TabTitleHeightWithIcon / 2;
+                textFont.Size = 12f;
+            }
+            else
+            {
+                textFont.Size = 14f;
+            }
 
             // Draw tab title centered
             textFont.MeasureText(tab.Title, out var textBounds);
 
             float textX = tabBounds.MidX - textBounds.MidX;
-            float textY = TextRenderingHelper.BaselineForVerticalCenter(textFont, tabBounds.MidY);
+            float textY = TextRenderingHelper.BaselineForVerticalCenter(textFont, titleCenterY);
 
             canvas.DrawText(tab.Title, textX, textY, SKTextAlign.Left, textFont, textPaint);
         }
@@ -443,6 +483,27 @@ public class SkiaTabbedPage : SkiaLayoutView
         }
 
         base.OnPointerPressed(e);
+    }
+
+    // Below an icon the title takes the bottom of the tab.
+    private const float TabTitleHeightWithIcon = 18f;
+
+    /// <summary>Where a tab with an icon draws it: centred, at the top of the tab.</summary>
+    private static SKRect IconBounds(SKRect tab)
+    {
+        float size = Math.Min(TabIconCache.IconSize, Math.Max(0f, tab.Height - TabTitleHeightWithIcon - 4f));
+        float top = tab.Top + Math.Max(2f, (tab.Height - TabTitleHeightWithIcon - size) / 2f);
+        return SKRect.Create(tab.MidX - size / 2f, top, size, size);
+    }
+
+    /// <summary>Where tab <paramref name="index"/> draws its icon, empty when it has none (tests).</summary>
+    internal SKRect TabIconBounds(int index)
+    {
+        if (index < 0 || index >= _tabs.Count || _icons.Get(_tabs[index].IconSource) == null)
+            return SKRect.Empty;
+        var bar = TabBarBounds;
+        float width = bar.Width / _tabs.Count;
+        return IconBounds(new SKRect(bar.Left + index * width, bar.Top, bar.Left + (index + 1) * width, bar.Bottom));
     }
 
     /// <summary>
