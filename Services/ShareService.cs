@@ -28,49 +28,72 @@ public class ShareService : IShare
         _portal = portal;
     }
 
-    public async Task RequestAsync(ShareTextRequest request)
+    // The request checks are MAUI's ShareImplementation's, thrown before anything starts:
+    // ArgumentNullException for a null request, ArgumentException for a request with nothing
+    // to share (no text and no URI, no file, an empty file list or a null file in it).
+
+    public Task RequestAsync(ShareTextRequest request)
     {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
 
+        if (string.IsNullOrEmpty(request.Text) && string.IsNullOrEmpty(request.Uri))
+            throw new ArgumentException($"Both the {nameof(request.Text)} and {nameof(request.Uri)} are invalid. Make sure to include at least one of them in the request.");
+
+        return ShareTextAsync(request);
+    }
+
+    private async Task ShareTextAsync(ShareTextRequest request)
+    {
         // On Linux, we can use mailto: for text sharing or write to a temp file
         if (!string.IsNullOrEmpty(request.Uri))
         {
             // Share as URL
             await OpenUrlAsync(request.Uri);
         }
-        else if (!string.IsNullOrEmpty(request.Text))
+        else
         {
             // Try to use email for text sharing
             await OpenUrlAsync(BuildTextMailto(request));
         }
     }
 
-    public async Task RequestAsync(ShareFileRequest request)
+    public Task RequestAsync(ShareFileRequest request)
     {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
 
         if (request.File == null)
-            throw new ArgumentException("File is required", nameof(request));
+            throw new ArgumentException(FileNullException(nameof(request.File)));
 
-        await ShareFileAsync(request.File.FullPath);
+        return ShareFileAsync(request.File.FullPath);
     }
 
-    public async Task RequestAsync(ShareMultipleFilesRequest request)
+    public Task RequestAsync(ShareMultipleFilesRequest request)
     {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
 
-        if (request.Files == null || !request.Files.Any())
-            throw new ArgumentException("Files are required", nameof(request));
+        if (!(request.Files?.Count > 0))
+            throw new ArgumentException(FileNullException(nameof(request.Files)));
 
+        if (request.Files.Any(file => file == null))
+            throw new ArgumentException(FileNullException(nameof(request.Files)));
+
+        return ShareFilesAsync(request.Files);
+    }
+
+    private async Task ShareFilesAsync(IEnumerable<ShareFile> files)
+    {
         // Share files one by one or use file manager
-        foreach (var file in request.Files)
+        foreach (var file in files)
         {
             await ShareFileAsync(file.FullPath);
         }
     }
+
+    private static string FileNullException(string file)
+        => $"The {file} parameter in the request files is invalid";
 
     /// <summary>mailto: URI carrying the request's subject and text as body.</summary>
     internal static string BuildTextMailto(ShareTextRequest request)

@@ -68,6 +68,9 @@
     </PackageReference>
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+    <!-- Direct reference (the version OpenMaui builds on) for MAUI's XAML build targets:
+         Xaml/XamlTests.cs compiles RadioButtonUsing.xaml, as an app compiles its XAML. -->
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
   </ItemGroup>
 
   <ItemGroup>
@@ -161,6 +164,9 @@
     <MauiControlsFile Include="Elements/Window/WindowPageSwapTestCases.cs" />
     <MauiControlsFile Include="Elements/Window/ChangingToNewMauiContextDoesntCrashTestCases.cs" />
     <MauiControlsFile Include="Memory/MemoryTests.cs" />
+    <MauiControlsFile Include="Xaml/XamlTests.cs" />
+    <MauiControlsFile Include="Xaml/RadioButtonUsing.xaml.cs" />
+    <MauiControlsFile Include="Elements/ContextFlyout/ContextFlyoutTests.cs" />
   </ItemGroup>
 
   <!--
@@ -261,6 +267,8 @@
     <!-- The Controls test files under test -->
     <Compile Include="@(MauiControlsFile->'$(MauiControlsTests)%(Identity)')" Link="Maui/Controls/%(Identity)" />
 
+    <!-- XAML compiled by MAUI's XAML build targets, as an app's (Xaml/XamlTests.cs). -->
+    <MauiXaml Include="$(MauiControlsTests)Xaml/RadioButtonUsing.xaml" Link="Maui/Controls/Xaml/RadioButtonUsing.xaml" />
     <!-- The pictures the tests load by name (MAUI ships them in its device-test app). -->
     <Content Include="$(MauiControlsTests)Resources/Images/*.png" Exclude="$(MauiControlsTests)Resources/Images/red-embedded.png" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="$(MauiControlsTests)Resources/Images/red-embedded.png" LogicalName="red-embedded.png" Link="Resources/red-embedded.png" />

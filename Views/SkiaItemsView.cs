@@ -40,24 +40,29 @@ public class SkiaItemsView : SkiaView
     private Color _scrollBarColor = SkiaTheme.ScrollbarThumb;
     private Color _scrollBarTrackColor = SkiaTheme.ScrollbarTrack;
 
+    // The items source's change notifications, observed weakly (MAUI's items handlers do the
+    // same): a view model's collection outlives the pages that show it, and must not keep
+    // this list, its handler and its item views alive.
+    private WeakCollectionChangedProxy<SkiaItemsView>? _collectionSubscription;
+
     public IEnumerable? ItemsSource
     {
         get => _itemsSource;
         set
         {
-            if (_itemsSource is INotifyCollectionChanged oldCollection)
-            {
-                oldCollection.CollectionChanged -= OnCollectionChanged;
-            }
+            _collectionSubscription?.Dispose();
+            _collectionSubscription = null;
 
             _itemsSource = value;
             RefreshItems();
 
             if (_itemsSource is INotifyCollectionChanged newCollection)
             {
-                newCollection.CollectionChanged += OnCollectionChanged;
+                _collectionSubscription = new WeakCollectionChangedProxy<SkiaItemsView>(newCollection, this,
+                    static (view, sender, e) => view.OnCollectionChanged(sender, e));
             }
 
+            InvalidateMeasure();
             Invalidate();
         }
     }
@@ -157,7 +162,7 @@ public class SkiaItemsView : SkiaView
             if (ReferenceEquals(_itemViewCreator, value))
                 return;
             _itemViewCreator = value;
-            _itemViewCache.Clear();
+            ReleaseItemViews();
             _itemHeights.Clear();
             InvalidateMeasure();
             Invalidate();
@@ -217,11 +222,59 @@ public class SkiaItemsView : SkiaView
         if (evict == null) return;
         foreach (var index in evict)
         {
-            if (_itemViewCache.Remove(index, out var view) && view != null && ReferenceEquals(view.Parent, this))
-                view.Parent = null;
+            if (_itemViewCache.Remove(index, out var view) && view != null)
+                ReleaseItemView(view);
         }
         DiagnosticLog.Debug("SkiaItemsView", $"Recycled {evict.Count} item views; {_itemViewCache.Count} kept around rows {_drawnMin}-{_drawnMax}");
     }
+
+    /// <summary>
+    /// Raised when the list drops a view made by <see cref="ItemViewCreator"/>: its row was
+    /// recycled, the items changed, or the creator was replaced. The view is no longer shown and
+    /// is not reused, so the creator's owner can release what it attached to it (MAUI's handlers
+    /// remove a recycled item from the list's logical children).
+    /// </summary>
+    public event EventHandler<SkiaView>? ItemViewReleased;
+
+    /// <summary>Drops one item view: unparents it and raises <see cref="ItemViewReleased"/>.</summary>
+    private void ReleaseItemView(SkiaView view)
+    {
+        _rowOrigins.Remove(view);
+        if (ReferenceEquals(view.Parent, this))
+            view.Parent = null;
+        try
+        {
+            ItemViewReleased?.Invoke(this, view);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaItemsView", "Releasing an item view failed", ex);
+        }
+    }
+
+    /// <summary>Drops every item view (see <see cref="ItemViewReleased"/>).</summary>
+    protected void ReleaseItemViews()
+    {
+        if (_itemViewCache.Count == 0)
+            return;
+        var views = _itemViewCache.Values.ToList();
+        _itemViewCache.Clear();
+        foreach (var view in views)
+        {
+            if (view != null)
+                ReleaseItemView(view);
+        }
+    }
+
+    // Where each item view's row starts: MAUI gives an item its Frame relative to its cell
+    // (the row, margin outside the item), not to the list.
+    private readonly Dictionary<SkiaView, Point> _rowOrigins = new();
+
+    /// <summary>Records the top-left corner of the row <paramref name="itemView"/> is placed in.</summary>
+    protected void SetRowOrigin(SkiaView itemView, float x, float y) => _rowOrigins[itemView] = new Point(x, y);
+
+    internal override Point? FrameOriginFor(SkiaView child) =>
+        _rowOrigins.TryGetValue(child, out var origin) ? origin : null;
 
     // Cache of individual item heights for variable height items
     protected readonly Dictionary<int, float> _itemHeights = new();
@@ -244,7 +297,7 @@ public class SkiaItemsView : SkiaView
     {
         DiagnosticLog.Debug("SkiaItemsView", $"RefreshItems called, clearing {_items.Count} items and {_itemViewCache.Count} cached views");
         _items.Clear();
-        _itemViewCache.Clear(); // Clear cached views when items change
+        ReleaseItemViews(); // Clear cached views when items change
         _itemHeights.Clear(); // Clear cached heights
         if (_itemsSource != null)
         {
@@ -264,7 +317,7 @@ public class SkiaItemsView : SkiaView
     public virtual void RefreshTheme()
     {
         // Clear cached views to force recreation with new AppThemeBinding values
-        _itemViewCache.Clear();
+        ReleaseItemViews();
         _itemHeights.Clear();
         Invalidate();
     }
@@ -272,6 +325,7 @@ public class SkiaItemsView : SkiaView
     private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RefreshItems();
+        InvalidateMeasure();
         Invalidate();
     }
 
@@ -289,23 +343,56 @@ public class SkiaItemsView : SkiaView
         if (index < 0 || index >= _items.Count) return;
         if (_itemHeights.ContainsKey(index)) return;
 
-        if (!_itemViewCache.TryGetValue(index, out var itemView) || itemView == null)
-        {
-            itemView = ItemViewCreator(_items[index]);
-            if (itemView == null) return;
-            itemView.Parent = this;
-            _itemViewCache[index] = itemView;
-        }
+        var itemView = GetOrCreateItemView(index);
+        if (itemView == null) return;
 
-        var measuredSize = itemView.Measure(new Size(availableWidth, float.MaxValue));
-        var rawHeight = (float)measuredSize.Height;
-        if (float.IsNaN(rawHeight) || float.IsInfinity(rawHeight) || rawHeight > 10000f)
-        {
-            rawHeight = _itemHeight;
-        }
-
-        _itemHeights[index] = Math.Max(rawHeight, _minimumItemHeight);
+        _itemHeights[index] = Math.Max(MeasureItemExtent(itemView, availableWidth, out _), _minimumItemHeight);
     }
+
+    /// <summary>The view of the item at <paramref name="index"/>, made by <see cref="ItemViewCreator"/> if needed.</summary>
+    protected SkiaView? GetOrCreateItemView(int index)
+    {
+        if (ItemViewCreator == null || index < 0 || index >= _items.Count) return null;
+        if (_itemViewCache.TryGetValue(index, out var itemView) && itemView != null)
+            return itemView;
+        itemView = ItemViewCreator(_items[index]);
+        if (itemView == null) return null;
+        itemView.Parent = this;
+        _itemViewCache[index] = itemView;
+        return itemView;
+    }
+
+    /// <summary>
+    /// Measures an item view in a row whose cross size (width of a vertical list, height of a
+    /// horizontal one) is <paramref name="crossSize"/>, and returns the row's extent along the
+    /// scroll axis. The item's margin is inside its row, as MAUI's cells hold it.
+    /// <paramref name="itemSize"/> is the item's own desired size.
+    /// </summary>
+    protected float MeasureItemExtent(SkiaView itemView, float crossSize, out Size itemSize)
+    {
+        var margin = itemView.Margin;
+        var horizontal = IsHorizontal;
+        var constraint = horizontal
+            ? new Size(double.PositiveInfinity, Math.Max(0, crossSize - margin.VerticalThickness))
+            : new Size(Math.Max(0, crossSize - margin.HorizontalThickness), float.MaxValue);
+        itemSize = itemView.Measure(constraint);
+        var raw = (float)(horizontal ? itemSize.Width : itemSize.Height);
+        if (float.IsNaN(raw) || float.IsInfinity(raw) || raw > 10000f)
+        {
+            raw = _itemHeight;
+            itemSize = horizontal ? new Size(raw, itemSize.Height) : new Size(itemSize.Width, raw);
+        }
+        return raw + (float)(horizontal ? margin.HorizontalThickness : margin.VerticalThickness);
+    }
+
+    /// <summary>
+    /// True when the items are laid out in a row and scroll horizontally (a CollectionView with
+    /// a horizontal ItemsLayout). Item extents, offsets and the scroll offset are then along X.
+    /// </summary>
+    protected virtual bool IsHorizontal => false;
+
+    /// <summary>The visible length along the scroll axis.</summary>
+    protected float ViewportExtent => (float)(IsHorizontal ? ScreenBounds.Width : ScreenBounds.Height);
 
     /// <summary>
     /// Gets the height for a specific item: its measured height (at least
@@ -381,7 +468,7 @@ public class SkiaItemsView : SkiaView
     }
 
     // Use ScreenBounds.Height for visible viewport
-    protected float MaxScrollOffset => Math.Max(0, TotalContentHeight - (float)ScreenBounds.Height);
+    protected float MaxScrollOffset => Math.Max(0, TotalContentHeight - ViewportExtent);
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
@@ -637,7 +724,7 @@ public class SkiaItemsView : SkiaView
         if (!IsEnabled) return;
 
         // Check if clicking on scrollbar thumb
-        if (_showVerticalScrollBar && TotalContentHeight > Bounds.Height)
+        if (!IsHorizontal && _showVerticalScrollBar && TotalContentHeight > Bounds.Height)
         {
             var thumbBounds = GetScrollbarThumbBounds();
             if (thumbBounds.Contains(e.X, e.Y))
@@ -655,7 +742,7 @@ public class SkiaItemsView : SkiaView
 
         // Regular content drag
         _isDragging = true;
-        _dragStartY = e.Y;
+        _dragStartY = MainAxis(e);
         _dragStartOffset = _scrollOffset;
         _lastDragTime = DateTime.Now;
         _velocity = 0;
@@ -696,7 +783,7 @@ public class SkiaItemsView : SkiaView
 
         if (!_isDragging) return;
 
-        var delta = _dragStartY - e.Y;
+        var delta = _dragStartY - MainAxis(e);
         var newOffset = _dragStartOffset + delta;
 
         // Calculate velocity for momentum scrolling
@@ -725,12 +812,14 @@ public class SkiaItemsView : SkiaView
             _isDragging = false;
 
             // Check for tap (minimal movement)
-            var totalDrag = Math.Abs(e.Y - _dragStartY);
+            var totalDrag = Math.Abs(MainAxis(e) - _dragStartY);
             if (totalDrag < 5)
             {
                 // This was a tap - find which item was tapped using variable heights
                 var screenBounds = ScreenBounds;
-                var localY = e.Y - screenBounds.Top + _scrollOffset;
+                var localY = IsHorizontal
+                    ? e.X - (float)screenBounds.Left + _scrollOffset
+                    : e.Y - (float)screenBounds.Top + _scrollOffset;
 
                 // Find tapped index by walking through item heights
                 int tappedIndex = -1;
@@ -777,13 +866,23 @@ public class SkiaItemsView : SkiaView
     protected virtual void OnItemTapped(int index, object item)
     {
         SelectedIndex = index;
+        RaiseItemTapped(index, item);
+    }
+
+    /// <summary>Raises <see cref="ItemTapped"/> for the row at <paramref name="index"/>.</summary>
+    protected void RaiseItemTapped(int index, object item)
+    {
         ItemTapped?.Invoke(this, new ItemsViewItemTappedEventArgs(index, item));
         Invalidate();
     }
 
+    /// <summary>The pointer position along the scroll axis.</summary>
+    private float MainAxis(PointerEventArgs e) => IsHorizontal ? e.X : e.Y;
+
     public override void OnScroll(ScrollEventArgs e)
     {
-        var delta = e.DeltaY * 20;
+        // A horizontal list scrolls with a horizontal wheel, or a vertical one when that is all there is.
+        var delta = (IsHorizontal && e.DeltaX != 0 ? e.DeltaX : e.DeltaY) * 20;
         SetScrollOffset(_scrollOffset + delta);
         e.Handled = true;
     }
@@ -802,18 +901,44 @@ public class SkiaItemsView : SkiaView
 
     public void ScrollToIndex(int index, bool animate = true)
     {
-        if (index < 0 || index >= _items.Count) return;
-
-        var targetOffset = GetItemOffset(index);
-        SetScrollOffset(targetOffset);
+        ScrollToIndex(index, ScrollToPosition.Start, animate);
     }
 
     public void ScrollToItem(object item, bool animate = true)
     {
+        ScrollToItem(item, ScrollToPosition.Start, animate);
+    }
+
+    /// <summary>
+    /// Scrolls the row at <paramref name="index"/> into view at <paramref name="position"/>:
+    /// the start, center or end of the viewport, or (MakeVisible) as little as it takes,
+    /// as MAUI's ItemsView.ScrollTo places an item.
+    /// </summary>
+    public void ScrollToIndex(int index, ScrollToPosition position, bool animate = true)
+    {
+        if (index < 0 || index >= _items.Count) return;
+
+        var itemStart = GetItemOffset(index);
+        var itemLength = GetItemHeight(index);
+        var viewport = ViewportExtent;
+        var targetOffset = position switch
+        {
+            ScrollToPosition.Center => itemStart - (viewport - itemLength) / 2,
+            ScrollToPosition.End => itemStart + itemLength - viewport,
+            ScrollToPosition.MakeVisible when itemStart >= _scrollOffset && itemStart + itemLength <= _scrollOffset + viewport => _scrollOffset,
+            ScrollToPosition.MakeVisible when itemStart + itemLength > _scrollOffset + viewport && itemLength <= viewport => itemStart + itemLength - viewport,
+            _ => itemStart,
+        };
+        SetScrollOffset(targetOffset);
+    }
+
+    /// <summary>Scrolls the row of <paramref name="item"/> into view; see <see cref="ScrollToIndex(int, ScrollToPosition, bool)"/>.</summary>
+    public void ScrollToItem(object item, ScrollToPosition position, bool animate = true)
+    {
         var index = _items.IndexOf(item);
         if (index >= 0)
         {
-            ScrollToIndex(index, animate);
+            ScrollToIndex(index, position, animate);
         }
     }
 
@@ -844,12 +969,12 @@ public class SkiaItemsView : SkiaView
                 break;
 
             case Key.PageUp:
-                SetScrollOffset(_scrollOffset - (float)Bounds.Height);
+                SetScrollOffset(_scrollOffset - ViewportExtent);
                 e.Handled = true;
                 break;
 
             case Key.PageDown:
-                SetScrollOffset(_scrollOffset + (float)Bounds.Height);
+                SetScrollOffset(_scrollOffset + ViewportExtent);
                 e.Handled = true;
                 break;
 
@@ -886,9 +1011,9 @@ public class SkiaItemsView : SkiaView
         {
             SetScrollOffset(itemTop);
         }
-        else if (itemBottom > _scrollOffset + (float)Bounds.Height)
+        else if (itemBottom > _scrollOffset + ViewportExtent)
         {
-            SetScrollOffset(itemBottom - (float)Bounds.Height);
+            SetScrollOffset(itemBottom - ViewportExtent);
         }
     }
 
@@ -907,7 +1032,7 @@ public class SkiaItemsView : SkiaView
 
         // Check scrollbar area FIRST before content
         // This ensures scrollbar clicks are handled by this view
-        if (_showVerticalScrollBar && TotalContentHeight > (float)Bounds.Height)
+        if (!IsHorizontal && _showVerticalScrollBar && TotalContentHeight > (float)Bounds.Height)
         {
             var trackArea = new SKRect((float)(Bounds.Left + Bounds.Width) - _scrollBarWidth, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
             if (trackArea.Contains(x, y))
@@ -928,6 +1053,17 @@ public class SkiaItemsView : SkiaView
         return this;
     }
 
+    /// <inheritdoc />
+    internal override SkiaView? InnermostViewAt(float x, float y)
+    {
+        for (int i = _shownMin; i <= _shownMax; i++)
+        {
+            if (_itemViewCache.TryGetValue(i, out var row) && row != null && row.Bounds.Contains(x, y))
+                return row.HitTestAt(x, y);
+        }
+        return null;
+    }
+
     private SkiaView? RowControlAt(float x, float y)
     {
         for (int i = _shownMin; i <= _shownMax; i++)
@@ -935,6 +1071,9 @@ public class SkiaItemsView : SkiaView
             if (!_itemViewCache.TryGetValue(i, out var row) || row == null || !row.Bounds.Contains(x, y))
                 continue;
             var hit = row.HitTestAt(x, y);
+            // An open swipe view row takes the tap (its item, or closing it), as on MAUI.
+            if (hit is SkiaSwipeView { IsOpen: true })
+                return hit;
             if (hit == null || ReferenceEquals(hit, row))
                 return null;
             return SkiaLayoutView.ClaimsInput(hit, row) ? hit : null;
@@ -942,8 +1081,53 @@ public class SkiaItemsView : SkiaView
         return null;
     }
 
+    /// <summary>
+    /// The height a horizontal list wants: its tallest item (the first ones, measured at
+    /// <paramref name="height"/>), margins included.
+    /// </summary>
+    protected virtual float NaturalCrossExtent(float height)
+    {
+        float cross = 0;
+        if (_items.Count == 0 && _emptyViewContent is { IsVisible: true } empty)
+        {
+            var size = empty.Measure(new Size(double.PositiveInfinity, height));
+            return (float)(size.Height + empty.Margin.VerticalThickness);
+        }
+        for (int i = 0; i < _items.Count && i < NaturalMeasureLimit; i++)
+        {
+            EnsureItemMeasured(i, height);
+            if (_itemViewCache.TryGetValue(i, out var view) && view != null)
+                cross = Math.Max(cross, (float)(view.DesiredSize.Height + view.Margin.VerticalThickness));
+        }
+        return cross;
+    }
+
+    /// <summary>
+    /// A horizontal list is as wide as its items (and header and footer), up to the room it is
+    /// given, as MAUI sizes a CollectionView to its content on every platform, and as tall as
+    /// its tallest item.
+    /// </summary>
+    private Size MeasureHorizontal(Size availableSize)
+    {
+        bool finiteHeight = availableSize.Height < double.MaxValue && !double.IsInfinity(availableSize.Height);
+        bool finiteWidth = availableSize.Width < double.MaxValue && !double.IsInfinity(availableSize.Width);
+        var crossConstraint = finiteHeight ? (float)availableSize.Height : float.PositiveInfinity;
+        var cross = NaturalCrossExtent(crossConstraint);
+        float extent;
+        if (_items.Count == 0 && _emptyViewContent is { IsVisible: true } empty)
+            extent = (float)(empty.DesiredSize.Width + empty.Margin.HorizontalThickness);
+        else
+            extent = TotalContentHeight;
+        var width = finiteWidth ? Math.Min(availableSize.Width, extent) : extent;
+        var height = finiteHeight ? Math.Min(availableSize.Height, cross) : cross;
+        return new Size(width, height);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
+        if (IsHorizontal)
+            return MeasureHorizontal(availableSize);
+
         var width = availableSize.Width < double.MaxValue ? availableSize.Width : 200;
         // As tall as its content, up to the room it is given, as on the other
         // platforms: an empty list without an EmptyView asks for no room. A
@@ -971,10 +1155,8 @@ public class SkiaItemsView : SkiaView
     {
         if (disposing)
         {
-            if (_itemsSource is INotifyCollectionChanged collection)
-            {
-                collection.CollectionChanged -= OnCollectionChanged;
-            }
+            _collectionSubscription?.Dispose();
+            _collectionSubscription = null;
         }
         base.Dispose(disposing);
     }

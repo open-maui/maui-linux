@@ -30,6 +30,17 @@ internal static class LinuxViewMappers
         mapper.AppendToMapping(nameof(IView.Semantics), MapSemantics);
         mapper.AppendToMapping(nameof(IView.InputTransparent), MapInputTransparent);
         mapper.AppendToMapping(nameof(IView.ZIndex), MapZIndex);
+        mapper.AppendToMapping(nameof(IToolTipElement.ToolTip), MapToolTip);
+    }
+
+    /// <summary>
+    /// The tooltip's content, as text, on the platform view (MAUI's platforms show a tooltip's
+    /// string content; other content is shown by its ToString as WinUI does for a non-element).
+    /// </summary>
+    internal static void MapToolTip(IViewHandler handler, IView view)
+    {
+        if (handler.PlatformView is SkiaView skia)
+            skia.ToolTipText = (view as IToolTipElement)?.ToolTip?.Content?.ToString();
     }
 
     internal static void MapOpacity(IViewHandler handler, IView view)

@@ -128,6 +128,12 @@ public class SkiaRefreshView : SkiaLayoutView
     public object? CommandParameter { get; set; }
 
     /// <summary>
+    /// Whether a pull starts a refresh (MAUI's <c>IRefreshView.IsRefreshEnabled</c>). When
+    /// false the content stays interactive but pulling does nothing. Defaults to true.
+    /// </summary>
+    public bool IsPullEnabled { get; set; } = true;
+
+    /// <summary>
     /// Event raised when refresh is triggered.
     /// </summary>
     public event EventHandler? Refreshing;
@@ -252,7 +258,7 @@ public class SkiaRefreshView : SkiaLayoutView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
-        if (!IsEnabled || _isRefreshing) return;
+        if (!IsEnabled || !IsPullEnabled || _isRefreshing) return;
 
         // Check if content is at top (can pull to refresh)
         bool canPull = true;

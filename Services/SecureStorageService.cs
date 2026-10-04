@@ -13,6 +13,17 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// Linux secure storage implementation using secret-tool (libsecret) or encrypted file fallback.
 /// </summary>
 /// <remarks>
+/// Storage is per app, as on every other platform: keyring items carry the attribute
+/// <c>service = maui-secure-storage/&lt;AppInfo.PackageName&gt;</c>, and the encrypted-file
+/// fallback lives under <c>$XDG_DATA_HOME/&lt;app&gt;/.maui-secure</c>. Earlier releases stored
+/// every app's values together (keyring service <c>maui-secure-storage</c>, files in
+/// <c>~/.maui-secure</c>), so one app could read another's values and RemoveAll could not
+/// clear an app's own. That store does not record which app wrote a value, so nothing is copied
+/// in bulk: when an app asks for a key it has no value for, the shared store is read for that key
+/// alone and the value moved into the app's own store (and left there, since another app may
+/// still read it). Once the app has set, removed or looked up a key, or cleared its store, the
+/// shared store is not consulted for it again.
+///
 /// Encrypted-file format. Version 1 (legacy, still read and written when no
 /// portal key exists): [16-byte IV][AES-CBC ciphertext] under a key derived
 /// from machine-id, user name and service name. Version 2 (written only when
@@ -26,15 +37,27 @@ public class SecureStorageService : ISecureStorage
 {
     private const string ServiceName = "maui-secure-storage";
     private const string FallbackDirectory = ".maui-secure";
-    private readonly string _fallbackPath;
+    // In this app's fallback directory: every legacy key is settled (after RemoveAll)...
+    private const string MigratedMarker = ".migrated";
+    // ...or the hashes of the keys that are, one per line.
+    private const string SettledFile = ".legacy-settled";
+    private readonly string? _fixedFallbackPath;
+    private readonly string? _fixedNamespace;
+    // The legacy shared store (directory and keyring service); null: never consulted.
+    private readonly string? _legacyDir;
+    private readonly string? _legacyNamespace;
     private readonly bool _useSecretService;
+    // Set when secret-tool is installed but no Secret Service answers (no session bus, no
+    // keyring daemon: CI, SSH, a bare window manager): the encrypted-file store takes over.
+    private volatile bool _secretServiceUnreachable;
     private readonly Lazy<Task<byte[]?>>? _portalKey;
+    private readonly object _legacyLock = new();
+    private HashSet<string>? _settled;
 
     public SecureStorageService()
     {
-        _fallbackPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            FallbackDirectory);
+        _legacyDir = LegacyFallbackPath;
+        _legacyNamespace = ServiceName;
         _useSecretService = CheckSecretServiceAvailable();
         if (DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred))
             _portalKey = PortalKeyFrom(DesktopPortal.Current);
@@ -73,9 +96,77 @@ public class SecureStorageService : ISecureStorage
     /// true still requires <c>secret-tool</c> on PATH at call time.
     /// </summary>
     internal SecureStorageService(string fallbackPath, bool useSecretService)
+        : this(fallbackPath, useSecretService, keyringNamespace: null)
     {
-        _fallbackPath = fallbackPath;
+    }
+
+    /// <summary>
+    /// Explicit fallback directory, backend and keyring namespace (the <c>service</c> attribute;
+    /// null derives it from AppInfo); the legacy shared store is never consulted.
+    /// </summary>
+    internal SecureStorageService(string fallbackPath, bool useSecretService, string? keyringNamespace)
+    {
+        _fixedFallbackPath = fallbackPath;
+        _fixedNamespace = keyringNamespace;
         _useSecretService = useSecretService && CheckSecretServiceAvailable();
+    }
+
+    /// <summary>As above, reading <paramref name="legacyFallbackPath"/> and <paramref name="legacyNamespace"/> as the legacy shared store (tests).</summary>
+    internal SecureStorageService(string fallbackPath, bool useSecretService, string? keyringNamespace, string legacyFallbackPath, string? legacyNamespace)
+        : this(fallbackPath, useSecretService, keyringNamespace)
+    {
+        _legacyDir = legacyFallbackPath;
+        _legacyNamespace = legacyNamespace;
+    }
+
+    private bool UseSecretService => _useSecretService && !_secretServiceUnreachable;
+
+    /// <summary>The messages secret-tool prints when no Secret Service can be reached at all.</summary>
+    internal static bool IsUnreachable(string error) =>
+        error.Contains("Could not connect", StringComparison.OrdinalIgnoreCase)
+        || error.Contains("not provided by any .service files", StringComparison.OrdinalIgnoreCase)
+        || error.Contains("Cannot autolaunch", StringComparison.OrdinalIgnoreCase)
+        || error.Contains("Unable to autolaunch", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>This app's encrypted-file directory: $XDG_DATA_HOME/&lt;app&gt;/.maui-secure.</summary>
+    private string FallbackPath => _fixedFallbackPath ?? Path.Combine(DataHome(), AppDirectoryName(), FallbackDirectory);
+
+    /// <summary>The legacy shared directory every app used before (~/.maui-secure).</summary>
+    internal static string LegacyFallbackPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), FallbackDirectory);
+
+    /// <summary>The keyring <c>service</c> attribute of this app's items.</summary>
+    internal string KeyringNamespace => _fixedNamespace ?? NamespaceFor(AppPackageName());
+
+    internal static string NamespaceFor(string packageName) => $"{ServiceName}/{packageName}";
+
+    private static string AppPackageName()
+    {
+        try
+        {
+            var name = Microsoft.Maui.ApplicationModel.AppInfo.Current?.PackageName;
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
+        }
+        catch
+        {
+            // The portable AppInfo stub throws until EssentialsPatches has run.
+        }
+        return System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "MauiApp";
+    }
+
+    private static string AppDirectoryName()
+    {
+        var name = AppInfoService.CurrentStorageName() ?? System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "MauiApp";
+        var invalid = Path.GetInvalidFileNameChars();
+        return new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+    }
+
+    private static string DataHome()
+    {
+        var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        return string.IsNullOrEmpty(dataHome)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share")
+            : dataHome;
     }
 
     private bool CheckSecretServiceAvailable()
@@ -105,40 +196,51 @@ public class SecureStorageService : ISecureStorage
 
     public Task<string?> GetAsync(string key)
     {
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        if (_useSecretService)
-        {
-            return GetFromSecretServiceAsync(key);
-        }
-        else
-        {
-            return GetFromFallbackAsync(key);
-        }
+        return GetOwnOrLegacyAsync(key);
+    }
+
+    private async Task<string?> GetOwnOrLegacyAsync(string key)
+    {
+        var value = UseSecretService
+            ? await GetFromSecretServiceOrFileAsync(key).ConfigureAwait(false)
+            : await GetFromFallbackAsync(FallbackPath, key).ConfigureAwait(false);
+        if (value != null || !IsLegacyUnsettled(key))
+            return value;
+
+        // Only this key, only now: the app asked for it and has none of its own.
+        var legacy = await ReadLegacyAsync(key).ConfigureAwait(false);
+        if (legacy != null)
+            await SetOwnAsync(key, legacy).ConfigureAwait(false);
+        SettleLegacy(key);
+        return legacy;
     }
 
     public Task SetAsync(string key, string value)
     {
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
+        if (value == null)
+            throw new ArgumentNullException(nameof(value));
 
-        if (_useSecretService)
-        {
-            return SetInSecretServiceAsync(key, value);
-        }
-        else
-        {
-            return SetInFallbackAsync(key, value);
-        }
+        SettleLegacy(key);
+        return SetOwnAsync(key, value);
     }
 
+    private Task SetOwnAsync(string key, string value) =>
+        UseSecretService ? SetInSecretServiceAsync(key, value) : SetInFallbackAsync(key, value);
+
+    /// <summary>Removes the key; true when it was stored.</summary>
     public bool Remove(string key)
     {
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        if (_useSecretService)
+        // A removed key stays removed: the shared store must not bring it back.
+        SettleLegacy(key);
+        if (UseSecretService)
         {
             return RemoveFromSecretService(key);
         }
@@ -148,114 +250,269 @@ public class SecureStorageService : ISecureStorage
         }
     }
 
+    /// <summary>Removes every value this app stored (and only this app's).</summary>
     public void RemoveAll()
     {
-        if (_useSecretService)
+        SettleAllLegacy();
+        if (UseSecretService)
         {
-            // Cannot easily remove all from secret service without knowing all keys
-            // This would require additional tracking
+            var ns = KeyringNamespace;
+            RunSecretTool(null, "clear", "service", ns);
+            // As for a single key: return once the keyring no longer lists the app's items.
+            for (var attempt = 0; attempt < 20 && KeyringHasItems(ns); attempt++)
+                Thread.Sleep(50);
         }
-        else
+
+        // The fallback holds values a failed keyring write fell back to: clear it either way.
+        var dir = FallbackPath;
+        if (Directory.Exists(dir))
         {
-            if (Directory.Exists(_fallbackPath))
+            foreach (var file in Directory.EnumerateFiles(dir))
             {
-                Directory.Delete(_fallbackPath, true);
+                if (Path.GetFileName(file) is MigratedMarker or SettledFile)
+                    continue;
+                try { File.Delete(file); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
             }
         }
     }
 
-    #region Secret Service (libsecret)
+    #region Legacy shared store
 
-    private async Task<string?> GetFromSecretServiceAsync(string key)
+    /// <summary>True when the legacy shared store may still hold this app's value for <paramref name="key"/>.</summary>
+    private bool IsLegacyUnsettled(string key)
+    {
+        if (_legacyDir == null)
+            return false;
+        lock (_legacyLock)
+            return !LoadSettled().Contains(KeyHash(key)) && !File.Exists(Path.Combine(FallbackPath, MigratedMarker));
+    }
+
+    /// <summary>The legacy shared store's value for <paramref name="key"/> (keyring first, then its encrypted file).</summary>
+    private async Task<string?> ReadLegacyAsync(string key)
     {
         try
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "secret-tool",
-                Arguments = $"lookup service {ServiceName} key {EscapeArg(key)}",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return null;
-
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode == 0 && !string.IsNullOrEmpty(output))
-            {
-                return output.TrimEnd('\n');
-            }
-
+            string? value = null;
+            if (UseSecretService && _legacyNamespace != null)
+                value = await Task.Run(() => LookupSecret(_legacyNamespace, key)).ConfigureAwait(false);
+            if (value == null && Directory.Exists(_legacyDir)
+                && Path.GetFullPath(_legacyDir!) != Path.GetFullPath(FallbackPath))
+                value = await GetFromFallbackAsync(_legacyDir!, key).ConfigureAwait(false);
+            return value;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Warn("SecureStorageService", $"Reading the shared legacy store failed: {ex.Message}");
             return null;
         }
-        catch
+    }
+
+    /// <summary>Records that <paramref name="key"/> no longer comes from the legacy shared store.</summary>
+    private void SettleLegacy(string key)
+    {
+        if (_legacyDir == null)
+            return;
+        var hash = KeyHash(key);
+        lock (_legacyLock)
         {
-            return null;
+            if (!LoadSettled().Add(hash))
+                return;
+            try
+            {
+                EnsureFallbackDirectory();
+                var path = Path.Combine(FallbackPath, SettledFile);
+                File.AppendAllText(path, hash + "\n");
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Warn("SecureStorageService", $"Recording a settled key failed: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>After RemoveAll: no key comes from the legacy shared store again.</summary>
+    private void SettleAllLegacy()
+    {
+        if (_legacyDir == null)
+            return;
+        try
+        {
+            EnsureFallbackDirectory();
+            File.WriteAllText(Path.Combine(FallbackPath, MigratedMarker), "");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Warn("SecureStorageService", $"Recording the cleared store failed: {ex.Message}");
+        }
+    }
+
+    private HashSet<string> LoadSettled()
+    {
+        if (_settled != null)
+            return _settled;
+        _settled = new HashSet<string>(StringComparer.Ordinal);
+        var path = Path.Combine(FallbackPath, SettledFile);
+        try
+        {
+            if (File.Exists(path))
+                foreach (var line in File.ReadAllLines(path))
+                    if (line.Length > 0)
+                        _settled.Add(line);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        return _settled;
+    }
+
+    private static string KeyHash(string key) => Path.GetFileName(GetFallbackFilePath("", key));
+
+    #endregion
+
+    #region Secret Service (libsecret)
+
+    /// <summary>True while the keyring lists any item under <paramref name="ns"/> (attributes go to stderr).</summary>
+    private static bool KeyringHasItems(string ns)
+    {
+        var (exit, _, error) = RunSecretToolCapture(null, "search", "--all", "service", ns);
+        return exit == 0 && error.Contains("attribute.key = ", StringComparison.Ordinal);
+    }
+
+    /// <summary>The keyring's value, else the encrypted file's (a value stored while the keyring could not be reached).</summary>
+    private async Task<string?> GetFromSecretServiceOrFileAsync(string key)
+    {
+        var ns = KeyringNamespace;
+        var value = await Task.Run(() => LookupSecret(ns, key)).ConfigureAwait(false);
+        return value ?? await GetFromFallbackAsync(FallbackPath, key).ConfigureAwait(false);
+    }
+
+    private static string? LookupSecret(string ns, string key)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            var (exit, output, error) = RunSecretToolCapture(null, "lookup", "service", ns, "key", key);
+            // secret-tool prints the secret without a trailing newline when stdout is not a
+            // terminal; older versions add one.
+            if (exit == 0)
+                return string.IsNullOrEmpty(output) ? null : output.TrimEnd('\n');
+            // Not found is a silent exit 1. An error message means the daemon failed the call
+            // (a dropped session under load): ask again rather than report "no value".
+            if (exit == -1 || string.IsNullOrWhiteSpace(error) || IsUnreachable(error) || attempt == 2)
+                return null;
+            Thread.Sleep(50 * (attempt + 1));
         }
     }
 
     private async Task SetInSecretServiceAsync(string key, string value)
     {
-        try
+        var ns = KeyringNamespace;
+        var (exit, error) = await Task.Run(() =>
         {
-            var startInfo = new ProcessStartInfo
+            // A keyring daemon can drop the session a store opened ("Can't find session")
+            // when clients come and go quickly; a store is idempotent, so try again.
+            (int Code, string Error) attempt = default;
+            for (var i = 0; i < 3; i++)
             {
-                FileName = "secret-tool",
-                Arguments = $"store --label=\"{EscapeArg(key)}\" service {ServiceName} key {EscapeArg(key)}",
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null)
-                throw new InvalidOperationException("Failed to start secret-tool");
-
-            await process.StandardInput.WriteAsync(value);
-            process.StandardInput.Close();
-
-            await process.WaitForExitAsync();
-
-            if (process.ExitCode != 0)
-            {
-                var error = await process.StandardError.ReadToEndAsync();
-                throw new InvalidOperationException($"Failed to store secret: {error}");
+                var (code, _, err) = RunSecretToolCapture(value, "store", "--label=" + key, "service", ns, "key", key);
+                attempt = (code, err);
+                if (code is 0 or -1 || IsUnreachable(err))
+                    break;
+                Thread.Sleep(50 * (i + 1));
             }
-        }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+            return attempt;
+        }).ConfigureAwait(false);
+
+        if (exit == -1 || IsUnreachable(error))
         {
-            // Fall back to file storage
-            await SetInFallbackAsync(key, value);
+            // secret-tool could not be started, or no Secret Service answers: keep the value in
+            // the encrypted file instead (and stop asking the keyring for this store).
+            if (exit != -1)
+            {
+                _secretServiceUnreachable = true;
+                DiagnosticLog.Warn("SecureStorageService", $"No Secret Service reachable ({error.Trim()}); using the encrypted-file store");
+            }
+            await SetInFallbackAsync(key, value).ConfigureAwait(false);
+            return;
         }
+        if (exit != 0)
+            throw new InvalidOperationException($"Failed to store secret: {error}");
+        // A keyring daemon (KDE's ksecretd) can acknowledge a store before a lookup sees it:
+        // return once it reads back, so a value set is a value read, as on the other platforms.
+        await Task.Run(() => WaitUntilVisible(ns, key, value)).ConfigureAwait(false);
+    }
+
+    /// <summary>Waits (about a second at most) until a lookup of <paramref name="key"/> gives <paramref name="expected"/> (null: gone).</summary>
+    private static void WaitUntilVisible(string ns, string key, string? expected)
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            if (LookupSecret(ns, key) == expected)
+                return;
+            Thread.Sleep(50);
+        }
+        DiagnosticLog.Warn("SecureStorageService", $"The keyring did not reflect the change to '{key}' within a second");
     }
 
     private bool RemoveFromSecretService(string key)
+    {
+        var ns = KeyringNamespace;
+        var existed = LookupSecret(ns, key) != null;
+        if (existed)
+        {
+            RunSecretTool(null, "clear", "service", ns, "key", key);
+            WaitUntilVisible(ns, key, null);
+        }
+        return RemoveFromFallback(key) || existed;
+    }
+
+    private static int RunSecretTool(string? input, params string[] args) => RunSecretToolCapture(input, args).Exit;
+
+    // One secret-tool at a time per process: the keyring daemon drops sessions under many
+    // concurrent clients ("Can't find session"), and a lookup racing a clear of the same item
+    // could see the value after Remove returned.
+    private static readonly object s_secretToolLock = new();
+
+    /// <summary>Runs secret-tool with <paramref name="args"/> (no shell); exit -1 when it could not start.</summary>
+    private static (int Exit, string Output, string Error) RunSecretToolCapture(string? input, params string[] args)
+    {
+        lock (s_secretToolLock)
+            return RunSecretToolCaptureLocked(input, args);
+    }
+
+    private static (int Exit, string Output, string Error) RunSecretToolCaptureLocked(string? input, string[] args)
     {
         try
         {
             var startInfo = new ProcessStartInfo
             {
                 FileName = "secret-tool",
-                Arguments = $"clear service {ServiceName} key {EscapeArg(key)}",
                 UseShellExecute = false,
-                CreateNoWindow = true
+                RedirectStandardInput = input != null,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
             };
+            foreach (var arg in args)
+                startInfo.ArgumentList.Add(arg);
 
             using var process = Process.Start(startInfo);
-            if (process == null) return false;
-
+            if (process == null)
+                return (-1, "", "");
+            if (input != null)
+            {
+                process.StandardInput.Write(input);
+                process.StandardInput.Close();
+            }
+            var errorTask = process.StandardError.ReadToEndAsync();
+            var output = process.StandardOutput.ReadToEnd();
             process.WaitForExit();
-            return process.ExitCode == 0;
+            return (process.ExitCode, output, errorTask.GetAwaiter().GetResult());
         }
-        catch
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
         {
-            return false;
+            return (-1, "", ex.Message);
         }
     }
 
@@ -263,9 +520,9 @@ public class SecureStorageService : ISecureStorage
 
     #region Fallback Encrypted Storage
 
-    private async Task<string?> GetFromFallbackAsync(string key)
+    private async Task<string?> GetFromFallbackAsync(string dir, string key)
     {
-        var filePath = GetFallbackFilePath(key);
+        var filePath = GetFallbackFilePath(dir, key);
         if (!File.Exists(filePath))
             return null;
 
@@ -292,7 +549,7 @@ public class SecureStorageService : ISecureStorage
     {
         EnsureFallbackDirectory();
 
-        var filePath = GetFallbackFilePath(key);
+        var filePath = GetFallbackFilePath(FallbackPath, key);
         var portalKey = await GetPortalKeyAsync();
         var encryptedData = portalKey != null ? EncryptVersion2(portalKey, value) : EncryptData(value);
 
@@ -304,7 +561,7 @@ public class SecureStorageService : ISecureStorage
 
     private bool RemoveFromFallback(string key)
     {
-        var filePath = GetFallbackFilePath(key);
+        var filePath = GetFallbackFilePath(FallbackPath, key);
         if (File.Exists(filePath))
         {
             File.Delete(filePath);
@@ -313,22 +570,23 @@ public class SecureStorageService : ISecureStorage
         return false;
     }
 
-    private string GetFallbackFilePath(string key)
+    private static string GetFallbackFilePath(string dir, string key)
     {
         // Hash the key to create a safe filename
         using var sha256 = SHA256.Create();
         var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(key));
         var fileName = Convert.ToHexString(hash).ToLowerInvariant();
-        return Path.Combine(_fallbackPath, fileName);
+        return Path.Combine(dir, fileName);
     }
 
     private void EnsureFallbackDirectory()
     {
-        if (!Directory.Exists(_fallbackPath))
+        var dir = FallbackPath;
+        if (!Directory.Exists(dir))
         {
-            Directory.CreateDirectory(_fallbackPath);
+            Directory.CreateDirectory(dir);
             // Set restrictive permissions on the directory
-            File.SetUnixFileMode(_fallbackPath,
+            File.SetUnixFileMode(dir,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
     }
@@ -457,9 +715,4 @@ public class SecureStorageService : ISecureStorage
     }
 
     #endregion
-
-    private static string EscapeArg(string arg)
-    {
-        return arg.Replace("\"", "\\\"").Replace("'", "\\'");
-    }
 }

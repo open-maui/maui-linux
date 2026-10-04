@@ -143,6 +143,10 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.AddSingleton<Microsoft.Maui.Animations.ITicker, LinuxTicker>();
         builder.Services.AddSingleton<Microsoft.Maui.Animations.IAnimationManager, LinuxAnimationManager>();
 
+        // VisualElement.CaptureAsync / Window.CaptureAsync: MAUI's keyed capture hooks for a
+        // platform it has no screenshot code for (null results without them).
+        ViewCapture.Register(builder.Services);
+
         // Named font sizes (FontSize="Large" etc.): MAUI's XAML converter resolves
         // them through DependencyService and throws when no platform provides it.
         Microsoft.Maui.Controls.DependencyService.Register<Microsoft.Maui.Controls.Internals.IFontNamedSizeService, LinuxFontNamedSizeService>();
@@ -153,17 +157,21 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.TryAddSingleton<IAppInfo>(AppInfoService.Instance);
         builder.Services.TryAddSingleton<IConnectivity>(ConnectivityService.Instance);
 
-        // Register platform services
-        builder.Services.TryAddSingleton<ILauncher, LauncherService>();
-        builder.Services.TryAddSingleton<IPreferences, PreferencesService>();
-        builder.Services.TryAddSingleton<IFilePicker, FilePickerService>();
-        builder.Services.TryAddSingleton<IClipboard, ClipboardService>();
-        builder.Services.TryAddSingleton<IShare, ShareService>();
-        builder.Services.TryAddSingleton<ISecureStorage, SecureStorageService>();
-        builder.Services.TryAddSingleton<IVersionTracking, VersionTrackingService>();
-        builder.Services.TryAddSingleton<IAppActions, AppActionsService>();
-        builder.Services.TryAddSingleton<IBrowser, BrowserService>();
-        builder.Services.TryAddSingleton<IEmail, EmailService>();
+        // Register platform services. Each resolves to the instance behind the static facade
+        // (Preferences.Default, ...), which EssentialsPatches installed: an injected
+        // IPreferences and Preferences.Set must share one store (two PreferencesService
+        // instances each cached the same file and overwrote each other's changes), and an
+        // injected IVersionTracking must be MAUI's, which the facade uses.
+        builder.Services.TryAddSingleton<ILauncher>(_ => Launcher.Default);
+        builder.Services.TryAddSingleton<IPreferences>(_ => Preferences.Default);
+        builder.Services.TryAddSingleton<IFilePicker>(_ => FilePicker.Default);
+        builder.Services.TryAddSingleton<IClipboard>(_ => Clipboard.Default);
+        builder.Services.TryAddSingleton<IShare>(_ => Share.Default);
+        builder.Services.TryAddSingleton<ISecureStorage>(_ => SecureStorage.Default);
+        builder.Services.TryAddSingleton<IVersionTracking>(_ => VersionTracking.Default);
+        builder.Services.TryAddSingleton<IAppActions>(_ => AppActions.Current);
+        builder.Services.TryAddSingleton<IBrowser>(_ => Microsoft.Maui.ApplicationModel.Browser.Default);
+        builder.Services.TryAddSingleton<IEmail>(_ => Email.Default);
 
         // Register theming services. SystemThemeService has a private constructor and
         // a single canonical instance — DI returns the same object as
@@ -187,9 +195,9 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.Replace(ServiceDescriptor.Singleton<IFontManager>(sp => new LinuxFontManager(sp.GetRequiredService<IFontRegistrar>())));
 
         // Essentials gaps
-        builder.Services.TryAddSingleton<IFileSystem, FileSystemService>();
-        builder.Services.TryAddSingleton<ISemanticScreenReader, SemanticScreenReaderService>();
-        builder.Services.TryAddSingleton<IWebAuthenticator, WebAuthenticatorService>();
+        builder.Services.TryAddSingleton<IFileSystem>(_ => FileSystem.Current);
+        builder.Services.TryAddSingleton<ISemanticScreenReader>(_ => SemanticScreenReader.Default);
+        builder.Services.TryAddSingleton<IWebAuthenticator>(_ => WebAuthenticator.Default);
 
         // Sensors without desktop hardware (IsSupported == false, Start throws FeatureNotSupportedException)
         builder.Services.TryAddSingleton<IAccelerometer, UnsupportedAccelerometer>();
@@ -262,6 +270,8 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<ContentPresenter, ContentPresenterHandler>();
             handlers.AddHandler<TemplatedView, TemplatedViewHandler>();
             handlers.AddHandler<RefreshView, RefreshViewHandler>();
+            // A library's own IRefreshView (not a Controls RefreshView): MAUI's RefreshViewHandler on Linux.
+            handlers.AddHandler<IRefreshView, CoreRefreshViewHandler>();
 
             // Picker controls
             handlers.AddHandler<Picker, PickerHandler>();
@@ -296,7 +306,14 @@ public static class LinuxMauiAppBuilderExtensionsInternal
             handlers.AddHandler<TableView, TableViewHandler>();
             handlers.AddHandler<CarouselView, CarouselViewHandler>();
             handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
+            handlers.AddHandler<IIndicatorView, CoreIndicatorViewHandler>();
             handlers.AddHandler<SwipeView, SwipeViewHandler>();
+            handlers.AddHandler<Microsoft.Maui.Controls.SwipeItem, SwipeItemMenuItemHandler>();
+            handlers.AddHandler<SwipeItemView, SwipeItemViewHandler>();
+            // A library's own swipe view and swipe items (MAUI's interfaces) get the Linux handlers.
+            handlers.AddHandler<ISwipeView, CoreSwipeViewHandler>();
+            handlers.AddHandler<ISwipeItemMenuItem, SwipeItemMenuItemHandler>();
+            handlers.AddHandler<ISwipeItemView, SwipeItemViewHandler>();
 
             // Pages & Navigation
             handlers.AddHandler<Page, PageHandler>();

@@ -12,9 +12,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for IndicatorView on Linux using Skia rendering.
-/// Maps IndicatorView to SkiaIndicatorView platform view.
+/// Maps IndicatorView to SkiaIndicatorView platform view. A core <see cref="IIndicatorView"/>
+/// that is not a Controls IndicatorView gets <see cref="CoreIndicatorViewHandler"/>.
 /// </summary>
-public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, SkiaIndicatorView>
+public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, SkiaIndicatorView>, IIndicatorViewHandler
 {
     private bool _isUpdatingPosition;
 
@@ -46,6 +47,10 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     {
     }
 
+    IIndicatorView IIndicatorViewHandler.VirtualView => VirtualView;
+
+    object IIndicatorViewHandler.PlatformView => PlatformView;
+
     protected override SkiaIndicatorView CreatePlatformView()
     {
         return new SkiaIndicatorView();
@@ -54,12 +59,24 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     protected override void ConnectHandler(SkiaIndicatorView platformView)
     {
         base.ConnectHandler(platformView);
-        // SkiaIndicatorView doesn't have position changed event, but we can add one if needed
+        platformView.PositionChanged += OnPlatformPositionChanged;
     }
 
     protected override void DisconnectHandler(SkiaIndicatorView platformView)
     {
+        platformView.PositionChanged -= OnPlatformPositionChanged;
         base.DisconnectHandler(platformView);
+    }
+
+    // A click on an indicator selects it: the IndicatorView's Position follows (and with it a
+    // CarouselView bound to it), as MAUI's platform page controls report a tap.
+    private void OnPlatformPositionChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdatingPosition || VirtualView is null || PlatformView is null)
+            return;
+        _isUpdatingPosition = true;
+        try { VirtualView.Position = PlatformView.Position; }
+        finally { _isUpdatingPosition = false; }
     }
 
     public static void MapCount(IndicatorViewHandler handler, IndicatorView indicatorView)

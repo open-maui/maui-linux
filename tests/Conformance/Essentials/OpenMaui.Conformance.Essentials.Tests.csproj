@@ -1,0 +1,234 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MAUI Essentials conformance suite.
+
+    Compiles dotnet/maui's OWN Essentials device tests (src/Essentials/test/DeviceTests,
+    tag 10.0.110) against OpenMaui's Linux Essentials: the static facades (Preferences,
+    SecureStorage, FileSystem, Launcher, AppInfo, ...) are backed by the Linux services
+    UseLinux installs, and MAUI's assertions are the specification. The MAUI sources are
+    NOT vendored: they are compiled in place from the same local clone the Core and
+    Controls suites use (MIT licensed, file contents untouched).
+
+      MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
+                Default: $(HOME)/.cache/openmaui-build/maui-src
+                Populate it with tests/Conformance/get-maui-sources.sh.
+
+    The test assembly is an OpenMaui app as far as the platform can tell:
+      - it carries the app properties MAUI's Essentials test app has (ApplicationTitle,
+        ApplicationId, ApplicationDisplayVersion, ApplicationVersion), turned into AppInfo
+        metadata by OpenMaui's own build targets (imported below, as a package reference
+        would);
+      - its MauiAsset files (MAUI's Resources/Raw) are copied to the output by the same
+        targets, where FileSystem.OpenAppPackageFileAsync looks for them;
+      - Infrastructure/EssentialsTestHost.cs runs UseLinux's registration, makes the test
+        assembly the entry assembly (AppInfo reads it), starts an OpenMaui main thread
+        (GLib loop + LinuxDispatcher) and points the XDG data/config/cache directories
+        at a private temporary root, so Preferences, FileSystem and VersionTracking never
+        touch the user's real files.
+
+    Shared with the Core suite (linked from ../Infrastructure): the xunit framework and its
+    skip mechanism, the [Category] trait. Essentials-only (Infrastructure/ here): the
+    KnownSkips list (MAUI's own trait filters: human interaction, missing hardware), the
+    Linux HardwareSupport (what this machine has), the host bootstrap.
+
+    Run:  dotnet test tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Microsoft.Maui.Essentials.DeviceTests</RootNamespace>
+    <!-- The name of MAUI's own Essentials device-test app: Microsoft.Maui.Essentials grants it
+         InternalsVisibleTo (VersionTracking.InitVersionTracking, Permissions.EnsureDeclared,
+         Preferences.GetPrivatePreferencesSharedName, ...). -->
+    <AssemblyName>Microsoft.Maui.Essentials.DeviceTests</AssemblyName>
+    <NoWarn>$(NoWarn);CS0618;CS0162;CS0168;CS0219;CS0414;CS0649;CS0169;CS1998;CS8632;CS0105;CS4014;CS0067;CA1416;xUnit1013;xUnit1026;xUnit2000;xUnit2009;xUnit1030;xUnit1031;xUnit1012;xUnit2013;xUnit1025;xUnit1004;xUnit2002;xUnit2005;xUnit2007;xUnit2015;xUnit2017;xUnit2020;xUnit1051;xUnit1042;xUnit1048;xUnit1028</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DefineConstants>$(DefineConstants);OPENMAUI_LINUX;OPENMAUI_ESSENTIALS_CONFORMANCE</DefineConstants>
+
+    <!-- MAUI's Essentials test app (src/Essentials/test/DeviceTests/Essentials.DeviceTests.csproj):
+         AppInfo_Tests and VersionTracking_Tests assert these values. -->
+    <ApplicationTitle>Essentials Tests</ApplicationTitle>
+    <ApplicationId>com.microsoft.maui.essentials.devicetests</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src</MauiSrc>
+    <!-- A property set on the command line (-p:MauiSrc=...) cannot be reassigned here, so the
+         trailing slash goes on a property of its own. -->
+    <MauiSrcDir>$([MSBuild]::EnsureTrailingSlash('$(MauiSrc)'))</MauiSrcDir>
+    <MauiEssentialsTests>$(MauiSrcDir)src/Essentials/test/DeviceTests/</MauiEssentialsTests>
+    <MauiSourcesPresent Condition="Exists('$(MauiEssentialsTests)Traits.cs')">true</MauiSourcesPresent>
+    <SharedInfra>../Infrastructure/</SharedInfra>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\OpenMaui.Controls.Linux.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Infrastructure shared with the Core and Controls suites (see ../Infrastructure). -->
+  <ItemGroup>
+    <SharedInfraFile Include="LinuxTestFramework.cs;XunitCustomizations.Linux.cs" />
+    <Compile Include="@(SharedInfraFile->'$(SharedInfra)%(Identity)')" Link="Shared/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!--
+    MAUI Essentials device-test files compiled in place (relative to
+    src/Essentials/test/DeviceTests). Platform-only files are never compiled:
+    Tests/*.Android.cs, *.iOS.cs, Tests/Android/**, Tests/Windows/** (the native
+    Android/iOS/Windows plumbing they test does not exist on Linux).
+    Tests/HardwareSupport.cs is a per-platform #if chain with no fallback; its Linux
+    counterpart is Infrastructure/HardwareSupport.Linux.cs.
+  -->
+  <ItemGroup>
+    <MauiEssentialsFile Include="Traits.cs" />
+    <MauiEssentialsFile Include="Utils.cs" />
+    <MauiEssentialsFile Include="Tests/Accelerometer_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/ActivityStateManager_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/AppActions_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/AppInfo_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Barometer_Shared.cs" />
+    <MauiEssentialsFile Include="Tests/Battery_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Clipboard_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Compass_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Connectivity_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Contacts_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/DeviceDisplay_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/DeviceInfo_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Email_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/FileSystem_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Flashlight_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Geocoding_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Geolocation_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Gyroscope_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/HapticFeedback_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Launcher_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Magnetometer_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/MainThread_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Maps_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Microphone_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Permissions_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/PhoneDialer_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Preferences_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Screenshot_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/SecureStorage_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Share_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/VersionTracking_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/Vibration_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/WebAuthenticator_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/WebUtils_Tests.cs" />
+    <MauiEssentialsFile Include="Tests/WindowStateManager_Tests.cs" />
+  </ItemGroup>
+
+  <!--
+    Build-time fixes (MauiPatches.props): a few MAUI tests are per-platform #if chains
+    whose #else is "throw new PlatformNotSupportedException()" or the expectation of a
+    platform with no such feature. Such a file is compiled from a copy under obj/ with
+    the listed literal replacements applied; every replacement must match or the build
+    fails. Each one only adds Linux (OPENMAUI_LINUX) to an existing branch, or adds a
+    Linux branch next to the others; none changes what the test asserts elsewhere.
+    Nothing is written to the repository or to the MAUI clone.
+  -->
+  <Import Project="MauiPatches.props" />
+
+  <UsingTask TaskName="ApplyMauiEssentialsPatches" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Patches ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <SourceRoot ParameterType="System.String" Required="true" />
+      <OutputRoot ParameterType="System.String" Required="true" />
+      <PatchedFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var outputs = new List<Microsoft.Build.Framework.ITaskItem>();
+        foreach (var group in Patches.GroupBy(p => p.ItemSpec))
+        {
+            var source = Path.GetFullPath(Path.Combine(SourceRoot, group.Key));
+            var relative = group.Key.Replace("\\", "/");
+            // MAUI's sources use CRLF in places; match either.
+            var text = File.ReadAllText(source).Replace("\r\n", "\n");
+            foreach (var patch in group)
+            {
+                var find = patch.GetMetadata("Find").Replace("\\n", "\n").Replace("\\t", "\t");
+                var replace = patch.GetMetadata("Replace").Replace("\\n", "\n").Replace("\\t", "\t");
+                if (!text.Contains(find))
+                {
+                    Log.LogError("MAUI patch for " + group.Key + " no longer matches: " + find);
+                    continue;
+                }
+                text = text.Replace(find, replace);
+            }
+            var target = Path.Combine(OutputRoot, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            if (!File.Exists(target) || File.ReadAllText(target) != text)
+                File.WriteAllText(target, text);
+            var item = new Microsoft.Build.Utilities.TaskItem(target);
+            item.SetMetadata("Original", source);
+            item.SetMetadata("Link", "Maui/Essentials/" + relative);
+            outputs.Add(item);
+        }
+        PatchedFiles = outputs.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="ApplyMauiEssentialsPatches" BeforeTargets="CoreCompile;CoreGenerateAssemblyInfo" Condition="'$(MauiSourcesPresent)' == 'true' and '@(MauiPatch)' != ''">
+    <ApplyMauiEssentialsPatches Patches="@(MauiPatch)" SourceRoot="$(MauiEssentialsTests)" OutputRoot="$(IntermediateOutputPath)MauiPatched/">
+      <Output TaskParameter="PatchedFiles" ItemName="_MauiPatchedFile" />
+    </ApplyMauiEssentialsPatches>
+    <ItemGroup>
+      <Compile Remove="@(_MauiPatchedFile->'%(Original)')" />
+      <Compile Include="@(_MauiPatchedFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- ===================== Without the MAUI clone ===================== -->
+  <ItemGroup Condition="'$(MauiSourcesPresent)' != 'true'">
+    <Compile Remove="**/*.cs" />
+    <Compile Remove="@(Compile)" />
+    <Compile Include="../MauiSourcesMissing.cs" Link="MauiSourcesMissing.cs" />
+    <Compile Include="Infrastructure/AssemblyName.Essentials.cs" />
+  </ItemGroup>
+  <Target Name="WarnMauiSourcesMissing" BeforeTargets="CoreCompile" Condition="'$(MauiSourcesPresent)' != 'true'">
+    <Warning Text="MAUI test sources not found at '$(MauiSrc)'. The Essentials conformance suite is reduced to one skipped test. Run tests/Conformance/get-maui-sources.sh or pass -p:MauiSrc=..." />
+  </Target>
+
+  <!-- ===================== With the MAUI clone ===================== -->
+  <ItemGroup Condition="'$(MauiSourcesPresent)' == 'true'">
+    <Compile Include="@(MauiEssentialsFile->'$(MauiEssentialsTests)%(Identity)')" Link="Maui/Essentials/%(Identity)" />
+
+    <!-- MAUI's test app ships Resources/Raw as MauiAsset items with their folder kept
+         (FileSystem_Tests opens "Folder/AppBundleFile_Nested.txt"); OpenMaui's build targets
+         copy them next to the app, as for any OpenMaui app. -->
+    <MauiAsset Include="$(MauiEssentialsTests)Resources/Raw/**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- OpenMaui's build logic, as the OpenMaui.Controls.Linux package adds it to an app (a
+       project reference does not import a package's build/ folder). -->
+  <Import Project="../../../build/OpenMaui.Controls.Linux.targets" />
+
+</Project>

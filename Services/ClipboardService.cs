@@ -58,8 +58,17 @@ public class ClipboardService : IClipboard
         if (xclipResult != null) return xclipResult;
 
         // Try xsel as fallback
-        return await TryGetWithXsel();
+        var xselResult = await TryGetWithXsel();
+        if (xselResult != null) return xselResult;
+
+        // No system clipboard took the last text this app set (no display server, or none of
+        // the clipboard tools present): the app's own clipboard still holds it, as an app
+        // gets back what it copied on every platform.
+        return _localOnly ? _lastSetText : null;
     }
+
+    // True while the last SetTextAsync reached no system clipboard.
+    private bool _localOnly;
 
     public async Task SetTextAsync(string? text)
     {
@@ -95,9 +104,10 @@ public class ClipboardService : IClipboard
         if (!success)
         {
             // Try xsel as fallback
-            await TrySetWithXsel(text);
+            success = await TrySetWithXsel(text);
         }
 
+        _localOnly = !success;
         ClipboardContentChanged?.Invoke(this, EventArgs.Empty);
     }
 

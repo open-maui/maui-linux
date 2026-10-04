@@ -43,8 +43,11 @@ internal static class EssentialsPatches
         try { PatchDeviceDisplay(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"DeviceDisplay patch failed: {ex.Message}", ex); }
 
-        try { PatchLauncher(harmony); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Launcher patch failed: {ex.Message}", ex); }
+        try { FileBasePatches.Install(harmony); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"FileBase patch failed: {ex.Message}", ex); }
+
+        try { PermissionsPatches.Install(harmony); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Permissions patch failed: {ex.Message}", ex); }
         try { PatchFilePickerFileTypes(harmony); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"FilePickerFileType patch failed: {ex.Message}", ex); }
 
@@ -83,8 +86,13 @@ internal static class EssentialsPatches
         try { RegisterEssential<Microsoft.Maui.Networking.IConnectivity>("com.openmaui.essentials.connectivity", "Microsoft.Maui.Networking.Connectivity", "Microsoft.Maui.Networking.ConnectivityImplementation", ConnectivityService.Instance); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Connectivity registration failed: {ex.Message}", ex); }
 
-        try { RegisterEssential<Microsoft.Maui.ApplicationModel.IVersionTracking>("com.openmaui.essentials.versiontracking", "Microsoft.Maui.ApplicationModel.VersionTracking", "Microsoft.Maui.ApplicationModel.VersionTrackingImplementation", new VersionTrackingService()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"VersionTracking registration failed: {ex.Message}", ex); }
+        // VersionTracking is not replaced: MAUI's own implementation is platform-neutral (it
+        // keeps the history in Preferences under the app's private shared name, keyed on
+        // AppInfo), and with Linux Preferences and AppInfo behind it it is exactly what the
+        // other platforms run. VersionTracking.InitVersionTracking only works on it.
+
+        try { RegisterEssential<Microsoft.Maui.ApplicationModel.ILauncher>("com.openmaui.essentials.launcher", "Microsoft.Maui.ApplicationModel.Launcher", "Microsoft.Maui.ApplicationModel.LauncherImplementation", new LauncherService()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Launcher registration failed: {ex.Message}", ex); }
 
         try { RegisterEssential<Microsoft.Maui.ApplicationModel.IAppActions>("com.openmaui.essentials.appactions", "Microsoft.Maui.ApplicationModel.AppActions", "Microsoft.Maui.ApplicationModel.AppActionsImplementation", new AppActionsService()); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"AppActions registration failed: {ex.Message}", ex); }
@@ -213,6 +221,14 @@ internal static class EssentialsPatches
                     BindingFlags.Static | BindingFlags.NonPublic)!;
                 harmony.Patch(original, new HarmonyMethod(prefix));
                 DiagnosticLog.Debug("EssentialsPatches", $"Patched {implType.Name}.GetMainDisplayInfo");
+
+                // KeepScreenOn and MainDisplayInfoChanged: the portable build's getter returns
+                // false, its setter and listeners do nothing. They go to DeviceDisplayService
+                // (screensaver inhibition, monitor change notifications).
+                PatchDeviceDisplayMember(harmony, implType, "GetKeepScreenOn", nameof(GetKeepScreenOn_Prefix));
+                PatchDeviceDisplayMember(harmony, implType, "SetKeepScreenOn", nameof(SetKeepScreenOn_Prefix));
+                PatchDeviceDisplayMember(harmony, implType, "StartScreenMetricsListeners", nameof(StartScreenMetricsListeners_Prefix));
+                PatchDeviceDisplayMember(harmony, implType, "StopScreenMetricsListeners", nameof(StopScreenMetricsListeners_Prefix));
             }
             else
             {
@@ -223,37 +239,6 @@ internal static class EssentialsPatches
         else
         {
             DiagnosticLog.Error("EssentialsPatches", "DeviceDisplayImplementation type not found");
-        }
-    }
-
-    private static void PatchLauncher(Harmony harmony)
-    {
-        // Launcher.Default delegates to LauncherImplementation which throws on Linux.
-        // Patch PlatformOpenAsync(Uri) to use LauncherService (portal or xdg-open) instead.
-        var implType = typeof(Microsoft.Maui.ApplicationModel.Launcher).Assembly.GetType(
-            "Microsoft.Maui.ApplicationModel.LauncherImplementation");
-
-        if (implType != null)
-        {
-            var original = implType.GetMethod("PlatformOpenAsync",
-                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-                null, new[] { typeof(Uri) }, null);
-
-            if (original != null)
-            {
-                var prefix = typeof(EssentialsPatches).GetMethod(nameof(PlatformOpenAsync_Prefix),
-                    BindingFlags.Static | BindingFlags.NonPublic)!;
-                harmony.Patch(original, new HarmonyMethod(prefix));
-                DiagnosticLog.Debug("EssentialsPatches", "Patched LauncherImplementation.PlatformOpenAsync");
-            }
-            else
-            {
-                DiagnosticLog.Error("EssentialsPatches", "PlatformOpenAsync(Uri) not found on LauncherImplementation");
-            }
-        }
-        else
-        {
-            DiagnosticLog.Error("EssentialsPatches", "LauncherImplementation type not found");
         }
     }
 
@@ -325,20 +310,52 @@ internal static class EssentialsPatches
         });
     }
 
-    private static bool PlatformOpenAsync_Prefix(Uri uri, ref Task<bool> __result)
+    private static void PatchDeviceDisplayMember(Harmony harmony, Type implType, string method, string prefixName)
     {
-        // Same path as ILauncher: the OpenURI portal inside a sandbox (or with
-        // OPENMAUI_PORTALS=prefer), xdg-open otherwise.
-        try
+        var original = implType.GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.DeclaredOnly);
+        if (original == null)
         {
-            __result = new LauncherService().OpenAsync(uri);
+            DiagnosticLog.Error("EssentialsPatches", $"{method} not found on {implType.Name}");
+            return;
         }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("EssentialsPatches", $"Launcher open failed: {ex.Message}");
-            __result = Task.FromResult(false);
-        }
-        return false; // Skip original (which throws)
+        var prefix = typeof(EssentialsPatches).GetMethod(prefixName, BindingFlags.Static | BindingFlags.NonPublic)!;
+        harmony.Patch(original, new HarmonyMethod(prefix));
+    }
+
+    private static bool GetKeepScreenOn_Prefix(ref bool __result)
+    {
+        __result = DeviceDisplayService.Instance.KeepScreenOn;
+        return false;
+    }
+
+    private static bool SetKeepScreenOn_Prefix(bool keepScreenOn)
+    {
+        DeviceDisplayService.Instance.KeepScreenOn = keepScreenOn;
+        return false;
+    }
+
+    // One forwarding handler per DeviceDisplay implementation: the base class starts the
+    // listeners on the first MainDisplayInfoChanged subscriber and stops them on the last.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, EventHandler<DisplayInfoChangedEventArgs>> s_displayForwarders = new();
+
+    private static bool StartScreenMetricsListeners_Prefix(object __instance)
+    {
+        var raise = __instance.GetType().GetMethod("OnMainDisplayInfoChanged",
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null, Type.EmptyTypes, null);
+        if (raise == null)
+            return false;
+        var forwarder = s_displayForwarders.GetValue(__instance, instance =>
+            (_, _) => raise.Invoke(instance, null));
+        DeviceDisplayService.Instance.MainDisplayInfoChanged -= forwarder;
+        DeviceDisplayService.Instance.MainDisplayInfoChanged += forwarder;
+        return false;
+    }
+
+    private static bool StopScreenMetricsListeners_Prefix(object __instance)
+    {
+        if (s_displayForwarders.TryGetValue(__instance, out var forwarder))
+            DeviceDisplayService.Instance.MainDisplayInfoChanged -= forwarder;
+        return false;
     }
 
     /// <summary>
