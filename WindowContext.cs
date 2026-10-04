@@ -25,7 +25,7 @@ namespace Microsoft.Maui.Platform.Linux;
 /// (<see cref="DisplayWindow"/> and <see cref="RenderingEngine"/> are null);
 /// the GTK host window renders through its own path.
 /// </summary>
-public sealed class WindowContext : IDisposable
+public sealed partial class WindowContext : IDisposable
 {
     private readonly LinuxApplication _app;
     private SkiaView? _rootView;
@@ -61,6 +61,9 @@ public sealed class WindowContext : IDisposable
         _app = app ?? throw new ArgumentNullException(nameof(app));
         DisplayWindow = displayWindow;
         RenderingEngine = renderingEngine;
+        // The window's TitleBar takes presses on its interactive parts in the decoration.
+        if (displayWindow is WaylandWindow wayland)
+            wayland.CsdTitleBarPassthrough = IsTitleBarPassthrough;
         ToolTips = new ToolTipController(() => RenderingEngine?.InvalidateAll());
         if (renderingEngine != null)
             renderingEngine.ToolTips = ToolTips;
@@ -268,7 +271,8 @@ public sealed class WindowContext : IDisposable
     /// This shift puts them in view-tree space. 0 on backends without CSD.
     /// </summary>
     internal float CsdPointerInsetLogical =>
-        DisplayWindow is WaylandWindow w && w.UseCsd ? WaylandWindow.CsdTitlebarHeightLogical : 0f;
+        RenderingEngine?.TopInsetLogical
+        ?? (DisplayWindow is WaylandWindow w && w.UseCsd ? WaylandWindow.CsdTitlebarHeightLogical : 0f);
 
     /// <summary>Window-physical pixels to the logical view-tree space pointer dispatch uses.</summary>
     internal (float X, float Y) ToLogicalPoint(double physicalX, double physicalY)
@@ -506,6 +510,7 @@ public sealed class WindowContext : IDisposable
             if (!e.Handled)
                 SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Down, e);
         }
+        TryTabNavigation(e);
     }
 
     private void OnKeyUp(object? sender, KeyEventArgs e)
@@ -574,8 +579,10 @@ public sealed class WindowContext : IDisposable
             // If a view has captured the pointer, send all events to it
             if (CapturedView != null)
             {
+                var captured = CapturedView;
                 if (!TryInterceptDrag(e))
-                    CapturedView.OnPointerMoved(InViewSpace(CapturedView, e));
+                    captured.OnPointerMoved(InViewSpace(captured, e));
+                RefreshCursor(captured);
                 return;
             }
 
@@ -592,11 +599,14 @@ public sealed class WindowContext : IDisposable
                 if (HoveredView != null) HoveredView.OnPointerEntered(InViewSpace(HoveredView, e));
 
                 // Update cursor based on view's cursor type
-                CursorType cursor = hitView?.CursorType ?? CursorType.Arrow;
-                DisplayWindow?.SetCursor(cursor);
+                _appliedCursor = EffectiveCursor(hitView);
+                DisplayWindow?.SetCursor(_appliedCursor);
             }
 
             if (hitView != null) hitView.OnPointerMoved(InViewSpace(hitView, e));
+            // A view may change its cursor while the pointer moves over it (a resize
+            // edge under the pointer): apply it now, not on the next hover change.
+            RefreshCursor(hitView);
         }
     }
 
@@ -626,6 +636,10 @@ public sealed class WindowContext : IDisposable
                 LinuxDialogService.TopDialog?.OnPointerPressed(e);
             return;
         }
+
+        // The window's overlays see the press first (Window.AddOverlay).
+        if (OverlaysTakePress(e))
+            return;
 
         var inputRoot = InputRoot;
         if (inputRoot != null)
@@ -688,6 +702,33 @@ public sealed class WindowContext : IDisposable
         return p.X == e.X && p.Y == e.Y ? e : new PointerEventArgs(p.X, p.Y, e.Button);
     }
 
+    private CursorType _appliedCursor = CursorType.Arrow;
+
+    /// <summary>
+    /// The cursor shown over <paramref name="view"/>: its own <see cref="SkiaView.CursorType"/>,
+    /// else the nearest ancestor's that is not the default arrow, as a cursor set on a WinUI
+    /// element applies over its descendants (a resize cursor a control sets on itself shows
+    /// over the cells and labels inside it).
+    /// </summary>
+    internal static CursorType EffectiveCursor(SkiaView? view)
+    {
+        for (var v = view; v != null; v = v.Parent)
+        {
+            if (v.CursorType != CursorType.Arrow)
+                return v.CursorType;
+        }
+        return CursorType.Arrow;
+    }
+
+    private void RefreshCursor(SkiaView? view)
+    {
+        var cursor = EffectiveCursor(view);
+        if (cursor == _appliedCursor)
+            return;
+        _appliedCursor = cursor;
+        DisplayWindow?.SetCursor(cursor);
+    }
+
     internal void OnPointerReleased(object? sender, PointerEventArgs e)
     {
         try
@@ -712,6 +753,10 @@ public sealed class WindowContext : IDisposable
             return;
         }
 
+        // A tap reaches the window's overlays; a press an overlay took ends there.
+        if (OverlaysTakeRelease(e))
+            return;
+
         var inputRoot = InputRoot;
         if (inputRoot != null)
         {
@@ -719,8 +764,10 @@ public sealed class WindowContext : IDisposable
             if (CapturedView != null)
             {
                 EndDragInterception();
-                CapturedView.OnPointerReleased(InViewSpace(CapturedView, e));
+                var captured = CapturedView;
+                captured.OnPointerReleased(InViewSpace(captured, e));
                 CapturedView = null; // Release capture
+                RefreshCursor(HoveredView ?? captured);
                 return;
             }
 
@@ -1217,6 +1264,9 @@ public sealed class WindowContext : IDisposable
     internal SkiaView? HitTestLayers(float x, float y, out Page? backdropOf)
     {
         backdropOf = null;
+        // Above the page: the window's TitleBar.
+        if (y < 0)
+            return HitTestTitleBar(x, y);
         for (int i = _modals.Count - 1; i >= 0; i--)
         {
             var layer = _modals[i];
@@ -1393,6 +1443,7 @@ public sealed class WindowContext : IDisposable
             // when a single window is live — historical behavior).
             RenderingEngine.PopupFilterRoot = PopupFilterRoot;
             RenderingEngine.OverlayLayers = _modalViews.Count > 0 ? _modalViews : null;
+            PrepareChrome(RenderingEngine);
             RenderingEngine.Render(_rootView);
             if (Microsoft.Maui.Platform.Linux.Diagnostics.PageInvariants.Enabled)
                 ScheduleInvariantCheck();

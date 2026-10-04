@@ -22,19 +22,12 @@ public class MapperParityTests
     /// <summary>The open gaps, per control: MAUI maps these and OpenMaui does not yet.</summary>
     private static readonly Dictionary<string, string[]> KnownGaps = new()
     {
-        ["CarouselView"] = new[] { "EmptyViewTemplate", "HorizontalScrollBarVisibility", "IsVisible", "ItemsUpdatingScrollMode", "VerticalScrollBarVisibility" },
-        ["CollectionView"] = new[] { "CanReorderItems", "IsVisible", "ItemSizingStrategy", "ItemsUpdatingScrollMode" },
         ["ContentPage"] = new[] { "HideSoftInputOnTapped" },
-        ["DatePicker"] = new[] { "IsOpen" },
         ["FlyoutPage"] = new[] { "Content", "HideSoftInputOnTapped", "Title" },
         ["NavigationPage"] = new[] { "Content", "HideSoftInputOnTapped", "Title" },
         ["Page"] = new[] { "Content", "HideSoftInputOnTapped" },
-        ["Picker"] = new[] { "IsOpen", "Items" },
         ["Shell"] = new[] { "Content", "HideSoftInputOnTapped" },
-        ["Slider"] = new[] { "ThumbImageSource" },
-        ["Stepper"] = new[] { "Interval" },
         ["TabbedPage"] = new[] { "Content", "HideSoftInputOnTapped", "Title" },
-        ["TimePicker"] = new[] { "IsOpen" },
     };
 
     private static IEnumerable<string> Keys(object? mapper)
