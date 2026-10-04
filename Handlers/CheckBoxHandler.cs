@@ -17,6 +17,8 @@ public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>
     {
         [nameof(ICheckBox.IsChecked)] = MapIsChecked,
         [nameof(ICheckBox.Foreground)] = MapForeground,
+        // Controls' CheckBox.Color: MAUI remaps it to refresh Foreground (CheckBox.RemapForControls).
+        ["Color"] = MapForeground,
         [nameof(IView.Background)] = MapBackground,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
         [nameof(IView.VerticalLayoutAlignment)] = MapVerticalLayoutAlignment,
