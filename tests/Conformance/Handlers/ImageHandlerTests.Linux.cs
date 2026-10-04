@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Xunit.Sdk;
 
@@ -95,15 +96,40 @@ namespace Microsoft.Maui.DeviceTests.Stubs
 	}
 
 	/// <summary>
-	/// MAUI's counted image-source service: lets a test hold an image load at
-	/// "starting" / "finishing". Only meaningful when the handler loads through
-	/// IImageSourceService; the Linux image handler does not (see docs/CONFORMANCE.md),
-	/// so the tests that wait on these events are listed as blocked in KnownSkips.
+	/// The Linux load method of MAUI's counted image-source service (the
+	/// counterpart of CountedImageSourceServiceStub.Android.cs / .iOS.cs): lets a
+	/// test hold a load at "starting" until it signals DoWork, then returns a
+	/// bitmap filled with the stub's colour.
 	/// </summary>
-	public partial class CountedImageSourceServiceStub : IImageSourceService<ICountedImageSourceStub>
+	public partial class CountedImageSourceServiceStub : ILinuxImageSourceService
 	{
-		public System.Threading.AutoResetEvent Starting { get; } = new(false);
-		public System.Threading.AutoResetEvent DoWork { get; } = new(false);
-		public System.Threading.AutoResetEvent Finishing { get; } = new(false);
+		public async Task<IImageSourceServiceResult<SKBitmap>> GetImageAsync(IImageSource imageSource, float scale = 1, System.Threading.CancellationToken cancellationToken = default)
+		{
+			if (imageSource is not ICountedImageSourceStub imageSourceStub)
+				return null;
+
+			try
+			{
+				Starting.Set();
+
+				// simulate actual work
+				var bitmap = await Task.Run(() =>
+				{
+					if (imageSourceStub.Wait)
+						DoWork.WaitOne();
+
+					var color = imageSourceStub.Color;
+					var result = new SKBitmap(100, 100);
+					result.Erase(new SKColor((byte)(color.Red * 255), (byte)(color.Green * 255), (byte)(color.Blue * 255), (byte)(color.Alpha * 255)));
+					return result;
+				}).ConfigureAwait(false);
+
+				return new LinuxImageSourceServiceResult(bitmap, imageSourceStub.IsResolutionDependent, bitmap.Dispose);
+			}
+			finally
+			{
+				Finishing.Set();
+			}
+		}
 	}
 }
