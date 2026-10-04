@@ -260,6 +260,13 @@ public abstract partial class SkiaView
         BubblePointerEvent(e, RoutedPointerKind.Released, GestureManager.ProcessPointerUp);
     }
 
+    /// <summary>
+    /// The innermost view under a point (in this view's space) that this view keeps the pointer
+    /// from (a list row's content, which the list takes presses for), or null. The window asks
+    /// it so a drag-intercepting view in there (a row's SwipeView) can take a drag over.
+    /// </summary>
+    internal virtual SkiaView? InnermostViewAt(float x, float y) => null;
+
     public virtual void OnScroll(ScrollEventArgs e) { }
     public virtual void OnKeyDown(KeyEventArgs e) { }
     public virtual void OnKeyUp(KeyEventArgs e) { }

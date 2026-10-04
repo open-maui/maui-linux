@@ -1,0 +1,36 @@
+<Project>
+  <!--
+    Literal fixes applied to copies of MAUI's Essentials test files under obj/MauiPatched
+    (see the ApplyMauiEssentialsPatches target). Each entry: the file (relative to
+    src/Essentials/test/DeviceTests), the text to find and its replacement ("\n" is a
+    newline, "\t" a tab). A fix may only give Linux a branch of a per-platform #if chain;
+    it must not change what a test asserts on the other platforms.
+  -->
+  <ItemGroup>
+    <!-- The #else is "throw new PlatformNotSupportedException()". Linux has an application id
+         (ApplicationId, as on Windows/iOS/Android): OpenMaui's build targets carry it to AppInfo. -->
+    <MauiPatch Include="Tests/AppInfo_Tests.cs">
+      <Find>#if WINDOWS_UWP || WINDOWS || __IOS__ || __ANDROID__\n\t\t\tAssert.Equal("com.microsoft.maui.essentials.devicetests", AppInfo.PackageName);</Find>
+      <Replace>#if WINDOWS_UWP || WINDOWS || __IOS__ || __ANDROID__ || OPENMAUI_LINUX\n\t\t\tAssert.Equal("com.microsoft.maui.essentials.devicetests", AppInfo.PackageName);</Replace>
+    </MauiPatch>
+    <!-- Linux desktops always have a light or dark color scheme (the portal's color-scheme
+         setting, GTK/KDE themes), as Windows and Android do: the theme is never Unspecified. -->
+    <MauiPatch Include="Tests/AppInfo_Tests.cs">
+      <Find>#elif WINDOWS_UWP || WINDOWS || __ANDROID__\n\t\t\tAssert.NotEqual(AppTheme.Unspecified, AppInfo.RequestedTheme);</Find>
+      <Replace>#elif WINDOWS_UWP || WINDOWS || __ANDROID__ || OPENMAUI_LINUX\n\t\t\tAssert.NotEqual(AppTheme.Unspecified, AppInfo.RequestedTheme);</Replace>
+    </MauiPatch>
+
+    <!-- The #else is "throw new PlatformNotSupportedException()". OpenMaui's platform is
+         DevicePlatform.Create("Linux"), the value DeviceInfo.Platform reports. -->
+    <MauiPatch Include="Tests/DeviceInfo_Tests.cs">
+      <Find>#elif __ANDROID__\n\t\t\tAssert.Equal(DevicePlatform.Android, DeviceInfo.Platform);\n#else</Find>
+      <Replace>#elif __ANDROID__\n\t\t\tAssert.Equal(DevicePlatform.Android, DeviceInfo.Platform);\n#elif OPENMAUI_LINUX\n\t\t\tAssert.Equal(DevicePlatform.Create("Linux"), DeviceInfo.Platform);\n#else</Replace>
+    </MauiPatch>
+
+    <!-- App actions are supported on Linux (desktop entry actions), as on iOS and Windows. -->
+    <MauiPatch Include="Tests/AppActions_Tests.cs">
+      <Find>#elif __IOS__ || WINDOWS\n</Find>
+      <Replace>#elif __IOS__ || WINDOWS || OPENMAUI_LINUX\n</Replace>
+    </MauiPatch>
+  </ItemGroup>
+</Project>
