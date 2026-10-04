@@ -1440,6 +1440,22 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     private bool _inMauiArrange;
     private Rect? _selfArrangedTo;
 
+    /// <summary>
+    /// Set while MAUI measures this view through its handler (the view's own
+    /// MeasureOverride having already run): no second trip through MAUI.
+    /// </summary>
+    internal bool InMauiMeasure
+    {
+        get => _inMauiMeasure;
+        set => _inMauiMeasure = value;
+    }
+
+    /// <summary>
+    /// Set while a right-to-left parent places this view mirrored: the MAUI
+    /// Frame MAUI just set is the unmirrored one and is kept, as on Android/iOS.
+    /// </summary>
+    internal bool KeepMauiFrame { get; set; }
+
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, bool> s_customArrange = new();
 
     /// <summary>
@@ -1514,8 +1530,8 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             var origin = ParentOrigin(MauiView);
             var frame = new Rect(Bounds.X - origin.X, Bounds.Y - origin.Y, w, h);
             var current = MauiView.Frame;
-            if (Math.Abs(current.Width - w) > 0.5 || Math.Abs(current.Height - h) > 0.5
-                || Math.Abs(current.X - frame.X) > 0.5 || Math.Abs(current.Y - frame.Y) > 0.5)
+            if (!KeepMauiFrame && (Math.Abs(current.Width - w) > 0.5 || Math.Abs(current.Height - h) > 0.5
+                || Math.Abs(current.X - frame.X) > 0.5 || Math.Abs(current.Y - frame.Y) > 0.5))
             {
                 _arrangingMauiView = true;
                 try
