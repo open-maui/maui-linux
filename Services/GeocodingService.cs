@@ -14,18 +14,28 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// Maps on Windows, Google on Android, Apple on iOS); the desktop has no system geocoder, so
 /// this is OpenMaui's. It returned no results at all before.
 ///
-/// The service is <c>https://nominatim.openstreetmap.org/</c>, or the base URL in the
-/// <c>OPENMAUI_GEOCODING_URL</c> environment variable (a self-hosted or commercial Nominatim).
-/// The public instance's usage policy applies: requests carry a User-Agent naming the app
-/// (AppInfo.PackageName) and are spaced at least one second apart within the process.
+/// Geocoding is opt-in, as on Windows (where MAUI needs the app's Bing Maps key): it calls a
+/// service only when the app names one, in <see cref="ServiceUrl"/> or the
+/// <c>OPENMAUI_GEOCODING_URL</c> environment variable (a self-hosted or commercial Nominatim, or
+/// <see cref="OpenStreetMapUrl"/>, whose usage policy then applies: no heavy use). Otherwise it
+/// throws <see cref="FeatureNotSupportedException"/>, and no address or position leaves the
+/// machine. Requests carry a User-Agent naming the app (AppInfo.PackageName) and are spaced at
+/// least one second apart within the process.
 /// Results are in the current UI culture's language where the service has them.
 /// A network or service failure throws (HttpRequestException), as the platform geocoders do;
 /// an address or position with no match returns an empty list.
 /// </summary>
 public class GeocodingService : IGeocoding
 {
-    internal const string DefaultEndpoint = "https://nominatim.openstreetmap.org/";
+    /// <summary>OpenStreetMap's public Nominatim instance (light use only, under its usage policy).</summary>
+    public const string OpenStreetMapUrl = "https://nominatim.openstreetmap.org/";
     internal const string EndpointVariable = "OPENMAUI_GEOCODING_URL";
+
+    /// <summary>
+    /// The Nominatim service geocoding uses (overrides <c>OPENMAUI_GEOCODING_URL</c>); null with
+    /// no environment variable leaves geocoding unsupported.
+    /// </summary>
+    public static string? ServiceUrl { get; set; }
 
     private static readonly TimeSpan MinimumSpacing = TimeSpan.FromSeconds(1);
     private static readonly SemaphoreSlim s_throttle = new(1, 1);
@@ -54,8 +64,11 @@ public class GeocodingService : IGeocoding
         {
             if (_endpoint != null)
                 return _endpoint;
-            var configured = Environment.GetEnvironmentVariable(EndpointVariable);
-            var url = string.IsNullOrWhiteSpace(configured) ? DefaultEndpoint : configured.Trim();
+            var configured = !string.IsNullOrWhiteSpace(ServiceUrl) ? ServiceUrl : Environment.GetEnvironmentVariable(EndpointVariable);
+            if (string.IsNullOrWhiteSpace(configured))
+                throw new FeatureNotSupportedException(
+                    "Geocoding needs a service on Linux: set GeocodingService.ServiceUrl (or OPENMAUI_GEOCODING_URL) to a Nominatim instance.");
+            var url = configured.Trim();
             if (!url.EndsWith('/'))
                 url += "/";
             return new Uri(url);
