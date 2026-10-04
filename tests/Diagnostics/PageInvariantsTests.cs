@@ -104,6 +104,79 @@ public class PageInvariantsTests
     // --- realistic pages are clean ---------------------------------------------------------
 
     [Fact]
+    public void A_label_laid_out_shorter_than_its_text_is_reported()
+    {
+        var violations = CheckPage(() => new ContentPage
+        {
+            Content = new Label
+            {
+                Text = "A long notification body that wraps onto several lines in a narrow column",
+                LineBreakMode = LineBreakMode.WordWrap,
+                WidthRequest = 150,
+                HeightRequest = 20,
+                HorizontalOptions = LayoutOptions.Start,
+                VerticalOptions = LayoutOptions.Start,
+            },
+        });
+        violations.Should().Contain(v => v.Rule == "clipped-text");
+    }
+
+    [Fact]
+    public void A_label_extending_past_a_container_too_short_for_it_is_reported()
+    {
+        // A row cut short (as SwipeView rows were, at 44 px): its second line lies below it.
+        var violations = CheckPage(() =>
+        {
+            var row = new Grid { HeightRequest = 30, VerticalOptions = LayoutOptions.Start, RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) } };
+            row.Add(new Label { Text = "Title", FontSize = 16 }, 0, 0);
+            row.Add(new Label { Text = "Second line", FontSize = 16 }, 0, 1);
+            return new ContentPage { Content = new VerticalStackLayout { Children = { row, new Label { Text = "Below" } } } };
+        });
+        violations.Should().ContainSingle(v => v.Rule == "clipped-text").Which.Detail.Should().Contain("Second line");
+    }
+
+    [Fact]
+    public void Truncating_labels_and_scrolled_text_are_not_clipped_text()
+    {
+        var violations = CheckPage(() =>
+        {
+            var stack = new VerticalStackLayout { Spacing = 8 };
+            stack.Add(new Label { Text = string.Concat(Enumerable.Repeat("Truncated on purpose ", 20)), LineBreakMode = LineBreakMode.TailTruncation });
+            stack.Add(new Label { Text = string.Concat(Enumerable.Repeat("Two lines at most ", 30)), MaxLines = 2, LineBreakMode = LineBreakMode.TailTruncation });
+            for (int i = 0; i < 60; i++)
+                stack.Add(new Label { Text = $"Line {i} of a page longer than the window", FontSize = 18 });
+            return new ContentPage { Content = new ScrollView { Content = stack } };
+        });
+        violations.Where(v => v.Rule == "clipped-text").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Swipe_view_rows_show_both_lines()
+    {
+        // CiteLynq's Notifications rows: a SwipeView around a title and a body line.
+        var violations = CheckPage(() => new ContentPage
+        {
+            Content = new CollectionView
+            {
+                ItemsSource = new[] { "Order shipped", "Payment received", "New follower" },
+                ItemTemplate = new DataTemplate(() =>
+                {
+                    var title = new Label { FontSize = 16, FontAttributes = FontAttributes.Bold };
+                    title.SetBinding(Label.TextProperty, ".");
+                    var body = new Label { FontSize = 14, Text = "Tap to see the details of this notification" };
+                    var swipe = new SwipeView
+                    {
+                        RightItems = new SwipeItems { new SwipeItem { Text = "Delete", BackgroundColor = Colors.Red } },
+                        Content = new VerticalStackLayout { Padding = new Thickness(12, 8), Children = { title, body } },
+                    };
+                    return swipe;
+                }),
+            },
+        });
+        violations.Where(v => v.Rule == "clipped-text").Should().BeEmpty();
+    }
+
+    [Fact]
     public void Pages_built_from_the_controls_behind_recent_bugs_report_nothing()
     {
         var image = WriteImage();
