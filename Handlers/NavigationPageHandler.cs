@@ -50,9 +50,14 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
     protected override void ConnectHandler(SkiaNavigationPage platformView)
     {
         base.ConnectHandler(platformView);
+        // The page's MAUI frame follows the platform view's arrange.
+        platformView.HostedPage = VirtualView as Microsoft.Maui.Controls.Page;
         platformView.Pushed += OnPushed;
         platformView.Popped += OnPopped;
         platformView.PoppedToRoot += OnPoppedToRoot;
+        // The back arrow (and Escape) pop MAUI's NavigationPage, which then
+        // navigates this view: MAUI's stack and the shown one stay the same.
+        platformView.BackRequested = OnPlatformBackRequested;
 
         // Subscribe to navigation events from virtual view
         if (VirtualView != null)
@@ -71,6 +76,13 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         platformView.Pushed -= OnPushed;
         platformView.Popped -= OnPopped;
         platformView.PoppedToRoot -= OnPoppedToRoot;
+        platformView.BackRequested = null;
+        foreach (var page in _barSubscriptions)
+            page.PropertyChanged -= OnPagePropertyChanged;
+        _barSubscriptions.Clear();
+        foreach (var toolbar in _toolbarSubscriptions.Values)
+            toolbar.Items.CollectionChanged -= toolbar.Handler;
+        _toolbarSubscriptions.Clear();
 
         if (VirtualView != null)
         {
@@ -110,7 +122,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
                 page.Handler = page.ToViewHandler(MauiContext);
             }
 
-            if (page.Handler?.PlatformView is SkiaPage skiaPage)
+            if (PlatformPageFor(page) is SkiaPage skiaPage)
             {
                 skiaPage.ShowNavigationBar = true;
                 skiaPage.TitleBarColor = PlatformView.BarBackgroundColor;
@@ -139,11 +151,12 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
                 {
                     PlatformView.Push(skiaPage, false);
                 }
+                TrackPageBar(page);
             }
         }
     }
 
-    private readonly Dictionary<Page, (SkiaPage, INotifyCollectionChanged)> _toolbarSubscriptions = new();
+    private readonly Dictionary<Page, (SkiaPage Page, INotifyCollectionChanged Items, NotifyCollectionChangedEventHandler Handler)> _toolbarSubscriptions = new();
 
     private void MapToolbarItems(SkiaPage skiaPage, Page page)
     {
@@ -194,13 +207,14 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             if (page.ToolbarItems is INotifyCollectionChanged notifyCollection && !_toolbarSubscriptions.ContainsKey(page))
             {
                 DiagnosticLog.Debug("NavigationPageHandler", $"Subscribing to ToolbarItems changes for '{page.Title}'");
-                notifyCollection.CollectionChanged += (s, e) =>
+                NotifyCollectionChangedEventHandler onChanged = (s, e) =>
                 {
                     DiagnosticLog.Debug("NavigationPageHandler", $"ToolbarItems changed for '{page.Title}', action={e.Action}");
                     MapToolbarItems(skiaPage, page);
                     skiaPage.Invalidate();
                 };
-                _toolbarSubscriptions[page] = (skiaPage, notifyCollection);
+                notifyCollection.CollectionChanged += onChanged;
+                _toolbarSubscriptions[page] = (skiaPage, notifyCollection, onChanged);
             }
         }
     }
@@ -340,60 +354,140 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             return;
 
         var requestedStack = request.NavigationStack;
-        int currentDepth = handler.PlatformView.StackDepth;
+        DiagnosticLog.Debug("NavigationPageHandler", $"MapRequestNavigation: requested={requestedStack.Count} pages, current platform depth={handler.PlatformView.StackDepth}");
 
-        DiagnosticLog.Debug("NavigationPageHandler", $"MapRequestNavigation: requested={requestedStack.Count} pages, current platform depth={currentDepth}");
-
-        if (requestedStack.Count < currentDepth)
+        // The platform shows exactly the requested stack: pushes, pops, pages inserted
+        // or removed beneath the current one, and whole-stack swaps (MAUI's
+        // StackNavigationManager does the same on every platform).
+        var skiaPages = new List<SkiaPage>(requestedStack.Count);
+        foreach (var view in requestedStack)
         {
-            // Pop: the requested stack is shorter than current
-            int popCount = currentDepth - requestedStack.Count;
-            DiagnosticLog.Debug("NavigationPageHandler", $"Popping {popCount} pages");
-            for (int i = 0; i < popCount; i++)
+            if (view is not Page page)
+                continue;
+            if (page.Handler == null)
+                page.Handler = page.ToViewHandler(handler.MauiContext);
+            if (handler.PlatformPageFor(page) is SkiaPage skiaPage)
             {
-                handler.PlatformView.Pop(request.Animated);
-            }
-        }
-        else if (requestedStack.Count > currentDepth || currentDepth == 0)
-        {
-            // Push: new pages on the stack
-            // Only push pages that aren't already on the platform stack
-            int startIndex = Math.Max(0, currentDepth);
-            for (int i = startIndex; i < requestedStack.Count; i++)
-            {
-                if (requestedStack[i] is not Page page) continue;
-
-                // Ensure handler exists
-                if (page.Handler == null)
-                {
-                    page.Handler = page.ToViewHandler(handler.MauiContext);
-                }
-
-                if (page.Handler?.PlatformView is SkiaPage skiaPage)
-                {
-                    skiaPage.ShowNavigationBar = true;
-                    skiaPage.TitleBarColor = handler.PlatformView.BarBackgroundColor;
-                    skiaPage.TitleTextColor = handler.PlatformView.BarTextColor;
-                    handler.MapToolbarItems(skiaPage, page);
-
-                    if (handler.PlatformView.StackDepth == 0)
-                    {
-                        handler.PlatformView.SetRootPage(skiaPage);
-                    }
-                    else
-                    {
-                        handler.PlatformView.Push(skiaPage, request.Animated);
-                    }
-
-                    DiagnosticLog.Debug("NavigationPageHandler", $"Pushed page [{i}]: {page.Title ?? page.GetType().Name}");
-                }
+                skiaPage.TitleBarColor = handler.PlatformView.BarBackgroundColor;
+                skiaPage.TitleTextColor = handler.PlatformView.BarTextColor;
+                handler.MapToolbarItems(skiaPage, page);
+                skiaPages.Add(skiaPage);
             }
         }
 
-        // Signal to MAUI that navigation is complete.
-        // Without this, PushAsync/PopAsync Tasks never complete and the Pushed/Popped events never fire.
-        ((IStackNavigation)navigationPage).NavigationFinished(requestedStack);
-        DiagnosticLog.Debug("NavigationPageHandler", "NavigationFinished called");
+        handler.PlatformView.SetNavigationStack(skiaPages, request.Animated);
+
+        // Bars after the stack changed (pushing configures a page's bar); pages that
+        // left the stack are let go (the handler must not keep popped pages alive).
+        handler.UntrackPagesNotIn(requestedStack);
+        foreach (var view in requestedStack)
+            if (view is Page page)
+                handler.TrackPageBar(page);
+
+        // Signal to MAUI that navigation is complete once the page is on screen:
+        // PushAsync/PopAsync return (and Pushed/Popped fire) after the transition,
+        // as on MAUI's platforms, so the next navigation finds the page current.
+        void Finish()
+        {
+            ((IStackNavigation)navigationPage).NavigationFinished(requestedStack);
+            DiagnosticLog.Debug("NavigationPageHandler", "NavigationFinished called");
+        }
+
+        if (handler.PlatformView.IsTransitioning)
+        {
+            var platformView = handler.PlatformView;
+            void OnCompleted(object? sender, EventArgs e)
+            {
+                platformView.TransitionCompleted -= OnCompleted;
+                Finish();
+            }
+            platformView.TransitionCompleted += OnCompleted;
+        }
+        else
+        {
+            Finish();
+        }
+    }
+
+    private readonly HashSet<Page> _barSubscriptions = new();
+
+    // Pages whose platform view is not a SkiaPage (a TabbedPage or FlyoutPage pushed onto
+    // the stack) are shown in a SkiaPage that hosts it and carries its navigation bar.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Page, SkiaPage> _pageHosts = new();
+
+    private SkiaPage? PlatformPageFor(Page page)
+    {
+        var platformView = page.Handler?.PlatformView as SkiaView;
+        if (platformView is SkiaPage skiaPage)
+            return skiaPage;
+        if (platformView is null)
+            return null;
+        if (!_pageHosts.TryGetValue(page, out var host))
+        {
+            // The hosted view gives the page its frame (SkiaView.HostedPage); the host
+            // only adds the bar.
+            host = new SkiaPage();
+            _pageHosts.Add(page, host);
+        }
+        if (!ReferenceEquals(host.Content, platformView))
+            host.Content = platformView;
+        return host;
+    }
+
+    /// <summary>
+    /// A page's bar follows NavigationPage.HasNavigationBar / HasBackButton and its
+    /// Title while it is on the stack.
+    /// </summary>
+    private void TrackPageBar(Page page)
+    {
+        ApplyPageBar(page);
+        if (_barSubscriptions.Add(page))
+            page.PropertyChanged += OnPagePropertyChanged;
+    }
+
+    private void UntrackPagesNotIn(IReadOnlyList<IView> stack)
+    {
+        foreach (var page in _barSubscriptions.ToList())
+        {
+            if (stack.Contains(page))
+                continue;
+            page.PropertyChanged -= OnPagePropertyChanged;
+            _barSubscriptions.Remove(page);
+            if (_toolbarSubscriptions.Remove(page, out var toolbar))
+                toolbar.Items.CollectionChanged -= toolbar.Handler;
+        }
+    }
+
+    private void OnPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not Page page)
+            return;
+        if (e.PropertyName == NavigationPage.HasNavigationBarProperty.PropertyName
+            || e.PropertyName == NavigationPage.HasBackButtonProperty.PropertyName
+            || e.PropertyName == Page.TitleProperty.PropertyName)
+        {
+            ApplyPageBar(page);
+        }
+    }
+
+    private void ApplyPageBar(Page page)
+    {
+        if (PlatformPageFor(page) is not SkiaPage skiaPage)
+            return;
+        skiaPage.ShowNavigationBar = NavigationPage.GetHasNavigationBar(page);
+        skiaPage.HasBackButton = NavigationPage.GetHasBackButton(page);
+        skiaPage.Title = page.Title ?? string.Empty;
+        skiaPage.InvalidateMeasure();
+        skiaPage.Invalidate();
+        PlatformView?.Invalidate();
+    }
+
+    private bool OnPlatformBackRequested()
+    {
+        if (VirtualView is not { } navigationPage || navigationPage.Navigation.NavigationStack.Count <= 1)
+            return false;
+        _ = navigationPage.PopAsync();
+        return true;
     }
 }
 

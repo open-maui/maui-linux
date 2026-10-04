@@ -25,9 +25,8 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
-        continue-on-error: true
+      # Tests and parity gates run in .gitea/workflows/tests.yml, which reports on
+      # its own and never blocks this build or a release.
 
       - name: Performance benchmarks (warn only)
         # Headless benchmark suite (tools/Benchmarks, docs/PERFORMANCE.md)

@@ -35,6 +35,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
         [nameof(Shell.Title)] = MapTitle,
         ["ForegroundColor"] = MapForegroundColor,
         ["TitleColor"] = MapTitleColor,
+        [nameof(IToolbarElement.Toolbar)] = MapToolbar,
     };
 
     public static CommandMapper<Shell, ShellHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -51,14 +52,60 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
     {
     }
 
+    // The Shell a window shows is drawn by LinuxViewRenderer (RenderShell), which
+    // builds and syncs its SkiaShell itself. That Shell still gets a ShellHandler, as
+    // on MAUI's platforms (Shell.Handler is the Shell's handler there), one that
+    // adopts the rendered SkiaShell and maps nothing the renderer already drives.
+    private static readonly IPropertyMapper<Shell, ShellHandler> s_renderedMapper =
+        new PropertyMapper<Shell, ShellHandler>(ElementHandler.ElementMapper)
+        {
+            [nameof(IToolbarElement.Toolbar)] = MapToolbar,
+        };
+
+    /// <summary>The Shell's toolbar (its ShellToolbar) is the window's when the Shell is its page.</summary>
+    public static void MapToolbar(ShellHandler handler, Shell shell) => WindowHandler.UpdateToolbar(shell);
+
+    private readonly SkiaShell? _rendered;
+
+    internal ShellHandler(SkiaShell rendered)
+        : base(s_renderedMapper, ViewHandler.ViewCommandMapper)
+    {
+        _rendered = rendered;
+    }
+
+    /// <summary>Gives a Shell drawn by the renderer its handler over <paramref name="rendered"/>, unless it has one.</summary>
+    internal static void AttachRendered(Shell shell, SkiaShell rendered, IMauiContext context)
+    {
+        if (shell.Handler != null)
+            return;
+        try
+        {
+            var handler = new ShellHandler(rendered);
+            handler.SetMauiContext(context);
+            shell.Handler = handler;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("ShellHandler", "Attaching the handler of a rendered Shell failed", ex);
+        }
+    }
+
     protected override SkiaShell CreatePlatformView()
     {
+        if (_rendered != null)
+            return _rendered;
         DiagnosticLog.Debug("ShellHandler", "CreatePlatformView - creating SkiaShell");
         return new SkiaShell();
     }
 
     protected override void ConnectHandler(SkiaShell platformView)
     {
+        if (_rendered != null)
+        {
+            base.ConnectHandler(platformView);
+            return;
+        }
+
         DiagnosticLog.Debug("ShellHandler", "ConnectHandler - connecting to SkiaShell");
         base.ConnectHandler(platformView);
         platformView.FlyoutIsPresentedChanged += OnFlyoutIsPresentedChanged;
@@ -67,6 +114,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
         // Set up content renderer and theme callbacks
         platformView.ContentRenderer = RenderShellContent;
         platformView.PageRenderer = RenderPushedPage;
+        platformView.ViewRenderer = RenderChromeView;
         platformView.ColorRefresher = RefreshShellColors;
         platformView.IconSyncer = SyncFlyoutIcons;
 
@@ -97,6 +145,12 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
 
     protected override void DisconnectHandler(SkiaShell platformView)
     {
+        if (_rendered != null)
+        {
+            base.DisconnectHandler(platformView);
+            return;
+        }
+
         platformView.FlyoutIsPresentedChanged -= OnFlyoutIsPresentedChanged;
         platformView.Navigated -= OnNavigated;
         platformView.MauiShell = null;
@@ -133,6 +187,23 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
         catch (Exception ex)
         {
             DiagnosticLog.Error("ShellHandler", $"Rendering pushed page {page.GetType().Name} failed", ex);
+            return null;
+        }
+    }
+
+    /// <summary>Platform view for a view the shell shows in its bar (the TitleView).</summary>
+    private SkiaView? RenderChromeView(View view)
+    {
+        if (view.Handler?.PlatformView is SkiaView existing)
+            return existing;
+        if (MauiContext is null) return null;
+        try
+        {
+            return view.ToViewHandler(MauiContext)?.PlatformView as SkiaView;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("ShellHandler", $"Rendering {view.GetType().Name} failed", ex);
             return null;
         }
     }
@@ -431,7 +502,8 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
 
     public static void MapFlyoutHeaderBehavior(ShellHandler handler, Shell shell)
     {
-        // Flyout header behavior - handled by platform view
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.FlyoutHeaderBehavior = shell.FlyoutHeaderBehavior;
     }
 
     public static void MapFlyoutHeader(ShellHandler handler, Shell shell)

@@ -10,10 +10,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Ellipse (Microsoft.Maui.Controls.Shapes.Ellipse) on Linux.
 /// Maps MAUI shape properties to SkiaEllipse for rendering.
 /// </summary>
-public partial class EllipseHandler : LinuxViewHandler<Ellipse, SkiaEllipse>
+public partial class EllipseHandler : LinuxViewHandler<Ellipse, SkiaEllipse>, IShapeViewHandler
 {
     public static IPropertyMapper<Ellipse, EllipseHandler> Mapper =
-        new PropertyMapper<Ellipse, EllipseHandler>(ViewMapper)
+        new PropertyMapper<Ellipse, EllipseHandler>(ShapeViewHandler.Mapper)
         {
             [nameof(Ellipse.Fill)] = MapFill,
             [nameof(Ellipse.Stroke)] = MapStroke,
@@ -99,5 +99,15 @@ public partial class EllipseHandler : LinuxViewHandler<Ellipse, SkiaEllipse>
             handler.PlatformView.BackgroundColor = ellipse.BackgroundColor;
             handler.PlatformView.Invalidate();
         }
+    }
+
+    IShapeView IShapeViewHandler.VirtualView => VirtualView;
+
+    object IShapeViewHandler.PlatformView => PlatformView;
+
+    protected override void DisconnectHandler(SkiaEllipse platformView)
+    {
+        platformView.ClearShape();
+        base.DisconnectHandler(platformView);
     }
 }

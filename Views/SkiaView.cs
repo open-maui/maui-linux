@@ -1453,6 +1453,9 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     /// Set while an arrange comes from MAUI (the handler's PlatformArrange, the
     /// view's own ArrangeOverride having already run): no second trip through MAUI.
     /// </summary>
+    /// <summary>The MAUI page this view draws, when it is a page container (see Arrange).</summary>
+    internal Microsoft.Maui.Controls.Page? HostedPage { get; set; }
+
     internal bool InMauiArrange
     {
         get => _inMauiArrange;
@@ -1537,6 +1540,22 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         finally
         {
             _arrangingTo = null;
+        }
+
+        // A container page drawn by this view (NavigationPage, TabbedPage,
+        // FlyoutPage: pages are not Views, so MauiView cannot hold them) gets its
+        // MAUI frame here, as SkiaPage gives a ContentPage its frame: without it
+        // the page's Width/Height stay -1 and SizeChanged never fires.
+        if (HostedPage is { } hostedPage && !InMauiArrange && Bounds.Width > 0 && Bounds.Height > 0 && hostedPage.Frame != Bounds)
+        {
+            try
+            {
+                hostedPage.Frame = Bounds;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaView", $"Setting the frame of {hostedPage.GetType().Name} failed", ex);
+            }
         }
 
         // Notify the MAUI virtual view of its final size so that
