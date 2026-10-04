@@ -69,6 +69,13 @@ internal interface IDesktopPortal
     /// for that session, then closes the session. Null on timeout/denial.
     /// </summary>
     Task<IReadOnlyDictionary<string, object>?> GetLocationAsync(IDictionary<string, object> sessionOptions, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Location: CreateSession + Start, then every LocationUpdated for that session goes to
+    /// <paramref name="onUpdate"/> (on a thread-pool thread) until the returned handle is
+    /// disposed, which closes the session. Null when the session could not start (denied).
+    /// </summary>
+    Task<IAsyncDisposable?> WatchLocationAsync(IDictionary<string, object> sessionOptions, Action<IReadOnlyDictionary<string, object>> onUpdate, CancellationToken cancellationToken);
 }
 
 /// <summary>Inhibit flags (bitmask) of org.freedesktop.portal.Inhibit.</summary>
@@ -147,4 +154,6 @@ internal sealed class NullDesktopPortal : IDesktopPortal
     public Task<IDisposable> WatchNotificationActionInvokedAsync(Action<string, string> handler) => Task.FromException<IDisposable>(Unavailable());
 
     public Task<IReadOnlyDictionary<string, object>?> GetLocationAsync(IDictionary<string, object> sessionOptions, CancellationToken cancellationToken) => Task.FromException<IReadOnlyDictionary<string, object>?>(Unavailable());
+
+    public Task<IAsyncDisposable?> WatchLocationAsync(IDictionary<string, object> sessionOptions, Action<IReadOnlyDictionary<string, object>> onUpdate, CancellationToken cancellationToken) => Task.FromException<IAsyncDisposable?>(Unavailable());
 }
