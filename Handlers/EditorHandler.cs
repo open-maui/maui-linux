@@ -35,7 +35,16 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
             [nameof(IEditor.VerticalTextAlignment)] = MapVerticalTextAlignment,
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
+            // Controls' Editor.AutoSize (TextChanges: the editor grows with its text).
+            [nameof(Microsoft.Maui.Controls.Editor.AutoSize)] = MapAutoSize,
         };
+
+    public static void MapAutoSize(EditorHandler handler, IEditor editor)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.AutoSize = editor is Microsoft.Maui.Controls.Editor { AutoSize: Microsoft.Maui.Controls.EditorAutoSizeOption.TextChanges };
+        handler.PlatformView.InvalidateMeasure();
+    }
 
     public static CommandMapper<IEditor, EditorHandler> CommandMapper =
         new(ViewHandler.ViewCommandMapper)
@@ -109,15 +118,42 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
         // The platform holds the text as shown (TextTransform applied, cut to
         // MaxLength); a difference flows back to the view through TextChanged.
         var text = TextInputText.GetDisplayText(editor);
+        bool replaced = false;
         if (handler.PlatformView.Text != text)
         {
             handler.PlatformView.Text = text;
             handler.PlatformView.Invalidate();
+            replaced = true;
         }
 
         // The text the platform holds (cut to MaxLength, transformed) is the
         // view's Text, as on MAUI's platforms.
         TextInputText.UpdateVirtualText(editor, handler.PlatformView.Text);
+
+        // Text replaced after the view was first shown puts the caret at its end
+        // (MAUI's platforms), and the view's CursorPosition follows.
+        if (replaced && !handler._initialMapping)
+        {
+            handler.PlatformView.SelectionLength = 0;
+            handler.PlatformView.CursorPosition = handler.PlatformView.Text.Length;
+            TextInputText.ReportSelection(editor, handler.PlatformView.CursorPosition, 0);
+        }
+    }
+
+    // True while the view's initial values are mapped (SetVirtualView).
+    private bool _initialMapping;
+
+    public override void SetVirtualView(IView view)
+    {
+        _initialMapping = true;
+        try
+        {
+            base.SetVirtualView(view);
+        }
+        finally
+        {
+            _initialMapping = false;
+        }
     }
 
     public static void MapPlaceholder(EditorHandler handler, IEditor editor)
@@ -198,13 +234,18 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
     public static void MapCursorPosition(EditorHandler handler, IEditor editor)
     {
         if (handler.PlatformView is null) return;
+        // The platform caps the caret to the text; the view gets the capped value.
         handler.PlatformView.CursorPosition = editor.CursorPosition;
+        if (editor.CursorPosition != handler.PlatformView.CursorPosition)
+            editor.CursorPosition = handler.PlatformView.CursorPosition;
     }
 
     public static void MapSelectionLength(EditorHandler handler, IEditor editor)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.SelectionLength = editor.SelectionLength;
+        handler.PlatformView.SelectionLength = TextInputText.ClampSelectionLength(
+            handler.PlatformView.Text, handler.PlatformView.CursorPosition, editor.SelectionLength);
+        TextInputText.ReportSelection(editor, handler.PlatformView.CursorPosition, handler.PlatformView.SelectionLength);
     }
 
     public static void MapKeyboard(EditorHandler handler, IEditor editor)
