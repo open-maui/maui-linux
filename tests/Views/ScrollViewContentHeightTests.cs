@@ -48,4 +48,31 @@ public class ScrollViewContentHeightTests
             filling.Frame.Height.Should().Be(600, "Fill stretches it to the page, as before");
         }
     }
+
+    [Fact]
+    public void In_a_vertical_stack_a_scroller_is_as_tall_as_its_content_as_in_MAUI()
+    {
+        // The stack measures it with unbounded height: MAUI's ScrollView then takes its content's
+        // height (it was given a made-up 400 viewport here).
+        var scroll = Form(1000);
+        using var host = new HeadlessMauiHost(new ContentPage { Content = new VerticalStackLayout { Children = { scroll } } }, withEngine: true);
+        host.Context.Render();
+
+        scroll.Frame.Height.Should().BeApproximately(1040, 1);
+    }
+
+    [Fact]
+    public void A_centred_scroller_is_as_wide_as_its_content()
+    {
+        var scroll = new ScrollView
+        {
+            HorizontalOptions = LayoutOptions.Center,
+            Content = new BoxView { WidthRequest = 140, HeightRequest = 60 },
+        };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = scroll }, withEngine: true);
+        host.Context.Render();
+
+        scroll.Frame.Width.Should().BeLessThan(160, "it wraps its 140 wide content (and the scrollbar it keeps room for)");
+        scroll.Frame.X.Should().BeApproximately((800 - scroll.Frame.Width) / 2, 1, "centred");
+    }
 }

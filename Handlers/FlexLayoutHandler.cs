@@ -4,6 +4,11 @@ using Microsoft.Maui.Layouts;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
+/// <summary>
+/// Handler for FlexLayout on Linux: MAUI's FlexLayoutManager (the flexbox
+/// engine FlexLayout carries) places the children, with their Order, Grow,
+/// Shrink, Basis and AlignSelf, as on every platform.
+/// </summary>
 public class FlexLayoutHandler : LayoutHandler
 {
     public new static IPropertyMapper<FlexLayout, FlexLayoutHandler> Mapper = new PropertyMapper<FlexLayout, FlexLayoutHandler>(LayoutHandler.Mapper)
@@ -21,85 +26,26 @@ public class FlexLayoutHandler : LayoutHandler
 
     protected override SkiaLayoutView CreatePlatformView()
     {
-        return new SkiaFlexLayout();
+        return new SkiaCrossPlatformLayout();
     }
 
-    public static void MapDirection(FlexLayoutHandler handler, FlexLayout layout)
-    {
-        if (handler.PlatformView is SkiaFlexLayout flexLayout)
-        {
-            flexLayout.Direction = layout.Direction switch
-            {
-                Microsoft.Maui.Layouts.FlexDirection.Row => FlexDirection.Row,
-                Microsoft.Maui.Layouts.FlexDirection.RowReverse => FlexDirection.RowReverse,
-                Microsoft.Maui.Layouts.FlexDirection.Column => FlexDirection.Column,
-                Microsoft.Maui.Layouts.FlexDirection.ColumnReverse => FlexDirection.ColumnReverse,
-                _ => FlexDirection.Row,
-            };
-        }
-    }
+    /// <summary>Read by the layout's manager; the platform view is re-laid out.</summary>
+    public static void MapDirection(FlexLayoutHandler handler, FlexLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-    public static void MapWrap(FlexLayoutHandler handler, FlexLayout layout)
-    {
-        if (handler.PlatformView is SkiaFlexLayout flexLayout)
-        {
-            flexLayout.Wrap = layout.Wrap switch
-            {
-                Microsoft.Maui.Layouts.FlexWrap.NoWrap => FlexWrap.NoWrap,
-                Microsoft.Maui.Layouts.FlexWrap.Wrap => FlexWrap.Wrap,
-                Microsoft.Maui.Layouts.FlexWrap.Reverse => FlexWrap.WrapReverse,
-                _ => FlexWrap.NoWrap,
-            };
-        }
-    }
+    /// <summary>Read by the layout's manager; the platform view is re-laid out.</summary>
+    public static void MapWrap(FlexLayoutHandler handler, FlexLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-    public static void MapJustifyContent(FlexLayoutHandler handler, FlexLayout layout)
-    {
-        if (handler.PlatformView is SkiaFlexLayout flexLayout)
-        {
-            flexLayout.JustifyContent = layout.JustifyContent switch
-            {
-                Microsoft.Maui.Layouts.FlexJustify.Start => FlexJustify.Start,
-                Microsoft.Maui.Layouts.FlexJustify.Center => FlexJustify.Center,
-                Microsoft.Maui.Layouts.FlexJustify.End => FlexJustify.End,
-                Microsoft.Maui.Layouts.FlexJustify.SpaceBetween => FlexJustify.SpaceBetween,
-                Microsoft.Maui.Layouts.FlexJustify.SpaceAround => FlexJustify.SpaceAround,
-                Microsoft.Maui.Layouts.FlexJustify.SpaceEvenly => FlexJustify.SpaceEvenly,
-                _ => FlexJustify.Start,
-            };
-        }
-    }
+    /// <summary>Read by the layout's manager; the platform view is re-laid out.</summary>
+    public static void MapJustifyContent(FlexLayoutHandler handler, FlexLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-    public static void MapAlignItems(FlexLayoutHandler handler, FlexLayout layout)
-    {
-        if (handler.PlatformView is SkiaFlexLayout flexLayout)
-        {
-            flexLayout.AlignItems = layout.AlignItems switch
-            {
-                Microsoft.Maui.Layouts.FlexAlignItems.Start => FlexAlignItems.Start,
-                Microsoft.Maui.Layouts.FlexAlignItems.Center => FlexAlignItems.Center,
-                Microsoft.Maui.Layouts.FlexAlignItems.End => FlexAlignItems.End,
-                Microsoft.Maui.Layouts.FlexAlignItems.Stretch => FlexAlignItems.Stretch,
-                _ => FlexAlignItems.Stretch,
-            };
-        }
-    }
+    /// <summary>Read by the layout's manager; the platform view is re-laid out.</summary>
+    public static void MapAlignItems(FlexLayoutHandler handler, FlexLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-    public static void MapAlignContent(FlexLayoutHandler handler, FlexLayout layout)
-    {
-        if (handler.PlatformView is SkiaFlexLayout flexLayout)
-        {
-            flexLayout.AlignContent = layout.AlignContent switch
-            {
-                Microsoft.Maui.Layouts.FlexAlignContent.Start => FlexAlignContent.Start,
-                Microsoft.Maui.Layouts.FlexAlignContent.Center => FlexAlignContent.Center,
-                Microsoft.Maui.Layouts.FlexAlignContent.End => FlexAlignContent.End,
-                Microsoft.Maui.Layouts.FlexAlignContent.Stretch => FlexAlignContent.Stretch,
-                Microsoft.Maui.Layouts.FlexAlignContent.SpaceBetween => FlexAlignContent.SpaceBetween,
-                Microsoft.Maui.Layouts.FlexAlignContent.SpaceAround => FlexAlignContent.SpaceAround,
-                Microsoft.Maui.Layouts.FlexAlignContent.SpaceEvenly => FlexAlignContent.SpaceEvenly,
-                _ => FlexAlignContent.Stretch,
-            };
-        }
-    }
+    /// <summary>Read by the layout's manager; the platform view is re-laid out.</summary>
+    public static void MapAlignContent(FlexLayoutHandler handler, FlexLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 }

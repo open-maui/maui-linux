@@ -6,6 +6,11 @@ using SkiaSharp;
 
 namespace Microsoft.Maui.Platform;
 
+/// <summary>
+/// Flexbox layout for Skia children composed directly in Skia. A MAUI
+/// <c>FlexLayout</c> is laid out by MAUI's own FlexLayoutManager on a
+/// <see cref="SkiaCrossPlatformLayout"/> instead (see FlexLayoutHandler).
+/// </summary>
 public class SkiaFlexLayout : SkiaLayoutView
 {
     public static readonly BindableProperty DirectionProperty = BindableProperty.Create(

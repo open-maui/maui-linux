@@ -3,7 +3,9 @@
 
 using CommunityToolkit.Maui.Core.Handlers;
 using CommunityToolkit.Maui.Views;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.MediaElement.Views;
 
 namespace Microsoft.Maui.Platform.Linux.MediaElement.Handlers;
@@ -29,7 +31,7 @@ namespace Microsoft.Maui.Platform.Linux.MediaElement.Handlers;
 ///      with hit-test, time labels). Until then the app is expected to render
 ///      its own controls around the MediaElement (see MediaDemo).
 /// </summary>
-public class LinuxMediaElementHandler : MediaElementHandler
+public class LinuxMediaElementHandler : MediaElementHandler, ISkiaLayoutBridge
 {
     public new static IPropertyMapper<CommunityToolkit.Maui.Views.MediaElement, LinuxMediaElementHandler> PropertyMapper =
         new PropertyMapper<CommunityToolkit.Maui.Views.MediaElement, LinuxMediaElementHandler>(MediaElementHandler.PropertyMapper)
@@ -58,6 +60,30 @@ public class LinuxMediaElementHandler : MediaElementHandler
 
     public LinuxMediaElementHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
         : base(mapper ?? PropertyMapper, commandMapper ?? CommandMapper) { }
+
+    /// <summary>
+    /// Measures the Skia view when MAUI's layout managers measure the
+    /// MediaElement (a Grid's cell), as the platform's own handlers do; the
+    /// toolkit's portable handler reports 0x0.
+    /// </summary>
+    public override Size GetDesiredSize(double widthConstraint, double heightConstraint)
+    {
+        if (PlatformView is SkiaView skia && VirtualView is IView view)
+            return SkiaLayoutBridge.GetDesiredSize(skia, view, widthConstraint, heightConstraint);
+        return base.GetDesiredSize(widthConstraint, heightConstraint);
+    }
+
+    /// <summary>
+    /// Places the Skia view at the frame MAUI's layout gave the MediaElement;
+    /// the toolkit's portable handler ignores it.
+    /// </summary>
+    public override void PlatformArrange(Rect frame)
+    {
+        if (PlatformView is SkiaView skia)
+            SkiaLayoutBridge.PlatformArrange(skia, VirtualView, frame);
+        else
+            base.PlatformArrange(frame);
+    }
 
     // Periodic position/duration pump. 250ms cadence matches what the toolkit's
     // iOS/Android backends use; responsive enough for slider scrub-to-position
