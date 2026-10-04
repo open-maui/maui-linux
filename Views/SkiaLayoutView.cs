@@ -402,10 +402,18 @@ public abstract class SkiaLayoutView : SkiaView
     }
 
     /// <summary>
-    /// Forward pointer moved events to the appropriate child.
+    /// Forward pointer moved events to the appropriate child. A layout that took the press itself
+    /// keeps the pointer until the release, as the window captured it for the layout: its moves go
+    /// to it even outside its bounds (a drag that leaves the layout) or over a child.
     /// </summary>
     public override void OnPointerMoved(PointerEventArgs e)
     {
+        if (_layoutPressed)
+        {
+            RaisePointerRoutedChain(RoutedPointerKind.Moved, e);
+            return;
+        }
+
         // Find which child was hit and forward the event
         var hit = HitTest(e.X, e.Y);
         if (hit != null && hit != this)

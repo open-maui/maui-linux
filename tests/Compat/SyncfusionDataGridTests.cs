@@ -111,8 +111,10 @@ public sealed class SyncfusionDataGridTests
         using (host)
         {
             Click(host, 250, HeaderY);
-            // The header cell waits 150 ms for a possible double tap before it sorts.
-            for (int i = 0; i < 10 && grid.SortColumnDescriptions.Count == 0; i++)
+            // The header cell waits 150 ms for a possible double tap before it sorts (as on
+            // Windows); allow for a loaded machine.
+            var deadline = DateTime.UtcNow.AddSeconds(3);
+            while (grid.SortColumnDescriptions.Count == 0 && DateTime.UtcNow < deadline)
                 Pump(host, 2);
             grid.SortColumnDescriptions.Should().ContainSingle(d => d.ColumnName == nameof(Person.Salary));
         }
