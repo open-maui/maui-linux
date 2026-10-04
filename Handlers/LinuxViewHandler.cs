@@ -24,6 +24,18 @@ public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandle
     {
     }
 
+    /// <summary>
+    /// A handler connected the way MAUI connects one (<c>view.Handler = new XHandler()</c>,
+    /// <c>ToHandler</c>) gives its Skia view the MAUI view, as OpenMaui's own handler factory
+    /// does: without it the view had no MAUI frame, no Loaded and no layout options.
+    /// </summary>
+    protected override void ConnectHandler(TPlatformView platformView)
+    {
+        base.ConnectHandler(platformView);
+        if (platformView is SkiaView skia && skia.MauiView is null && VirtualView is Microsoft.Maui.Controls.View view)
+            skia.MauiView = view;
+    }
+
     /// <inheritdoc />
     public override Size GetDesiredSize(double widthConstraint, double heightConstraint)
     {
@@ -39,6 +51,12 @@ public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandle
             SkiaLayoutBridge.PlatformArrange(skia, VirtualView, frame);
         else
             base.PlatformArrange(frame);
+
+        // As on MAUI's platforms (PlatformArrangeHandler), an arrange runs the Frame command,
+        // which apps and libraries extend (ViewCommandMapper.AppendToMapping(nameof(IView.Frame), ...))
+        // to react to a view being placed. A negative frame is Controls' "not laid out yet".
+        if (frame.Width >= 0 && frame.Height >= 0)
+            Invoke(nameof(IView.Frame), frame);
     }
 }
 

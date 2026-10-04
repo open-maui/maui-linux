@@ -62,13 +62,89 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         base.ConnectHandler(platformView);
         platformView.PositionChanged += OnPositionChanged;
         platformView.Scrolled += OnScrolled;
+        ObserveScrollToRequests(VirtualView);
     }
 
+    /// <summary>
+    /// Releases what the handler attached, as MAUI's items handlers do: the items source's change
+    /// notifications (a disconnected CarouselView no longer hooks its collection), the item views
+    /// (out of the CarouselView's logical children, handlers disconnected), ScrollTo requests.
+    /// </summary>
     protected override void DisconnectHandler(SkiaCarouselView platformView)
     {
         platformView.PositionChanged -= OnPositionChanged;
         platformView.Scrolled -= OnScrolled;
+        ObserveScrollToRequests(null);
+        _collectionSubscription?.Dispose();
+        _collectionSubscription = null;
+        platformView.ClearItems();
+        ReleaseItemElements();
         base.DisconnectHandler(platformView);
+    }
+
+    /// <inheritdoc />
+    public override void SetVirtualView(IView view)
+    {
+        base.SetVirtualView(view);
+        if (PlatformView != null)
+            ObserveScrollToRequests(VirtualView);
+    }
+
+    // The items source's changes, observed weakly (as MAUI's ObservableItemsSource does): items
+    // added or removed after the carousel is shown are shown.
+    private WeakCollectionChangedProxy<CarouselViewHandler>? _collectionSubscription;
+
+    // The item views' MAUI elements: logical children of the CarouselView while shown.
+    private readonly List<Element> _itemElements = new();
+
+    private void ReleaseItemElements()
+    {
+        foreach (var element in _itemElements)
+        {
+            if (element.Parent is ItemsView owner)
+                owner.RemoveLogicalChild(element);
+            try
+            {
+                if (element is IView view)
+                    view.DisconnectHandlers();
+            }
+            catch (Exception ex)
+            {
+                Microsoft.Maui.Platform.Linux.Services.DiagnosticLog.Error("CarouselViewHandler", "Disconnecting an item failed", ex);
+            }
+        }
+        _itemElements.Clear();
+    }
+
+    private void OnItemsSourceChanged()
+    {
+        if (VirtualView is not { } carouselView || PlatformView is null)
+            return;
+        var position = carouselView.Position;
+        MapItemsSource(this, carouselView);
+        var count = PlatformView.ItemCount;
+        if (count > 0)
+            PlatformView.ScrollTo(Math.Clamp(position, 0, count - 1), false);
+    }
+
+    // CarouselView.ScrollTo raises ScrollToRequested, which MAUI's handlers listen to.
+    private CarouselView? _scrollRequestsView;
+
+    private void ObserveScrollToRequests(CarouselView? view)
+    {
+        if (ReferenceEquals(_scrollRequestsView, view))
+            return;
+        if (_scrollRequestsView != null)
+            _scrollRequestsView.ScrollToRequested -= OnScrollToRequested;
+        _scrollRequestsView = view;
+        if (view != null)
+            view.ScrollToRequested += OnScrollToRequested;
+    }
+
+    private void OnScrollToRequested(object? sender, ScrollToRequestEventArgs e)
+    {
+        if (VirtualView is { } view)
+            MapScrollTo(this, view, e);
     }
 
     private void OnPositionChanged(object? sender, PositionChangedEventArgs e)
@@ -108,8 +184,17 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         if (handler.PlatformView is null || handler.MauiContext is null) return;
 
         handler.PlatformView.ClearItems();
+        handler.ReleaseItemElements();
 
         var itemsSource = carouselView.ItemsSource;
+        if (!ReferenceEquals(handler._collectionSubscription?.Source, itemsSource))
+        {
+            handler._collectionSubscription?.Dispose();
+            handler._collectionSubscription = itemsSource is System.Collections.Specialized.INotifyCollectionChanged observable
+                ? new WeakCollectionChangedProxy<CarouselViewHandler>(observable, handler,
+                    static (h, _, _) => h.OnItemsSourceChanged())
+                : null;
+        }
         if (itemsSource == null) return;
 
         var template = carouselView.ItemTemplate;
@@ -130,7 +215,9 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
                         view.BindingContext = item;
                         if (view.Parent == null)
                         {
-                            try { view.Parent = carouselView; } catch { }
+                            // A logical child of the CarouselView, as MAUI adds a realized item.
+                            carouselView.AddLogicalChild(view);
+                            handler._itemElements.Add(view);
                         }
 
                         if (view.Handler == null)
@@ -255,7 +342,10 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
 
         if (args is ScrollToRequestEventArgs scrollArgs)
         {
-            handler.PlatformView.ScrollTo(scrollArgs.Index, scrollArgs.IsAnimated);
+            var index = scrollArgs.Mode == ScrollToMode.Element && carouselView.ItemsSource is System.Collections.IList list
+                ? list.IndexOf(scrollArgs.Item)
+                : scrollArgs.Index;
+            handler.PlatformView.ScrollTo(index, scrollArgs.IsAnimated);
         }
     }
 }
