@@ -488,5 +488,111 @@ internal sealed class TmdsDesktopPortal : IDesktopPortal
         }
     }
 
+    public async Task<IAsyncDisposable?> WatchLocationAsync(IDictionary<string, object> sessionOptions, Action<IReadOnlyDictionary<string, object>> onUpdate, CancellationToken cancellationToken)
+    {
+        SessionBusConnection bus;
+        try
+        {
+            bus = await BusAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw Wrap(ex);
+        }
+
+        var location = Proxy<ILocationProxy>(bus);
+        var sessionToken = sessionOptions.TryGetValue("session_handle_token", out var t) && t is string s
+            ? s
+            : PortalRequestPath.NewToken("location");
+        var options = new Dictionary<string, object>(sessionOptions, StringComparer.Ordinal)
+        {
+            ["session_handle_token"] = sessionToken,
+        };
+        var expectedSessions = new HashSet<string>(StringComparer.Ordinal)
+        {
+            PortalRequestPath.ForSession(bus.UniqueName, sessionToken),
+        };
+
+        IDisposable watch;
+        try
+        {
+            // Subscribe before the session exists so the first update is not lost.
+            watch = await location.WatchLocationUpdatedAsync(update =>
+            {
+                bool match;
+                lock (expectedSessions)
+                    match = expectedSessions.Contains(update.sessionHandle.ToString());
+                if (!match)
+                    return;
+                var fix = new Dictionary<string, object>(update.location, StringComparer.Ordinal);
+                _ = Task.Run(() =>
+                {
+                    try { onUpdate(fix); }
+                    catch (Exception ex) { DiagnosticLog.Error("DesktopPortal", "A location update handler failed", ex); }
+                });
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            throw Wrap(ex);
+        }
+
+        ObjectPath? session = null;
+        try
+        {
+            try
+            {
+                session = await location.CreateSessionAsync(options).WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (DBusException ex)
+            {
+                throw Wrap(ex);
+            }
+            lock (expectedSessions)
+                expectedSessions.Add(session.Value.ToString());
+
+            var sessionPath = session.Value;
+            var started = await RunRequestAsync(
+                (b, o) => b.Connection.CreateProxy<ILocationProxy>(BusName, DesktopPath).StartAsync(sessionPath, "", o),
+                null,
+                cancellationToken).ConfigureAwait(false);
+            if (!started.IsSuccess)
+            {
+                await CloseLocationSessionAsync(bus, watch, session).ConfigureAwait(false);
+                return null;
+            }
+            return new LocationWatch(() => CloseLocationSessionAsync(bus, watch, sessionPath));
+        }
+        catch
+        {
+            await CloseLocationSessionAsync(bus, watch, session).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private static async Task CloseLocationSessionAsync(SessionBusConnection bus, IDisposable watch, ObjectPath? session)
+    {
+        watch.Dispose();
+        if (session is not { } path)
+            return;
+        try
+        {
+            await bus.Connection.CreateProxy<IPortalSessionProxy>(BusName, path).CloseAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("DesktopPortal", $"Location session close failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Closes a location session once.</summary>
+    private sealed class LocationWatch(Func<Task> close) : IAsyncDisposable
+    {
+        private int _closed;
+
+        public ValueTask DisposeAsync()
+            => Interlocked.Exchange(ref _closed, 1) == 0 ? new ValueTask(close()) : ValueTask.CompletedTask;
+    }
+
     #endregion
 }
