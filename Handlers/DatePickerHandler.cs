@@ -25,6 +25,7 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
             [nameof(IDatePicker.CharacterSpacing)] = MapCharacterSpacing,
             [nameof(ITextStyle.Font)] = MapFont,
             [nameof(IView.Background)] = MapBackground,
+            [nameof(IDatePicker.IsOpen)] = MapIsOpen,
         };
 
     public static CommandMapper<IDatePicker, DatePickerHandler> CommandMapper =
@@ -51,10 +52,12 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         base.ConnectHandler(platformView);
         VisualStateBridge.Attach(VirtualView, platformView);
         platformView.DateSelected += OnDateSelected;
+        platformView.IsOpenChanged += OnPlatformIsOpenChanged;
     }
 
     protected override void DisconnectHandler(SkiaDatePicker platformView)
     {
+        platformView.IsOpenChanged -= OnPlatformIsOpenChanged;
         platformView.DateSelected -= OnDateSelected;
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
@@ -148,5 +151,22 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
+    }
+
+    /// <summary>
+    /// Opens or closes the drop-down from code (MAUI 10's <c>IDatePicker.IsOpen</c>), as MAUI's
+    /// Windows handler opens its platform picker.
+    /// </summary>
+    public static void MapIsOpen(DatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler.PlatformView is { } platform && platform.IsOpen != datePicker.IsOpen)
+            platform.IsOpen = datePicker.IsOpen;
+    }
+
+    /// <summary>The user opened or closed the drop-down: <c>IsOpen</c> follows (MAUI raises Opened/Closed).</summary>
+    private void OnPlatformIsOpenChanged(object? sender, EventArgs e)
+    {
+        if (VirtualView is { } view && PlatformView is { } platform && view.IsOpen != platform.IsOpen)
+            view.IsOpen = platform.IsOpen;
     }
 }

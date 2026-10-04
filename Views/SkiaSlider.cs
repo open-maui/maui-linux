@@ -213,6 +213,24 @@ public class SkiaSlider : SkiaView
     /// <summary>
     /// Gets or sets the thumb radius in device-independent units.
     /// </summary>
+    private SKBitmap? _thumbImage;
+
+    /// <summary>
+    /// An image drawn as the thumb in place of the circle (MAUI's Slider.ThumbImageSource), at
+    /// its own size, as Windows draws it; null draws the circle.
+    /// </summary>
+    public SKBitmap? ThumbImage
+    {
+        get => _thumbImage;
+        set
+        {
+            if (ReferenceEquals(_thumbImage, value))
+                return;
+            _thumbImage = value;
+            Invalidate();
+        }
+    }
+
     public double ThumbRadius
     {
         get => (double)GetValue(ThumbRadiusProperty);
@@ -335,6 +353,18 @@ public class SkiaSlider : SkiaView
                 Style = SKPaintStyle.Fill
             };
             canvas.DrawCircle(thumbX, trackY, thumbRadius + 8, focusPaint);
+        }
+
+        // An image thumb (Slider.ThumbImageSource), at its own size, centred on the value.
+        if (_thumbImage is { Width: > 0, Height: > 0 } thumbImage)
+        {
+            float scale = Math.Max(1f, DeviceScale);
+            float w = thumbImage.Width / scale, h = thumbImage.Height / scale;
+            var dest = new SKRect(thumbX - w / 2, trackY - h / 2, thumbX + w / 2, trackY + h / 2);
+            using var image = SKImage.FromBitmap(thumbImage);
+            using var imagePaint = new SKPaint { IsAntialias = true, Color = SKColors.White.WithAlpha(IsEnabled ? (byte)255 : (byte)128) };
+            canvas.DrawImage(image, dest, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), imagePaint);
+            return;
         }
 
         // Draw thumb shadow
