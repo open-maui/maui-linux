@@ -453,6 +453,49 @@ public class MultiWindowTests : IDisposable
         win1.LastCursor.Should().NotBeNull("hover transitions update the window cursor");
     }
 
+    /// <summary>View that shows a resize cursor over its right edge, as a control sets it while the pointer moves.</summary>
+    private sealed class EdgeCursorView : RecordingView
+    {
+        public override void OnPointerMoved(PointerEventArgs e)
+        {
+            CursorType = e.X >= Bounds.Right - 4 ? CursorType.SizeWestEast : CursorType.Arrow;
+            base.OnPointerMoved(e);
+        }
+    }
+
+    [Fact]
+    public void Cursor_follows_a_change_the_view_makes_while_the_pointer_moves_over_it()
+    {
+        var (ctx, win) = AddWindow();
+        var root = new EdgeCursorView();
+        root.Arrange(new Rect(0, 0, 800, 600));
+        ctx.RootView = root;
+
+        win.RaisePointerMoved(100, 100);
+        win.LastCursor.Should().Be(CursorType.Arrow);
+        win.RaisePointerMoved(798, 100);
+        win.LastCursor.Should().Be(CursorType.SizeWestEast, "the view changed its cursor without the hovered view changing");
+        win.RaisePointerMoved(500, 100);
+        win.LastCursor.Should().Be(CursorType.Arrow);
+    }
+
+    [Fact]
+    public void Cursor_set_on_a_container_shows_over_its_children()
+    {
+        var (ctx, win) = AddWindow();
+        var root = new SkiaAbsoluteLayout { CursorType = CursorType.SizeNorthSouth };
+        var child = new SkiaBoxView { Color = Colors.Red };
+        root.AddChild(child);
+        root.SetLayoutBounds(child, new SkiaSharp.SKRect(10, 10, 200, 200));
+        root.Measure(new Size(800, 600));
+        root.Arrange(new Rect(0, 0, 800, 600));
+        ctx.RootView = root;
+
+        win.RaisePointerMoved(50, 50);
+        ctx.HoveredView.Should().BeSameAs(child);
+        win.LastCursor.Should().Be(CursorType.SizeNorthSouth, "a cursor set on an element applies over its descendants, as in WinUI");
+    }
+
     [Fact]
     public void Guarded_SwallowsViewExceptions_FromNativeInputCallbacks()
     {

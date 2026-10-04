@@ -335,6 +335,9 @@ public class SkiaPicker : SkiaView
     /// </summary>
     public string? SelectedItem => SelectedIndex >= 0 && SelectedIndex < _items.Count ? _items[SelectedIndex] : null;
 
+    /// <summary>Raised when the drop-down opens or closes, by the user or from code.</summary>
+    public event EventHandler? IsOpenChanged;
+
     /// <summary>
     /// Gets or sets whether the dropdown is open.
     /// </summary>
@@ -355,6 +358,7 @@ public class SkiaPicker : SkiaView
                     UnregisterPopupOverlay(this);
                 }
                 Invalidate();
+                IsOpenChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }

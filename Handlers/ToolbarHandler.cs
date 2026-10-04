@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
@@ -27,6 +29,16 @@ public partial class ToolbarHandler : ElementHandler<IToolbar, SkiaToolbar>, ITo
             [nameof(IToolbar.Title)] = MapTitle,
             [nameof(IToolbar.IsVisible)] = MapIsVisible,
             [nameof(IToolbar.BackButtonVisible)] = MapBackButtonVisible,
+            // The Controls toolbar's properties, which MAUI's Windows build maps onto its
+            // platform toolbar (Toolbar.Windows.cs).
+            [nameof(Toolbar.BackButtonEnabled)] = MapBackButtonEnabled,
+            [nameof(Toolbar.BackButtonTitle)] = MapBackButtonTitle,
+            [nameof(Toolbar.TitleIcon)] = MapTitleIcon,
+            [nameof(Toolbar.TitleView)] = MapTitleView,
+            [nameof(Toolbar.IconColor)] = MapIconColor,
+            [nameof(Toolbar.BarBackground)] = MapBarBackground,
+            [nameof(Toolbar.BarTextColor)] = MapBarTextColor,
+            [nameof(Toolbar.ToolbarItems)] = MapToolbarItems,
         };
 
     public static CommandMapper<IToolbar, ToolbarHandler> CommandMapper = new(ElementHandler.ElementCommandMapper);
@@ -58,6 +70,55 @@ public partial class ToolbarHandler : ElementHandler<IToolbar, SkiaToolbar>, ITo
     {
         if (handler.PlatformView is { } platform)
             platform.BackButtonVisible = toolbar.BackButtonVisible;
+    }
+
+    /// <summary>Whether the back button can be used (Toolbar.BackButtonEnabled, Shell's BackButtonBehavior.IsEnabled).</summary>
+    public static void MapBackButtonEnabled(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.BackButtonEnabled = controls.BackButtonEnabled && controls.BackButtonVisible;
+    }
+
+    public static void MapBackButtonTitle(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.BackButtonTitle = controls.BackButtonTitle;
+    }
+
+    public static void MapTitleIcon(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.TitleIcon = controls.TitleIcon;
+    }
+
+    public static void MapTitleView(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.TitleView = controls.TitleView;
+    }
+
+    public static void MapIconColor(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.IconColor = controls.IconColor;
+    }
+
+    public static void MapBarBackground(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.BarBackground = controls.BarBackground;
+    }
+
+    public static void MapBarTextColor(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.BarTextColor = controls.BarTextColor;
+    }
+
+    public static void MapToolbarItems(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.ToolbarItems = controls.ToolbarItems?.ToList() ?? new List<ToolbarItem>();
     }
 
     /// <summary>
@@ -97,4 +158,28 @@ public class SkiaToolbar
 
     /// <summary>Whether the toolbar shows a back button.</summary>
     public bool BackButtonVisible { get; set; }
+
+    /// <summary>Whether the back button can be used (and is shown).</summary>
+    public bool BackButtonEnabled { get; set; } = true;
+
+    /// <summary>The back button's title (the previous page's NavigationPage.BackButtonTitle).</summary>
+    public string? BackButtonTitle { get; set; }
+
+    /// <summary>The image left of the title (NavigationPage.TitleIconImageSource).</summary>
+    public ImageSource? TitleIcon { get; set; }
+
+    /// <summary>The view shown in the title's place (NavigationPage.TitleView, Shell.TitleView).</summary>
+    public VisualElement? TitleView { get; set; }
+
+    /// <summary>The colour of the navigation icons (NavigationPage.IconColor).</summary>
+    public Color? IconColor { get; set; }
+
+    /// <summary>The bar's brush (NavigationPage.BarBackground / BarBackgroundColor).</summary>
+    public Brush? BarBackground { get; set; }
+
+    /// <summary>The colour of the bar's title and items (NavigationPage.BarTextColor).</summary>
+    public Color? BarTextColor { get; set; }
+
+    /// <summary>The page's toolbar items the bar shows.</summary>
+    public IReadOnlyList<ToolbarItem> ToolbarItems { get; set; } = Array.Empty<ToolbarItem>();
 }

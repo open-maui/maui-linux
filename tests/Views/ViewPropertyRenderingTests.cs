@@ -156,6 +156,59 @@ public class ViewPropertyRenderingTests
         bmp.GetPixel(130, 120).Alpha.Should().Be(0, "the original footprint is empty");
     }
 
+    // A 60x40 view with a red stripe over its left third (x 0..20 of its own space).
+    private static SkiaAbsoluteLayout LeftStripe()
+    {
+        var layout = new SkiaAbsoluteLayout { WidthRequest = 60, HeightRequest = 40 };
+        var stripe = new SkiaBoxView { Color = Colors.Red };
+        layout.AddChild(stripe);
+        layout.SetLayoutBounds(stripe, new SKRect(0, 0, 20, 40));
+        return layout;
+    }
+
+    [Fact]
+    public void RotationY_of_180_mirrors_the_view_left_to_right()
+    {
+        var view = LeftStripe();
+        view.RotationY = 180;
+        using var bmp = Render(view, 70, 80, 60, 40);
+
+        // Bounds x 70..130: the stripe moves from x 70..90 to x 110..130.
+        IsColor(bmp.GetPixel(120, 100), SKColors.Red).Should().BeTrue();
+        bmp.GetPixel(80, 100).Alpha.Should().Be(0);
+    }
+
+    [Fact]
+    public void RotationX_of_180_mirrors_the_view_top_to_bottom()
+    {
+        var view = new SkiaAbsoluteLayout { WidthRequest = 60, HeightRequest = 40 };
+        var stripe = new SkiaBoxView { Color = Colors.Red };
+        view.AddChild(stripe);
+        view.SetLayoutBounds(stripe, new SKRect(0, 0, 60, 10));
+        view.RotationX = 180;
+        using var bmp = Render(view, 70, 80, 60, 40);
+
+        // Bounds y 80..120: the stripe moves from y 80..90 to y 110..120.
+        IsColor(bmp.GetPixel(100, 115), SKColors.Red).Should().BeTrue();
+        bmp.GetPixel(100, 85).Alpha.Should().Be(0);
+    }
+
+    [Fact]
+    public void RotationY_turns_the_view_about_its_own_axis_after_an_in_plane_rotation()
+    {
+        // As WinUI's PlaneProjection: the mirror is in the view's rotated frame, so a quarter
+        // turn clockwise puts the mirrored stripe at the bottom instead of the top.
+        var view = LeftStripe();
+        view.Rotation = 90;
+        view.RotationY = 180;
+        using var bmp = Render(view, 70, 80, 60, 40);
+
+        // Centre (100,100). Mirrored, the stripe is x 10..30 from the centre; turned a quarter
+        // clockwise it lies at y 110..130.
+        IsColor(bmp.GetPixel(100, 120), SKColors.Red).Should().BeTrue();
+        bmp.GetPixel(100, 80).Alpha.Should().Be(0);
+    }
+
     [Fact]
     public void Scale_about_a_corner_anchor_grows_from_that_corner()
     {
