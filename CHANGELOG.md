@@ -60,6 +60,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ### Fixed
 
+- **A Button with a truncating `LineBreakMode` did not truncate**: the mode was mapped but never drawn, so a text wider than the button was centred and lost both ends, its start included. `TailTruncation`, `HeadTruncation` and `MiddleTruncation` now cut the text to the button and mark the cut with an ellipsis, and a truncating button asks for no more width than it is offered, as on the other platforms. The other modes draw as before.
 - **`AppInfo.RequestedLayoutDirection` was always left-to-right**: it now follows the UI language (right-to-left for Arabic, Hebrew and the rest), as on the other platforms.
 - **`Email.IsComposeSupported`, `Sms.IsComposeSupported` and `PhoneDialer.IsSupported` were always true**: they now report whether an application handles mailto:, sms: and tel: links (the XDG associations xdg-open uses; always true in a sandbox, where the portal chooses), and composing or dialling without one throws `FeatureNotSupportedException`, as MAUI does, instead of doing nothing. `Sms.ComposeAsync(null)` opens an empty message, as on the other platforms, instead of nothing.
 - **Changing `CheckBox.Color` after the box was shown did not recolour it**: MAUI maps `Color` to a refresh of the check's colour, and the Linux handler had no such mapping (found by the mapping gate).
