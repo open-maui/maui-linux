@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered Ellipse - draws a filled/stroked ellipse (or circle when width == height).
 /// Implements MAUI Shapes.Ellipse patterns.
 /// </summary>
-public class SkiaEllipse : SkiaView
+public class SkiaEllipse : SkiaShapeView
 {
     #region BindableProperties
 
@@ -102,6 +102,13 @@ public class SkiaEllipse : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         var strokeWidth = (float)StrokeThickness;
         var halfStroke = strokeWidth / 2f;
 
