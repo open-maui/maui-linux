@@ -11610,13 +11610,13 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|stub|Syncfusion.Maui.Scheduler.SchedulerViewHelper::IsHorizontalResourceViewDesktop(Syncfusion.Maui.Scheduler.IResourceViewInfo)",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|stub|Syncfusion.Maui.Scheduler.SfScheduler::Syncfusion.Maui.Scheduler.ISchedulerViewInfo.set_IsVirtualizationNeeded(Boolean)",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|stub|Syncfusion.Maui.Scheduler.VerticalMonthViewHeader::Syncfusion.Maui.Core.Internals.IRightTapGestureListener.OnRightTap(Syncfusion.Maui.Core.Internals.RightTapEventArgs)",
@@ -11730,8 +11730,8 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.AllDayAppointmentsLayout::RemoveAllDayAppointmentTemplateViewHandler",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Templates.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.AllDayAppointmentsLayout::StartLongPressTimer",
@@ -11785,8 +11785,8 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.CustomSnapLayout::InvalidateResourceHeaderLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.CustomSnapLayout::NativeViewManipulationInertiaStarting",
@@ -11870,38 +11870,38 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayHeaderView::UpdateDayHeaderTemplateView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayHeaderView::UpdateIntialDayHeaderTemplateView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::AddAppointmentResizeIndicatorView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs,Syncfusion/SfSchedulerPatches.cs,Syncfusion/Views/SfSchedulerResourceViews.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::AddHorizontalResourceViewHeaderLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::Content_PointerMoved",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Views/SkiaLayoutView.cs,Syncfusion/Input/SfInputBridge.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::CreateDayViewTimeRulerView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs,Syncfusion/Views/SfSchedulerResourceViews.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::CreatedResourceHeaderView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::DisableDragAndDrop",
@@ -11915,18 +11915,18 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::GetAllDayLayout",
-      "status": "open",
-      "reason": "dragging a timed appointment onto the all-day panel: Windows routes the drag to the all-day layout under the pointer (GetAllDayLayout); on Linux the drag stays with the time-slot layout"
+      "status": "covered",
+      "by": "Views/SkiaLayoutView.cs,Syncfusion/Input/SfInputBridge.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::InvalidateLayoutMeasure",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::InvalidateResourceHeaderLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::LongPressTimer_Tick",
@@ -11960,23 +11960,23 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::RemoveAppointmentResizeIndicatorView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs,Syncfusion/SfSchedulerPatches.cs,Syncfusion/Views/SfSchedulerResourceViews.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::RemoveHorizontalResourceViewHeaderLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::ResourceViewInvalidateDrawView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::SetSyncScrollView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::StartLongPressTimer",
@@ -12000,13 +12000,13 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::UpdateDayViewLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::UpdateDayViewResourceLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewControl::UpdateDragAndDropWindowsPlatforms",
@@ -12100,8 +12100,8 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewLayout::RemoveSpecialTimeTemplateViewHandler",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Templates.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.DayViewLayout::SetCancelManipulation",
@@ -12146,17 +12146,17 @@
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.HeaderAllowedViews::AddAIDividerView",
       "status": "open",
-      "reason": "the AI assist button and divider in the header of a smart scheduler (IAiAssistViewLayout) are Windows-only; a plain SfScheduler has none"
+      "reason": "the AI assist button and divider that the desktop builds (Windows and Mac) add to a smart scheduler's header (HeaderAllowedViews.AddSmartAIButton): the button only means something on SfSmartScheduler (Syncfusion.Maui.SmartScheduler), whose neutral build also leaves IAiAssistViewLayout.GetAIAssistViewButton empty, so the button's wiring (EnableAssistButton, AssistButtonTemplate, Clicked to open the assist view) is missing too. That package is not restored by tests/Compat, so the header layout with the button cannot be checked here; on Linux an app opens the assist view with SfSmartScheduler.OpenAssistView()"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.HeaderAllowedViews::AddSmartAIButton",
       "status": "open",
-      "reason": "the AI assist button and divider in the header of a smart scheduler (IAiAssistViewLayout) are Windows-only; a plain SfScheduler has none"
+      "reason": "the AI assist button and divider that the desktop builds (Windows and Mac) add to a smart scheduler's header (HeaderAllowedViews.AddSmartAIButton): the button only means something on SfSmartScheduler (Syncfusion.Maui.SmartScheduler), whose neutral build also leaves IAiAssistViewLayout.GetAIAssistViewButton empty, so the button's wiring (EnableAssistButton, AssistButtonTemplate, Clicked to open the assist view) is missing too. That package is not restored by tests/Compat, so the header layout with the button cannot be checked here; on Linux an app opens the assist view with SfSmartScheduler.OpenAssistView()"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.HeaderAllowedViews::GetAIIconWidth",
       "status": "open",
-      "reason": "the AI assist button and divider in the header of a smart scheduler (IAiAssistViewLayout) are Windows-only; a plain SfScheduler has none"
+      "reason": "the AI assist button and divider that the desktop builds (Windows and Mac) add to a smart scheduler's header (HeaderAllowedViews.AddSmartAIButton): the button only means something on SfSmartScheduler (Syncfusion.Maui.SmartScheduler), whose neutral build also leaves IAiAssistViewLayout.GetAIAssistViewButton empty, so the button's wiring (EnableAssistButton, AssistButtonTemplate, Clicked to open the assist view) is missing too. That package is not restored by tests/Compat, so the header layout with the button cannot be checked here; on Linux an app opens the assist view with SfSmartScheduler.OpenAssistView()"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.HeaderLayout::InvalidateLayout",
@@ -12225,8 +12225,8 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.MonthViewLayout::HandleAppointmentResizingCompleted",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerPatches.cs,Views/SkiaLayoutView.cs,Syncfusion/Input/SfInputBridge.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.MonthViewLayout::HandleAppointmentResizingOperation",
@@ -12235,8 +12235,8 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.MonthViewLayout::InvalidateLayoutMeasure",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.MonthViewLayout::LongPressTimer_Tick",
@@ -12325,233 +12325,233 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderControl::UpdateViewPortWidth",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderControl::UpdateVisibleDates",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::AddAppointmentResizeView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::CalculateArrangeRectPosition",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs,Syncfusion/SfSchedulerResourceView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::ClearAppointmentSelection",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::CreateAllDayAppointmentLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::CreateHorizontalLine",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::CreateResourceView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::CreateViewHeader",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::EnableAppointmentDragging",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs,Syncfusion/SfSchedulerPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::GetAllDayLayoutHeight",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::GetSingleDayViewHeaderHeight",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::InvalidateAllDayAppointmentsDraw",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::InvalidateArrange",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::IsExpandable",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::IsExpaned",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::LongPressTimer_Tick",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::OnSlotSemanticsNodeClick",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::RemoveAppointmentResizeView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::RemoveHandlerResourceViewTemplateViews",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::RemoveViewHeaderHandler",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::RemoveViewHeaderTemplateViewHandler",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::SetScrollOffset",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::StartLongPressTimer",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::StopLongPressTimer",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateAllDayLayoutHeight",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateAppointmentSelection",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateDayViewHeaderMouseHover",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateDisabledDatesChange",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateHoverViewVisiblesDates",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateIsExpanded",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateMonthResourceGridHeight",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateMonthVisibleDate",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Views.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateResourceHeaderLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateResourceViewGridHeight",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateSemanticsNodes",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateTodayTimer",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateViewHeaderDrawableView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateViewHeaderHeight",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateViewHeaderLayout",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateViewHeaderVisiblesDates",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateViewPortWidth",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateVisibleAppointments",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderLayout::UpdateVisibleDatesChange",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderView::UpdateIntialResourceTemplateView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ResourceHeaderView::UpdateResourceTemplateView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.Header.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.SchedulerMouseHoverView::UpdateTotalTimeLineWidth",
@@ -12575,18 +12575,18 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ScrollViewExt::set_HoriozontalScrollView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ScrollViewExt::set_SchedulerInfo",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.ScrollViewExt::set_VerticalScrollView",
-      "status": "open",
-      "reason": "SfScheduler's desktop horizontal resource view (resources side by side in day, week, work-week and month views, IsHorizontalResourceViewDesktop) and its render virtualization are Windows and Mac only: the neutral build lays resources out as the mobile builds do (in timeline views only) and has none of the resource header layout's view tree to drive"
+      "status": "covered",
+      "by": "Syncfusion/SfSchedulerResourceView.DayView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.SelectionView::UpdateTotalTimelineWidth",

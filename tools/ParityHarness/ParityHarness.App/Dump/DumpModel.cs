@@ -70,6 +70,8 @@ public sealed class PageDump
     public int SettleMs { get; set; }
     public string? Error { get; set; }
     public string? Warning { get; set; }
+    /// <summary>The settled page as a PNG in the same folder, or null when capture failed.</summary>
+    public string? Screenshot { get; set; }
     public List<ElementRecord> Elements { get; set; } = new();
 }
 
