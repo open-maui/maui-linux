@@ -776,7 +776,7 @@ public class PortalServiceIntegrationTests
     public async Task Geolocation_listens_raises_each_fix_and_stops()
     {
         var portal = new FakeDesktopPortal();
-        var geo = new GeolocationService(portal, alwaysUsePortal: true);
+        var geo = new GeolocationService(portal, alwaysUsePortal: true, dispatch: action => action());
         var seen = new List<Location>();
         geo.LocationChanged += (_, e) => seen.Add(e.Location);
 
