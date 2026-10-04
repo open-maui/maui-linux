@@ -159,6 +159,24 @@ public abstract partial class SkiaView
         return p;
     }
 
+    /// <summary>
+    /// <see cref="ToWindow"/> as a matrix: maps this view's untransformed space (where its
+    /// Bounds are) to the window, through every scroll offset and render transform above it.
+    /// </summary>
+    internal SKMatrix ToWindowMatrix()
+    {
+        var m = SKMatrix.Identity;
+        bool first = true;
+        for (var v = this; v != null; v = v.Parent, first = false)
+        {
+            if (!first && v is SkiaScrollView scroller)
+                m = SKMatrix.CreateTranslation(-scroller.ScrollX, -scroller.ScrollY).PreConcat(m);
+            if (v.HasRenderTransform)
+                m = v.LocalRenderTransform(ToSKRect(v.Bounds)).PreConcat(m);
+        }
+        return m;
+    }
+
     private static SKRect ToSKRect(Rect r) => new((float)r.Left, (float)r.Top, (float)r.Right, (float)r.Bottom);
 
     private bool HasRenderTransform =>
@@ -179,6 +197,17 @@ public abstract partial class SkiaView
             m = m.PreConcat(SKMatrix.CreateTranslation((float)TranslationX, (float)TranslationY));
         if (Rotation != 0.0)
             m = m.PreConcat(SKMatrix.CreateRotationDegrees((float)Rotation));
+        // RotationX/RotationY turn the view about its own horizontal/vertical axis through the
+        // anchor. Projected without perspective (the cosine of the angle scales that axis), in
+        // the view's rotated frame, as WinUI's PlaneProjection turns an element about its own
+        // axes: a 180-degree turn mirrors the view exactly (SfImageEditor's flip), a 90-degree
+        // turn shows it edge-on.
+        if (RotationX != 0.0 || RotationY != 0.0)
+        {
+            float projectX = (float)Math.Cos(RotationY * Math.PI / 180.0);
+            float projectY = (float)Math.Cos(RotationX * Math.PI / 180.0);
+            m = m.PreConcat(SKMatrix.CreateScale(Math.Abs(projectX) < 1e-6f ? 0f : projectX, Math.Abs(projectY) < 1e-6f ? 0f : projectY));
+        }
         float scaleX = (float)(Scale * ScaleX);
         float scaleY = (float)(Scale * ScaleY);
         if (scaleX != 1f || scaleY != 1f)

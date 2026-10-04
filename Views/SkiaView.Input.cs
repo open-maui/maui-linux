@@ -46,7 +46,7 @@ public abstract partial class SkiaView
     /// they compare it with ScreenBounds; a view-space point in a scrolled list made a
     /// TouchEffect release land outside the row it was pressed on (Strikeline's watchlist).
     /// </summary>
-    private PointerEventArgs InWindowSpace(PointerEventArgs e)
+    private protected PointerEventArgs InWindowSpace(PointerEventArgs e)
     {
         if (float.IsNaN(e.X) || float.IsNaN(e.Y))
             return e;
