@@ -267,6 +267,22 @@ public static class GestureManager
     }
 
     /// <summary>
+    /// Drops the gesture tracking of a press a container took over (a SwipeView swiping from a
+    /// row's label): the release that ends it is then neither a tap nor a swipe for the view
+    /// or the ancestors its events bubble to.
+    /// </summary>
+    internal static void CancelPointer(Microsoft.Maui.Platform.SkiaView view)
+    {
+        for (Element? current = view.MauiView; current != null; current = current.Parent)
+        {
+            if (current is View v)
+            {
+                _gestureState.Remove(v);
+            }
+        }
+    }
+
+    /// <summary>
     /// Processes a tap gesture on the specified view. Coordinates are in
     /// window-logical space (see <see cref="CreatePositionResolver"/>). Walks
     /// up the parent chain until a view (or one of its child gesture elements,

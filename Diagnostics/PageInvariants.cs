@@ -25,6 +25,10 @@ internal sealed record PageInvariantViolation(string Rule, string View, string D
 /// pictures spilled over the views around them).</item>
 /// <item><b>unreachable-control</b>: a visible, enabled control that takes input is what a click
 /// at its centre reaches (controls inside CollectionView rows never got the pointer).</item>
+/// <item><b>clipped-text</b>: a label is as tall as its text needs and lies inside the views
+/// around it (a SwipeView row cut to 44 px hid its second line); a label truncating on purpose
+/// (a truncating LineBreakMode, MaxLines) is measured as it truncates, and a scrolling view's
+/// content may extend past it.</item>
 /// <item><b>binding-failed</b>: no binding failed while the page was shown.</item>
 /// <item><b>error-logged</b>: OpenMaui logged no error while the page was shown.</item>
 /// </list>
@@ -84,6 +88,7 @@ internal static class PageInvariants
             CheckText(view, violations);
             CheckDrawing(view, width, height, violations);
             CheckReachable(root, view, window, violations);
+            CheckClippedText(view, violations);
         }
 
         lock (s_gate)
@@ -296,6 +301,67 @@ internal static class PageInvariants
             return;
         violations.Add(new PageInvariantViolation("unreachable-control", Describe(view),
             $"a click at its centre ({center.X:0},{center.Y:0}) reaches {(hit == null ? "nothing" : Describe(hit))}"));
+    }
+
+    // --- clipped-text ----------------------------------------------------------------------
+
+    private static void CheckClippedText(SkiaView view, List<PageInvariantViolation> violations)
+    {
+        if (view is not SkiaLabel label || string.IsNullOrEmpty(label.Text) && label.FormattedText == null)
+            return;
+        var bounds = label.Bounds;
+        if (bounds.Width < 1 || bounds.Height < 1 || !label.IsVisibleInTree())
+            return;
+
+        // Less than a third of a line is leading, not text.
+        double tolerance = Math.Max(2.0, label.FontSize * 0.3);
+        double needed = label.NeededTextHeight(bounds.Width);
+        if (needed > bounds.Height + tolerance)
+        {
+            violations.Add(new PageInvariantViolation("clipped-text", Describe(view),
+                $"\"{Excerpt(label.Text)}\" needs {needed:0} px but is {bounds.Height:0} px tall"));
+            return;
+        }
+
+        // Where the text is drawn, by its vertical alignment within the label.
+        var screen = label.ScreenBounds;
+        double textHeight = Math.Min(needed, screen.Height);
+        double top = label.VerticalTextAlignment switch
+        {
+            TextAlignment.Center => screen.Top + (screen.Height - textHeight) / 2,
+            TextAlignment.End => screen.Bottom - textHeight,
+            _ => screen.Top,
+        };
+        double bottom = top + textHeight;
+
+        // The views around it, up to the first one whose content scrolls.
+        for (var parent = label.Parent; parent != null; parent = parent.Parent)
+        {
+            if (Scrolls(parent))
+                return;
+            var around = parent.ScreenBounds;
+            if (around.Width < 1 || around.Height < 1)
+                return;
+            if (bottom > around.Bottom + tolerance || top < around.Top - tolerance)
+            {
+                double cut = Math.Max(bottom - around.Bottom, around.Top - top);
+                violations.Add(new PageInvariantViolation("clipped-text", Describe(view),
+                    $"\"{Excerpt(label.Text)}\" extends {cut:0} px past its {around.Height:0} px tall {Describe(parent)}"));
+                return;
+            }
+        }
+    }
+
+    /// <summary>A view whose content legitimately extends past it (scrolled into view).</summary>
+    private static bool Scrolls(SkiaView view) =>
+        view is SkiaScrollView or SkiaItemsView or SkiaCarouselView
+        || view.GetType().Name.Contains("Scroll", StringComparison.Ordinal)
+        || view.GetType().Name.Contains("ListView", StringComparison.Ordinal);
+
+    private static string Excerpt(string? text)
+    {
+        text = (text ?? string.Empty).ReplaceLineEndings(" ");
+        return text.Length <= 40 ? text : text[..37] + "...";
     }
 
     // --- running on live windows ----------------------------------------------------------

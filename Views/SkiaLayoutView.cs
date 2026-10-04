@@ -319,14 +319,15 @@ public abstract class SkiaLayoutView : SkiaView
 
     /// <summary>
     /// True when <paramref name="hit"/>, or a view between it and
-    /// <paramref name="container"/>, handles input itself: a focusable control
-    /// or a nested tappable view.
+    /// <paramref name="container"/>, handles input itself: a focusable control,
+    /// a nested tappable view, or an open swipe view (a tap on it invokes an
+    /// item or closes it).
     /// </summary>
     internal static bool ClaimsInput(SkiaView hit, SkiaView container)
     {
         for (var view = hit; view != null && !ReferenceEquals(view, container); view = view.Parent)
         {
-            if (view.IsFocusable || HasTapRecognizer(view.MauiView))
+            if (view.IsFocusable || HasTapRecognizer(view.MauiView) || view is SkiaSwipeView { IsOpen: true })
                 return true;
         }
         return false;
