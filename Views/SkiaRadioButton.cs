@@ -112,6 +112,60 @@ public class SkiaRadioButton : SkiaView
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
 
+    public static readonly BindableProperty FontFamilyProperty =
+        BindableProperty.Create(
+            nameof(FontFamily),
+            typeof(string),
+            typeof(SkiaRadioButton),
+            null,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
+
+    public static readonly BindableProperty FontAttributesProperty =
+        BindableProperty.Create(
+            nameof(FontAttributes),
+            typeof(FontAttributes),
+            typeof(SkiaRadioButton),
+            FontAttributes.None,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
+
+    public static readonly BindableProperty CharacterSpacingProperty =
+        BindableProperty.Create(
+            nameof(CharacterSpacing),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            0.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).InvalidateMeasure());
+
+    public static readonly BindableProperty StrokeColorProperty =
+        BindableProperty.Create(
+            nameof(StrokeColor),
+            typeof(Color),
+            typeof(SkiaRadioButton),
+            null,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
+
+    public static readonly BindableProperty StrokeThicknessProperty =
+        BindableProperty.Create(
+            nameof(StrokeThickness),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            0.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
+
+    public static readonly BindableProperty CornerRadiusProperty =
+        BindableProperty.Create(
+            nameof(CornerRadius),
+            typeof(double),
+            typeof(SkiaRadioButton),
+            0.0,
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaRadioButton)b).Invalidate());
+
     public static readonly BindableProperty RadioSizeProperty =
         BindableProperty.Create(
             nameof(RadioSize),
@@ -231,6 +285,62 @@ public class SkiaRadioButton : SkiaView
     {
         get => (double)GetValue(FontSizeProperty);
         set => SetValue(FontSizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font family for the content text; null or empty uses the default face.
+    /// </summary>
+    public string? FontFamily
+    {
+        get => (string?)GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the bold/italic attributes of the content text.
+    /// </summary>
+    public FontAttributes FontAttributes
+    {
+        get => (FontAttributes)GetValue(FontAttributesProperty);
+        set => SetValue(FontAttributesProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the extra space, in device-independent units, added between characters of the content text.
+    /// </summary>
+    public double CharacterSpacing
+    {
+        get => (double)GetValue(CharacterSpacingProperty);
+        set => SetValue(CharacterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the color of the outline drawn around the whole control (MAUI's
+    /// RadioButton.BorderColor). Null draws no outline. Not the radio circle, whose ring
+    /// uses <see cref="RadioColor"/> / <see cref="UncheckedColor"/>.
+    /// </summary>
+    public Color? StrokeColor
+    {
+        get => (Color?)GetValue(StrokeColorProperty);
+        set => SetValue(StrokeColorProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the width of the outline around the whole control; 0 or less draws none.
+    /// </summary>
+    public double StrokeThickness
+    {
+        get => (double)GetValue(StrokeThicknessProperty);
+        set => SetValue(StrokeThicknessProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the corner radius of the outline around the whole control.
+    /// </summary>
+    public double CornerRadius
+    {
+        get => (double)GetValue(CornerRadiusProperty);
+        set => SetValue(CornerRadiusProperty, value);
     }
 
     /// <summary>
@@ -389,6 +499,8 @@ public class SkiaRadioButton : SkiaView
         var disabledColorSK = ToSKColor(DisabledColor);
         var borderColorSK = ToSKColor(BorderColor);
 
+        DrawOutline(canvas, bounds);
+
         // Draw focus ring behind radio circle
         if (IsFocused)
         {
@@ -428,7 +540,7 @@ public class SkiaRadioButton : SkiaView
         // Draw content text
         if (!string.IsNullOrEmpty(Content))
         {
-            using var font = SkiaFontFactory.Create(fontSize);
+            using var font = CreateContentFont(fontSize);
             using var textPaint = new SKPaint
             {
                 Color = IsEnabled ? textColorSK : disabledColorSK,
@@ -436,8 +548,59 @@ public class SkiaRadioButton : SkiaView
             };
 
             var textX = bounds.Left + radioSize + spacing;
-            canvas.DrawText(Content, textX, TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY), SKTextAlign.Left, font, textPaint);
+            var baseline = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
+            if (CharacterSpacing == 0 || Content.Length <= 1)
+            {
+                canvas.DrawText(Content, textX, baseline, SKTextAlign.Left, font, textPaint);
+            }
+            else
+            {
+                // Skia has no letter-spacing on a run, so space the characters by hand
+                // (as SkiaButton does); MeasureContent adds the same spacing.
+                foreach (var c in Content)
+                {
+                    var ch = c.ToString();
+                    canvas.DrawText(ch, textX, baseline, SKTextAlign.Left, font, textPaint);
+                    textX += font.MeasureText(ch) + (float)CharacterSpacing;
+                }
+            }
         }
+    }
+
+    private void DrawOutline(SKCanvas canvas, SKRect bounds)
+    {
+        var thickness = (float)StrokeThickness;
+        if (StrokeColor is null || thickness <= 0)
+            return;
+
+        // Stroke inside the bounds so the outline is not clipped by the parent.
+        var rect = new SKRect(bounds.Left + thickness / 2, bounds.Top + thickness / 2,
+            bounds.Right - thickness / 2, bounds.Bottom - thickness / 2);
+        var radius = (float)Math.Max(0, CornerRadius);
+        using var paint = new SKPaint
+        {
+            Color = ToSKColor(StrokeColor),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = thickness,
+            IsAntialias = true
+        };
+        canvas.DrawRoundRect(rect, radius, radius, paint);
+    }
+
+    /// <summary>
+    /// The content font. With no family and no attributes it stays the default face the
+    /// control always drew with, so existing radio buttons render unchanged; otherwise the
+    /// family/style resolves through the font cache like SkiaButton's and SkiaLabel's.
+    /// </summary>
+    private SKFont CreateContentFont(float fontSize)
+    {
+        if (string.IsNullOrEmpty(FontFamily) && FontAttributes == FontAttributes.None)
+            return SkiaFontFactory.Create(fontSize);
+
+        var typeface = Fonts.GetTypeface(
+            TextRenderingHelper.GetEffectiveFontFamily(FontFamily),
+            TextRenderingHelper.GetFontStyle(FontAttributes));
+        return SkiaFontFactory.Create(typeface, fontSize);
     }
 
     #endregion
@@ -517,8 +680,10 @@ public class SkiaRadioButton : SkiaView
         var textWidth = 0f;
         if (!string.IsNullOrEmpty(Content))
         {
-            using var font = SkiaFontFactory.Create(fontSize);
+            using var font = CreateContentFont(fontSize);
             textWidth = font.MeasureText(Content) + spacing;
+            if (CharacterSpacing != 0 && Content.Length > 1)
+                textWidth += (float)(CharacterSpacing * (Content.Length - 1));
         }
         return new Size(radioSize + textWidth, Math.Max(radioSize, fontSize * 1.5f));
     }
