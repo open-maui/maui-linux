@@ -28,7 +28,7 @@ public class EnergySaverTests
     public async Task Battery_raises_EnergySaverStatusChanged_when_the_profile_switches()
     {
         var monitor = new PowerProfilesMonitor(useDaemon: false);
-        var battery = new BatteryService(monitor);
+        var battery = new BatteryService(monitor, dispatch: action => action());
         var seen = new System.Collections.Concurrent.ConcurrentQueue<EnergySaverStatus>();
         EventHandler<EnergySaverStatusChangedEventArgs> handler = (_, e) => seen.Enqueue(e.EnergySaverStatus);
 
