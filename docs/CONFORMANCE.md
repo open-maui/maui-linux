@@ -1,6 +1,6 @@
 # MAUI handler conformance (dotnet/maui's own tests against the Linux handlers)
 
-Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1475 MAUI tests ported: 1369 passed, 0 failed, 106 skipped** (of the skips, 27 are MAUI's own, 71 are wrapper-view tests that do not apply, 8 are blocked; see below). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed".
+Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1475 MAUI tests ported: 1377 passed, 0 failed, 98 skipped** (of the skips, 27 are MAUI's own and 71 are wrapper-view tests that do not apply; see below). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed".
 
 The suite compiles dotnet/maui's shared handler device tests (`src/Core/tests/DeviceTests/Handlers/*/<X>HandlerTests.cs` and the shared bases in `src/Core/tests/DeviceTests.Shared`) unchanged, against OpenMaui's handlers, so the assertions are MAUI's, not a reading of MAUI. Only the per-platform helper partials (MAUI's `*.Windows.cs` / `*.Android.cs`, "read the value back from the native view") are written for Linux, and they read the Skia platform view.
 
@@ -24,7 +24,7 @@ The assembly is named `Microsoft.Maui.Core.DeviceTests`, the name of MAUI's own 
 
 - `src/TestUtils/src/DeviceTests/`: `AssertHelpers.cs`, `AssertionExtensions.cs`
 - `src/Core/tests/DeviceTests.Shared/`: `GlobalNamespaces.cs`, `HandlerTests/{TestBase, HandlerTestBasement, HandlerTestBasementOfT, HandlerTestBase, HandlerTestBaseOfT, HandlerTestBaseOfT.Tests}.cs`, `HandlerTests/TextStyle/TextStyleHandlerTests.cs`, `HandlerTests/TextInput/TextInputHandlerTests.cs`, `HandlerTests/Focus/FocusHandlerTests.cs`, `Stubs/*.cs`, `ImageAnalysis/*.cs`
-- `src/Core/tests/DeviceTests/`: `Handlers/CoreHandlerTestBase.cs`, `Handlers/CoreHandlerTestBaseOfT.cs`, `Stubs/*.cs` (cross-platform files; minus `CountedImageHandler.cs`, `CountedImageSourceServiceStub.cs`, `WebView.cs`, `ButtonWithContainerStub.cs`, `StubBaseHandler.cs`, `WindowHandlerProxyStub.cs`, which need platform-only API), `Services/ImageSource/BaseImageSourceServiceTests.cs`, `Resources/Images/*`, `Resources/Raw/*.png` (pictures the image tests load by name)
+- `src/Core/tests/DeviceTests/`: `Handlers/CoreHandlerTestBase.cs`, `Handlers/CoreHandlerTestBaseOfT.cs`, `Stubs/*.cs` (cross-platform files; minus `CountedImageHandler.cs`, `WebView.cs`, `ButtonWithContainerStub.cs`, `StubBaseHandler.cs`, `WindowHandlerProxyStub.cs`, which need platform-only API), `Services/ImageSource/BaseImageSourceServiceTests.cs`, `Resources/Images/*`, `Resources/Raw/*.png` (pictures the image tests load by name)
 - Handler tests: `ActivityIndicator`, `Border`, `Button`, `CheckBox`, `ContentView` (`ContentViewTests.cs`), `DatePicker`, `Editor`, `Entry`, `GraphicsView`, `Image`, `ImageButton`, `Label`, `Layout`, `Picker`, `ProgressBar`, `RadioButton`, `ScrollView`, `SearchBar`, `Slider`, `Stepper`, `Switch`, `TimePicker` (each `Handlers/<X>/<X>HandlerTests.cs`)
 
 ### Linux side (`tests/Conformance`)
@@ -58,8 +58,8 @@ The assembly is named `Microsoft.Maui.Core.DeviceTests`, the name of MAUI's own 
 | EntryHandlerTests+EntryTextStyleTests | 22 | 22 | 0 | 0 |
 | GraphicsViewHandlerTests | 44 | 40 | 0 | 4 |
 | ImageButtonHandlerTests | 33 | 29 | 0 | 4 |
-| ImageButtonHandlerTests+ImageButtonImageHandlerTests | 55 | 46 | 0 | 9 |
-| ImageHandlerTests | 55 | 46 | 0 | 9 |
+| ImageButtonHandlerTests+ImageButtonImageHandlerTests | 55 | 50 | 0 | 5 |
+| ImageHandlerTests | 55 | 50 | 0 | 5 |
 | LabelHandlerTests | 60 | 56 | 0 | 4 |
 | LabelHandlerTests+LabelTextStyleTests | 22 | 22 | 0 | 0 |
 | LayoutHandlerTests | 48 | 41 | 0 | 7 |
@@ -77,7 +77,7 @@ The assembly is named `Microsoft.Maui.Core.DeviceTests`, the name of MAUI's own 
 | SwitchHandlerTests | 37 | 32 | 0 | 5 |
 | TimePickerHandlerTests | 33 | 29 | 0 | 4 |
 | TimePickerHandlerTests+TimePickerTextStyleTests | 22 | 22 | 0 | 0 |
-| **Total** | **1475** | **1369** | **0** | **106** |
+| **Total** | **1475** | **1377** | **0** | **98** |
 
 Every `<X>HandlerTests` row includes the generic tests (about 30) MAUI runs for every handler (`HandlerTestBaseOfT.Tests.cs`: automation id, flow direction, opacity, visibility, semantics, bounds, transforms, constructors, container view).
 
@@ -96,6 +96,8 @@ The first run (795 passed, 574 failed) grouped its failures by root cause; all a
 - **G9, focus (2)**: platform focus is reported to `IView.IsFocused`.
 - **G10 to G15, images, layout, ScrollView (23)**: image loading notifications, clearing a null or failed source, `IsAnimationPlaying`, layout disconnect, the ScrollViewHandler constructor.
 
+- **G16, image-source services (8, previously BLOCKED)**: Image and ImageButton `ImageLoadSequenceIsCorrect`, `InterruptingLoadCancelsAndStartsOver` and their `WithChecks` variants waited for MAUI's `IImageSourceService` to start a load, which the Linux handlers never resolved (the platform-neutral `IImageSourceService` has no load method). Linux now has one, `ILinuxImageSourceService.GetImageAsync`, with built-in File, Uri, Stream and Font services registered through `ConfigureImageSources` by `UseLinux`; the handlers resolve the service for the source's type, cancel a replaced load and never show it. The suite's `CountedImageSourceServiceStub` gets its Linux partial in `Handlers/ImageHandlerTests.Linux.cs`, as it has `.Android.cs` / `.iOS.cs` ones in MAUI.
+
 Two diagnoses were the test port's, not the product's, and were corrected in the Linux helpers: MAUI's `Semantics.Description` is OpenMaui's accessible name (`SemanticName`), as it is `AutomationProperties.Name` on Windows; and the image helpers now observe a picture being cleared.
 
 ## Skipped
@@ -104,7 +106,6 @@ Two diagnoses were the test port's, not the product's, and were corrected in the
 |---|---|
 | MAUI's own skips (`View Renders To Image` on non-Android, `Shadow Initializes Correctly` on Layout, `ThumbColor Initializes Correctly` on Switch, `InvalidSourceFailsToLoad` on images) | 27 |
 | **No wrapper view** (`Clip Initializes ContainerView Correctly`, `ContainerView Remains If Shadow Mapper Runs Again`, `ContainerView Adds And Removes` for every handler; Layout `ContainerViewAddedToLayout`, `ContainerViewDifferentThanPlatformView`): Skia views apply Clip and Shadow while drawing, there is no native wrapper to add, and MAUI's platform-neutral ViewHandler has no container implementation | 71 |
-| **BLOCKED** (counted with the gaps, skipped only because they would hang): Image and ImageButton `ImageLoadSequenceIsCorrect`, `InterruptingLoadCancelsAndStartsOver` and their `WithChecks` variants wait without a timeout for MAUI's `IImageSourceService` to start a load. The Linux image handlers load file, URI, stream and font sources themselves and never resolve an `IImageSourceService` (the platform-neutral `IImageSourceService` has no load method; a Linux one would be new API), so a custom source such as the tests' `CountedImageSourceStub` reports LoadingFailed | 8 |
 
 ## API surface findings (needed scaffolding to compile MAUI's tests)
 
