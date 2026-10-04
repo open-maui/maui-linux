@@ -6,10 +6,10 @@ using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public partial class RectangleHandler : LinuxViewHandler<Microsoft.Maui.Controls.Shapes.Rectangle, SkiaRectangle>
+public partial class RectangleHandler : LinuxViewHandler<Microsoft.Maui.Controls.Shapes.Rectangle, SkiaRectangle>, IShapeViewHandler
 {
     public static IPropertyMapper<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler> Mapper =
-        new PropertyMapper<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>(ViewMapper)
+        new PropertyMapper<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>(ShapeViewHandler.Mapper)
         {
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.Fill)] = MapFill,
             [nameof(Microsoft.Maui.Controls.Shapes.Rectangle.Stroke)] = MapStroke,
@@ -37,4 +37,14 @@ public partial class RectangleHandler : LinuxViewHandler<Microsoft.Maui.Controls
     public static void MapRadiusY(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.RadiusY = r.RadiusY; h.PlatformView.Invalidate(); }
     public static void MapStrokeDashArray(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.StrokeDashArray = r.StrokeDashArray; h.PlatformView.Invalidate(); }
     public static void MapStrokeDashOffset(RectangleHandler h, Microsoft.Maui.Controls.Shapes.Rectangle r) { h.PlatformView.StrokeDashOffset = r.StrokeDashOffset; h.PlatformView.Invalidate(); }
+
+    IShapeView IShapeViewHandler.VirtualView => VirtualView;
+
+    object IShapeViewHandler.PlatformView => PlatformView;
+
+    protected override void DisconnectHandler(SkiaRectangle platformView)
+    {
+        platformView.ClearShape();
+        base.DisconnectHandler(platformView);
+    }
 }

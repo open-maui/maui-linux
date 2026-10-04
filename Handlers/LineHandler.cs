@@ -6,10 +6,10 @@ using Microsoft.Maui.Handlers;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
-public partial class LineHandler : LinuxViewHandler<Line, SkiaLine>
+public partial class LineHandler : LinuxViewHandler<Line, SkiaLine>, IShapeViewHandler
 {
     public static IPropertyMapper<Line, LineHandler> Mapper =
-        new PropertyMapper<Line, LineHandler>(ViewMapper)
+        new PropertyMapper<Line, LineHandler>(ShapeViewHandler.Mapper)
         {
             [nameof(Line.X1)] = MapX1,
             [nameof(Line.Y1)] = MapY1,
@@ -39,4 +39,14 @@ public partial class LineHandler : LinuxViewHandler<Line, SkiaLine>
     public static void MapStrokeThickness(LineHandler h, Line l) { h.PlatformView.StrokeThickness = l.StrokeThickness; h.PlatformView.Invalidate(); }
     public static void MapStrokeDashArray(LineHandler h, Line l) { h.PlatformView.StrokeDashArray = l.StrokeDashArray; h.PlatformView.Invalidate(); }
     public static void MapStrokeDashOffset(LineHandler h, Line l) { h.PlatformView.StrokeDashOffset = l.StrokeDashOffset; h.PlatformView.Invalidate(); }
+
+    IShapeView IShapeViewHandler.VirtualView => VirtualView;
+
+    object IShapeViewHandler.PlatformView => PlatformView;
+
+    protected override void DisconnectHandler(SkiaLine platformView)
+    {
+        platformView.ClearShape();
+        base.DisconnectHandler(platformView);
+    }
 }

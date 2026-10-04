@@ -14,8 +14,12 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Window on Linux.
 /// Maps IWindow to the Linux display window system.
 /// </summary>
-public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
+public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindowHandler
 {
+    // MAUI's window handler interface (code that looks for a window's handler casts to it).
+    IWindow IWindowHandler.VirtualView => VirtualView;
+    object IWindowHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IWindow, WindowHandler> Mapper =
         new PropertyMapper<IWindow, WindowHandler>(ElementHandler.ElementMapper)
         {
@@ -29,6 +33,7 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
             [nameof(IWindow.MinimumHeight)] = MapMinimumHeight,
             [nameof(IWindow.MaximumWidth)] = MapMaximumWidth,
             [nameof(IWindow.MaximumHeight)] = MapMaximumHeight,
+            [nameof(IToolbarElement.Toolbar)] = MapToolbar,
         };
 
     public static CommandMapper<IWindow, WindowHandler> CommandMapper =
@@ -108,6 +113,8 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
 
         var content = window.Content;
         DiagnosticLog.Debug("WindowHandler", $"MapContent - content type={content?.GetType().Name}, handler={content?.Handler?.GetType().Name}");
+        // A new root page brings its own toolbar (a FlyoutPage's or the Shell's) or none.
+        handler.UpdateToolbar();
         if (content?.Handler?.PlatformView is SkiaView skiaContent)
         {
             DiagnosticLog.Debug("WindowHandler", $"MapContent - setting SkiaView content: {skiaContent.GetType().Name}");
@@ -124,6 +131,31 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>
             // subscribe); the page's SkiaView arrives when it gets its handler.
             DiagnosticLog.Debug("WindowHandler", "MapContent - content not rendered yet");
         }
+    }
+
+    /// <summary>
+    /// The window's toolbar: the one a NavigationPage put on the window, else the one its root
+    /// page carries (a FlyoutPage's or the Shell's), realized as on MAUI's platforms, where the
+    /// window's navigation root holds the platform toolbar (NavigationRootManager.SetToolbar).
+    /// </summary>
+    public static void MapToolbar(WindowHandler handler, IWindow window) => handler.UpdateToolbar();
+
+    /// <summary>Points <see cref="SkiaWindow.Toolbar"/> at the toolbar the window shows now.</summary>
+    internal void UpdateToolbar()
+    {
+        if (PlatformView is not { } platform || VirtualView is not { } window || MauiContext is not { } context)
+            return;
+        var toolbar = (window as IToolbarElement)?.Toolbar ?? (window.Content as IToolbarElement)?.Toolbar;
+        platform.Toolbar = toolbar != null ? ToolbarHandler.Realize(toolbar, context) : null;
+    }
+
+    /// <summary>
+    /// Re-resolves the toolbar of the window <paramref name="page"/> is in, after the page's
+    /// own toolbar changed (a FlyoutPage or Shell at the window's root carries it).
+    /// </summary>
+    internal static void UpdateToolbar(IElement? page)
+    {
+        ((page as VisualElement)?.Window?.Handler as WindowHandler)?.UpdateToolbar();
     }
 
     public static void MapX(WindowHandler handler, IWindow window)
@@ -194,6 +226,12 @@ public class SkiaWindow
     private int _minHeight = 100;
     private int _maxWidth = int.MaxValue;
     private int _maxHeight = int.MaxValue;
+
+    /// <summary>
+    /// The toolbar the window shows (the platform element of MAUI's Window.Toolbar, or of its
+    /// root page's), null when it shows none.
+    /// </summary>
+    public SkiaToolbar? Toolbar { get; set; }
 
     public SkiaView? Content
     {

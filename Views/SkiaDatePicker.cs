@@ -103,6 +103,27 @@ public class SkiaDatePicker : SkiaView
         set => SetValue(DateProperty, ClampDate(value));
     }
 
+    private bool _hasDate = true;
+
+    /// <summary>
+    /// False when the MAUI DatePicker's Date is null (MAUI 10): the field shows no
+    /// date, as the other platforms' pickers do, while <see cref="Date"/> keeps the
+    /// date the calendar opens on. Default true.
+    /// </summary>
+    public bool HasDate
+    {
+        get => _hasDate;
+        set
+        {
+            if (_hasDate == value) return;
+            _hasDate = value;
+            Invalidate();
+        }
+    }
+
+    /// <summary>The text the field shows: the date in <see cref="Format"/>, or nothing without a date.</summary>
+    public string Text => _hasDate ? Date.ToString(Format) : string.Empty;
+
     public DateTime MinimumDate
     {
         get => (DateTime)GetValue(MinimumDateProperty);
@@ -345,7 +366,7 @@ public class SkiaDatePicker : SkiaView
             IsAntialias = true
         };
 
-        string dateText = Date.ToString(Format);
+        string dateText = Text;
         canvas.DrawText(dateText, bounds.Left + 12f, TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY), font, textPaint);
 
         DrawCalendarIcon(canvas, new SKRect(bounds.Right - 36f, bounds.MidY - 10f, bounds.Right - 12f, bounds.MidY + 10f));
