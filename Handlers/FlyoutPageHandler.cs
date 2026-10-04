@@ -30,6 +30,8 @@ public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyou
         // IFlyoutView projection above only covers the initial mapping.
         [nameof(FlyoutPage.FlyoutLayoutBehavior)] = MapFlyoutBehavior,
         [nameof(IView.Background)] = MapBackground,
+        // A NavigationPage inside a FlyoutPage at the window's root puts its toolbar here.
+        [nameof(IToolbarElement.Toolbar)] = MapToolbar,
     };
 
     public static CommandMapper<IFlyoutView, FlyoutPageHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -53,6 +55,8 @@ public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyou
     protected override void ConnectHandler(SkiaFlyoutPage platformView)
     {
         base.ConnectHandler(platformView);
+        // The page's MAUI frame follows the platform view's arrange.
+        platformView.HostedPage = VirtualView as Microsoft.Maui.Controls.Page;
         platformView.IsPresentedChanged += OnIsPresentedChanged;
     }
 
@@ -216,6 +220,9 @@ public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyou
             }
         }
     }
+
+    /// <summary>The FlyoutPage's toolbar is the window's when the FlyoutPage is its page.</summary>
+    public static void MapToolbar(FlyoutPageHandler handler, IFlyoutView flyoutView) => WindowHandler.UpdateToolbar(flyoutView);
 
     public static void MapBackground(FlyoutPageHandler handler, IFlyoutView flyoutView)
     {
