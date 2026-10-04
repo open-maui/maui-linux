@@ -163,10 +163,12 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
             handler.PlatformView.FontSize = font.Size;
         }
 
-        // Map FontAttributes from the Font weight
+        // Map FontAttributes from the Font weight/slant
         var attrs = FontAttributes.None;
         if (font.Weight >= FontWeight.Bold)
             attrs |= FontAttributes.Bold;
+        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
+            attrs |= FontAttributes.Italic;
         handler.PlatformView.FontAttributes = attrs;
 
         handler.PlatformView.Invalidate();
