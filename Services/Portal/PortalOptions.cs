@@ -307,13 +307,13 @@ internal static class PortalOptions
     }
 
     /// <summary>Location session options: accuracy is 0 (none) .. 5 (exact).</summary>
-    public static Dictionary<string, object> LocationSession(uint accuracy, string sessionToken)
+    public static Dictionary<string, object> LocationSession(uint accuracy, string sessionToken, uint timeThresholdSeconds = 0)
         => new(StringComparer.Ordinal)
         {
             ["session_handle_token"] = sessionToken,
             ["accuracy"] = Math.Min(accuracy, 5u),
             ["distance-threshold"] = 0u,
-            ["time-threshold"] = 0u,
+            ["time-threshold"] = timeThresholdSeconds,
         };
 }
 

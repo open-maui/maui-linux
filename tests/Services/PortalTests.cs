@@ -126,6 +126,33 @@ internal sealed class FakeDesktopPortal : IDesktopPortal
         return Task.FromResult(Location);
     }
 
+    /// <summary>The handler of the open location watch, to push updates; null when none is open.</summary>
+    public Action<IReadOnlyDictionary<string, object>>? LocationWatcher { get; private set; }
+
+    /// <summary>WatchLocationAsync answers as if the session were denied.</summary>
+    public bool DenyLocationWatch { get; set; }
+
+    public Task<IAsyncDisposable?> WatchLocationAsync(IDictionary<string, object> sessionOptions, Action<IReadOnlyDictionary<string, object>> onUpdate, CancellationToken cancellationToken)
+    {
+        Calls.Add(("WatchLocation", null, sessionOptions));
+        if (ThrowUnavailable)
+            return Task.FromException<IAsyncDisposable?>(new PortalUnavailableException("fake"));
+        if (DenyLocationWatch)
+            return Task.FromResult<IAsyncDisposable?>(null);
+        LocationWatcher = onUpdate;
+        return Task.FromResult<IAsyncDisposable?>(new StopWatch(this));
+    }
+
+    private sealed class StopWatch(FakeDesktopPortal owner) : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+        {
+            owner.LocationWatcher = null;
+            owner.Calls.Add(("StopLocation", null, null));
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class Nothing : IDisposable
     {
         public void Dispose() { }
@@ -745,6 +772,49 @@ public class PortalFeatureTests
 
 public class PortalServiceIntegrationTests
 {
+    [Fact]
+    public async Task Geolocation_listens_raises_each_fix_and_stops()
+    {
+        var portal = new FakeDesktopPortal();
+        var geo = new GeolocationService(portal, alwaysUsePortal: true);
+        var seen = new List<Location>();
+        geo.LocationChanged += (_, e) => seen.Add(e.Location);
+
+        (await geo.StartListeningForegroundAsync(new GeolocationListeningRequest(GeolocationAccuracy.High, TimeSpan.FromSeconds(5)))).Should().BeTrue();
+        geo.IsListeningForeground.Should().BeTrue();
+        var options = portal.Calls.Single(c => c.Method == "WatchLocation").Options!;
+        options["time-threshold"].Should().Be(5u, "MinimumTime is the portal's time threshold");
+        options["accuracy"].Should().Be(PortalLocationFix.AccuracyFor(GeolocationAccuracy.High));
+
+        var act = () => geo.StartListeningForegroundAsync(new GeolocationListeningRequest());
+        await act.Should().ThrowAsync<InvalidOperationException>("MAUI throws when already listening");
+
+        portal.LocationWatcher!(new Dictionary<string, object> { ["Latitude"] = 1.5, ["Longitude"] = 2.5 });
+        portal.LocationWatcher!(new Dictionary<string, object> { ["Latitude"] = 3.0, ["Longitude"] = 4.0 });
+        await Task.Delay(50);
+        seen.Select(l => (l.Latitude, l.Longitude)).Should().Equal((1.5, 2.5), (3.0, 4.0));
+        (await geo.GetLastKnownLocationAsync())!.Latitude.Should().Be(3.0, "a fix while listening is the last known location");
+
+        geo.StopListeningForeground();
+        await Task.Delay(50);
+        geo.IsListeningForeground.Should().BeFalse();
+        portal.Calls.Should().Contain(c => c.Method == "StopLocation", "stopping closes the portal session");
+        (await geo.StartListeningForegroundAsync(new GeolocationListeningRequest())).Should().BeTrue("it can listen again after stopping");
+        geo.StopListeningForeground();
+    }
+
+    [Fact]
+    public async Task Geolocation_listening_is_refused_when_denied_or_without_a_portal()
+    {
+        var denied = new GeolocationService(new FakeDesktopPortal { DenyLocationWatch = true }, alwaysUsePortal: true);
+        (await denied.StartListeningForegroundAsync(new GeolocationListeningRequest())).Should().BeFalse();
+        denied.IsListeningForeground.Should().BeFalse();
+
+        var none = new GeolocationService(new FakeDesktopPortal { ThrowUnavailable = true }, alwaysUsePortal: true);
+        (await none.StartListeningForegroundAsync(new GeolocationListeningRequest())).Should().BeFalse();
+        none.IsListeningForeground.Should().BeFalse();
+    }
+
     [Fact]
     public async Task Notification_UsesServerIdsAndDispatchesActionsByLocalId()
     {
