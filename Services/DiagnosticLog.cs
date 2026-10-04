@@ -76,9 +76,13 @@ public static class DiagnosticLog
     /// <summary>
     /// Logs an error message. Always writes regardless of IsEnabled.
     /// </summary>
+    /// <summary>Every logged error, as (tag, message): diagnostics that collect them (PageInvariants).</summary>
+    internal static event Action<string, string>? ErrorLogged;
+
     public static void Error(string tag, string message)
     {
         System.Console.Error.WriteLine($"[{tag}] ERROR: {message}");
+        ErrorLogged?.Invoke(tag, message);
     }
 
     /// <summary>
@@ -93,6 +97,7 @@ public static class DiagnosticLog
         while ((root is System.Reflection.TargetInvocationException || root is AggregateException) && root.InnerException != null)
             root = root.InnerException;
         System.Console.Error.WriteLine($"[{tag}] ERROR: {message}: {root.GetType().Name}: {root.Message}");
+        ErrorLogged?.Invoke(tag, $"{message}: {root.GetType().Name}: {root.Message}");
         System.Console.Error.WriteLine(ex.ToString());
     }
 }

@@ -121,15 +121,42 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
         // The platform holds the text as shown (TextTransform applied, cut to
         // MaxLength); a difference flows back to the view through TextChanged.
         var text = TextInputText.GetDisplayText(entry);
+        bool replaced = false;
         if (handler.PlatformView.Text != text)
         {
             handler.PlatformView.Text = text;
             handler.PlatformView.Invalidate();
+            replaced = true;
         }
 
         // The text the platform holds (cut to MaxLength, transformed) is the
         // view's Text, as on MAUI's platforms.
         TextInputText.UpdateVirtualText(entry, handler.PlatformView.Text);
+
+        // Text replaced after the view was first shown puts the caret at its end
+        // (MAUI's platforms), and the view's CursorPosition follows.
+        if (replaced && !handler._initialMapping)
+        {
+            handler.PlatformView.SelectionLength = 0;
+            handler.PlatformView.CursorPosition = handler.PlatformView.Text.Length;
+            TextInputText.ReportSelection(entry, handler.PlatformView.CursorPosition, 0);
+        }
+    }
+
+    // True while the view's initial values are mapped (SetVirtualView).
+    private bool _initialMapping;
+
+    public override void SetVirtualView(IView view)
+    {
+        _initialMapping = true;
+        try
+        {
+            base.SetVirtualView(view);
+        }
+        finally
+        {
+            _initialMapping = false;
+        }
     }
 
     public static void MapTextColor(EntryHandler handler, IEntry entry)
@@ -201,13 +228,18 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
     public static void MapCursorPosition(EntryHandler handler, IEntry entry)
     {
         if (handler.PlatformView is null) return;
+        // The platform caps the caret to the text; the view gets the capped value.
         handler.PlatformView.CursorPosition = entry.CursorPosition;
+        if (entry.CursorPosition != handler.PlatformView.CursorPosition)
+            entry.CursorPosition = handler.PlatformView.CursorPosition;
     }
 
     public static void MapSelectionLength(EntryHandler handler, IEntry entry)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.SelectionLength = entry.SelectionLength;
+        handler.PlatformView.SelectionLength = TextInputText.ClampSelectionLength(
+            handler.PlatformView.Text, handler.PlatformView.CursorPosition, entry.SelectionLength);
+        TextInputText.ReportSelection(entry, handler.PlatformView.CursorPosition, handler.PlatformView.SelectionLength);
     }
 
     public static void MapIsPassword(EntryHandler handler, IEntry entry)
