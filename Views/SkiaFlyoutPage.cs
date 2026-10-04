@@ -217,19 +217,27 @@ public class SkiaFlyoutPage : SkiaLayoutView
 
     protected override Rect ArrangeOverride(Rect bounds)
     {
-        // Arrange detail: the whole area, or the area right of a split flyout
+        // Right-to-left mirrors the page, as on MAUI's platforms: the flyout is on the
+        // right and a split detail is the area left of it.
+        bool rtl = FlowDirection == FlowDirection.RightToLeft;
+
+        // Arrange detail: the whole area, or the area beside a split flyout
         if (_detail != null)
         {
             float offset = DetailOffset;
-            _detail.Arrange(new Rect(bounds.Left + offset, bounds.Top, Math.Max(0, bounds.Width - offset), bounds.Height));
+            _detail.Arrange(new Rect(rtl ? bounds.Left : bounds.Left + offset, bounds.Top, Math.Max(0, bounds.Width - offset), bounds.Height));
         }
 
         // Arrange flyout (positioned based on animation progress; pinned when split)
         if (_flyout != null)
         {
-            float flyoutX = IsSplit
-                ? (float)bounds.Left
-                : (float)bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
+            float flyoutX = rtl
+                ? (IsSplit
+                    ? (float)(bounds.Right - FlyoutWidth)
+                    : (float)bounds.Right - (FlyoutWidth * _flyoutAnimationProgress))
+                : IsSplit
+                    ? (float)bounds.Left
+                    : (float)bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
             var flyoutBounds = new Rect(flyoutX, bounds.Top, FlyoutWidth, bounds.Height);
             _flyout.Arrange(flyoutBounds);
         }
@@ -256,7 +264,9 @@ public class SkiaFlyoutPage : SkiaLayoutView
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1f
             };
-            float x = (float)Bounds.Left + FlyoutWidth;
+            float x = FlowDirection == FlowDirection.RightToLeft
+                ? (float)Bounds.Right - FlyoutWidth
+                : (float)Bounds.Left + FlyoutWidth;
             canvas.DrawLine(x, (float)Bounds.Top, x, (float)Bounds.Bottom, dividerPaint);
         }
         else if (_flyoutAnimationProgress > 0)

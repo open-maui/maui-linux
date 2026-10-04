@@ -9,6 +9,12 @@ public class TabItem
 
     public string? IconPath { get; set; }
 
+    /// <summary>
+    /// The tab's icon as MAUI declares it (Page.IconImageSource: a file, font, URI or stream
+    /// image), loaded through its image-source service; when null, <see cref="IconPath"/> is used.
+    /// </summary>
+    public IImageSource? IconSource { get; set; }
+
     public SkiaView Content { get; set; } = null!;
 
     public string? Badge { get; set; }

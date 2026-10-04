@@ -34,7 +34,7 @@ namespace Microsoft.Maui
 		}
 	}
 
-	[TraitDiscoverer("Microsoft.Maui.CategoryDiscoverer", "Microsoft.Maui.Core.DeviceTests")]
+	[TraitDiscoverer("Microsoft.Maui.CategoryDiscoverer", Microsoft.Maui.DeviceTests.ConformanceAssembly.Name)]
 	[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = true)]
 	public class CategoryAttribute : Attribute, ITraitAttribute
 	{

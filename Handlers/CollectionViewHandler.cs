@@ -37,7 +37,9 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
 
             // StructuredItemsView properties
             [nameof(StructuredItemsView.Header)] = MapHeader,
+            [nameof(StructuredItemsView.HeaderTemplate)] = MapHeader,
             [nameof(StructuredItemsView.Footer)] = MapFooter,
+            [nameof(StructuredItemsView.FooterTemplate)] = MapFooter,
             [nameof(StructuredItemsView.ItemsLayout)] = MapItemsLayout,
 
             [nameof(IView.Background)] = MapBackground,
@@ -193,15 +195,20 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                     var content = ItemTemplateContent.Create(template, item, collectionView);
                     if (content is View view)
                     {
-                        // Set the parent to the CollectionView so RelativeSource AncestorType
+                        // The row's root takes the item; its children inherit it, as on every
+                        // platform, so a child given a context of its own (a control's
+                        // Root.BindingContext = this) keeps it. The item comes first: a row
+                        // parented first inherits the list's context for a moment, and its
+                        // compiled bindings run against the wrong type (MAUI's "x:DataType
+                        // mismatch" binding failure, once per row).
+                        view.BindingContext = item;
+
+                        // The CollectionView is the parent, so RelativeSource AncestorType
                         // bindings can walk the visual tree up to the Page.
                         if (view.Parent == null)
                         {
                             try
                             {
-                                // Use reflection to set the internal Parent property.
-                                // MAUI's Element.Parent setter is public but may trigger
-                                // side effects, so we use the internal SetParent if available.
                                 view.Parent = collectionView;
                             }
                             catch
@@ -209,11 +216,6 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
                                 // Fallback: some MAUI versions restrict parent assignment.
                             }
                         }
-
-                        // The row's root takes the item; its children inherit it, as on every
-                        // platform, so a child given a context of its own (a control's
-                        // Root.BindingContext = this) keeps it.
-                        view.BindingContext = item;
 
                         // Create handler for the view
                         if (view.Handler == null && handler.MauiContext != null)
@@ -367,12 +369,49 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Header = collectionView.Header;
+        handler.PlatformView.HeaderView = SlotView(handler, collectionView, collectionView.Header, collectionView.HeaderTemplate)
+            ?? handler.PlatformView.HeaderView;
     }
 
     public static void MapFooter(CollectionViewHandler handler, CollectionView collectionView)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Footer = collectionView.Footer;
+        handler.PlatformView.FooterView = SlotView(handler, collectionView, collectionView.Footer, collectionView.FooterTemplate)
+            ?? handler.PlatformView.FooterView;
+    }
+
+    /// <summary>
+    /// A header or footer as MAUI builds it: a View as it is, or the template's content bound to
+    /// the header object. Null for a string or other object without a template (the platform view
+    /// shows its text). The view is the list's child, so it inherits the list's BindingContext
+    /// unless it sets its own.
+    /// </summary>
+    private static SkiaView? SlotView(CollectionViewHandler handler, CollectionView collectionView, object? value, DataTemplate? template)
+    {
+        if (handler.MauiContext is null || value is null)
+            return null;
+        try
+        {
+            View? view = value as View;
+            if (view == null && template != null)
+            {
+                view = ItemTemplateContent.Create(template, value, collectionView) as View;
+                if (view != null)
+                    view.BindingContext = value;
+            }
+            if (view == null)
+                return null;
+            if (view.Parent == null)
+                view.Parent = collectionView;
+            view.Handler ??= view.ToViewHandler(handler.MauiContext);
+            return view.Handler?.PlatformView as SkiaView;
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("CollectionViewHandler", "Creating the header or footer failed", ex);
+            return null;
+        }
     }
 
     public static void MapItemsLayout(CollectionViewHandler handler, CollectionView collectionView)

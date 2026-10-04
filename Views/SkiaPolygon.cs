@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered Polygon shape - closed path of connected points.
 /// </summary>
-public class SkiaPolygon : SkiaView
+public class SkiaPolygon : SkiaShapeView
 {
     public static readonly BindableProperty PointsProperty =
         BindableProperty.Create(nameof(Points), typeof(PointCollection), typeof(SkiaPolygon), null,
@@ -51,6 +51,13 @@ public class SkiaPolygon : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         var pts = Points;
         if (pts == null || pts.Count < 2) return;
 

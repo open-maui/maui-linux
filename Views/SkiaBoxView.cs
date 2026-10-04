@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered BoxView - a simple colored rectangle.
 /// Implements MAUI IBoxView interface patterns.
 /// </summary>
-public class SkiaBoxView : SkiaView
+public class SkiaBoxView : SkiaShapeView
 {
     #region BindableProperties
 
@@ -58,6 +58,13 @@ public class SkiaBoxView : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         SKColor fillColor = ToSKColor(Color);
 
         using var paint = new SKPaint

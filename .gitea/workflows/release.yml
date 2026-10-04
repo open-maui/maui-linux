@@ -44,9 +44,7 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal
-        continue-on-error: true
+      # Tests run in .gitea/workflows/tests.yml; a release never waits for them.
 
       - name: Pack OpenMaui.Hosting package
         run: dotnet pack Hosting.Abstractions/OpenMaui.Hosting.csproj --configuration Release -o ./nupkg -p:PackageVersion=${{ steps.version.outputs.VERSION }}
