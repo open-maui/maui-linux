@@ -157,9 +157,8 @@ namespace Microsoft.Maui.DeviceTests
 	public class ScrollViewHandler : Linux.ScrollViewHandler, IPlatformViewHandler
 	{
 		public ScrollViewHandler() { }
-		// The Linux ScrollViewHandler has no (mapper, commandMapper) constructor; the alias
-		// forwards what exists, so HandlersHaveAllExpectedContructors reports the gap.
 		public ScrollViewHandler(IPropertyMapper mapper) : base(mapper) { }
+		public ScrollViewHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
 	}
 	// MAUI's LayoutHandler implements ILayoutHandler (Add/Insert/Remove/Clear/Update/
 	// UpdateZIndex as methods); the Linux one only handles the same operations as
