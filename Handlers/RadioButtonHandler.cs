@@ -20,6 +20,11 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
             [nameof(IRadioButton.IsChecked)] = MapIsChecked,
             [nameof(ITextStyle.TextColor)] = MapTextColor,
             [nameof(ITextStyle.Font)] = MapFont,
+            [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+            [nameof(IContentView.Content)] = MapContent,
+            [nameof(IButtonStroke.StrokeColor)] = MapStrokeColor,
+            [nameof(IButtonStroke.StrokeThickness)] = MapStrokeThickness,
+            [nameof(IButtonStroke.CornerRadius)] = MapCornerRadius,
             [nameof(IView.Background)] = MapBackground,
         };
 
@@ -49,9 +54,10 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
         platformView.CheckedChanged += OnCheckedChanged;
 
         // Set content if available
+        if (VirtualView is not null)
+            MapContent(this, VirtualView);
         if (VirtualView is RadioButton rb)
         {
-            platformView.Content = rb.Content?.ToString() ?? "";
             platformView.GroupName = rb.GroupName;
             platformView.Value = rb.Value;
         }
@@ -90,10 +96,47 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
     {
         if (handler.PlatformView is null) return;
 
-        if (radioButton.Font.Size > 0)
-        {
-            handler.PlatformView.FontSize = (float)radioButton.Font.Size;
-        }
+        var font = radioButton.Font;
+        if (font.Size > 0)
+            handler.PlatformView.FontSize = font.Size;
+
+        // Null family means the default face; clearing it lets a family change back take effect.
+        handler.PlatformView.FontFamily = string.IsNullOrEmpty(font.Family) ? null : font.Family;
+        handler.PlatformView.FontAttributes = TextStyleMapping.ToFontAttributes(font);
+    }
+
+    public static void MapCharacterSpacing(RadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.CharacterSpacing = radioButton.CharacterSpacing;
+    }
+
+    public static void MapContent(RadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler.PlatformView is null) return;
+        // SkiaRadioButton draws text only; like Android's native RadioButton, non-string
+        // content shows as its ToString().
+        handler.PlatformView.Content = radioButton.Content?.ToString() ?? string.Empty;
+    }
+
+    public static void MapStrokeColor(RadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.StrokeColor = radioButton.StrokeColor;
+    }
+
+    public static void MapStrokeThickness(RadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler.PlatformView is null) return;
+        // RadioButton.BorderWidth defaults to -1 ("unset"): no outline.
+        handler.PlatformView.StrokeThickness = Math.Max(0, radioButton.StrokeThickness);
+    }
+
+    public static void MapCornerRadius(RadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler.PlatformView is null) return;
+        // RadioButton.CornerRadius defaults to -1 ("unset"): square corners.
+        handler.PlatformView.CornerRadius = Math.Max(0, radioButton.CornerRadius);
     }
 
     public static void MapBackground(RadioButtonHandler handler, IRadioButton radioButton)

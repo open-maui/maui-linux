@@ -286,6 +286,33 @@ public class SkiaImage : SkiaView
     public event EventHandler? ImageLoaded;
     public event EventHandler<ImageLoadingErrorEventArgs>? ImageLoadingError;
 
+    /// <summary>
+    /// Raised by <see cref="ClearImage"/> once the picture has been removed: the
+    /// counterpart of <see cref="ImageLoaded"/> for a null picture.
+    /// </summary>
+    public event EventHandler? ImageCleared;
+
+    /// <summary>
+    /// Removes the displayed picture, as MAUI's image handlers set a null image when
+    /// the source is null or fails to load. Stops a running animation; a bitmap
+    /// shared through the image cache is released, never disposed.
+    /// </summary>
+    public void ClearImage()
+    {
+        StopAnimation();
+        _loadCts?.Cancel();
+        // Frames are dropped, not disposed: an animation timer tick may still be reading one.
+        _animationFrames = null;
+        _isAnimatedImage = false;
+        _currentFrameIndex = 0;
+        _isSvg = false;
+        _currentFilePath = null;
+        _cacheKey = null;
+        _isLoading = false;
+        Bitmap = null;
+        ImageCleared?.Invoke(this, EventArgs.Empty);
+    }
+
     private void OnIsAnimationPlayingChanged(bool isPlaying)
     {
         if (_isAnimatedImage && _animationFrames != null && _animationFrames.Count > 1)
@@ -330,7 +357,8 @@ public class SkiaImage : SkiaView
 
     private void OnAnimationTimerElapsed(object? sender, ElapsedEventArgs e)
     {
-        if (_animationFrames == null || _animationFrames.Count <= 1 || !IsAnimationPlaying)
+        // A static image loaded since the animation started ends it.
+        if (_animationFrames == null || _animationFrames.Count <= 1 || !IsAnimationPlaying || !_isAnimatedImage)
             return;
 
         // Move to next frame

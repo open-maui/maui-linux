@@ -78,7 +78,8 @@ namespace Microsoft.Maui.DeviceTests.Stubs
 	/// <summary>
 	/// Linux CountedImageHandler (MAUI's CountedImageHandler.*.cs log every
 	/// picture the native image view is given): logs each bitmap the Skia image
-	/// view receives, which is the Linux equivalent of the native setter.
+	/// view receives, which is the Linux equivalent of the native setter, and a
+	/// null when the view's picture is cleared (the native setter given null).
 	/// </summary>
 	public class CountedImageHandler : ImageHandler
 	{
@@ -88,6 +89,7 @@ namespace Microsoft.Maui.DeviceTests.Stubs
 		{
 			var view = base.CreatePlatformView();
 			view.ImageLoaded += (_, _) => ImageEvents.Add(("Bitmap", view.Bitmap));
+			view.ImageCleared += (_, _) => ImageEvents.Add(("Bitmap", null));
 			return view;
 		}
 	}

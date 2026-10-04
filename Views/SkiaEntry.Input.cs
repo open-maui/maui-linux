@@ -50,6 +50,13 @@ public partial class SkiaEntry
     bool IInputContext.IsSurroundingTextSensitive => IsPassword;
 
     /// <summary>
+    /// The keyboard, password and prediction settings as the input method's
+    /// content type.
+    /// </summary>
+    TextInputContentType IInputContext.ContentType =>
+        TextInputContentType.FromKeyboard(Keyboard, IsPassword, IsTextPredictionEnabled, IsSpellCheckEnabled);
+
+    /// <summary>
     /// Called when IME commits text.
     /// </summary>
     public void OnTextCommitted(string text)
@@ -67,9 +74,9 @@ public partial class SkiaEntry
         _preEditCursorPosition = 0;
 
         // Check max length
-        if (MaxLength > 0 && Text.Length + text.Length > MaxLength)
+        if (MaxLength >= 0 && Text.Length + text.Length > MaxLength)
         {
-            text = text.Substring(0, MaxLength - Text.Length);
+            text = text.Substring(0, Math.Max(0, MaxLength - Text.Length));
         }
 
         // Insert committed text at cursor
@@ -153,14 +160,14 @@ public partial class SkiaEntry
         }
 
         // Check max length
-        if (MaxLength > 0 && Text.Length >= MaxLength)
+        if (MaxLength >= 0 && Text.Length >= MaxLength)
             return;
 
         // Insert text at cursor
         var insertText = e.Text;
-        if (MaxLength > 0)
+        if (MaxLength >= 0)
         {
-            var remaining = MaxLength - Text.Length;
+            var remaining = Math.Max(0, MaxLength - Text.Length);
             insertText = insertText.Substring(0, Math.Min(insertText.Length, remaining));
         }
 
@@ -516,7 +523,7 @@ public partial class SkiaEntry
                 var current = Text ?? string.Empty;
                 var pos = Math.Clamp(_cursorPosition, 0, current.Length);
                 var insert = text;
-                if (MaxLength > 0 && current.Length + insert.Length > MaxLength)
+                if (MaxLength >= 0 && current.Length + insert.Length > MaxLength)
                 {
                     var slack = MaxLength - current.Length;
                     if (slack <= 0) return;
@@ -660,9 +667,9 @@ public partial class SkiaEntry
         }
 
         // Check max length
-        if (MaxLength > 0)
+        if (MaxLength >= 0)
         {
-            var remaining = MaxLength - Text.Length;
+            var remaining = Math.Max(0, MaxLength - Text.Length);
             text = text.Substring(0, Math.Min(text.Length, remaining));
         }
 

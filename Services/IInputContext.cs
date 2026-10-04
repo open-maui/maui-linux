@@ -21,6 +21,15 @@ public interface IInputContext
     /// </summary>
     bool IsSurroundingTextSensitive => false;
 
+    /// <summary>
+    /// The content type (purpose and hints) the input method should apply while
+    /// this context has focus: the desktop form of MAUI's <see cref="Keyboard"/>.
+    /// Services that support it send it on focus and again when
+    /// <see cref="IInputMethodService.NotifyContentTypeChanged"/> is called.
+    /// Default: a plain field, so existing implementations don't break.
+    /// </summary>
+    TextInputContentType ContentType => TextInputContentType.Default;
+
     void OnTextCommitted(string text);
 
     void OnPreEditChanged(string preEditText, int cursorPosition);

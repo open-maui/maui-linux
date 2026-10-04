@@ -30,7 +30,8 @@ public partial class SkiaEditor : SkiaView, IInputContext
             typeof(SkiaEditor),
             "",
             BindingMode.OneWay,
-            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnTextPropertyChanged((string)o, (string)n));
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnTextPropertyChanged((string)o, (string)n),
+            coerceValue: (b, v) => ((SkiaEditor)b).CoerceText((string?)v));
 
     /// <summary>
     /// Bindable property for Placeholder.
@@ -188,7 +189,8 @@ public partial class SkiaEditor : SkiaView, IInputContext
             typeof(int),
             typeof(SkiaEditor),
             -1,
-            BindingMode.TwoWay);
+            BindingMode.TwoWay,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnMaxLengthChanged());
 
     /// <summary>
     /// Bindable property for AutoSize.
@@ -234,7 +236,8 @@ public partial class SkiaEditor : SkiaView, IInputContext
             nameof(IsTextPredictionEnabled),
             typeof(bool),
             typeof(SkiaEditor),
-            true);
+            true,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnContentTypePropertyChanged());
 
     /// <summary>
     /// Bindable property for IsSpellCheckEnabled.
@@ -244,7 +247,19 @@ public partial class SkiaEditor : SkiaView, IInputContext
             nameof(IsSpellCheckEnabled),
             typeof(bool),
             typeof(SkiaEditor),
-            true);
+            true,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnContentTypePropertyChanged());
+
+    /// <summary>
+    /// Bindable property for Keyboard.
+    /// </summary>
+    public static readonly BindableProperty KeyboardProperty =
+        BindableProperty.Create(
+            nameof(Keyboard),
+            typeof(Keyboard),
+            typeof(SkiaEditor),
+            Keyboard.Default,
+            propertyChanged: (b, o, n) => ((SkiaEditor)b).OnContentTypePropertyChanged());
 
     /// <summary>
     /// Bindable property for SelectionLength.
@@ -485,7 +500,9 @@ public partial class SkiaEditor : SkiaView, IInputContext
     }
 
     /// <summary>
-    /// Gets or sets the maximum length. -1 for unlimited.
+    /// Gets or sets the maximum length, as MAUI's <c>MaxLength</c>: a negative
+    /// value (the default, -1) is unlimited and 0 allows no text. Setting it
+    /// truncates the current text, as text set later is truncated.
     /// </summary>
     public int MaxLength
     {
@@ -536,6 +553,16 @@ public partial class SkiaEditor : SkiaView, IInputContext
     {
         get => (bool)GetValue(IsSpellCheckEnabledProperty);
         set => SetValue(IsSpellCheckEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the keyboard type. On desktop this is the content type
+    /// (purpose and hints) the input method gets while the editor has focus.
+    /// </summary>
+    public Keyboard Keyboard
+    {
+        get => (Keyboard)GetValue(KeyboardProperty);
+        set => SetValue(KeyboardProperty, value);
     }
 
     /// <summary>
@@ -650,16 +677,33 @@ public partial class SkiaEditor : SkiaView, IInputContext
         _inputMethodService = InputMethodServiceFactory.Instance;
     }
 
+    /// <summary>
+    /// Text is never null (MAUI's platforms report "" for null) and never longer
+    /// than <see cref="MaxLength"/>, whoever sets it.
+    /// </summary>
+    private string CoerceText(string? value) => TextInputText.TrimToMaxLength(value ?? string.Empty, MaxLength);
+
+    /// <summary>
+    /// A lowered MaxLength truncates the current text. (BindableObject.CoerceValue
+    /// discards its coerce result, so the text is set explicitly.)
+    /// </summary>
+    private void OnMaxLengthChanged()
+    {
+        var text = Text ?? string.Empty;
+        var trimmed = TextInputText.TrimToMaxLength(text, MaxLength);
+        if (!string.Equals(text, trimmed, StringComparison.Ordinal))
+            Text = trimmed;
+    }
+
+    private void OnContentTypePropertyChanged()
+    {
+        if (IsFocused)
+            _inputMethodService?.NotifyContentTypeChanged();
+    }
+
     private void OnTextPropertyChanged(string oldText, string newText)
     {
         var text = newText ?? "";
-
-        if (MaxLength > 0 && text.Length > MaxLength)
-        {
-            text = text.Substring(0, MaxLength);
-            SetValue(TextProperty, text);
-            return;
-        }
 
         UpdateLines();
         _cursorPosition = Math.Min(_cursorPosition, text.Length);

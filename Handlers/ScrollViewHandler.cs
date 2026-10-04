@@ -36,6 +36,11 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
     {
     }
 
+    public ScrollViewHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
+        : base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+    {
+    }
+
     protected override SkiaScrollView CreatePlatformView()
     {
         return new SkiaScrollView();
