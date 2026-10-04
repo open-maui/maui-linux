@@ -98,17 +98,17 @@ namespace Microsoft.Maui.DeviceTests
 
 		TextAlignment GetNativeVerticalTextAlignment(TextAlignment textAlignment) => textAlignment;
 
-		bool GetNativeIsNumericKeyboard(EditorHandler handler) => throw Missing.Property(GetNativeEditor(handler), "Keyboard");
+		bool GetNativeIsNumericKeyboard(EditorHandler handler) => GetNativeEditor(handler).Keyboard == Keyboard.Numeric;
 
-		bool GetNativeIsEmailKeyboard(EditorHandler handler) => throw Missing.Property(GetNativeEditor(handler), "Keyboard");
+		bool GetNativeIsEmailKeyboard(EditorHandler handler) => GetNativeEditor(handler).Keyboard == Keyboard.Email;
 
-		bool GetNativeIsTelephoneKeyboard(EditorHandler handler) => throw Missing.Property(GetNativeEditor(handler), "Keyboard");
+		bool GetNativeIsTelephoneKeyboard(EditorHandler handler) => GetNativeEditor(handler).Keyboard == Keyboard.Telephone;
 
-		bool GetNativeIsUrlKeyboard(EditorHandler handler) => throw Missing.Property(GetNativeEditor(handler), "Keyboard");
+		bool GetNativeIsUrlKeyboard(EditorHandler handler) => GetNativeEditor(handler).Keyboard == Keyboard.Url;
 
-		bool GetNativeIsTextKeyboard(EditorHandler handler) => throw Missing.Property(GetNativeEditor(handler), "Keyboard");
+		bool GetNativeIsTextKeyboard(EditorHandler handler) => GetNativeEditor(handler).Keyboard == Keyboard.Text;
 
-		bool GetNativeIsChatKeyboard(EditorHandler handler) => throw Missing.Property(GetNativeEditor(handler), "Keyboard");
+		bool GetNativeIsChatKeyboard(EditorHandler handler) => GetNativeEditor(handler).Keyboard == Keyboard.Chat;
 
 		int GetNativeCursorPosition(EditorHandler handler) => GetNativeEditor(handler).CursorPosition;
 
@@ -123,9 +123,9 @@ namespace Microsoft.Maui.DeviceTests
 
 		static void SetNativeText(SearchBarHandler handler, string value) => GetNativeSearchBar(handler).Text = value;
 
-		static int GetCursorStartPosition(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "CursorPosition");
+		static int GetCursorStartPosition(SearchBarHandler handler) => GetNativeSearchBar(handler).CursorPosition;
 
-		static void UpdateCursorStartPosition(SearchBarHandler handler, int position) => throw Missing.Property(GetNativeSearchBar(handler), "CursorPosition");
+		static void UpdateCursorStartPosition(SearchBarHandler handler, int position) => GetNativeSearchBar(handler).CursorPosition = position;
 
 		Color GetNativeTextColor(SearchBarHandler handler) => GetNativeSearchBar(handler).TextColor;
 
@@ -133,11 +133,11 @@ namespace Microsoft.Maui.DeviceTests
 
 		double GetInputFieldHeight(SearchBarHandler handler) => GetNativeSearchBar(handler).Bounds.Height;
 
-		bool GetNativeIsTextPredictionEnabled(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "IsTextPredictionEnabled");
+		bool GetNativeIsTextPredictionEnabled(SearchBarHandler handler) => GetNativeSearchBar(handler).IsTextPredictionEnabled;
 
-		bool GetNativeIsSpellCheckEnabled(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "IsSpellCheckEnabled");
+		bool GetNativeIsSpellCheckEnabled(SearchBarHandler handler) => GetNativeSearchBar(handler).IsSpellCheckEnabled;
 
-		bool GetNativeIsReadOnly(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "IsReadOnly");
+		bool GetNativeIsReadOnly(SearchBarHandler handler) => GetNativeSearchBar(handler).IsReadOnly;
 
 		Color GetNativeCancelButtonColor(SearchBarHandler handler) => GetNativeSearchBar(handler).ClearButtonColor;
 
@@ -145,16 +145,16 @@ namespace Microsoft.Maui.DeviceTests
 
 		TextAlignment GetNativeHorizontalTextAlignment(SearchBarHandler handler) => GetNativeSearchBar(handler).HorizontalTextAlignment;
 
-		bool GetNativeIsNumericKeyboard(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "Keyboard");
+		bool GetNativeIsNumericKeyboard(SearchBarHandler handler) => GetNativeSearchBar(handler).Keyboard == Keyboard.Numeric;
 
-		bool GetNativeIsEmailKeyboard(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "Keyboard");
+		bool GetNativeIsEmailKeyboard(SearchBarHandler handler) => GetNativeSearchBar(handler).Keyboard == Keyboard.Email;
 
-		bool GetNativeIsTelephoneKeyboard(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "Keyboard");
+		bool GetNativeIsTelephoneKeyboard(SearchBarHandler handler) => GetNativeSearchBar(handler).Keyboard == Keyboard.Telephone;
 
-		bool GetNativeIsUrlKeyboard(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "Keyboard");
+		bool GetNativeIsUrlKeyboard(SearchBarHandler handler) => GetNativeSearchBar(handler).Keyboard == Keyboard.Url;
 
-		bool GetNativeIsTextKeyboard(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "Keyboard");
+		bool GetNativeIsTextKeyboard(SearchBarHandler handler) => GetNativeSearchBar(handler).Keyboard == Keyboard.Text;
 
-		bool GetNativeIsChatKeyboard(SearchBarHandler handler) => throw Missing.Property(GetNativeSearchBar(handler), "Keyboard");
+		bool GetNativeIsChatKeyboard(SearchBarHandler handler) => GetNativeSearchBar(handler).Keyboard == Keyboard.Chat;
 	}
 }

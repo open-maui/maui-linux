@@ -35,6 +35,7 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
         ["Clear"] = MapClear,
         ["Insert"] = MapInsert,
         ["Update"] = MapUpdate,
+        ["UpdateZIndex"] = MapUpdateZIndex,
     };
 
     public LayoutHandler() : base(Mapper, CommandMapper)
@@ -102,6 +103,18 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
                 DiagnosticLog.Error("LayoutHandler", $"Skipping child {i} ({child.GetType().Name}): {ex.Message}", ex);
             }
         }
+    }
+
+    /// <summary>
+    /// Detaches the platform children, as MAUI's layout handlers do (Android
+    /// RemoveAllViews, iOS removing the subviews). The child views keep their own
+    /// handlers, so a new layout handler for the same layout can add them again
+    /// (a platform child that still had this view as its parent could not be added).
+    /// </summary>
+    protected override void DisconnectHandler(SkiaLayoutView platformView)
+    {
+        platformView.ClearChildren();
+        base.DisconnectHandler(platformView);
     }
 
     public static void MapClipsToBounds(LayoutHandler handler, ILayout layout)
@@ -211,6 +224,17 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
     /// The platform child there is replaced by the new view's; before, only a
     /// re-layout ran and the old rows stayed on screen.
     /// </summary>
+    /// <summary>
+    /// A child's ZIndex changed (MAUI's ViewHandler sends this to the parent layout): the child
+    /// takes its new place in the drawing and hit-testing order, as MAUI's layout handlers do.
+    /// </summary>
+    public static void MapUpdateZIndex(LayoutHandler handler, ILayout layout, object? arg)
+    {
+        if (arg is IView child && child.Handler?.PlatformView is SkiaView childView)
+            childView.ZIndex = child.ZIndex;
+        handler.PlatformView?.Invalidate();
+    }
+
     public static void MapUpdate(LayoutHandler handler, ILayout layout, object? arg)
     {
         if (handler.PlatformView == null)
