@@ -9,7 +9,10 @@ using Microsoft.Maui;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Grid layout that arranges children in rows and columns.
+/// Grid layout that arranges Skia children in rows and columns, for views
+/// composed directly in Skia (no MAUI <c>Grid</c> behind them). A MAUI
+/// <c>Grid</c> is laid out by MAUI's own GridLayoutManager on a
+/// <see cref="SkiaCrossPlatformLayout"/> instead (see GridHandler).
 /// </summary>
 public class SkiaGrid : SkiaLayoutView
 {
@@ -97,25 +100,6 @@ public class SkiaGrid : SkiaLayoutView
     /// </summary>
     public GridPosition GetPosition(SkiaView child)
     {
-        // A MAUI Grid's child: its attached Row/Column/spans as they are now.
-        // They can change after the child is added (a flyout's settings chip
-        // spans both columns once it folds to the rail), and a change raises
-        // no handler update, so a copy taken at add time went stale.
-        if (MauiView is Microsoft.Maui.Controls.Grid && child.MauiView is Microsoft.Maui.Controls.BindableObject mauiChild)
-        {
-            // Clamped to the rows and columns that exist (no definitions: one), as MAUI's
-            // GridStructure clamps them: a background image with RowSpan 2 in a grid with no
-            // rows made a second row and halved the page's ScrollView beside it.
-            int rows = Math.Max(1, _rowDefinitions.Count);
-            int columns = Math.Max(1, _columnDefinitions.Count);
-            int row = Math.Clamp(Microsoft.Maui.Controls.Grid.GetRow(mauiChild), 0, rows - 1);
-            int column = Math.Clamp(Microsoft.Maui.Controls.Grid.GetColumn(mauiChild), 0, columns - 1);
-            return new GridPosition(
-                row,
-                column,
-                Math.Clamp(Microsoft.Maui.Controls.Grid.GetRowSpan(mauiChild), 1, rows - row),
-                Math.Clamp(Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiChild), 1, columns - column));
-        }
         return _childPositions.TryGetValue(child, out var pos) ? pos : new GridPosition(0, 0, 1, 1);
     }
 
@@ -131,9 +115,6 @@ public class SkiaGrid : SkiaLayoutView
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        if (MauiView is Microsoft.Maui.IGridLayout layout)
-            Microsoft.Maui.Platform.Linux.Handlers.GridHandler.SyncDefinitions(this, layout);
-
         var contentWidth = (float)(availableSize.Width - Padding.Left - Padding.Right);
         var contentHeight = (float)(availableSize.Height - Padding.Top - Padding.Bottom);
 
@@ -142,11 +123,9 @@ public class SkiaGrid : SkiaLayoutView
         bool infiniteWidth = float.IsNaN(contentWidth) || float.IsInfinity(contentWidth);
         if (float.IsNaN(contentHeight) || float.IsInfinity(contentHeight)) contentHeight = float.PositiveInfinity;
 
-        // A MAUI Grid without definitions has one row and one column (children clamped
-        // into them, GetPosition); a code-built grid still grows rows for its children.
-        bool mauiGrid = MauiView is Microsoft.Maui.Controls.Grid;
-        var rowCount = Math.Max(1, _rowDefinitions.Count > 0 || mauiGrid ? _rowDefinitions.Count : GetMaxRow() + 1);
-        var columnCount = Math.Max(1, _columnDefinitions.Count > 0 || mauiGrid ? _columnDefinitions.Count : GetMaxColumn() + 1);
+        // Without definitions a code-built grid grows rows and columns for its children.
+        var rowCount = Math.Max(1, _rowDefinitions.Count > 0 ? _rowDefinitions.Count : GetMaxRow() + 1);
+        var columnCount = Math.Max(1, _columnDefinitions.Count > 0 ? _columnDefinitions.Count : GetMaxColumn() + 1);
 
         // First pass: measure children in Auto columns to get natural widths
         var columnNaturalWidths = new float[columnCount];

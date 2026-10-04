@@ -10,8 +10,11 @@ using SkiaSharp;
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
-/// Handler for Layout on Linux using Skia rendering.
-/// Maps ILayout interface to SkiaLayoutView platform view.
+/// Handler for Layout on Linux using Skia rendering. Every MAUI layout is
+/// measured and arranged by its own <c>ILayoutManager</c> (Grid, the stack
+/// layouts, FlexLayout, AbsoluteLayout and custom layouts alike) on a
+/// <see cref="SkiaCrossPlatformLayout"/>, as on the other platforms; the
+/// handler manages the platform children, padding, clipping and background.
 /// </summary>
 public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
 {
@@ -45,7 +48,7 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
 
     protected override SkiaLayoutView CreatePlatformView()
     {
-        return new SkiaStackLayout();
+        return new SkiaCrossPlatformLayout();
     }
 
     protected override void ConnectHandler(SkiaLayoutView platformView)
@@ -262,7 +265,10 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
 // from the MAUI framework. Do NOT define a local LayoutHandlerUpdate class here.
 
 /// <summary>
-/// Handler for StackLayout on Linux.
+/// Handler for StackLayout, VerticalStackLayout and HorizontalStackLayout on
+/// Linux: MAUI's stack layout managers place the children (a legacy
+/// StackLayout follows its Orientation), so spacing, alignment, margins and
+/// collapsed children behave as on every platform.
 /// </summary>
 public partial class StackLayoutHandler : LayoutHandler
 {
@@ -278,62 +284,26 @@ public partial class StackLayoutHandler : LayoutHandler
 
     protected override SkiaLayoutView CreatePlatformView()
     {
-        return new SkiaStackLayout();
-    }
-
-    protected override void ConnectHandler(SkiaLayoutView platformView)
-    {
-        // Set orientation first
-        if (platformView is SkiaStackLayout stackLayout && VirtualView is IStackLayout stackView)
-        {
-            // Determine orientation based on view type
-            if (VirtualView is Microsoft.Maui.Controls.HorizontalStackLayout)
-            {
-                stackLayout.Orientation = StackOrientation.Horizontal;
-            }
-            else if (VirtualView is Microsoft.Maui.Controls.StackLayout legacy)
-            {
-                stackLayout.Orientation = ToPlatform(legacy.Orientation);
-            }
-            else
-            {
-                stackLayout.Orientation = StackOrientation.Vertical;
-            }
-
-            stackLayout.Spacing = (float)stackView.Spacing;
-        }
-
-        // Let base handle children
-        base.ConnectHandler(platformView);
+        return new SkiaCrossPlatformLayout();
     }
 
     /// <summary>
     /// A legacy StackLayout's Orientation (Syncfusion's SfChipGroup lays its chips out in a
-    /// horizontal one); HorizontalStackLayout and VerticalStackLayout have none.
+    /// horizontal one); the layout's manager follows it, so the platform view is re-laid out.
     /// </summary>
-    public static void MapOrientation(StackLayoutHandler handler, IStackLayout layout)
-    {
-        if (handler.PlatformView is SkiaStackLayout stackLayout && layout is Microsoft.Maui.Controls.StackLayout legacy)
-        {
-            stackLayout.Orientation = ToPlatform(legacy.Orientation);
-            stackLayout.InvalidateMeasure();
-        }
-    }
+    public static void MapOrientation(StackLayoutHandler handler, IStackLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-    private static StackOrientation ToPlatform(Microsoft.Maui.Controls.StackOrientation orientation) =>
-        orientation == Microsoft.Maui.Controls.StackOrientation.Horizontal ? StackOrientation.Horizontal : StackOrientation.Vertical;
-
-    public static void MapSpacing(StackLayoutHandler handler, IStackLayout layout)
-    {
-        if (handler.PlatformView is SkiaStackLayout stackLayout)
-        {
-            stackLayout.Spacing = (float)layout.Spacing;
-        }
-    }
+    /// <summary>The spacing is read by the layout's manager; the platform view is re-laid out.</summary>
+    public static void MapSpacing(StackLayoutHandler handler, IStackLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 }
 
 /// <summary>
-/// Handler for Grid on Linux.
+/// Handler for Grid on Linux: MAUI's GridLayoutManager sizes the rows and
+/// columns and places the children (spans, Auto and Star sizing, spacing and
+/// alignment), as on every platform. Rows, columns and the children's
+/// attached Row/Column/spans are read from the Grid each time it is measured.
 /// </summary>
 public partial class GridHandler : LayoutHandler
 {
@@ -351,177 +321,24 @@ public partial class GridHandler : LayoutHandler
 
     protected override SkiaLayoutView CreatePlatformView()
     {
-        return new SkiaGrid();
+        return new SkiaCrossPlatformLayout();
     }
 
-    protected override void ConnectHandler(SkiaLayoutView platformView)
-    {
-        try
-        {
-            // Don't call base - we handle children specially for Grid
-            if (VirtualView is not IGridLayout gridLayout || MauiContext == null || platformView is not SkiaGrid grid) return;
+    /// <summary>Read by the grid's layout manager; the platform view is re-laid out.</summary>
+    public static void MapRowSpacing(GridHandler handler, IGridLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-            DiagnosticLog.Debug("GridHandler", $"ConnectHandler: {gridLayout.Count} children, {gridLayout.RowDefinitions.Count} rows, {gridLayout.ColumnDefinitions.Count} cols, VirtualView={VirtualView.GetType().Name}");
+    /// <summary>Read by the grid's layout manager; the platform view is re-laid out.</summary>
+    public static void MapColumnSpacing(GridHandler handler, IGridLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-            // Wire MauiView so SkiaGrid reads BackgroundColor live from the MAUI Grid.
-            // CRITICAL: do NOT echo `platformView.BackgroundColor = ve.BackgroundColor`
-            // when MauiView is wired — that setter routes back to ve.SetValue() at
-            // LocalValue specificity, which is higher than Binding specificity, and
-            // permanently clobbers any AppThemeBinding on the Grid's BackgroundColor
-            // (theme toggles stop firing PropertyChanged after the first one).
-            if (VirtualView is View view)
-                platformView.MauiView = view;
+    /// <summary>Read by the grid's layout manager; the platform view is re-laid out.</summary>
+    public static void MapRowDefinitions(GridHandler handler, IGridLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 
-            if (VirtualView is Microsoft.Maui.Controls.VisualElement ve)
-            {
-                if (platformView.MauiView is null && ve.BackgroundColor != null)
-                    platformView.BackgroundColor = ve.BackgroundColor;
-                if (ve.WidthRequest >= 0)
-                    platformView.WidthRequest = ve.WidthRequest;
-                if (ve.HeightRequest >= 0)
-                    platformView.HeightRequest = ve.HeightRequest;
-            }
-
-            // Explicitly map Padding since it may be set before handler creation
-            if (VirtualView is IPadding paddable)
-            {
-                var padding = paddable.Padding;
-                platformView.Padding = padding;
-                DiagnosticLog.Debug("GridHandler", $"Applied Padding: L={padding.Left}, T={padding.Top}, R={padding.Right}, B={padding.Bottom}");
-            }
-
-            // Map row/column definitions first
-            MapRowDefinitions(this, gridLayout);
-            MapColumnDefinitions(this, gridLayout);
-
-            // Add each child with its row/column position
-            for (int i = 0; i < gridLayout.Count; i++)
-            {
-                var child = gridLayout[i];
-                if (child == null) continue;
-
-                try
-                {
-                    DiagnosticLog.Debug("GridHandler", $"Processing child {i}: {child.GetType().Name}");
-
-                    // Create handler for child if it doesn't exist
-                    if (child.Handler == null)
-                    {
-                        child.Handler = child.ToViewHandler(MauiContext);
-                    }
-
-                    // Get grid position from attached properties
-                    int row = 0, column = 0, rowSpan = 1, columnSpan = 1;
-                    if (child is Microsoft.Maui.Controls.View mauiView)
-                    {
-                        row = Microsoft.Maui.Controls.Grid.GetRow(mauiView);
-                        column = Microsoft.Maui.Controls.Grid.GetColumn(mauiView);
-                        rowSpan = Microsoft.Maui.Controls.Grid.GetRowSpan(mauiView);
-                        columnSpan = Microsoft.Maui.Controls.Grid.GetColumnSpan(mauiView);
-                    }
-
-                    DiagnosticLog.Debug("GridHandler", $"Child {i} at row={row}, col={column}, handler={child.Handler?.GetType().Name}");
-
-                    // Add child's platform view to our grid
-                    if (child.Handler?.PlatformView is SkiaView skiaChild)
-                    {
-                        grid.AddChild(skiaChild, row, column, rowSpan, columnSpan);
-                        DiagnosticLog.Debug("GridHandler", $"Added child {i} to grid");
-                    }
-                }
-                catch (Exception childEx)
-                {
-                    // Skip unsupported child views (e.g. third-party controls without Linux handlers)
-                    DiagnosticLog.Error("GridHandler", $"Skipping child {i} ({child.GetType().Name}): {childEx.Message}", childEx);
-                }
-            }
-            DiagnosticLog.Debug("GridHandler", "ConnectHandler complete");
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("GridHandler", $"EXCEPTION in ConnectHandler: {ex.GetType().Name}: {ex.Message}", ex);
-            throw;
-        }
-    }
-
-    public static void MapRowSpacing(GridHandler handler, IGridLayout layout)
-    {
-        if (handler.PlatformView is SkiaGrid grid)
-        {
-            grid.RowSpacing = (float)layout.RowSpacing;
-        }
-    }
-
-    public static void MapColumnSpacing(GridHandler handler, IGridLayout layout)
-    {
-        if (handler.PlatformView is SkiaGrid grid)
-        {
-            grid.ColumnSpacing = (float)layout.ColumnSpacing;
-        }
-    }
-
-    /// <summary>
-    /// Brings the platform grid's rows and columns up to date with the MAUI
-    /// grid's. Adding to or clearing an existing definition collection only
-    /// invalidates the grid's measure (the property itself does not change, so
-    /// the mapper never runs); SkiaGrid calls this when it measures.
-    /// </summary>
-    internal static void SyncDefinitions(SkiaGrid grid, IGridLayout layout)
-    {
-        Sync(grid.RowDefinitions, layout.RowDefinitions.Select(d => d.Height).ToList());
-        Sync(grid.ColumnDefinitions, layout.ColumnDefinitions.Select(d => d.Width).ToList());
-    }
-
-    private static void Sync(IList<Microsoft.Maui.Platform.GridLength> platform, List<Microsoft.Maui.GridLength> lengths)
-    {
-        bool same = platform.Count == lengths.Count;
-        for (int i = 0; same && i < lengths.Count; i++)
-            same = platform[i].Equals(ToPlatform(lengths[i]));
-        if (same)
-            return;
-        platform.Clear();
-        foreach (var length in lengths)
-            platform.Add(ToPlatform(length));
-    }
-
-    private static Microsoft.Maui.Platform.GridLength ToPlatform(Microsoft.Maui.GridLength length) =>
-        length.IsAbsolute ? new Microsoft.Maui.Platform.GridLength((float)length.Value, Microsoft.Maui.Platform.GridUnitType.Absolute)
-        : length.IsAuto ? Microsoft.Maui.Platform.GridLength.Auto
-        : new Microsoft.Maui.Platform.GridLength((float)length.Value, Microsoft.Maui.Platform.GridUnitType.Star);
-
-    public static void MapRowDefinitions(GridHandler handler, IGridLayout layout)
-    {
-        if (handler.PlatformView is not SkiaGrid grid) return;
-
-        grid.RowDefinitions.Clear();
-        foreach (var rowDef in layout.RowDefinitions)
-        {
-            var height = rowDef.Height;
-            if (height.IsAbsolute)
-                grid.RowDefinitions.Add(new Microsoft.Maui.Platform.GridLength((float)height.Value, Microsoft.Maui.Platform.GridUnitType.Absolute));
-            else if (height.IsAuto)
-                grid.RowDefinitions.Add(Microsoft.Maui.Platform.GridLength.Auto);
-            else // Star
-                grid.RowDefinitions.Add(new Microsoft.Maui.Platform.GridLength((float)height.Value, Microsoft.Maui.Platform.GridUnitType.Star));
-        }
-    }
-
-    public static void MapColumnDefinitions(GridHandler handler, IGridLayout layout)
-    {
-        if (handler.PlatformView is not SkiaGrid grid) return;
-
-        grid.ColumnDefinitions.Clear();
-        foreach (var colDef in layout.ColumnDefinitions)
-        {
-            var width = colDef.Width;
-            if (width.IsAbsolute)
-                grid.ColumnDefinitions.Add(new Microsoft.Maui.Platform.GridLength((float)width.Value, Microsoft.Maui.Platform.GridUnitType.Absolute));
-            else if (width.IsAuto)
-                grid.ColumnDefinitions.Add(Microsoft.Maui.Platform.GridLength.Auto);
-            else // Star
-                grid.ColumnDefinitions.Add(new Microsoft.Maui.Platform.GridLength((float)width.Value, Microsoft.Maui.Platform.GridUnitType.Star));
-        }
-    }
+    /// <summary>Read by the grid's layout manager; the platform view is re-laid out.</summary>
+    public static void MapColumnDefinitions(GridHandler handler, IGridLayout layout) =>
+        handler.PlatformView?.InvalidateMeasure();
 }
 
 /// <summary>
