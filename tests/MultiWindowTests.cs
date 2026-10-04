@@ -368,6 +368,21 @@ public class MultiWindowTests : IDisposable
     }
 
     [Fact]
+    public void PrimaryWindow_Resize_ReportsFrameToMaui()
+    {
+        // Every MAUI platform reports every window's size; the startup window's
+        // Window.Width/Height stayed NaN when only secondary windows reported it.
+        var (ctx, win) = AddWindow(raisesLifecycle: false);
+        var mauiWindow = new Mock<IWindow>();
+        ctx.MauiWindow = mauiWindow.Object;
+        ctx.RootView = MakeRoot();
+
+        win.RaiseResized(1024, 768);
+
+        mauiWindow.Verify(w => w.FrameChanged(It.Is<Rect>(r => r.Width == 1024 && r.Height == 768)), Times.Once);
+    }
+
+    [Fact]
     public void SecondaryWindow_Resize_ReportsFrameToMaui()
     {
         var (ctx, win) = AddWindow(raisesLifecycle: true);

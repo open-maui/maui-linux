@@ -75,6 +75,11 @@ public partial class SkiaShell
         foreach (var item in _toolbarItems)
             item.PropertyChanged -= OnToolbarItemPropertyChanged;
         _toolbarItems.Clear();
+        // The last frame's hit areas name the old items, and an item's Parent is its page: a
+        // popped page stayed reachable from the shell until the bar was drawn again (never,
+        // once its window had closed). The next draw rebuilds them.
+        _toolbarHits.Clear();
+        _toolbarMoreHit = SKRect.Empty;
         if (_toolbarPage != null)
             _toolbarItems.AddRange(_toolbarPage.ToolbarItems);
         foreach (var item in _toolbarItems)
