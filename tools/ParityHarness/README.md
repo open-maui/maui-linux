@@ -2,8 +2,10 @@
 
 A differential layout harness: the same gallery of MAUI pages is rendered by WinUI (the
 reference) and by OpenMaui on Linux, at the same page size. Each run dumps every element's
-layout frame to JSON, and a diff tool reports the elements whose frames differ beyond a
-tolerance, so layout differences from real MAUI are caught automatically.
+layout frame to JSON and a screenshot of each page to PNG. A diff tool reports the elements
+whose frames differ beyond a tolerance, so layout differences from real MAUI are caught
+automatically, and puts the two screenshots of each page side by side with the differing
+pixels marked, for what a layout dump cannot show (colours, borders, clipping, drawing).
 
 ```
 tools/ParityHarness/
@@ -116,18 +118,23 @@ an error (the window was already sized by the plain page).
 
 ## Running in CI
 
-`.gitea/workflows/parity.yml` is manual only (Actions > Layout parity > Run workflow). Inputs:
-`size`, `tolerance`, `text_tolerance`, `pages`.
+`.gitea/workflows/parity.yml` is manual only (Actions > Layout parity > Run workflow) and
+separate from the CI, tests and release workflows: none of them waits for it, and it publishes
+nothing. Inputs: `size`, `tolerance`, `text_tolerance`, `pages`.
 
 - `dump-windows` (runner label `windows`): publishes the unpackaged, self-contained WinUI app
   and runs the dump. WinUI needs an interactive desktop: the act_runner must run as a
-  logged-in user, not as a Windows service (session 0 has no usable desktop).
+  logged-in user, not as a Windows service (session 0 has no usable desktop); the job checks
+  this first and fails with that message. It installs the `maui-windows` workload when it is
+  missing (which may need an elevated runner; otherwise install it once by hand).
 - `dump-linux` (`linux-latest`): installs Xvfb and the runtime libraries (GTK 3, libX11,
   fontconfig) with apt or dnf if missing, publishes the app and runs it under `xvfb-run` with
   X11 and the raster renderer. It assumes the image is Debian/Ubuntu or Fedora and the job
   runs as root or has sudo.
 - `diff`: downloads both dumps, runs the diff, uploads `parity-report` (report.md,
-  report.json, both index.json files) and fails if the diff failed. It runs even when a dump
+  report.json, `images/` with each page's screenshots side by side, both index.json files
+  and harness logs) and fails if the layout diff failed (the visual comparison only
+  reports). It runs even when a dump
   job failed, so a partial dump is still compared.
 
 Artifacts: `parity-dump-windows`, `parity-dump-linux`, `parity-report`.
@@ -163,6 +170,7 @@ descendants by N.
 | `--allow-missing` | off | one-side-only elements/pages do not fail the run |
 | `--out file.md` / `--json file.json` | | write the report (markdown is always printed too) |
 | `--max-rows n` | 200 | rows per table |
+| `--images dir` | | also compare the screenshots: write reference / candidate / difference images to `dir` and a visual section to the report (never fails the run; text rasterises differently per platform) |
 
 Exit codes: 0 within tolerance, 1 differences (or one-side-only elements without
 `--allow-missing`, or a dump error), 2 usage or input error.
