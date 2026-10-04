@@ -44,9 +44,10 @@ public partial class LinuxApplication
         if (window == null)
             return;
 
-        // Adopt the startup window into the primary context (see remarks).
+        // Adopt the startup window into the primary context (see remarks). An app without a
+        // display has no startup window to adopt: its primary context (if any) is a bare one.
         var primary = PrimaryContext;
-        if (primary != null && primary.MauiWindow == null)
+        if (primary != null && primary.MauiWindow == null && (HasDisplay || primary.DisplayWindow != null))
         {
             primary.MauiWindow = window;
             DiagnosticLog.Debug("LinuxApplication", "Adopted startup window into primary context");
@@ -76,6 +77,12 @@ public partial class LinuxApplication
         }
 
         var page = (window as Microsoft.Maui.Controls.Window)?.Page;
+        if (!HasDisplay)
+        {
+            OpenWindowWithoutDisplay(window, page, mauiContext);
+            return;
+        }
+
         string title = FirstNonEmpty(window.Title, page?.Title, "OpenMaui App");
 
         // Window.Width/Height are logical units (NaN when unset). Native
@@ -211,12 +218,60 @@ public partial class LinuxApplication
             var ctx = _windowContexts[i];
             if (ctx.MauiWindow == window)
             {
+                if (ctx.IsHeadless)
+                {
+                    // No native window to stop and no run loop to reap it: close it now, as
+                    // the reaper closes a native window whose toplevel went away.
+                    _windowContexts.RemoveAt(i);
+                    if (_focusedContext == ctx) _focusedContext = null;
+                    if (_dialogHostContext == ctx) _dialogHostContext = null;
+                    ctx.NotifyDestroying();
+                    try { ctx.Dispose(); }
+                    catch (Exception ex) { DiagnosticLog.Error("LinuxApplication", "Window context dispose failed", ex); }
+                    return;
+                }
                 HandleContextCloseRequested(ctx);
                 ctx.DisplayWindow?.Stop();
                 return;
             }
         }
         DiagnosticLog.Debug("LinuxApplication", "CloseWindow: no native window found for IWindow");
+    }
+
+    /// <summary>
+    /// Opens a window in an app that has no display (embedded, or under test): a window
+    /// context without a native toplevel, sized from Window.Width/Height (800x600 by default)
+    /// within its limits, its page rendered and laid out at that size, and the MAUI lifecycle
+    /// of a newly opened desktop window (Created, then Activated: with no window manager, the
+    /// window that opens is the active one).
+    /// </summary>
+    private void OpenWindowWithoutDisplay(IWindow window, Microsoft.Maui.Controls.Page? page, IMauiContext mauiContext)
+    {
+        WindowContext? ctx = null;
+        try
+        {
+            ctx = AttachWindowContext(null, null, raisesMauiLifecycle: true);
+            ctx.MauiWindow = window;
+            if (page != null && new LinuxViewRenderer(mauiContext).RenderPage(page) is { } root)
+            {
+                ctx.RootView = root;
+                var size = ctx.LogicalSize;
+                root.Measure(size);
+                root.Arrange(new Microsoft.Maui.Graphics.Rect(0, 0, size.Width, size.Height));
+            }
+            ctx.NotifyCreated();
+            ctx.NotifyActivated();
+            DiagnosticLog.Debug("LinuxApplication", $"Opened a window without a display; {_windowContexts.Count} window(s) live");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("LinuxApplication", "OpenWindow (no display) failed", ex);
+            if (ctx != null)
+            {
+                _windowContexts.Remove(ctx);
+                try { ctx.Dispose(); } catch { /* best effort */ }
+            }
+        }
     }
 
     private static string FirstNonEmpty(string? a, string? b, string fallback)
