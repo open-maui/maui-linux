@@ -108,9 +108,9 @@ public class SkiaAbsoluteLayoutTests
         AbsoluteLayoutHandler.Mapper.Should().NotBeNull();
         var handler = new AbsoluteLayoutHandler();
         handler.Should().BeAssignableTo<LayoutHandler>();
-        // The platform view must be the absolute layout, not the generic stack.
+        // The platform view runs MAUI's own AbsoluteLayoutManager, not the generic stack.
         typeof(AbsoluteLayoutHandler).GetMethod("CreatePlatformView", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .Invoke(handler, null).Should().BeOfType<SkiaAbsoluteLayout>();
+            .Invoke(handler, null).Should().BeOfType<SkiaCrossPlatformLayout>();
     }
 
     [Fact]
