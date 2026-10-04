@@ -7577,8 +7577,9 @@
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Annotations.StampView::OnSizeAllocated",
-      "status": "open",
-      "reason": "PDF viewer stamp annotation sizing is Windows-only; SfPdfViewer annotations not verified on Linux"
+      "status": "covered",
+      "reason": "the stamp text is sized to the stamp (UpdateStampSize) on every size change, right after OnSizeAllocated, not only on the next draw",
+      "by": "Syncfusion/SfStampViewPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.ButtonBase::ConfigureTouch",
@@ -10920,8 +10921,9 @@
     },
     {
       "id": "Syncfusion.Maui.DataGrid|windows-only|Syncfusion.Maui.DataGrid.DataGridCellRenderer`2::SetFocusForEditElement",
-      "status": "open",
-      "reason": "focusing the inner Entry of an SfNumericEntry cell editor 50 ms after editing starts (DataGridCellRenderer<,> is generic and not patched)"
+      "status": "covered",
+      "reason": "an SfNumericEntry cell editor (numeric, currency and percent columns) focuses its text box 50 ms after editing starts; the shared body of DataGridCellRenderer<,>.SetFocus is patched once, through the <SfDataGridLabel, SfNumericEntry> instantiation, which covers every renderer",
+      "by": "Syncfusion/SfDataGridPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.DataGrid|windows-only|Syncfusion.Maui.DataGrid.DataGridExportHelper::ConvertToIOBufferedStream",
@@ -11024,8 +11026,9 @@
     },
     {
       "id": "Syncfusion.Maui.Inputs|windows-only|Syncfusion.Maui.Inputs.DropDownControls.DropDownListBase::MeasureContent",
-      "status": "open",
-      "reason": "Windows-only measure: an infinite constraint is measured as 0 (single selection) and a FlexLayout parent clamps to the current size; needs a side-by-side Windows check before copying, as copying it could collapse combo boxes in unconstrained stacks"
+      "status": "covered",
+      "reason": "the Windows measure: with single selection an infinite width or height is measured as 0, and the Windows SfDropdownEntry constructor sets MinimumHeightRequest = 32 (WinUI MinHeight), so a combo box fills a vertical stack at 32 high and gets no width where the width is infinite (horizontal stack, Auto grid column), as on Windows",
+      "by": "Syncfusion/SfDropdownEntryPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Inputs|windows-only|Syncfusion.Maui.Inputs.DropDownControls.DropDownListBase::MoveSelectionToStart",
@@ -11047,8 +11050,9 @@
     },
     {
       "id": "Syncfusion.Maui.Inputs|windows-only|Syncfusion.Maui.Inputs.DropDownControls.DropDownListBase::UpdateBoundsSize",
-      "status": "open",
-      "reason": "Windows-only measure: an infinite constraint is measured as 0 (single selection) and a FlexLayout parent clamps to the current size; needs a side-by-side Windows check before copying, as copying it could collapse combo boxes in unconstrained stacks"
+      "status": "covered",
+      "reason": "when the combo box parent sits in a FlexLayout, the measure is the constraint clamped to that parent current size",
+      "by": "Syncfusion/SfDropdownEntryPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Inputs|windows-only|Syncfusion.Maui.Inputs.DropDownControls.DropDownListBase::isInsidePopup",
@@ -12939,53 +12943,63 @@
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.CustomToolbarItemView::OnHandlerChanged",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "a custom-view item is a tab stop (Windows sets IsTabStop on its platform view; OpenMaui focusable views are tab stops) and listens to the keyboard, so Enter activates it",
+      "by": "Syncfusion/Handlers/SfBridgeHandlers.cs,Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.DefaultToolbarItemView::OnHandlerChanged",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "an item is a tab stop (Windows sets IsTabStop on its platform view; OpenMaui focusable views are tab stops) and listens to the keyboard, so Enter activates it",
+      "by": "Syncfusion/Handlers/SfBridgeHandlers.cs,Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.MoreItemView::InitializeEffectsView",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "each \"more\" menu item gets the Windows effects view (highlight on hover, selection on press), clipped to its rounded selection shape",
+      "by": "Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.MoreItemView::OnHandlerChanged",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "a \"more\" menu item is a tab stop and listens to the keyboard, so Enter activates it",
+      "by": "Syncfusion/Handlers/SfBridgeHandlers.cs,Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.MoreItemView::RemoveEffects",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "a \"more\" menu item effects reset when the hover leaves it or the selection changes (MoreItemsLayout.UpdateMoreItemView)",
+      "by": "Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.MoreItemView::UpdateMouseOver",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "the \"more\" menu item under the mouse is highlighted",
+      "by": "Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.MoreItemsLayout::UpdateMouseHover",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "the mouse half of MoreItemsLayout.OnTouch: the highlighted \"more\" menu item follows the mouse and clears when it leaves",
+      "by": "Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.ToolbarHelper::UpdateGroupItemHover",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "the hover half of SfToolbarLayout.HandleTouch for grouped items: the hover background and tool tip follow the mouse",
+      "by": "Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.ToolbarHelper::UpdateItemHover",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "the hover half of SfToolbarLayout.HandleTouch and of the multi-row layout OnTouch: the item under the mouse gets its hover background and tool tip; leaving, cancelling or releasing clears both",
+      "by": "Syncfusion/SfToolbarPatches.cs"
     },
     {
       "id": "Syncfusion.Maui.Toolbar|windows-only|Syncfusion.Maui.Toolbar.ToolbarIconButton::OnHandlerChanged",
-      "status": "open",
-      "reason": "SfToolbar's mouse hover feedback (hover ripple on items and on the 'more' menu items, SfToolbarLayout.HandleTouch / MoreItemsLayout.OnTouch) and Tab stops on its items are Windows-only; not bridged"
+      "status": "covered",
+      "reason": "the navigation and \"more\" buttons are tab stops (Windows also turns on WinUI system focus visuals for them, which OpenMaui does not draw)",
+      "by": "Syncfusion/Handlers/SfBridgeHandlers.cs"
     },
     {
       "id": "Syncfusion.Maui.TreeView|stub|Syncfusion.Maui.TreeView.SfTreeView::SetUpKeyListenerRequirements()",
