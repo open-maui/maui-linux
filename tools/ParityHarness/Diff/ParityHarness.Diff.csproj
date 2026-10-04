@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compares two ParityHarness dump folders; usage in ../README.md and Program.cs. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ParityHarness.Diff</RootNamespace>
+    <AssemblyName>ParityHarness.Diff</AssemblyName>
+  </PropertyGroup>
+</Project>

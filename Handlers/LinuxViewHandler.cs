@@ -12,10 +12,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// handler) to the Skia view. The portable MAUI handler returns
 /// <c>Size.Zero</c> from GetDesiredSize and ignores PlatformArrange, so before
 /// this any MAUI-side measurement (app code calling <c>view.Measure</c>, a
-/// custom <c>Layout</c> with its own <c>ILayoutManager</c>, a ControlTemplate's
+/// <c>Layout</c> run by its <c>ILayoutManager</c>, a ControlTemplate's
 /// presenter) saw every control as 0x0.
 /// </summary>
-public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandler<TVirtualView, TPlatformView>
+public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandler<TVirtualView, TPlatformView>, ISkiaLayoutBridge
     where TVirtualView : class, IView
     where TPlatformView : class
 {
@@ -29,35 +29,92 @@ public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandle
     {
         if (PlatformView is not SkiaView skia || VirtualView is not { } view)
             return base.GetDesiredSize(widthConstraint, heightConstraint);
-        return LinuxViewMeasure.Measure(skia, view, widthConstraint, heightConstraint);
+        return SkiaLayoutBridge.GetDesiredSize(skia, view, widthConstraint, heightConstraint);
     }
 
     /// <inheritdoc />
     public override void PlatformArrange(Rect frame)
     {
         if (PlatformView is SkiaView skia)
-        {
-            // A cross-platform layout arranges its children in its own
-            // coordinates, as MAUI does everywhere; Skia bounds are
-            // window-absolute, so shift by the parent's origin. Done here
-            // rather than in the layout's pass so arranges made outside it
-            // (a list placing items as it scrolls) land right too.
-            if (VirtualView is Microsoft.Maui.Controls.Element { Parent: Microsoft.Maui.Controls.VisualElement { Handler.PlatformView: ILocalArrangeHost host } })
-                frame = frame.Offset(host.ArrangeOrigin.X, host.ArrangeOrigin.Y);
-            // MAUI's arrange (the view's ArrangeOverride included) is what called this.
-            var wasInMaui = skia.InMauiArrange;
-            skia.InMauiArrange = true;
-            try
-            {
-                skia.Arrange(frame);
-            }
-            finally
-            {
-                skia.InMauiArrange = wasInMaui;
-            }
-        }
+            SkiaLayoutBridge.PlatformArrange(skia, VirtualView, frame);
         else
             base.PlatformArrange(frame);
+    }
+}
+
+/// <summary>
+/// Marks a handler that measures and places its Skia view when MAUI asks it
+/// to (GetDesiredSize / PlatformArrange, through <see cref="SkiaLayoutBridge"/>).
+/// A layout places the Skia view of a child whose handler is not one (a
+/// library handler built on the portable ViewHandler) itself, from the frame
+/// MAUI gave the child.
+/// </summary>
+internal interface ISkiaLayoutBridge
+{
+}
+
+/// <summary>
+/// MAUI's measure and arrange of a view, carried out on its Skia view: what
+/// <see cref="LinuxViewHandler{TVirtualView, TPlatformView}"/> does, shared
+/// with handlers that cannot derive from it (MediaElement's derives from the
+/// toolkit's handler).
+/// </summary>
+internal static class SkiaLayoutBridge
+{
+    /// <summary>The handler's GetDesiredSize: the Skia view measured at MAUI's constraints.</summary>
+    public static Size GetDesiredSize(SkiaView skia, IView view, double widthConstraint, double heightConstraint)
+    {
+        // MAUI's measure (the view's own MeasureOverride included) is what
+        // called this: the Skia view measures itself, with no second trip
+        // through MAUI (a library control's override ran twice per measure).
+        var wasInMaui = skia.InMauiMeasure;
+        skia.InMauiMeasure = true;
+        try
+        {
+            return LinuxViewMeasure.Measure(skia, view, widthConstraint, heightConstraint);
+        }
+        finally
+        {
+            skia.InMauiMeasure = wasInMaui;
+        }
+    }
+
+    /// <summary>The handler's PlatformArrange: the Skia view placed at MAUI's frame.</summary>
+    public static void PlatformArrange(SkiaView skia, IView? view, Rect frame)
+    {
+        // A cross-platform layout arranges its children in its own
+        // coordinates, as MAUI does everywhere; Skia bounds are
+        // window-absolute, so shift by the parent's origin. Done here
+        // rather than in the layout's pass so arranges made outside it
+        // (a list placing items as it scrolls) land right too. The parent
+        // is the platform one, as a native PlatformArrange places a view in
+        // its superview: a view shown in a layout other than its logical
+        // parent (a drop-down list parented to its combo box but hosted in
+        // the popup's grid) is placed in the layout showing it.
+        var platformParent = skia.Parent;
+        if (platformParent == null
+            && view is Microsoft.Maui.Controls.Element { Parent: Microsoft.Maui.Controls.VisualElement { Handler.PlatformView: SkiaView logicalParent } })
+            platformParent = logicalParent;
+        bool mirrored = false;
+        if (platformParent is ILocalArrangeHost host)
+            frame = host.ToWindow(frame, out mirrored);
+
+        // MAUI's arrange (the view's ArrangeOverride included) is what called
+        // this. A mirrored view keeps the unmirrored Frame MAUI just set, as
+        // on Android and iOS.
+        var wasInMaui = skia.InMauiArrange;
+        var wasKeeping = skia.KeepMauiFrame;
+        skia.InMauiArrange = true;
+        skia.KeepMauiFrame = mirrored;
+        try
+        {
+            skia.Arrange(frame);
+        }
+        finally
+        {
+            skia.InMauiArrange = wasInMaui;
+            skia.KeepMauiFrame = wasKeeping;
+        }
     }
 }
 
@@ -70,6 +127,29 @@ internal interface ILocalArrangeHost
 {
     /// <summary>The window-space position of the host's local origin.</summary>
     Point ArrangeOrigin { get; }
+
+    /// <summary>
+    /// The width children's local frames are mirrored in (a right-to-left
+    /// layout), or null when they are placed as given.
+    /// </summary>
+    double? MirrorWidth => null;
+
+    /// <summary>
+    /// A child's local frame in window space: mirrored inside
+    /// <see cref="MirrorWidth"/> when set (a right-to-left layout places its
+    /// children mirrored, as Android and iOS do), then shifted by
+    /// <see cref="ArrangeOrigin"/>.
+    /// </summary>
+    Rect ToWindow(Rect localFrame, out bool mirrored)
+    {
+        mirrored = false;
+        if (MirrorWidth is double width)
+        {
+            localFrame = new Rect(width - localFrame.X - localFrame.Width, localFrame.Y, localFrame.Width, localFrame.Height);
+            mirrored = true;
+        }
+        return localFrame.Offset(ArrangeOrigin.X, ArrangeOrigin.Y);
+    }
 }
 
 /// <summary>Shared measure logic, honouring MAUI's explicit and min/max sizes.</summary>
