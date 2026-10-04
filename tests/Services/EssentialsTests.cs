@@ -1487,11 +1487,20 @@ public class EssentialsTests
     }
 
     [Fact]
-    public async Task Contacts_PickReturnsNull_AndGetAllIsEmpty()
+    public async Task Contacts_WithoutAddressBooks_PickReturnsNull_AndGetAllIsEmpty()
     {
-        var contacts = new ContactsService();
+        // No Evolution Data Server traffic from the test run: an empty source and a chooser
+        // that is never shown a contact.
+        IReadOnlyList<Microsoft.Maui.ApplicationModel.Communication.Contact>? offered = null;
+        var contacts = new ContactsService(new StaticContactSource(), list => { offered = list; return Task.FromResult<Microsoft.Maui.ApplicationModel.Communication.Contact?>(null); });
         (await contacts.PickContactAsync()).Should().BeNull();
+        offered.Should().BeEmpty();
         (await contacts.GetAllAsync()).Should().BeEmpty();
+    }
+
+    private sealed class StaticContactSource : IContactSource
+    {
+        public Task<IReadOnlyList<string>> GetVCardsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
     }
 
     #endregion
@@ -1646,12 +1655,19 @@ public class EssentialsTests
     }
 
     [Fact]
-    public async Task MediaPicker_CaptureIsUnsupported()
+    public async Task MediaPicker_WithoutCamera_CaptureThrowsFeatureNotSupported()
     {
-        var picker = new MediaPickerService();
+        var picker = new MediaPickerService(new NoCamera(), (_, _, _) => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>()));
         picker.IsCaptureSupported.Should().BeFalse();
-        (await picker.CapturePhotoAsync()).Should().BeNull();
-        (await picker.CaptureVideoAsync()).Should().BeNull();
+        await picker.Invoking(p => p.CapturePhotoAsync()).Should().ThrowAsync<FeatureNotSupportedException>();
+        await picker.Invoking(p => p.CaptureVideoAsync()).Should().ThrowAsync<FeatureNotSupportedException>();
+    }
+
+    private sealed class NoCamera : Microsoft.Maui.Platform.Linux.Services.Camera.ICameraCapture
+    {
+        public bool IsSupported => false;
+        public bool IsVideoSupported => false;
+        public Task<string?> CaptureAsync(bool photo, string? title) => throw new InvalidOperationException("no camera");
     }
 
     #endregion

@@ -107,7 +107,7 @@ public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaCon
     public static void MapBackground(ContentViewHandler handler, IContentView contentView)
     {
         if (handler.PlatformView is null) return;
-        if (contentView is VisualElement ve && ve.Background is SolidColorBrush scb)
+        if (contentView is VisualElement ve && ve.Background is SolidColorBrush { Color: not null } scb)
         {
             handler.PlatformView.BackgroundColor = scb.Color;
         }

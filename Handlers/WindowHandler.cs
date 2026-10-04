@@ -5,6 +5,7 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 
@@ -34,6 +35,9 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
             [nameof(IWindow.MaximumWidth)] = MapMaximumWidth,
             [nameof(IWindow.MaximumHeight)] = MapMaximumHeight,
             [nameof(IToolbarElement.Toolbar)] = MapToolbar,
+            // MAUI 9+ Window.TitleBar (IWindow.TitleBar is in the Windows and Mac Catalyst builds only).
+            [nameof(Microsoft.Maui.Controls.Window.TitleBar)] = MapTitleBar,
+            ["TitleBarDragRectangles"] = MapTitleBarDragRectangles,
         };
 
     public static CommandMapper<IWindow, WindowHandler> CommandMapper =
@@ -116,6 +120,9 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
         DiagnosticLog.Debug("WindowHandler", $"MapContent - content type={content?.GetType().Name}, handler={content?.Handler?.GetType().Name}");
         // A new root page brings its own toolbar (a FlyoutPage's or the Shell's) or none.
         handler.UpdateToolbar();
+        // The visual diagnostics overlay is ready once the window has content, as MAUI's
+        // Windows handler initializes it in MapContent.
+        window.VisualDiagnosticsOverlay?.Initialize();
         if (content?.Handler?.PlatformView is SkiaView skiaContent)
         {
             DiagnosticLog.Debug("WindowHandler", $"MapContent - setting SkiaView content: {skiaContent.GetType().Name}");
@@ -140,6 +147,45 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     /// window's navigation root holds the platform toolbar (NavigationRootManager.SetToolbar).
     /// </summary>
     public static void MapToolbar(WindowHandler handler, IWindow window) => handler.UpdateToolbar();
+
+    /// <summary>
+    /// The window's TitleBar (MAUI 9+ <c>Window.TitleBar</c>): realized and shown in a strip
+    /// above the page, as Windows puts it in the window's title bar. With client-side
+    /// decorations it fills the decoration's title area (the window buttons stay on top), and
+    /// its leading, main and trailing content take presses while the rest of it moves the
+    /// window; otherwise the strip is the top of the client area. A hidden TitleBar
+    /// (IsVisible false) takes no space, as Windows collapses it.
+    /// </summary>
+    public static void MapTitleBar(WindowHandler handler, IWindow window)
+    {
+        if (handler.PlatformView is not { } platform)
+            return;
+        SkiaView? view = null;
+        if ((window as Microsoft.Maui.Controls.Window)?.TitleBar is { } titleBar && handler.MauiContext is { } context)
+        {
+            try
+            {
+                view = titleBar.Handler?.PlatformView as SkiaView
+                    ?? MauiHandlerExtensions.ToHandler(titleBar, context)?.PlatformView as SkiaView;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("WindowHandler", $"Realizing the window's TitleBar {titleBar.GetType().Name} failed", ex);
+            }
+        }
+        if (ReferenceEquals(platform.TitleBar, view))
+            return;
+        platform.TitleBar = view;
+        WindowOverlayPatches.RequestRedraw(window);
+    }
+
+    /// <summary>
+    /// Windows hands the title bar's drag rectangles to the system. Here the decoration asks
+    /// the TitleBar's passthrough elements at each press (WindowContext.IsTitleBarPassthrough),
+    /// so the window only redraws.
+    /// </summary>
+    public static void MapTitleBarDragRectangles(WindowHandler handler, IWindow window) =>
+        WindowOverlayPatches.RequestRedraw(window);
 
     /// <summary>Points <see cref="SkiaWindow.Toolbar"/> at the toolbar the window shows now.</summary>
     internal void UpdateToolbar()
@@ -260,6 +306,12 @@ public class SkiaWindow
     /// root page's), null when it shows none.
     /// </summary>
     public SkiaToolbar? Toolbar { get; set; }
+
+    /// <summary>
+    /// The platform view of the window's TitleBar (MAUI's <c>Window.TitleBar</c>), shown in a
+    /// strip above the page; null when the window has none.
+    /// </summary>
+    public SkiaView? TitleBar { get; set; }
 
     public SkiaView? Content
     {
