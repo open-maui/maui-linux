@@ -89,6 +89,11 @@ public class MapperParityTests
         var map = (System.Collections.IDictionary)typeof(MauiHandlerExtensions)
             .GetField("LinuxHandlerMap", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
         var result = new Dictionary<string, SortedSet<string>>();
+        // MAUI controls add their mappings in their static constructors (CheckBox maps Color
+        // there): run them all first, or the keys depend on which controls earlier tests made.
+        foreach (System.Collections.DictionaryEntry entry in map)
+            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(((Type)entry.Key).TypeHandle);
+
         foreach (System.Collections.DictionaryEntry entry in map)
         {
             var control = (Type)entry.Key;
