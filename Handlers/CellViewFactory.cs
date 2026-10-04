@@ -55,7 +55,7 @@ internal static class CellViewFactory
             case ImageCell imageCell:
                 view.Kind = SkiaCellKind.Image;
                 ApplyText(view, imageCell);
-                view.Image = LoadImage(imageCell.ImageSource);
+                LoadImage(view, imageCell.ImageSource, mauiContext);
                 break;
 
             case TextCell textCell:
@@ -117,6 +117,7 @@ internal static class CellViewFactory
             view.Content = null;
             view.Editor = null;
             view.Accessory = null;
+            ReleaseImage(view);
         };
         return view;
     }
@@ -154,7 +155,7 @@ internal static class CellViewFactory
                 ApplyText(view, textCell);
                 break;
             case ImageCell imageCell when propertyName == nameof(ImageCell.ImageSource):
-                view.Image = LoadImage(imageCell.ImageSource);
+                LoadImage(view, imageCell.ImageSource, mauiContext);
                 break;
             case EntryCell entryCell:
                 if (propertyName == nameof(EntryCell.Label)) view.Text = entryCell.Label ?? string.Empty;
@@ -204,24 +205,48 @@ internal static class CellViewFactory
         }
     }
 
-    private static SKBitmap? LoadImage(ImageSource? source)
+    /// <summary>
+    /// Loads an ImageCell's image through its image-source service (file, font, URI, stream, or
+    /// an app's own source), as Image does, at the row's 32-pixel image size and the screen's
+    /// density. A newer source cancels the older load; the row releases its picture when the
+    /// image changes or the row is detached.
+    /// </summary>
+    private static async void LoadImage(SkiaCellView view, ImageSource? source, IMauiContext? mauiContext)
     {
-        if (source is not FileImageSource fileSource || string.IsNullOrEmpty(fileSource.File))
-            return null;
+        ReleaseImage(view);
+        if (source == null || source.IsEmpty)
+            return;
 
+        var load = view.ImageLoad = new CancellationTokenSource();
         try
         {
-            string path = System.IO.Path.IsPathRooted(fileSource.File)
-                ? fileSource.File
-                : System.IO.Path.Combine(AppContext.BaseDirectory, fileSource.File);
-            if (!System.IO.File.Exists(path)) return null;
-            using var stream = System.IO.File.OpenRead(path);
-            return SKBitmap.Decode(stream);
+            var result = await LinuxImageSourceServices.LoadAsync(
+                mauiContext?.Services ?? LinuxImageSourceServices.AppServices, source,
+                Math.Max(1f, view.DeviceScale), new Size(32, 32), load.Token);
+            if (load.IsCancellationRequested)
+            {
+                result?.Dispose();
+                return;
+            }
+            view.ImageLoad = null;
+            view.ImageResult = result;
+            view.Image = result?.Value;
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Debug("CellViewFactory", $"Image load failed: {fileSource.File}", ex);
-            return null;
+            DiagnosticLog.Debug("CellViewFactory", $"Image load failed: {source}", ex);
         }
+    }
+
+    private static void ReleaseImage(SkiaCellView view)
+    {
+        view.ImageLoad?.Cancel();
+        view.ImageLoad = null;
+        view.ImageResult?.Dispose();
+        view.ImageResult = null;
+        view.Image = null;
     }
 }

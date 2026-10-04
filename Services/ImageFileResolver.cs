@@ -13,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// apps write <c>Icon="save_24dp.png"</c> for <c>save_24dp.svg</c>; on Linux the
 /// SVG is copied as is, so a <c>.png</c> reference falls back to the SVG. Used
 /// by buttons, Shell flyout icons and anything else that takes a file name;
-/// <see cref="SkiaImage"/> applies the same search.
+/// <see cref="LinuxFileImageSourceService"/> (Image, ImageButton) resolves files with it.
 /// </summary>
 public static class ImageFileResolver
 {
