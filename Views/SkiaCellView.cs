@@ -98,6 +98,10 @@ public class SkiaCellView : SkiaLayoutView
         set { _image = value; Invalidate(); }
     }
 
+    /// <summary>The ImageCell's image load in flight, and the loaded picture this row owns.</summary>
+    internal CancellationTokenSource? ImageLoad { get; set; }
+    internal Microsoft.Maui.IImageSourceServiceResult<SKBitmap>? ImageResult { get; set; }
+
     /// <summary>
     /// Fixed row height. Zero (the default) sizes the row to its content:
     /// the hosted content's height, or 44 / 60 for single / two-line text.
