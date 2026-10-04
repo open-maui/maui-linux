@@ -19,6 +19,8 @@ public class SkiaSearchBar : SkiaView
 
     private readonly SkiaEntry _entry;
     private bool _showClearButton;
+    private int _lastCursorPosition;
+    private int _lastSelectionLength;
 
     #endregion
 
@@ -49,7 +51,10 @@ public class SkiaSearchBar : SkiaView
     }
 
     public Color SearchBarBackgroundColor { get; set; } = Color.FromRgb(245, 245, 245);
-    public Color IconColor { get; set; } = Color.FromRgb(117, 117, 117);
+    /// <summary>The search icon's color when none is set.</summary>
+    public static Color DefaultIconColor { get; } = Color.FromRgb(117, 117, 117);
+
+    public Color IconColor { get; set; } = DefaultIconColor;
     public Color ClearButtonColor { get; set; } = Color.FromRgb(158, 158, 158);
     public Color FocusedBorderColor { get; set; } = Color.FromRgb(33, 150, 243);
 
@@ -83,6 +88,80 @@ public class SkiaSearchBar : SkiaView
         set => _entry.HorizontalTextAlignment = value;
     }
 
+    public TextAlignment VerticalTextAlignment
+    {
+        get => _entry.VerticalTextAlignment;
+        set => _entry.VerticalTextAlignment = value;
+    }
+
+    /// <summary>
+    /// The keyboard type: on desktop, the content type the input method gets
+    /// while the search field has focus.
+    /// </summary>
+    public Keyboard Keyboard
+    {
+        get => _entry.Keyboard;
+        set => _entry.Keyboard = value;
+    }
+
+    /// <summary>
+    /// The maximum query length, as MAUI's MaxLength: negative is unlimited,
+    /// 0 allows no text. Setting it truncates the current query.
+    /// </summary>
+    public int MaxLength
+    {
+        get => _entry.MaxLength;
+        set => _entry.MaxLength = value;
+    }
+
+    public bool IsReadOnly
+    {
+        get => _entry.IsReadOnly;
+        set
+        {
+            _entry.IsReadOnly = value;
+            Invalidate();
+        }
+    }
+
+    public bool IsTextPredictionEnabled
+    {
+        get => _entry.IsTextPredictionEnabled;
+        set => _entry.IsTextPredictionEnabled = value;
+    }
+
+    public bool IsSpellCheckEnabled
+    {
+        get => _entry.IsSpellCheckEnabled;
+        set => _entry.IsSpellCheckEnabled = value;
+    }
+
+    public ReturnType ReturnType
+    {
+        get => _entry.ReturnType;
+        set => _entry.ReturnType = value;
+    }
+
+    public int CursorPosition
+    {
+        get => _entry.CursorPosition;
+        set
+        {
+            _entry.CursorPosition = value;
+            CheckSelectionChanged();
+        }
+    }
+
+    public int SelectionLength
+    {
+        get => _entry.SelectionLength;
+        set
+        {
+            _entry.SelectionLength = value;
+            CheckSelectionChanged();
+        }
+    }
+
     public double CornerRadius { get; set; } = 8.0;
     public double IconSize { get; set; } = 20.0;
 
@@ -95,6 +174,13 @@ public class SkiaSearchBar : SkiaView
 
     public event EventHandler<TextChangedEventArgs>? TextChanged;
     public event EventHandler? SearchButtonPressed;
+
+    /// <summary>
+    /// Raised when the caret or the selection moved (typing, clicks, keys, or
+    /// a replaced query), so the handler can report CursorPosition and
+    /// SelectionLength to the MAUI view.
+    /// </summary>
+    public event EventHandler? SelectionChanged;
 
     #endregion
 
@@ -117,6 +203,7 @@ public class SkiaSearchBar : SkiaView
         {
             _showClearButton = !string.IsNullOrEmpty(e.NewTextValue);
             TextChanged?.Invoke(this, e);
+            CheckSelectionChanged();
             Invalidate();
         };
 
@@ -254,6 +341,17 @@ public class SkiaSearchBar : SkiaView
 
     #region Input Handling
 
+    private void CheckSelectionChanged()
+    {
+        var cursor = _entry.CursorPosition;
+        var selection = _entry.SelectionLength;
+        if (cursor == _lastCursorPosition && selection == _lastSelectionLength)
+            return;
+        _lastCursorPosition = cursor;
+        _lastSelectionLength = selection;
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
         if (!IsEnabled) return;
@@ -262,7 +360,7 @@ public class SkiaSearchBar : SkiaView
         var localX = e.X - Bounds.Left;
 
         // Check if clear button was clicked (in the rightmost 40 pixels)
-        if (_showClearButton && localX >= Bounds.Width - 40)
+        if (_showClearButton && !IsReadOnly && localX >= Bounds.Width - 40)
         {
             Text = "";
             Invalidate();
@@ -270,9 +368,11 @@ public class SkiaSearchBar : SkiaView
         }
 
         // Forward to entry for text input focus and selection
-        _entry.IsFocused = true;
+        if (!_entry.IsFocused)
+            _entry.OnFocusGained();
         IsFocused = true;
         _entry.OnPointerPressed(e);
+        CheckSelectionChanged();
         Invalidate();
     }
 
@@ -280,21 +380,24 @@ public class SkiaSearchBar : SkiaView
     {
         if (!IsEnabled) return;
         _entry.OnPointerMoved(e);
+        CheckSelectionChanged();
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
         _entry.OnPointerReleased(e);
+        CheckSelectionChanged();
     }
 
     public override void OnTextInput(TextInputEventArgs e)
     {
         _entry.OnTextInput(e);
+        CheckSelectionChanged();
     }
 
     public override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && _showClearButton)
+        if (e.Key == Key.Escape && _showClearButton && !IsReadOnly)
         {
             Text = "";
             e.Handled = true;
@@ -302,11 +405,28 @@ public class SkiaSearchBar : SkiaView
         }
 
         _entry.OnKeyDown(e);
+        CheckSelectionChanged();
     }
 
     public override void OnKeyUp(KeyEventArgs e)
     {
         _entry.OnKeyUp(e);
+    }
+
+    // The search field is the inner entry: give it the focus this view gets,
+    // so the input method connects to it (with its keyboard content type).
+    public override void OnFocusGained()
+    {
+        base.OnFocusGained();
+        if (!_entry.IsFocused)
+            _entry.OnFocusGained();
+    }
+
+    public override void OnFocusLost()
+    {
+        base.OnFocusLost();
+        if (_entry.IsFocused)
+            _entry.OnFocusLost();
     }
 
     #endregion

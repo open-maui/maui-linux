@@ -17,6 +17,7 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
     public static IPropertyMapper<IEntry, EntryHandler> Mapper = new PropertyMapper<IEntry, EntryHandler>(ViewHandler.ViewMapper)
     {
         [nameof(ITextInput.Text)] = MapText,
+        [nameof(Entry.TextTransform)] = MapText,
         [nameof(ITextStyle.TextColor)] = MapTextColor,
         [nameof(ITextStyle.Font)] = MapFont,
         [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
@@ -24,6 +25,7 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
         [nameof(IPlaceholder.PlaceholderColor)] = MapPlaceholderColor,
         [nameof(ITextInput.IsReadOnly)] = MapIsReadOnly,
         [nameof(ITextInput.MaxLength)] = MapMaxLength,
+        [nameof(ITextInput.Keyboard)] = MapKeyboard,
         [nameof(ITextInput.CursorPosition)] = MapCursorPosition,
         [nameof(ITextInput.SelectionLength)] = MapSelectionLength,
         [nameof(IEntry.IsPassword)] = MapIsPassword,
@@ -62,12 +64,16 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
         VisualStateBridge.Attach(VirtualView, platformView);
         platformView.TextChanged += OnTextChanged;
         platformView.Completed += OnCompleted;
+        platformView.FocusGained += OnFocusGained;
+        platformView.FocusLost += OnFocusLost;
     }
 
     protected override void DisconnectHandler(SkiaEntry platformView)
     {
         platformView.TextChanged -= OnTextChanged;
         platformView.Completed -= OnCompleted;
+        platformView.FocusGained -= OnFocusGained;
+        platformView.FocusLost -= OnFocusLost;
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
     }
@@ -78,18 +84,29 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
     {
         if (VirtualView is null || PlatformView is null || _isUpdatingText) return;
 
-        if (VirtualView.Text != e.NewTextValue)
+        _isUpdatingText = true;
+        try
         {
-            _isUpdatingText = true;
-            try
-            {
-                VirtualView.Text = e.NewTextValue ?? string.Empty;
-            }
-            finally
-            {
-                _isUpdatingText = false;
-            }
+            TextInputText.UpdateVirtualText(VirtualView, e.NewTextValue);
         }
+        finally
+        {
+            _isUpdatingText = false;
+        }
+    }
+
+    private void OnFocusGained(object? sender, EventArgs e) => UpdateIsFocused(true);
+
+    private void OnFocusLost(object? sender, EventArgs e) => UpdateIsFocused(false);
+
+    /// <summary>
+    /// Reports platform focus to the MAUI view (IView.IsFocused), as MAUI's
+    /// handlers do from the native focus events.
+    /// </summary>
+    private void UpdateIsFocused(bool isFocused)
+    {
+        if (VirtualView is { } view && view.IsFocused != isFocused)
+            view.IsFocused = isFocused;
     }
 
     private void OnCompleted(object? sender, EventArgs e)
@@ -99,13 +116,20 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
 
     public static void MapText(EntryHandler handler, IEntry entry)
     {
-        if (handler.PlatformView is null || handler._isUpdatingText) return;
+        if (handler.PlatformView is null) return;
 
-        if (handler.PlatformView.Text != entry.Text)
+        // The platform holds the text as shown (TextTransform applied, cut to
+        // MaxLength); a difference flows back to the view through TextChanged.
+        var text = TextInputText.GetDisplayText(entry);
+        if (handler.PlatformView.Text != text)
         {
-            handler.PlatformView.Text = entry.Text ?? string.Empty;
+            handler.PlatformView.Text = text;
             handler.PlatformView.Invalidate();
         }
+
+        // The text the platform holds (cut to MaxLength, transformed) is the
+        // view's Text, as on MAUI's platforms.
+        TextInputText.UpdateVirtualText(entry, handler.PlatformView.Text);
     }
 
     public static void MapTextColor(EntryHandler handler, IEntry entry)
@@ -168,6 +192,12 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
         handler.PlatformView.MaxLength = entry.MaxLength;
     }
 
+    public static void MapKeyboard(EntryHandler handler, IEntry entry)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.Keyboard = entry.Keyboard;
+    }
+
     public static void MapCursorPosition(EntryHandler handler, IEntry entry)
     {
         if (handler.PlatformView is null) return;
@@ -188,9 +218,8 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>
 
     public static void MapReturnType(EntryHandler handler, IEntry entry)
     {
-        // ReturnType affects keyboard behavior - stored for virtual keyboard integration
         if (handler.PlatformView is null) return;
-        // handler.PlatformView.ReturnType = entry.ReturnType; // Would need property on SkiaEntry
+        handler.PlatformView.ReturnType = entry.ReturnType;
     }
 
     public static void MapClearButtonVisibility(EntryHandler handler, IEntry entry)
