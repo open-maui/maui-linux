@@ -310,6 +310,7 @@ public class LinuxViewRenderer
 
             string? iconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(item.Icon);
             skiaShell.Sections[sectionIndex].IconPath = iconPath;
+            skiaShell.Sections[sectionIndex].IconSource = item.Icon;
             sectionIndex++;
         }
     }
@@ -541,6 +542,7 @@ public class LinuxViewRenderer
                 Title = flyoutItem.Title ?? "",
                 Route = flyoutItem.Route ?? flyoutItem.Title ?? "",
                 IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(flyoutItem.Icon),
+                IconSource = flyoutItem.Icon,
                 IsVisibleInFlyout = IsListedInFlyout(flyoutItem),
                 TemplateView = RealizeFlyoutItemTemplate(skiaShell.MauiShell, flyoutItem),
             };
@@ -583,6 +585,7 @@ public class LinuxViewRenderer
                     Title = tab.Title ?? "",
                     Route = tab.Route ?? "",
                     IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(tab.Icon),
+                    IconSource = tab.Icon,
                     IsVisibleInFlyout = IsListedInFlyout(tab),
                 TemplateView = RealizeFlyoutItemTemplate(skiaShell.MauiShell, tab),
                 };
@@ -612,6 +615,7 @@ public class LinuxViewRenderer
                 Title = item.Title ?? "",
                 Route = item.Route ?? "",
                 IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(item.Icon),
+                IconSource = item.Icon,
                 IsVisibleInFlyout = IsListedInFlyout(item),
                 TemplateView = RealizeFlyoutItemTemplate(skiaShell.MauiShell, item),
             };

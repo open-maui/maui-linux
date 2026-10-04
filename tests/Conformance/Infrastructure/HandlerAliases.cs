@@ -89,8 +89,9 @@ namespace Microsoft.Maui.DeviceTests
 		public ActivityIndicatorHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
 	}
 	// MAUI's ImageHandlerTests<TImageHandler, ...> require IImageHandler, which the
-	// Linux image handlers do not implement (they load through a private
-	// ImageSourceServiceResultManager, not MAUI's ImageSourcePartLoader). The alias
+	// Linux image handlers do not implement (they resolve the IImageSourceService and
+	// load with their own loader: MAUI's ImageSourcePartLoader has no load path on the
+	// platform-neutral build). The alias
 	// implements the interface by forwarding VirtualView/PlatformView; SourceLoader
 	// has no Linux counterpart and throws, so a test that needs it fails visibly.
 	public class ImageHandler : Linux.ImageHandler, IPlatformViewHandler, IImageHandler

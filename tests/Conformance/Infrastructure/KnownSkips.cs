@@ -30,20 +30,13 @@ namespace Microsoft.Maui.DeviceTests
 			["LayoutHandlerTests.ContainerViewDifferentThanPlatformView"] = NoWrapperView,
 		};
 
-		const string NoImageSourceService =
-			"waits (no timeout) for MAUI's IImageSourceService to start a load; the Linux image handlers " +
-			"never call IImageSourceService, so the test would hang. Counted as a parity gap, not a skip.";
-
 		/// <summary>
 		/// Tests that cannot be run because they would hang on a missing
 		/// mechanism. Reported as BLOCKED (and counted with the gaps in the report).
+		/// Empty since the image handlers load through IImageSourceService.
 		/// </summary>
 		static readonly Dictionary<string, string> s_blocked = new(StringComparer.Ordinal)
 		{
-			["ImageLoadSequenceIsCorrect"] = NoImageSourceService,
-			["InterruptingLoadCancelsAndStartsOver"] = NoImageSourceService,
-			["ImageLoadSequenceIsCorrectWithChecks"] = NoImageSourceService,
-			["InterruptingLoadCancelsAndStartsOverWithChecks"] = NoImageSourceService,
 		};
 
 		public static string ReasonFor(string testClassFullName, string method)
