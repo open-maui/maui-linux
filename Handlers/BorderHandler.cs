@@ -28,6 +28,8 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
             [nameof(IBorderStroke.StrokeLineJoin)] = MapStrokeLineJoin,
             [nameof(IBorderStroke.StrokeMiterLimit)] = MapStrokeMiterLimit,
             ["StrokeShape"] = MapStrokeShape,  // StrokeShape is on Border, not IBorderStroke
+            [nameof(IBorderStroke.Shape)] = MapShape,
+            [nameof(IBorderStroke.StrokeDashPattern)] = MapStrokeDashPattern,
             [nameof(IView.Background)] = MapBackground,
             ["BackgroundColor"] = MapBackgroundColor,
             [nameof(IPadding.Padding)] = MapPadding,
@@ -183,6 +185,42 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.PaddingBottom = padding.Bottom;
     }
 
+    /// <summary>
+    /// MAUI's BorderHandler.MapShape: the border's <see cref="IBorderStroke.Shape"/> (a
+    /// Controls Border's StrokeShape, or any IBorderView's shape).
+    /// </summary>
+    public static void MapShape(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+        ApplyShape(handler, border.Shape);
+    }
+
+    /// <summary>
+    /// MAUI's BorderHandler.MapStrokeDashPattern: the dash pattern of the stroke (for a
+    /// Controls Border, its StrokeDashArray).
+    /// </summary>
+    public static void MapStrokeDashPattern(BorderHandler handler, IBorderView border)
+    {
+        if (handler.PlatformView is null) return;
+
+        if (border is Border)
+        {
+            MapStrokeDashArray(handler, border);
+            return;
+        }
+
+        var pattern = border.StrokeDashPattern;
+        DoubleCollection? dashArray = null;
+        if (pattern is { Length: > 0 })
+        {
+            dashArray = new DoubleCollection();
+            foreach (var value in pattern)
+                dashArray.Add(value);
+        }
+        handler.PlatformView.StrokeDashArray = dashArray;
+        handler.PlatformView.Invalidate();
+    }
+
     public static void MapStrokeShape(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
@@ -190,8 +228,11 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         // StrokeShape is on the Border control class, not IBorderView interface
         if (border is not Border borderControl) return;
 
-        var shape = borderControl.StrokeShape;
+        ApplyShape(handler, borderControl.StrokeShape);
+    }
 
+    private static void ApplyShape(BorderHandler handler, IShape? shape)
+    {
         // Pass the shape directly to the platform view for full shape support
         handler.PlatformView.StrokeShape = shape;
 
