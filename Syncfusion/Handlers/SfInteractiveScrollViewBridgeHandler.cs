@@ -178,6 +178,24 @@ public class SkiaSfInteractiveScrollView : SkiaScrollView
     /// <summary>Raised after the content has been measured and arranged.</summary>
     public event EventHandler? LaidOut;
 
+    /// <summary>
+    /// The wheel. With Shift held the Windows handler turns vertical
+    /// scrolling off (<c>OnKeyDown</c>, restored by <c>OnKeyUp</c>), so the
+    /// ScrollViewer scrolls the wheel horizontally; the same happens here.
+    /// </summary>
+    public override void OnScroll(ScrollEventArgs e)
+    {
+        if ((e.Modifiers & KeyModifiers.Shift) == 0 || e.DeltaY == 0)
+        {
+            base.OnScroll(e);
+            return;
+        }
+        var horizontal = new ScrollEventArgs(e.X, e.Y, e.DeltaX + e.DeltaY, 0, e.Modifiers);
+        base.OnScroll(horizontal);
+        if (horizontal.Handled)
+            e.Handled = true;
+    }
+
     /// <summary>True when the content extends far enough for (x, y).</summary>
     public bool CanScrollTo(float x, float y)
         => Bounds.Width > 0 && x <= ScrollableWidth + 0.5f && y <= ScrollableHeight + 0.5f;

@@ -21,6 +21,8 @@ public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>
             [nameof(IStepper.Minimum)] = MapMinimum,
             [nameof(IStepper.Maximum)] = MapMaximum,
             ["Increment"] = MapIncrement,
+            // MAUI's key for the step (IStepper.Interval, Stepper.Increment).
+            [nameof(IStepper.Interval)] = MapIncrement,
             [nameof(IView.Background)] = MapBackground,
             [nameof(IView.IsEnabled)] = MapIsEnabled,
         };
@@ -122,10 +124,7 @@ public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>
     {
         if (handler.PlatformView is null) return;
 
-        if (stepper is Stepper stepperControl)
-        {
-            handler.PlatformView.Increment = stepperControl.Increment;
-        }
+        handler.PlatformView.Increment = stepper is Stepper stepperControl ? stepperControl.Increment : stepper.Interval;
     }
 
     public static void MapIsEnabled(StepperHandler handler, IStepper stepper)

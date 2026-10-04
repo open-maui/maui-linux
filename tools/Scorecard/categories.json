@@ -907,8 +907,8 @@
       {
         "name": "CommunityToolkit.Maui",
         "version": "15.0.1",
-        "tests": [ "CommunityToolkitMauiCompatTests" ],
-        "notes": "Behaviors, converters, Popup, Expander, AvatarView, DrawingView. Toast/Snackbar are no-ops in the toolkit's generic build (API contract only). DrawingView needed an OpenMaui handler; AvatarView needed the Label vertical-alignment fix."
+        "tests": [ "CommunityToolkitMauiCompatTests", "CommunityToolkitPlatformFeatureTests" ],
+        "notes": "Behaviors (TouchBehavior/ImageTouchBehavior states and commands), converters, Popup, Expander, AvatarView, DrawingView (image export, line adapters), SemanticOrderView. Toast/Snackbar are desktop notifications and Badge a launcher badge, as on Windows; SpeechToText reports no recognizer. DrawingView needed an OpenMaui handler; AvatarView needed the Label vertical-alignment fix."
       },
       {
         "name": "CommunityToolkit.Maui.MediaElement",
@@ -971,10 +971,10 @@
         "notEvaluated": "Popup coverage uses CommunityToolkit.Maui Popup (the task picks one popup library); Mopups ships net8.0 assets only."
       },
       {
-        "name": "Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler)",
+        "name": "Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler, DataGrid, ImageEditor, PullToRefresh)",
         "version": "34.2.9",
-        "tests": [ "SyncfusionCompatTests", "SyncfusionChartsCompatTests", "SyncfusionInputCompatTests", "SyncfusionInputsCompatTests", "SyncfusionNativeViewCompatTests", "SyncfusionPopupCompatTests", "SyncfusionComboOffsetTests", "SyncfusionListAutoFitTests", "SyncfusionTabInputTests" ],
-        "notes": "Through OpenMaui.Controls.Linux.Syncfusion: UseLinuxSyncfusion() in place of ConfigureSyncfusionCore(). Its generic net10.0 build ships stub handlers; the bridge supplies layout, drawing, text, input, the native-view controls, drop-downs and the popup overlay. Not covered: ImageEditor and Syncfusion's MediaElement. Apps register their own license key."
+        "tests": [ "SyncfusionCompatTests", "SyncfusionChartsCompatTests", "SyncfusionInputCompatTests", "SyncfusionInputsCompatTests", "SyncfusionNativeViewCompatTests", "SyncfusionPopupCompatTests", "SyncfusionComboOffsetTests", "SyncfusionListAutoFitTests", "SyncfusionTabInputTests", "SyncfusionDataGridTests", "SyncfusionImageEditorTests", "SyncfusionSchedulerMouseTests", "SyncfusionPullToRefreshTests", "SyncfusionNarrowTextTests" ],
+        "notes": "Through OpenMaui.Controls.Linux.Syncfusion: UseLinuxSyncfusion() in place of ConfigureSyncfusionCore(). Its generic net10.0 build ships stub handlers; the bridge supplies layout, drawing, text, input, the native-view controls, drop-downs, the popup overlay, SfDataGrid's and SfScheduler's desktop mouse and keyboard handling, and SfImageEditor's image editing. Not covered: SfScheduler's desktop horizontal resource view. Apps register their own license key."
       },
       {
         "name": "Telerik UI for .NET MAUI",
