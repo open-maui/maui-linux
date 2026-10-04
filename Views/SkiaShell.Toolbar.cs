@@ -26,11 +26,31 @@ public partial class SkiaShell
     private Microsoft.Maui.Controls.Page? _toolbarPage;
     private readonly List<ToolbarItem> _toolbarItems = new();
     private readonly List<(ToolbarItem? Item, SKRect Bounds)> _toolbarHits = new();
-    private readonly Dictionary<ToolbarItem, (ImageSource? Source, SKBitmap? Bitmap)> _toolbarIcons = new();
+    /// <summary>A toolbar item's icon: its source, the loaded picture, and the load in flight.</summary>
+    private sealed class ToolbarIconEntry
+    {
+        public ImageSource? Source;
+        public IImageSourceServiceResult<SKBitmap>? Result;
+        public CancellationTokenSource? Load;
+
+        public void Release()
+        {
+            Load?.Cancel();
+            Load = null;
+            Result?.Dispose();
+            Result = null;
+        }
+    }
+
+    private readonly Dictionary<ToolbarItem, ToolbarIconEntry> _toolbarIcons = new();
     private SKRect _toolbarMoreHit = SKRect.Empty;
 
     /// <summary>The presented page's toolbar items, in order (for tests and the inspector).</summary>
     internal IReadOnlyList<ToolbarItem> PresentedToolbarItems => _toolbarItems;
+
+    /// <summary>The loaded icon of <paramref name="item"/>, null while loading (tests).</summary>
+    internal SKBitmap? LoadedToolbarIcon(ToolbarItem item) =>
+        _toolbarIcons.TryGetValue(item, out var entry) ? entry.Result?.Value : null;
 
     /// <summary>Where the last frame drew each item (tests).</summary>
     internal IReadOnlyList<(ToolbarItem? Item, SKRect Bounds)> ToolbarHitAreas => _toolbarHits;
@@ -63,7 +83,7 @@ public partial class SkiaShell
         // Icons of items no longer shown are dropped.
         foreach (var gone in _toolbarIcons.Keys.Where(k => !_toolbarItems.Contains(k)).ToList())
         {
-            _toolbarIcons[gone].Bitmap?.Dispose();
+            _toolbarIcons[gone].Release();
             _toolbarIcons.Remove(gone);
         }
         Invalidate();
@@ -76,33 +96,50 @@ public partial class SkiaShell
             Invalidate();
     }
 
-    /// <summary>The item's icon at the bar's size and the screen's density; cached per source.</summary>
+    /// <summary>
+    /// The item's icon, loaded through its image-source service (file, font, URI, stream, or an
+    /// app's own source) at the bar's size and the screen's density. Null while it loads; the bar
+    /// repaints when it arrives. A new source cancels the old load and releases the old picture.
+    /// </summary>
     private SKBitmap? ToolbarIcon(ToolbarItem item)
     {
         var source = item.IconImageSource;
-        if (_toolbarIcons.TryGetValue(item, out var cached) && ReferenceEquals(cached.Source, source))
-            return cached.Bitmap;
-        cached.Bitmap?.Dispose();
+        if (_toolbarIcons.TryGetValue(item, out var entry) && ReferenceEquals(entry.Source, source))
+            return entry.Result?.Value;
 
-        int pixels = (int)Math.Ceiling(ToolbarIconSize * Math.Max(1f, DeviceScale));
-        SKBitmap? bitmap = null;
+        entry?.Release();
+        entry = new ToolbarIconEntry { Source = source };
+        _toolbarIcons[item] = entry;
+        if (source != null && !source.IsEmpty)
+            _ = LoadToolbarIconAsync(item, entry, source);
+        return null;
+    }
+
+    private async Task LoadToolbarIconAsync(ToolbarItem item, ToolbarIconEntry entry, ImageSource source)
+    {
+        var load = entry.Load = new CancellationTokenSource();
         try
         {
-            bitmap = source switch
+            var result = await LinuxImageSourceServices.LoadAsync(
+                LinuxImageSourceServices.ServicesFor(this), source, Math.Max(1f, DeviceScale), new Size(ToolbarIconSize, ToolbarIconSize), load.Token);
+            if (load.IsCancellationRequested || !ReferenceEquals(entry.Source, source))
             {
-                FileImageSource file => ImageFileResolver.LoadBitmap(file.File, pixels),
-                FontImageSource font => ImageHandler.ImageSourceServiceResultManager.RenderFontImageSource(font, pixels, pixels),
-                _ => null,
-            };
+                result?.Dispose();
+                return;
+            }
+            entry.Result = result;
+            entry.Load = null;
+            if (result == null)
+                DiagnosticLog.Warn("SkiaShell", $"Toolbar icon not found for '{item.Text}': {source}");
+            Invalidate();
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaShell", $"Loading the toolbar icon of '{item.Text}' failed", ex);
         }
-        if (bitmap == null && source != null)
-            DiagnosticLog.Warn("SkiaShell", $"Toolbar icon not found for '{item.Text}': {source}");
-        _toolbarIcons[item] = (source, bitmap);
-        return bitmap;
     }
 
     /// <summary>

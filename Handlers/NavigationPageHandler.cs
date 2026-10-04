@@ -9,7 +9,6 @@ using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using Svg.Skia;
 using System.Collections.Specialized;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -152,6 +151,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         {
             DiagnosticLog.Debug("NavigationPageHandler", $"MapToolbarItems for '{page.Title}', count={page.ToolbarItems.Count}");
 
+            ReleaseToolbarIcons(contentPage);
             contentPage.ToolbarItems.Clear();
             foreach (var item in page.ToolbarItems)
             {
@@ -179,20 +179,15 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
                     }
                 });
 
-                // Load icon if specified
-                SKBitmap? icon = null;
-                if (item.IconImageSource is FileImageSource fileSource && !string.IsNullOrEmpty(fileSource.File))
-                {
-                    icon = LoadToolbarIcon(fileSource.File);
-                }
-
-                contentPage.ToolbarItems.Add(new SkiaToolbarItem
+                var skiaItem = new SkiaToolbarItem
                 {
                     Text = item.Text ?? "",
-                    Icon = icon,
                     Order = order,
                     Command = clickCommand
-                });
+                };
+                contentPage.ToolbarItems.Add(skiaItem);
+                if (item.IconImageSource is { IsEmpty: false } iconSource)
+                    _ = LoadToolbarIconAsync(contentPage, skiaItem, iconSource);
             }
 
             // Subscribe to ToolbarItems changes if not already subscribed
@@ -210,53 +205,55 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         }
     }
 
-    private SKBitmap? LoadToolbarIcon(string fileName)
+    /// <summary>The icon loads in flight and loaded, per page, released when its items are mapped again.</summary>
+    private readonly Dictionary<SkiaContentPage, List<(CancellationTokenSource Load, SkiaToolbarItem Item)>> _toolbarIconLoads = new();
+    private readonly Dictionary<SkiaToolbarItem, IImageSourceServiceResult<SKBitmap>> _toolbarIconResults = new();
+
+    /// <summary>
+    /// Loads a toolbar icon through its image-source service (file, font, URI, stream, or an
+    /// app's own source), as Image does, at the bar's 24-pixel icon size and the screen's density.
+    /// </summary>
+    private async Task LoadToolbarIconAsync(SkiaContentPage page, SkiaToolbarItem skiaItem, ImageSource source)
     {
+        var load = new CancellationTokenSource();
+        if (!_toolbarIconLoads.TryGetValue(page, out var loads))
+            _toolbarIconLoads[page] = loads = new();
+        loads.Add((load, skiaItem));
         try
         {
-            string baseDirectory = AppContext.BaseDirectory;
-            string pngPath = Path.Combine(baseDirectory, fileName);
-            string svgPath = Path.Combine(baseDirectory, Path.ChangeExtension(fileName, ".svg"));
-
-            DiagnosticLog.Debug("NavigationPageHandler", $"LoadToolbarIcon: Looking for {fileName}");
-            DiagnosticLog.Debug("NavigationPageHandler", $"  Trying PNG: {pngPath} (exists: {File.Exists(pngPath)})");
-            DiagnosticLog.Debug("NavigationPageHandler", $"  Trying SVG: {svgPath} (exists: {File.Exists(svgPath)})");
-
-            // Try SVG first
-            if (File.Exists(svgPath))
+            var result = await LinuxImageSourceServices.LoadAsync(
+                MauiContext?.Services ?? LinuxImageSourceServices.AppServices, source, Math.Max(1f, page.DeviceScale), new Size(24, 24), load.Token);
+            if (load.IsCancellationRequested)
             {
-                using var svg = new SKSvg();
-                svg.Load(svgPath);
-                if (svg.Picture != null)
-                {
-                    var cullRect = svg.Picture.CullRect;
-                    float scale = 24f / Math.Max(cullRect.Width, cullRect.Height);
-                    var bitmap = new SKBitmap(24, 24, false);
-                    using var canvas = new SKCanvas(bitmap);
-                    canvas.Clear(SKColors.Transparent);
-                    canvas.Scale(scale);
-                    canvas.DrawPicture(svg.Picture, null);
-                    DiagnosticLog.Debug("NavigationPageHandler", $"Loaded SVG icon: {svgPath}");
-                    return bitmap;
-                }
+                result?.Dispose();
+                return;
             }
-
-            // Try PNG
-            if (File.Exists(pngPath))
+            if (result != null)
             {
-                using var stream = File.OpenRead(pngPath);
-                var result = SKBitmap.Decode(stream);
-                DiagnosticLog.Debug("NavigationPageHandler", $"Loaded PNG icon: {pngPath}");
-                return result;
+                _toolbarIconResults[skiaItem] = result;
+                skiaItem.Icon = result.Value;
+                page.Invalidate();
             }
-
-            DiagnosticLog.Warn("NavigationPageHandler", $"Icon not found: {fileName}");
-            return null;
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("NavigationPageHandler", $"Error loading icon {fileName}: {ex.Message}", ex);
-            return null;
+            DiagnosticLog.Error("NavigationPageHandler", $"Loading the toolbar icon of '{skiaItem.Text}' failed", ex);
+        }
+    }
+
+    private void ReleaseToolbarIcons(SkiaContentPage page)
+    {
+        if (!_toolbarIconLoads.Remove(page, out var loads))
+            return;
+        foreach (var (load, item) in loads)
+        {
+            load.Cancel();
+            if (_toolbarIconResults.Remove(item, out var result))
+                result.Dispose();
+            item.Icon = null;
         }
     }
 
