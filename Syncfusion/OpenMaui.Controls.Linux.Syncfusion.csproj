@@ -13,7 +13,7 @@
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Syncfusion bridge (Linux)</Product>
-    <Description>Runs Syncfusion .NET MAUI controls on Linux. Syncfusion's platform-neutral build, which Linux apps get, has no native drawing, touch or invalidation; this package supplies them on OpenMaui's Skia renderer. Call .UseLinuxSyncfusion() in place of .ConfigureSyncfusionCore(). SfView-based controls (ListView, TreeView, TabView, effects and the rest) lay out, draw and receive touch, tap, double-tap, right-tap and long-press; SfDataGrid, SfScheduler and SfPullToRefresh take the mouse and keyboard as on Windows, and SfImageEditor edits and saves images. Requires your own Syncfusion license; this package does not include or redistribute Syncfusion assemblies.</Description>
+    <Description>Runs Syncfusion .NET MAUI controls on Linux. Syncfusion's platform-neutral build, which Linux apps get, has no native drawing, touch or invalidation; this package supplies them on OpenMaui's Skia renderer. Call .UseLinuxSyncfusion() in place of .ConfigureSyncfusionCore(). SfView-based controls (ListView, TreeView, TabView, effects and the rest) lay out, draw and receive touch, tap, double-tap, right-tap and long-press; SfDataGrid, SfScheduler, SfPullToRefresh and SfToolbar take the mouse and keyboard as on Windows, and SfImageEditor edits and saves images. Requires your own Syncfusion license; this package does not include or redistribute Syncfusion assemblies.</Description>
     <Copyright>Copyright 2025-2026 MarketAlly Pte Ltd</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/open-maui/maui-linux</PackageProjectUrl>
