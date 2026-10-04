@@ -339,6 +339,56 @@ public class EssentialsParityTests : IDisposable
         (await other.GetAsync("a")).Should().Be("other");
     }
 
+    /// <summary>A store whose legacy shared store is <paramref name="legacyDir"/> (file backend only).</summary>
+    private static SecureStorageService WithLegacy(string dir, string legacyDir) =>
+        new(dir, useSecretService: false, keyringNamespace: null, legacyFallbackPath: legacyDir, legacyNamespace: null);
+
+    [Fact]
+    public async Task SecureStorage_moves_only_the_legacy_keys_an_app_asks_for()
+    {
+        var legacyDir = TempDir("secure-legacy");
+        var shared = new SecureStorageService(legacyDir, useSecretService: false);
+        await shared.SetAsync("token", "mine");
+        await shared.SetAsync("other-app-token", "not mine");
+
+        var dir = TempDir("secure-app");
+        var app = WithLegacy(dir, legacyDir);
+        (await app.GetAsync("token")).Should().Be("mine");
+
+        // Only the asked-for key is in the app's own store; the other app's value is not copied.
+        var own = new SecureStorageService(dir, useSecretService: false);
+        (await own.GetAsync("token")).Should().Be("mine");
+        (await own.GetAsync("other-app-token")).Should().BeNull();
+        // The shared store keeps its values (another app may still read them).
+        (await shared.GetAsync("token")).Should().Be("mine");
+    }
+
+    [Fact]
+    public async Task SecureStorage_a_removed_or_cleared_key_does_not_come_back_from_the_legacy_store()
+    {
+        var legacyDir = TempDir("secure-legacy");
+        var shared = new SecureStorageService(legacyDir, useSecretService: false);
+        await shared.SetAsync("removed", "old");
+        await shared.SetAsync("cleared", "old");
+        await shared.SetAsync("overwritten", "old");
+
+        var dir = TempDir("secure-app");
+        var app = WithLegacy(dir, legacyDir);
+        app.Remove("removed");
+        await app.SetAsync("overwritten", "new");
+        (await app.GetAsync("removed")).Should().BeNull();
+        (await app.GetAsync("overwritten")).Should().Be("new");
+
+        app.RemoveAll();
+        (await app.GetAsync("cleared")).Should().BeNull();
+
+        // The settled keys are remembered across launches.
+        var relaunched = WithLegacy(dir, legacyDir);
+        (await relaunched.GetAsync("removed")).Should().BeNull();
+        (await relaunched.GetAsync("cleared")).Should().BeNull();
+        (await relaunched.GetAsync("overwritten")).Should().BeNull(); // cleared by RemoveAll
+    }
+
     [Fact]
     public async Task SecureStorage_Remove_reports_whether_the_key_was_stored()
     {
@@ -482,6 +532,26 @@ public class EssentialsParityTests : IDisposable
 
     private static GeocodingService Geocoder(StubHandler handler) =>
         new(new HttpClient(handler), new Uri("https://geocoder.test/"));
+
+    [Fact]
+    public async Task Geocoding_is_unsupported_until_the_app_names_a_service()
+    {
+        var saved = GeocodingService.ServiceUrl;
+        var savedVariable = Environment.GetEnvironmentVariable("OPENMAUI_GEOCODING_URL");
+        try
+        {
+            GeocodingService.ServiceUrl = null;
+            Environment.SetEnvironmentVariable("OPENMAUI_GEOCODING_URL", null);
+            var geocoder = new GeocodingService();
+            await geocoder.Invoking(g => g.GetLocationsAsync("Berlin")).Should().ThrowAsync<FeatureNotSupportedException>();
+            await geocoder.Invoking(g => g.GetPlacemarksAsync(52.5, 13.4)).Should().ThrowAsync<FeatureNotSupportedException>();
+        }
+        finally
+        {
+            GeocodingService.ServiceUrl = saved;
+            Environment.SetEnvironmentVariable("OPENMAUI_GEOCODING_URL", savedVariable);
+        }
+    }
 
     [Fact]
     public async Task Geocoding_reverse_lookup_maps_the_address()

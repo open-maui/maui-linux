@@ -86,6 +86,10 @@ namespace Microsoft.Maui.Essentials.DeviceTests
 		/// </summary>
 		public static void EnsureStarted()
 		{
+			// Geocoding is opt-in on Linux, as an app opts in: the suite uses OpenStreetMap's
+			// instance (three light requests) unless OPENMAUI_GEOCODING_URL names another.
+			if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENMAUI_GEOCODING_URL")))
+				Microsoft.Maui.Platform.Linux.Services.GeocodingService.ServiceUrl ??= Microsoft.Maui.Platform.Linux.Services.GeocodingService.OpenStreetMapUrl;
 			if (!s_started.Wait(TimeSpan.FromSeconds(30)))
 				throw new InvalidOperationException("The OpenMaui main thread did not start (GLib missing?).");
 			lock (s_windowLock)
