@@ -25,6 +25,8 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             [nameof(NavigationPage.BarBackground)] = MapBarBackground,
             [nameof(NavigationPage.BarTextColor)] = MapBarTextColor,
             [nameof(IView.Background)] = MapBackground,
+            // NavigationPage.IconColor set on the NavigationPage applies to every page's bar.
+            ["IconColor"] = MapIconColor,
         };
 
     public static CommandMapper<NavigationPage, NavigationPageHandler> CommandMapper =
@@ -80,6 +82,8 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         foreach (var page in _barSubscriptions)
             page.PropertyChanged -= OnPagePropertyChanged;
         _barSubscriptions.Clear();
+        foreach (var page in _titleIcons.Keys.ToList())
+            ReleaseTitleIcon(page);
         foreach (var toolbar in _toolbarSubscriptions.Values)
             toolbar.Items.CollectionChanged -= toolbar.Handler;
         _toolbarSubscriptions.Clear();
@@ -322,10 +326,22 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
     {
         if (handler.PlatformView is null) return;
 
-        if (navigationPage.BarBackground is SolidColorBrush solidBrush)
+        if (navigationPage.BarBackground is SolidColorBrush { Color: not null } solidBrush)
         {
             handler.PlatformView.BarBackgroundColor = solidBrush.Color;
         }
+        // Gradients too: each page's bar is painted with the brush.
+        handler.ApplyAllPageBars();
+    }
+
+    /// <summary>NavigationPage.IconColor on the NavigationPage: the back arrow of every page without its own.</summary>
+    public static void MapIconColor(NavigationPageHandler handler, NavigationPage navigationPage) =>
+        handler.ApplyAllPageBars();
+
+    private void ApplyAllPageBars()
+    {
+        foreach (var page in _barSubscriptions.ToList())
+            ApplyPageBar(page);
     }
 
     public static void MapBarTextColor(NavigationPageHandler handler, NavigationPage navigationPage)
@@ -342,7 +358,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
     {
         if (handler.PlatformView is null) return;
 
-        if (navigationPage.Background is SolidColorBrush solidBrush)
+        if (navigationPage.Background is SolidColorBrush { Color: not null } solidBrush)
         {
             handler.PlatformView.BackgroundColor = solidBrush.Color;
         }
@@ -354,6 +370,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             return;
 
         var requestedStack = request.NavigationStack;
+        handler._requestedStack = requestedStack;
         DiagnosticLog.Debug("NavigationPageHandler", $"MapRequestNavigation: requested={requestedStack.Count} pages, current platform depth={handler.PlatformView.StackDepth}");
 
         // The platform shows exactly the requested stack: pushes, pops, pages inserted
@@ -411,6 +428,9 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
 
     private readonly HashSet<Page> _barSubscriptions = new();
 
+    // The stack the platform shows (the last navigation request's).
+    private IReadOnlyList<IView>? _requestedStack;
+
     // Pages whose platform view is not a SkiaPage (a TabbedPage or FlyoutPage pushed onto
     // the stack) are shown in a SkiaPage that hosts it and carries its navigation bar.
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Page, SkiaPage> _pageHosts = new();
@@ -453,6 +473,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
                 continue;
             page.PropertyChanged -= OnPagePropertyChanged;
             _barSubscriptions.Remove(page);
+            ReleaseTitleIcon(page);
             if (_toolbarSubscriptions.Remove(page, out var toolbar))
                 toolbar.Items.CollectionChanged -= toolbar.Handler;
         }
@@ -464,9 +485,17 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             return;
         if (e.PropertyName == NavigationPage.HasNavigationBarProperty.PropertyName
             || e.PropertyName == NavigationPage.HasBackButtonProperty.PropertyName
+            || e.PropertyName == NavigationPage.TitleViewProperty.PropertyName
+            || e.PropertyName == NavigationPage.TitleIconImageSourceProperty.PropertyName
+            || e.PropertyName == NavigationPage.IconColorProperty.PropertyName
             || e.PropertyName == Page.TitleProperty.PropertyName)
         {
             ApplyPageBar(page);
+        }
+        else if (e.PropertyName == NavigationPage.BackButtonTitleProperty.PropertyName)
+        {
+            // The title is shown by the page above this one.
+            ApplyAllPageBars();
         }
     }
 
@@ -477,9 +506,103 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         skiaPage.ShowNavigationBar = NavigationPage.GetHasNavigationBar(page);
         skiaPage.HasBackButton = NavigationPage.GetHasBackButton(page);
         skiaPage.Title = page.Title ?? string.Empty;
+        ApplyTitleView(skiaPage, page);
+        ApplyTitleIcon(skiaPage, page);
+        // MAUI's NavigationPageToolbar: the page's IconColor, else the NavigationPage's.
+        skiaPage.IconColor = NavigationPage.GetIconColor(page) ?? (VirtualView is { } navigation ? NavigationPage.GetIconColor(navigation) : null);
+        skiaPage.TitleBarBrush = VirtualView?.BarBackground is { } brush && !Brush.IsNullOrEmpty(brush) && brush is not SolidColorBrush ? brush : null;
+        // The back button's title is the page beneath's NavigationPage.BackButtonTitle.
+        var stack = _requestedStack ?? (IReadOnlyList<IView>?)VirtualView?.Navigation.NavigationStack ?? Array.Empty<IView>();
+        int index = -1;
+        for (int i = 0; i < stack.Count; i++)
+            if (ReferenceEquals(stack[i], page)) { index = i; break; }
+        skiaPage.BackButtonTitle = index > 0 && stack[index - 1] is Page previous ? NavigationPage.GetBackButtonTitle(previous) : null;
         skiaPage.InvalidateMeasure();
         skiaPage.Invalidate();
         PlatformView?.Invalidate();
+    }
+
+    /// <summary>
+    /// The page's NavigationPage.TitleView in its bar: realized in this navigation page's
+    /// context (a view that already has a platform view keeps it), with its margin.
+    /// </summary>
+    private void ApplyTitleView(SkiaPage skiaPage, Page page)
+    {
+        var titleView = NavigationPage.GetTitleView(page);
+        SkiaView? platform = null;
+        if (titleView != null && MauiContext != null)
+        {
+            try
+            {
+                platform = titleView.Handler?.PlatformView as SkiaView
+                    ?? titleView.ToViewHandler(MauiContext)?.PlatformView as SkiaView;
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("NavigationPageHandler", $"Realizing the TitleView {titleView.GetType().Name} failed", ex);
+            }
+        }
+        skiaPage.TitleView = platform;
+        skiaPage.TitleViewMargin = titleView?.Margin ?? default;
+    }
+
+    // Per page: the title icon source shown, its load and its loaded image.
+    private readonly Dictionary<Page, (ImageSource Source, CancellationTokenSource Load, IImageSourceServiceResult<SKBitmap>? Result)> _titleIcons = new();
+
+    /// <summary>
+    /// The page's NavigationPage.TitleIconImageSource left of its title, loaded through its
+    /// image-source service (file, font, URI, stream, or an app's own source) as MAUI's toolbar
+    /// loads it, at the bar's 24-pixel icon size and the screen's density.
+    /// </summary>
+    private void ApplyTitleIcon(SkiaPage skiaPage, Page page)
+    {
+        var source = NavigationPage.GetTitleIconImageSource(page);
+        if (source is null || source.IsEmpty)
+        {
+            ReleaseTitleIcon(page);
+            skiaPage.TitleIcon = null;
+            return;
+        }
+        if (_titleIcons.TryGetValue(page, out var current) && ReferenceEquals(current.Source, source))
+            return;
+        ReleaseTitleIcon(page);
+        skiaPage.TitleIcon = null;
+        var load = new CancellationTokenSource();
+        _titleIcons[page] = (source, load, null);
+        _ = LoadTitleIconAsync(skiaPage, page, source, load);
+    }
+
+    private async Task LoadTitleIconAsync(SkiaPage skiaPage, Page page, ImageSource source, CancellationTokenSource load)
+    {
+        try
+        {
+            var result = await LinuxImageSourceServices.LoadAsync(
+                MauiContext?.Services ?? LinuxImageSourceServices.AppServices, source, Math.Max(1f, skiaPage.DeviceScale), new Size(24, 24), load.Token);
+            if (load.IsCancellationRequested || !_titleIcons.TryGetValue(page, out var entry) || !ReferenceEquals(entry.Load, load))
+            {
+                result?.Dispose();
+                return;
+            }
+            _titleIcons[page] = (source, load, result);
+            skiaPage.TitleIcon = result?.Value;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("NavigationPageHandler", $"Loading the title icon of '{page.Title}' failed", ex);
+        }
+    }
+
+    private void ReleaseTitleIcon(Page page)
+    {
+        if (!_titleIcons.Remove(page, out var entry))
+            return;
+        entry.Load.Cancel();
+        if (PlatformPageFor(page) is { } skiaPage && ReferenceEquals(skiaPage.TitleIcon, entry.Result?.Value))
+            skiaPage.TitleIcon = null;
+        entry.Result?.Dispose();
     }
 
     private bool OnPlatformBackRequested()

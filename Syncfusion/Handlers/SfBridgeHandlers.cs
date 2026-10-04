@@ -28,6 +28,8 @@ public class SfLayoutBridgeHandler : CrossPlatformLayoutHandler
             sf.MauiContext = MauiContext;
             SfInvalidation.Track(sf);
         }
+        if (VirtualView != null && IsTabStop(VirtualView.GetType()))
+            platformView.IsFocusable = true;
         if (VirtualView is Element element)
         {
             element.ChildAdded += OnChildrenChanged;
@@ -46,6 +48,32 @@ public class SfLayoutBridgeHandler : CrossPlatformLayoutHandler
         }
         SfInvalidation.Untrack(platformView);
         base.DisconnectHandler(platformView);
+    }
+
+    /// <summary>
+    /// The controls whose Windows <c>OnHandlerChanged</c> makes the native view
+    /// a tab stop (<c>IsTabStop = true</c>): Tab reaches them, and OpenMaui's
+    /// focusable views are its tab stops. The segmented control's parts
+    /// (<c>KeyNavigationView</c>, <c>OutlinedBorderView</c>,
+    /// <c>SelectionView</c>) are explicitly not, and stay unfocusable here.
+    /// </summary>
+    private static readonly HashSet<string> s_tabStops = new()
+    {
+        "Syncfusion.Maui.Buttons.SfButton",
+        "Syncfusion.Maui.Buttons.SfCheckBox",
+        "Syncfusion.Maui.Buttons.SfRadioButton",
+        "Syncfusion.Maui.Buttons.SfSwitch",
+        "Syncfusion.Maui.Buttons.SfSegmentedControl",
+    };
+
+    internal static bool IsTabStop(Type? type)
+    {
+        for (; type != null && type != typeof(object); type = type.BaseType)
+        {
+            if (type.FullName is { } name && s_tabStops.Contains(name))
+                return true;
+        }
+        return false;
     }
 
     private void OnChildrenChanged(object? sender, ElementEventArgs e)

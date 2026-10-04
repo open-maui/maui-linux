@@ -63,6 +63,9 @@ public partial class WaylandWindow
         [CursorType.Arrow] = new[] { "default", "left_ptr", "arrow" },
         [CursorType.Hand] = new[] { "pointer", "hand2", "hand1" },
         [CursorType.Text] = new[] { "text", "xterm", "ibeam" },
+        [CursorType.SizeWestEast] = new[] { "ew-resize", "col-resize", "sb_h_double_arrow", "h_double_arrow" },
+        [CursorType.SizeNorthSouth] = new[] { "ns-resize", "row-resize", "sb_v_double_arrow", "v_double_arrow" },
+        [CursorType.SizeAll] = new[] { "move", "all-scroll", "fleur" },
     };
 
     private void EnsureCursorTheme()

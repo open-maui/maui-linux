@@ -93,6 +93,9 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
     private IntPtr _arrowCursor;
     private IntPtr _handCursor;
     private IntPtr _textCursor;
+    private IntPtr _sizeWestEastCursor;
+    private IntPtr _sizeNorthSouthCursor;
+    private IntPtr _sizeAllCursor;
     private IntPtr _currentCursor;
     private CursorType _currentCursorType = CursorType.Arrow;
 
@@ -287,6 +290,9 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         _arrowCursor = LoadCursor("default", 68);  // XC_left_ptr
         _handCursor = LoadCursor("pointer", 60);   // XC_hand2
         _textCursor = LoadCursor("text", 152);     // XC_xterm
+        _sizeWestEastCursor = LoadCursor("ew-resize", 108);   // XC_sb_h_double_arrow
+        _sizeNorthSouthCursor = LoadCursor("ns-resize", 116); // XC_sb_v_double_arrow
+        _sizeAllCursor = LoadCursor("move", 52);              // XC_fleur
         _currentCursor = _arrowCursor;
     }
 
@@ -317,6 +323,9 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
             {
                 CursorType.Hand => _handCursor,
                 CursorType.Text => _textCursor,
+                CursorType.SizeWestEast => _sizeWestEastCursor,
+                CursorType.SizeNorthSouth => _sizeNorthSouthCursor,
+                CursorType.SizeAll => _sizeAllCursor,
                 _ => _arrowCursor,
             };
             if (cursor != _currentCursor)
@@ -920,9 +929,15 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 if (_arrowCursor != IntPtr.Zero) X11.XFreeCursor(_display, _arrowCursor);
                 if (_handCursor != IntPtr.Zero) X11.XFreeCursor(_display, _handCursor);
                 if (_textCursor != IntPtr.Zero) X11.XFreeCursor(_display, _textCursor);
+                if (_sizeWestEastCursor != IntPtr.Zero) X11.XFreeCursor(_display, _sizeWestEastCursor);
+                if (_sizeNorthSouthCursor != IntPtr.Zero) X11.XFreeCursor(_display, _sizeNorthSouthCursor);
+                if (_sizeAllCursor != IntPtr.Zero) X11.XFreeCursor(_display, _sizeAllCursor);
                 _arrowCursor = IntPtr.Zero;
                 _handCursor = IntPtr.Zero;
                 _textCursor = IntPtr.Zero;
+                _sizeWestEastCursor = IntPtr.Zero;
+                _sizeNorthSouthCursor = IntPtr.Zero;
+                _sizeAllCursor = IntPtr.Zero;
             }
 
             if (_syncCounter != 0 && _display != IntPtr.Zero)

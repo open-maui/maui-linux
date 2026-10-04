@@ -26,10 +26,15 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// double-tap, right-tap, long-press, drag, wheel, ctrl+wheel pinch and
 /// keyboard) and the <c>ScrollView</c>-based list
 /// hosts, which OpenMaui's own ScrollView handles; SfCarousel, SfRotator,
-/// SfSignaturePad and SfInteractiveScrollView, whose native views are
-/// supplied here; SfPopup and the controls that open one, through
-/// Syncfusion's window overlay. Not covered yet: ImageEditor and Syncfusion's
-/// MediaElement (dedicated native views).
+/// SfSignaturePad, SfInteractiveScrollView, SfDataGrid's scroller and
+/// SfImageEditor's image view, whose native views are supplied here; SfPopup
+/// and the controls that open one, through Syncfusion's window overlay; the
+/// text boxes of SfNumericEntry, SfMaskedEntry, SfComboBox, SfAutocomplete and
+/// SfTextInputLayout, with the key, clipboard and hover handling of the
+/// Windows build; the desktop mouse and keyboard handling of SfDataGrid,
+/// SfScheduler and SfPullToRefresh, and SfImageEditor's image editing.
+/// Syncfusion's MediaElement base has nothing to host in the neutral build (no
+/// control there derives from it).
 /// </para>
 /// </summary>
 public static class LinuxSyncfusionBuilderExtensions
@@ -59,6 +64,10 @@ public static class LinuxSyncfusionBuilderExtensions
             handlers.AddHandler(typeof(global::Syncfusion.Maui.Core.Rotator.IRotator), typeof(SfRotatorBridgeHandler));
             handlers.AddHandler(typeof(ISignaturePad), typeof(SfSignaturePadBridgeHandler));
             handlers.AddHandler(typeof(global::Syncfusion.Maui.Core.Internals.SfInteractiveScrollView), typeof(SfInteractiveScrollViewBridgeHandler));
+            handlers.AddHandler(typeof(global::Syncfusion.Maui.Core.Internals.DataGridScrollViewExt), typeof(SfDataGridScrollViewBridgeHandler));
+            // SfImageEditor's image view (internal to Syncfusion.Maui.Core).
+            if (SfImageEditorPatches.ImageViewExtType is { } imageView)
+                handlers.AddHandler(imageView, typeof(SfImageEditorBridgeHandler));
         });
 
         // The fonts ConfigureSyncfusionCore registers (icon glyphs used by
@@ -82,6 +91,15 @@ public static class LinuxSyncfusionBuilderExtensions
         SfKeyboardBridge.Install();
         SfInputPositionPatches.Install();
         SfOverlayPatches.Install();
+        SfTextBoxBridge.Install();
+        SfDropdownEntryPatches.Install();
+        SfTextInputLayoutPatches.Install();
+        SfCalendarPatches.Install();
+        SfSemanticsPatches.Install();
+        SfDataGridPatches.Install();
+        SfImageEditorPatches.Install();
+        SfSchedulerPatches.Install();
+        SfPullToRefreshPatches.Install();
         return builder;
     }
 }

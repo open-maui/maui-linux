@@ -56,6 +56,11 @@ public class WebViewHandlerTests
         "browser-capture",
         "browser-save-as-pdf",
         "browser-zoom-gestures",
+        "hybrid-serves-app-and-raw-messages",
+        "hybrid-invoke-javascript",
+        "hybrid-invoke-dotnet",
+        "hybrid-web-resource-requested",
+        "scheme-fallback-and-per-view-routing",
     };
 
     /// <summary>Host exit code for "this machine cannot run the scenario" (see WebViewHost Program).</summary>

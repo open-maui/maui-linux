@@ -309,7 +309,7 @@ public abstract partial class SkiaView
 
     IAccessible? IAccessible.Parent => Parent as IAccessible;
 
-    IReadOnlyList<IAccessible> IAccessible.Children => _accessibleChildren ??= GetAccessibleChildren();
+    IReadOnlyList<IAccessible> IAccessible.Children => _accessibleChildren ??= InSemanticOrder(GetAccessibleChildren());
 
     AccessibleRect IAccessible.Bounds => new AccessibleRect(
         (int)ScreenBounds.Left,
@@ -325,6 +325,25 @@ public abstract partial class SkiaView
 
     bool IAccessible.DoAction(string actionName) => DoAccessibleAction(actionName);
     bool IAccessible.SetValue(double value) => SetAccessibleValue(value);
+
+    /// <summary>
+    /// Drops the cached accessible children, so assistive technology reads
+    /// them again (a view whose virtual, drawn-only parts changed: the
+    /// counterpart of a native automation peer's InvalidateSemantics).
+    /// </summary>
+    internal void InvalidateAccessibleChildren()
+    {
+        _accessibleChildren = null;
+        try
+        {
+            if (_accessibilityInitialized && _accessibilityService is { IsEnabled: true } service)
+                service.NotifyPropertyChanged(this, AccessibleProperty.Children);
+        }
+        catch (Exception)
+        {
+            // Accessibility is optional.
+        }
+    }
 
     /// <summary>
     /// Gets the default accessible name based on view content.
@@ -364,6 +383,89 @@ public abstract partial class SkiaView
             }
         }
         return children;
+    }
+
+    private Func<IReadOnlyList<SkiaView>>? _semanticOrder;
+
+    /// <summary>
+    /// Sets the reading order of the views inside this one (CommunityToolkit.Maui's
+    /// <c>SemanticOrderView.ViewOrder</c>): read lazily, so views that get their platform views
+    /// later still take their place. At every level below this view, the children holding a listed
+    /// view come first, in the order of the first listed view each holds, and the rest follow in
+    /// their own order, as the listed views come first in Windows' tab order (TabIndex 1..n) and
+    /// the others after. Null restores the natural order.
+    /// </summary>
+    internal void SetAccessibleOrder(Func<IReadOnlyList<SkiaView>>? order)
+    {
+        _semanticOrder = order;
+        InvalidateAccessibleChildren(recursive: true);
+    }
+
+    /// <summary>Drops the cached accessible children (of the subtree), so they are read again.</summary>
+    internal void InvalidateAccessibleChildren(bool recursive)
+    {
+        _accessibleChildren = null;
+        if (_accessibilityInitialized && _accessibilityService is { } service)
+        {
+            try
+            {
+                service.NotifyPropertyChanged(this, AccessibleProperty.Children);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Debug("SkiaView", "Accessible children notification failed", ex);
+            }
+        }
+        if (!recursive)
+            return;
+        foreach (var child in GetAccessibleChildren())
+            (child as SkiaView)?.InvalidateAccessibleChildren(recursive: true);
+    }
+
+    /// <summary>
+    /// <paramref name="children"/> in the reading order of the nearest view (this one or an
+    /// ancestor) that has one (<see cref="SetAccessibleOrder"/>).
+    /// </summary>
+    private List<IAccessible> InSemanticOrder(List<IAccessible> children)
+    {
+        if (children.Count < 2)
+            return children;
+        Func<IReadOnlyList<SkiaView>>? provider = null;
+        for (var view = this; view != null && provider == null; view = view.Parent)
+            provider = view._semanticOrder;
+        if (provider == null)
+            return children;
+
+        IReadOnlyList<SkiaView> order;
+        try
+        {
+            order = provider();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("SkiaView", "Reading the semantic order failed", ex);
+            return children;
+        }
+
+        // Each child's rank: the first listed view that is the child or inside it.
+        var rank = new Dictionary<SkiaView, int>();
+        for (int i = 0; i < order.Count; i++)
+        {
+            SkiaView? below = order[i];
+            while (below != null && below.Parent != this)
+                below = below.Parent;
+            if (below != null && !rank.ContainsKey(below))
+                rank[below] = i;
+        }
+        if (rank.Count == 0)
+            return children;
+
+        return children
+            .Select((child, index) => (child, index, rank: child is SkiaView v && rank.TryGetValue(v, out var r) ? r : int.MaxValue))
+            .OrderBy(c => c.rank)
+            .ThenBy(c => c.index)
+            .Select(c => c.child)
+            .ToList();
     }
 
     /// <summary>

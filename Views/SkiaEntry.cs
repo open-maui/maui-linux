@@ -656,9 +656,102 @@ public partial class SkiaEntry : SkiaView, IInputContext
         get => _selectionLength;
         set
         {
+            // MAUI's SelectionLength extends from CursorPosition: the selection
+            // is anchored at the caret (a stale anchor drew and deleted the
+            // wrong range after the view selected text from code).
+            _selectionStart = _cursorPosition;
             _selectionLength = value;
             Invalidate();
         }
+    }
+
+    /// <summary>
+    /// The selection as MAUI reports it: its first character and its length
+    /// (never negative), whichever way it was made.
+    /// </summary>
+    internal (int Start, int Length) Selection
+    {
+        get
+        {
+            if (_selectionLength == 0)
+                return (Math.Clamp(_cursorPosition, 0, Text.Length), 0);
+            int start = Math.Clamp(Math.Min(_selectionStart, _selectionStart + _selectionLength), 0, Text.Length);
+            int length = Math.Min(Math.Abs(_selectionLength), Text.Length - start);
+            return (start, length);
+        }
+    }
+
+    /// <summary>
+    /// The selection exactly as the view holds it (anchor, signed length,
+    /// caret), for code that writes the MAUI view's CursorPosition and
+    /// SelectionLength from the platform and must leave the platform's own
+    /// selection (its anchor and caret end) as it was.
+    /// </summary>
+    internal (int Anchor, int Length, int Caret) SelectionState
+    {
+        get => (_selectionStart, _selectionLength, _cursorPosition);
+        set
+        {
+            int length = Text.Length;
+            _selectionStart = Math.Clamp(value.Anchor, 0, length);
+            _selectionLength = Math.Clamp(_selectionStart + value.Length, 0, length) - _selectionStart;
+            _cursorPosition = Math.Clamp(value.Caret, 0, length);
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Raised before typed or committed text is inserted (WinUI's
+    /// BeforeTextChanging seam): a handler that sets
+    /// <see cref="TextInputEventArgs.Handled"/> takes the text itself.
+    /// Lets extension packages give a masked or numeric control its own
+    /// typing rules, as their Windows builds do from the TextBox's key events.
+    /// </summary>
+    internal event EventHandler<TextInputEventArgs>? TextInputting;
+
+    /// <summary>
+    /// Raised before a paste (Ctrl+V or the context menu) changes the text
+    /// (WinUI's TextBox.Paste); a handler that sets Handled pastes itself.
+    /// </summary>
+    internal event EventHandler<System.ComponentModel.HandledEventArgs>? Pasting;
+
+    /// <summary>
+    /// Raised before a cut (Ctrl+X or the context menu) changes the text
+    /// (WinUI's TextBox.CuttingToClipboard); a handler that sets Handled
+    /// cuts itself.
+    /// </summary>
+    internal event EventHandler<System.ComponentModel.HandledEventArgs>? Cutting;
+
+    private bool RaiseTextInputting(string text)
+    {
+        if (TextInputting is not { } handler)
+            return false;
+        var args = new TextInputEventArgs(text);
+        try
+        {
+            handler(this, args);
+        }
+        catch (Exception ex)
+        {
+            Microsoft.Maui.Platform.Linux.Services.DiagnosticLog.Error("SkiaEntry", "A text input observer failed", ex);
+        }
+        return args.Handled;
+    }
+
+    private bool RaiseClipboardOverride(EventHandler<System.ComponentModel.HandledEventArgs>? handler)
+    {
+        if (handler == null)
+            return false;
+        var args = new System.ComponentModel.HandledEventArgs(false);
+        try
+        {
+            handler(this, args);
+        }
+        catch (Exception ex)
+        {
+            Microsoft.Maui.Platform.Linux.Services.DiagnosticLog.Error("SkiaEntry", "A clipboard observer failed", ex);
+        }
+        return args.Handled;
     }
 
     /// <summary>
