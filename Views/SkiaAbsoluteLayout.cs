@@ -9,7 +9,10 @@ using Microsoft.Maui;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Absolute layout that positions children at exact coordinates.
+/// Absolute layout that positions Skia children at exact coordinates, for
+/// views composed directly in Skia. A MAUI <c>AbsoluteLayout</c> is laid out
+/// by MAUI's own AbsoluteLayoutManager on a <see cref="SkiaCrossPlatformLayout"/>
+/// instead (see AbsoluteLayoutHandler).
 /// </summary>
 public class SkiaAbsoluteLayout : SkiaLayoutView
 {
@@ -35,15 +38,6 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
     /// </summary>
     public AbsoluteLayoutBounds GetLayoutBounds(SkiaView child)
     {
-        // A MAUI AbsoluteLayout's child: its attached LayoutBounds as they are
-        // now. They can change at any time (a menu placed, then moved above its
-        // button once it knows its height), and a change raises no handler
-        // update, so a copy taken when the child was added went stale.
-        if (MauiView is Microsoft.Maui.Controls.AbsoluteLayout && child.MauiView is Microsoft.Maui.Controls.BindableObject mauiChild)
-        {
-            var (rect, flags) = Microsoft.Maui.Platform.Linux.Handlers.AbsoluteLayoutHandler.ReadBounds(mauiChild);
-            return new AbsoluteLayoutBounds(rect, flags);
-        }
         return _childBounds.TryGetValue(child, out var bounds)
             ? bounds
             : new AbsoluteLayoutBounds(SKRect.Empty, AbsoluteLayoutFlags.None);

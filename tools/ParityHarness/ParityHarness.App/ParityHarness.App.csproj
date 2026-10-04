@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Layout parity harness: the same gallery of MAUI pages rendered by WinUI (the reference)
+    and by OpenMaui (Linux). Run with  dump <outdir> size 800x600  (see ../README.md) to write
+    one JSON file of element frames per page, then compare two dumps with ../Diff.
+
+    Targets follow the host: plain net10.0 (OpenMaui) on Linux, net10.0-windows10.0.19041.0
+    (WinUI through the MAUI workload) on Windows. Override with -p:TargetFrameworks=... if needed.
+    OpenMaui comes in by ProjectReference so the harness exercises the working tree, with the
+    package's build props/targets imported by hand (a ProjectReference does not apply them).
+  -->
+
+  <Import Project="..\..\..\build\OpenMaui.Controls.Linux.props" />
+
+  <PropertyGroup>
+    <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('windows'))">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">net10.0-windows10.0.19041.0</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ParityHarness</RootNamespace>
+    <AssemblyName>ParityHarness.App</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <ApplicationTitle>ParityHarness</ApplicationTitle>
+    <ApplicationId>com.openmaui.parityharness</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
+  </PropertyGroup>
+
+  <!-- Windows: a real MAUI (WinUI 3) app, unpackaged so the exe runs straight from the
+       publish folder on the CI runner. -->
+  <PropertyGroup Condition="$(TargetFramework.Contains('-windows'))">
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <OutputType>WinExe</OutputType>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+  </PropertyGroup>
+
+  <!-- Linux (OpenMauiLinux is set by the imported props for a plain TFM built on Linux). -->
+  <PropertyGroup Condition="'$(OpenMauiLinux)' == 'true'">
+    <DefineConstants>$(DefineConstants);OPENMAUI_LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
+  </ItemGroup>
+
+  <!-- The MAUI workload adds these implicit usings; the plain (OpenMaui) target needs them. -->
+  <ItemGroup Condition="'$(UseMaui)' != 'true'">
+    <Using Include="Microsoft.Maui" />
+    <Using Include="Microsoft.Maui.Controls" />
+    <Using Include="Microsoft.Maui.Graphics" />
+    <Using Include="Microsoft.Maui.Devices" />
+    <Using Include="Microsoft.Maui.Dispatching" />
+    <Using Include="Microsoft.Maui.Hosting" />
+    <Using Include="Microsoft.Maui.ApplicationModel" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OpenMauiLinux)' == 'true'">
+    <ProjectReference Include="..\..\..\OpenMaui.Controls.Linux.csproj" />
+  </ItemGroup>
+
+  <!-- The same font on both platforms, so text metrics differ only by the rasteriser/shaper. -->
+  <ItemGroup>
+    <MauiFont Include="Resources\Fonts\*" />
+  </ItemGroup>
+
+  <!-- The package .targets handle Platforms/ folders for the Linux target; without OpenMaui
+       (any other target) Platforms/Linux must not compile. -->
+  <ItemGroup Condition="'$(OpenMauiLinux)' != 'true'">
+    <Compile Remove="Platforms\Linux\**" />
+    <None Remove="Platforms\Linux\**" />
+  </ItemGroup>
+
+  <Import Project="..\..\..\build\OpenMaui.Controls.Linux.targets" />
+
+</Project>
