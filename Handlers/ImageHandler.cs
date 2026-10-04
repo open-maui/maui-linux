@@ -1,13 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.IO;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using Microsoft.Maui.Platform.Linux.Rendering;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -194,133 +192,21 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
 
         private void Clear() => _handler.PlatformView?.ClearImage();
 
-        private async Task<Exception?> LoadAsync(IImageSource source, CancellationToken token)
+        private Task<Exception?> LoadAsync(IImageSource source, CancellationToken token)
         {
             var view = _handler.PlatformView;
-            if (view is null)
-                return null;
+            var part = _handler.VirtualView;
+            if (view is null || part is null)
+                return Task.FromResult<Exception?>(null);
 
-            switch (source)
-            {
-                case IFileImageSource fileSource:
-                    if (string.IsNullOrEmpty(fileSource.File))
-                    {
-                        view.ClearImage();
-                        return null;
-                    }
-                    return await CaptureAsync(view, () => view.LoadFromFileAsync(fileSource.File));
-
-                case IUriImageSource uriSource:
-                    if (uriSource.Uri is null)
-                    {
-                        view.ClearImage();
-                        return null;
-                    }
-                    return await CaptureAsync(view, () => view.LoadFromUriAsync(uriSource.Uri));
-
-                case IStreamImageSource streamSource:
-                    using (var stream = await streamSource.GetStreamAsync(token))
-                    {
-                        token.ThrowIfCancellationRequested();
-                        if (stream is null)
-                            return new InvalidOperationException("The stream image source returned no stream.");
-                        return await CaptureAsync(view, () => view.LoadFromStreamAsync(stream));
-                    }
-
-                case FontImageSource fontSource:
-                    var bitmap = RenderFontImageSource(fontSource, view.WidthRequest, view.HeightRequest);
-                    if (bitmap is null)
-                    {
-                        view.ClearImage();
-                        return null;
-                    }
-                    return await CaptureAsync(view, () =>
-                    {
-                        view.LoadFromBitmap(bitmap);
-                        return Task.CompletedTask;
-                    });
-
-                default:
-                    return new NotSupportedException($"Image source type {source.GetType().Name} is not supported on Linux.");
-            }
+            float scale = view.DeviceScale;
+            return ImageSourcePartLoading.LoadThroughServiceAsync(
+                _handler, part, source, scale, new Size(view.WidthRequest, view.HeightRequest), token,
+                result => view.ApplyResult(result, scale), view.ClearImage);
         }
 
-        private static Task<Exception?> CaptureAsync(SkiaImage view, Func<Task> load) =>
-            ImageSourcePartLoading.CaptureErrorAsync(h => view.ImageLoadingError += h, h => view.ImageLoadingError -= h, load);
-
-        internal static SKBitmap? RenderFontImageSource(FontImageSource fontSource, double requestedWidth, double requestedHeight)
-        {
-            string glyph = fontSource.Glyph;
-            if (string.IsNullOrEmpty(glyph))
-            {
-                return null;
-            }
-
-            int size = (int)Math.Max(requestedWidth > 0 ? requestedWidth : 24.0, requestedHeight > 0 ? requestedHeight : 24.0);
-            size = Math.Max(size, 16);
-
-            SKColor color = fontSource.Color?.ToSKColor() ?? SKColors.Black;
-            SKBitmap bitmap = new SKBitmap(size, size, false);
-            using SKCanvas canvas = new SKCanvas(bitmap);
-            canvas.Clear(SKColors.Transparent);
-
-            SKTypeface? typeface = null;
-            if (!string.IsNullOrEmpty(fontSource.FontFamily))
-            {
-                // Icon fonts registered through ConfigureFonts (AddFont("fa-solid.otf",
-                // "FontAwesome")) resolve by alias or family name through the same
-                // registrar the label renderer uses.
-                typeface = LinuxFontRegistrar.Instance.TryGetTypeface(fontSource.FontFamily, SKFontStyle.Normal);
-            }
-
-            if (typeface == null && !string.IsNullOrEmpty(fontSource.FontFamily))
-            {
-                string[] fontPaths = new string[]
-                {
-                    "/usr/share/fonts/truetype/" + fontSource.FontFamily + ".ttf",
-                    "/usr/share/fonts/opentype/" + fontSource.FontFamily + ".otf",
-                    "/usr/local/share/fonts/" + fontSource.FontFamily + ".ttf",
-                    Path.Combine(AppContext.BaseDirectory, fontSource.FontFamily + ".ttf")
-                };
-
-                foreach (string path in fontPaths)
-                {
-                    if (File.Exists(path))
-                    {
-                        typeface = SKTypeface.FromFile(path, 0);
-                        if (typeface != null)
-                        {
-                            break;
-                        }
-                    }
-                }
-
-                if (typeface == null)
-                {
-                    typeface = SKTypeface.FromFamilyName(fontSource.FontFamily);
-                }
-            }
-
-            if (typeface == null)
-            {
-                typeface = SKTypeface.Default;
-            }
-
-            float fontSize = size * 0.8f;
-            using SKFont font = SkiaFontFactory.Create(typeface, fontSize);
-            using SKPaint paint = new SKPaint
-            {
-                Color = color,
-                IsAntialias = true
-            };
-
-            // symbol: ink-centering intentional (FontImageSource icon glyph is optically centered by its ink bounds)
-            font.MeasureText(glyph, out SKRect bounds, paint);
-            float x = size / 2f;
-            float y = (size - bounds.Top - bounds.Bottom) / 2f;
-            canvas.DrawText(glyph, x, y, SKTextAlign.Center, font, paint);
-
-            return bitmap;
-        }
+        /// <summary>The glyph of a FontImageSource as a bitmap (toolbar icons and tests use it directly).</summary>
+        internal static SKBitmap? RenderFontImageSource(FontImageSource fontSource, double requestedWidth, double requestedHeight) =>
+            LinuxFontImageSourceService.RenderGlyph(fontSource, requestedWidth, requestedHeight);
     }
 }
