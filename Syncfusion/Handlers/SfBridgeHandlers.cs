@@ -56,6 +56,8 @@ public class SfLayoutBridgeHandler : CrossPlatformLayoutHandler
     /// focusable views are its tab stops. The segmented control's parts
     /// (<c>KeyNavigationView</c>, <c>OutlinedBorderView</c>,
     /// <c>SelectionView</c>) are explicitly not, and stay unfocusable here.
+    /// SfToolbar's item views, its "more" menu items and its navigation and
+    /// "more" buttons are tab stops too.
     /// </summary>
     private static readonly HashSet<string> s_tabStops = new()
     {
@@ -64,6 +66,10 @@ public class SfLayoutBridgeHandler : CrossPlatformLayoutHandler
         "Syncfusion.Maui.Buttons.SfRadioButton",
         "Syncfusion.Maui.Buttons.SfSwitch",
         "Syncfusion.Maui.Buttons.SfSegmentedControl",
+        "Syncfusion.Maui.Toolbar.DefaultToolbarItemView",
+        "Syncfusion.Maui.Toolbar.CustomToolbarItemView",
+        "Syncfusion.Maui.Toolbar.MoreItemView",
+        "Syncfusion.Maui.Toolbar.ToolbarIconButton",
     };
 
     internal static bool IsTabStop(Type? type)
