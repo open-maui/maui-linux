@@ -757,14 +757,29 @@ public class SkiaButton : SkiaView, IButtonController
         var textBounds = new SKRect();
         float textWidth = 0;
         float textHeight = 0;
+        List<string>? wrapped = null;
+        float lineHeight = font.Metrics.Descent - font.Metrics.Ascent;
         if (hasText)
         {
             float room = contentBounds.Width - (hasImage && isHorizontal ? imageWidth + spacing : 0);
             displayText = TruncateForLineBreakMode(displayText, font, room);
-            font.MeasureText(displayText, out textBounds);
-            textWidth = MeasureTextWidth(displayText, font);
-            textHeight = textBounds.Height;
+            // WordWrap and CharacterWrap break a text wider than the room onto lines, as a
+            // WinUI button's text block does; one line keeps the single-line drawing below.
+            var lines = WrapForLineBreakMode(displayText, font, room);
+            if (lines.Count > 1)
+            {
+                wrapped = lines;
+                textWidth = lines.Max(l => MeasureTextWidth(l, font));
+                textHeight = lines.Count * lineHeight;
+            }
+            else
+            {
+                font.MeasureText(displayText, out textBounds);
+                textWidth = MeasureTextWidth(displayText, font);
+                textHeight = textBounds.Height;
+            }
         }
+        DisplayedLines = !hasText ? Array.Empty<string>() : wrapped ?? (IReadOnlyList<string>)new[] { displayText };
 
         // Calculate total content size
         float totalWidth, totalHeight;
@@ -843,7 +858,20 @@ public class SkiaButton : SkiaView, IButtonController
             canvas.DrawBitmap(_loadedImage!, imageRect, imagePaint);
 
             // Draw text
-            DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
+            if (wrapped != null)
+            {
+                float blockTop = layout.Position switch
+                {
+                    ButtonContentLayout.ImagePosition.Top => startY + imageHeight + spacing,
+                    ButtonContentLayout.ImagePosition.Bottom => startY,
+                    _ => contentBounds.MidY - textHeight / 2,
+                };
+                DrawLines(canvas, wrapped, textX + textWidth / 2, blockTop, lineHeight, font, textPaint);
+            }
+            else
+            {
+                DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
+            }
         }
         else if (hasImage)
         {
@@ -860,11 +888,127 @@ public class SkiaButton : SkiaView, IButtonController
         }
         else if (hasText)
         {
+            if (wrapped != null)
+            {
+                DrawLines(canvas, wrapped, contentBounds.MidX, contentBounds.MidY - textHeight / 2, lineHeight, font, textPaint);
+                return;
+            }
             float textX = contentBounds.MidX - textWidth / 2;
             float textY = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
             DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
         }
     }
+
+    /// <summary>The font the text is drawn with (tests measure with it).</summary>
+    internal SKFont CreateTextFont()
+    {
+        var style = new SKFontStyle(
+            FontAttributes.HasFlag(FontAttributes.Bold) ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            FontAttributes.HasFlag(FontAttributes.Italic) ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        return SkiaFontFactory.Create(
+            Fonts.GetTypeface(string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily, style),
+            FontSize > 0 ? (float)FontSize : 14f);
+    }
+
+    /// <summary>The width inside the padding (unset padding is 14 on each side).</summary>
+    internal float ContentWidth =>
+        (float)Bounds.Width - (float.IsNaN((float)Padding.Left) ? 14f : (float)Padding.Left) - (float.IsNaN((float)Padding.Right) ? 14f : (float)Padding.Right);
+
+    /// <summary>The lines of text the last frame drew (one, or several when the text wrapped).</summary>
+    internal IReadOnlyList<string> DisplayedLines { get; private set; } = Array.Empty<string>();
+
+    /// <summary>Wrapped lines, each centred on <paramref name="centerX"/>, the first line's top at <paramref name="top"/>.</summary>
+    private void DrawLines(SKCanvas canvas, List<string> lines, float centerX, float top, float lineHeight, SKFont font, SKPaint paint)
+    {
+        float ascent = -font.Metrics.Ascent;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            float width = MeasureTextWidth(lines[i], font);
+            DrawTextWithSpacing(canvas, lines[i], centerX - width / 2, top + i * lineHeight + ascent, font, paint);
+        }
+    }
+
+    private bool WrapsText => LineBreakMode is LineBreakMode.WordWrap or LineBreakMode.CharacterWrap;
+
+    /// <summary>
+    /// The text as WordWrap or CharacterWrap lays it out in <paramref name="maxWidth"/>: one line
+    /// when it fits (or the mode does not wrap), otherwise broken between words (WordWrap; a word
+    /// wider than the room is broken between characters) or between characters (CharacterWrap).
+    /// Line breaks in the text are kept.
+    /// </summary>
+    internal List<string> WrapForLineBreakMode(string text, SKFont font, float maxWidth)
+    {
+        var result = new List<string>();
+        if (!WrapsText || maxWidth <= 0 || (MeasureTextWidth(text, font) <= maxWidth && !text.Contains('\n')))
+        {
+            result.Add(text);
+            return result;
+        }
+        foreach (var paragraph in text.Replace("\r\n", "\n").Split('\n'))
+        {
+            if (LineBreakMode == LineBreakMode.CharacterWrap)
+            {
+                BreakCharacters(paragraph, font, maxWidth, result);
+                continue;
+            }
+            string line = "";
+            foreach (var word in paragraph.Split(' '))
+            {
+                string candidate = line.Length == 0 ? word : line + " " + word;
+                if (MeasureTextWidth(candidate, font) <= maxWidth)
+                {
+                    line = candidate;
+                    continue;
+                }
+                if (line.Length > 0)
+                    result.Add(line);
+                if (MeasureTextWidth(word, font) <= maxWidth)
+                {
+                    line = word;
+                }
+                else
+                {
+                    // A word wider than the room: broken between characters, the rest carried on.
+                    var pieces = new List<string>();
+                    BreakCharacters(word, font, maxWidth, pieces);
+                    for (int i = 0; i < pieces.Count - 1; i++)
+                        result.Add(pieces[i]);
+                    line = pieces.Count > 0 ? pieces[^1] : "";
+                }
+            }
+            result.Add(line);
+        }
+        return result;
+    }
+
+    /// <summary>Breaks <paramref name="text"/> between characters (never inside a surrogate pair), each line as long as fits.</summary>
+    private void BreakCharacters(string text, SKFont font, float maxWidth, List<string> lines)
+    {
+        if (text.Length == 0)
+        {
+            lines.Add("");
+            return;
+        }
+        int start = 0;
+        while (start < text.Length)
+        {
+            // At least one character per line, then as many more as fit.
+            int end = NextCharacter(text, start);
+            while (end < text.Length)
+            {
+                int next = NextCharacter(text, end);
+                if (MeasureTextWidth(text[start..next], font) > maxWidth)
+                    break;
+                end = next;
+            }
+            lines.Add(text[start..end]);
+            start = end;
+        }
+    }
+
+    private static int NextCharacter(string text, int index) =>
+        index + (char.IsHighSurrogate(text[index]) && index + 1 < text.Length ? 2 : 1);
 
     private bool TruncatesText =>
         LineBreakMode is LineBreakMode.TailTruncation or LineBreakMode.HeadTruncation or LineBreakMode.MiddleTruncation;
@@ -1171,6 +1315,20 @@ public class SkiaButton : SkiaView, IButtonController
         var layout = ContentLayout;
         bool isHorizontal = layout.Position == ButtonContentLayout.ImagePosition.Left ||
                            layout.Position == ButtonContentLayout.ImagePosition.Right;
+
+        // A wrapping LineBreakMode lays the text out in the width it is offered: as wide as its
+        // widest line, as tall as its lines.
+        if (hasText && WrapsText && !double.IsInfinity(availableSize.Width) && !double.IsNaN(availableSize.Width))
+        {
+            float offered = WidthRequest >= 0 ? (float)WidthRequest : (float)availableSize.Width;
+            float room = offered - paddingH - (hasImage && isHorizontal ? imageWidth + (float)layout.Spacing : 0);
+            var lines = WrapForLineBreakMode(displayText, font, room);
+            if (lines.Count > 1)
+            {
+                textWidth = lines.Max(l => MeasureTextWidth(l, font));
+                textHeight = lines.Count * textHeight;
+            }
+        }
 
         if (hasImage && hasText)
         {
