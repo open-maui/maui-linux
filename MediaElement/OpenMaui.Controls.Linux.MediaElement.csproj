@@ -46,8 +46,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Unit tests cover the zero-copy caps/format helpers (internal). -->
+    <!-- Unit tests cover the zero-copy caps/format helpers and the playback internals. -->
     <InternalsVisibleTo Include="OpenMaui.Controls.Linux.Tests" />
+    <!-- The compat suite drives the playback events, controls overlay and MPRIS object. -->
+    <InternalsVisibleTo Include="OpenMaui.Compat.Tests" />
   </ItemGroup>
 
   <!-- Include icon and README in package -->

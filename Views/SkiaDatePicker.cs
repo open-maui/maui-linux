@@ -214,6 +214,9 @@ public class SkiaDatePicker : SkiaView
         set => SetValue(CornerRadiusProperty, value);
     }
 
+    /// <summary>Raised when the drop-down opens or closes, by the user or from code.</summary>
+    public event EventHandler? IsOpenChanged;
+
     public bool IsOpen
     {
         get => _isOpen;
@@ -227,6 +230,7 @@ public class SkiaDatePicker : SkiaView
                 else
                     SkiaView.UnregisterPopupOverlay(this);
                 Invalidate();
+                IsOpenChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }

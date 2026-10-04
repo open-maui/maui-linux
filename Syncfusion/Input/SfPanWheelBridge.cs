@@ -47,7 +47,18 @@ internal static class SfPanWheelBridge
     {
         public Point Last;
         public bool Started;
+
+        /// <summary>Recent positions (window coordinates) and when, for the release velocity.</summary>
+        public readonly List<(long Ticks, Point Window)> Samples = new();
     }
+
+    /// <summary>How far back the release velocity looks (WinUI's inertia uses the latest movement).</summary>
+    private static readonly TimeSpan VelocityWindow = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>The clock velocities are measured with (a seam for tests).</summary>
+    internal static Func<long> Now { get; set; } = () => System.Diagnostics.Stopwatch.GetTimestamp();
+
+    private static long TicksPerSecond => System.Diagnostics.Stopwatch.Frequency;
 
     private static readonly ConditionalWeakTable<View, Drag> s_drags = new();
     private static int s_installed;
@@ -62,10 +73,16 @@ internal static class SfPanWheelBridge
             DiagnosticLog.Warn("Syncfusion", "This Syncfusion.Maui.Core release lacks the pinch entry point; ctrl+wheel zoom is disabled.");
         SkiaView.PointerRoutedAny += OnPointerRouted;
         SkiaView.ScrollRouted += OnScrollRouted;
+        SfPickerPan.Install();
     }
 
     private static void OnPointerRouted(View view, SkiaView.RoutedPointerKind kind, PointerEventArgs e)
     {
+        if (SfPickerPan.IsPickerColumn(view))
+        {
+            SfPickerPan.OnPointerRouted(view, kind, e);
+            return;
+        }
         if (s_onScroll == null)
             return;
         var gesture = SfInternals.GestureDetectorOf(view);
@@ -82,7 +99,9 @@ internal static class SfPanWheelBridge
         switch (kind)
         {
             case SkiaView.RoutedPointerKind.Pressed when e.Button == PointerButton.Left:
-                s_drags.AddOrUpdate(view, new Drag { Last = local });
+                var pressed = new Drag { Last = local };
+                pressed.Samples.Add((Now(), window));
+                s_drags.AddOrUpdate(view, pressed);
                 break;
 
             case SkiaView.RoutedPointerKind.Moved when s_drags.TryGetValue(view, out var drag):
@@ -90,6 +109,7 @@ internal static class SfPanWheelBridge
                 if (translate.X == 0 && translate.Y == 0)
                     break;
                 drag.Last = local;
+                AddSample(drag, window);
                 Pan(gesture, position, drag.Started ? GestureStatus.Running : GestureStatus.Started, local, translate);
                 drag.Started = true;
                 break;
@@ -97,17 +117,49 @@ internal static class SfPanWheelBridge
             case SkiaView.RoutedPointerKind.Released when s_drags.TryGetValue(view, out var ended):
                 s_drags.Remove(view);
                 if (ended.Started)
-                    Pan(gesture, position, GestureStatus.Completed, local, Point.Zero);
+                    Pan(gesture, position, GestureStatus.Completed, local, Point.Zero, VelocityOf(ended, window));
                 SfInvalidation.InvalidateAll(drawingOnly: false);
                 break;
         }
     }
 
-    private static void Pan(GestureDetector gesture, Func<IElement?, Point?> position, GestureStatus status, Point point, Point translate)
+    private static void AddSample(Drag drag, Point window)
+    {
+        long now = Now();
+        drag.Samples.Add((now, window));
+        long horizon = now - (long)(VelocityWindow.TotalSeconds * TicksPerSecond);
+        int stale = drag.Samples.FindIndex(sample => sample.Ticks >= horizon);
+        if (stale > 1)
+            drag.Samples.RemoveRange(0, stale - 1);
+    }
+
+    /// <summary>
+    /// The release velocity in pixels per second, which the Windows build
+    /// takes from WinUI's ManipulationInertiaStarting
+    /// (<c>OnNativeViewManipulationInertiaStarting</c>) and hands to pan
+    /// listeners with the Completed pan, so they can coast (carousels,
+    /// pickers, charts). Measured over the latest movement; a drag that stopped
+    /// before its release has none.
+    /// </summary>
+    private static Point VelocityOf(Drag drag, Point release)
+    {
+        long now = Now();
+        long horizon = now - (long)(VelocityWindow.TotalSeconds * TicksPerSecond);
+        var recent = drag.Samples.Where(sample => sample.Ticks >= horizon).ToList();
+        if (recent.Count == 0)
+            return Point.Zero;
+        var (ticks, from) = recent[0];
+        double seconds = (now - ticks) / (double)TicksPerSecond;
+        if (seconds <= 0)
+            return Point.Zero;
+        return new Point((release.X - from.X) / seconds, (release.Y - from.Y) / seconds);
+    }
+
+    private static void Pan(GestureDetector gesture, Func<IElement?, Point?> position, GestureStatus status, Point point, Point translate, Point velocity = default)
     {
         try
         {
-            s_onScroll!.Invoke(gesture, new object[] { position, status, point, translate, Point.Zero });
+            s_onScroll!.Invoke(gesture, new object[] { position, status, point, translate, velocity });
         }
         catch (TargetInvocationException ex)
         {

@@ -7,13 +7,12 @@ using Microsoft.Maui.Devices.Sensors;
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Explicit "not supported" implementations of the motion/environment sensor
-/// APIs that have no desktop hardware behind them. They replace the portable
-/// reference-assembly stubs, which throw
-/// <c>NotImplementedInReferenceAssemblyException</c> from every member, so
-/// that apps get the documented behaviour: <c>IsSupported == false</c>,
-/// <c>IsMonitoring == false</c>, <c>Stop()</c> is a no-op and <c>Start()</c>
-/// throws <see cref="FeatureNotSupportedException"/>.
+/// Explicit "not supported" implementations of the motion/environment sensor APIs, for code
+/// that wants a sensor that is never there. <c>UseLinux</c> no longer installs them: the sensor
+/// facades are MAUI's own implementations reading the kernel's IIO devices
+/// (<see cref="SensorPatches"/>), supported where the hardware is. These report
+/// <c>IsSupported == false</c>, <c>IsMonitoring == false</c>, a no-op <c>Stop()</c> and a
+/// <c>Start()</c> that throws <see cref="FeatureNotSupportedException"/>.
 /// </summary>
 internal static class UnsupportedSensor
 {

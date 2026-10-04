@@ -39,8 +39,17 @@ internal static class WaylandCsdRenderer
     /// title; pass an empty string to draw the strip without text.
     /// </summary>
     public static void DrawTitlebar(SKCanvas canvas, WaylandWindow window, float logicalWidth, string title)
+        => DrawTitlebar(canvas, window, logicalWidth, title, WaylandWindow.CsdTitlebarHeightLogical, null);
+
+    /// <summary>
+    /// Draws a titlebar <paramref name="height"/> tall. With <paramref name="drawContent"/> (the
+    /// window's TitleBar, MAUI's Window.TitleBar) the content is drawn over the bar's background
+    /// in place of the title text, and the window buttons on top of it, as Windows draws its
+    /// caption buttons over a custom title bar.
+    /// </summary>
+    public static void DrawTitlebar(SKCanvas canvas, WaylandWindow window, float logicalWidth, string title, float height, Action<SKCanvas>? drawContent)
     {
-        float h = WaylandWindow.CsdTitlebarHeightLogical;
+        float h = height;
         var bounds = new SKRect(0, 0, logicalWidth, h);
 
         bool isDark = SkiaTheme.IsDarkMode;
@@ -93,6 +102,15 @@ internal static class WaylandCsdRenderer
         window.CsdCloseButtonBounds = closeRect;
         window.CsdMaximizeButtonBounds = maxRect;
         window.CsdMinimizeButtonBounds = minRect;
+
+        if (drawContent != null)
+        {
+            canvas.Save();
+            canvas.ClipRect(new SKRect(0, 0, logicalWidth, h));
+            drawContent(canvas);
+            canvas.Restore();
+            title = string.Empty;
+        }
 
         DrawCloseButton(canvas, closeRect, isDark);
         DrawMaxButton(canvas, maxRect, isDark, window.IsMaximized);

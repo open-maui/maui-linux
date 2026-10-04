@@ -105,6 +105,17 @@ public class SkiaSfLayout : SkiaCrossPlatformLayout
         InvalidateMeasure();
     }
 
+    /// <summary>
+    /// The child views, then the parts the control only draws (its semantics
+    /// nodes), as the Windows build's automation peer lists them.
+    /// </summary>
+    protected override List<IAccessible> GetAccessibleChildren()
+    {
+        var children = base.GetAccessibleChildren();
+        children.AddRange(SfSemanticsPatches.NodesOf(this, MauiView as Microsoft.Maui.Controls.View));
+        return children;
+    }
+
     private int IndexOfChild(SkiaView view)
     {
         var children = Children;

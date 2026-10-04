@@ -1,6 +1,28 @@
 # MediaElement on Linux
 
-`OpenMaui.Controls.Linux.MediaElement` backs `CommunityToolkit.Maui.MediaElement` with a GStreamer `playbin` whose video sink is an `appsink`; `SkiaMediaElement` draws each frame inside the Skia render tree. This page covers how frames reach the screen and how seeking behaves.
+`OpenMaui.Controls.Linux.MediaElement` backs `CommunityToolkit.Maui.MediaElement` with a GStreamer `playbin` whose video sink is an `appsink`; `SkiaMediaElement` draws each frame inside the Skia render tree. This page covers how the toolkit's events and properties map to the pipeline, how frames reach the screen and how seeking behaves.
+
+## Events and properties
+
+The handler drives the pipeline the way the toolkit's Windows `MediaManager` drives `MediaPlayerElement`. A thread follows the pipeline's bus for its whole life and hands errors, the end of the stream, state changes and buffering to the UI thread.
+
+| Toolkit member | On Linux |
+|---|---|
+| `MediaOpened`, `Duration` | Setting `Source` opens the media at once: the pipeline prerolls to PAUSED whether or not it plays. `MediaOpened` is raised once per source, after `Duration` is set |
+| `MediaFailed` | Raised with GStreamer's error message (a missing file, a codec without a plugin, an HTTP error). The toolkit then sets `CurrentState` to `Failed` |
+| `MediaEnded` | Raised at the end unless `ShouldLoopPlayback` is set. Playback holds paused at the end, and `Play` starts again from the beginning |
+| `CurrentState`, `StateChanged` | `Opening` when a source is set, `Buffering` while a network source fills its buffer, then `Playing` or `Paused`. `Stopped` comes from `Stop` and from the end, and `None` from clearing `Source` |
+| `Position`, `PositionChanged` | Updated about four times a second while `Playing`, `Paused` or `Stopped` |
+| `SeekCompleted` | Raised when the last requested seek has landed |
+| `MediaWidth`, `MediaHeight` | The decoded video size (0 x 0 for audio only) |
+| `Speed` | The playback rate. Audio keeps its pitch through `scaletempo`. Setting `Speed` to 0 pauses; playing again restores rate 1, and `Speed` follows, as on Windows |
+| `UriMediaSource.HttpHeaders` | Set on the HTTP source as extra request headers. `User-Agent` goes to the source's `user-agent` property. They are not sent with the segment requests of HLS or DASH streams, which GStreamer's adaptive demuxers make with HTTP sources of their own |
+| `ShouldKeepScreenOn` | Inhibits the screen saver while playing: the desktop portal's `Inhibit` (idle) first, then `org.freedesktop.ScreenSaver.Inhibit`. Released on `Pause`, `Stop`, the end, and when the handler disconnects |
+| `ShouldShowPlaybackControls` | A controls bar drawn over the bottom of the video: elapsed and remaining time, a seek bar, mute, play/pause, playback rate (0.25, 0.5, Normal, 1.5, 2), repeat and zoom (fit or fill). As with the WinUI transport controls, it shows while the media is not playing and, while it plays, for three seconds after the pointer last moved over the video. Presses on the bar do not reach gestures behind the video. Off by default, as in the toolkit |
+| `MetadataTitle`, `MetadataArtist`, `MetadataArtworkUrl` | Published over MPRIS (`org.mpris.MediaPlayer2` on the session bus). The desktop then shows the player in its media widget and routes the media keys to it: play, pause, play/pause and stop, plus seeking, volume, rate and repeat. One player is published per process: the element that last opened or played media with metadata. An element without any metadata, such as a muted background video, is never published. Set `OPENMAUI_MPRIS=0` to turn this off |
+| `DisconnectHandler` | Tears the pipeline down, releases the screen-saver inhibition and withdraws the MPRIS player |
+
+Not done yet: the controls bar has no fast-forward, rewind or full-window buttons, the artwork is not shown as a poster before playback, and `StreamMediaSource` is not supported.
 
 ## Frame paths
 
