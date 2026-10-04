@@ -115,6 +115,8 @@ public sealed class WindowContext : IDisposable
                 // at the first resize, which may never come.
                 if (DisplayWindow is { } native)
                     ReportFrame(native.Width, native.Height);
+                else if (IsHeadless)
+                    ReportHeadlessFrame();
                 PresentPendingModals(newWindow);
             }
         }
@@ -122,6 +124,76 @@ public sealed class WindowContext : IDisposable
 
     /// <summary>View that has captured pointer events during a drag.</summary>
     public SkiaView? CapturedView { get; set; }
+
+    /// <summary>The pressed view's ancestors that may take its press over as their drag (innermost first).</summary>
+    private readonly List<IPointerDragInterceptor> _dragInterceptors = new();
+
+    /// <summary>
+    /// Tells the pressed view's drag-intercepting ancestors (a SwipeView) about the press, so a
+    /// drag that starts on the content (a label, a button in a row) can become theirs; and those
+    /// inside it under the pointer, when the pressed view keeps presses on its content (a list
+    /// row's SwipeView).
+    /// </summary>
+    internal void BeginDragInterception(SkiaView hitView, PointerEventArgs e)
+    {
+        _dragInterceptors.Clear();
+
+        // A list keeps presses on plain row content (item tap, scrolling): a swipe view in the
+        // row under the pointer, inside the hit view, can still take a drag over.
+        var local = InViewSpace(hitView, e);
+        var inner = hitView.InnermostViewAt(local.X, local.Y);
+        for (var view = inner; view != null && !ReferenceEquals(view, hitView); view = view.Parent)
+            AddDragInterceptor(view, e);
+
+        for (var view = hitView.Parent; view != null; view = view.Parent)
+            AddDragInterceptor(view, e);
+    }
+
+    private void AddDragInterceptor(SkiaView view, PointerEventArgs e)
+    {
+        if (view is IPointerDragInterceptor interceptor && view.IsVisible && view.IsEnabled)
+        {
+            _dragInterceptors.Add(interceptor);
+            interceptor.OnDescendantPointerPressed(InViewSpace(view, e));
+        }
+    }
+
+    /// <summary>
+    /// While a descendant has the pointer, lets an intercepting ancestor take a drag over: the
+    /// descendant's press is cancelled (the pointer exits it and is released away from it, its
+    /// gesture tracking dropped) and the ancestor gets the pointer. True when the move went to the ancestor.
+    /// </summary>
+    internal bool TryInterceptDrag(PointerEventArgs e)
+    {
+        if (CapturedView is not { } captured || _dragInterceptors.Count == 0)
+            return false;
+
+        foreach (var interceptor in _dragInterceptors)
+        {
+            var view = (SkiaView)interceptor;
+            if (ReferenceEquals(view, captured))
+                continue;
+            if (!interceptor.ShouldInterceptDrag(InViewSpace(view, e)))
+                continue;
+
+            _dragInterceptors.Clear();
+            // The descendant's press is cancelled as a press that left it: the pointer exits it
+            // (a button drops its pressed state) and is released away from it.
+            GestureManager.CancelPointer(captured);
+            var away = new PointerEventArgs(-1_000_000f, -1_000_000f, e.Button);
+            captured.OnPointerExited(away);
+            captured.OnPointerReleased(away);
+            if (ReferenceEquals(HoveredView, captured))
+                HoveredView = null;
+            CapturedView = view;
+            view.OnPointerMoved(InViewSpace(view, e));
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>The press is over: no ancestor takes it over any more.</summary>
+    internal void EndDragInterception() => _dragInterceptors.Clear();
 
     /// <summary>View currently under the pointer (hover tracking).</summary>
     public SkiaView? HoveredView { get; set; }
@@ -502,7 +574,8 @@ public sealed class WindowContext : IDisposable
             // If a view has captured the pointer, send all events to it
             if (CapturedView != null)
             {
-                CapturedView.OnPointerMoved(InViewSpace(CapturedView, e));
+                if (!TryInterceptDrag(e))
+                    CapturedView.OnPointerMoved(InViewSpace(CapturedView, e));
                 return;
             }
 
@@ -590,6 +663,7 @@ public sealed class WindowContext : IDisposable
 
                 DiagnosticLog.Debug("WindowContext", $"Calling OnPointerPressed on {hitView.GetType().Name}");
                 hitView.OnPointerPressed(InViewSpace(hitView, e));
+                BeginDragInterception(hitView, e);
             }
             else
             {
@@ -644,6 +718,7 @@ public sealed class WindowContext : IDisposable
             // If a view has captured the pointer, send release to it
             if (CapturedView != null)
             {
+                EndDragInterception();
                 CapturedView.OnPointerReleased(InViewSpace(CapturedView, e));
                 CapturedView = null; // Release capture
                 return;
@@ -833,6 +908,17 @@ public sealed class WindowContext : IDisposable
     {
         try
         {
+            if (IsHeadless)
+            {
+                // A window without a native toplevel takes its requested geometry as a desktop
+                // window manager would grant it (default 800x600 at 0,0), within its limits.
+                if (IsSet(window.Width)) _headlessWidth = window.Width;
+                if (IsSet(window.Height)) _headlessHeight = window.Height;
+                if (!double.IsNaN(window.X)) _headlessX = window.X;
+                if (!double.IsNaN(window.Y)) _headlessY = window.Y;
+                ClampHeadlessSize(window);
+                return;
+            }
             if (IsSet(window.MinimumWidth) || IsSet(window.MinimumHeight) || IsSet(window.MaximumWidth) || IsSet(window.MaximumHeight))
                 ApplySizeLimits(window);
             if (!double.IsNaN(window.X) && !double.IsNaN(window.Y))
@@ -846,8 +932,129 @@ public sealed class WindowContext : IDisposable
 
     private static bool IsSet(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && v > 0;
 
+    #region Window without a native toplevel
+
+    // The geometry of a window that has no native toplevel (an app that runs without a display:
+    // embedded or under test), in logical units. A native window's geometry is the toplevel's.
+    private double _headlessX, _headlessY;
+    private double _headlessWidth = DefaultHeadlessWidth, _headlessHeight = DefaultHeadlessHeight;
+
+    /// <summary>The size of a window without a native toplevel when its Window sets none (OpenMaui's default window size).</summary>
+    internal const double DefaultHeadlessWidth = 800, DefaultHeadlessHeight = 600;
+
+    /// <summary>
+    /// True when this window has no native toplevel because the app runs without a display
+    /// (never initialized with one: embedded, or under test). Such a window keeps its own
+    /// geometry, sized by Window.Width/Height and its limits as a desktop window is, and
+    /// reports it to MAUI. A GTK-hosted window (no IDisplayWindow either) is not headless.
+    /// </summary>
+    internal bool IsHeadless => DisplayWindow == null && !_app.HasDisplay;
+
+    /// <summary>
+    /// The window's client area in logical units: the native window's (below a client-drawn
+    /// title bar), or the geometry of a window without a native toplevel.
+    /// </summary>
+    internal Microsoft.Maui.Graphics.Size LogicalSize
+    {
+        get
+        {
+            if (DisplayWindow is { } native)
+            {
+                float scale = Scale;
+                return new Microsoft.Maui.Graphics.Size(native.Width / scale, Math.Max(0, native.Height / scale - CsdPointerInsetLogical));
+            }
+            return new Microsoft.Maui.Graphics.Size(_headlessWidth, _headlessHeight);
+        }
+    }
+
+    /// <summary>
+    /// What a user moving or resizing the window does (WinUI's AppWindow.MoveAndResize in
+    /// MAUI's tests): a native window is asked for the frame, a window without a native
+    /// toplevel takes it (within its limits) and MAUI is told, as after a platform resize.
+    /// </summary>
+    internal void MoveAndResize(Microsoft.Maui.Graphics.Rect logicalFrame)
+    {
+        if (!IsHeadless)
+        {
+            ApplyRequestedPosition(logicalFrame.X, logicalFrame.Y);
+            ApplyRequestedSize(logicalFrame.Width, logicalFrame.Height);
+            return;
+        }
+        _headlessX = logicalFrame.X;
+        _headlessY = logicalFrame.Y;
+        _headlessWidth = Math.Max(1, logicalFrame.Width);
+        _headlessHeight = Math.Max(1, logicalFrame.Height);
+        if (MauiWindow is Microsoft.Maui.Controls.Window window)
+            ClampHeadlessSize(window);
+        OnHeadlessSizeChanged();
+        ReportHeadlessFrame();
+    }
+
+    private void ApplyHeadlessSize(double logicalWidth, double logicalHeight)
+    {
+        double requestedWidth = IsSet(logicalWidth) ? logicalWidth : _headlessWidth;
+        double requestedHeight = IsSet(logicalHeight) ? logicalHeight : _headlessHeight;
+        _headlessWidth = requestedWidth;
+        _headlessHeight = requestedHeight;
+        bool clamped = MauiWindow is Microsoft.Maui.Controls.Window window && ClampHeadlessSize(window);
+        OnHeadlessSizeChanged();
+        // MAUI already holds a size it requested; it is told only when the window could not take it.
+        if (clamped)
+            ReportHeadlessFrame();
+    }
+
+    /// <summary>Keeps the size within the window's Minimum/MaximumWidth/Height; true when it changed.</summary>
+    private bool ClampHeadlessSize(Microsoft.Maui.Controls.Window window)
+    {
+        double width = Clamp(_headlessWidth, window.MinimumWidth, window.MaximumWidth);
+        double height = Clamp(_headlessHeight, window.MinimumHeight, window.MaximumHeight);
+        bool changed = width != _headlessWidth || height != _headlessHeight;
+        _headlessWidth = width;
+        _headlessHeight = height;
+        if (changed)
+            OnHeadlessSizeChanged();
+        return changed;
+
+        static double Clamp(double value, double min, double max)
+        {
+            if (IsSet(max) && value > max) value = max;
+            if (IsSet(min) && value < min) value = min;
+            return value;
+        }
+    }
+
+    /// <summary>The tree is laid out at the new size (by the next frame of whoever renders it).</summary>
+    private void OnHeadlessSizeChanged()
+    {
+        _rootView?.InvalidateMeasure();
+        for (int i = 0; i < _modalViews.Count; i++)
+            _modalViews[i].InvalidateMeasure();
+    }
+
+    /// <summary>Tells MAUI the geometry of a window without a native toplevel.</summary>
+    private void ReportHeadlessFrame()
+    {
+        if (MauiWindow == null)
+            return;
+        try
+        {
+            MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(_headlessX, _headlessY, _headlessWidth, _headlessHeight));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("WindowContext", "IWindow.FrameChanged threw", ex);
+        }
+    }
+
+    #endregion
+
     private void ApplyRequestedSize(double logicalWidth, double logicalHeight)
     {
+        if (IsHeadless)
+        {
+            ApplyHeadlessSize(logicalWidth, logicalHeight);
+            return;
+        }
         var native = DisplayWindow;
         if (native == null || !IsSet(logicalWidth) || !IsSet(logicalHeight)) return;
         float scale = Scale;
@@ -862,6 +1069,13 @@ public sealed class WindowContext : IDisposable
 
     private void ApplyRequestedPosition(double logicalX, double logicalY)
     {
+        if (IsHeadless)
+        {
+            // MAUI already holds the requested position; nothing to report back.
+            if (!double.IsNaN(logicalX)) _headlessX = logicalX;
+            if (!double.IsNaN(logicalY)) _headlessY = logicalY;
+            return;
+        }
         if (double.IsNaN(logicalX) || double.IsNaN(logicalY)) return;
         if (DisplayWindow is IDesktopWindowControl control)
             control.RequestLogicalPosition((int)Math.Round(logicalX), (int)Math.Round(logicalY));
@@ -869,6 +1083,14 @@ public sealed class WindowContext : IDisposable
 
     private void ApplySizeLimits(Microsoft.Maui.Controls.Window window)
     {
+        if (IsHeadless)
+        {
+            // A window smaller than a new minimum (larger than a new maximum) grows (shrinks)
+            // to it, as a desktop window does; MAUI learns the new size.
+            if (ClampHeadlessSize(window))
+                ReportHeadlessFrame();
+            return;
+        }
         if (DisplayWindow is not IDesktopWindowControl control) return;
         static int Limit(double v) => double.IsNaN(v) || double.IsInfinity(v) || v <= 0 ? 0 : (int)Math.Round(v);
         control.SetLogicalSizeLimits(
@@ -1370,6 +1592,7 @@ public sealed class WindowContext : IDisposable
         {
             window.ModalPushed -= OnMauiModalPushed;
             window.ModalPopped -= OnMauiModalPopped;
+            window.PropertyChanged -= OnMauiWindowPropertyChanged;
         }
 
         RenderingEngine?.Dispose();

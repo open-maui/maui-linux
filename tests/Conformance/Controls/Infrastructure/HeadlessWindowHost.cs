@@ -31,7 +31,8 @@ namespace Microsoft.Maui.DeviceTests
 	/// IWindow.Created is raised as the bootstrap raises it, and frames run on the
 	/// main thread every 16 ms: animations tick (LinuxTicker), the tree and its
 	/// modal layers are measured and arranged at the window size (800x600, the
-	/// default window size) and drawn into a raster surface, as
+	/// default window size, unless Window.Width/Height ask for another; the context
+	/// keeps a display-less window's size) and drawn into a raster surface, as
 	/// SkiaRenderingEngine.Render does for a native window. Loaded therefore
 	/// comes at the first frame, as in an app.
 	///
@@ -124,11 +125,11 @@ namespace Microsoft.Maui.DeviceTests
 			s_open.Add(host);
 			try
 			{
+				// The context reports the window's size to MAUI when it adopts the MAUI window, as
+				// for a native window; a window without a native toplevel takes the size Window.Width/
+				// Height ask for (800x600 by default), within its limits, and follows later requests
+				// (WindowContext.IsHeadless).
 				context.MauiWindow = window;
-				// A native window reports its size when the context adopts the MAUI window
-				// (WindowContext.ReportFrame); this window has no native toplevel, so it
-				// reports the size its frames are laid out at.
-				window.FrameChanged(new Rect(0, 0, WindowWidth, WindowHeight));
 
 				SkiaView? root = null;
 				if (window is Controls.Window w && w.Page is Page page)
@@ -299,7 +300,8 @@ namespace Microsoft.Maui.DeviceTests
 			}
 			else
 			{
-				available = new Size(WindowWidth, WindowHeight);
+				// The window's size: Window.Width/Height requests resize it, as on a desktop.
+				available = WindowSize;
 			}
 
 			var modals = Context.ModalViews;
@@ -318,6 +320,20 @@ namespace Microsoft.Maui.DeviceTests
 			}
 
 			Draw(root, modals, (int)Math.Ceiling(available.Width), (int)Math.Ceiling(available.Height));
+		}
+
+		static PropertyInfo? s_logicalSize;
+
+		/// <summary>The size the window's frames are laid out at (WindowContext.LogicalSize).</summary>
+		public Size WindowSize
+		{
+			get
+			{
+				s_logicalSize ??= typeof(WindowContext).GetProperty("LogicalSize", Instance)
+					?? throw new MissingMemberException(nameof(WindowContext), "LogicalSize");
+				var size = (Size)s_logicalSize.GetValue(Context)!;
+				return size.Width > 0 && size.Height > 0 ? size : new Size(WindowWidth, WindowHeight);
+			}
 		}
 
 		SKSurface? _surface;

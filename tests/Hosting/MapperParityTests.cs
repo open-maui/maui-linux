@@ -23,18 +23,16 @@ public class MapperParityTests
     private static readonly Dictionary<string, string[]> KnownGaps = new()
     {
         ["CarouselView"] = new[] { "EmptyViewTemplate", "HorizontalScrollBarVisibility", "IsVisible", "ItemsUpdatingScrollMode", "VerticalScrollBarVisibility" },
-        ["CollectionView"] = new[] { "CanReorderItems", "IsGrouped", "IsVisible", "ItemSizingStrategy", "ItemsUpdatingScrollMode" },
+        ["CollectionView"] = new[] { "CanReorderItems", "IsVisible", "ItemSizingStrategy", "ItemsUpdatingScrollMode" },
         ["ContentPage"] = new[] { "HideSoftInputOnTapped" },
         ["DatePicker"] = new[] { "IsOpen" },
         ["FlyoutPage"] = new[] { "Content", "HideSoftInputOnTapped", "Title" },
         ["NavigationPage"] = new[] { "Content", "HideSoftInputOnTapped", "Title" },
         ["Page"] = new[] { "Content", "HideSoftInputOnTapped" },
         ["Picker"] = new[] { "IsOpen", "Items" },
-        ["RefreshView"] = new[] { "IsRefreshEnabled" },
         ["Shell"] = new[] { "Content", "HideSoftInputOnTapped" },
         ["Slider"] = new[] { "ThumbImageSource" },
         ["Stepper"] = new[] { "Interval" },
-        ["SwipeView"] = new[] { "SwipeTransitionMode" },
         ["TabbedPage"] = new[] { "Content", "HideSoftInputOnTapped", "Title" },
         ["TimePicker"] = new[] { "IsOpen" },
     };

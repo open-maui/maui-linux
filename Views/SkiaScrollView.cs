@@ -347,8 +347,12 @@ public class SkiaScrollView : SkiaView
             if (_content.HeightRequest >= 0)
                 contentHeight = (float)_content.HeightRequest;
 
-            var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
-            _content.Arrange(contentBounds);
+            // Placed by its own alignment when smaller than the viewport, as ArrangeOverride
+            // places it: this arrange came after it every frame and put End or Center content
+            // back at the start.
+            var aligned = AlignContent(new Rect(contentLeft, contentTop, contentWidth, contentHeight),
+                bounds.Width - (float)margin.HorizontalThickness, bounds.Height - (float)margin.VerticalThickness);
+            _content.Arrange(aligned);
 
             canvas.Save();
             canvas.Translate(-_scrollX, -_scrollY);
@@ -900,6 +904,24 @@ public class SkiaScrollView : SkiaView
         return new Size(width, height);
     }
 
+    /// <summary>
+    /// Content smaller than the viewport (<paramref name="availableWidth"/> by
+    /// <paramref name="availableHeight"/>) is placed by its own alignment, as MAUI's ScrollView
+    /// arranges it (LayoutExtensions.ComputeFrame).
+    /// </summary>
+    private Rect AlignContent(Rect content, float availableWidth, float availableHeight)
+    {
+        if (_content?.MauiView is not IView contentView)
+            return content;
+        var x = content.X;
+        var y = content.Y;
+        if (content.Width < availableWidth)
+            x += AlignmentOffset(contentView.HorizontalLayoutAlignment, availableWidth - (float)content.Width);
+        if (content.Height < availableHeight)
+            y += AlignmentOffset(contentView.VerticalLayoutAlignment, availableHeight - (float)content.Height);
+        return new Rect(x, y, content.Width, content.Height);
+    }
+
     protected override Rect ArrangeOverride(Rect bounds)
     {
 
@@ -958,19 +980,9 @@ public class SkiaScrollView : SkiaView
             if (_content.HeightRequest >= 0)
                 contentHeight = (float)_content.HeightRequest;
 
-            // Content smaller than the viewport is placed by its own alignment, as
-            // MAUI's ScrollView arranges it (LayoutExtensions.ComputeFrame).
-            if (_content.MauiView is IView contentView)
-            {
-                float availableWidth = (float)(actualBounds.Width - margin.Left - margin.Right);
-                float availableHeight = (float)(actualBounds.Height - margin.Top - margin.Bottom);
-                if (contentWidth < availableWidth)
-                    contentLeft += AlignmentOffset(contentView.HorizontalLayoutAlignment, availableWidth - contentWidth);
-                if (contentHeight < availableHeight)
-                    contentTop += AlignmentOffset(contentView.VerticalLayoutAlignment, availableHeight - contentHeight);
-            }
-
-            var contentBounds = new Rect(contentLeft, contentTop, contentWidth, contentHeight);
+            var contentBounds = AlignContent(new Rect(contentLeft, contentTop, contentWidth, contentHeight),
+                (float)(actualBounds.Width - margin.Left - margin.Right),
+                (float)(actualBounds.Height - margin.Top - margin.Bottom));
 
             _content.Arrange(contentBounds);
         }
