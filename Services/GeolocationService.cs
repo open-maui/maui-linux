@@ -30,11 +30,14 @@ public class GeolocationService : IGeolocation
     }
 
     /// <summary>Always uses <paramref name="portal"/>, whatever OPENMAUI_PORTALS says (tests).</summary>
-    internal GeolocationService(IDesktopPortal portal, bool alwaysUsePortal)
+    internal GeolocationService(IDesktopPortal portal, bool alwaysUsePortal, Action<Action>? dispatch = null)
         : this(portal)
     {
         _alwaysUsePortal = alwaysUsePortal;
+        _dispatch = dispatch;
     }
+
+    private readonly Action<Action>? _dispatch;
 
     private readonly bool _alwaysUsePortal;
 
@@ -179,8 +182,13 @@ public class GeolocationService : IGeolocation
         OnMainThread(() => LocationChanged?.Invoke(this, new GeolocationLocationChangedEventArgs(location)));
     }
 
-    private static void OnMainThread(Action action)
+    private void OnMainThread(Action action)
     {
+        if (_dispatch != null)
+        {
+            _dispatch(action);
+            return;
+        }
         var dispatcher = Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main;
         if (dispatcher == null || Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
             action();

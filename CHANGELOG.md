@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.7] - unreleased
+
+### Added
+
+- **A gate on MAUI's handler mappings** (`MapperParityTests`): every property and command MAUI's own handler maps for a control must be mapped by OpenMaui's handler, or be listed as a known gap; the test fails when MAUI gains a mapping Linux does not handle, and when a listed gap gets mapped. It lists the 107 open gaps of 2,135 mappings across the 58 mapped controls (CollectionView grouping, header and footer templates; SearchBar's entry properties; shape stroke details; `TextTransform`; picker `IsOpen`, among them).
+- **Geolocation listens**: `StartListeningForegroundAsync` keeps a desktop-portal Location session open and raises `LocationChanged` for each fix (which also becomes the last known location), honouring the request's accuracy and `MinimumTime`; `StopListeningForeground` closes it. It returned false and never raised the event. As MAUI does, starting while listening throws.
+- **`Battery.EnergySaverStatus` follows the desktop's power profile** (power-profiles-daemon or tuned-ppd on the system bus): on in "power-saver", off in any other profile, and `EnergySaverStatusChanged` is raised when it switches. It was always Unknown; it still is without the daemon.
+
+### Fixed
+
+- **`AppInfo.RequestedLayoutDirection` was always left-to-right**: it now follows the UI language (right-to-left for Arabic, Hebrew and the rest), as on the other platforms.
+- **`Email.IsComposeSupported`, `Sms.IsComposeSupported` and `PhoneDialer.IsSupported` were always true**: they now report whether an application handles mailto:, sms: and tel: links (the XDG associations xdg-open uses; always true in a sandbox, where the portal chooses), and composing or dialling without one throws `FeatureNotSupportedException`, as MAUI does, instead of doing nothing. `Sms.ComposeAsync(null)` opens an empty message, as on the other platforms, instead of nothing.
+- **Changing `CheckBox.Color` after the box was shown did not recolour it**: MAUI maps `Color` to a refresh of the check's colour, and the Linux handler had no such mapping (found by the mapping gate).
+
 ## [10.0.110.6] - 2026-10-01
 
 ### Added
