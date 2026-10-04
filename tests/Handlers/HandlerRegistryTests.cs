@@ -53,6 +53,7 @@ public class HandlerRegistryTests
     [InlineData(typeof(MenuFlyout), typeof(MenuFlyoutHandler))]
     [InlineData(typeof(CarouselView), typeof(CarouselViewHandler))]
     [InlineData(typeof(SwipeView), typeof(SwipeViewHandler))]
+    [InlineData(typeof(SwipeItemView), typeof(SwipeItemViewHandler))]
     [InlineData(typeof(RefreshView), typeof(RefreshViewHandler))]
     [InlineData(typeof(IndicatorView), typeof(IndicatorViewHandler))]
     [InlineData(typeof(GraphicsView), typeof(GraphicsViewHandler))]

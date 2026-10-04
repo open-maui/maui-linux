@@ -390,6 +390,7 @@ Set `OPENMAUI_INVARIANTS=1` and use the app: each page is checked a second after
 | `type-name-text` | text that is a .NET type name (an object drawn through its `ToString`) |
 | `draws-outside-bounds` | an image or video that draws outside its frame |
 | `unreachable-control` | a visible, enabled control that a click at its centre does not reach |
+| `clipped-text` | a label shorter than its text, or reaching past the bottom or top of a view around it (a row cut too short); a truncating `LineBreakMode` or `MaxLines`, and content inside a scrolling view, are not reported |
 | `binding-failed` | a binding that failed (MAUI's binding diagnostics are turned on for this) |
 | `error-logged` | an error OpenMaui logged while the page was shown |
 

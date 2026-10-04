@@ -1,6 +1,6 @@
 # MAUI handler conformance (dotnet/maui's own tests against the Linux handlers)
 
-Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1475 MAUI tests ported: 1377 passed, 0 failed, 98 skipped** (of the skips, 27 are MAUI's own and 71 are wrapper-view tests that do not apply; see below). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed".
+Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1751 MAUI tests ported: 1660 passed, 0 failed, 91 skipped** (89 are MAUI's container-view tests, which assert a wrapper mechanism no handler outside `Microsoft.Maui.dll` can have on the platform-neutral build, and 2 are tests MAUI itself calls invalid; see "Skipped"). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed". The second round (RefreshView, IndicatorView, SwipeView, View, Element, Window, Page and Navigation ported; the skips re-examined) went from 1419 passed / 103 skipped of 1522 to the numbers above; its fixes are under "Gaps found and fixed, second round".
 
 The suite compiles dotnet/maui's shared handler device tests (`src/Core/tests/DeviceTests/Handlers/*/<X>HandlerTests.cs` and the shared bases in `src/Core/tests/DeviceTests.Shared`) unchanged, against OpenMaui's handlers, so the assertions are MAUI's, not a reading of MAUI. Only the per-platform helper partials (MAUI's `*.Windows.cs` / `*.Android.cs`, "read the value back from the native view") are written for Linux, and they read the Skia platform view.
 
@@ -24,8 +24,9 @@ The assembly is named `Microsoft.Maui.Core.DeviceTests`, the name of MAUI's own 
 
 - `src/TestUtils/src/DeviceTests/`: `AssertHelpers.cs`, `AssertionExtensions.cs`
 - `src/Core/tests/DeviceTests.Shared/`: `GlobalNamespaces.cs`, `HandlerTests/{TestBase, HandlerTestBasement, HandlerTestBasementOfT, HandlerTestBase, HandlerTestBaseOfT, HandlerTestBaseOfT.Tests}.cs`, `HandlerTests/TextStyle/TextStyleHandlerTests.cs`, `HandlerTests/TextInput/TextInputHandlerTests.cs`, `HandlerTests/Focus/FocusHandlerTests.cs`, `Stubs/*.cs`, `ImageAnalysis/*.cs`
-- `src/Core/tests/DeviceTests/`: `Handlers/CoreHandlerTestBase.cs`, `Handlers/CoreHandlerTestBaseOfT.cs`, `Stubs/*.cs` (cross-platform files; minus `CountedImageHandler.cs`, `WebView.cs`, `ButtonWithContainerStub.cs`, `StubBaseHandler.cs`, `WindowHandlerProxyStub.cs`, which need platform-only API), `Services/ImageSource/BaseImageSourceServiceTests.cs`, `Resources/Images/*`, `Resources/Raw/*.png` (pictures the image tests load by name)
-- Handler tests: `ActivityIndicator`, `Border`, `Button`, `CheckBox`, `ContentView` (`ContentViewTests.cs`), `DatePicker`, `Editor`, `Entry`, `GraphicsView`, `Image`, `ImageButton`, `Label`, `Layout`, `Picker`, `ProgressBar`, `RadioButton`, `ScrollView`, `SearchBar`, `ShapeView`, `Slider`, `Stepper`, `Switch`, `TimePicker` (each `Handlers/<X>/<X>HandlerTests.cs`)
+- `src/Core/tests/DeviceTests/`: `Handlers/CoreHandlerTestBase.cs`, `Handlers/CoreHandlerTestBaseOfT.cs`, `Stubs/*.cs` (cross-platform files; minus `CountedImageHandler.cs`, `WebView.cs`, `ButtonWithContainerStub.cs`, which need platform-only API, and `StubBaseHandler.cs`, replaced by a Linux one, below), `Services/ImageSource/BaseImageSourceServiceTests.cs`, `Resources/Images/*`, `Resources/Raw/*.png` (pictures the image tests load by name)
+- Handler tests: `ActivityIndicator`, `Border`, `Button`, `CheckBox`, `ContentView` (`ContentViewTests.cs`), `DatePicker`, `Editor`, `Entry`, `GraphicsView`, `Image`, `ImageButton`, `IndicatorView`, `Label`, `Layout`, `Picker`, `ProgressBar`, `RadioButton`, `RefreshView`, `ScrollView`, `SearchBar`, `ShapeView`, `Slider`, `Stepper`, `SwipeView`, `Switch`, `TimePicker`, `View` (`ViewHandlerTests.cs`), `Window`, `Page`, `Navigation` (`NavigationViewHandlerTests.cs`) (each `Handlers/<X>/<X>HandlerTests.cs`), and `Element/ElementTests.cs`
+- Patched copies (`tests/Conformance/MauiPatches.Core.props`, applied under `obj/MauiPatched` as in the Controls suite; every replacement must match or the build fails, none changes an assertion): `View/ViewHandlerTests.cs` (the tooltip read-back's platform `#if` chain gets a Linux branch reading `SkiaView.ToolTipText`), `Window/WindowHandlerTests.cs` (the desktop tests, `#if MACCATALYST || WINDOWS`, run on Linux with the Windows expectations), `Navigation/NavigationViewHandlerTests.cs` (`#if ANDROID || WINDOWS` includes Linux), `DeviceTests.Shared/Stubs/ContextStub.cs` (forwards keyed service lookups: MAUI resolves its view-capture hook through the context's services, which must be an `IKeyedServiceProvider`, as an app's are)
 
 ### Linux side (`tests/Conformance`)
 
@@ -34,51 +35,63 @@ The assembly is named `Microsoft.Maui.Core.DeviceTests`, the name of MAUI's own 
 - `Infrastructure/TestRunner.Linux.cs`: `TestDispatcher`/`TestServices` (MAUI's device runner pieces); the "main thread" is the calling thread, as in the main OpenMaui suite.
 - `Infrastructure/AssertionExtensions.Linux.cs`, `HandlerTestBasementOfT.Linux.cs`: MAUI's platform assertion helpers for Skia views. Pixels come from `SkiaView.Draw` into a raster surface; "attached" means the view is the root of a headless window context of a `LinuxApplication` (no display), laid out at its size.
 - `Infrastructure/LinuxTestFramework.cs` + `KnownSkips.cs`: xunit's framework plus a skip list for tests of mechanisms Linux does not have. Everything else runs.
+- `Infrastructure/StubBaseHandler.Linux.cs`: the Linux counterpart of MAUI's `StubBaseHandler` (the handler `ViewHandlerTests` drives): a `LinuxViewHandler` over MAUI's `StubBase` with a bare Skia view, so the view tests run against OpenMaui's view handler base and `ViewMapper` mappings rather than MAUI's platform-neutral `ViewHandler`, whose arrange and mappings do nothing.
+- `Handlers/WindowHandlerTests.Linux.cs`: the window tests' app. MAUI's runners run them in a real app; here `Application.Current` is a Controls `Application` with OpenMaui's `ApplicationHandler`, in a `LinuxApplication` that has no display, so `Application.OpenWindow` opens a window without a native toplevel (see G18). `MovePlatformWindow` (WinUI's `AppWindow.MoveAndResize`) is `WindowContext.MoveAndResize`. `TestWindow.PlatformWindow` (MAUI's runner window, used by `WindowHandlerProxyStub`) is a `SkiaWindow` in `TestRunner.Linux.cs`.
+- `Handlers/NavigationViewHandlerTests.Linux.cs`: the handler gets a context whose dispatcher queues, run after the request returns. A navigation view reports `NavigationFinished` on the next main-loop iteration (MAUI's dispatchers always queue); MAUI's `NavigationViewStub` relies on that, and this suite's dispatcher otherwise runs work inline.
+- `LinuxTestFramework` also runs a few tests MAUI skips for a reason of its own platforms (`KnownSkips.UnskipReasonFor`, below).
 - `Handlers/*.Linux.cs`: the per-handler helpers (`GetNativeText`, `GetNativeIsChecked`, ...). Where the Skia view has no counterpart of the native property, the helper fails with "SkiaX exposes no Y" instead of inventing a value.
 
 ## Results per test class
 
 | Test class | Ported | Passed | Failed | Skipped |
 |---|---:|---:|---:|---:|
-| ActivityIndicatorHandlerTests | 42 | 38 | 0 | 4 |
-| BorderHandlerTests | 43 | 39 | 0 | 4 |
-| ButtonHandlerTests | 49 | 45 | 0 | 4 |
+| ActivityIndicatorHandlerTests | 43 | 40 | 0 | 3 |
+| BorderHandlerTests | 44 | 41 | 0 | 3 |
+| ButtonHandlerTests | 50 | 47 | 0 | 3 |
 | ButtonHandlerTests+ButtonTextStyleTests | 22 | 22 | 0 | 0 |
-| CheckBoxHandlerTests | 36 | 32 | 0 | 4 |
-| ContentViewTests | 33 | 29 | 0 | 4 |
-| DatePickerHandlerTests | 34 | 30 | 0 | 4 |
+| CheckBoxHandlerTests | 37 | 34 | 0 | 3 |
+| ContentViewTests | 34 | 31 | 0 | 3 |
+| DatePickerHandlerTests | 35 | 32 | 0 | 3 |
 | DatePickerHandlerTests+DatePickerTextStyleTests | 22 | 22 | 0 | 0 |
-| EditorHandlerTests | 125 | 121 | 0 | 4 |
+| EditorHandlerTests | 126 | 123 | 0 | 3 |
 | EditorHandlerTests+EditorFocusTests | 1 | 1 | 0 | 0 |
 | EditorHandlerTests+EditorTextInputTests | 17 | 17 | 0 | 0 |
 | EditorHandlerTests+EditorTextStyleTests | 22 | 22 | 0 | 0 |
-| EntryHandlerTests | 148 | 144 | 0 | 4 |
+| ElementTests | 3 | 3 | 0 | 0 |
+| EntryHandlerTests | 149 | 146 | 0 | 3 |
 | EntryHandlerTests+EntryFocusTests | 1 | 1 | 0 | 0 |
 | EntryHandlerTests+EntryTextInputTests | 17 | 17 | 0 | 0 |
 | EntryHandlerTests+EntryTextStyleTests | 22 | 22 | 0 | 0 |
-| GraphicsViewHandlerTests | 44 | 40 | 0 | 4 |
-| ImageButtonHandlerTests | 33 | 29 | 0 | 4 |
-| ImageButtonHandlerTests+ImageButtonImageHandlerTests | 55 | 50 | 0 | 5 |
-| ImageHandlerTests | 55 | 50 | 0 | 5 |
-| LabelHandlerTests | 60 | 56 | 0 | 4 |
+| GraphicsViewHandlerTests | 45 | 42 | 0 | 3 |
+| ImageButtonHandlerTests | 34 | 31 | 0 | 3 |
+| ImageButtonHandlerTests+ImageButtonImageHandlerTests | 58 | 55 | 0 | 3 |
+| ImageHandlerTests | 58 | 55 | 0 | 3 |
+| IndicatorViewHandlerTests | 32 | 29 | 0 | 3 |
+| LabelHandlerTests | 61 | 58 | 0 | 3 |
 | LabelHandlerTests+LabelTextStyleTests | 22 | 22 | 0 | 0 |
-| LayoutHandlerTests | 48 | 41 | 0 | 7 |
-| PickerHandlerTests | 42 | 38 | 0 | 4 |
+| LayoutHandlerTests | 49 | 43 | 0 | 6 |
+| NavigationViewHandlerTests | 1 | 1 | 0 | 0 |
+| PageHandlerTests | 34 | 31 | 0 | 3 |
+| PickerHandlerTests | 43 | 40 | 0 | 3 |
 | PickerHandlerTests+PickerTextStyleTests | 22 | 22 | 0 | 0 |
-| ProgressBarHandlerTests | 39 | 35 | 0 | 4 |
-| RadioButtonHandlerTests | 36 | 32 | 0 | 4 |
+| ProgressBarHandlerTests | 40 | 37 | 0 | 3 |
+| RadioButtonHandlerTests | 37 | 34 | 0 | 3 |
 | RadioButtonHandlerTests+RadioButtonTextStyleTests | 22 | 22 | 0 | 0 |
-| ScrollViewHandlerTests | 31 | 27 | 0 | 4 |
-| SearchBarHandlerTests | 118 | 114 | 0 | 4 |
+| RefreshViewHandlerTests | 34 | 31 | 0 | 3 |
+| ScrollViewHandlerTests | 32 | 29 | 0 | 3 |
+| SearchBarHandlerTests | 119 | 116 | 0 | 3 |
 | SearchBarHandlerTests+SearchBarTextInputTests | 18 | 18 | 0 | 0 |
 | SearchBarHandlerTests+SearchBarTextStyleTests | 22 | 22 | 0 | 0 |
-| ShapeViewHandlerTests | 47 | 42 | 0 | 5 |
-| SliderHandlerTests | 47 | 43 | 0 | 4 |
-| StepperHandlerTests | 35 | 31 | 0 | 4 |
-| SwitchHandlerTests | 37 | 32 | 0 | 5 |
-| TimePickerHandlerTests | 33 | 29 | 0 | 4 |
+| ShapeViewHandlerTests | 48 | 44 | 0 | 4 |
+| SliderHandlerTests | 48 | 45 | 0 | 3 |
+| StepperHandlerTests | 36 | 33 | 0 | 3 |
+| SwipeViewHandlerTests | 33 | 30 | 0 | 3 |
+| SwitchHandlerTests | 38 | 35 | 0 | 3 |
+| TimePickerHandlerTests | 34 | 31 | 0 | 3 |
 | TimePickerHandlerTests+TimePickerTextStyleTests | 22 | 22 | 0 | 0 |
-| **Total** | **1522** | **1419** | **0** | **103** |
+| ViewHandlerTests | 42 | 39 | 0 | 3 |
+| WindowHandlerTests | 22 | 22 | 0 | 0 |
+| **Total** | **1751** | **1660** | **0** | **91** |
 
 Every `<X>HandlerTests` row includes the generic tests (about 30) MAUI runs for every handler (`HandlerTestBaseOfT.Tests.cs`: automation id, flow direction, opacity, visibility, semantics, bounds, transforms, constructors, container view).
 
@@ -101,12 +114,39 @@ The first run (795 passed, 574 failed) grouped its failures by root cause; all a
 
 Two diagnoses were the test port's, not the product's, and were corrected in the Linux helpers: MAUI's `Semantics.Description` is OpenMaui's accessible name (`SemanticName`), as it is `AutomationProperties.Name` on Windows; and the image helpers now observe a picture being cleared.
 
+## Gaps found and fixed, second round
+
+Porting the remaining Core folders and re-examining the skips found these; each is MAUI's behaviour on its platforms.
+
+- **G17, core RefreshView, IndicatorView, page and navigation views had no handler.** OpenMaui's `RefreshViewHandler`, `IndicatorViewHandler`, `PageHandler` and `NavigationPageHandler` are typed to the Controls classes, so a library's own `IRefreshView`, `IIndicatorView`, `IContentView` page or `IStackNavigationView` got MAUI's platform-neutral handler (no platform view) or none. New handlers over the interfaces, as `ShapeViewHandler` is over `IShapeView`: `CoreRefreshViewHandler` (`SkiaRefreshView`; IsRefreshing both ways, Content, RefreshColor, IsRefreshEnabled, Background, IsEnabled), `CoreIndicatorViewHandler` (`SkiaIndicatorView`; Count, Position both ways, HideSingle, MaximumVisible, IndicatorSize, colours, IndicatorsShape), `CorePageHandler` (`SkiaPage`; Content, Title, Background, Padding) and `CoreNavigationViewHandler` (`SkiaNavigationPage`; shows exactly the requested stack, reports `NavigationFinished` after the transition or on the next main-loop iteration, the back arrow asks the view for the stack without its top page). `UseLinux` registers `IRefreshView` and `IIndicatorView` to the first two (a Controls RefreshView/IndicatorView, an exact type registration, keeps its own handler), and a view given MAUI's own `RefreshViewHandler`, `IndicatorViewHandler`, `PageHandler` or `NavigationViewHandler` gets the Linux one (`MauiHandlerExtensions`). The Controls handlers keep their types and Map methods and now implement `IRefreshViewHandler` / `IIndicatorViewHandler`; Controls RefreshView maps `IsRefreshEnabled` (`SkiaRefreshView.IsPullEnabled`), and clicking an indicator now sets `IndicatorView.Position` (`SkiaIndicatorView.PositionChanged`), as a tap does on MAUI's platforms.
+- **G18, windows did not follow Window.Width/Height, X/Y and their limits without a native window.** A window of an app that has no display (embedded, or under test) had no geometry: it was laid out at a fixed 800x600 and `Application.OpenWindow` tried to create a native toplevel. `WindowContext` now keeps such a window's geometry (`IsHeadless`, `LogicalSize`): it takes the size and position the Window asks for (800x600 at 0,0 by default) within Minimum/MaximumWidth/Height, grows or shrinks when a limit changes, tells MAUI when the size it holds differs from the request, and `MoveAndResize` is a user's move or resize. `LinuxApplication.OpenWindow` opens such a window (rendered page, Created then Activated) and `CloseWindow` closes it at once (Destroying, disposed). Native windows are unchanged (they already applied the requests to the toplevel). The Controls suite's headless window now lays out at the context's size, so `FrameTests.FrameResizesItsContents` (Window.Width = 200) passes.
+- **G19, Window.DisplayDensity was always 1.** The Linux `WindowHandler` did not map MAUI's `RequestDisplayDensity` command; it now answers with the scale of the monitor the window is on (`WindowHandler.MapRequestDisplayDensity`).
+- **G20, an arrange did not run the Frame command.** MAUI's platforms invoke `IView.Frame` on the handler after placing a view (apps extend `ViewCommandMapper` to react); `LinuxViewHandler.PlatformArrange` now does, except for Controls' negative "not laid out yet" frame, as they do.
+- **G21, tooltips were not on the platform view.** `IToolTipElement.ToolTip` is mapped (`ViewHandler.ViewMapper`) to the new `SkiaView.ToolTipText`, as MAUI's platforms put it on the native view, and a core view's tooltip (one that is not a Controls element) is shown on hover too.
+- **G22, VisualElement.CaptureAsync / Window.CaptureAsync returned null.** MAUI built for a platform it has no screenshot code for routes them through keyed DI hooks (`"Microsoft.Maui.ViewCapture"`, `"Microsoft.Maui.WindowCapture"`); `UseLinux` registers both (`Services/ViewCapture.cs`): a view is drawn as laid out at its window's scale, a window as it shows (page, modals, popups). This turns MAUI's `View Renders To Image` (skipped by MAUI on every platform but Android for want of a root window) into 56 passing tests.
+- **G23, wrapped label text measured the whole width offered.** A word- or character-wrapped label reported the available width; WinUI's TextBlock and UIKit's UILabel report the widest line, so a Start-aligned label (and a frame around it) ends where its text does. `SkiaLabel` now measures the widest wrapped line. (Part of `FrameResizesItsContents`; the main suite's golden images are unchanged.)
+- **G24, SwipeView (26 of the 32 SwipeView tests; previously not ported)**: MAUI's `SwipeViewHandlerTests` drive `SwipeViewHandler` with an `ISwipeView` stub, and OpenMaui's `SwipeViewHandler` is typed to the Controls `SwipeView` (changing its base type would break its public API), so every generic test failed in `SetVirtualView` (port before the fix: 2 passed, 26 failed, 4 skipped; the 2 passes are the generic constructor test and MAUI's `RequestOpen Works Correctly`, which checks the stub without a handler). There is now a handler for any `ISwipeView`, `CoreSwipeViewHandler` (platform view `SkiaSwipeView`), with MAUI's mapper (Content, SwipeTransitionMode, the four item sides, plus Threshold, IsEnabled and Background) and command mapper (RequestOpen, RequestClose) and MAUI-signature `Map*` methods; `UseLinux` registers it for `ISwipeView`, so a library's own swipe view gets it (a library registering MAUI's platform-neutral `SwipeViewHandler` gets it too). The Controls `SwipeViewHandler` now implements `ISwipeViewHandler` and chains its mappers, its existing `Map*` methods forwarding to it. Behaviour fixed on the way, for both handlers, read from MAUI's SwipeView handlers and `MauiSwipeView` (MAUI's Windows `SwipeControl` cannot open programmatically or show item views, so Android/iOS are the reference there):
+  - The swipe was never reported back: `SwipeStarted`, `SwipeChanging`, `SwipeEnded` (with MAUI's open decision) and `IsOpen` now reach the view, from a swipe and from `Open`/`Close`.
+  - A swipe could only start on the swipe view itself: a press on its content (a label, a row's button) went to that view and the swipe view never saw the drag. The window now lets a drag-intercepting container (`SkiaSwipeView`) take a press over once it moves as its swipe; the content's press is cancelled (no click, no tap). A SwipeView row in a CollectionView swipes the same way, and a tap on an open row's item invokes it instead of selecting the row.
+  - The content did not move while swiping (the offset was applied only at the next layout); it is now drawn translated, as MAUI's platforms translate the content view, so its frame does not change.
+  - MAUI's open distance and Threshold: a side opens to its items' size (100 per menu item, an item view's measured width; Execute mode 80% of the content), and `Threshold` is the distance that opens them (0 means 60% of the open distance), not the reveal width. Fling speed no longer opens a short swipe (MAUI decides by distance).
+  - Execute mode runs the first visible item; `SwipeBehaviorOnInvoked` (RemainOpen keeps the view open); a tap on the content of an open view closes it; a disabled item is not invoked; a hidden item does not count and showing it while open widens the side.
+  - Top and bottom items (vertical swipes) were not supported; `SwipeTransitionMode.Drag` was not mapped.
+  - `SwipeItemView` showed a grey "Action" placeholder: there is now a Linux `SwipeItemViewHandler` (any `ISwipeItemView`) whose content the swipe view lays out and draws in the item's place, and a tap invokes it.
+  - `SwipeItemMenuItemHandler` now serves any `ISwipeItemMenuItem` with MAUI's mapper keys and signatures (CharacterSpacing and Font are no-ops, as on Windows).
+
+  The main suite covers what the Core tests do not reach (they only run the generic handler tests on the stub): `Handlers/SwipeViewParityTests.cs` and `Views/SkiaSwipeViewTests.cs`.
+
+  Public API added (additions only, package validation against 10.0.110.6 passes): `CoreSwipeViewHandler` (`Mapper`, `CommandMapper`, MAUI's `Map*` methods); `SwipeItemViewHandler` (`Mapper`, `CommandMapper`, `MapContent`, `MapVisibility`, `SwipeItem`); `SwipeViewHandler` implements `ISwipeViewHandler`; `SwipeItemMenuItemHandler` (new in this release) now has MAUI's mapper type and `Map*` signatures plus `MapCharacterSpacing`, `MapFont` and an `(IPropertyMapper?)` constructor; `SkiaSwipeView.IsOpen`, `SwipeOffset`, `Threshold`, `TransitionMode`, `SwipeChanging`, `IsOpenChanged`, `Open(OpenSwipeItem)`, `DirectionOf`, `SetItemsMode`/`GetItemsMode`, `SetItemsBehaviorOnInvoked`/`GetItemsBehaviorOnInvoked`; `SwipeOffsetChangedEventArgs`; `SwipeItem.Content`, `SwipeItem.IsEnabled`. Behaviour change: `SkiaSwipeView.LeftSwipeThreshold`/`RightSwipeThreshold` default to 0, meaning the open distance comes from the items (they were a fixed 100 px reveal, which the handler overwrote with `Threshold`). `MapperParityTests` no longer lists `SwipeView.SwipeTransitionMode`.
+
 ## Skipped
 
 | Reason | Tests |
 |---|---|
-| MAUI's own skips (`View Renders To Image` on non-Android, `Shadow Initializes Correctly` on Layout, `ThumbColor Initializes Correctly` on Switch, `InvalidSourceFailsToLoad` on images) | 27 |
-| **No wrapper view** (`Clip Initializes ContainerView Correctly`, `ContainerView Remains If Shadow Mapper Runs Again`, `ContainerView Adds And Removes` for every handler; Layout `ContainerViewAddedToLayout`, `ContainerViewDifferentThanPlatformView`): Skia views apply Clip and Shadow while drawing, there is no native wrapper to add, and MAUI's platform-neutral ViewHandler has no container implementation | 71 |
+| **No wrapper view** (`Clip Initializes ContainerView Correctly`, `ContainerView Remains If Shadow Mapper Runs Again`, `ContainerView Adds And Removes` for each of the 29 handler classes; Layout `ContainerViewAddedToLayout`, `ContainerViewDifferentThanPlatformView`). They assert MAUI's container mechanism itself: `handler.ContainerView` not null and the platform view's parent a `Microsoft.Maui.Platform.WrapperView`. On the platform-neutral build OpenMaui compiles against, `ViewHandler.ContainerView` has a `private protected` setter (only handlers inside `Microsoft.Maui.dll` can set it), `SetupContainer`/`RemoveContainer` do nothing, and `WrapperView` is a plain class no drawable view can be (a Skia view's parent is a `SkiaView`). No Linux handler can pass them; Clip and Shadow themselves work, applied while drawing | 89 |
+| MAUI's own skip of `Shadow Initializes Correctly` (Layout, ShapeView): MAUI calls the tests invalid (dotnet/maui#13692: the shadow is drawn outside the view the test captures); run on Linux they fail for that reason | 2 |
+
+MAUI-skipped tests that now run (`KnownSkips.UnskipReasonFor`): `View Renders To Image` (2 rows per handler class; MAUI skips it except on Android because iOS and Windows have no root window in the runner, see G22), `ThumbColor Initializes Correctly` (Switch; MAUI disables it for dotnet/maui#1275) and `InvalidSourceFailsToLoad` (3 rows each for Image and ImageButton; dotnet/maui#6415). All pass.
 
 ## API surface findings (needed scaffolding to compile MAUI's tests)
 
@@ -120,14 +160,16 @@ These are not test failures, but each is a place where OpenMaui's public API dif
 ## Not ported, and why
 
 - **ShapeView / BoxView**: now ported. MAUI's `ShapeViewHandlerTests` drive `ShapeViewHandler` with an `IShapeView` stub; OpenMaui had no `IShapeView` handler (its shape handlers were typed to the Controls classes). It now has one (`Handlers/ShapeViewHandler.cs`, platform view `SkiaShapeView` drawing MAUI's `ShapeDrawable`), aliased in `Infrastructure/HandlerAliases.cs`, with `Handlers/ShapeViewHandlerTests.Linux.cs` as its platform partial: 42 passed, 0 failed, 5 skipped (the generic container-view, shadow and render-to-image skips every handler has, and MAUI's own skip of the shadow test).
-- **RefreshView, IndicatorView, SwipeView** (MAUI Core tests exist): same reason, the Linux handlers are typed to `Controls.RefreshView` / `IndicatorView` / `SwipeView`, not `IRefreshView` / `IIndicatorView` / `ISwipeView`.
-- **View, Element, Window, Page, Navigation, WebView core tests**: `ViewHandlerTests` / `ElementTests` test MAUI's own `ViewHandler`/`ElementHandler` stubs, not a Linux handler; window, page and navigation tests need MAUI's platform window plumbing; WebView needs the out-of-process WebKit host.
+- **SwipeView**: now ported (G24). The Linux `SwipeViewHandler` stays typed to the Controls `SwipeView`; MAUI's tests, which drive an `ISwipeView` stub, run against the new `CoreSwipeViewHandler`, aliased as `SwipeViewHandler` in `Infrastructure/HandlerAliases.Core.cs` (the Controls suite keeps aliasing the Controls one). No platform partial is needed: MAUI's file holds only the generic tests. 28 passed, 0 failed, 4 skipped (the generic container-view and render-to-image skips every handler has).
+- **RefreshView, IndicatorView**: now ported against the new core handlers (G17): 31 and 29 passed, 3 skipped each (the container tests).
+- **View, Element, Window, Page, Navigation**: now ported. `ViewHandlerTests` drives a Linux `StubBaseHandler` (a `LinuxViewHandler`, `Infrastructure/StubBaseHandler.Linux.cs`) instead of MAUI's platform-neutral stub, so its MapFrame and tooltip tests and the 30 generic view tests check OpenMaui's view handler base (G20, G21). `ElementTests` (3) check MAUI's element-to-handler resolution against the Linux app's registrations (a registered stub resolves, an unregistered one throws `HandlerNotFoundException`, an exception in `SetVirtualView` propagates); they exercise MAUI's `ToHandler` with OpenMaui's services rather than a Linux handler, and pass. `WindowHandlerTests` (22: display density, initial and updated position and size, size while changing size, title while changing title, empty page, minimum/maximum width/height) run against OpenMaui's `WindowHandler` and `WindowContext` on windows opened through `Application.OpenWindow` without a display (G18, G19). The Windows partial's own tests (WinUI's root navigation view, `MauiToolbar` parts) read WinUI types and are not ported. `PageHandlerTests` drive `CorePageHandler`, `NavigationViewHandlerTests` (`Push Multiple Pages At Start`) `CoreNavigationViewHandler` (G17).
+- **WebView core tests**: not ported; OpenMaui's web views run in an out-of-process WebKit host that a headless test process cannot start (re-checked this round: creating the handler still takes the test host down).
 - **`src/Controls/tests/DeviceTests`** (Controls-level tests: real `Label`, `Entry`, ... with Controls handlers): now ported, see "Controls device tests" below. Original note: the next step. They need a Linux port of `ControlsHandlerTestBase`'s window hosting (`CreateHandlerAndAddToWindow`, about 200 lines per platform partial), which can be built on the headless `WindowContext` the core suite already uses. Because OpenMaui's mapping is Controls-centric (G1, G2), that suite would show which of the gaps above an app actually hits.
 - Platform-only tests in MAUI's `*.Android.cs` / `*.iOS.cs` / `*.Windows.cs` partials (transforms, input transparency, native font objects, ...) are not ported: they assert native API and live in platform files.
 
 # Controls device tests (dotnet/maui's Controls tests against OpenMaui)
 
-Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **598 MAUI tests ported. Before the fixes of this round: 337 passed, 257 failed, 4 skipped. After: 519 passed, 75 failed, 4 skipped** (all 4 skips are mechanisms Linux does not have; nothing is BLOCKED).
+Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **604 MAUI tests ported (598 at first; `Xaml/XamlTests` added). Before the fixes: 337 passed, 257 failed, 4 skipped. After the first round: 519 passed, 75 failed, 4 skipped. After the second (Shell, TabbedPage and Window; CollectionView, memory, ScrollView and SwipeView; shapes, visual tree, Label and accessibility; window size and wrapped-label width): 600 passed, 0 failed, 4 skipped** (all 4 skips are mechanisms Linux does not have; nothing is BLOCKED).
 
 These are MAUI's `src/Controls/tests/DeviceTests`: real Controls views (`Label`, `Entry`, `CollectionView`, `Shell`, `NavigationPage`, `TabbedPage`, `FlyoutPage`, modal pages, ...) put in a window by MAUI's own `ControlsHandlerTestBase.CreateHandlerAndAddToWindow`, so they exercise the Controls layer the way an app does: page hosting, navigation, Loaded/Unloaded, layout through pages, Controls-only properties (TextTransform, LineBreakMode, MaxLines, AutoSize, ...).
 
@@ -159,11 +201,12 @@ These are MAUI's `src/Controls/tests/DeviceTests`: real Controls views (`Label`,
 
 - `src/TestUtils/src/DeviceTests/`: `AssertHelpers.cs`, `AssertionExtensions.cs`; `src/Core/tests/DeviceTests.Shared/`: `GlobalNamespaces.cs`, `HandlerTests/{TestBase, HandlerTestBasement, HandlerTestBase}.cs`, `Stubs/*.cs`, `ImageAnalysis/*.cs`
 - `src/Controls/tests/DeviceTests/`: `ControlsHandlerTestBase.cs`, `Extensions.cs`, `TestCategory.cs`, `TextTransformCases.cs`, `MapperTests.cs`, `DispatchingTests.cs`, `Stubs/{ApplicationStub, FrameStub}.cs`, `TestClasses/{LifeCycleTrackingPage, FlyoutPageAlwaysSplit, NestingView}.cs`, `TestCases/{ControlsPageTypesTestCases, ControlsViewTypesTestCases}.cs`, `Memory/MemoryTests.cs`
-- `Elements/`: `FormattedStringTests`, `PlatformBehaviorTests`, `VisualElementTests`, `Accessibility/AccessibilityTests`, `Application/ApplicationTests`, `Border/BorderTests`, `BoxView/BoxViewTests`, `Button/ButtonTests`, `CarouselView/CarouselViewTests`, `CheckBox/CheckBoxTests`, `CollectionView/{CollectionViewTests, CollectionViewSizingTestCase}`, `ContentView/ContentViewTests`, `DatePicker/DatePickerTests`, `Editor/EditorTests`, `Entry/EntryTests`, `FlyoutPage/{FlyoutPageTests, FlyoutPageLayoutBehaviorTestCases}`, `Frame/{FrameTests, FrameHandlerTest}`, `Image/ImageTests`, `Label/LabelTests`, `Layout/LayoutTests`, `Modal/ModalTests`, `NavigationPage/NavigationPageTests`, `Page/PageTests`, `Path/PathTests`, `Picker/PickerTests`, `RadioButton/RadioButtonTests`, `RefreshView/RefreshViewTests`, `ScrollView/ScrollViewTests`, `SearchBar/SearchBarTests`, `Shape/ShapeTests`, `Shell/{ShellTests, ShellFlyoutTests, ShellTabBarTests, ShellFlyoutItemTextColorTests and the Shell*TestCases}`, `Slider/SliderTests`, `SwipeView/SwipeViewTests`, `TabbedPage/TabbedPageTests`, `TemplatedView/TemplatedViewTests`, `TextInput/TextInputTests`, `Toolbar/ToolbarTests`, `View/ViewTests`, `VisualElementTree/{VisualElementTreeTests, FindVisualTreeElementInsideTestCase}`, `Window/{WindowTests, WindowOverlayTests, WindowPageSwapTestCases, ChangingToNewMauiContextDoesntCrashTestCases}` (each `.cs` in that folder)
+- `Elements/`: `FormattedStringTests`, `PlatformBehaviorTests`, `VisualElementTests`, `Accessibility/AccessibilityTests`, `Application/ApplicationTests`, `Border/BorderTests`, `BoxView/BoxViewTests`, `Button/ButtonTests`, `CarouselView/CarouselViewTests`, `CheckBox/CheckBoxTests`, `CollectionView/{CollectionViewTests, CollectionViewSizingTestCase}`, `ContentView/ContentViewTests`, `DatePicker/DatePickerTests`, `Editor/EditorTests`, `Entry/EntryTests`, `FlyoutPage/{FlyoutPageTests, FlyoutPageLayoutBehaviorTestCases}`, `Frame/{FrameTests, FrameHandlerTest}`, `Image/ImageTests`, `Label/LabelTests`, `Layout/LayoutTests`, `Modal/ModalTests`, `NavigationPage/NavigationPageTests`, `Page/PageTests`, `Path/PathTests`, `Picker/PickerTests`, `RadioButton/RadioButtonTests`, `RefreshView/RefreshViewTests`, `ScrollView/ScrollViewTests`, `SearchBar/SearchBarTests`, `Shape/ShapeTests`, `Shell/{ShellTests, ShellFlyoutTests, ShellTabBarTests, ShellFlyoutItemTextColorTests and the Shell*TestCases}`, `Slider/SliderTests`, `SwipeView/SwipeViewTests`, `TabbedPage/TabbedPageTests`, `TemplatedView/TemplatedViewTests`, `TextInput/TextInputTests`, `Toolbar/ToolbarTests`, `View/ViewTests`, `VisualElementTree/{VisualElementTreeTests, FindVisualTreeElementInsideTestCase}`, `Window/{WindowTests, WindowOverlayTests, WindowPageSwapTestCases, ChangingToNewMauiContextDoesntCrashTestCases}`, `ContextFlyout/ContextFlyoutTests` (each `.cs` in that folder)
+- `Xaml/XamlTests.cs` with `Xaml/RadioButtonUsing.xaml(.cs)`: the XAML is compiled by MAUI's own XAML build targets (`MauiXaml` item, a direct `Microsoft.Maui.Controls` 10.0.110 package reference), as an app's is; parsed and compiled XAML with `mscorlib`, `x:Array` and `x:Double` (6, all pass)
 
-Several of these (`RadioButtonTests`, `SliderTests`, `PathTests`, `ApplicationTests`) compile but contain only platform-conditional tests, so they contribute no Linux tests.
+Several of these (`RadioButtonTests`, `SliderTests`, `PathTests`, `ApplicationTests`, `ContextFlyoutTests`, whose tests are all in its Windows partial) compile but contain only platform-conditional tests, so they contribute no Linux tests.
 
-Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out-of-process WebKit host a headless test process cannot start), `Map/*` (Maps is a separate package), `TitleBar`, `ContextFlyout`, `MenuFlyoutItem`, `AlertDialog`, `Compatibility/VisualElementRendererTests` (platform renderers), `Xaml/*` (needs XAML compilation of MAUI's `RadioButtonUsing.xaml`).
+Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out-of-process WebKit host a headless test process cannot start), `Map/*` (Maps is a separate package), `TitleBar/TitleBarTests.cs` (the whole file is `#if MACCATALYST`), `MenuFlyoutItem` and `AlertDialog` (iOS and Android files only), `Compatibility/VisualElementRendererTests` (derives from `VisualElementRenderer<T>`, which `Microsoft.Maui.Controls` does not ship for net10.0), `ControlsDeviceTestExtensions.cs` and `MauiProgram.cs` (MAUI's runner setup, replaced by `Infrastructure/`). This is every shared file of `src/Controls/tests/DeviceTests` (audited against the folder for this round).
 
 ## Results per test class
 
@@ -176,9 +219,9 @@ Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out
 | BorderTests | 5 | 4 | 1 | 5 | 0 | 0 |
 | BoxViewTests | 7 | 2 | 5 | 7 | 0 | 0 |
 | ButtonTests | 14 | 9 | 5 | 14 | 0 | 0 |
-| CarouselViewTests | 3 | 2 | 1 | 2 | 1 | 0 |
+| CarouselViewTests | 3 | 2 | 1 | 3 | 0 | 0 |
 | CheckBoxTests | 5 | 2 | 3 | 5 | 0 | 0 |
-| CollectionViewTests | 25 | 11 | 14 | 11 | 14 | 0 |
+| CollectionViewTests | 25 | 11 | 14 | 25 | 0 | 0 |
 | ContentViewTests | 2 | 2 | 0 | 2 | 0 | 0 |
 | DatePickerTests | 2 | 1 | 1 | 2 | 0 | 0 |
 | DispatchingTests | 1 | 1 | 0 | 1 | 0 | 0 |
@@ -188,23 +231,23 @@ Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out
 | EntryTests+EntryTextInputTests | 40 | 35 | 5 | 40 | 0 | 0 |
 | FlyoutPageTests | 12 | 3 | 9 | 12 | 0 | 0 |
 | FormattedStringTests | 2 | 1 | 0 | 1 | 0 | 1 |
-| FrameTests | 19 | 13 | 6 | 18 | 1 | 0 |
+| FrameTests | 19 | 13 | 6 | 19 | 0 | 0 |
 | ImageTests | 2 | 2 | 0 | 2 | 0 | 0 |
 | LabelTests | 50 | 26 | 24 | 50 | 0 | 0 |
 | LayoutTests | 35 | 29 | 6 | 35 | 0 | 0 |
 | MapperTests | 2 | 2 | 0 | 2 | 0 | 0 |
-| MemoryTests | 59 | 43 | 15 | 49 | 9 | 1 |
+| MemoryTests | 59 | 43 | 15 | 58 | 0 | 1 |
 | ModalTests | 40 | 1 | 39 | 40 | 0 | 0 |
 | NavigationPageTests | 16 | 0 | 16 | 16 | 0 | 0 |
 | PageTests | 13 | 13 | 0 | 13 | 0 | 0 |
 | PickerTests | 4 | 2 | 2 | 4 | 0 | 0 |
 | PlatformBehaviorTests | 1 | 0 | 1 | 1 | 0 | 0 |
 | RefreshViewTests | 8 | 8 | 0 | 8 | 0 | 0 |
-| ScrollViewTests | 11 | 7 | 4 | 10 | 1 | 0 |
+| ScrollViewTests | 11 | 7 | 4 | 11 | 0 | 0 |
 | SearchBarTests | 8 | 8 | 0 | 8 | 0 | 0 |
 | ShapeTests | 3 | 0 | 3 | 3 | 0 | 0 |
 | ShellTests | 49 | 3 | 46 | 49 | 0 | 0 |
-| SwipeViewTests | 2 | 0 | 2 | 0 | 2 | 0 |
+| SwipeViewTests | 2 | 0 | 2 | 2 | 0 | 0 |
 | TabbedPageTests | 12 | 3 | 9 | 12 | 0 | 0 |
 | TemplatedViewTests | 2 | 2 | 0 | 2 | 0 | 0 |
 | ToolbarTests | 12 | 0 | 12 | 12 | 0 | 0 |
@@ -214,7 +257,8 @@ Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out
 | VisualElementTreeTests | 9 | 1 | 8 | 9 | 0 | 0 |
 | WindowOverlayTests | 1 | 1 | 0 | 1 | 0 | 0 |
 | WindowTests | 12 | 4 | 8 | 12 | 0 | 0 |
-| **Total** | **598** | **337** | **257** | **542** | **52** | **4** |
+| XamlTests | 6 | n/a | n/a | 6 | 0 | 0 |
+| **Total** | **604** | **337** | **257** | **600** | **0** | **4** |
 
 ## Product gaps fixed in this round
 
@@ -236,8 +280,21 @@ Ordered by how many tests they unblocked. Each is MAUI's behaviour on its platfo
 - **C14, Shell flyout geometry (4 FlyoutHeaderMinimumHeight; was R7)**. `SkiaShell.FlyoutBounds` is the flyout panel's place (the header, content and footer views are arranged inside it), and `Shell.FlyoutHeaderBehavior` reaches the platform: a CollapseOnScroll header is at least 56 tall, as MAUI keeps it on every platform.
 - **C15, Shell lifecycle and layout (5; was R8)**. *Appearing twice* and *the Shell modal*: SkiaShell sent Appearing to the page its mirror presented, on top of MAUI's ShellSection, which sends it itself; the mirror lags MAUI (it follows Navigated), so a page MAUI had already shown and moved past (a push from its NavigatedTo) or that a modal covered got a second Appearing. It now sends Appearing only to the page MAUI's Shell presents with no modal over the window. *Logical children*: a flyout row template is realized for the element MAUI lists (for a section or content added straight to `Shell.Items`, that section or content, not the implicit ShellItem around it) and added as that element's logical child, as MAUI's flyout item view does. *Page leak*: the toolbar hit areas of the last frame kept the popped page's ToolbarItems (whose Parent is the page) until the bar was drawn again; they are dropped with the items. *Window bounds*: the startup window never told MAUI its size (only secondary windows did), so `Window.Width`/`Height` stayed NaN for an app's whole life; every window now reports its size when it adopts the MAUI window and on every resize (`WindowContext.ReportFrame`; MAUI applies a platform frame without echoing it to the handler). The headless test window reports the size its frames are laid out at.
 - **C16, TabbedPage (2; was in R10)**. `SkiaTabbedPage` draws each tab's icon (`Page.IconImageSource` through its image-source service, tinted with the selected or unselected colour) above its title, and a tab follows its page's Title and IconImageSource. `TabbedPage.BarBackground` (a brush, gradients included) paints the bar; a gradient is followed while the page is shown and released when it disappears or its handler disconnects, as MAUI's TabbedPageManager does, so a shared brush keeps no subscriber after a modal TabbedPage is popped.
+- **C17, CollectionView, CarouselView, ScrollView and SwipeView (21: 8 CollectionView, 9 Memory, 1 CarouselView, 1 ScrollView, 2 SwipeView; R1 and most of R10)**. Each is MAUI's behaviour on its platforms, read from MAUI's items handlers (`ItemsViewHandler.Windows.cs`, `TemplatedItemViewHolder.cs`, `ObservableItemsSource`) and its tests.
+  - *Leaks (the 7 `Gesture Does Not Leak` rows, `Handler Does Not Leak(CollectionView)`, `CollectionView Header/Footer Doesn't Leak`)*. Found with a heap dump at the failing assertion: the test's `ObservableCollection` (alive to the end of the test, as a view model outlives its page) held `SkiaItemsView.OnCollectionChanged`, and through the list its handler, its item views and their gesture recognizers. The list now observes its items source weakly (`WeakCollectionChangedProxy`, MAUI's `WeakNotifyCollectionChangedProxy`), and `CollectionViewHandler.DisconnectHandler` lets the source go, removes the item views from the logical children and disconnects their handlers, as MAUI's handlers clean up.
+  - *Logical children (`CollectionViewItemsWithFixedWidthAndDifferentHeight`, `ClearingItemsSourceClearsBindingContext`, the two `ScrollTo` tests)*. A realized item is added to the CollectionView's logical children (`AddLogicalChild`, as `TemplatedItemViewHolder.Bind` does) and removed when the list drops its row (recycled, items changed, template replaced: `SkiaItemsView.ItemViewReleased`); the item's parent is the CollectionView as before. The header and footer views are logical children too (MAUI's Windows handler adds them).
+  - *ScrollTo (`CollectionScrollToUngroupedWorks`, `CollectionScrollToGroupWorks`)*. MAUI's `ItemsView.ScrollTo` raises `ScrollToRequested`, which every MAUI items handler listens to; OpenMaui mapped a `ScrollTo` command nobody sends, so ScrollTo did nothing (with logical children in place the ungrouped test would pass anyway, because the measure realizes its 26 rows; the grouped one showed the gap). The handlers (CollectionView and CarouselView) now listen to it, honour `ScrollToPosition` (MakeVisible, Start, Center, End: `SkiaItemsView.ScrollToIndex(int, ScrollToPosition, bool)`), and reach an item by index, by item, or by group.
+  - *Grouping*. `IsGrouped` was not mapped: a grouped source showed one row per group. The handler now flattens the groups as MAUI's grouped sources do, a `GroupHeaderTemplate` row (bound to the group) before each group's items and a `GroupFooterTemplate` row after them, follows changes of the groups and of the list of groups, and does not select a header or footer row. `MapperParityTests` no longer lists `CollectionView.IsGrouped`.
+  - *Horizontal size to content (the three `CollectionViewCanSizeToContent(Horizontal, ...)` rows)*. A horizontal `LinearItemsLayout` was drawn as a vertical list. `SkiaCollectionView` now lays the items out in a row (header before, footer after), measures as wide as its items up to its room (and as tall as its tallest item), and scrolls horizontally (drag, horizontal wheel or the vertical wheel); `Scrolled` reports a horizontal offset. A horizontal *grid* (`GridItemsLayout` with a horizontal orientation and a span over 1) is still drawn as a vertical grid.
+  - *Item margin (`CellSizeAccountsForMargin`)*. A row is the item's cell: the item's margin is inside it (a 50 px button with a 10 px margin gets a 70 px row), the item is placed across the row by its layout options, and its MAUI `Frame` is relative to its row (`SkiaView.FrameOriginFor`), as on every platform. The test also showed that a handler connected the MAUI way (`view.Handler = new XHandler()`, as the test's `CreateHandlerAsync` does) left its Skia view without the MAUI view (no frame, no Loaded, the view hosted as a bare root at window size): `LinuxViewHandler.ConnectHandler` now gives it, as OpenMaui's own factory did.
+  - *CarouselView (`DisconnectedCarouselViewDoesNotHookCollectionViewChanged`)*. The handler did not observe the collection at all (items added after the carousel was shown never appeared). It now observes it weakly, rebuilds the items on a change (keeping the position), and a disconnected handler unsubscribes and releases its items (logical children, handlers).
+  - *ScrollView (`TestContentHorizontalOptionsChanged`)*. `SkiaScrollView.OnDraw` arranged the content again every frame without its alignment, after the layout pass had aligned it, so End or Center content went back to the start; both now place it through one `AlignContent`.
+  - *SwipeView (`Items Do Not Leak`, `SwipeView LogicalChildren Works Correctly`)*. A `SwipeItem` had no handler (`item.Handler` was null): there is now a Linux `SwipeItemMenuItemHandler` (registered by UseLinux) whose platform item follows the item's text, colours, visibility and icon, and whose tap invokes the item. A tap on a swipe item did not invoke the MAUI item at all before (its Command and Invoked never ran), and with MAUI's default `Threshold` of 0 an opened SwipeView revealed nothing. Not from the device tests (CiteLynq's notification rows): `SkiaSwipeView` measured as all the room it was offered, so in a CollectionView row (measured at an unbounded height) the row fell back to the 44 px default and cut the content off; it now measures to its content and its margin, as MAUI's SwipeView does.
+  The main suite covers the parts the device tests do not reach end to end (`Handlers/CollectionViewParityTests.cs`: SwipeView row height, weak items source, horizontal layout and scroll, grouping and grouped ScrollTo, CarouselView collection changes and disconnect, swipe item taps, MAUI-way handler connection).
 
-Public API added (additions only): `SkiaNavigationPage.IsTransitioning`, `TransitionCompleted`, `IsBackButtonVisible`, `BackRequested`, `SetNavigationStack`; `SkiaPage.HasBackButton`; `SkiaShell.IsBackButtonVisible`; `SkiaDatePicker.HasDate`, `Text`; `LabelHandler.MapTextTransform`, `MapTextType`; `TextButtonHandler.MapLineBreakMode`; `EditorHandler.MapAutoSize`; `WindowHandler` implements `IWindowHandler`; `EntryHandler`/`EditorHandler.SetVirtualView` overrides. Shell, TabbedPage and Window round: `ToolbarHandler` and `SkiaToolbar`; `SkiaWindow.Toolbar`; `WindowHandler.MapToolbar`, `ShellHandler.MapToolbar`, `FlyoutPageHandler.MapToolbar`, `TabbedPageHandler.MapBarBackground`; `SkiaShell.TabBarSections`, `TabBarBounds`, `TitleView`, `ViewRenderer`, `FlyoutBounds`, `FlyoutHeaderBehavior`; `SkiaTabbedPage.TabBarBackground` and its explicit parameterless constructor; `TabItem.IconSource`. `MapperParityTests` no longer lists `Button.LineBreakMode` and `Label.TextTransform`/`TextType` as gaps.
+Public API added (additions only): `SkiaNavigationPage.IsTransitioning`, `TransitionCompleted`, `IsBackButtonVisible`, `BackRequested`, `SetNavigationStack`; `SkiaPage.HasBackButton`; `SkiaShell.IsBackButtonVisible`; `SkiaDatePicker.HasDate`, `Text`; `LabelHandler.MapTextTransform`, `MapTextType`; `TextButtonHandler.MapLineBreakMode`; `EditorHandler.MapAutoSize`; `WindowHandler` implements `IWindowHandler`; `EntryHandler`/`EditorHandler.SetVirtualView` overrides. Shell, TabbedPage and Window round: `ToolbarHandler` and `SkiaToolbar`; `SkiaWindow.Toolbar`; `WindowHandler.MapToolbar`, `ShellHandler.MapToolbar`, `FlyoutPageHandler.MapToolbar`, `TabbedPageHandler.MapBarBackground`; `SkiaShell.TabBarSections`, `TabBarBounds`, `TitleView`, `ViewRenderer`, `FlyoutBounds`, `FlyoutHeaderBehavior`; `SkiaTabbedPage.TabBarBackground` and its explicit parameterless constructor; `TabItem.IconSource`; CollectionView round (C17): `SkiaItemsView.ItemViewReleased`, `ScrollToIndex(int, ScrollToPosition, bool)`, `ScrollToItem(object, ScrollToPosition, bool)` and protected `GetOrCreateItemView`, `MeasureItemExtent`, `IsHorizontal`, `ViewportExtent`, `NaturalCrossExtent`, `ReleaseItemViews`, `SetRowOrigin`, `RaiseItemTapped`; `CollectionViewHandler.MapIsGrouped` and `SetVirtualView` override; `CarouselViewHandler.SetVirtualView` override; `SwipeItemMenuItemHandler`; `SwipeItem.IsVisible`; `LinuxViewHandler.ConnectHandler` override. `MapperParityTests` no longer lists `Button.LineBreakMode` and `Label.TextTransform`/`TextType` as gaps.
+
+Public API added by the second Core round (G17 to G23; additions only): `CoreRefreshViewHandler`, `CoreIndicatorViewHandler` (each with `Mapper`, `CommandMapper`, MAUI's three constructors and `Map*` methods over the interfaces), `CorePageHandler`, `CoreNavigationViewHandler` (`Mapper`, `CommandMapper`, `MapRequestNavigation`, ...); `IRefreshViewHandler` on `RefreshViewHandler` and `IIndicatorViewHandler` on `IndicatorViewHandler`; `RefreshViewHandler.MapIsRefreshEnabled`; `SkiaRefreshView.IsPullEnabled`; `SkiaIndicatorView.PositionChanged`; `WindowHandler.MapRequestDisplayDensity` (and the `RequestDisplayDensity` command in `WindowHandler.CommandMapper`); `SkiaView.ToolTipText`. Internal: `WindowContext.IsHeadless`, `LogicalSize`, `MoveAndResize`; `LinuxApplication.HasDisplay`. `MapperParityTests` no longer lists `RefreshView.IsRefreshEnabled` as a gap. Main-suite tests: `Handlers/CoreHandlerParityTests.cs`.
 
 Public API added by the shape, visual-tree, Label and accessibility fixes (R3, R5, R9, R10; additions only, package validation against 10.0.110.6 passes): `ShapeViewHandler` (with `Mapper`, `CommandMapper` and MAUI's `Map*` methods) and `RoundRectangleHandler` (`Mapper`, `MapCornerRadius`); `SkiaShapeView` (`Drawable`), now the base class of `SkiaRectangle`, `SkiaEllipse`, `SkiaLine`, `SkiaPolygon`, `SkiaPolyline`, `SkiaShapePath` and `SkiaBoxView`; `IShapeViewHandler` on `RectangleHandler`, `EllipseHandler`, `LineHandler`, `PolygonHandler`, `PolylineHandler`, `ShapePathHandler` and `BoxViewHandler`; `PolylineHandler.MapFillRule`; `ShapePathHandler.MapShape`, `MapRenderTransform`; `BorderHandler.MapShape`, `MapStrokeDashPattern`; `SkiaView.IsExcludedWithChildren`.
 
@@ -245,7 +302,7 @@ Public API added by the shape, visual-tree, Label and accessibility fixes (R3, R
 
 Most impactful first. Counts are of the 75 failures after the first round; R2, R4, R6, R7, R8 and the TabbedPage part of R10 were fixed in the Shell, TabbedPage and Window round (C11 to C16).
 
-- **R1, CollectionView (23: 14 CollectionView, 9 Memory: the 7 gesture rows and 2 CollectionView leaks)**. Header/Footer (structural items) are not views of the list; a horizontal CollectionView does not size to its content (500 instead of 50); `ScrollTo` group/item does not reach the item; clearing `ItemsSource` keeps items' BindingContext; item views have no container whose bounds include the item's margin; the handler, and with it every item view (the `Gesture Does Not Leak` rows put a Label with a gesture recognizer in a CollectionView), is not collected after its page is popped. Left: `SkiaItemsView`, `SkiaCollectionView` and `CollectionViewHandler` are being reworked in parallel (Header/Footer); recorded for that work.
+- **R1, CollectionView**: fixed (C17). Left from the CollectionView area: a horizontal `GridItemsLayout` (span over 1) is drawn as a vertical grid, and a collection change still rebuilds every row and returns the list to the top (MAUI keeps the items in view, `ItemsUpdatingScrollMode`); no device test covers either.
 - **R2, Shell tab bar**: fixed (C11). Left, not covered by a device test: a section with several ShellContents shows no top tabs; TabBar sections are still listed in the flyout (MAUI lists none), and a Shell whose root is a TabBar keeps its flyout (MAUI's effective FlyoutBehavior is Disabled then).
 - **R3, VisualElementTree hit testing and platform-view lookup (8): fixed.** MAUI's `VisualTreeElementExtensions.GetVisualTreeElement(platformView)` and `GetVisualTreeElements(point)` are platform code: the platform-neutral build tests a point against each view's `Frame` (relative to its parent, so nothing below the top level was found) and has no platform parents to walk (`GetParent` returns null). `Handlers/VisualTreeElementPatches.cs` (Harmony, installed with the Linux services) runs MAUI's algorithms on the Skia tree: a view's bounds are its Skia view's window bounds (`ScreenBounds`), and the platform-view lookup walks `SkiaView.Parent` to the nearest Skia view that knows its element (`MauiView`, or a window's root view: its window) and back down the element tree along that path. A Skia view that knows its own element returns it directly, which also finds a CollectionView item (OpenMaui's item views are not logical children of the CollectionView, so MAUI's walk down from the list stops at the list; recorded for the CollectionView work). Main-suite tests: `Handlers/VisualTreeElementLookupTests.cs`.
 - **R4, TitleView**: Shell.TitleView fixed (C12). Left: `NavigationPage.TitleView` is not drawn in a SkiaNavigationPage's bar (no device test exercises it; `GetTitleView` fails visibly for it).
@@ -254,7 +311,7 @@ Most impactful first. Counts are of the 75 failures after the first round; R2, R
 - **R7, Shell flyout geometry**: fixed (C14). Left: a Scroll or CollapseOnScroll header does not scroll away or collapse as the items scroll (only the minimum height is applied).
 - **R8, Shell lifecycle and layout details**: fixed (C15).
 - **R9, formatted Label rendering (3): fixed.** A label with `TextType.Html` drew its FormattedText spans; MAUI's platforms show the Html text then and ignore the spans (`SkiaLabel.ShowsFormattedText`). Center/End-aligned plain text was placed by its ink bounds, formatted text by its advance width, so the two differed by a pixel or two; plain text is now aligned by its advance width too, as a platform text layout aligns a line (the `labels-wrap` golden's centred and right-aligned lines moved by that much and were re-recorded).
-- **R10, smaller ones (1 to 2 each)**: SwipeView items leak / logical children (2); `FrameResizesItsContents` sets `Window.Width = 200` and expects the frame to shrink with the window: the headless test window stays 800x600 (`HeadlessWindowHost` lays the tree out at its fixed size; the frame itself re-measures correctly), so this is the window size not following `Window.Width`, not Frame (left: Window/test-host area); `ScrollView` content does not move when its HorizontalOptions change after it is shown (the arrange honours alignment now, but the change does not re-arrange the content); `AutomationProperties.ExcludedWithChildren` (fixed: `SemanticMapper` maps it to the new `SkiaView.IsExcludedWithChildren`, and the accessible tree leaves such a view and its subtree out); a disconnected CarouselView keeps its collection subscription; `Border` "renders the expected size" (fixed: it used MAUI's `PlatformNotSupportedException("TODO")` capture path, now patched with a Linux branch; the border itself was already right).
+- **R10, smaller ones (1 to 2 each)**: `FrameResizesItsContents` (fixed: a window without a display now takes the size Window.Width/Height ask for and the headless host lays out at it, G18, and wrapped label text measures its widest line, G23); `AutomationProperties.ExcludedWithChildren` (fixed: `SemanticMapper` maps it to the new `SkiaView.IsExcludedWithChildren`, and the accessible tree leaves such a view and its subtree out); `Border` "renders the expected size" (fixed: it used MAUI's `PlatformNotSupportedException("TODO")` capture path, now patched with a Linux branch; the border itself was already right).
 
 ## Skipped
 
@@ -265,6 +322,8 @@ Most impactful first. Counts are of the 75 failures after the first round; R2, R
 
 ## Harness corrections (not product)
 
+Round 2 (C11): `SwipeViewTests.Linux.cs`'s `HasChildren` read `SkiaView.Children`, which a layout view hides with its own list (`SkiaLayoutView.Children`, where SkiaSwipeView keeps its content); it now reads the swipe view's. `SwipeItemMenuItemHandler` is aliased to the new Linux handler (`HandlerAliases.Controls.cs`), as the other handler names are.
+
 Three early failures were the port's, corrected in the Linux helpers: a layout's `InputTransparent` on Linux already means what Windows achieves by keeping the panel hit-test visible (SkiaView hit-tests the children of an input-transparent view), so the layout check compares the flag (2 tests); MAUI calls such as `view.GetBoundingBox()` bind to the object-taking platform helpers here, which now resolve an element to its platform view; a capture of a view in an open window first renders a frame, so pending layout is applied as a platform applies it before a capture (4 tests).
 
 ## API surface findings (Controls)
@@ -274,3 +333,118 @@ Three early failures were the port's, corrected in the Linux helpers: a layout's
 - **No platform toolbar or flyout view**: MAUI's `Window.Toolbar` now has a Linux handler (`ToolbarHandler`, its platform element the window's `SkiaToolbar`), but the bar itself is drawn by `SkiaShell` / the current `SkiaPage`, and the Shell flyout panel is not a view (its bounds are `SkiaShell.FlyoutBounds`).
 - **No public platform extensions** such as MAUI's `UpdateLineBreakMode(platformLabel, label)`; the suite routes these through the handler's mapper.
 
+
+# Essentials device tests (dotnet/maui's Essentials tests against OpenMaui)
+
+Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **281 MAUI tests ported. Before the fixes: 186 passed, 54 failed, 41 skipped. After: 238 passed, 0 failed, 43 skipped on a Plasma desktop (battery, network, URI handlers, KDE keyring); 226 passed, 0 failed, 55 skipped in a CI-like run** (no display, no session bus, no desktop applications). Every skip is a person, hardware, a desktop application or a network service the machine does not have; nothing is BLOCKED.
+
+These are MAUI's `src/Essentials/test/DeviceTests`: the static Essentials facades (`Preferences`, `SecureStorage`, `FileSystem`, `Launcher`, `AppInfo`, `Permissions`, `Screenshot`, ...) exercised the way an app calls them, with OpenMaui's Linux services behind them, as `UseLinux` installs them.
+
+## How it is wired
+
+| | |
+|---|---|
+| Project | `tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj` (net10.0, xunit 2.9). Its assembly is named `Microsoft.Maui.Essentials.DeviceTests`, MAUI's Essentials test app, which `Microsoft.Maui.Essentials` grants `InternalsVisibleTo` (the tests call `VersionTracking.InitVersionTracking`, `Permissions.EnsureDeclared`, `Preferences.GetPrivatePreferencesSharedName`) |
+| MAUI sources | the same sparse clone (`get-maui-sources.sh` now also checks out `src/Essentials/test/DeviceTests`); property `MauiSrc`; without it the project builds with a warning and one skipped test (`MauiSourcesMissing`) |
+| Run | `dotnet test tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj` (about 20 seconds); `--filter Category=Preferences` etc. |
+| Report | `python3 tests/Conformance/conformance-report.py <results.trx> [--failures]` |
+| CI | its own step, "Essentials conformance", in `.gitea/workflows/tests.yml` (non-blocking, like the other gates); the "Conformance suites" loop leaves this project to that step |
+
+**The test assembly is an OpenMaui app.** It carries the app properties MAUI's Essentials test app has (`ApplicationTitle` "Essentials Tests", `ApplicationId` `com.microsoft.maui.essentials.devicetests`, `ApplicationDisplayVersion` 1.0, `ApplicationVersion` 1) and imports `build/OpenMaui.Controls.Linux.targets` as the package would, so AppInfo's values and the `MauiAsset` files (`Resources/Raw`, read by `FileSystem_Tests`) reach it through the product's own build logic, not through test code.
+
+**Host** (`Infrastructure/EssentialsTestHost.cs`, a module initializer): the XDG data, config and cache roots point at a private temporary directory, so Preferences, FileSystem and VersionTracking never write into the user's files; the test assembly is made the entry assembly (`Assembly.SetEntryAssembly`; under `dotnet test` it is the test host, and AppInfo reads the app's metadata from the entry assembly); an OpenMaui main thread runs (GLib default context, `LinuxDispatcher`), so `MainThread.IsMainThread` and `MainThread.InvokeOnMainThreadAsync` behave as in an app; `LinuxPlatformRegistrar.Register` (what `UseLinux()` calls) installs the Linux Essentials; and a runner window is opened, the application's primary window with a laid-out root view, as MAUI's device runner shows its test list in the app's window (`Screenshot_Tests` capture it). At exit it removes what the tests left in the keyring (this test app's items only).
+
+**Skips** (`Infrastructure/KnownSkips.Essentials.cs`, through the shared `LinuxTestFramework`) mirror MAUI's own runner, which excludes tests by trait (`Traits.GetSkipTraits`): `InteractionType=Human` is never run on any platform; `Hardware<X>=Supported` is excluded on a device without X. `Infrastructure/HardwareSupport.Linux.cs` (the Linux branch of MAUI's `HardwareSupport.cs`, an `#if` chain with no fallback) reads the kernel, independently of OpenMaui: IIO accelerometer, magnetometer, gyroscope and pressure channels under `/sys/bus/iio/devices`, a system battery under `/sys/class/power_supply` (a peripheral's battery, scope `Device`, does not count), a torch LED, a vibrator. Where the machine has the hardware, the test runs. Three environment conditions skip single rows or tests, each asked of the machine itself, not of OpenMaui: `Launcher.CanOpenAsync` rows for a scheme no installed application handles (`gio mime x-scheme-handler/<scheme>`, else `xdg-mime`); `Geocoding_Tests` without a TCP connection to the geocoder; the two 100-way concurrent SecureStorage tests when the session's Secret Service is KDE's `ksecretd` (see "Left").
+
+**Build-time fixes** (`tests/Conformance/Essentials/MauiPatches.props`, same mechanism as the Controls suite, copies under `obj/MauiPatched`): four per-platform `#if` chains whose `#else` throws `PlatformNotSupportedException` or states a platform without the feature get a Linux branch: `AppInfo_Tests` (Linux has an application id, and its theme is never `Unspecified`, as on Windows and Android), `DeviceInfo_Tests.Platform_Is_Correct` (`DevicePlatform.Create("Linux")`), `AppActions_Tests.IsSupported` (supported, as on Windows and iOS). Nothing else in MAUI's files is changed.
+
+### MAUI files compiled in place
+
+`src/Essentials/test/DeviceTests/`: `Traits.cs`, `Utils.cs`, and `Tests/`: `Accelerometer`, `ActivityStateManager` (Android-only body, compiles to nothing), `AppActions`, `AppInfo`, `Barometer_Shared`, `Battery`, `Clipboard`, `Compass`, `Connectivity`, `Contacts`, `DeviceDisplay`, `DeviceInfo`, `Email`, `FileSystem`, `Flashlight`, `Geocoding`, `Geolocation`, `Gyroscope`, `HapticFeedback`, `Launcher`, `Magnetometer`, `MainThread`, `Maps`, `Microphone`, `Permissions`, `PhoneDialer` (empty), `Preferences`, `Screenshot`, `SecureStorage`, `Share`, `VersionTracking`, `Vibration`, `WebAuthenticator`, `WebUtils`, `WindowStateManager` (iOS-only body) `_Tests.cs`.
+
+## Results per test class
+
+"Before" is the first run against the unfixed product with the finished harness. "Desktop" is a KDE Plasma 6 laptop session; "headless" is the same machine with no display, no session bus and no desktop applications visible (`DISPLAY=`, `WAYLAND_DISPLAY=`, `DBUS_SESSION_BUS_ADDRESS` pointing nowhere, empty `XDG_DATA_DIRS`), what a CI runner looks like.
+
+| Test class | Ported | Before (pass / fail / skip) | After, desktop (pass / fail / skip) | After, headless CI-like (pass / fail / skip) |
+|---|---:|---|---|---|
+| Accelerometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
+| AppActions_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
+| AppInfo_Tests | 6 | 2 / 4 / 0 | 6 / 0 / 0 | 6 / 0 / 0 |
+| Barometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
+| Battery_Tests | 7 | 7 / 0 / 0 | 7 / 0 / 0 | 7 / 0 / 0 |
+| Clipboard_Tests | 4 | 4 / 0 / 0 | 4 / 0 / 0 | 4 / 0 / 0 |
+| Compass_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
+| Connectivity_Tests | 5 | 5 / 0 / 0 | 5 / 0 / 0 | 5 / 0 / 0 |
+| Contacts_Tests | 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 |
+| DeviceDisplay_Tests | 4 | 2 / 2 / 0 | 4 / 0 / 0 | 4 / 0 / 0 |
+| DeviceInfo_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
+| Email_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| FileSystem_Tests | 9 | 3 / 6 / 0 | 9 / 0 / 0 | 9 / 0 / 0 |
+| Flashlight_Tests | 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 |
+| Geocoding_Tests | 3 | 0 / 3 / 0 | 3 / 0 / 0 | 3 / 0 / 0 |
+| Geolocation_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| Gyroscope_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
+| HapticFeedback_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
+| Launcher_Tests | 20 | 1 / 16 / 3 | 17 / 0 / 3 | 3 / 0 / 17 |
+| Magnetometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
+| MainThread_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
+| Maps_Tests | 6 | 3 / 1 / 2 | 4 / 0 / 2 | 4 / 0 / 2 |
+| Microphone_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| Permissions_Tests | 9 | 0 / 8 / 1 | 8 / 0 / 1 | 8 / 0 / 1 |
+| Preferences_Tests | 125 | 124 / 1 / 0 | 125 / 0 / 0 | 125 / 0 / 0 |
+| Screenshot_Tests | 4 | 0 / 4 / 0 | 4 / 0 / 0 | 4 / 0 / 0 |
+| SecureStorage_Tests | 14 | 12 / 2 / 0 | 12 / 0 / 2 | 14 / 0 / 0 |
+| Share_Tests | 9 | 7 / 2 / 0 | 9 / 0 / 0 | 9 / 0 / 0 |
+| VersionTracking_Tests | 5 | 0 / 5 / 0 | 5 / 0 / 0 | 5 / 0 / 0 |
+| Vibration_Tests | 2 | 0 / 0 / 2 | 0 / 0 / 2 | 0 / 0 / 2 |
+| WebAuthenticator_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| WebUtils_Tests | 3 | 3 / 0 / 0 | 3 / 0 / 0 | 3 / 0 / 0 |
+| **Total** | **281** | **186 / 54 / 41** | **238 / 0 / 43** | **226 / 0 / 55** |
+
+## Gaps found and fixed
+
+| Area (tests) | Gap | Fix |
+|---|---|---|
+| AppInfo (4) | `Name`, `PackageName`, `VersionString`, `BuildString` came from the entry assembly's name, version and informational version (`"1.0.0+460d78..."` as the build); `ApplicationTitle`/`ApplicationId`/`ApplicationDisplayVersion`/`ApplicationVersion` were ignored | `build/OpenMaui.Controls.Linux.targets` writes them as `Microsoft.Maui.ApplicationModel.AppInfo.*` assembly metadata (the keys MAUI's Windows build uses for unpackaged apps); `AppInfoService` reads them, falling back to the assembly. The data directories keep the name they had (`AppInfoService.StorageName`), so setting `ApplicationTitle` does not move an app's preferences or files |
+| FileSystem (6) | `MauiAsset` files never reached the output on the Linux target (Resizetizer only packages them for Android/iOS/Windows/Tizen); `FileResult.OpenReadAsync()`, `ContentType` and the `FileBase` copy constructor threw `NotImplementedInReferenceAssemblyException` (so did every file a picker returned) | the targets copy `MauiAsset` items next to the app with MAUI's path rules (LogicalName, Link, project-relative); `Services/FileBasePatches.cs` gives `FileBase` a file stream per call, a content type from the extension (MAUI's Windows table, then shared-mime-info `globs2`, then `application/octet-stream`) and a working copy constructor. The targets also decide `OpenMauiLinux` themselves when the .props could not (a single `<TargetFramework>` is unknown when NuGet's .props run) |
+| Permissions (8) | every `Permissions.CheckStatusAsync/RequestAsync/EnsureDeclared/ShouldShowRationale` threw `NotImplementedInReferenceAssemblyException` | `Services/PermissionsPatches.cs`: Windows' unpackaged model (Granted, no declarations, no rationale); requesting a location permission off the main thread faults with `PermissionException`, as on Windows, Android and iOS |
+| Launcher (16) | `CanOpenAsync` threw (only `OpenAsync(Uri)` was patched); `LauncherService.CanOpenAsync` said true for anything; `TryOpenAsync` launched without checking; `OpenAsync(OpenFileRequest)` returned false for a null request or file | `Launcher.Default` is `LauncherService`; `CanOpenAsync` is true for an existing `file:` path or a scheme with a registered handler (`SchemeHandlers`, the XDG associations xdg-open uses; any scheme inside a sandbox); `TryOpenAsync` opens only what it can; null arguments throw `ArgumentNullException` |
+| VersionTracking (5) | OpenMaui replaced MAUI's implementation with one JSON file in `~/.local/share` shared by every app, so `VersionTracking.InitVersionTracking` did nothing and versions read `"1.0.0"` | MAUI's own (platform-neutral) implementation is used, over the Linux Preferences and AppInfo: per app, as elsewhere. `VersionTrackingService` stays for code that constructs it. Existing apps see one more "first launch" after upgrading |
+| Screenshot (4) | `CaptureAsync()` returned null with no window (an `IScreenshotResult` dereference later) | it throws `InvalidOperationException` without a window, as the other platforms do (the conformance host now has the window MAUI's runner has) |
+| Geocoding (3) | a stub returning no results | `GeocodingService` queries Nominatim (OpenStreetMap; GNOME's geocode-glib uses it): reverse and forward lookups mapped to `Placemark`/`Location`, results in the UI culture's language, a User-Agent naming the app and one request per second as the public instance's policy asks; `OPENMAUI_GEOCODING_URL` points it at another Nominatim. Failures throw `HttpRequestException`, no match is an empty list |
+| DeviceDisplay (2) | `DeviceDisplay.KeepScreenOn` was the portable stub (always false); `MainDisplayInfoChanged` never fired | the facade's `KeepScreenOn` and screen-metrics listeners go to `DeviceDisplayService` (screensaver inhibit, monitor changes) |
+| SecureStorage (2) | `RemoveAll` did nothing with a keyring; every app shared one keyring namespace (`service=maui-secure-storage`) and one fallback directory (`~/.maui-secure`, which `RemoveAll` deleted whole, every app's values) | per-app storage: keyring items under `service=maui-secure-storage/<AppInfo.PackageName>`, files under `$XDG_DATA_HOME/<app>/.maui-secure`; `RemoveAll` clears only the app's; on first use an app copies the legacy shared values it has none of (and leaves them for other apps); secret-tool runs one call at a time with arguments passed verbatim, a store retries a dropped keyring session, a failed lookup is retried, and with no Secret Service reachable (no session bus) values go to the encrypted file instead of throwing; `SetAsync(key, null)` and blank keys throw `ArgumentNullException` as in MAUI |
+| Share (2) | a text request with neither text nor URI did nothing; a file list containing null threw `NullReferenceException` | MAUI's checks: `ArgumentException` for nothing to share, thrown before anything starts |
+| Maps (1) | `Map.OpenAsync(placemark, null)` opened a browser | `ArgumentNullException` for a null placemark or options (all four methods), as MAUI's MapImplementation |
+| Preferences (1) | `Set` accepted any type (`int[]` serialized to JSON) | `NotSupportedException` for types outside MAUI's eight, on Set and Get; setting null removes the key, as on the other platforms |
+| Clipboard (headless) | without a display server (and without wl-copy/xclip/xsel) `GetTextAsync` returned null right after `SetTextAsync` | the app keeps the text it set when no system clipboard took it, and returns it |
+| Vibration (desktop, MAUI's skip) | `Vibrate`/`Cancel` silently did nothing without a vibrator | `FeatureNotSupportedException` when unsupported, duration clamped to 0..5 s, as MAUI's shared VibrationImplementation |
+| Battery (found while comparing) | no battery reported `Unknown`; a wireless mouse's battery (`scope=Device`) was read as the system battery | `NotPresent` without a system battery, as Windows; peripheral batteries ignored |
+| DI | `UseLinux` registered second instances of the Essentials services (an injected `IPreferences` and `Preferences.Default` each cached the same file and overwrote each other's writes) | the registrations resolve to the facade instances |
+
+Main-suite coverage: `tests/Services/EssentialsParityTests.cs` (AppInfo metadata and version parsing, facades and DI, Launcher, Map, Share, Preferences, FileBase and MIME types, Permissions, SecureStorage, Vibration, Battery, Screenshot, KeepScreenOn, Geocoding against a stub server); updated expectations in `EssentialsTests.cs` where the old behaviour was the gap.
+
+## Skipped
+
+| Reason | Tests |
+|---|---|
+| **Needs a person** (`InteractionType=Human`, never run by MAUI's runner): Contacts permission prompt, Email composer, Geolocation (GeoClue agent prompt and a fix), Launcher `Open`/`TryOpen`/`CanNotTryOpen` (opens the browser, mail client, dialer), Maps (opens a map app), Microphone permission prompts, WebAuthenticator (live browser sign-in round trip) | 22 |
+| **No such hardware on this machine** (MAUI's `Hardware<X>=Supported` filter): accelerometer, barometer, compass, gyroscope, magnetometer `Monitor`/`IsMonitoring`/`Stop_Monitor` (15), flashlight (1); battery tests skip the same way on a machine without one | 16 |
+| **No vibration motor**: `Vibrate`, `Vibrate_Cancel` throw `FeatureNotSupportedException` without one, as specified; MAUI skips both on Windows for the same reason | 2 |
+| **MAUI's own skip**: `StorageAndroid13AlwaysGranted` (Android only) | 1 |
+| **Desktop only, KDE keyring**: `SecureStorage` `Set_Get_Async_MultipleTimes`, `Set_Get_Remove_Async_MultipleTimes` when the session's Secret Service is `ksecretd` (see "Left") | 2 |
+| **Headless only**: `Launcher.CanOpen`/`CanOpenUri` rows for http, https, mailto, tel, sms when no application handles the scheme (14); `Geocoding_Tests` without network access to the geocoder | up to 14 + 3 |
+
+The sensor `IsSupported` tests run everywhere: they compare OpenMaui's answer with what the kernel shows, so a convertible laptop with an IIO accelerometer would fail them today (see "Left").
+
+## Left, and why
+
+- **Motion sensors read no hardware.** Accelerometer, gyroscope, magnetometer, compass, barometer and orientation report `IsSupported = false` everywhere. A machine with IIO sensors (convertibles, Linux phones; `iio-sensor-proxy` exposes only orientation and light) would fail the `IsSupported` tests here, honestly. Reading `/sys/bus/iio` directly is a feature, not a conformance fix.
+- **KDE's ksecretd under concurrency.** With 100 parallel set/get/remove calls, `ksecretd` acknowledges a store before a lookup sees it and briefly returns cleared items, although OpenMaui runs one `secret-tool` call at a time; single-threaded use passes, as do the same tests on the encrypted-file store. A long-lived Secret Service D-Bus session (Tmds.DBus, instead of one `secret-tool` process per call) may avoid the session churn that triggers it; not done here.
+- **The keyring items left by the first (pre-fix) run** of this suite on a developer machine sit under the old shared namespace (`service=maui-secure-storage`); the suite no longer writes there.
+
+## Not ported, and why
+
+- `*.Android.cs`, `*.iOS.cs`, `Tests/Android/**`, `Tests/Windows/**` (ActivityStateManager recreation, AppActions on iOS, WebAuthenticator lifecycle on iOS, FileProvider, Windows window-message managers, ...): they test Android/iOS/Windows plumbing that has no Linux counterpart.
+- MAUI's per-platform blocks inside shared files (`FileSystem_Tests.EnsureFileResultContentType` is Windows-only, `ValidateMIMEFormat` Mac-only, `Share` intent ClipData Android-only, SecureStorage `Fix_Corrupt_Data` Android-only) are not compiled on this TFM. The behaviour of the Windows content-type theory is covered by `EssentialsParityTests.FileResult_content_type_comes_from_the_extension`.

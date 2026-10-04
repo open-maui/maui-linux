@@ -797,6 +797,14 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
     }
 
     /// <summary>
+    /// The tooltip text shown when the pointer rests on the view (the content of MAUI's
+    /// <c>IToolTipElement.ToolTip</c>, which <c>ToolTipProperties.Text</c> sets on a Controls
+    /// view), or null for none. Set by the handlers' ToolTip mapping, as MAUI's platforms put
+    /// the text on the platform view (WinUI's ToolTipService, Android's TooltipText).
+    /// </summary>
+    public string? ToolTipText { get; set; }
+
+    /// <summary>
     /// Gets or sets the automation ID for UI testing.
     /// </summary>
     public string AutomationId
@@ -1568,7 +1576,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             var h = Bounds.Height;
             // MAUI frames are relative to the parent (apps and libraries sum
             // X/Y up the tree to place popups); Skia bounds are window-absolute.
-            var origin = ParentOrigin(MauiView);
+            var origin = Parent?.FrameOriginFor(this) ?? ParentOrigin(MauiView);
             var frame = new Rect(Bounds.X - origin.X, Bounds.Y - origin.Y, w, h);
             var current = MauiView.Frame;
             if (!KeepMauiFrame && (Math.Abs(current.Width - w) > 0.5 || Math.Abs(current.Height - h) > 0.5
@@ -1611,6 +1619,13 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             }
         }
     }
+
+    /// <summary>
+    /// Where the MAUI frame of <paramref name="child"/> is measured from, when this view places
+    /// it in a slot of its own rather than in its MAUI parent's space (an items view's row: MAUI
+    /// frames an item relative to its cell). Null: relative to the MAUI parent.
+    /// </summary>
+    internal virtual Point? FrameOriginFor(SkiaView child) => null;
 
     /// <summary>
     /// The window position of <paramref name="view"/>'s parent: a page's own

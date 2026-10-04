@@ -31,12 +31,18 @@ public class ScreenshotService : IScreenshot
 
     public bool IsCaptureSupported => TryGetSurfaceSize(out _, out _, out _);
 
+    /// <summary>
+    /// The application window as it is drawn (page, modal pages, popups, dialogs), at the
+    /// window's size and scale. Like the other platforms (which capture the active window and
+    /// fail when there is none), this throws InvalidOperationException when the app has no
+    /// window with a laid-out root view; it used to return null, which callers dereferenced.
+    /// </summary>
     public Task<IScreenshotResult?> CaptureAsync()
     {
         try
         {
             if (!TryGetSurfaceSize(out var root, out var width, out var height))
-                return Task.FromResult<IScreenshotResult?>(null);
+                return Task.FromException<IScreenshotResult?>(new InvalidOperationException("Unable to find a window to capture."));
 
             var scale = _scaleProvider();
             if (scale <= 0 || float.IsNaN(scale) || float.IsInfinity(scale))
@@ -47,7 +53,7 @@ public class ScreenshotService : IScreenshot
 
             using var surface = SKSurface.Create(new SKImageInfo(pixelWidth, pixelHeight, SKColorType.Bgra8888, SKAlphaType.Premul));
             if (surface == null)
-                return Task.FromResult<IScreenshotResult?>(null);
+                return Task.FromException<IScreenshotResult?>(new InvalidOperationException($"Could not create a {pixelWidth}x{pixelHeight} surface to capture the window."));
 
             var canvas = surface.Canvas;
             canvas.Clear(SKColors.White);
@@ -74,7 +80,7 @@ public class ScreenshotService : IScreenshot
         catch (Exception ex)
         {
             DiagnosticLog.Debug("ScreenshotService", "Capture failed", ex);
-            return Task.FromResult<IScreenshotResult?>(null);
+            return Task.FromException<IScreenshotResult?>(ex);
         }
     }
 

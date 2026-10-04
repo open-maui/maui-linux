@@ -209,4 +209,96 @@ public class SkiaSwipeViewTests
         Assert.True(size.Width <= 300);
         Assert.True(size.Height <= 100);
     }
+
+    // A white content in a 300 x 60 swipe view, drawn into a bitmap.
+    private static SkiaSwipeView Row(params SwipeItem[] rightItems)
+    {
+        var swipeView = new SkiaSwipeView { Content = new SkiaContentView { BackgroundColor = Colors.White } };
+        foreach (var item in rightItems)
+            swipeView.RightItems.Add(item);
+        swipeView.Measure(new Size(300, 60));
+        swipeView.Arrange(new Rect(0, 0, 300, 60));
+        return swipeView;
+    }
+
+    private static SKColor PixelAt(SkiaView view, int x, int y)
+    {
+        using var bitmap = new SKBitmap(300, 60);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Black);
+        view.Draw(canvas);
+        return bitmap.GetPixel(x, y);
+    }
+
+    private static void DragTo(SkiaSwipeView view, float fromX, float toX)
+    {
+        view.OnPointerPressed(new PointerEventArgs(fromX, 30));
+        view.OnPointerMoved(new PointerEventArgs((fromX + toX) / 2, 30));
+        view.OnPointerMoved(new PointerEventArgs(toX, 30));
+    }
+
+    [Fact]
+    public void Open_reveals_the_items_and_moves_the_content()
+    {
+        var view = Row(new SwipeItem { BackgroundColor = Colors.Red });
+
+        view.Open(SwipeDirection.Left);
+
+        Assert.True(view.IsOpen);
+        Assert.Equal(-100f, view.SwipeOffset);
+        Assert.Equal(SKColors.Red, PixelAt(view, 250, 5));
+        Assert.Equal(SKColors.White, PixelAt(view, 150, 5));
+        Assert.Equal(0, view.Content!.Bounds.Left);
+    }
+
+    [Fact]
+    public void A_side_without_items_does_not_open()
+    {
+        var view = Row(new SwipeItem());
+
+        view.Open(SwipeDirection.Right);
+
+        Assert.False(view.IsOpen);
+        Assert.Equal(0f, view.SwipeOffset);
+    }
+
+    [Fact]
+    public void Reveal_keeps_the_items_in_place_and_drag_moves_them()
+    {
+        // Two items open to 200; a 150 swipe uncovers x 150..300.
+        var reveal = Row(new SwipeItem { BackgroundColor = Colors.Red }, new SwipeItem { BackgroundColor = Colors.Blue });
+        DragTo(reveal, 290, 140);
+        Assert.Equal(-150f, reveal.SwipeOffset);
+        Assert.Equal(SKColors.Blue, PixelAt(reveal, 210, 5));
+
+        var drag = Row(new SwipeItem { BackgroundColor = Colors.Red }, new SwipeItem { BackgroundColor = Colors.Blue });
+        drag.TransitionMode = SwipeTransitionMode.Drag;
+        DragTo(drag, 290, 140);
+        Assert.Equal(SKColors.Red, PixelAt(drag, 210, 5));
+    }
+
+    [Fact]
+    public void Top_items_open_downwards_over_the_content_height()
+    {
+        var view = new SkiaSwipeView { Content = new SkiaContentView { BackgroundColor = Colors.White } };
+        view.TopItems.Add(new SwipeItem { BackgroundColor = Colors.Green });
+        view.Measure(new Size(300, 60));
+        view.Arrange(new Rect(0, 0, 300, 60));
+
+        view.Open(OpenSwipeItem.TopItems);
+
+        Assert.Equal(60f, view.SwipeOffset);
+        Assert.Equal(new SKColor(0, 128, 0), PixelAt(view, 150, 30));
+    }
+
+    [Fact]
+    public void Execute_mode_opens_to_most_of_the_content()
+    {
+        var view = Row(new SwipeItem());
+        view.SetItemsMode(OpenSwipeItem.RightItems, SwipeMode.Execute);
+
+        view.Open(SwipeDirection.Left);
+
+        Assert.Equal(-240f, view.SwipeOffset);
+    }
 }
