@@ -233,56 +233,17 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
 
         private void Clear() => _handler.PlatformView?.ClearImage();
 
-        private async Task<Exception?> LoadAsync(IImageSource source, CancellationToken token)
+        private Task<Exception?> LoadAsync(IImageSource source, CancellationToken token)
         {
             var view = _handler.PlatformView;
-            if (view is null)
-                return null;
+            var part = _handler.VirtualView;
+            if (view is null || part is null)
+                return Task.FromResult<Exception?>(null);
 
-            switch (source)
-            {
-                case IFileImageSource fileSource:
-                    if (string.IsNullOrEmpty(fileSource.File))
-                    {
-                        view.ClearImage();
-                        return null;
-                    }
-                    return await CaptureAsync(view, () => view.LoadFromFileAsync(fileSource.File));
-
-                case IUriImageSource uriSource:
-                    if (uriSource.Uri is null)
-                    {
-                        view.ClearImage();
-                        return null;
-                    }
-                    return await CaptureAsync(view, () => view.LoadFromUriAsync(uriSource.Uri));
-
-                case IStreamImageSource streamSource:
-                    using (var stream = await streamSource.GetStreamAsync(token))
-                    {
-                        token.ThrowIfCancellationRequested();
-                        if (stream is null)
-                            return new InvalidOperationException("The stream image source returned no stream.");
-                        return await CaptureAsync(view, () => view.LoadFromStreamAsync(stream));
-                    }
-
-                case Microsoft.Maui.Controls.FontImageSource fontSource:
-                    var bitmap = ImageHandler.ImageSourceServiceResultManager.RenderFontImageSource(
-                        fontSource, view.WidthRequest, view.HeightRequest);
-                    if (bitmap is null)
-                    {
-                        view.ClearImage();
-                        return null;
-                    }
-                    view.LoadFromBitmap(bitmap);
-                    return null;
-
-                default:
-                    return new NotSupportedException($"Image source type {source.GetType().Name} is not supported on Linux.");
-            }
+            float scale = view.DeviceScale;
+            return ImageSourcePartLoading.LoadThroughServiceAsync(
+                _handler, part, source, scale, new Size(view.WidthRequest, view.HeightRequest), token,
+                result => view.ApplyResult(result, scale), view.ClearImage);
         }
-
-        private static Task<Exception?> CaptureAsync(SkiaImageButton view, Func<Task> load) =>
-            ImageSourcePartLoading.CaptureErrorAsync(h => view.ImageLoadingError += h, h => view.ImageLoadingError -= h, load);
     }
 }

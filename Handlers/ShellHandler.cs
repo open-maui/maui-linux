@@ -188,7 +188,8 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
                 {
                     Route = flyoutItem.Route ?? flyoutItem.Title ?? "",
                     Title = flyoutItem.Title ?? "",
-                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(flyoutItem.Icon)
+                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(flyoutItem.Icon),
+                    IconSource = flyoutItem.Icon,
                 };
 
                 // Add shell contents as items
@@ -216,7 +217,8 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
                 {
                     Route = shellItem.Route ?? shellItem.Title ?? "",
                     Title = shellItem.Title ?? "",
-                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(shellItem.Icon)
+                    IconPath = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.FileOf(shellItem.Icon),
+                    IconSource = shellItem.Icon,
                 };
 
                 foreach (var shellSection in shellItem.Items)
@@ -260,6 +262,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
             }
 
             platformView.Sections[sectionIndex].IconPath = iconPath;
+            platformView.Sections[sectionIndex].IconSource = item.Icon;
             sectionIndex++;
         }
     }
