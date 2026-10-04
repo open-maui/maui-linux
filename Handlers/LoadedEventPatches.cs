@@ -49,7 +49,23 @@ internal static class LoadedEventPatches
 
     /// <summary>Holds Loaded back while the view, in a window, has no platform view yet.</summary>
     private static bool HandlePlatformUnloadedLoaded_Prefix(VisualElement __instance) =>
-        !(__instance.Window != null && __instance.Handler?.PlatformView == null);
+        !(__instance.Window != null && (__instance.Handler?.PlatformView == null || IsClosed(__instance.Window)));
+
+    // MAUI windows whose native window has closed: their views stay unloaded (MAUI's
+    // platform-neutral wiring would load them again on the next window handler change,
+    // since they still have a Window).
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Microsoft.Maui.Controls.Window, object> s_closedWindows = new();
+
+    private static bool IsClosed(Microsoft.Maui.Controls.Window window) => s_closedWindows.TryGetValue(window, out _);
+
+    /// <summary>Marks a MAUI window's native window closed (or shown again).</summary>
+    internal static void SetWindowClosed(Microsoft.Maui.Controls.Window window, bool closed)
+    {
+        if (closed)
+            s_closedWindows.AddOrUpdate(window, new object());
+        else
+            s_closedWindows.Remove(window);
+    }
 
     /// <summary>
     /// Sends Loaded (once) for a view in a window that has its platform view: at its first arrange.
@@ -68,4 +84,21 @@ internal static class LoadedEventPatches
 
     /// <summary>True when the patch is in place (its sender replaces the direct invoke).</summary>
     internal static bool IsInstalled => s_sendLoaded != null && s_isLoadedFired != null && Volatile.Read(ref s_installed) == 1;
+
+    private static MethodInfo? s_sendUnloaded;
+
+    /// <summary>
+    /// Sends Unloaded (once) to an element that had Loaded: what a platform does for a
+    /// view tree whose native window went away. Through MAUI's own SendUnloaded, so a
+    /// later Loaded (the view shown in another window) is sent again as usual.
+    /// </summary>
+    internal static void SendUnloadedIfLoaded(VisualElement element)
+    {
+        s_sendUnloaded ??= typeof(VisualElement).GetMethod("SendUnloaded", BindingFlags.Instance | BindingFlags.NonPublic, Type.EmptyTypes);
+        if (s_sendUnloaded == null || s_isLoadedFired == null)
+            return;
+        if (s_isLoadedFired.GetValue(element) is not true)
+            return;
+        s_sendUnloaded.Invoke(element, null);
+    }
 }

@@ -99,7 +99,7 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
 
     private void OnSelectedIndexChanged(object? sender, SelectedIndexChangedEventArgs e)
     {
-        if (VirtualView is null || PlatformView is null) return;
+        if (VirtualView is null || PlatformView is null || _reloadingItems) return;
 
         if (VirtualView.SelectedIndex != e.NewIndex)
         {
@@ -107,12 +107,28 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         }
     }
 
+    private bool _reloadingItems;
+
     private void ReloadItems()
     {
         if (PlatformView is null || VirtualView is null) return;
 
+        // Refilling the platform list is not a selection: Picker clears and refills its
+        // Items when it gets a handler (and when ItemsSource changes), and the platform
+        // index the empty list forced (-1) must not reach the view. The view's own
+        // SelectedIndex is shown again once the items are back.
         var items = VirtualView.GetItemsAsArray();
-        PlatformView.SetItems(items.Select(i => i?.ToString() ?? ""));
+        _reloadingItems = true;
+        try
+        {
+            PlatformView.SetItems(items.Select(i => i?.ToString() ?? ""));
+        }
+        finally
+        {
+            _reloadingItems = false;
+        }
+        var index = VirtualView.SelectedIndex;
+        PlatformView.SelectedIndex = index >= 0 && index < items.Length ? index : -1;
     }
 
     public static void MapTitle(PickerHandler handler, IPicker picker)

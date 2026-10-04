@@ -85,10 +85,10 @@ public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>
     {
         if (handler.PlatformView is null) return;
 
-        if (checkBox.Background is SolidPaint solidPaint && solidPaint.Color is not null)
-        {
-            handler.PlatformView.Color = solidPaint.Color;
-        }
+        // Background paints the view behind the box, as on MAUI's platforms; the
+        // box's own colour is the Foreground (CheckBox.Color).
+        handler.PlatformView.BackgroundColor =
+            checkBox.Background is SolidPaint { Color: not null } solidPaint ? solidPaint.Color : null;
     }
 
     public static void MapIsEnabled(CheckBoxHandler handler, ICheckBox checkBox)

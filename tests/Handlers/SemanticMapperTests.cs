@@ -208,4 +208,22 @@ public class SemanticMapperTests
         accessible.AccessibleName.Should().Be("Spoken name");
         accessible.AccessibleDescription.Should().Be("Spoken hint");
     }
+
+    [Fact]
+    public void ExcludedWithChildren_takes_the_view_and_its_subtree_out_of_the_accessible_tree()
+    {
+        var button = new Button { Text = "Hidden" };
+        AutomationProperties.SetExcludedWithChildren(button, true);
+        var platformButton = new SkiaButton();
+        var platformParent = new SkiaStackLayout();
+        platformParent.AddChild(platformButton);
+
+        SemanticMapper.Apply(button, platformButton);
+
+        platformButton.IsExcludedWithChildren.Should().BeTrue();
+        ((IAccessible)platformParent).Children.Should().NotContain(platformButton);
+
+        AutomationProperties.SetExcludedWithChildren(button, false);
+        platformButton.IsExcludedWithChildren.Should().BeFalse("later changes follow the view");
+    }
 }

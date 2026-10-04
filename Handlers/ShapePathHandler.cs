@@ -14,12 +14,14 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Supports PathGeometry with LineSegment, BezierSegment, QuadraticBezierSegment,
 /// ArcSegment, PolyLineSegment, PolyBezierSegment, PolyQuadraticBezierSegment.
 /// </summary>
-public partial class ShapePathHandler : LinuxViewHandler<Path, SkiaShapePath>
+public partial class ShapePathHandler : LinuxViewHandler<Path, SkiaShapePath>, IShapeViewHandler
 {
     public static IPropertyMapper<Path, ShapePathHandler> Mapper =
-        new PropertyMapper<Path, ShapePathHandler>(ViewHandler.ViewMapper)
+        new PropertyMapper<Path, ShapePathHandler>(ShapeViewHandler.Mapper)
         {
+            [nameof(IShapeView.Shape)] = MapShape,
             [nameof(Path.Data)] = MapData,
+            [nameof(Path.RenderTransform)] = MapRenderTransform,
             [nameof(Path.Fill)] = MapFill,
             [nameof(Path.Stroke)] = MapStroke,
             [nameof(Path.StrokeThickness)] = MapStrokeThickness,
@@ -60,7 +62,40 @@ public partial class ShapePathHandler : LinuxViewHandler<Path, SkiaShapePath>
         if (handler.PlatformView is null) return;
 
         handler.PlatformView.Data = path.Data;
+        handler.PlatformView.ShapeWindingMode = PathWindingMode(path);
         handler.PlatformView.InvalidatePath();
+    }
+
+    /// <summary>
+    /// MAUI's PathHandler.MapShape (UpdatePath): the shape drawable, filled with the
+    /// winding of the path's geometry.
+    /// </summary>
+    public static void MapShape(ShapePathHandler handler, Path path)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.UpdateShape(path);
+        handler.PlatformView.ShapeWindingMode = PathWindingMode(path);
+    }
+
+    /// <summary>The path's RenderTransform, applied to the shape after its aspect (MAUI's PathHandler.MapRenderTransform).</summary>
+    public static void MapRenderTransform(ShapePathHandler handler, Path path)
+    {
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.ShapeRenderTransform = path.RenderTransform?.Value is { } m
+            ? new System.Numerics.Matrix3x2((float)m.M11, (float)m.M12, (float)m.M21, (float)m.M22, (float)m.OffsetX, (float)m.OffsetY)
+            : null;
+        handler.PlatformView.Invalidate();
+    }
+
+    // MAUI's ShapeExtensions.GetPathWindingMode: the geometry's FillRule (EvenOdd when it has none).
+    private static Microsoft.Maui.Graphics.WindingMode PathWindingMode(Path path)
+    {
+        var fillRule = FillRule.EvenOdd;
+        if (path.Data is GeometryGroup group)
+            fillRule = group.FillRule;
+        if (path.Data is PathGeometry geometry)
+            fillRule = geometry.FillRule;
+        return fillRule == FillRule.EvenOdd ? Microsoft.Maui.Graphics.WindingMode.EvenOdd : Microsoft.Maui.Graphics.WindingMode.NonZero;
     }
 
     public static void MapFill(ShapePathHandler handler, Path path)
@@ -133,5 +168,15 @@ public partial class ShapePathHandler : LinuxViewHandler<Path, SkiaShapePath>
         if (handler.PlatformView is null) return;
         handler.PlatformView.Aspect = path.Aspect;
         handler.PlatformView.Invalidate();
+    }
+
+    IShapeView IShapeViewHandler.VirtualView => VirtualView;
+
+    object IShapeViewHandler.PlatformView => PlatformView;
+
+    protected override void DisconnectHandler(SkiaShapePath platformView)
+    {
+        platformView.ClearShape();
+        base.DisconnectHandler(platformView);
     }
 }

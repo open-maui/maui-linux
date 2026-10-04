@@ -243,10 +243,12 @@ public partial class SkiaShell : SkiaLayoutView
 
     private readonly record struct NavigationEntry(SkiaView Content, string Title, Microsoft.Maui.Controls.Page? MauiPage);
 
-    // The MAUI page whose Appearing has been sent and Disappearing hasn't.
-    // SkiaShell owns page transitions (MAUI's Shell never sees them), so it
-    // must send the lifecycle events itself — pages commonly subscribe/
-    // unsubscribe event handlers in OnAppearing/OnDisappearing.
+    // The MAUI page the shell presents (the one whose Appearing has been sent
+    // and Disappearing hasn't). Without a MAUI Shell, SkiaShell owns page
+    // transitions and sends the lifecycle events itself — pages commonly
+    // subscribe/unsubscribe event handlers in OnAppearing/OnDisappearing. With
+    // one, MAUI's ShellSection sends them too, and SkiaShell only sends
+    // Appearing to the page MAUI presents (MauiPresents).
     private Microsoft.Maui.Controls.Page? _lifecyclePage;
 
     private void SendPageLifecycle(Microsoft.Maui.Controls.Page? newPage)
@@ -268,8 +270,11 @@ public partial class SkiaShell : SkiaLayoutView
                 newPage.PropertyChanged += OnPresentedPagePropertyChanged;
                 ApplyPresentedPageTitle();
             }
+            TrackBackButtonBehavior();
             TrackToolbarItems(newPage);
-            (newPage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
+            UpdateTitleView();
+            if (MauiPresents(newPage))
+                (newPage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
         }
         catch (Exception ex)
         {
@@ -295,7 +300,45 @@ public partial class SkiaShell : SkiaLayoutView
             ApplyPresentedPageTitle();
             Invalidate();
         }
+        else if (e.PropertyName == Shell.BackButtonBehaviorProperty.PropertyName && ReferenceEquals(sender, _lifecyclePage))
+        {
+            TrackBackButtonBehavior();
+            Invalidate();
+        }
+        else if (e.PropertyName == Shell.TitleViewProperty.PropertyName && ReferenceEquals(sender, _lifecyclePage))
+        {
+            UpdateTitleView();
+        }
+        else if (e.PropertyName == Shell.TabBarIsVisibleProperty.PropertyName && ReferenceEquals(sender, _lifecyclePage))
+        {
+            // The page shows or hides the tab bar; the content takes or gives back its room.
+            InvalidateMeasure();
+            Invalidate();
+        }
     }
+
+    private BackButtonBehavior? _backButtonBehavior;
+
+    /// <summary>The presented page's Shell.BackButtonBehavior, followed as it changes.</summary>
+    private void TrackBackButtonBehavior()
+    {
+        var behavior = _lifecyclePage != null ? Shell.GetBackButtonBehavior(_lifecyclePage) : null;
+        if (ReferenceEquals(behavior, _backButtonBehavior))
+            return;
+        if (_backButtonBehavior != null)
+            _backButtonBehavior.PropertyChanged -= OnBackButtonBehaviorChanged;
+        _backButtonBehavior = behavior;
+        if (behavior != null)
+            behavior.PropertyChanged += OnBackButtonBehaviorChanged;
+    }
+
+    private void OnBackButtonBehaviorChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => Invalidate();
+
+    /// <summary>
+    /// The back arrow is shown: there is a page to go back to and the presented page's
+    /// Shell.BackButtonBehavior does not hide it (MAUI's ShellToolbar).
+    /// </summary>
+    public bool IsBackButtonVisible => CanGoBack && (_backButtonBehavior?.IsVisible ?? true);
 
     /// <summary>
     /// Re-issues SendAppearing for the current lifecycle page. MAUI's
@@ -305,8 +348,28 @@ public partial class SkiaShell : SkiaLayoutView
     /// calls this once the shell is fully attached. Safe to call repeatedly
     /// (MAUI guards with _hasAppeared).
     /// </summary>
-    public void ResendPendingAppearing() =>
-        (_lifecyclePage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
+    public void ResendPendingAppearing()
+    {
+        if (MauiPresents(_lifecyclePage))
+            (_lifecyclePage as Microsoft.Maui.Controls.IPageController)?.SendAppearing();
+    }
+
+    /// <summary>
+    /// True when <paramref name="page"/> is the page the attached MAUI Shell presents and no
+    /// modal page covers the window. MAUI's ShellSection sends Appearing and Disappearing for
+    /// the pages it presents; the mirror lags it (it follows Navigated), so an Appearing sent
+    /// for a page MAUI has already moved past (a push from the page's NavigatedTo) or that a
+    /// modal covers fired its Appearing a second time. Without a MAUI Shell the platform is
+    /// the only source of the lifecycle.
+    /// </summary>
+    private bool MauiPresents(Microsoft.Maui.Controls.Page? page)
+    {
+        if (page == null || _mauiShell == null)
+            return page != null;
+        if (page.Window is { } window && window.Navigation.ModalStack.Count > 0)
+            return false;
+        return ReferenceEquals(_mauiShell.CurrentPage, page);
+    }
 
     private static Microsoft.Maui.Controls.Page? ResolveMauiPage(ShellContent item)
     {
@@ -461,11 +524,54 @@ public partial class SkiaShell : SkiaLayoutView
     {
         if (FlyoutHeaderView == null)
             return 0f;
+        float h;
         if (FlyoutHeaderHeightExplicit)
-            return FlyoutHeaderHeight;
-        var desired = FlyoutHeaderView.Measure(new Size(width, double.PositiveInfinity));
-        var h = double.IsNaN(desired.Height) || double.IsInfinity(desired.Height) ? FlyoutHeaderHeight : (float)desired.Height;
+            h = FlyoutHeaderHeight;
+        else
+        {
+            var desired = FlyoutHeaderView.Measure(new Size(width, double.PositiveInfinity));
+            h = double.IsNaN(desired.Height) || double.IsInfinity(desired.Height) ? FlyoutHeaderHeight : (float)desired.Height;
+        }
+        // A collapsing header never gets shorter than an app bar, on every MAUI platform.
+        if (FlyoutHeaderBehavior == Microsoft.Maui.Controls.FlyoutHeaderBehavior.CollapseOnScroll)
+            h = Math.Max(h, CollapsedFlyoutHeaderHeight);
         return Math.Min(h, Math.Max(0f, maxHeight));
+    }
+
+    /// <summary>The height a CollapseOnScroll header keeps (MAUI's 56, Android's action bar).</summary>
+    private const float CollapsedFlyoutHeaderHeight = 56f;
+
+    private Microsoft.Maui.Controls.FlyoutHeaderBehavior _flyoutHeaderBehavior;
+
+    /// <summary>
+    /// Shell.FlyoutHeaderBehavior. A CollapseOnScroll header is at least
+    /// <c>56</c> tall, as MAUI keeps it on every platform.
+    /// </summary>
+    public Microsoft.Maui.Controls.FlyoutHeaderBehavior FlyoutHeaderBehavior
+    {
+        get => _flyoutHeaderBehavior;
+        set
+        {
+            if (_flyoutHeaderBehavior == value)
+                return;
+            _flyoutHeaderBehavior = value;
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Where the flyout panel is now, in the coordinates of <see cref="SkiaView.Bounds"/> (its
+    /// header, content and footer views are arranged inside it). Off to the left of the shell
+    /// while the flyout is closed; the shell's left edge when it is open or locked.
+    /// </summary>
+    public Rect FlyoutBounds
+    {
+        get
+        {
+            bool locked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
+            float x = locked ? (float)Bounds.Left : (float)Bounds.Left - FlyoutWidth + FlyoutWidth * _flyoutAnimationProgress;
+            return new Rect(x, Bounds.Top, FlyoutWidth, Bounds.Height);
+        }
     }
 
     /// <summary>
@@ -711,6 +817,11 @@ public partial class SkiaShell : SkiaLayoutView
             SyncFromMauiShell();
             return;
         }
+        if (e.PropertyName == Shell.TitleViewProperty.PropertyName)
+        {
+            OnMauiShellTitleViewChanged();
+            return;
+        }
         if (e.PropertyName != Shell.FlyoutIsPresentedProperty.PropertyName || _syncingFlyoutPresented || _mauiShell == null)
             return;
         _syncingFlyoutPresented = true;
@@ -730,6 +841,7 @@ public partial class SkiaShell : SkiaLayoutView
     private void AttachMauiShell(Shell shell)
     {
         shell.PropertyChanged += OnMauiShellPropertyChanged;
+        ObserveAppearance(shell);
         if (FlyoutBehavior != ShellFlyoutBehavior.Locked)
             OnMauiShellPropertyChanged(shell, new System.ComponentModel.PropertyChangedEventArgs(Shell.FlyoutIsPresentedProperty.PropertyName));
         shell.Navigated += OnMauiShellNavigated;
@@ -741,6 +853,7 @@ public partial class SkiaShell : SkiaLayoutView
     private void DetachMauiShell(Shell shell)
     {
         shell.PropertyChanged -= OnMauiShellPropertyChanged;
+        StopObservingAppearance(shell);
         shell.Navigated -= OnMauiShellNavigated;
         if (shell is Microsoft.Maui.Controls.IShellController controller)
             controller.StructureChanged -= OnMauiShellStructureChanged;
@@ -1149,6 +1262,7 @@ public partial class SkiaShell : SkiaLayoutView
         foreach (var entry in _flyoutIcons.Values)
             entry.Release();
         _flyoutIcons.Clear();
+        _tabIconCache?.Clear(); // tab icons reload too (a theme's icon set)
     }
 
     /// <summary>A flyout icon loaded through its image-source service, and the load in flight.</summary>
@@ -1498,7 +1612,7 @@ public partial class SkiaShell : SkiaLayoutView
         if (_currentContent != null)
         {
             float contentTop = NavBarIsVisible ? NavBarHeight : 0;
-            float contentBottom = TabBarIsVisible ? TabBarHeight : 0;
+            float contentBottom = IsTabBarShown ? TabBarHeight : 0;
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             var contentSize = new Size(
                 availableSize.Width - Padding.Left - Padding.Right - flyoutOffset,
@@ -1518,7 +1632,7 @@ public partial class SkiaShell : SkiaLayoutView
         {
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
-            float contentBottom = (float)bounds.Bottom - (TabBarIsVisible ? TabBarHeight : 0) - ContentPadding;
+            float contentBottom = (float)bounds.Bottom - (IsTabBarShown ? TabBarHeight : 0) - ContentPadding;
             var contentBounds = new Rect(
                 bounds.Left + flyoutOffset + ContentPadding,
                 contentTop,
@@ -1572,10 +1686,17 @@ public partial class SkiaShell : SkiaLayoutView
             }
         }
 
-        // Draw tab bar
-        if (TabBarIsVisible)
+        // Draw tab bar: MAUI's sections with a MAUI Shell attached, else the section's contents.
+        if (IsTabBarShown)
         {
-            DrawTabBar(canvas, bounds);
+            if (_mauiShell != null)
+                DrawMauiTabBar(canvas, bounds);
+            else
+                DrawTabBar(canvas, bounds);
+        }
+        else
+        {
+            _tabHits.Clear();
         }
 
         // Draw flyout overlay and panel (non-locked mode)
@@ -1617,7 +1738,7 @@ public partial class SkiaShell : SkiaLayoutView
         float iconLeft = navBarBounds.Left + 16;
         float iconCenter = navBarBounds.MidY;
 
-        if (CanGoBack)
+        if (IsBackButtonVisible)
         {
             // Draw iOS-style back chevron "<"
             using var chevronPaint = new SKPaint
@@ -1655,11 +1776,15 @@ public partial class SkiaShell : SkiaLayoutView
 
         float titleRight = DrawToolbarItems(canvas, navBarBounds);
 
-        float titleX = (CanGoBack || (FlyoutBehavior == ShellFlyoutBehavior.Flyout && FlyoutBehavior != ShellFlyoutBehavior.Locked)) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
+        float titleX = (IsBackButtonVisible || (FlyoutBehavior == ShellFlyoutBehavior.Flyout && FlyoutBehavior != ShellFlyoutBehavior.Locked)) ? navBarBounds.Left + 56 : navBarBounds.Left + 16;
         float titleY = navBarBounds.MidY + 6;
-        // The title stops short of the toolbar items, as on the other platforms.
+        // The title stops short of the toolbar items, as on the other platforms; a TitleView
+        // takes the title's place.
+        var titleSlot = new SKRect(titleX, navBarBounds.Top, Math.Max(titleX, titleRight - 8), navBarBounds.Bottom);
+        if (DrawTitleView(canvas, titleSlot))
+            return;
         canvas.Save();
-        canvas.ClipRect(new SKRect(titleX, navBarBounds.Top, Math.Max(titleX, titleRight - 8), navBarBounds.Bottom));
+        canvas.ClipRect(titleSlot);
         canvas.DrawText(Title, titleX, titleY, titleFont, titlePaint);
         canvas.Restore();
     }
@@ -1958,14 +2083,16 @@ public partial class SkiaShell : SkiaLayoutView
             }
         }
 
-        // Check nav bar
+        // Check nav bar: its TitleView takes its own input.
         if (NavBarIsVisible && y < (float)Bounds.Top + NavBarHeight)
         {
+            if (_titleView != null && _titleViewBounds.Contains(x, y) && _titleView.HitTestAt(x, y) is { } titleHit)
+                return titleHit;
             return this;
         }
 
         // Check tab bar
-        if (TabBarIsVisible && y > (float)Bounds.Bottom - TabBarHeight)
+        if (IsTabBarShown && y > (float)Bounds.Bottom - TabBarHeight)
         {
             return this;
         }
@@ -2070,10 +2197,19 @@ public partial class SkiaShell : SkiaLayoutView
         float navLeft = (float)Bounds.Left + (FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0);
         if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X >= navLeft && e.X < navLeft + 56)
         {
-            if (CanGoBack)
+            if (IsBackButtonVisible)
             {
-                // Back button pressed
-                GoBack();
+                // Back button pressed: the page's BackButtonBehavior.Command replaces
+                // the navigation when it has one (MAUI's ShellToolbar).
+                if (_backButtonBehavior?.Command is { } command)
+                {
+                    if (_backButtonBehavior.IsEnabled && command.CanExecute(_backButtonBehavior.CommandParameter))
+                        command.Execute(_backButtonBehavior.CommandParameter);
+                }
+                else
+                {
+                    GoBack();
+                }
                 e.Handled = true;
                 return;
             }
@@ -2087,7 +2223,13 @@ public partial class SkiaShell : SkiaLayoutView
         }
 
         // Check tab bar tap
-        if (TabBarIsVisible && e.Y > (float)Bounds.Bottom - TabBarHeight)
+        if (_mauiShell != null && IsTabBarShown && e.Y > (float)Bounds.Bottom - TabBarHeight)
+        {
+            TryPressMauiTab(e.X, e.Y);
+            e.Handled = true;
+            return;
+        }
+        if (_mauiShell == null && TabBarIsVisible && e.Y > (float)Bounds.Bottom - TabBarHeight)
         {
             if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
             {

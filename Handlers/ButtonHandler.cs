@@ -206,7 +206,15 @@ public partial class TextButtonHandler : ButtonHandler
         ["Source"] = MapImageSource,
         [nameof(Button.ImageSource)] = MapImageSource,
         [nameof(Button.ContentLayout)] = MapContentLayout,
+        // Controls' Button remaps LineBreakMode on MAUI's ButtonHandler.Mapper only.
+        [nameof(Button.LineBreakMode)] = MapLineBreakMode,
     };
+
+    public static void MapLineBreakMode(TextButtonHandler handler, ITextButton button)
+    {
+        if (handler.PlatformView is null || button is not Button b) return;
+        handler.PlatformView.LineBreakMode = b.LineBreakMode;
+    }
 
     public static void MapImageSource(TextButtonHandler handler, ITextButton button)
     {
@@ -247,6 +255,7 @@ public partial class TextButtonHandler : ButtonHandler
             MapImageSource(this, textButton);
             MapContentLayout(this, textButton);
             MapTextTransform(this, textButton);
+            MapLineBreakMode(this, textButton);
         }
         DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler DONE");
     }
