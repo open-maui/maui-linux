@@ -52,6 +52,9 @@ namespace Microsoft.Maui.DeviceTests
 			return null;
 		}
 
+		/// <summary>MAUI-skipped tests that run on Linux (none in the Controls suite).</summary>
+		public static string UnskipReasonFor(string testClassFullName, string method) => null;
+
 		public static string ReasonFor(string testClassFullName, string method)
 		{
 			var simple = testClassFullName.Substring(testClassFullName.LastIndexOfAny(new[] { '.', '+' }) + 1);

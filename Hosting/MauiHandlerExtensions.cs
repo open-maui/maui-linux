@@ -69,6 +69,7 @@ public static class MauiHandlerExtensions
         [typeof(Microsoft.Maui.Controls.Shapes.RoundRectangle)] = () => new RoundRectangleHandler(),
         [typeof(CarouselView)] = () => new CarouselViewHandler(),
         [typeof(SwipeView)] = () => new SwipeViewHandler(),
+        [typeof(SwipeItemView)] = () => new SwipeItemViewHandler(),
         [typeof(RefreshView)] = () => new RefreshViewHandler(),
         [typeof(IndicatorView)] = () => new IndicatorViewHandler(),
         [typeof(MenuBar)] = () => new MenuBarHandler(),
@@ -212,6 +213,21 @@ public static class MauiHandlerExtensions
             // Likewise a core IShapeView (MAUI's ShapeViewHandler draws nothing on plain net10.0).
             else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.ShapeViewHandler))
                 handler = new Microsoft.Maui.Platform.Linux.Handlers.ShapeViewHandler();
+            // And a core ISwipeView or swipe item view given MAUI's own (platform-neutral) handler.
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.SwipeViewHandler))
+                handler = new CoreSwipeViewHandler();
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.SwipeItemViewHandler))
+                handler = new SwipeItemViewHandler();
+            // Likewise a core IRefreshView / IIndicatorView given MAUI's own handler.
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.RefreshViewHandler))
+                handler = new CoreRefreshViewHandler();
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.IndicatorViewHandler))
+                handler = new CoreIndicatorViewHandler();
+            // MAUI's core PageHandler / NavigationViewHandler (no platform view on plain net10.0).
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.PageHandler))
+                handler = new CorePageHandler();
+            else if (handler?.GetType() == typeof(Microsoft.Maui.Handlers.NavigationViewHandler))
+                handler = new CoreNavigationViewHandler();
             DiagnosticLog.Debug("MauiHandlerExtensions", $"Using MAUI handler for {type.Name}: {handler?.GetType().Name ?? "null"}");
         }
 

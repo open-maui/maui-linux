@@ -13,28 +13,36 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class MapService : IMap
 {
-    public async Task OpenAsync(double latitude, double longitude, MapLaunchOptions options)
+    // Argument checks run before anything is launched and throw synchronously, as MAUI's
+    // MapImplementation does (ArgumentNullException for a null placemark or options).
+
+    public Task OpenAsync(double latitude, double longitude, MapLaunchOptions options)
     {
-        await TryOpenAsync(latitude, longitude, options);
+        var url = BuildUrl(latitude, longitude, Required(options));
+        return Task.Run(() => { Launch(url); });
     }
 
-    public async Task OpenAsync(Placemark placemark, MapLaunchOptions options)
+    public Task OpenAsync(Placemark placemark, MapLaunchOptions options)
     {
-        await TryOpenAsync(placemark, options);
+        var url = BuildUrl(Required(placemark), Required(options));
+        return Task.Run(() => { Launch(url); });
     }
 
     public Task<bool> TryOpenAsync(double latitude, double longitude, MapLaunchOptions options)
     {
-        return Task.Run(() => Launch(BuildUrl(latitude, longitude, options)));
+        var url = BuildUrl(latitude, longitude, Required(options));
+        return Task.Run(() => Launch(url));
     }
 
     public Task<bool> TryOpenAsync(Placemark placemark, MapLaunchOptions options)
     {
-        if (placemark == null)
-            throw new ArgumentNullException(nameof(placemark));
-
-        return Task.Run(() => Launch(BuildUrl(placemark, options)));
+        var url = BuildUrl(Required(placemark), Required(options));
+        return Task.Run(() => Launch(url));
     }
+
+    private static T Required<T>(T value, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(value))] string? name = null)
+        where T : class
+        => value ?? throw new ArgumentNullException(name);
 
     /// <summary>
     /// OpenStreetMap URL for a coordinate. Uses invariant formatting so the
