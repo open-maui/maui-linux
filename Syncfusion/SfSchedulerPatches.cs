@@ -419,6 +419,8 @@ internal static class SfSchedulerPatches
             case GestureStatus.Started:
             {
                 double x = parentPos.X - (Is(info, "IsRTLLayout") ? 0.0 : ruler);
+                if (controller != null && SfSchedulerResourceView.IsDesktop(info) && s_resourceHelper != null)
+                    Set(controller, "OriginalResizeStartResource", CallStatic(s_resourceHelper, "GetSelectedHorizontalResourceView", info, x, ((VisualElement)view).Width));
                 var appointmentInfo = Call(view, "GetAppointmentViewInfo", new Point(x, parentPos.Y));
                 Call(controller, "ProcessOnResizeEnter", appointmentInfo, parentPos, false);
                 break;
@@ -519,21 +521,33 @@ internal static class SfSchedulerPatches
             rects = new List<Rect> { Get<Rect>(appointmentInfo, "AppointmentViewRect") };
         if (s_viewHelper == null || CallStatic(s_viewHelper, "IsSingleNumberOfDay", Get(info, "View"), Get(Get(info, "DaysView"), "NumberOfVisibleDays")) is true)
             return;
+        // Side by side resources resize in the all-day panel only when grouped by resource.
+        if (SfSchedulerResourceView.IsDesktop(info) && CallStatic(s_viewHelper, "IsResourceType", info) is not true)
+            return;
         HandleResizing(__instance, e, rects, info, view, "AnyLeftOrRightHit", (status, ev) =>
             AllDayResizingTouch(view!, info, ev.TouchPoint, status));
     });
 
-    // AllDayAppointmentsView.OnAppointmentResizingTouch(Point parentPos, GestureStatus status).
+    // AllDayAppointmentsView.OnAppointmentResizingTouch(Point parentPos, GestureStatus status): with
+    // resources side by side, the resource the resize starts in and the one under the pointer.
     private static void AllDayResizingTouch(object view, object info, Point parentPos, GestureStatus status)
     {
         var controller = Get(info, "AppointmentResizingController");
+        bool desktop = SfSchedulerResourceView.IsDesktop(info) && s_resourceHelper != null;
+        double width = ((VisualElement)view).Width;
         switch (status)
         {
             case GestureStatus.Started:
                 Call(controller, "ProcessOnResizeEnter", Call(view, "GetAppointmentViewInfo", parentPos), parentPos, true);
+                if (desktop && controller != null)
+                {
+                    Set(controller, "OriginalResizeStartResource", CallStatic(s_resourceHelper!, "GetSelectedHorizontalResourceView", info, parentPos.X, width));
+                    Set(controller, "ViewWidth", width);
+                }
                 break;
             case GestureStatus.Running:
-                Call(controller, "ProcessOnResizing", parentPos, true, null, null);
+                var resource = desktop ? CallStatic(s_resourceHelper!, "GetSelectedHorizontalResourceView", info, parentPos.X, width) : null;
+                Call(controller, "ProcessOnResizing", parentPos, true, resource, null);
                 break;
             case GestureStatus.Completed:
                 Call(controller, "ProcessOnResizeDone", true);
@@ -574,7 +588,7 @@ internal static class SfSchedulerPatches
             return true;
         try
         {
-            double width = (Get(__instance, "allDayAppointmentsLayout") as VisualElement)?.Width ?? 0.0;
+            double width = SfSchedulerResourceView.AllDayResizeWidth(__instance);
             __result = CallStatic(s_selectionHelper, "GetDaysViewHoverDate", resizingPoint, Get(__instance, "VisibleDates"), info, width) as DateTime?;
             return false;
         }
@@ -662,8 +676,12 @@ internal static class SfSchedulerPatches
     // ruler of the horizontal resource view, which the neutral build does not have).
     private static void AddAppointmentResizingView_Postfix(object __instance, object? __3) => Guard("resize indicator", () =>
     {
-        if (__3 != null && CurrentChild(__instance) is { } child && child.GetType().Name == "TimelineViewControl")
+        if (__3 == null || CurrentChild(__instance) is not { } child)
+            return;
+        if (child.GetType().Name == "TimelineViewControl")
             Call(Get(child, "timelineHeaderLayout"), "AddAppointmentResizeIndicatorView", __3);
+        else if (child.GetType().Name == "DayViewControl" && __3 is View indicator)
+            SfSchedulerResourceView.AddAppointmentResizeIndicatorView(child, indicator);
     });
 
     // CustomSnapLayout.RemoveAppointmentResizeIndicatorView().
@@ -671,8 +689,12 @@ internal static class SfSchedulerPatches
     {
         Guard("resize indicator", () =>
         {
-            if (CurrentChild(__instance) is { } child && child.GetType().Name == "TimelineViewControl")
+            if (CurrentChild(__instance) is not { } child)
+                return;
+            if (child.GetType().Name == "TimelineViewControl")
                 Call(Get(child, "timelineHeaderLayout"), "RemoveAppointmentResizeIndicatorView");
+            else if (child.GetType().Name == "DayViewControl")
+                SfSchedulerResourceView.RemoveAppointmentResizeIndicatorView(child);
         });
         return false;
     }
