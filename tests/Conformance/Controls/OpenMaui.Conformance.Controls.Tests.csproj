@@ -1,0 +1,271 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MAUI Controls conformance suite.
+
+    Compiles dotnet/maui's OWN Controls device tests (src/Controls/tests/DeviceTests,
+    tag 10.0.110) against OpenMaui: real Controls views (Label, Entry, CollectionView,
+    Shell, NavigationPage, ...) hosted in a window the way an app hosts them, with
+    MAUI's assertions as the specification. The MAUI sources are NOT vendored: they
+    are compiled in place from the same local clone the Core suite uses (MIT
+    licensed, file contents untouched).
+
+      MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
+                Default: $(HOME)/.cache/openmaui-build/maui-src
+                Populate it with tests/Conformance/get-maui-sources.sh.
+
+    Why a second project (and not more files in the Core one): MAUI's Controls
+    assembly grants InternalsVisibleTo to "Microsoft.Maui.Controls.DeviceTests", not
+    to the Core device-test assembly, and the Controls tests use those internals
+    (IsLoadedOnPlatform, HasNavigatedTo, Window.IsActivated, ...). The two suites
+    also host views differently: the Core suite lays a lone platform view out once,
+    the Controls suite runs a real OpenMaui main thread (GLib loop, LinuxDispatcher)
+    with frames, so pages load, lay out and navigate as in an app.
+
+    Shared with the Core suite (linked from ../Infrastructure): the xunit framework
+    and skip mechanism, the Skia assertion/pixel helpers.
+    Controls-only (Infrastructure/ here): the main-thread test runner, the headless
+    window host, MAUI handler names as global aliases of the Linux handlers
+    (HandlerAliases.Controls.cs), the Linux ControlsHandlerTestBase partial and the
+    per-element helper partials (Elements/*.Linux.cs).
+
+    Run:  dotnet test tests/Conformance/Controls/OpenMaui.Conformance.Controls.Tests.csproj
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Microsoft.Maui.DeviceTests</RootNamespace>
+    <!-- The name of MAUI's own Controls device-test app: Microsoft.Maui.Controls and
+         Microsoft.Maui (net10.0) grant it InternalsVisibleTo. -->
+    <AssemblyName>Microsoft.Maui.Controls.DeviceTests</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS0618;CS0672;CS0108;CS0114;CS0162;CS0168;CS0219;CS0414;CS0649;CS0169;CS1998;CS8632;CS0105;CS4014;CS0067;CS0659;CS0661;CS0660;CS1717;CS0436;CA1416;xUnit1013;xUnit1026;xUnit2000;xUnit2009;xUnit1030;xUnit1031;xUnit1012;xUnit2013;xUnit1025;xUnit1004;xUnit2002;xUnit2005;xUnit2007;xUnit2015;xUnit2017;xUnit2020;xUnit1051;xUnit1042;xUnit1048;xUnit2012;xUnit2029;xUnit2031;MCTME001</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DefineConstants>$(DefineConstants);OPENMAUI_LINUX;OPENMAUI_CONTROLS_CONFORMANCE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src</MauiSrc>
+    <!-- A property set on the command line (-p:MauiSrc=...) cannot be reassigned here, so the
+         trailing slash goes on a property of its own. -->
+    <MauiSrcDir>$([MSBuild]::EnsureTrailingSlash('$(MauiSrc)'))</MauiSrcDir>
+    <MauiControlsTests>$(MauiSrcDir)src/Controls/tests/DeviceTests/</MauiControlsTests>
+    <MauiSharedTests>$(MauiSrcDir)src/Core/tests/DeviceTests.Shared/</MauiSharedTests>
+    <MauiTestUtils>$(MauiSrcDir)src/TestUtils/src/DeviceTests/</MauiTestUtils>
+    <MauiSourcesPresent Condition="Exists('$(MauiControlsTests)ControlsHandlerTestBase.cs')">true</MauiSourcesPresent>
+    <SharedInfra>../Infrastructure/</SharedInfra>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\OpenMaui.Controls.Linux.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Infrastructure shared with the Core suite (see ../Infrastructure). -->
+  <ItemGroup>
+    <SharedInfraFile Include="AssertionExtensions.Linux.cs;LinuxInput.cs;LinuxTestFramework.cs;PlatformImageLoadingService.Linux.cs;XunitCustomizations.Linux.cs" />
+    <Compile Include="@(SharedInfraFile->'$(SharedInfra)%(Identity)')" Link="Shared/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!--
+    MAUI Controls device-test files compiled in place (relative to
+    src/Controls/tests/DeviceTests). Platform partials (*.Android.cs, *.iOS.cs,
+    *.Windows.cs) are never compiled; their Linux counterparts live in Elements/.
+  -->
+  <ItemGroup>
+    <!-- base classes, shared helpers and test data -->
+    <MauiControlsFile Include="ControlsHandlerTestBase.cs" />
+    <MauiControlsFile Include="Extensions.cs" />
+    <MauiControlsFile Include="TestCategory.cs" />
+    <MauiControlsFile Include="TextTransformCases.cs" />
+    <MauiControlsFile Include="Stubs/ApplicationStub.cs" />
+    <MauiControlsFile Include="Stubs/FrameStub.cs" />
+    <MauiControlsFile Include="TestClasses/LifeCycleTrackingPage.cs" />
+    <MauiControlsFile Include="TestClasses/FlyoutPageAlwaysSplit.cs" />
+    <MauiControlsFile Include="TestClasses/NestingView.cs" />
+    <MauiControlsFile Include="TestCases/ControlsPageTypesTestCases.cs" />
+    <MauiControlsFile Include="TestCases/ControlsViewTypesTestCases.cs" />
+    <!-- tests -->
+    <MauiControlsFile Include="MapperTests.cs" />
+    <MauiControlsFile Include="DispatchingTests.cs" />
+    <MauiControlsFile Include="Elements/FormattedStringTests.cs" />
+    <MauiControlsFile Include="Elements/PlatformBehaviorTests.cs" />
+    <MauiControlsFile Include="Elements/VisualElementTests.cs" />
+    <MauiControlsFile Include="Elements/Application/ApplicationTests.cs" />
+    <MauiControlsFile Include="Elements/Border/BorderTests.cs" />
+    <MauiControlsFile Include="Elements/BoxView/BoxViewTests.cs" />
+    <MauiControlsFile Include="Elements/Button/ButtonTests.cs" />
+    <MauiControlsFile Include="Elements/CheckBox/CheckBoxTests.cs" />
+    <MauiControlsFile Include="Elements/ContentView/ContentViewTests.cs" />
+    <MauiControlsFile Include="Elements/Editor/EditorTests.cs" />
+    <MauiControlsFile Include="Elements/Entry/EntryTests.cs" />
+    <MauiControlsFile Include="Elements/Image/ImageTests.cs" />
+    <MauiControlsFile Include="Elements/Label/LabelTests.cs" />
+    <MauiControlsFile Include="Elements/Layout/LayoutTests.cs" />
+    <MauiControlsFile Include="Elements/Picker/PickerTests.cs" />
+    <MauiControlsFile Include="Elements/RadioButton/RadioButtonTests.cs" />
+    <MauiControlsFile Include="Elements/ScrollView/ScrollViewTests.cs" />
+    <MauiControlsFile Include="Elements/SearchBar/SearchBarTests.cs" />
+    <MauiControlsFile Include="Elements/Slider/SliderTests.cs" />
+    <MauiControlsFile Include="Elements/TextInput/TextInputTests.cs" />
+    <MauiControlsFile Include="Elements/Accessibility/AccessibilityTests.cs" />
+    <MauiControlsFile Include="Elements/CarouselView/CarouselViewTests.cs" />
+    <MauiControlsFile Include="Elements/CollectionView/CollectionViewTests.cs" />
+    <MauiControlsFile Include="Elements/CollectionView/CollectionViewSizingTestCase.cs" />
+    <MauiControlsFile Include="Elements/DatePicker/DatePickerTests.cs" />
+    <MauiControlsFile Include="Elements/FlyoutPage/FlyoutPageTests.cs" />
+    <MauiControlsFile Include="Elements/FlyoutPage/FlyoutPageLayoutBehaviorTestCases.cs" />
+    <MauiControlsFile Include="Elements/Frame/FrameTests.cs" />
+    <MauiControlsFile Include="Elements/Frame/FrameHandlerTest.cs" />
+    <MauiControlsFile Include="Elements/Modal/ModalTests.cs" />
+    <MauiControlsFile Include="Elements/NavigationPage/NavigationPageTests.cs" />
+    <MauiControlsFile Include="Elements/Page/PageTests.cs" />
+    <MauiControlsFile Include="Elements/Path/PathTests.cs" />
+    <MauiControlsFile Include="Elements/RefreshView/RefreshViewTests.cs" />
+    <MauiControlsFile Include="Elements/Shape/ShapeTests.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellTests.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellBasicNavigationTestCases.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellFlyoutTests.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellFlyoutHeaderBehaviorTestCases.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellFlyoutHeaderBehaviorAndContentTestCases.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellFlyoutHeaderScrollTestCases.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellFlyoutItemTextColorTests.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellFlyoutTemplatePartsTestCases.cs" />
+    <MauiControlsFile Include="Elements/Shell/ShellTabBarTests.cs" />
+    <MauiControlsFile Include="Elements/SwipeView/SwipeViewTests.cs" />
+    <MauiControlsFile Include="Elements/TabbedPage/TabbedPageTests.cs" />
+    <MauiControlsFile Include="Elements/TemplatedView/TemplatedViewTests.cs" />
+    <MauiControlsFile Include="Elements/Toolbar/ToolbarTests.cs" />
+    <MauiControlsFile Include="Elements/View/ViewTests.cs" />
+    <MauiControlsFile Include="Elements/VisualElementTree/VisualElementTreeTests.cs" />
+    <MauiControlsFile Include="Elements/VisualElementTree/FindVisualTreeElementInsideTestCase.cs" />
+    <MauiControlsFile Include="Elements/Window/WindowTests.cs" />
+    <MauiControlsFile Include="Elements/Window/WindowOverlayTests.cs" />
+    <MauiControlsFile Include="Elements/Window/WindowPageSwapTestCases.cs" />
+    <MauiControlsFile Include="Elements/Window/ChangingToNewMauiContextDoesntCrashTestCases.cs" />
+    <MauiControlsFile Include="Memory/MemoryTests.cs" />
+  </ItemGroup>
+
+  <!--
+    Build-time compile fixes (MauiPatches.props): a few MAUI files do not compile
+    on the platform-neutral TFM as they are (a platform #if with no fallback
+    branch, a constraint that names IPlatformViewHandler next to IViewHandler).
+    Such a file is compiled from a copy under obj/ with the listed literal
+    replacements applied; every replacement must match or the build fails, and
+    none changes what a test asserts. Nothing is written to the repository.
+  -->
+  <Import Project="MauiPatches.props" />
+
+  <UsingTask TaskName="ApplyMauiPatches" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Patches ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <SourceRoot ParameterType="System.String" Required="true" />
+      <OutputRoot ParameterType="System.String" Required="true" />
+      <PatchedFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var outputs = new List<Microsoft.Build.Framework.ITaskItem>();
+        foreach (var group in Patches.GroupBy(p => p.ItemSpec))
+        {
+            // A key may climb out of the Controls tests (../../../Core/tests/DeviceTests.Shared/...):
+            // the original is named by its full path, the copy keeps the path below the climb.
+            var source = Path.GetFullPath(Path.Combine(SourceRoot, group.Key));
+            var relative = group.Key.Replace("\\", "/");
+            while (relative.StartsWith("../", StringComparison.Ordinal))
+                relative = relative.Substring(3);
+            var text = File.ReadAllText(source);
+            foreach (var patch in group)
+            {
+                var find = patch.GetMetadata("Find").Replace("\\n", "\n").Replace("\\t", "\t");
+                var replace = patch.GetMetadata("Replace").Replace("\\n", "\n").Replace("\\t", "\t");
+                // MAUI's sources use CRLF in places; match either.
+                var normalized = text.Replace("\r\n", "\n");
+                if (!normalized.Contains(find))
+                {
+                    Log.LogError("MAUI patch for " + group.Key + " no longer matches: " + find);
+                    continue;
+                }
+                text = normalized.Replace(find, replace);
+            }
+            var target = Path.Combine(OutputRoot, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            if (!File.Exists(target) || File.ReadAllText(target) != text)
+                File.WriteAllText(target, text);
+            var item = new Microsoft.Build.Utilities.TaskItem(target);
+            item.SetMetadata("Original", source);
+            item.SetMetadata("Link", (relative == group.Key ? "Maui/Controls/" : "Maui/Shared/") + relative);
+            outputs.Add(item);
+        }
+        PatchedFiles = outputs.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="ApplyMauiPatches" BeforeTargets="CoreCompile;CoreGenerateAssemblyInfo" Condition="'$(MauiSourcesPresent)' == 'true' and '@(MauiPatch)' != ''">
+    <ApplyMauiPatches Patches="@(MauiPatch)" SourceRoot="$(MauiControlsTests)" OutputRoot="$(IntermediateOutputPath)MauiPatched/">
+      <Output TaskParameter="PatchedFiles" ItemName="_MauiPatchedFile" />
+    </ApplyMauiPatches>
+    <ItemGroup>
+      <Compile Remove="@(_MauiPatchedFile->'%(Original)')" />
+      <Compile Include="@(_MauiPatchedFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- ===================== Without the MAUI clone ===================== -->
+  <ItemGroup Condition="'$(MauiSourcesPresent)' != 'true'">
+    <Compile Remove="**/*.cs" />
+    <Compile Remove="@(Compile)" />
+    <Compile Include="../MauiSourcesMissing.cs" Link="MauiSourcesMissing.cs" />
+    <Compile Include="Infrastructure/AssemblyName.Controls.cs" />
+  </ItemGroup>
+  <Target Name="WarnMauiSourcesMissing" BeforeTargets="CoreCompile" Condition="'$(MauiSourcesPresent)' != 'true'">
+    <Warning Text="MAUI test sources not found at '$(MauiSrc)'. The Controls conformance suite is reduced to one skipped test. Run tests/Conformance/get-maui-sources.sh or pass -p:MauiSrc=..." />
+  </Target>
+
+  <!-- ===================== With the MAUI clone ===================== -->
+  <ItemGroup Condition="'$(MauiSourcesPresent)' == 'true'">
+    <!-- TestUtils/src/DeviceTests (xUnitCustomizations.cs is replaced by the shared Linux one) -->
+    <Compile Include="$(MauiTestUtils)AssertHelpers.cs" Link="Maui/TestUtils/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiTestUtils)AssertionExtensions.cs" Link="Maui/TestUtils/%(Filename)%(Extension)" />
+
+    <!-- DeviceTests.Shared: the handler test base and stubs (what Controls.DeviceTests references) -->
+    <Compile Include="$(MauiSharedTests)GlobalNamespaces.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/TestBase.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBasement.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)HandlerTests/HandlerTestBase.cs" Link="Maui/Shared/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)Stubs/*.cs" Link="Maui/Shared/Stubs/%(Filename)%(Extension)" />
+    <Compile Include="$(MauiSharedTests)ImageAnalysis/*.cs" Link="Maui/Shared/ImageAnalysis/%(Filename)%(Extension)" />
+
+    <!-- The Controls test files under test -->
+    <Compile Include="@(MauiControlsFile->'$(MauiControlsTests)%(Identity)')" Link="Maui/Controls/%(Identity)" />
+
+    <!-- The pictures the tests load by name (MAUI ships them in its device-test app). -->
+    <Content Include="$(MauiControlsTests)Resources/Images/*.png" Exclude="$(MauiControlsTests)Resources/Images/red-embedded.png" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="$(MauiControlsTests)Resources/Images/red-embedded.png" LogicalName="red-embedded.png" Link="Resources/red-embedded.png" />
+    <!-- MAUI's test app also ships white.png as white_tab.png (a MauiImage link), the Shell tab icon. -->
+    <Content Include="$(MauiControlsTests)Resources/Images/white.png" Link="white_tab.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
