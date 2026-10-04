@@ -187,7 +187,8 @@ public class SkiaButton : SkiaView, IButtonController
         typeof(LineBreakMode),
         typeof(SkiaButton),
         LineBreakMode.NoWrap,
-        propertyChanged: (b, o, n) => ((SkiaButton)b).Invalidate());
+        // A truncating mode caps the button at the width it is offered, so the size changes too.
+        propertyChanged: (b, o, n) => ((SkiaButton)b).InvalidateMeasure());
 
     #endregion
 
@@ -734,21 +735,6 @@ public class SkiaButton : SkiaView, IButtonController
         bool hasText = !string.IsNullOrEmpty(displayText);
         bool hasImage = _loadedImage != null;
 
-        // Measure text
-        var textBounds = new SKRect();
-        float textWidth = 0;
-        float textHeight = 0;
-        if (hasText)
-        {
-            font.MeasureText(displayText, out textBounds);
-            textWidth = textBounds.Width;
-            if (CharacterSpacing != 0 && displayText.Length > 1)
-            {
-                textWidth += (float)(CharacterSpacing * (displayText.Length - 1));
-            }
-            textHeight = textBounds.Height;
-        }
-
         // Measure image
         float imageWidth = 0;
         float imageHeight = 0;
@@ -765,6 +751,20 @@ public class SkiaButton : SkiaView, IButtonController
         float spacing = (float)layout.Spacing;
         bool isHorizontal = layout.Position == ButtonContentLayout.ImagePosition.Left ||
                            layout.Position == ButtonContentLayout.ImagePosition.Right;
+
+        // Measure text, cut to the room it has when LineBreakMode truncates: without the cut a
+        // text wider than the button was centred and lost both ends, its start included.
+        var textBounds = new SKRect();
+        float textWidth = 0;
+        float textHeight = 0;
+        if (hasText)
+        {
+            float room = contentBounds.Width - (hasImage && isHorizontal ? imageWidth + spacing : 0);
+            displayText = TruncateForLineBreakMode(displayText, font, room);
+            font.MeasureText(displayText, out textBounds);
+            textWidth = MeasureTextWidth(displayText, font);
+            textHeight = textBounds.Height;
+        }
 
         // Calculate total content size
         float totalWidth, totalHeight;
@@ -864,6 +864,69 @@ public class SkiaButton : SkiaView, IButtonController
             float textY = TextRenderingHelper.BaselineForVerticalCenter(font, contentBounds.MidY);
             DrawTextWithSpacing(canvas, displayText, textX, textY, font, textPaint);
         }
+    }
+
+    private bool TruncatesText =>
+        LineBreakMode is LineBreakMode.TailTruncation or LineBreakMode.HeadTruncation or LineBreakMode.MiddleTruncation;
+
+    // Internal, with TruncateForLineBreakMode, so the tests can assert the cut itself.
+    internal float MeasureTextWidth(string text, SKFont font)
+    {
+        font.MeasureText(text, out var bounds);
+        var width = bounds.Width;
+        if (CharacterSpacing != 0 && text.Length > 1)
+            width += (float)(CharacterSpacing * (text.Length - 1));
+        return width;
+    }
+
+    /// <summary>
+    /// The text as a truncating LineBreakMode shows it in <paramref name="maxWidth"/>: whole when
+    /// it fits, otherwise the longest part that fits with an ellipsis at the tail, the head or
+    /// the middle. Any other mode leaves the text alone.
+    /// </summary>
+    internal string TruncateForLineBreakMode(string text, SKFont font, float maxWidth)
+    {
+        if (!TruncatesText || maxWidth <= 0 || MeasureTextWidth(text, font) <= maxWidth) return text;
+
+        const string Ellipsis = "…";
+        var mode = LineBreakMode;
+        string best = Ellipsis;
+        int lo = 0, hi = text.Length - 1;
+        while (lo <= hi)
+        {
+            int keep = (lo + hi) / 2;
+            string candidate;
+            if (mode == LineBreakMode.HeadTruncation)
+            {
+                candidate = Ellipsis + text[SafeCut(text, text.Length - keep)..].TrimStart();
+            }
+            else if (mode == LineBreakMode.MiddleTruncation)
+            {
+                candidate = text[..SafeCut(text, (keep + 1) / 2)] + Ellipsis + text[SafeCut(text, text.Length - keep / 2)..];
+            }
+            else
+            {
+                candidate = text[..SafeCut(text, keep)].TrimEnd() + Ellipsis;
+            }
+
+            if (MeasureTextWidth(candidate, font) <= maxWidth)
+            {
+                best = candidate;
+                lo = keep + 1;
+            }
+            else
+            {
+                hi = keep - 1;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>A cut position that does not split a surrogate pair.</summary>
+    private static int SafeCut(string text, int index)
+    {
+        index = Math.Clamp(index, 0, text.Length);
+        return index > 0 && index < text.Length && char.IsHighSurrogate(text[index - 1]) ? index - 1 : index;
     }
 
     private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint paint)
@@ -1140,6 +1203,13 @@ public class SkiaButton : SkiaView, IButtonController
 
         width += paddingH;
         height += paddingV;
+
+        // A truncating LineBreakMode never asks for more than it is offered: the text is cut to
+        // fit when drawn, as on the other platforms, instead of the button overflowing its row.
+        if (TruncatesText && !double.IsInfinity(availableSize.Width) && !double.IsNaN(availableSize.Width))
+        {
+            width = Math.Min(width, (float)availableSize.Width);
+        }
 
         // Respect explicit size requests
         if (WidthRequest >= 0)
