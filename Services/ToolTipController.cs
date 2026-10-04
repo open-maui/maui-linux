@@ -29,15 +29,20 @@ internal sealed class ToolTipController
 
     private readonly Action _invalidate;
     private VisualElement? _target;
+    // A view that is not a Controls element (a library's core view) with a tooltip.
+    private SkiaView? _coreTarget;
     private float _pointerX, _pointerY;
     private int _generation;
     private bool _suppressed;
 
     internal ToolTipController(Action invalidate) => _invalidate = invalidate;
 
-    /// <summary>Runs the show after <see cref="ShowDelay"/> (replaceable, for tests).</summary>
-    internal Action<VisualElement, Action> Schedule { get; set; } =
-        (target, show) => target.Dispatcher?.DispatchDelayed(ShowDelay, show);
+    /// <summary>
+    /// Runs the show after <see cref="ShowDelay"/> (replaceable, for tests). The element is null
+    /// for a view that is not a Controls element.
+    /// </summary>
+    internal Action<VisualElement?, Action> Schedule { get; set; } =
+        (target, show) => (target?.Dispatcher ?? Microsoft.Maui.Dispatching.Dispatcher.GetForCurrentThread())?.DispatchDelayed(ShowDelay, show);
 
     /// <summary>The text shown, or null when no tooltip is up.</summary>
     internal string? ShownText { get; private set; }
@@ -63,19 +68,42 @@ internal sealed class ToolTipController
         return null;
     }
 
+    /// <summary>
+    /// The nearest view at or above <paramref name="view"/> that is not a Controls element and
+    /// has a tooltip on its platform view (<see cref="SkiaView.ToolTipText"/>, a core view's
+    /// <c>IToolTipElement.ToolTip</c>). Controls elements are found by <see cref="FindTarget"/>.
+    /// </summary>
+    internal static SkiaView? FindCoreTarget(SkiaView? view, out string? text)
+    {
+        text = null;
+        for (var v = view; v != null; v = v.Parent)
+        {
+            if (v.MauiView is Page)
+                return null;
+            if (v.MauiView == null && v.ToolTipText is { Length: > 0 } t)
+            {
+                text = t;
+                return v;
+            }
+        }
+        return null;
+    }
+
     /// <summary>The pointer moved over <paramref name="hitView"/> at (x, y).</summary>
     internal void OnPointerMoved(SkiaView? hitView, float x, float y)
     {
         _pointerX = x;
         _pointerY = y;
         var target = FindTarget(hitView, out _);
-        if (ReferenceEquals(target, _target))
+        var coreTarget = target == null ? FindCoreTarget(hitView, out _) : null;
+        if (ReferenceEquals(target, _target) && ReferenceEquals(coreTarget, _coreTarget))
             return;
 
         Hide();
         _suppressed = false;
         _target = target;
-        if (target == null)
+        _coreTarget = coreTarget;
+        if (target == null && coreTarget == null)
             return;
 
         int generation = ++_generation;
@@ -89,9 +117,10 @@ internal sealed class ToolTipController
     /// <summary>Shows the pending tooltip now (the delay elapsed).</summary>
     internal void ShowPending()
     {
-        if (_target == null || _suppressed || ShownText != null)
+        if ((_target == null && _coreTarget == null) || _suppressed || ShownText != null)
             return;
-        if (ToolTipProperties.GetText(_target)?.ToString() is not { Length: > 0 } text)
+        var text = _target != null ? ToolTipProperties.GetText(_target)?.ToString() : _coreTarget!.ToolTipText;
+        if (text is not { Length: > 0 })
             return;
         ShownText = text;
         ShownAt = new SKPoint(_pointerX, _pointerY + PointerOffsetY);
@@ -111,6 +140,7 @@ internal sealed class ToolTipController
     {
         _generation++;
         _target = null;
+        _coreTarget = null;
         _suppressed = false;
         Hide();
     }

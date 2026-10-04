@@ -141,6 +141,7 @@ public partial class LinuxApplication
             var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
             DiagnosticLog.Debug("LinuxApplication", ">>> Before OnPointerPressed");
             hitView.OnPointerPressed(args);
+            ctx.BeginDragInterception(hitView, args);
             DiagnosticLog.Debug("LinuxApplication", "<<< After OnPointerPressed, calling RequestRedraw");
             _gtkWindow?.RequestRedraw();
             DiagnosticLog.Debug("LinuxApplication", "<<< After RequestRedraw, returning from handler");
@@ -169,6 +170,7 @@ public partial class LinuxApplication
             var button = e.Button == 1 ? PointerButton.Left : e.Button == 2 ? PointerButton.Middle : PointerButton.Right;
             var args = new PointerEventArgs((float)e.X, (float)e.Y, button);
             DiagnosticLog.Debug("LinuxApplication", $"Calling OnPointerReleased on {ctx.CapturedView.GetType().Name}");
+            ctx.EndDragInterception();
             ctx.CapturedView.OnPointerReleased(args);
             DiagnosticLog.Debug("LinuxApplication", "OnPointerReleased returned");
             ctx.CapturedView = null;
@@ -213,7 +215,8 @@ public partial class LinuxApplication
         if (ctx.CapturedView != null)
         {
             var args = new PointerEventArgs((float)e.X, (float)e.Y);
-            ctx.CapturedView.OnPointerMoved(args);
+            if (!ctx.TryInterceptDrag(args))
+                ctx.CapturedView.OnPointerMoved(args);
             _gtkWindow?.RequestRedraw();
             return;
         }
