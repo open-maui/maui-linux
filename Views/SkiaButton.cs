@@ -402,6 +402,16 @@ public class SkiaButton : SkiaView, IButtonController
 
     #endregion
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _imageLoad?.Cancel();
+            ReleaseImage();
+        }
+        base.Dispose(disposing);
+    }
+
     #region Private Methods
 
     private void OnTextChanged()
@@ -424,42 +434,61 @@ public class SkiaButton : SkiaView, IButtonController
         Invalidate();
     }
 
+    private CancellationTokenSource? _imageLoad;
+    private IImageSourceServiceResult<SKBitmap>? _imageResult;
+
+    /// <summary>The services the image's source service is resolved from (the handler's MAUI context).</summary>
+    internal IServiceProvider? ImageServices { get; set; }
+
+    /// <summary>The loaded image (tests).</summary>
+    internal SKBitmap? LoadedImage => _loadedImage;
+
+    /// <summary>The largest side the icon is drawn at, in logical pixels.</summary>
+    private const float IconSize = 24f;
+
+    /// <summary>
+    /// Loads the image through the source's image-source service, as Image does (file, URI,
+    /// stream and font images, and an app's own IImageSource), at the icon's size and the
+    /// screen's density. A newer source cancels the older load, and a replaced image is released.
+    /// </summary>
     private async void LoadImageAsync()
     {
-        _loadedImage = null;
-        if (ImageSource == null) return;
+        _imageLoad?.Cancel();
+        _imageLoad = null;
+        ReleaseImage();
+        var source = ImageSource;
+        if (source == null)
+            return;
 
+        var load = _imageLoad = new CancellationTokenSource();
         try
         {
-            // Handle FileImageSource
-            if (ImageSource is FileImageSource fileSource)
+            var result = await LinuxImageSourceServices.LoadAsync(
+                ImageServices ?? LinuxImageSourceServices.ServicesFor(this), source, Math.Max(1f, DeviceScale), new Size(IconSize, IconSize), load.Token);
+            if (load.IsCancellationRequested || !ReferenceEquals(ImageSource, source))
             {
-                // App-relative names and the .png -> .svg fallback MAUI apps rely on.
-                _loadedImage = Microsoft.Maui.Platform.Linux.Services.ImageFileResolver.LoadBitmap(fileSource.File, 64);
+                result?.Dispose();
+                return;
             }
-            // Handle StreamImageSource
-            else if (ImageSource is StreamImageSource streamSource)
-            {
-                var stream = await streamSource.Stream(System.Threading.CancellationToken.None);
-                if (stream != null)
-                {
-                    _loadedImage = SKBitmap.Decode(stream);
-                }
-            }
-            // Handle UriImageSource
-            else if (ImageSource is UriImageSource uriSource)
-            {
-                using var client = new System.Net.Http.HttpClient();
-                var data = await client.GetByteArrayAsync(uriSource.Uri);
-                _loadedImage = SKBitmap.Decode(data);
-            }
-
+            _imageResult = result;
+            _loadedImage = result?.Value;
+            InvalidateMeasure();
             Invalidate();
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
             DiagnosticLog.Error("SkiaButton", "Loading the button image failed", ex);
         }
+    }
+
+    private void ReleaseImage()
+    {
+        _imageResult?.Dispose();
+        _imageResult = null;
+        _loadedImage = null;
     }
 
     private void OnCommandChanged(ICommand? oldCommand, ICommand? newCommand)

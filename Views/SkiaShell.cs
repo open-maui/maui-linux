@@ -1146,6 +1146,74 @@ public partial class SkiaShell : SkiaLayoutView
             bitmap?.Dispose();
         }
         _iconCache.Clear();
+        foreach (var entry in _flyoutIcons.Values)
+            entry.Release();
+        _flyoutIcons.Clear();
+    }
+
+    /// <summary>A flyout icon loaded through its image-source service, and the load in flight.</summary>
+    private sealed class FlyoutIconEntry
+    {
+        public IImageSourceServiceResult<SKBitmap>? Result;
+        public CancellationTokenSource? Load;
+
+        public void Release()
+        {
+            Load?.Cancel();
+            Load = null;
+            Result?.Dispose();
+            Result = null;
+        }
+    }
+
+    private readonly Dictionary<Microsoft.Maui.Controls.ImageSource, FlyoutIconEntry> _flyoutIcons = new();
+
+    /// <summary>The loaded flyout icon for <paramref name="source"/>, null while loading (tests).</summary>
+    internal SKBitmap? LoadedFlyoutIcon(Microsoft.Maui.Controls.ImageSource source) =>
+        _flyoutIcons.TryGetValue(source, out var entry) ? entry.Result?.Value : null;
+
+    /// <summary>
+    /// A flyout item's icon, loaded through its image-source service (file, font, URI, stream,
+    /// or an app's own source) at the row's icon size and the screen's density, as on the other
+    /// platforms. Null while it loads; the flyout repaints when it arrives.
+    /// </summary>
+    private SKBitmap? GetFlyoutIcon(Microsoft.Maui.Controls.ImageSource source)
+    {
+        if (source.IsEmpty)
+            return null;
+        if (_flyoutIcons.TryGetValue(source, out var entry))
+            return entry.Result?.Value;
+        entry = new FlyoutIconEntry();
+        _flyoutIcons[source] = entry;
+        _ = LoadFlyoutIconAsync(source, entry);
+        return null;
+    }
+
+    private async Task LoadFlyoutIconAsync(Microsoft.Maui.Controls.ImageSource source, FlyoutIconEntry entry)
+    {
+        var load = entry.Load = new CancellationTokenSource();
+        try
+        {
+            var result = await LinuxImageSourceServices.LoadAsync(
+                LinuxImageSourceServices.ServicesFor(this), source, Math.Max(1f, DeviceScale), new Size(24, 24), load.Token);
+            if (load.IsCancellationRequested)
+            {
+                result?.Dispose();
+                return;
+            }
+            entry.Result = result;
+            entry.Load = null;
+            if (result == null)
+                DiagnosticLog.Warn("SkiaShell", $"Flyout icon not found: {source}");
+            Invalidate();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaShell", $"Loading a flyout icon failed: {source}", ex);
+        }
     }
 
     /// <summary>
@@ -1803,7 +1871,7 @@ public partial class SkiaShell : SkiaLayoutView
 
             // Draw icon if available
             float textStartX = flyoutBounds.Left + 16;
-            var icon = GetFlyoutIcon(section.IconPath);
+            var icon = section.IconSource != null ? GetFlyoutIcon(section.IconSource) : GetFlyoutIcon(section.IconPath);
             if (icon != null)
             {
                 float iconSize = 24f;
@@ -2118,6 +2186,12 @@ public class ShellSection
     /// Optional icon path.
     /// </summary>
     public string? IconPath { get; set; }
+
+    /// <summary>
+    /// The item's icon as MAUI declares it (a file, font, URI or stream image, or an app's own
+    /// source), loaded through its image-source service; when null, <see cref="IconPath"/> is used.
+    /// </summary>
+    public Microsoft.Maui.Controls.ImageSource? IconSource { get; set; }
 
     /// <summary>
     /// False for items declared with <c>FlyoutItemIsVisible="False"</c>: still
