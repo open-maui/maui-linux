@@ -5,8 +5,11 @@ using SkiaSharp;
 using System.Collections;
 using System.Collections.Specialized;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform.Linux.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Rendering;
+using ItemsUpdatingScrollMode = Microsoft.Maui.Controls.ItemsUpdatingScrollMode;
+using ItemSizingStrategy = Microsoft.Maui.Controls.ItemSizingStrategy;
 
 namespace Microsoft.Maui.Platform;
 
@@ -14,6 +17,12 @@ namespace Microsoft.Maui.Platform;
 /// Base class for Skia-rendered items views (CollectionView, ListView).
 /// Provides item rendering, scrolling, and virtualization.
 /// </summary>
+/// <remarks>
+/// The items are laid out in lines along the scroll axis: one item per line for a list, and
+/// <see cref="Span"/> items per line for a grid (a row of a vertical grid, a column of a
+/// horizontal one). A line is as long as its longest item. Item extents and offsets are along
+/// the scroll axis (Y for a vertical list, X for a horizontal one).
+/// </remarks>
 public class SkiaItemsView : SkiaView
 {
     private IEnumerable? _itemsSource;
@@ -35,7 +44,6 @@ public class SkiaItemsView : SkiaView
     private DateTime _lastDragTime;
 
     // Scroll bar
-    private bool _showVerticalScrollBar = true;
     private float _scrollBarWidth = 8;
     private Color _scrollBarColor = SkiaTheme.ScrollbarThumb;
     private Color _scrollBarTrackColor = SkiaTheme.ScrollbarTrack;
@@ -50,21 +58,43 @@ public class SkiaItemsView : SkiaView
         get => _itemsSource;
         set
         {
-            _collectionSubscription?.Dispose();
-            _collectionSubscription = null;
-
-            _itemsSource = value;
+            Subscribe(value);
+            CancelReorder();
             RefreshItems();
-
-            if (_itemsSource is INotifyCollectionChanged newCollection)
-            {
-                _collectionSubscription = new WeakCollectionChangedProxy<SkiaItemsView>(newCollection, this,
-                    static (view, sender, e) => view.OnCollectionChanged(sender, e));
-            }
-
             InvalidateMeasure();
             Invalidate();
         }
+    }
+
+    private void Subscribe(IEnumerable? source)
+    {
+        if (ReferenceEquals(_collectionSubscription?.Source, source) && source != null)
+        {
+            _itemsSource = source;
+            return;
+        }
+        _collectionSubscription?.Dispose();
+        _collectionSubscription = null;
+
+        _itemsSource = source;
+        if (source is INotifyCollectionChanged newCollection)
+        {
+            _collectionSubscription = new WeakCollectionChangedProxy<SkiaItemsView>(newCollection, this,
+                static (view, sender, e) => view.OnCollectionChanged(sender, e));
+        }
+    }
+
+    /// <summary>
+    /// Shows <paramref name="items"/> in place of the current items without starting over: the
+    /// views of the items still shown are kept (an item is the same when it is the same object),
+    /// the selection keeps the items still there, and the scroll position follows
+    /// <see cref="ItemsUpdatingScrollMode"/>, as a collection change does. Setting
+    /// <see cref="ItemsSource"/> instead starts over at the first item.
+    /// </summary>
+    public void UpdateItemsSource(IEnumerable? items)
+    {
+        Subscribe(items);
+        ApplyItemsChange(null);
     }
 
     public float ItemHeight
@@ -96,18 +126,75 @@ public class SkiaItemsView : SkiaView
 
     private float _minimumItemHeight;
 
+    /// <summary>The space between two lines along the scroll axis (a list's item spacing).</summary>
     public float ItemSpacing
     {
         get => _itemSpacing;
         set
         {
             _itemSpacing = value;
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
+
+    private float _crossItemSpacing;
+
+    /// <summary>
+    /// The space between two items of a grid line, across the scroll axis: a vertical grid's
+    /// HorizontalItemSpacing, a horizontal grid's VerticalItemSpacing.
+    /// </summary>
+    public float CrossItemSpacing
+    {
+        get => _crossItemSpacing;
+        set
+        {
+            _crossItemSpacing = Math.Max(0, value);
+            InvalidateMeasure();
+            Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// The items in a line across the scroll axis: 1 for a list, a grid's Span. A vertical grid
+    /// fills each row left to right; a horizontal grid fills each column top to bottom, as
+    /// MAUI's GridItemsLayout does on every platform.
+    /// </summary>
+    protected virtual int Span => 1;
+
+    /// <summary>
+    /// Where the list scrolls when its items change (MAUI's ItemsView.ItemsUpdatingScrollMode).
+    /// KeepItemsInView (the default) keeps the items in view: a list at its start stays there
+    /// (an item inserted first is shown), and a scrolled list keeps its first visible item where
+    /// it is, so items added or removed above it do not move what is shown; KeepScrollOffset
+    /// keeps the scroll offset; KeepLastItemInView scrolls to the last item after every change.
+    /// </summary>
+    public ItemsUpdatingScrollMode ItemsUpdatingScrollMode { get; set; }
+
+    private ItemSizingStrategy _itemSizingStrategy;
+
+    /// <summary>
+    /// MeasureFirstItem gives every item the size of the first one (only the first is measured to
+    /// place the rows), as MAUI's ItemSizingStrategy does; MeasureAllItems measures each item.
+    /// </summary>
+    public ItemSizingStrategy ItemSizingStrategy
+    {
+        get => _itemSizingStrategy;
+        set
+        {
+            if (_itemSizingStrategy == value)
+                return;
+            _itemSizingStrategy = value;
+            InvalidateMeasure();
             Invalidate();
         }
     }
 
     public ScrollBarVisibility VerticalScrollBarVisibility { get; set; } = ScrollBarVisibility.Default;
     public ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = ScrollBarVisibility.Never;
+
+    /// <summary>True when a vertical list shows (and takes input on) its scroll bar.</summary>
+    private bool ShowsVerticalScrollBar => !IsHorizontal && VerticalScrollBarVisibility != ScrollBarVisibility.Never;
 
     public object? EmptyView { get; set; }
 
@@ -183,6 +270,11 @@ public class SkiaItemsView : SkiaView
     private int _shownMin = int.MaxValue;
     private int _shownMax = -1;
 
+    // The cells drawn in the last frame (item index and rectangle, relative to the list's
+    // top-left corner): what a tap or a reorder drag lands on, in any layout.
+    private List<(int Index, SKRect Rect)> _cellsDrawing = new();
+    private List<(int Index, SKRect Rect)> _cellsShown = new();
+
     /// <summary>Views kept beyond the drawn rows before recycling starts (minimum 64).</summary>
     internal int ItemViewCacheSlack { get; set; } = 64;
 
@@ -193,13 +285,26 @@ public class SkiaItemsView : SkiaView
         if (index > _drawnMax) _drawnMax = index;
     }
 
+    /// <summary>
+    /// Records the cell of the item at <paramref name="index"/> drawn this frame at
+    /// <paramref name="cell"/> in a list drawn at <paramref name="bounds"/>: taps and reorder
+    /// drags find the item under the pointer through it.
+    /// </summary>
+    protected void NoteCellDrawn(int index, SKRect cell, SKRect bounds)
+    {
+        var local = new SKRect(cell.Left - bounds.Left, cell.Top - bounds.Top, cell.Right - bounds.Left, cell.Bottom - bounds.Top);
+        _cellsDrawing.Add((index, local));
+    }
+
     public override void Draw(SKCanvas canvas)
     {
         _drawnMin = int.MaxValue;
         _drawnMax = -1;
+        _cellsDrawing.Clear();
         base.Draw(canvas);
         _shownMin = _drawnMin;
         _shownMax = _drawnMax;
+        (_cellsShown, _cellsDrawing) = (_cellsDrawing, _cellsShown);
         TrimItemViewCache();
     }
 
@@ -217,7 +322,7 @@ public class SkiaItemsView : SkiaView
         int keepFrom = _drawnMin - slack, keepTo = _drawnMax + slack;
         List<int>? evict = null;
         foreach (var index in _itemViewCache.Keys)
-            if (index < keepFrom || index > keepTo)
+            if ((index < keepFrom || index > keepTo) && index != _reorderFrom)
                 (evict ??= new List<int>()).Add(index);
         if (evict == null) return;
         foreach (var index in evict)
@@ -282,6 +387,10 @@ public class SkiaItemsView : SkiaView
     // Track last measured width to clear cache when width changes
     private float _lastMeasuredWidth = 0;
 
+    // The cross size the rows were last measured at (a cell's width in a vertical list), so
+    // rows added by a collection change are measured like the others before the list scrolls.
+    private float _lastCellCrossSize;
+
     // Selection support (overridden in SkiaCollectionView)
     public virtual int SelectedIndex { get; set; } = -1;
 
@@ -308,6 +417,15 @@ public class SkiaItemsView : SkiaView
         }
         DiagnosticLog.Debug("SkiaItemsView", $"RefreshItems done, now have {_items.Count} items");
         _scrollOffset = 0;
+        ForgetShownRows();
+    }
+
+    /// <summary>
+    /// Called after the items changed in place (a collection change, or
+    /// <see cref="UpdateItemsSource"/>), once the rows and the scroll position are updated.
+    /// </summary>
+    protected virtual void OnItemsChanged()
+    {
     }
 
     /// <summary>
@@ -322,11 +440,286 @@ public class SkiaItemsView : SkiaView
         Invalidate();
     }
 
-    private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => ApplyItemsChange(e);
+
+    // --- Collection changes ------------------------------------------------------------------
+
+    /// <summary>
+    /// Applies a change of the items source in place, as MAUI's items views do on every
+    /// platform: only the rows that changed are made again (the others keep their views and
+    /// measured sizes), and the scroll position follows <see cref="ItemsUpdatingScrollMode"/>.
+    /// A null change (or one that does not match the items shown) re-reads the source and keeps
+    /// the views of the items still there.
+    /// </summary>
+    private void ApplyItemsChange(NotifyCollectionChangedEventArgs? e)
     {
-        RefreshItems();
+        CancelReorder();
+        var anchor = CaptureAnchor();
+        bool applied = e != null && e.Action switch
+        {
+            NotifyCollectionChangedAction.Add => TryInsert(e.NewStartingIndex, e.NewItems),
+            NotifyCollectionChangedAction.Remove => TryRemove(e.OldStartingIndex, e.OldItems),
+            NotifyCollectionChangedAction.Replace => TryReplace(e.OldStartingIndex, e.OldItems, e.NewItems),
+            NotifyCollectionChangedAction.Move => TryMove(e.OldStartingIndex, e.NewStartingIndex, e.OldItems),
+            _ => false,
+        };
+        if (applied && _itemsSource is ICollection collection && collection.Count != _items.Count)
+            applied = false;
+        if (!applied)
+            Resync();
+        ForgetShownRows();
+
+        RestoreScrollPosition(anchor);
+        OnItemsChanged();
         InvalidateMeasure();
         Invalidate();
+    }
+
+    private void ForgetShownRows()
+    {
+        _shownMin = int.MaxValue;
+        _shownMax = -1;
+        _cellsShown.Clear();
+    }
+
+    /// <summary>Moves the cached views and sizes of the items at or after <paramref name="from"/> by <paramref name="delta"/>.</summary>
+    private void ShiftRows(int from, int delta)
+    {
+        if (delta == 0)
+            return;
+        if (_itemViewCache.Keys.Any(k => k >= from))
+        {
+            var moved = _itemViewCache.Where(kv => kv.Key >= from).ToList();
+            foreach (var kv in moved)
+                _itemViewCache.Remove(kv.Key);
+            foreach (var kv in moved)
+                _itemViewCache[kv.Key + delta] = kv.Value;
+        }
+        if (_itemHeights.Keys.Any(k => k >= from))
+        {
+            var moved = _itemHeights.Where(kv => kv.Key >= from).ToList();
+            foreach (var kv in moved)
+                _itemHeights.Remove(kv.Key);
+            foreach (var kv in moved)
+                _itemHeights[kv.Key + delta] = kv.Value;
+        }
+    }
+
+    /// <summary>Drops the views and sizes of the rows [<paramref name="index"/>, +<paramref name="count"/>).</summary>
+    private void DropRows(int index, int count)
+    {
+        for (int i = index; i < index + count; i++)
+        {
+            if (_itemViewCache.Remove(i, out var view) && view != null)
+                ReleaseItemView(view);
+            _itemHeights.Remove(i);
+        }
+    }
+
+    private bool TryInsert(int index, IList? items)
+    {
+        if (items == null || items.Count == 0)
+            return items != null;
+        if (index < 0)
+            index = _items.Count;
+        if (index > _items.Count)
+            return false;
+        ShiftRows(index, items.Count);
+        for (int i = 0; i < items.Count; i++)
+            _items.Insert(index + i, items[i]!);
+        return true;
+    }
+
+    private bool TryRemove(int index, IList? items)
+    {
+        if (items == null || index < 0 || index + items.Count > _items.Count)
+            return false;
+        for (int i = 0; i < items.Count; i++)
+            if (!Equals(_items[index + i], items[i]))
+                return false;
+        DropRows(index, items.Count);
+        _items.RemoveRange(index, items.Count);
+        ShiftRows(index + items.Count, -items.Count);
+        return true;
+    }
+
+    private bool TryReplace(int index, IList? oldItems, IList? newItems)
+    {
+        if (oldItems == null || newItems == null || oldItems.Count != newItems.Count
+            || index < 0 || index + oldItems.Count > _items.Count)
+            return false;
+        DropRows(index, oldItems.Count);
+        for (int i = 0; i < newItems.Count; i++)
+            _items[index + i] = newItems[i]!;
+        return true;
+    }
+
+    private bool TryMove(int oldIndex, int newIndex, IList? items)
+    {
+        if (items == null || items.Count == 0 || oldIndex < 0 || newIndex < 0
+            || oldIndex + items.Count > _items.Count || newIndex + items.Count > _items.Count)
+            return false;
+        int count = items.Count;
+        // The moved rows keep their views and sizes: they show the same items.
+        var views = new SkiaView?[count];
+        var heights = new float?[count];
+        for (int i = 0; i < count; i++)
+        {
+            views[i] = _itemViewCache.Remove(oldIndex + i, out var v) ? v : null;
+            heights[i] = _itemHeights.Remove(oldIndex + i, out var h) ? h : null;
+        }
+        var moved = _items.GetRange(oldIndex, count);
+        _items.RemoveRange(oldIndex, count);
+        ShiftRows(oldIndex + count, -count);
+        ShiftRows(newIndex, count);
+        _items.InsertRange(newIndex, moved);
+        for (int i = 0; i < count; i++)
+        {
+            if (views[i] != null) _itemViewCache[newIndex + i] = views[i]!;
+            if (heights[i] is { } height) _itemHeights[newIndex + i] = height;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Re-reads the source. An item still there keeps its view and size (matched by identity, or
+    /// by equality for rows that are not items, such as a group's header).
+    /// </summary>
+    private void Resync()
+    {
+        var oldRows = new Dictionary<object, Queue<int>>(RowIdentityComparer.Instance);
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var item = _items[i];
+            if (item == null) continue;
+            if (!oldRows.TryGetValue(item, out var queue))
+                oldRows[item] = queue = new Queue<int>();
+            queue.Enqueue(i);
+        }
+
+        var newItems = new List<object>();
+        if (_itemsSource != null)
+            foreach (var item in _itemsSource)
+                newItems.Add(item);
+
+        var views = new Dictionary<int, SkiaView>();
+        var heights = new Dictionary<int, float>();
+        for (int i = 0; i < newItems.Count; i++)
+        {
+            var item = newItems[i];
+            if (item == null || !oldRows.TryGetValue(item, out var queue) || queue.Count == 0)
+                continue;
+            var old = queue.Dequeue();
+            if (_itemViewCache.Remove(old, out var view) && view != null)
+                views[i] = view;
+            if (_itemHeights.TryGetValue(old, out var height))
+                heights[i] = height;
+        }
+        foreach (var view in _itemViewCache.Values.ToList())
+        {
+            if (view != null)
+                ReleaseItemView(view);
+        }
+        _itemViewCache.Clear();
+        foreach (var kv in views)
+            _itemViewCache[kv.Key] = kv.Value;
+        _itemHeights.Clear();
+        foreach (var kv in heights)
+            _itemHeights[kv.Key] = kv.Value;
+        _items = newItems;
+    }
+
+    /// <summary>Items are the same object; other rows (group headers) are the same when equal.</summary>
+    private sealed class RowIdentityComparer : IEqualityComparer<object>
+    {
+        public static readonly RowIdentityComparer Instance = new();
+
+        public new bool Equals(object? x, object? y) =>
+            ReferenceEquals(x, y) || (x is INonSelectableItem && x.Equals(y));
+
+        public int GetHashCode(object obj) =>
+            obj is INonSelectableItem ? obj.GetHashCode() : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+    }
+
+    /// <summary>
+    /// The first item shown, and how far the list is scrolled past its start. None while the list
+    /// is at its start: it stays there, showing the first item (an item inserted first is shown).
+    /// </summary>
+    private (object Item, int Index, float Delta)? CaptureAnchor()
+    {
+        if (_items.Count == 0 || _scrollOffset <= 0)
+            return null;
+        var line = LineAt(_scrollOffset);
+        if (line < 0)
+            return null;
+        var index = ItemAtSlot(line * Span);
+        if (index < 0 || index >= _items.Count)
+            return null;
+        return (_items[index], index, _scrollOffset - GetLineOffset(line));
+    }
+
+    /// <summary>Scrolls as <see cref="ItemsUpdatingScrollMode"/> asks after the items changed.</summary>
+    private void RestoreScrollPosition((object Item, int Index, float Delta)? anchor)
+    {
+        switch (ItemsUpdatingScrollMode)
+        {
+            case ItemsUpdatingScrollMode.KeepLastItemInView:
+                if (_items.Count > 0)
+                {
+                    MeasureRows(0, _items.Count);
+                    SetScrollOffset(MaxScrollOffset);
+                }
+                else
+                {
+                    SetScrollOffset(0);
+                }
+                break;
+
+            case ItemsUpdatingScrollMode.KeepScrollOffset:
+                SetScrollOffset(_scrollOffset);
+                break;
+
+            default:
+                if (anchor is { } a && _items.Count > 0)
+                {
+                    // The anchor item where it is now (it may have moved), or the one in its place.
+                    int index = FindNear(a.Item, a.Index);
+                    float delta = a.Delta;
+                    if (index < 0)
+                    {
+                        index = Math.Clamp(a.Index, 0, _items.Count - 1);
+                        delta = 0;
+                    }
+                    MeasureRows(0, index + 1);
+                    SetScrollOffset(GetItemOffset(index) + delta);
+                }
+                else
+                {
+                    SetScrollOffset(_scrollOffset);
+                }
+                break;
+        }
+    }
+
+    private int FindNear(object item, int near)
+    {
+        for (int d = 0; d < _items.Count; d++)
+        {
+            int before = near - d, after = near + d;
+            if (before >= 0 && before < _items.Count && ReferenceEquals(_items[before], item)) return before;
+            if (after >= 0 && after < _items.Count && ReferenceEquals(_items[after], item)) return after;
+            if (before < 0 && after >= _items.Count) break;
+        }
+        return -1;
+    }
+
+    /// <summary>Measures the rows [<paramref name="from"/>, <paramref name="to"/>) not measured yet, at the size the list measures its rows.</summary>
+    private void MeasureRows(int from, int to)
+    {
+        if (_lastCellCrossSize <= 0 || ItemViewCreator == null)
+            return;
+        for (int i = from; i < to && i < _items.Count; i++)
+            EnsureItemMeasured(i, _lastCellCrossSize);
     }
 
     /// <summary>
@@ -341,6 +734,11 @@ public class SkiaItemsView : SkiaView
     {
         if (ItemViewCreator == null) return;
         if (index < 0 || index >= _items.Count) return;
+        if (availableWidth > 0 && !float.IsInfinity(availableWidth))
+            _lastCellCrossSize = availableWidth;
+        // MeasureFirstItem: every row takes the first item's size.
+        if (index > 0 && _itemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+            index = 0;
         if (_itemHeights.ContainsKey(index)) return;
 
         var itemView = GetOrCreateItemView(index);
@@ -401,6 +799,8 @@ public class SkiaItemsView : SkiaView
     /// </summary>
     protected float GetItemHeight(int index)
     {
+        if (index > 0 && _itemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+            index = 0;
         var cached = _itemHeights.TryGetValue(index, out var height) ? height : _itemHeight;
         return Math.Max(cached, _minimumItemHeight);
     }
@@ -414,17 +814,104 @@ public class SkiaItemsView : SkiaView
     /// <inheritdoc cref="LeadingContentHeight"/>
     protected virtual float TrailingContentHeight => 0f;
 
+    // --- Lines: the layout along the scroll axis -----------------------------------------------
+
+    /// <summary>The number of lines (rows of a vertical grid, columns of a horizontal one).</summary>
+    protected int LineCount
+    {
+        get
+        {
+            var span = Math.Max(1, Span);
+            return (_items.Count + span - 1) / span;
+        }
+    }
+
+    /// <summary>The cross size of a cell in a line <paramref name="crossExtent"/> long (the grid's span and spacing taken out).</summary>
+    protected float CellCrossSize(float crossExtent)
+    {
+        var span = Math.Max(1, Span);
+        if (span == 1)
+            return crossExtent;
+        return Math.Max(0, (crossExtent - _crossItemSpacing * (span - 1)) / span);
+    }
+
+    /// <summary>The length of a line along the scroll axis: its longest item.</summary>
+    protected float GetLineExtent(int line)
+    {
+        var span = Math.Max(1, Span);
+        float extent = 0;
+        for (int slot = line * span; slot < (line + 1) * span && slot < _items.Count; slot++)
+            extent = Math.Max(extent, GetItemHeight(ItemAtSlot(slot)));
+        return extent;
+    }
+
+    /// <summary>Where a line starts along the scroll axis (the header before it included).</summary>
+    protected float GetLineOffset(int line)
+    {
+        float offset = LeadingContentHeight;
+        var lines = LineCount;
+        for (int l = 0; l < line && l < lines; l++)
+            offset += GetLineExtent(l) + _itemSpacing;
+        return offset;
+    }
+
+    /// <summary>The line at <paramref name="offset"/> along the scroll axis (the first one past it), or -1 when there are none.</summary>
+    private int LineAt(float offset)
+    {
+        var lines = LineCount;
+        if (lines == 0)
+            return -1;
+        float position = LeadingContentHeight;
+        for (int l = 0; l < lines; l++)
+        {
+            var extent = GetLineExtent(l);
+            if (position + extent > offset)
+                return l;
+            position += extent + _itemSpacing;
+        }
+        return lines - 1;
+    }
+
     /// <summary>
     /// Gets the Y offset for a specific item (cumulative height of all previous items).
     /// </summary>
-    protected float GetItemOffset(int index)
+    protected float GetItemOffset(int index) => GetLineOffset(SlotOfItem(index) / Math.Max(1, Span));
+
+    /// <summary>
+    /// The indexes of the first, center and last items in view (-1 when there are none), as
+    /// MAUI reports them in ItemsViewScrolledEventArgs.
+    /// </summary>
+    public (int First, int Center, int Last) GetVisibleItemRange()
     {
-        float offset = LeadingContentHeight;
-        for (int i = 0; i < index && i < _items.Count; i++)
+        var lines = LineCount;
+        var viewport = ViewportExtent;
+        if (lines == 0 || viewport <= 0)
+            return (-1, -1, -1);
+        var span = Math.Max(1, Span);
+        float start = _scrollOffset, end = _scrollOffset + viewport, middle = _scrollOffset + viewport / 2;
+        int firstLine = -1, lastLine = -1, centerLine = -1;
+        float position = LeadingContentHeight;
+        for (int l = 0; l < lines; l++)
         {
-            offset += GetItemHeight(i) + _itemSpacing;
+            var extent = GetLineExtent(l);
+            if (position + extent > start && position < end)
+            {
+                if (firstLine < 0) firstLine = l;
+                lastLine = l;
+            }
+            if (centerLine < 0 && position + extent > middle)
+                centerLine = l;
+            if (position >= end)
+                break;
+            position += extent + _itemSpacing;
         }
-        return offset;
+        if (firstLine < 0)
+            return (-1, -1, -1);
+        if (centerLine < 0) centerLine = lastLine;
+        int first = ItemAtSlot(firstLine * span);
+        int last = ItemAtSlot(Math.Min(_items.Count - 1, lastLine * span + span - 1));
+        int center = ItemAtSlot(Math.Min(_items.Count - 1, centerLine * span + (span - 1) / 2));
+        return (first, center, last);
     }
 
     /// <summary>Rows measured for real when sizing to content; the rest use the estimate.</summary>
@@ -443,8 +930,9 @@ public class SkiaItemsView : SkiaView
         }
         if (_items.Count == 0)
             return string.IsNullOrEmpty(EmptyViewText) ? 0 : 44;
+        var cell = CellCrossSize(width);
         for (int i = 0; i < _items.Count && i < NaturalMeasureLimit; i++)
-            EnsureItemMeasured(i, width);
+            EnsureItemMeasured(i, cell);
         return TotalContentHeight;
     }
 
@@ -456,12 +944,11 @@ public class SkiaItemsView : SkiaView
         get
         {
             float total = LeadingContentHeight + TrailingContentHeight;
-            if (_items.Count == 0) return total;
-
-            for (int i = 0; i < _items.Count; i++)
+            var lines = LineCount;
+            for (int l = 0; l < lines; l++)
             {
-                total += GetItemHeight(i);
-                if (i < _items.Count - 1) total += _itemSpacing;
+                total += GetLineExtent(l);
+                if (l < lines - 1) total += _itemSpacing;
             }
             return total;
         }
@@ -492,8 +979,9 @@ public class SkiaItemsView : SkiaView
             return;
         }
 
+        var showBar = ShowsVerticalScrollBar;
         // Content width excludes the scrollbar gutter (matches the itemRect below)
-        var contentWidth = bounds.Width - (_showVerticalScrollBar ? _scrollBarWidth : 0);
+        var contentWidth = bounds.Width - (showBar ? _scrollBarWidth : 0);
 
         // Find first visible index by walking through items.
         // Measure each item before using its height so the first frame after a
@@ -502,8 +990,8 @@ public class SkiaItemsView : SkiaView
         float cumulativeOffset = LeadingContentHeight;
         for (int i = 0; i < _items.Count; i++)
         {
-            EnsureItemMeasured(i, contentWidth);
-            var itemH = GetItemHeight(i);
+            EnsureItemMeasured(ItemAtSlot(i), contentWidth);
+            var itemH = GetItemHeight(ItemAtSlot(i));
             if (cumulativeOffset + itemH > _scrollOffset)
             {
                 _firstVisibleIndex = i;
@@ -522,12 +1010,13 @@ public class SkiaItemsView : SkiaView
             IsAntialias = true
         };
 
-        float currentY = bounds.Top + GetItemOffset(_firstVisibleIndex) - _scrollOffset;
-        for (int i = _firstVisibleIndex; i < _items.Count; i++)
+        float currentY = bounds.Top + GetLineOffset(_firstVisibleIndex) - _scrollOffset;
+        for (int slot = _firstVisibleIndex; slot < _items.Count; slot++)
         {
+            int i = ItemAtSlot(slot);
             EnsureItemMeasured(i, contentWidth);
             var itemH = GetItemHeight(i);
-            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - (_showVerticalScrollBar ? _scrollBarWidth : 0), currentY + itemH);
+            var itemRect = new SKRect(bounds.Left, currentY, bounds.Right - (showBar ? _scrollBarWidth : 0), currentY + itemH);
 
             // Stop if we've passed the visible area
             if (itemRect.Top > bounds.Bottom)
@@ -538,18 +1027,20 @@ public class SkiaItemsView : SkiaView
 
             _lastVisibleIndex = i;
 
-            if (itemRect.Bottom >= bounds.Top)
+            if (itemRect.Bottom >= bounds.Top && i != DraggedItemIndex)
             {
+                NoteCellDrawn(i, itemRect, bounds);
                 DrawItem(canvas, _items[i], i, itemRect, paint);
             }
 
             currentY += itemH + _itemSpacing;
         }
 
+        DrawDraggedItem(canvas, bounds, paint);
         canvas.Restore();
 
         // Draw scrollbar
-        if (_showVerticalScrollBar && TotalContentHeight > bounds.Height)
+        if (showBar && (TotalContentHeight > bounds.Height || VerticalScrollBarVisibility == ScrollBarVisibility.Always))
         {
             DrawScrollBar(canvas, bounds);
         }
@@ -695,9 +1186,10 @@ public class SkiaItemsView : SkiaView
         canvas.DrawRect(trackRect, trackPaint);
 
         // Calculate thumb size and position
-        var viewportRatio = bounds.Height / TotalContentHeight;
+        var total = Math.Max(TotalContentHeight, bounds.Height);
+        var viewportRatio = total > 0 ? bounds.Height / total : 1f;
         var thumbHeight = Math.Max(20, bounds.Height * viewportRatio);
-        var scrollRatio = _scrollOffset / MaxScrollOffset;
+        var scrollRatio = MaxScrollOffset > 0 ? _scrollOffset / MaxScrollOffset : 0f;
         var thumbY = bounds.Top + (bounds.Height - thumbHeight) * scrollRatio;
 
         var thumbRect = new SKRect(
@@ -718,13 +1210,271 @@ public class SkiaItemsView : SkiaView
         canvas.DrawRoundRect(new SKRoundRect(thumbRect, cornerRadius), thumbPaint);
     }
 
+    // --- Reordering ----------------------------------------------------------------------------
+
+    private bool _canReorderItems;
+
+    /// <summary>
+    /// Lets the user drag an item to another place in the list (MAUI's CanReorderItems). A drag
+    /// that starts on an item moves it, as a mouse drag does on Windows: the item follows the
+    /// pointer, the others make room, and the list scrolls when the pointer nears its edge.
+    /// Dropping it raises <see cref="ItemReordered"/>; the owner moves the item in its source.
+    /// Escape cancels the drag. The list still scrolls with the wheel and the scroll bar.
+    /// </summary>
+    public bool CanReorderItems
+    {
+        get => _canReorderItems;
+        set
+        {
+            if (_canReorderItems == value)
+                return;
+            _canReorderItems = value;
+            if (!value)
+                CancelReorder();
+        }
+    }
+
+    /// <summary>Whether the item at an index can be dragged (null: every item can).</summary>
+    public Func<int, bool>? CanDragItem { get; set; }
+
+    /// <summary>
+    /// Whether the dragged item (first argument) can be dropped where it would end up at the
+    /// index of the second (null: anywhere). A grouped list keeps an item off group headers, or
+    /// in its own group.
+    /// </summary>
+    public Func<int, int, bool>? CanDropItem { get; set; }
+
+    /// <summary>Raised when a reorder drag ends: the item, and the index it was dropped at (the same when it did not move).</summary>
+    public event EventHandler<ItemsReorderedEventArgs>? ItemReordered;
+
+    /// <summary>True while an item is being dragged to a new place.</summary>
+    public bool IsReordering => _reorderFrom >= 0 && _reorderStarted;
+
+    private const float ReorderDragThreshold = 8f;
+    private const float ReorderAutoScrollZone = 32f;
+
+    private int _reorderFrom = -1;     // the dragged item
+    private int _reorderTo = -1;       // the index it would be dropped at
+    private bool _reorderStarted;
+    private float _reorderPressX, _reorderPressY;   // list-local
+    private float _reorderPointerX, _reorderPointerY;
+    private SKRect _reorderCell;        // the item's cell at the press, list-local
+
+    /// <summary>The item being dragged (its row is left empty while it follows the pointer), or -1.</summary>
+    protected int DraggedItemIndex => IsReordering ? _reorderFrom : -1;
+
+    /// <summary>The item shown at a place in the list: during a reorder drag the others move up or down to make room.</summary>
+    protected int ItemAtSlot(int slot)
+    {
+        if (!IsReordering || _reorderFrom == _reorderTo)
+            return slot;
+        int from = _reorderFrom, to = _reorderTo;
+        if (slot == to) return from;
+        if (from < to && slot >= from && slot < to) return slot + 1;
+        if (from > to && slot > to && slot <= from) return slot - 1;
+        return slot;
+    }
+
+    /// <summary>The place in the list an item is shown at (see <see cref="ItemAtSlot"/>).</summary>
+    protected int SlotOfItem(int index)
+    {
+        if (!IsReordering || _reorderFrom == _reorderTo)
+            return index;
+        int from = _reorderFrom, to = _reorderTo;
+        if (index == from) return to;
+        if (from < to && index > from && index <= to) return index - 1;
+        if (from > to && index >= to && index < from) return index + 1;
+        return index;
+    }
+
+    /// <summary>Stops a reorder drag without moving anything.</summary>
+    private void CancelReorder()
+    {
+        if (_reorderFrom < 0)
+            return;
+        _reorderFrom = _reorderTo = -1;
+        _reorderStarted = false;
+        Invalidate();
+    }
+
+    /// <summary>The item whose cell (as last drawn) is at the list-local point, or -1.</summary>
+    private int CellAt(float x, float y)
+    {
+        foreach (var (index, rect) in _cellsShown)
+            if (rect.Contains(x, y))
+                return index;
+        return -1;
+    }
+
+    private SKRect CellOf(int index)
+    {
+        foreach (var (i, rect) in _cellsShown)
+            if (i == index)
+                return rect;
+        return SKRect.Empty;
+    }
+
+    /// <summary>Draws the dragged item under the pointer, over the others.</summary>
+    protected void DrawDraggedItem(SKCanvas canvas, SKRect bounds, SKPaint paint)
+    {
+        if (!IsReordering || _reorderFrom >= _items.Count)
+            return;
+        var left = bounds.Left + _reorderCell.Left + (_reorderPointerX - _reorderPressX);
+        var top = bounds.Top + _reorderCell.Top + (_reorderPointerY - _reorderPressY);
+        var rect = new SKRect(left, top, left + _reorderCell.Width, top + _reorderCell.Height);
+        // Translucent, as a dragged list item is shown on Windows.
+        using var layer = new SKPaint { Color = SKColors.White.WithAlpha(204) };
+        canvas.SaveLayer(layer);
+        DrawItem(canvas, _items[_reorderFrom], _reorderFrom, rect, paint);
+        canvas.Restore();
+    }
+
+    private void UpdateReorderTarget()
+    {
+        int under = CellAt(_reorderPointerX, _reorderPointerY);
+        if (under < 0 || under == _reorderFrom)
+            return;
+        int slot = SlotOfItem(under);
+        if (slot == _reorderTo)
+            return;
+        if (CanDropItem != null && !CanDropItem(_reorderFrom, slot))
+            return;
+        _reorderTo = slot;
+        Invalidate();
+    }
+
+    private void AutoScrollForReorder()
+    {
+        var main = IsHorizontal ? _reorderPointerX : _reorderPointerY;
+        var viewport = ViewportExtent;
+        float step = 0;
+        if (main < ReorderAutoScrollZone)
+            step = -(ReorderAutoScrollZone - main) / 2;
+        else if (main > viewport - ReorderAutoScrollZone)
+            step = (main - (viewport - ReorderAutoScrollZone)) / 2;
+        if (step != 0)
+            SetScrollOffset(_scrollOffset + step);
+    }
+
+    private void FinishReorder()
+    {
+        int from = _reorderFrom, to = _reorderTo;
+        _reorderFrom = _reorderTo = -1;
+        _reorderStarted = false;
+        Invalidate();
+        try
+        {
+            ItemReordered?.Invoke(this, new ItemsReorderedEventArgs(from, to));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaItemsView", "Reordering an item failed", ex);
+        }
+    }
+
+    // --- Pointer events for row content ------------------------------------------------------
+
+    // The list keeps presses on plain row content (item tap, selection, scrolling, reordering),
+    // yet on Windows the content under the pointer still gets its pointer events: a
+    // TouchBehavior or a PointerGestureRecognizer in a row works, and the item is still
+    // selected. The MAUI views of the row content under the pointer (innermost first) and of the
+    // press in progress are told about the list's pointer events through PointerRouted and their
+    // PointerGestureRecognizers. Controls in a row (a button) take the pointer themselves.
+    private readonly List<Microsoft.Maui.Controls.View> _rowContentHovered = new();
+    private List<Microsoft.Maui.Controls.View>? _rowContentPressed;
+
+    /// <summary>The MAUI views of the row content under a point (list space), innermost first.</summary>
+    private List<Microsoft.Maui.Controls.View> RowContentAt(float x, float y)
+    {
+        var chain = new List<Microsoft.Maui.Controls.View>();
+        if (float.IsNaN(x) || float.IsNaN(y) || !Bounds.Contains(x, y))
+            return chain;
+        for (var view = InnermostViewAt(x, y); view != null && !ReferenceEquals(view, this); view = view.Parent)
+        {
+            if (view.MauiView is Microsoft.Maui.Controls.View mauiView && !chain.Contains(mauiView))
+                chain.Add(mauiView);
+        }
+        return chain;
+    }
+
+    /// <summary>
+    /// Follows the row content under the pointer: the views it left get Exited, those it
+    /// reached get Entered (outermost first).
+    /// </summary>
+    private void UpdateRowContentHover(PointerEventArgs e, bool inside)
+    {
+        var now = inside && !ShowsEmptyView ? RowContentAt(e.X, e.Y) : new List<Microsoft.Maui.Controls.View>();
+        var left = _rowContentHovered.Where(v => !now.Contains(v)).ToList();
+        var reached = now.Where(v => !_rowContentHovered.Contains(v)).Reverse().ToList();
+        _rowContentHovered.Clear();
+        _rowContentHovered.AddRange(now);
+        RaiseOnRowContent(left, RoutedPointerKind.Exited, e);
+        RaiseOnRowContent(reached, RoutedPointerKind.Entered, e);
+    }
+
+    /// <summary>
+    /// Ends the row content's press without a release over it (the list scrolls or a reorder
+    /// drag starts), as WinUI cancels a pointer a list takes over: the pointer leaves the
+    /// content and is released away from it.
+    /// </summary>
+    private void CancelRowContentPress(PointerEventArgs e)
+    {
+        if (_rowContentPressed is not { } pressed)
+            return;
+        _rowContentPressed = null;
+        _rowContentHovered.Clear();
+        var away = new PointerEventArgs(-1_000_000f, -1_000_000f, e.Button);
+        RaiseOnRowContent(pressed, RoutedPointerKind.Exited, away);
+        RaiseOnRowContent(pressed, RoutedPointerKind.Released, away);
+    }
+
+    private void RaiseOnRowContent(List<Microsoft.Maui.Controls.View> views, RoutedPointerKind kind, PointerEventArgs e)
+    {
+        if (views.Count == 0)
+            return;
+        var windowE = InWindowSpace(e);
+        var type = kind switch
+        {
+            RoutedPointerKind.Entered => GestureManager.PointerEventType.Entered,
+            RoutedPointerKind.Exited => GestureManager.PointerEventType.Exited,
+            RoutedPointerKind.Pressed => GestureManager.PointerEventType.Pressed,
+            RoutedPointerKind.Released => GestureManager.PointerEventType.Released,
+            _ => GestureManager.PointerEventType.Moved,
+        };
+        foreach (var view in views.ToArray())
+        {
+            try
+            {
+                GestureManager.ProcessPointerRecognizers(view, windowE.X, windowE.Y, type);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("SkiaItemsView", $"Pointer recognizer failed for {view.GetType().Name}", ex);
+            }
+            RaisePointerRouted(view, kind, windowE);
+        }
+    }
+
+    public override void OnPointerEntered(PointerEventArgs e)
+    {
+        base.OnPointerEntered(e);
+        if (_rowContentPressed == null && !_isDragging)
+            UpdateRowContentHover(e, inside: true);
+    }
+
+    public override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        UpdateRowContentHover(e, inside: false);
+    }
+
     public override void OnPointerPressed(PointerEventArgs e)
     {
         DiagnosticLog.Debug("SkiaItemsView", $"OnPointerPressed - x={e.X}, y={e.Y}, Bounds={Bounds}, ScreenBounds={ScreenBounds}, ItemCount={_items.Count}");
         if (!IsEnabled) return;
 
         // Check if clicking on scrollbar thumb
-        if (!IsHorizontal && _showVerticalScrollBar && TotalContentHeight > Bounds.Height)
+        if (ShowsVerticalScrollBar && TotalContentHeight > Bounds.Height)
         {
             var thumbBounds = GetScrollbarThumbBounds();
             if (thumbBounds.Contains(e.X, e.Y))
@@ -737,6 +1487,29 @@ public class SkiaItemsView : SkiaView
                 _scrollbarDragAvailableTrack = (float)Bounds.Height - thumbHeight;
                 _scrollbarDragMaxScroll = MaxScrollOffset;
                 return;
+            }
+        }
+
+        // The row content under the pointer is pressed too, as on Windows; the list still
+        // takes the press for the item tap, selection, scrolling and reordering.
+        UpdateRowContentHover(e, inside: true);
+        _rowContentPressed = new List<Microsoft.Maui.Controls.View>(_rowContentHovered);
+        RaiseOnRowContent(_rowContentPressed, RoutedPointerKind.Pressed, e);
+
+        // A press on an item of a reorderable list may start dragging it.
+        _reorderFrom = -1;
+        _reorderStarted = false;
+        if (_canReorderItems)
+        {
+            var screen = ScreenBounds;
+            float x = e.X - (float)screen.Left, y = e.Y - (float)screen.Top;
+            int index = CellAt(x, y);
+            if (index >= 0 && index < _items.Count && (CanDragItem?.Invoke(index) ?? true))
+            {
+                _reorderFrom = _reorderTo = index;
+                _reorderPressX = _reorderPointerX = x;
+                _reorderPressY = _reorderPointerY = y;
+                _reorderCell = CellOf(index);
             }
         }
 
@@ -781,6 +1554,39 @@ public class SkiaItemsView : SkiaView
             return;
         }
 
+        if (_rowContentPressed != null)
+        {
+            RaiseOnRowContent(_rowContentPressed, RoutedPointerKind.Moved, e);
+        }
+        else if (!_isDragging && _reorderFrom < 0)
+        {
+            UpdateRowContentHover(e, inside: true);
+            RaiseOnRowContent(_rowContentHovered, RoutedPointerKind.Moved, e);
+        }
+
+        if (_reorderFrom >= 0)
+        {
+            var screen = ScreenBounds;
+            _reorderPointerX = e.X - (float)screen.Left;
+            _reorderPointerY = e.Y - (float)screen.Top;
+            if (!_reorderStarted)
+            {
+                var dx = _reorderPointerX - _reorderPressX;
+                var dy = _reorderPointerY - _reorderPressY;
+                if (dx * dx + dy * dy < ReorderDragThreshold * ReorderDragThreshold)
+                    return;
+                // The drag moves the item, not the list.
+                _reorderStarted = true;
+                _isDragging = false;
+                CancelRowContentPress(e);
+            }
+            AutoScrollForReorder();
+            UpdateReorderTarget();
+            Invalidate();
+            e.Handled = true;
+            return;
+        }
+
         if (!_isDragging) return;
 
         var delta = _dragStartY - MainAxis(e);
@@ -796,6 +1602,11 @@ public class SkiaItemsView : SkiaView
         _lastDragTime = now;
 
         SetScrollOffset(newOffset);
+
+        // Dragging scrolled the list: the row content's press is cancelled, as a WinUI list
+        // takes a touch over (PointerCanceled) once it pans.
+        if (_scrollOffset != _dragStartOffset)
+            CancelRowContentPress(e);
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
@@ -807,6 +1618,24 @@ public class SkiaItemsView : SkiaView
             return;
         }
 
+        // The row content's release comes first, as WinUI raises PointerReleased before the
+        // list's item click; then the hover follows the pointer again.
+        if (_rowContentPressed is { } pressedContent)
+        {
+            _rowContentPressed = null;
+            RaiseOnRowContent(pressedContent, RoutedPointerKind.Released, e);
+        }
+        UpdateRowContentHover(e, inside: true);
+
+        if (_reorderFrom >= 0 && _reorderStarted)
+        {
+            _isDragging = false;
+            FinishReorder();
+            e.Handled = true;
+            return;
+        }
+        _reorderFrom = _reorderTo = -1;
+
         if (_isDragging)
         {
             _isDragging = false;
@@ -815,27 +1644,33 @@ public class SkiaItemsView : SkiaView
             var totalDrag = Math.Abs(MainAxis(e) - _dragStartY);
             if (totalDrag < 5)
             {
-                // This was a tap - find which item was tapped using variable heights
                 var screenBounds = ScreenBounds;
-                var localY = IsHorizontal
-                    ? e.X - (float)screenBounds.Left + _scrollOffset
-                    : e.Y - (float)screenBounds.Top + _scrollOffset;
-
-                // Find tapped index by walking through item heights
                 int tappedIndex = -1;
-                float cumulativeY = LeadingContentHeight;
-                for (int i = 0; i < _items.Count; i++)
+                if (_cellsShown.Count > 0)
                 {
-                    var itemH = GetItemHeight(i);
-                    if (localY >= cumulativeY && localY < cumulativeY + itemH)
+                    // The cell under the pointer, as the last frame drew it (any layout).
+                    tappedIndex = CellAt(e.X - (float)screenBounds.Left, e.Y - (float)screenBounds.Top);
+                }
+                else
+                {
+                    // Not drawn yet: walk the rows.
+                    var localY = IsHorizontal
+                        ? e.X - (float)screenBounds.Left + _scrollOffset
+                        : e.Y - (float)screenBounds.Top + _scrollOffset;
+                    float cumulativeY = LeadingContentHeight;
+                    for (int i = 0; i < _items.Count && Span == 1; i++)
                     {
-                        tappedIndex = i;
-                        break;
+                        var itemH = GetItemHeight(i);
+                        if (localY >= cumulativeY && localY < cumulativeY + itemH)
+                        {
+                            tappedIndex = i;
+                            break;
+                        }
+                        cumulativeY += itemH + _itemSpacing;
                     }
-                    cumulativeY += itemH + _itemSpacing;
                 }
 
-                DiagnosticLog.Debug("SkiaItemsView", $"Tap at Y={e.Y}, screenBounds.Top={screenBounds.Top}, scrollOffset={_scrollOffset}, localY={localY}, index={tappedIndex}");
+                DiagnosticLog.Debug("SkiaItemsView", $"Tap at ({e.X},{e.Y}), screenBounds={screenBounds}, scrollOffset={_scrollOffset}, index={tappedIndex}");
 
                 if (tappedIndex >= 0 && tappedIndex < _items.Count)
                 {
@@ -894,7 +1729,14 @@ public class SkiaItemsView : SkiaView
 
         if (Math.Abs(_scrollOffset - oldOffset) > 0.1f)
         {
-            Scrolled?.Invoke(this, new ItemsScrolledEventArgs(_scrollOffset, TotalContentHeight));
+            var (first, center, last) = GetVisibleItemRange();
+            Scrolled?.Invoke(this, new ItemsScrolledEventArgs(_scrollOffset, TotalContentHeight)
+            {
+                FirstVisibleIndex = first,
+                CenterIndex = center,
+                LastVisibleIndex = last,
+                ItemCount = _items.Count,
+            });
             Invalidate();
         }
     }
@@ -919,7 +1761,7 @@ public class SkiaItemsView : SkiaView
         if (index < 0 || index >= _items.Count) return;
 
         var itemStart = GetItemOffset(index);
-        var itemLength = GetItemHeight(index);
+        var itemLength = GetLineExtent(SlotOfItem(index) / Math.Max(1, Span));
         var viewport = ViewportExtent;
         var targetOffset = position switch
         {
@@ -948,6 +1790,12 @@ public class SkiaItemsView : SkiaView
 
         switch (e.Key)
         {
+            case Key.Escape when _reorderFrom >= 0:
+                CancelReorder();
+                _isDragging = false;
+                e.Handled = true;
+                break;
+
             case Key.Up:
                 if (SelectedIndex > 0)
                 {
@@ -1005,7 +1853,7 @@ public class SkiaItemsView : SkiaView
     private void EnsureIndexVisible(int index)
     {
         var itemTop = GetItemOffset(index);
-        var itemBottom = itemTop + GetItemHeight(index);
+        var itemBottom = itemTop + GetLineExtent(SlotOfItem(index) / Math.Max(1, Span));
 
         if (itemTop < _scrollOffset)
         {
@@ -1032,7 +1880,7 @@ public class SkiaItemsView : SkiaView
 
         // Check scrollbar area FIRST before content
         // This ensures scrollbar clicks are handled by this view
-        if (!IsHorizontal && _showVerticalScrollBar && TotalContentHeight > (float)Bounds.Height)
+        if (ShowsVerticalScrollBar && TotalContentHeight > (float)Bounds.Height)
         {
             var trackArea = new SKRect((float)(Bounds.Left + Bounds.Width) - _scrollBarWidth, (float)Bounds.Top, (float)(Bounds.Left + Bounds.Width), (float)(Bounds.Top + Bounds.Height));
             if (trackArea.Contains(x, y))
@@ -1042,6 +1890,10 @@ public class SkiaItemsView : SkiaView
         // The empty view takes input like any content (its "add the first one" button).
         if (ShowsEmptyView && _emptyViewContent!.HitTestAt(x, y) is { } emptyHit)
             return emptyHit;
+
+        // A reorderable list takes the press on a row itself (the drag moves the row).
+        if (IsReordering)
+            return this;
 
         // A control inside a row takes the pointer, as on the other platforms: a button, an
         // entry, a view with its own tap recognizer below the row's root (CiteLynq's article
@@ -1083,7 +1935,8 @@ public class SkiaItemsView : SkiaView
 
     /// <summary>
     /// The height a horizontal list wants: its tallest item (the first ones, measured at
-    /// <paramref name="height"/>), margins included.
+    /// <paramref name="height"/>), margins included. A horizontal grid stacks <see cref="Span"/>
+    /// such rows.
     /// </summary>
     protected virtual float NaturalCrossExtent(float height)
     {
@@ -1093,11 +1946,18 @@ public class SkiaItemsView : SkiaView
             var size = empty.Measure(new Size(double.PositiveInfinity, height));
             return (float)(size.Height + empty.Margin.VerticalThickness);
         }
+        var span = Math.Max(1, Span);
+        var cell = float.IsInfinity(height) ? height : CellCrossSize(height);
         for (int i = 0; i < _items.Count && i < NaturalMeasureLimit; i++)
         {
-            EnsureItemMeasured(i, height);
+            EnsureItemMeasured(i, cell);
             if (_itemViewCache.TryGetValue(i, out var view) && view != null)
                 cross = Math.Max(cross, (float)(view.DesiredSize.Height + view.Margin.VerticalThickness));
+        }
+        if (span > 1)
+        {
+            var rows = Math.Min(span, _items.Count);
+            cross = cross * rows + _crossItemSpacing * Math.Max(0, rows - 1);
         }
         return cross;
     }
@@ -1182,6 +2042,18 @@ public class ItemsScrolledEventArgs : EventArgs
     public float ScrollOffset { get; }
     public float TotalHeight { get; }
 
+    /// <summary>The first item in view (-1 when none), as MAUI's ItemsViewScrolledEventArgs reports it.</summary>
+    public int FirstVisibleIndex { get; init; } = -1;
+
+    /// <summary>The item at the middle of the view (-1 when none).</summary>
+    public int CenterIndex { get; init; } = -1;
+
+    /// <summary>The last item in view (-1 when none).</summary>
+    public int LastVisibleIndex { get; init; } = -1;
+
+    /// <summary>The number of items (rows) in the list.</summary>
+    public int ItemCount { get; init; }
+
     public ItemsScrolledEventArgs(float scrollOffset, float totalHeight)
     {
         ScrollOffset = scrollOffset;
@@ -1201,5 +2073,21 @@ public class ItemsViewItemTappedEventArgs : EventArgs
     {
         Index = index;
         Item = item;
+    }
+}
+
+/// <summary>A reorder drag ended (<see cref="SkiaItemsView.ItemReordered"/>).</summary>
+public class ItemsReorderedEventArgs : EventArgs
+{
+    /// <summary>The index of the dragged item.</summary>
+    public int FromIndex { get; }
+
+    /// <summary>The index the item would have after the move (the same as <see cref="FromIndex"/> when it was dropped where it was).</summary>
+    public int ToIndex { get; }
+
+    public ItemsReorderedEventArgs(int fromIndex, int toIndex)
+    {
+        FromIndex = fromIndex;
+        ToIndex = toIndex;
     }
 }

@@ -719,6 +719,18 @@ public static class GestureManager
         }
     }
 
+    /// <summary>
+    /// Raises only <paramref name="view"/>'s PointerGestureRecognizers for a pointer event (no
+    /// tap, pan or swipe tracking): for content a container keeps the press for while its
+    /// pointer events still reach it (a list row's content, whose taps select the item).
+    /// Coordinates are in window-logical space.
+    /// </summary>
+    internal static void ProcessPointerRecognizers(View? view, double x, double y, PointerEventType eventType)
+    {
+        if (view != null)
+            ProcessPointerEvent(view, x, y, eventType);
+    }
+
     private static void ProcessPointerEvent(View view, double x, double y, PointerEventType eventType)
     {
         var recognizers = view.GestureRecognizers;

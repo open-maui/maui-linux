@@ -148,26 +148,10 @@ internal static class EssentialsPatches
         try { RegisterEssential<Microsoft.Maui.Authentication.IWebAuthenticator>("com.openmaui.essentials.webauthenticator", "Microsoft.Maui.Authentication.WebAuthenticator", "Microsoft.Maui.Authentication.WebAuthenticatorImplementation", new WebAuthenticatorService()); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"WebAuthenticator registration failed: {ex.Message}", ex); }
 
-        // Motion/environment sensors: no desktop hardware. Explicit IsSupported=false
-        // services replace the reference-assembly stubs so IsSupported checks work
-        // and Start() throws FeatureNotSupportedException as documented.
-        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IAccelerometer>("com.openmaui.essentials.accelerometer", "Microsoft.Maui.Devices.Sensors.Accelerometer", "Microsoft.Maui.Devices.Sensors.AccelerometerImplementation", new UnsupportedAccelerometer()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Accelerometer registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IBarometer>("com.openmaui.essentials.barometer", "Microsoft.Maui.Devices.Sensors.Barometer", "Microsoft.Maui.Devices.Sensors.BarometerImplementation", new UnsupportedBarometer()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Barometer registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.ICompass>("com.openmaui.essentials.compass", "Microsoft.Maui.Devices.Sensors.Compass", "Microsoft.Maui.Devices.Sensors.CompassImplementation", new UnsupportedCompass()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Compass registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IGyroscope>("com.openmaui.essentials.gyroscope", "Microsoft.Maui.Devices.Sensors.Gyroscope", "Microsoft.Maui.Devices.Sensors.GyroscopeImplementation", new UnsupportedGyroscope()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Gyroscope registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IMagnetometer>("com.openmaui.essentials.magnetometer", "Microsoft.Maui.Devices.Sensors.Magnetometer", "Microsoft.Maui.Devices.Sensors.MagnetometerImplementation", new UnsupportedMagnetometer()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Magnetometer registration failed: {ex.Message}", ex); }
-
-        try { RegisterEssential<Microsoft.Maui.Devices.Sensors.IOrientationSensor>("com.openmaui.essentials.orientationsensor", "Microsoft.Maui.Devices.Sensors.OrientationSensor", "Microsoft.Maui.Devices.Sensors.OrientationSensorImplementation", new UnsupportedOrientationSensor()); }
-        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"OrientationSensor registration failed: {ex.Message}", ex); }
+        // Motion/environment sensors: MAUI's own implementations, with their platform members
+        // reading the kernel's IIO devices (IsSupported only where the hardware is).
+        try { SensorPatches.Install(harmony); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Sensor patches failed: {ex.Message}", ex); }
 
         DiagnosticLog.Debug("EssentialsPatches", "MAUI Essentials patches applied");
     }
