@@ -23,6 +23,12 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>
         [nameof(IView.Background)] = MapBackground,
         [nameof(IPadding.Padding)] = MapPadding,
         [nameof(IView.IsEnabled)] = MapIsEnabled,
+        // MAUI's ButtonHandler maps the text members itself, so any ITextButton (not only
+        // Controls.Button, which gets TextButtonHandler) shows its text, colour and font.
+        [nameof(IText.Text)] = MapText,
+        [nameof(ITextStyle.TextColor)] = MapTextColor,
+        [nameof(ITextStyle.Font)] = MapFont,
+        [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
     };
 
     public static CommandMapper<IButton, ButtonHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -62,6 +68,10 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>
             MapBackground(this, VirtualView);
             MapPadding(this, VirtualView);
             MapIsEnabled(this, VirtualView);
+            MapText(this, VirtualView);
+            MapTextColor(this, VirtualView);
+            MapFont(this, VirtualView);
+            MapCharacterSpacing(this, VirtualView);
 
             // Map size requests from MAUI Button
             if (VirtualView is Microsoft.Maui.Controls.Button mauiButton)
@@ -142,6 +152,43 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>
         handler.PlatformView.IsEnabled = button.IsEnabled;
         handler.PlatformView.Invalidate();
     }
+
+    // The text mappers take IButton because they sit on ButtonHandler's mapper; a button that
+    // is not an IText / ITextStyle has no text to map and keeps the view's defaults.
+
+    public static void MapText(ButtonHandler handler, IButton button)
+    {
+        if (handler.PlatformView is null || button is not IText text) return;
+        handler.PlatformView.Text = text.Text ?? string.Empty;
+    }
+
+    public static void MapTextColor(ButtonHandler handler, IButton button)
+    {
+        if (handler.PlatformView is null || button is not ITextStyle style) return;
+
+        if (style.TextColor is not null)
+            handler.PlatformView.TextColor = style.TextColor;
+    }
+
+    public static void MapFont(ButtonHandler handler, IButton button)
+    {
+        if (handler.PlatformView is null || button is not ITextStyle style) return;
+
+        var font = style.Font;
+        if (font.Size > 0)
+            handler.PlatformView.FontSize = font.Size;
+
+        if (!string.IsNullOrEmpty(font.Family))
+            handler.PlatformView.FontFamily = font.Family;
+
+        handler.PlatformView.FontAttributes = TextStyleMapping.ToFontAttributes(font);
+    }
+
+    public static void MapCharacterSpacing(ButtonHandler handler, IButton button)
+    {
+        if (handler.PlatformView is null || button is not ITextStyle style) return;
+        handler.PlatformView.CharacterSpacing = style.CharacterSpacing;
+    }
 }
 
 /// <summary>
@@ -153,10 +200,8 @@ public partial class TextButtonHandler : ButtonHandler
     public static new IPropertyMapper<ITextButton, TextButtonHandler> Mapper =
         new PropertyMapper<ITextButton, TextButtonHandler>(ButtonHandler.Mapper)
     {
-        [nameof(IText.Text)] = MapText,
-        [nameof(ITextStyle.TextColor)] = MapTextColor,
-        [nameof(ITextStyle.Font)] = MapFont,
-        [nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+        // Text, TextColor, Font and CharacterSpacing come from ButtonHandler.Mapper.
+        [nameof(Button.TextTransform)] = MapTextTransform,
         // Button raises "Source" for ImageSource and "ContentLayout" for its placement.
         ["Source"] = MapImageSource,
         [nameof(Button.ImageSource)] = MapImageSource,
@@ -178,6 +223,13 @@ public partial class TextButtonHandler : ButtonHandler
             (Microsoft.Maui.Platform.ButtonContentLayout.ImagePosition)(int)layout.Position, layout.Spacing);
     }
 
+    public static void MapTextTransform(TextButtonHandler handler, ITextButton button)
+    {
+        if (handler.PlatformView is null || button is not Button b) return;
+        // SkiaButton applies the transform when it draws and measures, so Text stays the raw text.
+        handler.PlatformView.TextTransform = b.TextTransform;
+    }
+
     public TextButtonHandler() : base(Mapper)
     {
     }
@@ -187,67 +239,27 @@ public partial class TextButtonHandler : ButtonHandler
         DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler START");
         base.ConnectHandler(platformView);
 
-        // Manually map text properties on connect since MAUI may not trigger updates
-        // for properties that were set before handler connection
+        // Manually map the Button-only properties on connect since MAUI may not trigger
+        // updates for properties set before handler connection (base maps text and size).
         if (VirtualView is ITextButton textButton)
         {
             MapImageSource(this, textButton);
             MapContentLayout(this, textButton);
-            MapText(this, textButton);
-            MapTextColor(this, textButton);
-            MapFont(this, textButton);
-            MapCharacterSpacing(this, textButton);
-        }
-
-        // Map size requests from MAUI Button
-        if (VirtualView is Microsoft.Maui.Controls.Button mauiButton)
-        {
-            DiagnosticLog.Debug("TextButtonHandler", $"MapSize Text='{platformView.Text}' WReq={mauiButton.WidthRequest} HReq={mauiButton.HeightRequest}");
-            if (mauiButton.WidthRequest >= 0)
-                platformView.WidthRequest = mauiButton.WidthRequest;
-            if (mauiButton.HeightRequest >= 0)
-                platformView.HeightRequest = mauiButton.HeightRequest;
+            MapTextTransform(this, textButton);
         }
         DiagnosticLog.Debug("TextButtonHandler", "ConnectHandler DONE");
     }
 
-    public static void MapText(TextButtonHandler handler, ITextButton button)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Text = button.Text ?? string.Empty;
-    }
+    // Kept for source compatibility (public API); the logic lives on ButtonHandler.
+    public static void MapText(TextButtonHandler handler, ITextButton button) =>
+        ButtonHandler.MapText(handler, button);
 
-    public static void MapTextColor(TextButtonHandler handler, ITextButton button)
-    {
-        if (handler.PlatformView is null) return;
+    public static void MapTextColor(TextButtonHandler handler, ITextButton button) =>
+        ButtonHandler.MapTextColor(handler, button);
 
-        if (button.TextColor is not null)
-            handler.PlatformView.TextColor = button.TextColor;
-    }
+    public static void MapFont(TextButtonHandler handler, ITextButton button) =>
+        ButtonHandler.MapFont(handler, button);
 
-    public static void MapFont(TextButtonHandler handler, ITextButton button)
-    {
-        if (handler.PlatformView is null) return;
-
-        var font = button.Font;
-        if (font.Size > 0)
-            handler.PlatformView.FontSize = font.Size;
-
-        if (!string.IsNullOrEmpty(font.Family))
-            handler.PlatformView.FontFamily = font.Family;
-
-        // Convert Font weight/slant to FontAttributes
-        FontAttributes attrs = FontAttributes.None;
-        if (font.Weight >= FontWeight.Bold)
-            attrs |= FontAttributes.Bold;
-        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
-            attrs |= FontAttributes.Italic;
-        handler.PlatformView.FontAttributes = attrs;
-    }
-
-    public static void MapCharacterSpacing(TextButtonHandler handler, ITextButton button)
-    {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = button.CharacterSpacing;
-    }
+    public static void MapCharacterSpacing(TextButtonHandler handler, ITextButton button) =>
+        ButtonHandler.MapCharacterSpacing(handler, button);
 }
