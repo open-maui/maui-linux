@@ -238,6 +238,13 @@ public abstract partial class SkiaView
     public bool? IsInAccessibleTree { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the view and everything in it are hidden from assistive
+    /// technology (<c>AutomationProperties.ExcludedWithChildren</c>; Android's
+    /// ImportantForAccessibility NoHideDescendants, iOS's AccessibilityElementsHidden).
+    /// </summary>
+    public bool IsExcludedWithChildren { get; set; }
+
+    /// <summary>
     /// Gets the accessibility service instance.
     /// </summary>
     protected static IAccessibilityService? AccessibilityService
@@ -350,7 +357,8 @@ public abstract partial class SkiaView
         var children = new List<IAccessible>();
         foreach (var child in Children.ToArray())
         {
-            if (child is IAccessible accessible)
+            // A view excluded with its children takes its subtree out of the tree.
+            if (child is IAccessible accessible && !child.IsExcludedWithChildren)
             {
                 children.Add(accessible);
             }

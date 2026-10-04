@@ -14,9 +14,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <see cref="SkiaView.SemanticName"/>, <c>SemanticProperties.Hint</c> becomes
 /// <see cref="SkiaView.SemanticHint"/>, <c>SemanticProperties.HeadingLevel</c>
 /// becomes <see cref="SkiaView.SemanticHeadingLevel"/>, and the legacy
-/// <c>AutomationProperties.Name</c> / <c>HelpText</c> / <c>IsInAccessibleTree</c>
-/// fill <see cref="SkiaView.SemanticName"/>, <see cref="SkiaView.SemanticDescription"/>
-/// and <see cref="SkiaView.IsInAccessibleTree"/>. MAUI's core ViewMapper does not
+/// <c>AutomationProperties.Name</c> / <c>HelpText</c> / <c>IsInAccessibleTree</c> /
+/// <c>ExcludedWithChildren</c> fill <see cref="SkiaView.SemanticName"/>,
+/// <see cref="SkiaView.SemanticDescription"/>, <see cref="SkiaView.IsInAccessibleTree"/>
+/// and <see cref="SkiaView.IsExcludedWithChildren"/>. MAUI's core ViewMapper does not
 /// invoke platform mappers for these on Linux, so the platform host calls
 /// <see cref="Apply"/> once per handler; the first call also subscribes to the
 /// view's <see cref="INotifyPropertyChanged"/> so later XAML/binding updates
@@ -37,6 +38,7 @@ public static class SemanticMapper
         AutomationProperties.HelpTextProperty.PropertyName,
         AutomationProperties.IsInAccessibleTreeProperty.PropertyName,
         AutomationProperties.LabeledByProperty.PropertyName,
+        AutomationProperties.ExcludedWithChildrenProperty.PropertyName,
     };
 
     /// <summary>
@@ -91,8 +93,10 @@ public static class SemanticMapper
         string? automationName = null;
         string? helpText = null;
         bool? inTree = null;
+        bool excludedWithChildren = false;
         if (view is BindableObject bindable)
         {
+            excludedWithChildren = AutomationProperties.GetExcludedWithChildren(bindable) == true;
             automationName = NullIfEmpty(AutomationProperties.GetName(bindable));
             helpText = NullIfEmpty(AutomationProperties.GetHelpText(bindable));
             inTree = AutomationProperties.GetIsInAccessibleTree(bindable);
@@ -106,6 +110,7 @@ public static class SemanticMapper
         platformView.SemanticDescription = helpText;
         platformView.SemanticHeadingLevel = headingLevel;
         platformView.IsInAccessibleTree = inTree;
+        platformView.IsExcludedWithChildren = excludedWithChildren;
 
         DiagnosticLog.Debug("SemanticMapper",
             $"{view.GetType().Name}: name='{platformView.SemanticName}' hint='{platformView.SemanticHint}' heading={headingLevel}");

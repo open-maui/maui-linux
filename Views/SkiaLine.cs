@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered Line shape.
 /// </summary>
-public class SkiaLine : SkiaView
+public class SkiaLine : SkiaShapeView
 {
     public static readonly BindableProperty X1Property =
         BindableProperty.Create(nameof(X1), typeof(double), typeof(SkiaLine), 0.0,
@@ -56,6 +56,13 @@ public class SkiaLine : SkiaView
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
+        // Through a shape handler: MAUI's ShapeDrawable over the shape (SkiaShapeView).
+        if (Drawable != null)
+        {
+            base.OnDraw(canvas, bounds);
+            return;
+        }
+
         var strokeColor = BrushToSKColor(Stroke);
         if (strokeColor == SKColors.Transparent) return;
 

@@ -188,8 +188,83 @@ public class SkiaCollectionView : SkiaItemsView
         set => SetValue(FooterProperty, value);
     }
 
+    private SkiaView? _headerView;
+    private SkiaView? _footerView;
+    private float _contentWidth;
+
+    /// <summary>
+    /// The header as a view (a View header, a HeaderTemplate's content, or a label for any other
+    /// header), laid out at its content's height and scrolled with the items, as on every MAUI
+    /// platform. Set by the handler; a string or object <see cref="Header"/> gets a label.
+    /// </summary>
+    public SkiaView? HeaderView
+    {
+        get => _headerView;
+        set => _headerView = SwapSlotView(_headerView, value);
+    }
+
+    /// <summary>The footer as a view, after the last item; see <see cref="HeaderView"/>.</summary>
+    public SkiaView? FooterView
+    {
+        get => _footerView;
+        set => _footerView = SwapSlotView(_footerView, value);
+    }
+
+    private SkiaView? SwapSlotView(SkiaView? old, SkiaView? value)
+    {
+        if (ReferenceEquals(old, value))
+            return old;
+        if (old != null && ReferenceEquals(old.Parent, this))
+            old.Parent = null;
+        if (value != null)
+            value.Parent = this;
+        InvalidateMeasure();
+        Invalidate();
+        return value;
+    }
+
+    /// <summary>The height a header or footer view takes in the list's content width.</summary>
+    private float SlotHeight(SkiaView? view)
+    {
+        if (view is not { IsVisible: true })
+            return 0f;
+        var width = _contentWidth > 0 ? _contentWidth : Math.Max(0f, (float)Bounds.Width - 8f);
+        var size = view.Measure(new Size(width, double.PositiveInfinity));
+        return (float)(size.Height + view.Margin.VerticalThickness);
+    }
+
     /// <inheritdoc />
-    protected override float NaturalHeight(float width) => base.NaturalHeight(width) + HeaderHeight + FooterHeight;
+    protected override float LeadingContentHeight => SlotHeight(_headerView);
+
+    /// <inheritdoc />
+    protected override float TrailingContentHeight => SlotHeight(_footerView);
+
+    /// <summary>Lays a header or footer out across the content width at <paramref name="top"/> and draws it.</summary>
+    private void DrawSlot(SKCanvas canvas, SkiaView? view, float left, float top, float width)
+    {
+        if (view is not { IsVisible: true })
+            return;
+        var margin = view.Margin;
+        var height = SlotHeight(view);
+        view.Arrange(new Rect(left + margin.Left, top + margin.Top,
+            Math.Max(0, width - margin.HorizontalThickness), Math.Max(0, height - margin.VerticalThickness)));
+        view.Draw(canvas);
+    }
+
+    /// <inheritdoc />
+    public override SkiaView? HitTest(float x, float y)
+    {
+        // A button in the header or footer takes the pointer; taps elsewhere there select nothing.
+        if (IsVisible && Bounds.Contains(x, y))
+        {
+            foreach (var slot in new[] { _headerView, _footerView })
+            {
+                if (slot is { IsVisible: true } && slot.Bounds.Contains(x, y) && slot.HitTestAt(x, y) is { } hit)
+                    return hit;
+            }
+        }
+        return base.HitTest(x, y);
+    }
 
     public float HeaderHeight
     {
@@ -308,17 +383,18 @@ public class SkiaCollectionView : SkiaItemsView
         Invalidate();
     }
 
-    private void OnHeaderChanged(object? newValue)
-    {
-        HeaderHeight = newValue != null ? 44 : 0;
-        Invalidate();
-    }
+    private void OnHeaderChanged(object? newValue) => HeaderView = SlotViewFor(newValue);
 
-    private void OnFooterChanged(object? newValue)
+    private void OnFooterChanged(object? newValue) => FooterView = SlotViewFor(newValue);
+
+    /// <summary>A Skia view as it is; any other header or footer shows as text, as MAUI shows it.</summary>
+    private static SkiaView? SlotViewFor(object? value) => value switch
     {
-        FooterHeight = newValue != null ? 44 : 0;
-        Invalidate();
-    }
+        null => null,
+        SkiaView view => view,
+        IView => null, // a MAUI view: the handler supplies its platform view
+        _ => new SkiaLabel { Text = value.ToString() ?? string.Empty, Padding = new Thickness(16, 8) },
+    };
 
     private void OnSelectionColorChanged(Color? newValue)
     {
@@ -566,25 +642,21 @@ public class SkiaCollectionView : SkiaItemsView
             canvas.DrawRect(bounds, bgPaint);
         }
 
-        if (Header != null && HeaderHeight > 0f)
-        {
-            var headerRect = new SKRect(bounds.Left, bounds.Top, bounds.Right, bounds.Top + HeaderHeight);
-            DrawHeader(canvas, headerRect);
-        }
-
-        if (Footer != null && FooterHeight > 0f)
-        {
-            var footerRect = new SKRect(bounds.Left, bounds.Bottom - FooterHeight, bounds.Right, bounds.Bottom);
-            DrawFooter(canvas, footerRect);
-        }
-
-        var contentBounds = new SKRect(bounds.Left, bounds.Top + HeaderHeight, bounds.Right, bounds.Bottom - FooterHeight);
+        _contentWidth = Math.Max(0f, bounds.Width - 8f);
+        HeaderHeight = LeadingContentHeight;
+        FooterHeight = TrailingContentHeight;
 
         if (ItemCount == 0)
         {
-            DrawEmptyView(canvas, contentBounds);
+            // The header at the top, the footer under it, and the empty view in the room left.
+            float headerHeight = HeaderHeight, footerHeight = FooterHeight;
+            DrawSlot(canvas, _headerView, bounds.Left, bounds.Top, _contentWidth);
+            DrawSlot(canvas, _footerView, bounds.Left, bounds.Bottom - footerHeight, _contentWidth);
+            DrawEmptyView(canvas, new SKRect(bounds.Left, bounds.Top + headerHeight, bounds.Right, bounds.Bottom - footerHeight));
             return;
         }
+
+        var contentBounds = bounds;
 
         if (SpanCount > 1)
         {
@@ -622,7 +694,7 @@ public class SkiaCollectionView : SkiaItemsView
         var contentWidth = bounds.Width - 8f;
 
         int firstVisible = 0;
-        float cumulativeOffset = 0f;
+        float cumulativeOffset = LeadingContentHeight;
         for (int i = 0; i < ItemCount; i++)
         {
             EnsureItemMeasured(i, contentWidth);
@@ -659,9 +731,13 @@ public class SkiaCollectionView : SkiaItemsView
             currentY += itemH + ItemSpacing;
         }
 
+        var total = TotalContentHeight;
+        DrawSlot(canvas, _headerView, bounds.Left, bounds.Top - scrollOffset, contentWidth);
+        DrawSlot(canvas, _footerView, bounds.Left, bounds.Top + total - TrailingContentHeight - scrollOffset, contentWidth);
+
         canvas.Restore();
 
-        var totalHeight = TotalContentHeight;
+        var totalHeight = total;
         if (totalHeight > bounds.Height)
         {
             DrawScrollBarInternal(canvas, bounds, scrollOffset, totalHeight);
@@ -684,12 +760,16 @@ public class SkiaCollectionView : SkiaItemsView
         var totalHeight = rowCount * (cellHeight + ItemSpacing) - ItemSpacing;
 
         var scrollOffset = GetScrollOffset();
-        var firstVisibleRow = Math.Max(0, (int)(scrollOffset / (cellHeight + ItemSpacing)));
-        var lastVisibleRow = Math.Min(rowCount - 1, (int)((scrollOffset + bounds.Height) / (cellHeight + ItemSpacing)) + 1);
+        var leading = LeadingContentHeight;
+        var firstVisibleRow = Math.Max(0, (int)((scrollOffset - leading) / (cellHeight + ItemSpacing)));
+        var lastVisibleRow = Math.Min(rowCount - 1, (int)((scrollOffset - leading + bounds.Height) / (cellHeight + ItemSpacing)) + 1);
+        DrawSlot(canvas, _headerView, bounds.Left, bounds.Top - scrollOffset, bounds.Width - 8f);
+        DrawSlot(canvas, _footerView, bounds.Left, bounds.Top + leading + totalHeight - scrollOffset, bounds.Width - 8f);
+        totalHeight += leading + TrailingContentHeight;
 
         for (int row = firstVisibleRow; row <= lastVisibleRow; row++)
         {
-            var rowY = bounds.Top + row * (cellHeight + ItemSpacing) - scrollOffset;
+            var rowY = bounds.Top + leading + row * (cellHeight + ItemSpacing) - scrollOffset;
 
             for (int col = 0; col < SpanCount; col++)
             {
@@ -771,73 +851,6 @@ public class SkiaCollectionView : SkiaItemsView
         return _scrollOffset;
     }
 
-    private void DrawHeader(SKCanvas canvas, SKRect bounds)
-    {
-        using var bgPaint = new SKPaint
-        {
-            Color = HeaderBackgroundColorSK,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, bgPaint);
-
-        var text = Header?.ToString() ?? "";
-        if (!string.IsNullOrEmpty(text))
-        {
-            using var font = SkiaFontFactory.Create(16f);
-            using var textPaint = new SKPaint
-            {
-                Color = SkiaTheme.TextPrimarySK,
-                IsAntialias = true
-            };
-
-            var x = bounds.Left + 16f;
-            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
-            canvas.DrawText(text, x, y, font, textPaint);
-        }
-
-        using var sepPaint = new SKPaint
-        {
-            Color = SkiaTheme.Gray300SK,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1f
-        };
-        canvas.DrawLine(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom, sepPaint);
-    }
-
-    private void DrawFooter(SKCanvas canvas, SKRect bounds)
-    {
-        using var bgPaint = new SKPaint
-        {
-            Color = FooterBackgroundColorSK,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, bgPaint);
-
-        using var sepPaint = new SKPaint
-        {
-            Color = SkiaTheme.Gray300SK,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1f
-        };
-        canvas.DrawLine(bounds.Left, bounds.Top, bounds.Right, bounds.Top, sepPaint);
-
-        var text = Footer?.ToString() ?? "";
-        if (!string.IsNullOrEmpty(text))
-        {
-            using var font = SkiaFontFactory.Create(14f);
-            using var textPaint = new SKPaint
-            {
-                Color = SkiaTheme.TextPlaceholderSK,
-                IsAntialias = true
-            };
-
-            font.MeasureText(text, out var textBounds);
-
-            var x = bounds.MidX - textBounds.MidX;
-            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
-            canvas.DrawText(text, x, y, font, textPaint);
-        }
-    }
 }
 
 /// <summary>
