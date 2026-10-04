@@ -57,10 +57,53 @@ public class BatteryService : IBattery
         }
     }
 
-    public EnergySaverStatus EnergySaverStatus => EnergySaverStatus.Unknown;
+    private readonly PowerProfilesMonitor _powerProfiles;
+
+    public BatteryService() : this(PowerProfilesMonitor.Shared)
+    {
+    }
+
+    internal BatteryService(PowerProfilesMonitor powerProfiles)
+    {
+        _powerProfiles = powerProfiles;
+    }
+
+    /// <summary>On while the desktop's power profile is "power-saver" (power-profiles-daemon), Unknown without the daemon.</summary>
+    public EnergySaverStatus EnergySaverStatus => _powerProfiles.Status;
 
     public event EventHandler<BatteryInfoChangedEventArgs>? BatteryInfoChanged;
-    public event EventHandler<EnergySaverStatusChangedEventArgs>? EnergySaverStatusChanged;
+
+    private EventHandler<EnergySaverStatusChangedEventArgs>? _energySaverStatusChanged;
+
+    /// <summary>Raised on the UI thread when the power profile enters or leaves "power-saver".</summary>
+    public event EventHandler<EnergySaverStatusChangedEventArgs>? EnergySaverStatusChanged
+    {
+        add
+        {
+            if (_energySaverStatusChanged == null)
+            {
+                _powerProfiles.StatusChanged += OnEnergySaverChanged;
+                _ = _powerProfiles.EnsureStarted();
+            }
+            _energySaverStatusChanged += value;
+        }
+        remove
+        {
+            _energySaverStatusChanged -= value;
+            if (_energySaverStatusChanged == null)
+                _powerProfiles.StatusChanged -= OnEnergySaverChanged;
+        }
+    }
+
+    private void OnEnergySaverChanged(EnergySaverStatus status)
+    {
+        void Raise() => _energySaverStatusChanged?.Invoke(this, new EnergySaverStatusChangedEventArgs(status));
+        var dispatcher = Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.Main;
+        if (dispatcher == null || Microsoft.Maui.Platform.Linux.Dispatching.LinuxDispatcher.IsMainThread)
+            Raise();
+        else
+            dispatcher.Dispatch(Raise);
+    }
 
     /// <summary>Reads a node from the first supply whose type is "Battery".</summary>
     private static string? ReadBatteryFile(string fileName)

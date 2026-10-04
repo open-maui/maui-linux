@@ -11,11 +11,14 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// </summary>
 public class SmsService : ISms
 {
-    public bool IsComposeSupported => true;
+    /// <summary>An application handles sms: URIs (KDE Connect, GNOME Chatty).</summary>
+    public bool IsComposeSupported => SchemeHandlers.HasHandler("sms");
 
     public async Task ComposeAsync(SmsMessage? message)
     {
-        if (message == null) return;
+        if (!IsComposeSupported)
+            throw new FeatureNotSupportedException("No application handles sms: links on this desktop.");
+        message ??= new SmsMessage(); // an empty message, as on the other platforms
         try
         {
             var psi = new ProcessStartInfo
