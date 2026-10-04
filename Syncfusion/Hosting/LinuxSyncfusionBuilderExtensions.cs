@@ -99,6 +99,11 @@ public static class LinuxSyncfusionBuilderExtensions
         SfSemanticsPatches.Install();
         SfDataGridPatches.Install();
         SfImageEditorPatches.Install();
+        // The resource view first: Harmony compiles a patched method's replacement when it patches
+        // it, and the JIT inlines the small unpatched callees it calls there (the neutral build's
+        // IsHorizontalResourceViewDesktop answers false in one instruction), so the scheduler's
+        // other patches must be compiled against the patched resource view members.
+        SfSchedulerResourceView.Install();
         SfSchedulerPatches.Install();
         SfPullToRefreshPatches.Install();
         SfToolbarPatches.Install();
