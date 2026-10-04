@@ -9,7 +9,11 @@ using Microsoft.Maui;
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
-/// Stack layout that arranges children in a horizontal or vertical line.
+/// Stack layout that arranges Skia children in a horizontal or vertical line,
+/// for views composed directly in Skia. MAUI's StackLayout,
+/// VerticalStackLayout and HorizontalStackLayout are laid out by MAUI's own
+/// stack layout managers on a <see cref="SkiaCrossPlatformLayout"/> instead
+/// (see StackLayoutHandler).
 /// </summary>
 public class SkiaStackLayout : SkiaLayoutView
 {
