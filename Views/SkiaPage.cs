@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Base class for Skia-rendered pages.
 /// </summary>
-public class SkiaPage : SkiaView
+public partial class SkiaPage : SkiaView
 {
     private SkiaView? _content;
 
@@ -26,6 +26,7 @@ public class SkiaPage : SkiaView
         get
         {
             if (_content != null) yield return _content;
+            if (_titleView != null) yield return _titleView;
         }
     }
     private string _title = "";
@@ -320,27 +321,10 @@ public class SkiaPage : SkiaView
     protected virtual void DrawNavigationBar(SKCanvas canvas, SKRect bounds)
     {
         // Draw navigation bar background
-        using var barPaint = new SKPaint
-        {
-            Color = _titleBarColor,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, barPaint);
+        DrawNavigationBarBackground(canvas, bounds);
 
-        // Draw title
-        if (!string.IsNullOrEmpty(_title))
-        {
-            using var font = SkiaFontFactory.Create(20);
-            using var textPaint = new SKPaint
-            {
-                Color = _titleTextColor,
-                IsAntialias = true
-            };
-
-            var x = bounds.Left + 16;
-            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
-            canvas.DrawText(_title, x, y, font, textPaint);
-        }
+        // Title icon, then the title or the TitleView
+        DrawTitleArea(canvas, bounds, bounds.Left + 16, bounds.Right - 8);
 
         // Draw shadow
         using var shadowPaint = new SKPaint
@@ -486,6 +470,10 @@ public class SkiaPage : SkiaView
         if (!IsVisible)
             return null;
 
+        // The navigation bar's TitleView takes its own input.
+        if (HitTestTitleView(x, y) is { } titleHit)
+            return titleHit;
+
         // Don't check Bounds.Contains for page - it may not be set
         // Just forward to content
 
@@ -516,30 +504,13 @@ public class SkiaContentPage : SkiaPage
     protected override void DrawNavigationBar(SKCanvas canvas, SKRect bounds)
     {
         // Draw navigation bar background
-        using var barPaint = new SKPaint
-        {
-            Color = _titleBarColor,
-            Style = SKPaintStyle.Fill
-        };
-        canvas.DrawRect(bounds, barPaint);
+        DrawNavigationBarBackground(canvas, bounds);
 
-        // Draw title
-        if (!string.IsNullOrEmpty(Title))
-        {
-            using var font = SkiaFontFactory.Create(20);
-            using var textPaint = new SKPaint
-            {
-                Color = _titleTextColor,
-                IsAntialias = true
-            };
+        // Draw toolbar items on the right; the title area stops short of them
+        float itemsLeft = DrawToolbarItems(canvas, bounds);
 
-            var x = bounds.Left + 56; // Leave space for back button
-            var y = TextRenderingHelper.BaselineForVerticalCenter(font, bounds.MidY);
-            canvas.DrawText(Title, x, y, font, textPaint);
-        }
-
-        // Draw toolbar items on the right
-        DrawToolbarItems(canvas, bounds);
+        // Title icon, then the title or the TitleView, after the back button's space
+        DrawTitleArea(canvas, bounds, bounds.Left + 56, itemsLeft - 8);
 
         // Draw shadow
         using var shadowPaint = new SKPaint
@@ -551,11 +522,12 @@ public class SkiaContentPage : SkiaPage
         canvas.DrawRect(new SKRect(bounds.Left, bounds.Bottom, bounds.Right, bounds.Bottom + 4), shadowPaint);
     }
 
-    private void DrawToolbarItems(SKCanvas canvas, SKRect navBarBounds)
+    /// <summary>Draws the primary items from the right; returns the left edge of the leftmost.</summary>
+    private float DrawToolbarItems(SKCanvas canvas, SKRect navBarBounds)
     {
         var primaryItems = _toolbarItems.Where(t => t.Order == SkiaToolbarItemOrder.Primary).ToList();
         DiagnosticLog.Debug("SkiaContentPage", $"DrawToolbarItems: {primaryItems.Count} primary items, navBarBounds={navBarBounds}");
-        if (primaryItems.Count == 0) return;
+        if (primaryItems.Count == 0) return navBarBounds.Right;
 
         using var font = SkiaFontFactory.Create(14);
         using var textPaint = new SKPaint
@@ -610,6 +582,7 @@ public class SkiaContentPage : SkiaPage
             DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
             rightEdge = itemLeft - 8; // Gap between items
         }
+        return rightEdge + 8;
     }
 
     public override void OnPointerPressed(PointerEventArgs e)

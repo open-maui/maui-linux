@@ -49,17 +49,30 @@ public class EssentialsPatchesTests
     }
 
     [Fact]
-    public void Sensors_Default_ReportUnsupported()
+    public void Sensors_Default_without_IIO_hardware_report_unsupported()
     {
-        Accelerometer.Default.IsSupported.Should().BeFalse();
-        Barometer.Default.IsSupported.Should().BeFalse();
-        Compass.Default.IsSupported.Should().BeFalse();
-        Gyroscope.Default.IsSupported.Should().BeFalse();
-        Magnetometer.Default.IsSupported.Should().BeFalse();
-        OrientationSensor.Default.IsSupported.Should().BeFalse();
+        var saved = IioSensors.Root;
+        var empty = Path.Combine(Path.GetTempPath(), $"openmaui-noiio-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(empty);
+        try
+        {
+            IioSensors.Root = empty;
+            Accelerometer.Default.IsSupported.Should().BeFalse();
+            Barometer.Default.IsSupported.Should().BeFalse();
+            Compass.Default.IsSupported.Should().BeFalse();
+            Gyroscope.Default.IsSupported.Should().BeFalse();
+            Magnetometer.Default.IsSupported.Should().BeFalse();
+            OrientationSensor.Default.IsSupported.Should().BeFalse();
 
-        Accelerometer.Default.Invoking(a => a.Start(SensorSpeed.Default)).Should().Throw<FeatureNotSupportedException>();
-        Accelerometer.Default.Invoking(a => a.Stop()).Should().NotThrow();
+            // MAUI's shared Start and Stop both throw on a device without the sensor (Windows too).
+            Accelerometer.Default.Invoking(a => a.Start(SensorSpeed.Default)).Should().Throw<FeatureNotSupportedException>();
+            Accelerometer.Default.Invoking(a => a.Stop()).Should().Throw<FeatureNotSupportedException>();
+        }
+        finally
+        {
+            IioSensors.Root = saved;
+            Directory.Delete(empty, recursive: true);
+        }
     }
 
     [Fact]

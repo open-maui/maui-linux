@@ -29,6 +29,8 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
             [nameof(IView.Background)] = MapBackground,
             [nameof(IView.IsEnabled)] = MapIsEnabled,
             [nameof(Picker.ItemsSource)] = MapItemsSource,
+            [nameof(IPicker.IsOpen)] = MapIsOpen,
+            [nameof(IPicker.Items)] = MapItems,
         };
 
     public static CommandMapper<IPicker, PickerHandler> CommandMapper =
@@ -57,6 +59,7 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         base.ConnectHandler(platformView);
         VisualStateBridge.Attach(VirtualView, platformView);
         platformView.SelectedIndexChanged += OnSelectedIndexChanged;
+        platformView.IsOpenChanged += OnPlatformIsOpenChanged;
 
         // Subscribe to items collection changes
         if (VirtualView is Picker picker && picker.Items is INotifyCollectionChanged items)
@@ -80,6 +83,7 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
 
     protected override void DisconnectHandler(SkiaPicker platformView)
     {
+        platformView.IsOpenChanged -= OnPlatformIsOpenChanged;
         platformView.SelectedIndexChanged -= OnSelectedIndexChanged;
 
         if (_itemsCollection != null)
@@ -228,5 +232,28 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
     public static void MapItemsSource(PickerHandler handler, IPicker picker)
     {
         handler.ReloadItems();
+    }
+
+    /// <summary>The picker's items (MAUI's IPicker.Items): the drop-down is filled again.</summary>
+    public static void MapItems(PickerHandler handler, IPicker picker)
+    {
+        handler.ReloadItems();
+    }
+
+    /// <summary>
+    /// Opens or closes the drop-down from code (MAUI 10's <c>IPicker.IsOpen</c>), as MAUI's
+    /// Windows handler opens its platform picker.
+    /// </summary>
+    public static void MapIsOpen(PickerHandler handler, IPicker picker)
+    {
+        if (handler.PlatformView is { } platform && platform.IsOpen != picker.IsOpen)
+            platform.IsOpen = picker.IsOpen;
+    }
+
+    /// <summary>The user opened or closed the drop-down: <c>IsOpen</c> follows (MAUI raises Opened/Closed).</summary>
+    private void OnPlatformIsOpenChanged(object? sender, EventArgs e)
+    {
+        if (VirtualView is { } view && PlatformView is { } platform && view.IsOpen != platform.IsOpen)
+            view.IsOpen = platform.IsOpen;
     }
 }
