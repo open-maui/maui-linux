@@ -107,9 +107,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Core stubs that only make sense with a platform image pipeline. -->
+    <!-- Logs the native image setter; the Linux one is in Handlers/ImageHandlerTests.Linux.cs. -->
     <MauiStubExclude Include="$(MauiCoreTests)Stubs/CountedImageHandler.cs" />
-    <MauiStubExclude Include="$(MauiCoreTests)Stubs/CountedImageSourceServiceStub.cs" />
     <!-- Uses the platform-only PlatformImage type (WebView tests are not in scope). -->
     <MauiStubExclude Include="$(MauiCoreTests)Stubs/WebView.cs" />
     <!-- Set ViewHandler internals that only the platform TFMs expose (ContainerView setter, _mapper). -->
