@@ -375,7 +375,7 @@ public class SkiaLabel : SkiaView
         get
         {
             if (_selectionStart < 0 || _selectionLength == 0) return string.Empty;
-            var text = GetDisplayText();
+            var text = SelectionSourceText();
             var start = Math.Min(_selectionStart, _selectionStart + _selectionLength);
             var length = Math.Abs(_selectionLength);
             if (start < 0 || start >= text.Length) return string.Empty;
@@ -404,15 +404,13 @@ public class SkiaLabel : SkiaView
     {
         base.OnPointerPressed(e);
 
-        if (!IsTextSelectionEnabled || string.IsNullOrEmpty(Text)) return;
+        if (!IsTextSelectionEnabled) return;
 
-        var text = GetDisplayText();
+        var text = SelectionSourceText();
         if (string.IsNullOrEmpty(text)) return;
 
         // Calculate character position from click
-        var screenBounds = ScreenBounds;
-        var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left;
-        var charIndex = GetCharacterIndexAtX(clickX);
+        var charIndex = GetCharacterIndexAt(e);
 
         // Check for double-click (select word)
         var now = DateTime.UtcNow;
@@ -445,12 +443,10 @@ public class SkiaLabel : SkiaView
 
         if (!IsTextSelectionEnabled || !_isSelecting) return;
 
-        var text = GetDisplayText();
+        var text = SelectionSourceText();
         if (string.IsNullOrEmpty(text)) return;
 
-        var screenBounds = ScreenBounds;
-        var clickX = e.X - (float)screenBounds.Left - (float)Padding.Left;
-        var charIndex = GetCharacterIndexAtX(clickX);
+        var charIndex = GetCharacterIndexAt(e);
 
         _selectionLength = charIndex - _selectionStart;
         Invalidate();
@@ -494,7 +490,7 @@ public class SkiaLabel : SkiaView
     /// </summary>
     public void SelectAll()
     {
-        var text = GetDisplayText();
+        var text = SelectionSourceText();
         _selectionStart = 0;
         _selectionLength = text.Length;
         Invalidate();
@@ -512,7 +508,7 @@ public class SkiaLabel : SkiaView
 
     private void SelectWordAt(int charIndex)
     {
-        var text = GetDisplayText();
+        var text = SelectionSourceText();
         if (string.IsNullOrEmpty(text) || charIndex < 0 || charIndex >= text.Length) return;
 
         int start = charIndex;
@@ -533,6 +529,66 @@ public class SkiaLabel : SkiaView
     private static bool IsWordChar(char c)
     {
         return char.IsLetterOrDigit(c) || c == '_';
+    }
+
+    /// <summary>
+    /// The text selection runs over: the spans' text, in order (newlines included), when the
+    /// label shows FormattedText; otherwise its Text as displayed.
+    /// </summary>
+    private string SelectionSourceText() =>
+        ShowsFormattedText
+            ? string.Concat(FormattedText!.Spans.Select(s => string.IsNullOrEmpty(s.Text) ? string.Empty : GetSpanDisplayText(s)))
+            : GetDisplayText();
+
+    /// <summary>The character under a pointer (view-relative through ScreenBounds, as span taps are).</summary>
+    private int GetCharacterIndexAt(PointerEventArgs e)
+    {
+        var screenBounds = ScreenBounds;
+        if (ShowsFormattedText && _formattedHits is { Count: > 0 } hits)
+            return GetFormattedCharacterIndex(hits, e.X - (float)screenBounds.Left, e.Y - (float)screenBounds.Top);
+        return GetCharacterIndexAtX(e.X - (float)screenBounds.Left - (float)Padding.Left);
+    }
+
+    /// <summary>
+    /// The character at a label-local point over formatted text: the drawn line nearest the
+    /// point's height, then the run and the character on it (the nearer edge of the character
+    /// under the point); before a line is its start, after it its end.
+    /// </summary>
+    private int GetFormattedCharacterIndex(IReadOnlyList<FormattedHit> hits, float x, float y)
+    {
+        float Distance(FormattedHit h) => y < h.Top ? h.Top - y : y > h.Top + h.Height ? y - (h.Top + h.Height) : 0f;
+        var lineTop = hits.OrderBy(Distance).First().Top;
+        var line = hits.Where(h => h.Top == lineTop).OrderBy(h => h.X).ToList();
+
+        if (x <= line[0].X)
+            return line[0].Start;
+        foreach (var hit in line)
+        {
+            if (x >= hit.X + hit.Width)
+                continue;
+            using var font = SkiaFontFactory.Create(hit.Typeface, hit.FontSize);
+            float previous = 0;
+            for (int i = 1; i <= hit.Text.Length; i++)
+            {
+                float width = RunPrefixWidth(font, hit.Text, i);
+                if (x - hit.X < width)
+                    return hit.Start + (x - hit.X > (previous + width) / 2f ? i : i - 1);
+                previous = width;
+            }
+            return hit.Start + hit.Text.Length;
+        }
+        var lastRun = line[^1];
+        return lastRun.Start + lastRun.Text.Length;
+    }
+
+    /// <summary>The width of a run's first <paramref name="count"/> characters, as the layout measures runs.</summary>
+    private float RunPrefixWidth(SKFont font, string text, int count)
+    {
+        if (count <= 0) return 0f;
+        float width = TextRenderingHelper.MeasureWidth(font, text.Substring(0, count));
+        if (CharacterSpacing != 0 && count > 1)
+            width += (float)(CharacterSpacing * (count - 1));
+        return width;
     }
 
     private int GetCharacterIndexAtX(float x)
@@ -578,6 +634,8 @@ public class SkiaLabel : SkiaView
 
     private void OnTextChanged()
     {
+        _selectionStart = -1;
+        _selectionLength = 0;
         InvalidateMeasure();
         Invalidate();
     }
@@ -1020,6 +1078,10 @@ public class SkiaLabel : SkiaView
         // point against them through Label.GetChildElements).
         var viewBounds = BoundsSK;
         var spanRects = new Dictionary<Span, List<Rect>>();
+        var hits = new List<FormattedHit>(layout.Runs.Count);
+        int selStart = Math.Min(_selectionStart, _selectionStart + _selectionLength);
+        int selEnd = Math.Max(_selectionStart, _selectionStart + _selectionLength);
+        bool hasSelection = _selectionStart >= 0 && _selectionLength != 0;
 
         foreach (var run in layout.Runs)
         {
@@ -1041,7 +1103,17 @@ public class SkiaLabel : SkiaView
                 canvas.DrawRect(new SKRect(x, lineTop, x + run.Width, lineTop + line.Height), bgPaint);
             }
 
+            if (hasSelection && selStart < run.Start + run.Text.Length && run.Start < selEnd)
+            {
+                using var runFont = SkiaFontFactory.Create(run.Typeface, run.FontSize);
+                float from = RunPrefixWidth(runFont, run.Text, Math.Max(selStart, run.Start) - run.Start);
+                float to = RunPrefixWidth(runFont, run.Text, Math.Min(selEnd, run.Start + run.Text.Length) - run.Start);
+                using var selectionPaint = new SKPaint { Color = SkiaTheme.PrimaryLightSK, Style = SKPaintStyle.Fill };
+                canvas.DrawRect(new SKRect(x + from, lineTop, x + to, lineTop + line.Height), selectionPaint);
+            }
+
             DrawFormattedSpanWithFallback(canvas, run.Text, x, baseline, paint, run.Typeface, run.FontSize);
+            hits.Add(new FormattedHit(run.Start, run.Text, x - viewBounds.Left, lineTop - viewBounds.Top, run.Width, line.Height, run.FontSize, run.Typeface));
 
             var decorations = run.Span.TextDecorations != TextDecorations.None ? run.Span.TextDecorations : TextDecorations;
             if (decorations != TextDecorations.None)
@@ -1065,12 +1137,21 @@ public class SkiaLabel : SkiaView
         }
 
         PublishSpanRegions(formatted, spanRects);
+        _formattedHits = hits;
     }
+
+    /// <summary>
+    /// Where each run of formatted text was last drawn (label-local), with its offset in the
+    /// selection text: what a pointer is hit-tested against to select formatted text.
+    /// </summary>
+    private readonly record struct FormattedHit(int Start, string Text, float X, float Top, float Width, float Height, float FontSize, SKTypeface Typeface);
+
+    private List<FormattedHit>? _formattedHits;
 
     #region Formatted text layout
 
-    /// <summary>One contiguous piece of a span on one line.</summary>
-    private readonly record struct FormattedRun(Span Span, string Text, int Line, float X, float Width, float FontSize, SKTypeface Typeface);
+    /// <summary>One contiguous piece of a span on one line; <c>Start</c> is its offset in the spans' text (selection).</summary>
+    private readonly record struct FormattedRun(Span Span, string Text, int Line, float X, float Width, float FontSize, SKTypeface Typeface, int Start);
 
     private sealed class FormattedLine
     {
@@ -1107,6 +1188,7 @@ public class SkiaLabel : SkiaView
 
         var line = NewLine(layout, 0);
         float x = 0;
+        int offset = 0; // in the spans' text, as SelectionSourceText joins it
 
         foreach (var span in formatted.Spans)
         {
@@ -1129,6 +1211,7 @@ public class SkiaLabel : SkiaView
                     // Forced break.
                     line = NewLine(layout, line.Top + line.Height);
                     x = 0;
+                    offset++; // the newline
                 }
 
                 foreach (var token in Tokenize(paragraphs[p]))
@@ -1156,9 +1239,10 @@ public class SkiaLabel : SkiaView
                     }
                     else
                     {
-                        layout.Runs.Add(new FormattedRun(span, token, layout.Lines.Count - 1, x, width, spanFontSize, typeface));
+                        layout.Runs.Add(new FormattedRun(span, token, layout.Lines.Count - 1, x, width, spanFontSize, typeface, offset));
                     }
 
+                    offset += token.Length;
                     x += width;
                     line.Width = Math.Max(line.Width, x);
                 }
