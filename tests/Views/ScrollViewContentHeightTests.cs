@@ -8,7 +8,7 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Views;
 
 /// <summary>
 /// A vertical ScrollView is as tall as its content, up to the room it is given, as in MAUI:
-/// a centred card around a scrolling form (IronServices' licensing popup) wrapped the form on
+/// a centred card around a scrolling form wrapped the form on
 /// the other platforms and took the whole window here.
 /// </summary>
 [Collection("LinuxApplication.Current")]
