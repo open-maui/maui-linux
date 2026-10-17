@@ -10,9 +10,11 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// Linux screenshot. Renders the application's root view tree into an
 /// off-screen Skia surface, which is what MAUI's Screenshot API captures on
 /// every platform (the app window, not the whole desktop). Works without a
-/// display server as long as a root view with a non-empty size exists.
+/// display server as long as a root view with a non-empty size exists. It is also MAUI's
+/// <see cref="IViewScreenshot"/>, through which <c>VisualElement.CaptureAsync()</c> and
+/// <c>Window.CaptureAsync()</c> capture a single view or window.
 /// </summary>
-public class ScreenshotService : IScreenshot
+public class ScreenshotService : IScreenshot, IViewScreenshot
 {
     private readonly Func<SkiaView?> _rootViewProvider;
     private readonly Func<float> _scaleProvider;
@@ -29,7 +31,13 @@ public class ScreenshotService : IScreenshot
         _scaleProvider = scaleProvider ?? (() => 1f);
     }
 
-    public bool IsCaptureSupported => TryGetSurfaceSize(out _, out _, out _);
+    /// <summary>
+    /// True, as on every MAUI platform: the Skia views can always be drawn off screen. Whether
+    /// there is something to capture is <see cref="CaptureAsync"/>'s concern (it throws
+    /// without a window, as elsewhere). MAUI 11 consults this before every
+    /// <c>VisualElement.CaptureAsync()</c>, so it must not depend on the app's main window.
+    /// </summary>
+    public bool IsCaptureSupported => true;
 
     /// <summary>
     /// The application window as it is drawn (page, modal pages, popups, dialogs), at the
@@ -83,6 +91,13 @@ public class ScreenshotService : IScreenshot
             return Task.FromException<IScreenshotResult?>(ex);
         }
     }
+
+    /// <summary>
+    /// A view (its Skia view, as laid out, at its window's scale) or a window (what it shows),
+    /// as MAUI passes a handler's platform view; null for anything else.
+    /// </summary>
+    public Task<IScreenshotResult?> CaptureViewAsync(object platformView) =>
+        Task.FromResult(platformView is null ? null : ViewCapture.Capture(platformView));
 
     private bool TryGetSurfaceSize(out SkiaView? root, out double width, out double height)
     {
