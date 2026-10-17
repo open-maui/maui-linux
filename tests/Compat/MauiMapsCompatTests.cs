@@ -18,7 +18,7 @@ using Map = Microsoft.Maui.Controls.Maps.Map;
 namespace OpenMaui.Compat.Tests;
 
 /// <summary>
-/// Microsoft.Maui.Controls.Maps (10.0.110) through OpenMaui.Controls.Linux.Maps,
+/// Microsoft.Maui.Controls.Maps (11) through OpenMaui.Controls.Linux.Maps,
 /// registered the documented way (<c>UseMauiMaps().UseLinuxMaps()</c>). Pass =
 /// the stock Map control's pins, map elements, region and marker events work
 /// against OpenMaui's Skia map. Tile downloads are redirected to an unroutable
@@ -110,6 +110,52 @@ public sealed class MauiMapsCompatTests : IDisposable
         host.DisplayWindow.RaisePointerReleased(x, y);
 
         events.Should().Equal("marker", "info");
+    }
+
+    [Fact]
+    public void ShowInfoWindow_and_HideInfoWindow_decide_what_the_next_tap_raises()
+    {
+        var pin = new Pin { Label = "Here", Location = Paris };
+        var events = new List<string>();
+        pin.MarkerClicked += (_, _) => events.Add("marker");
+        pin.InfoWindowClicked += (_, _) => events.Add("info");
+        var map = new Map(MapSpan.FromCenterAndRadius(Paris, Distance.FromKilometers(5)));
+        map.Pins.Add(pin);
+        using var host = Host(map);
+        host.Render();
+        float x = host.DisplayWindow.Width / 2f, y = host.DisplayWindow.Height / 2f - 20;
+
+        pin.ShowInfoWindow();
+        host.DisplayWindow.RaisePointerPressed(x, y);
+        host.DisplayWindow.RaisePointerReleased(x, y);
+        events.Should().Equal("info");
+
+        pin.HideInfoWindow();
+        host.DisplayWindow.RaisePointerPressed(x, y);
+        host.DisplayWindow.RaisePointerReleased(x, y);
+        events.Should().Equal("info", "marker");
+    }
+
+    [Fact]
+    public void A_MarkerClicked_that_hides_the_info_window_keeps_the_next_tap_a_marker_click()
+    {
+        var pin = new Pin { Label = "Here", Location = Paris };
+        var events = new List<string>();
+        pin.MarkerClicked += (_, e) => { events.Add("marker"); e.HideInfoWindow = true; };
+        pin.InfoWindowClicked += (_, _) => events.Add("info");
+        var map = new Map(MapSpan.FromCenterAndRadius(Paris, Distance.FromKilometers(5)));
+        map.Pins.Add(pin);
+        using var host = Host(map);
+        host.Render();
+        float x = host.DisplayWindow.Width / 2f, y = host.DisplayWindow.Height / 2f - 20;
+
+        for (int i = 0; i < 2; i++)
+        {
+            host.DisplayWindow.RaisePointerPressed(x, y);
+            host.DisplayWindow.RaisePointerReleased(x, y);
+        }
+
+        events.Should().Equal("marker", "marker");
     }
 
     [Theory]

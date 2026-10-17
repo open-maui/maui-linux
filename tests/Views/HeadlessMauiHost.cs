@@ -74,6 +74,7 @@ internal sealed class HeadlessMauiHost : IDisposable
             Microsoft.Maui.Hosting.MauiHandlersCollectionExtensions.AddHandler<Microsoft.Maui.Controls.Window, WindowHandler>(handlers);
         });
         LinuxAlertManager.Register(builder.Services);
+        LinuxModalNavigationPlatform.Register(builder.Services); // as RegisterLinuxServices does
         Microsoft.Maui.Platform.Linux.Handlers.FocusCommands.Register(); // as RegisterLinuxServices does
         Microsoft.Maui.Platform.Linux.Handlers.LinuxViewMappers.Register();
         Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install(); // as RegisterLinuxServices does

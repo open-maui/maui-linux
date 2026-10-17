@@ -29,6 +29,22 @@
       <Replace>#if WINDOWS || ANDROID || OPENMAUI_LINUX\n\t\t\treturn Thickness.Zero;\n#endif</Replace>
     </MauiPatch>
 
+    <!-- MAUI 11 reads the Shell's handler in each flyout test through a platform #if chain (Android's IShellContext, iOS's ShellRenderer) with no other branch; Linux's is the ShellHandler, the type the 10.0 test took as its parameter. -->
+    <MauiPatch Include="Elements/Shell/ShellFlyoutTests.cs">
+      <Find>#elif IOS || MACCATALYST\n\t\t\t\tvar shellContext = (ShellHandler)shell.Handler;</Find>
+      <Replace>#elif IOS || MACCATALYST || OPENMAUI_LINUX\n\t\t\t\tvar shellContext = (ShellHandler)shell.Handler;</Replace>
+    </MauiPatch>
+    <MauiPatch Include="Elements/Shell/ShellFlyoutTests.cs">
+      <Find>#elif IOS || MACCATALYST\n                                var shellContext = (ShellHandler)shell.Handler;</Find>
+      <Replace>#elif IOS || MACCATALYST || OPENMAUI_LINUX\n                                var shellContext = (ShellHandler)shell.Handler;</Replace>
+    </MauiPatch>
+
+    <!-- MAUI 11's ModalTests register TabbedViewHandler on Android and Windows and the iOS compatibility TabbedRenderer otherwise; Linux has TabbedViewHandler (HandlerAliases.Controls.cs), as Windows. -->
+    <MauiPatch Include="Elements/Modal/ModalTests.cs">
+      <Find>#if ANDROID || WINDOWS\n\t\t\thandlers.AddHandler(typeof(TabbedPage), typeof(TabbedViewHandler));</Find>
+      <Replace>#if ANDROID || WINDOWS || OPENMAUI_LINUX\n\t\t\thandlers.AddHandler(typeof(TabbedPage), typeof(TabbedViewHandler));</Replace>
+    </MauiPatch>
+
     <!-- NestingView's platform view: a Skia stack layout on Linux (the #else branch is UIKit). -->
     <MauiPatch Include="TestClasses/NestingView.cs">
       <Find>#else\nusing PlatformView = System.Object;</Find>
