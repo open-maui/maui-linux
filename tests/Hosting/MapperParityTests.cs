@@ -37,16 +37,6 @@ public class MapperParityTests
         return getKeys?.Invoke(mapper, null) as IEnumerable<string> ?? Array.Empty<string>();
     }
 
-    private static object? StaticMember(Type type, string name)
-    {
-        for (var t = type; t != null; t = t.BaseType)
-        {
-            if (t.GetField(name, BindingFlags.Static | BindingFlags.Public) is { } field) return field.GetValue(null);
-            if (t.GetProperty(name, BindingFlags.Static | BindingFlags.Public) is { } property) return property.GetValue(null);
-        }
-        return null;
-    }
-
     private static object? InstanceField(object instance, string name)
     {
         for (var t = instance.GetType(); t != null; t = t.BaseType)
@@ -72,13 +62,16 @@ public class MapperParityTests
         foreach (System.Collections.DictionaryEntry entry in map)
         {
             var control = (Type)entry.Key;
-            Type? mauiHandler = null;
-            try { mauiHandler = mauiFactory.GetHandlerType(control); } catch (Exception) { }
-            if (mauiHandler == null)
+            // MAUI 11 registers its handlers as factories (AddHandler<Page>(_ => new PageHandler())),
+            // for which GetHandlerType is null: ask for a handler, and read the mappers it was made
+            // with, as for ours.
+            IElementHandler? maui = null;
+            try { maui = mauiFactory.GetHandler(control); } catch (Exception) { }
+            if (maui == null)
                 continue;
             var linux = (IElementHandler)((Delegate)entry.Value!).DynamicInvoke()!;
             var ours = Keys(InstanceField(linux, "_mapper")).Concat(Keys(InstanceField(linux, "_commandMapper"))).ToHashSet();
-            var theirs = Keys(StaticMember(mauiHandler, "Mapper")).Concat(Keys(StaticMember(mauiHandler, "CommandMapper")));
+            var theirs = Keys(InstanceField(maui, "_mapper")).Concat(Keys(InstanceField(maui, "_commandMapper")));
             var missing = new SortedSet<string>(theirs.Where(k => !ours.Contains(k)));
             if (missing.Count > 0)
                 result[control.Name] = missing;
