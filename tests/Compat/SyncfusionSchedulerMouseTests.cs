@@ -29,11 +29,13 @@ public sealed class SyncfusionSchedulerMouseTests
         .GetMethod("FireHolds", BindingFlags.NonPublic | BindingFlags.Static)!;
 
     private static (CompatHost Host, SfScheduler Scheduler, SchedulerAppointment Appointment, List<string> Log) Host(
-        SchedulerView view = SchedulerView.Day, SchedulerAppointment? appointment = null)
+        SchedulerView view = SchedulerView.Day, SchedulerAppointment? appointment = null, DateTime? day = null)
     {
-        var start = DateTime.Today.AddHours(2);
+        var start = (day ?? DateTime.Today).AddHours(2);
         appointment ??= new SchedulerAppointment { StartTime = start, EndTime = start.AddHours(2), Subject = "Meeting", Background = Microsoft.Maui.Graphics.Colors.Orange };
         var scheduler = new SfScheduler { View = view, AllowAppointmentDrag = true, AllowAppointmentResize = true };
+        if (day is { } displayDate)
+            scheduler.DisplayDate = displayDate;
         var log = new List<string>();
         scheduler.AppointmentDragStarting += (_, _) => log.Add("drag-starting");
         scheduler.AppointmentDrop += (_, e) => log.Add("drop " + e.DropTime.ToString("HH:mm"));
@@ -180,7 +182,10 @@ public sealed class SyncfusionSchedulerMouseTests
     [Fact]
     public void A_held_press_drags_a_month_appointment_to_another_day()
     {
-        var (host, _, appointment, log) = Host(SchedulerView.Month);
+        // A fixed mid-week day: one cell to the right is the next day only when the day is not
+        // in the month grid's last column (today, on a Saturday, it is not).
+        var wednesday = new DateTime(2026, 10, 14);
+        var (host, _, appointment, log) = Host(SchedulerView.Month, day: wednesday);
         using (host)
         {
             var box = Appointment(host);
@@ -199,7 +204,7 @@ public sealed class SyncfusionSchedulerMouseTests
 
             log.Should().Contain("drag-starting");
             log.Should().Contain(l => l.StartsWith("drop "));
-            appointment.StartTime.Date.Should().Be(DateTime.Today.AddDays(1));
+            appointment.StartTime.Date.Should().Be(wednesday.AddDays(1));
         }
     }
 
