@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>OpenMaui.Platform.Linux</RootNamespace>
@@ -14,7 +14,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux</PackageId>
-    <Version>10.0.110.7</Version>
+    <Version>11.0.0.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Linux Controls</Product>
@@ -37,7 +37,6 @@
          -p:ApiCompatGenerateSuppressionFile=true) and listed in CHANGELOG.md.
          Bump the baseline to the new version after each release. -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>10.0.110.6</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <!-- OpenMaui.Hosting provides the cross-platform UseLinux() stub -->
@@ -47,9 +46,9 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.110" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="10.0.110" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="11.0.0-rc.2.26505.5" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="11.0.0-rc.2.26505.5" />
 
     <!-- SkiaSharp for rendering (4.x — SKFont text API; legacy SKPaint text members are error-obsolete) -->
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
@@ -64,7 +63,14 @@
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.1.201" />
 
     <!-- Harmony for patching MAUI Essentials stubs with Linux implementations -->
-    <PackageReference Include="Lib.Harmony" Version="2.4.2" />
+    <!-- .NET 11: every Lib.Harmony release bundles a MonoMod that refuses CoreCLR 11
+         ("CoreCLR version 11.0.0 is not supported"), so all patches were skipped. Harmony's
+         Thin build takes MonoMod.Core as a package instead, and MonoMod.Core 1.4.0-prerelease.1
+         patches .NET 11 correctly. MonoMod's build-time runtime check (buildTransitive) still
+         names net11.0 unsupported: it is excluded here and kept from flowing to apps. Move back
+         to plain Lib.Harmony once a release supports .NET 11. -->
+    <PackageReference Include="Lib.Harmony.Thin" Version="2.4.3" ExcludeAssets="buildTransitive" PrivateAssets="buildTransitive" />
+    <PackageReference Include="MonoMod.Core" Version="1.4.0-prerelease.1" ExcludeAssets="buildTransitive" PrivateAssets="buildTransitive" />
 
     <!-- Managed D-Bus client for the Fcitx5 input-method frontend (typed
          proxies + signal watchers; replaces the dbus-monitor subprocess) -->

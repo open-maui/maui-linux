@@ -30,19 +30,19 @@ Developed by MarketAlly Pte Ltd. Lead Architect: David H. Friedel Jr.
     <tags>maui linux desktop skia gui cross-platform dotnet openmaui</tags>
     <repository type="git" url="https://github.com/open-maui/maui-linux.git" />
     <dependencies>
-      <group targetFramework="net10.0">
+      <group targetFramework="net11.0">
         <dependency id="Microsoft.Maui.Controls" version="10.0.41" />
         <dependency id="SkiaSharp" version="3.119.2" />
         <dependency id="SkiaSharp.NativeAssets.Linux" version="3.119.2" />
       </group>
     </dependencies>
     <frameworkAssemblies>
-      <frameworkAssembly assemblyName="System.Runtime" targetFramework="net10.0" />
+      <frameworkAssembly assemblyName="System.Runtime" targetFramework="net11.0" />
     </frameworkAssemblies>
   </metadata>
   <files>
-    <file src="bin/Release/net10.0/OpenMaui.Controls.Linux.dll" target="lib/net10.0" />
-    <file src="bin/Release/net10.0/OpenMaui.Controls.Linux.xml" target="lib/net10.0" />
+    <file src="bin/Release/net11.0/OpenMaui.Controls.Linux.dll" target="lib/net11.0" />
+    <file src="bin/Release/net11.0/OpenMaui.Controls.Linux.xml" target="lib/net11.0" />
     <file src="README.md" target="" />
   </files>
 </package>

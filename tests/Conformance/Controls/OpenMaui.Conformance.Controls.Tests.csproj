@@ -4,14 +4,14 @@
     MAUI Controls conformance suite.
 
     Compiles dotnet/maui's OWN Controls device tests (src/Controls/tests/DeviceTests,
-    tag 10.0.110) against OpenMaui: real Controls views (Label, Entry, CollectionView,
+    MAUI 11 RC2, commit d32b7992) against OpenMaui: real Controls views (Label, Entry, CollectionView,
     Shell, NavigationPage, ...) hosted in a window the way an app hosts them, with
     MAUI's assertions as the specification. The MAUI sources are NOT vendored: they
     are compiled in place from the same local clone the Core suite uses (MIT
     licensed, file contents untouched).
 
-      MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
-                Default: $(HOME)/.cache/openmaui-build/maui-src
+      MauiSrc   Root of a dotnet/maui checkout at the revision the platform targets.
+                Default: $(HOME)/.cache/openmaui-build/maui-src-11
                 Populate it with tests/Conformance/get-maui-sources.sh.
 
     Why a second project (and not more files in the Core one): MAUI's Controls
@@ -32,14 +32,14 @@
     Run:  dotnet test tests/Conformance/Controls/OpenMaui.Conformance.Controls.Tests.csproj
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Microsoft.Maui.DeviceTests</RootNamespace>
     <!-- The name of MAUI's own Controls device-test app: Microsoft.Maui.Controls and
-         Microsoft.Maui (net10.0) grant it InternalsVisibleTo. -->
+         Microsoft.Maui (net11.0) grant it InternalsVisibleTo. -->
     <AssemblyName>Microsoft.Maui.Controls.DeviceTests</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);CS0618;CS0672;CS0108;CS0114;CS0162;CS0168;CS0219;CS0414;CS0649;CS0169;CS1998;CS8632;CS0105;CS4014;CS0067;CS0659;CS0661;CS0660;CS1717;CS0436;CA1416;xUnit1013;xUnit1026;xUnit2000;xUnit2009;xUnit1030;xUnit1031;xUnit1012;xUnit2013;xUnit1025;xUnit1004;xUnit2002;xUnit2005;xUnit2007;xUnit2015;xUnit2017;xUnit2020;xUnit1051;xUnit1042;xUnit1048;xUnit2012;xUnit2029;xUnit2031;MCTME001</NoWarn>
@@ -48,7 +48,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src</MauiSrc>
+    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src-11</MauiSrc>
     <!-- A property set on the command line (-p:MauiSrc=...) cannot be reassigned here, so the
          trailing slash goes on a property of its own. -->
     <MauiSrcDir>$([MSBuild]::EnsureTrailingSlash('$(MauiSrc)'))</MauiSrcDir>
@@ -70,7 +70,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
     <!-- Direct reference (the version OpenMaui builds on) for MAUI's XAML build targets:
          Xaml/XamlTests.cs compiles RadioButtonUsing.xaml, as an app compiles its XAML. -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -108,6 +108,7 @@
     <!-- tests -->
     <MauiControlsFile Include="MapperTests.cs" />
     <MauiControlsFile Include="DispatchingTests.cs" />
+    <MauiControlsFile Include="GestureManagerTests.cs" />
     <MauiControlsFile Include="Elements/FormattedStringTests.cs" />
     <MauiControlsFile Include="Elements/PlatformBehaviorTests.cs" />
     <MauiControlsFile Include="Elements/VisualElementTests.cs" />
@@ -138,12 +139,14 @@
     <MauiControlsFile Include="Elements/Frame/FrameTests.cs" />
     <MauiControlsFile Include="Elements/Frame/FrameHandlerTest.cs" />
     <MauiControlsFile Include="Elements/Modal/ModalTests.cs" />
+    <MauiControlsFile Include="Elements/Modal/ModalNavigationPlatformTests.cs" />
     <MauiControlsFile Include="Elements/NavigationPage/NavigationPageTests.cs" />
     <MauiControlsFile Include="Elements/Page/PageTests.cs" />
     <MauiControlsFile Include="Elements/Path/PathTests.cs" />
     <MauiControlsFile Include="Elements/RefreshView/RefreshViewTests.cs" />
     <MauiControlsFile Include="Elements/Shape/ShapeTests.cs" />
     <MauiControlsFile Include="Elements/Shell/ShellTests.cs" />
+    <MauiControlsFile Include="Elements/Shell/RendererHandlerVariant.cs" />
     <MauiControlsFile Include="Elements/Shell/ShellBasicNavigationTestCases.cs" />
     <MauiControlsFile Include="Elements/Shell/ShellFlyoutTests.cs" />
     <MauiControlsFile Include="Elements/Shell/ShellFlyoutHeaderBehaviorTestCases.cs" />

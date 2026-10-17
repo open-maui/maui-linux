@@ -4,15 +4,16 @@
     MAUI handler conformance suite.
 
     Compiles dotnet/maui's OWN shared handler device tests (Core DeviceTests,
-    tag 10.0.110) against the Linux handlers, so MAUI's assertions are the
+    MAUI 11 RC2, commit d32b7992) against the Linux handlers, so MAUI's assertions are the
     specification. The MAUI sources are NOT vendored: they are compiled in place
     from a local clone (MIT licensed, file headers untouched).
 
-      MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
-                Default: $(HOME)/.cache/openmaui-build/maui-src
+      MauiSrc   Root of a dotnet/maui checkout at the revision the platform targets.
+                Default: $(HOME)/.cache/openmaui-build/maui-src-11
                 Populate it with tests/Conformance/get-maui-sources.sh (a shallow,
-                sparse clone of the 10.0.110 tag: src/Core/tests, src/TestUtils,
-                src/Controls/tests/DeviceTests).
+                sparse, blob-less checkout of commit d32b7992 (release/11.0.1xx-rc2,
+                the commit Microsoft.Maui.* 11.0.0-rc.2.26505.5 were built from):
+                the device-test folders plus the product sources they are read with).
                 Override: dotnet test -p:MauiSrc=/path/to/maui
 
     Without the clone the project still builds, but only contains one skipped
@@ -32,13 +33,13 @@
     Run:  dotnet test tests/Conformance/OpenMaui.Conformance.Tests.csproj
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Microsoft.Maui.DeviceTests</RootNamespace>
-    <!-- The name MAUI's own Core device-test app has: Microsoft.Maui.Core (net10.0) grants it
+    <!-- The name MAUI's own Core device-test app has: Microsoft.Maui.Core (net11.0) grants it
          InternalsVisibleTo, which the shared test code relies on (InvokeWithResult,
          GetDispatcher, CreateLogger, ...), exactly as on the device runners. -->
     <AssemblyName>Microsoft.Maui.Core.DeviceTests</AssemblyName>
@@ -50,7 +51,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src</MauiSrc>
+    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src-11</MauiSrc>
     <!-- A property set on the command line (-p:MauiSrc=...) cannot be reassigned here, so the
          trailing slash goes on a property of its own. -->
     <MauiSrcDir>$([MSBuild]::EnsureTrailingSlash('$(MauiSrc)'))</MauiSrcDir>
