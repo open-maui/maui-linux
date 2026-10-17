@@ -149,9 +149,11 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.AddSingleton<Microsoft.Maui.Animations.ITicker, LinuxTicker>();
         builder.Services.AddSingleton<Microsoft.Maui.Animations.IAnimationManager, LinuxAnimationManager>();
 
-        // VisualElement.CaptureAsync / Window.CaptureAsync: MAUI's keyed capture hooks for a
-        // platform it has no screenshot code for (null results without them).
-        ViewCapture.Register(builder.Services);
+        // VisualElement.CaptureAsync / Window.CaptureAsync: MAUI built for a platform it has no
+        // screenshot code for resolves IScreenshot from the handler's services and captures
+        // through its IViewScreenshot (null results without one). The Screenshot facade's
+        // instance (ScreenshotService, installed by EssentialsPatches) is both.
+        builder.Services.TryAddSingleton<Microsoft.Maui.Media.IScreenshot>(_ => Microsoft.Maui.Media.Screenshot.Default);
 
         // Named font sizes (FontSize="Large" etc.): MAUI's XAML converter resolves
         // them through DependencyService and throws when no platform provides it.
@@ -224,6 +226,11 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // Page.DisplayAlert / DisplayPromptAsync / DisplayActionSheet -> Skia dialogs
         // (MAUI 10 AlertManager resolves these keyed delegates).
         LinuxAlertManager.Register(builder.Services);
+
+        // Navigation.PushModalAsync / PopModalAsync -> full-window layers of the window's
+        // context, through MAUI's modal-platform extension point (an app's own
+        // IModalNavigationPlatformFactory registration takes precedence).
+        LinuxModalNavigationPlatform.Register(builder.Services);
 
         // Register GTK host service
         builder.Services.TryAddSingleton(_ => GtkHostService.Instance);
