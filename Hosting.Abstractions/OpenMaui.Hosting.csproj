@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Microsoft.Maui.Platform.Linux.Hosting</RootNamespace>
@@ -9,7 +9,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Hosting</PackageId>
-    <Version>10.0.110.7</Version>
+    <Version>11.0.0.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Hosting</Product>
@@ -32,11 +32,10 @@
          -p:ApiCompatGenerateSuppressionFile=true) and listed in CHANGELOG.md.
          Bump the baseline to the new version after each release. -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>10.0.110.6</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
   </ItemGroup>
 
   <!-- Include icon and README in package -->
