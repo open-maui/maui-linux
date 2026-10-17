@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Microsoft.Maui.Platform.Linux.Syncfusion</RootNamespace>
@@ -9,7 +9,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Syncfusion</PackageId>
-    <Version>10.0.110.7</Version>
+    <Version>11.0.0.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Syncfusion bridge (Linux)</Product>
@@ -26,7 +26,6 @@
     <IsPackable>true</IsPackable>
 
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>10.0.110.6</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -4,14 +4,14 @@
     MAUI Essentials conformance suite.
 
     Compiles dotnet/maui's OWN Essentials device tests (src/Essentials/test/DeviceTests,
-    tag 10.0.110) against OpenMaui's Linux Essentials: the static facades (Preferences,
+    MAUI 11 RC2, commit d32b7992) against OpenMaui's Linux Essentials: the static facades (Preferences,
     SecureStorage, FileSystem, Launcher, AppInfo, ...) are backed by the Linux services
     UseLinux installs, and MAUI's assertions are the specification. The MAUI sources are
     NOT vendored: they are compiled in place from the same local clone the Core and
     Controls suites use (MIT licensed, file contents untouched).
 
-      MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
-                Default: $(HOME)/.cache/openmaui-build/maui-src
+      MauiSrc   Root of a dotnet/maui checkout at the revision the platform targets.
+                Default: $(HOME)/.cache/openmaui-build/maui-src-11
                 Populate it with tests/Conformance/get-maui-sources.sh.
 
     The test assembly is an OpenMaui app as far as the platform can tell:
@@ -35,7 +35,7 @@
     Run:  dotnet test tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj
   -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
@@ -58,7 +58,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src</MauiSrc>
+    <MauiSrc Condition="'$(MauiSrc)' == ''">$(HOME)/.cache/openmaui-build/maui-src-11</MauiSrc>
     <!-- A property set on the command line (-p:MauiSrc=...) cannot be reassigned here, so the
          trailing slash goes on a property of its own. -->
     <MauiSrcDir>$([MSBuild]::EnsureTrailingSlash('$(MauiSrc)'))</MauiSrcDir>
@@ -103,6 +103,7 @@
   <ItemGroup>
     <MauiEssentialsFile Include="Traits.cs" />
     <MauiEssentialsFile Include="Utils.cs" />
+    <MauiEssentialsFile Include="EssentialsStaticStateCollection.cs" />
     <MauiEssentialsFile Include="Tests/Accelerometer_Tests.cs" />
     <MauiEssentialsFile Include="Tests/ActivityStateManager_Tests.cs" />
     <MauiEssentialsFile Include="Tests/AppActions_Tests.cs" />
