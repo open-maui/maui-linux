@@ -1,8 +1,8 @@
 // Third-party stub scan (docs/STUBS.md).
 //
-// MAUI libraries ship a platform-neutral lib/net10.0 build next to their per-platform builds.
+// MAUI libraries ship a platform-neutral lib/netN.0 build next to their per-platform builds.
 // OpenMaui apps load the neutral one, so anything a library implements only in its Windows
-// build (lib/net10.0-windows*) is a hole OpenMaui has to bridge or accept. This tool finds
+// build (lib/netN.0-windows*) is a hole OpenMaui has to bridge or accept. This tool finds
 // those holes by comparing the two builds of every library assembly, method by method:
 //
 //   stub          the neutral body is a stub (empty, returns a constant/default, or only
@@ -126,7 +126,7 @@ internal static class Program
         md.AppendLine("# Third-party stub scan").AppendLine();
         md.AppendLine("| Package | Version | Assembly findings | covered | not-applicable | open | unreviewed |");
         md.AppendLine("|---|---|---:|---:|---:|---:|---:|");
-        Console.WriteLine("Stub scan: neutral lib/net10.0 vs lib/net10.0-windows*");
+        Console.WriteLine("Stub scan: each package's neutral lib/netN.0 vs lib/netN.0-windows*, newest N it ships both for");
         Console.WriteLine($"{"package",-42} {"version",-10} {"total",6} {"covered",8} {"n/a",5} {"open",5} {"new",5}");
         foreach (var pkg in packages)
         {
@@ -259,18 +259,32 @@ internal sealed class PackageRef
         return result.OrderBy(p => p.Id, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    /// <summary>(neutral, windows) assembly pairs: lib/net10.0/X.dll with lib/net10.0-windows*/X.dll.</summary>
+    /// <summary>
+    /// (neutral, windows) assembly pairs from the newest .NET a package ships both builds for:
+    /// lib/netN.0/X.dll with lib/netN.0-windows*/X.dll (MAUI 11's own packages are net11.0,
+    /// a library not rebuilt yet is still net10.0).
+    /// </summary>
     public IEnumerable<(string Neutral, string Windows)> AssemblyPairs()
     {
         var lib = Path.Combine(Directory, "lib");
-        var neutralDir = Path.Combine(lib, "net10.0");
-        if (!System.IO.Directory.Exists(neutralDir))
+        if (!System.IO.Directory.Exists(lib))
             yield break;
-        // The lowest Windows SDK flavour is the one every library ships (windows10.0.19041).
-        var windowsDir = System.IO.Directory.Exists(lib)
-            ? System.IO.Directory.GetDirectories(lib, "net10.0-windows*").OrderBy(d => d, StringComparer.Ordinal).FirstOrDefault()
-            : null;
-        if (windowsDir == null)
+        string? neutralDir = null, windowsDir = null;
+        foreach (var candidate in System.IO.Directory.GetDirectories(lib)
+                     .Select(d => (Dir: d, Version: NeutralVersion(Path.GetFileName(d))))
+                     .Where(c => c.Version > 0)
+                     .OrderByDescending(c => c.Version))
+        {
+            // The lowest Windows SDK flavour is the one every library ships (windows10.0.19041).
+            var windows = System.IO.Directory.GetDirectories(lib, $"net{candidate.Version}.0-windows*").OrderBy(d => d, StringComparer.Ordinal).FirstOrDefault();
+            if (windows != null)
+            {
+                neutralDir = candidate.Dir;
+                windowsDir = windows;
+                break;
+            }
+        }
+        if (neutralDir == null || windowsDir == null)
             yield break;
         foreach (var neutral in System.IO.Directory.GetFiles(neutralDir, "*.dll").OrderBy(f => f, StringComparer.Ordinal))
         {
@@ -279,6 +293,11 @@ internal sealed class PackageRef
                 yield return (neutral, windows);
         }
     }
+
+    /// <summary>N for a plain "netN.0" folder, 0 for anything else.</summary>
+    private static int NeutralVersion(string folder) =>
+        folder.StartsWith("net", StringComparison.Ordinal) && folder.EndsWith(".0", StringComparison.Ordinal)
+        && int.TryParse(folder[3..^2], out var n) && n >= 5 ? n : 0;
 }
 
 internal sealed record MethodInfoLite(string Type, string Name, string Signature, int IlSize, StubKind Stub, bool IsPublicSurface);
