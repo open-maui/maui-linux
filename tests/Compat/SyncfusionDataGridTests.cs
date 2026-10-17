@@ -20,8 +20,12 @@ namespace OpenMaui.Compat.Tests;
 /// border dragged with the mouse resizes the column under the resize cursor.
 /// </summary>
 [Collection("LinuxApplication.Current")]
-public sealed class SyncfusionDataGridTests
+public sealed class SyncfusionDataGridTests : IDisposable
 {
+    private readonly SynchronizationContext? _testContext = SynchronizationContext.Current;
+
+    public void Dispose() => SynchronizationContext.SetSynchronizationContext(_testContext);
+
     public sealed class Person
     {
         public int Id { get; set; }
@@ -40,6 +44,12 @@ public sealed class SyncfusionDataGridTests
         var grid = new SfDataGrid { ItemsSource = People(), SelectionMode = DataGridSelectionMode.Single, SortingMode = DataGridSortingMode.Single };
         configure?.Invoke(grid);
         var host = new CompatHost(new ContentPage { Content = grid }, b => b.UseLinuxSyncfusion(), 600, 400);
+        // As on the app's main thread: the header cell sorts after an await (its double-tap
+        // wait), whose continuation must come back to this thread through the main loop Render
+        // drains. On the test framework's context it ran on a worker thread, racing the test:
+        // the test saw the sort, disposed the host, and the worker went on to connect handlers
+        // for the sort's header views with the disposed app's services.
+        SynchronizationContext.SetSynchronizationContext(new Microsoft.Maui.Platform.Linux.Dispatching.LinuxSynchronizationContext());
         Pump(host);
         return (host, grid);
     }
