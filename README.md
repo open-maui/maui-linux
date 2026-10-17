@@ -100,7 +100,7 @@ builder.UseLinuxMediaElement(MediaHardwareAcceleration.Prefer);
 
 ### Optional: Syncfusion controls
 
-Linux apps build plain `net10.0` and so get Syncfusion's platform-neutral assemblies, which have no native drawing or touch. The opt-in bridge package supplies them on OpenMaui's renderer:
+Linux apps build plain `net11.0` and so get Syncfusion's platform-neutral assemblies, which have no native drawing or touch. The opt-in bridge package supplies them on OpenMaui's renderer:
 
 ```bash
 dotnet add package OpenMaui.Controls.Linux.Syncfusion
@@ -319,7 +319,7 @@ The measured picture is in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md): a sco
 
 ## Requirements
 
-- .NET 10.0 SDK or later
+- .NET 11 SDK (`11.0.100-rc.2.26504.105`, .NET 11 RC2, or later). OpenMaui 11.0.x targets `net11.0` and MAUI 11 (`11.0.0-rc.2.26505.5`); for .NET 10 and MAUI 10 use OpenMaui 10.0.x
 - Linux (kernel 5.4+)
 - X11 or Wayland
 - SkiaSharp native libraries
@@ -352,12 +352,12 @@ OpenMaui doctor
 ===============
 
 Runtime
-  [ok]      .NET                         .NET 10.0.10 (X64, fedora.44-x64)
+  [ok]      .NET                         .NET 11.0.0-rc.2.26504.105 (X64, fedora.44-x64)
   [info]    OS                           Fedora Linux 44 (KDE Plasma Desktop Edition), kernel
                                          7.1.5-201.fc44.x86_64; install hints for: Fedora (dnf)
 
 Wayland compositor
-  [ok]      libopenmaui_wl.so            /home/me/MyApp/bin/Debug/net10.0/libopenmaui_wl.so
+  [ok]      libopenmaui_wl.so            /home/me/MyApp/bin/Debug/net11.0/libopenmaui_wl.so
   [ok]      Compositor                   kwin_wayland_wr (pid 14908)
   [ok]      zwp_text_input_manager_v3    v2: native IME (zwp_text_input_v3)
   [ok]      zwp_linux_dmabuf_v1          v5: dmabuf buffer sharing
@@ -463,7 +463,15 @@ cd maui-linux
 dotnet build
 dotnet test tests/OpenMaui.Controls.Linux.Tests.csproj
 dotnet test tests/Compat/OpenMaui.Compat.Tests.csproj   # third-party libraries
+
+# dotnet/maui's own device tests, at the commit the MAUI packages were built from
+bash tests/Conformance/get-maui-sources.sh
+dotnet test tests/Conformance/OpenMaui.Conformance.Tests.csproj                     # Core
+dotnet test tests/Conformance/Controls/OpenMaui.Conformance.Controls.Tests.csproj    # Controls
+dotnet test tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj  # Essentials
 ```
+
+Building needs the .NET 11 SDK (see Requirements).
 
 The suite runs serially (the platform has process-wide state) and needs no display: golden-screenshot scenes render offscreen through the real engine at 1.0x to 2.0x (`OPENMAUI_UPDATE_GOLDENS=1` re-records baselines after an intended change), and the WebView scenarios run in a small out-of-process host because WebKit binds itself to the process main thread. Regenerate the scorecard with `dotnet run --project tools/Scorecard -- --run`, which runs both suites.
 
