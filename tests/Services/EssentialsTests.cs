@@ -1508,19 +1508,22 @@ public class EssentialsTests
     #region ScreenshotService
 
     [Fact]
-    public async Task Screenshot_WithoutRootView_IsUnsupportedAndCaptureThrows()
+    public async Task Screenshot_WithoutRootView_IsSupportedButCaptureThrows()
     {
-        // As on the other platforms, capturing without a window to capture throws.
+        // As on the other platforms (Windows, Android and iOS report capture as supported
+        // unconditionally), capturing without a window to capture throws. MAUI 11 consults
+        // IsCaptureSupported before every VisualElement.CaptureAsync, so it must not depend
+        // on the app's main window.
         var screenshot = new ScreenshotService(() => null);
-        screenshot.IsCaptureSupported.Should().BeFalse();
+        screenshot.IsCaptureSupported.Should().BeTrue();
         await screenshot.Invoking(s => s.CaptureAsync()).Should().ThrowAsync<InvalidOperationException>();
 
         var empty = new ScreenshotService(() => new SkiaBoxView { Bounds = new Rect(0, 0, 0, 0) });
-        empty.IsCaptureSupported.Should().BeFalse();
+        empty.IsCaptureSupported.Should().BeTrue();
         await empty.Invoking(s => s.CaptureAsync()).Should().ThrowAsync<InvalidOperationException>();
 
         var throwing = new ScreenshotService(() => throw new InvalidOperationException("no app"));
-        throwing.IsCaptureSupported.Should().BeFalse();
+        throwing.IsCaptureSupported.Should().BeTrue();
         await throwing.Invoking(s => s.CaptureAsync()).Should().ThrowAsync<InvalidOperationException>();
     }
 
@@ -1551,7 +1554,7 @@ public class EssentialsTests
     }
 
     [Fact]
-    public void Screenshot_DefaultCtor_HeadlessIsUnsupported()
+    public void Screenshot_DefaultCtor_HeadlessDoesNotThrow()
     {
         // No LinuxApplication in this test process, so the default provider has no root view.
         var screenshot = new ScreenshotService();
