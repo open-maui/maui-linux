@@ -2,7 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
+Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10, OpenMaui 11.0.x targets .NET 11 / MAUI 11).
+
+## [11.0.0.1] - unreleased
+
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.7 is included.
+
+### Changed
+
+- **Target framework `net11.0` and MAUI 11 RC2**: every package, the project templates (`dotnet new openmaui-linux`, `openmaui-linux-xaml`) and the Visual Studio template target `net11.0` and reference MAUI `11.0.0-rc.2.26505.5`; the other Microsoft packages are on their RC2 versions (`11.0.0-rc.2.26504.105`). CommunityToolkit.Maui (15.0.1), its MediaElement (10.0.0), Syncfusion (34.2.9) and the other third-party libraries have no .NET 11 builds yet and run unmodified from their .NET 10 builds.
+- **Runtime patching on .NET 11**: every Lib.Harmony release bundles a MonoMod that refuses CoreCLR 11 ("CoreCLR version 11.0.0 is not supported"), so every runtime bridge (Essentials, the Syncfusion bridge, CommunityToolkit, HybridWebView, visual-tree lookups) would have been skipped. OpenMaui now uses Harmony's Thin package (`Lib.Harmony.Thin` 2.4.3) with `MonoMod.Core` `1.4.0-prerelease.1`, which patches .NET 11 correctly. MonoMod's build-time ".NET 11 unsupported" check is kept out of apps' builds. Plain Lib.Harmony returns once a release supports .NET 11.
+- **Package validation** runs without a baseline until the first 11.x release is published (a `net11.0` package cannot be compared with the `net10.0` 10.0.110.6 baseline).
+- **The stub scan** reads each package's newest .NET build (`lib/netN.0` against `lib/netN.0-windows*`), so MAUI 11's `net11.0` and the libraries still on `net10.0` are both scanned: 2,381 findings reviewed, 58 open.
+
+### Added
+
+- **dotnet/maui's MAUI 11 device tests run against OpenMaui**: the conformance suites compile dotnet/maui's tests at the commit the MAUI 11 RC2 packages were built from. `tests/Conformance/get-maui-sources.sh` fetches a commit, tag or branch (shallow, sparse, blob-less) into `~/.cache/openmaui-build/maui-src-11`. Core 1,631 passed / 91 skipped of 1,722, Controls 608 / 4 of 612, Essentials 240 / 43 of 283: no failures.
+- **Modal pages through MAUI 11's `IModalNavigationPlatform`** (`LinuxModalNavigationPlatform`, registered by `UseLinux` unless the app registers its own `IModalNavigationPlatformFactory`): a modal is on screen before `PushModalAsync` completes, as on MAUI's platforms, and an app's own modal platform is no longer overridden.
+- **Maps: `Pin.ShowInfoWindow` and `HideInfoWindow`** (MAUI 11 commands) select and deselect the pin, and a `MarkerClicked` handler that sets `HideInfoWindow` keeps the pin unselected, as on the other platforms (`LinuxMapHandler.MapShowInfoWindow`, `MapHideInfoWindow`, `SkiaMap.SelectedPin`).
+
+### Fixed
+
+- **`VisualElement.CaptureAsync` and `Window.CaptureAsync` returned null on MAUI 11**, which replaced the keyed capture hooks with `IScreenshot` and `IViewScreenshot`: the Linux screenshot service implements `IViewScreenshot` and `UseLinux` registers `IScreenshot`. `Screenshot.IsCaptureSupported` is true, as on the other platforms; capturing without a window still throws.
+- **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
 
 ## [10.0.110.7] - 2026-10-04
 

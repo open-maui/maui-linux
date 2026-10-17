@@ -1,5 +1,7 @@
 # MAUI handler conformance (dotnet/maui's own tests against the Linux handlers)
 
+Run of 2026-10-17 against MAUI 11 RC2 (dotnet/maui commit `d32b79928709cf53b671336dabd0caef5a679fc2`, branch `release/11.0.1xx-rc2`, the commit the `Microsoft.Maui.*` 11.0.0-rc.2.26505.5 packages were built from). **1722 MAUI tests ported: 1631 passed, 0 failed, 91 skipped.** The port to MAUI 11 is described under "MAUI 11 port" below: the first MAUI 11 run had 1573 passed, 58 failed, 91 skipped. The 10.0.110 history follows.
+
 Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1751 MAUI tests ported: 1660 passed, 0 failed, 91 skipped** (89 are MAUI's container-view tests, which assert a wrapper mechanism no handler outside `Microsoft.Maui.dll` can have on the platform-neutral build, and 2 are tests MAUI itself calls invalid; see "Skipped"). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed". The second round (RefreshView, IndicatorView, SwipeView, View, Element, Window, Page and Navigation ported; the skips re-examined) went from 1419 passed / 103 skipped of 1522 to the numbers above; its fixes are under "Gaps found and fixed, second round".
 
 The suite compiles dotnet/maui's shared handler device tests (`src/Core/tests/DeviceTests/Handlers/*/<X>HandlerTests.cs` and the shared bases in `src/Core/tests/DeviceTests.Shared`) unchanged, against OpenMaui's handlers, so the assertions are MAUI's, not a reading of MAUI. Only the per-platform helper partials (MAUI's `*.Windows.cs` / `*.Android.cs`, "read the value back from the native view") are written for Linux, and they read the Skia platform view.
@@ -10,9 +12,9 @@ Nothing is suppressed: a test that fails stays failing in the project, and a fai
 
 | | |
 |---|---|
-| Project | `tests/Conformance/OpenMaui.Conformance.Tests.csproj` (net10.0, xunit 2.9), not part of `tests/OpenMaui.Controls.Linux.Tests.csproj` (that project now excludes `Conformance\**`) |
-| MAUI sources | a shallow, sparse clone of dotnet/maui at tag 10.0.110, by default in `~/.cache/openmaui-build/maui-src`; `tests/Conformance/get-maui-sources.sh [dest] [tag]` creates it |
-| Build property | `MauiSrc` (default `$(HOME)/.cache/openmaui-build/maui-src`), e.g. `-p:MauiSrc=/path/to/maui` |
+| Project | `tests/Conformance/OpenMaui.Conformance.Tests.csproj` (net11.0, xunit 2.9), not part of `tests/OpenMaui.Controls.Linux.Tests.csproj` (that project now excludes `Conformance\**`) |
+| MAUI sources | a shallow (depth 1), sparse, blob-less checkout of dotnet/maui at commit `d32b7992` (MAUI 11 RC2), by default in `~/.cache/openmaui-build/maui-src-11`; `tests/Conformance/get-maui-sources.sh [dest] [revision]` creates or updates it. `revision` is a commit SHA (fetched directly: `git init`, `fetch --depth 1 <sha>`), a tag or a branch; the default is the RC2 commit. The sparse paths are the four device-test folders the suites compile (`src/Core/tests/DeviceTests`, `src/Core/tests/DeviceTests.Shared`, `src/Controls/tests/DeviceTests`, `src/Essentials/test/DeviceTests`), `src/TestUtils`, and the product sources a port is read against (`src/Controls/src/Core`, `src/Core/src`, `src/Essentials/src`, `src/SingleProject/Resizetizer/src`); about 72 MB |
+| Build property | `MauiSrc` (default `$(HOME)/.cache/openmaui-build/maui-src-11`), e.g. `-p:MauiSrc=/path/to/maui` |
 | Without the clone | the project builds with a warning and contains one skipped test (`MauiSourcesMissing`) that says how to get the sources |
 | Run | `dotnet test tests/Conformance/OpenMaui.Conformance.Tests.csproj` (filter by handler with `--filter Category=Label`, MAUI's category trait) |
 | Report | `python3 tests/Conformance/conformance-report.py <results.trx> [--failures]` prints the per-class table below and every failure's first message line |
@@ -43,57 +45,59 @@ The assembly is named `Microsoft.Maui.Core.DeviceTests`, the name of MAUI's own 
 
 ## Results per test class
 
+MAUI 11 RC2, final run:
+
 | Test class | Ported | Passed | Failed | Skipped |
 |---|---:|---:|---:|---:|
-| ActivityIndicatorHandlerTests | 43 | 40 | 0 | 3 |
-| BorderHandlerTests | 44 | 41 | 0 | 3 |
-| ButtonHandlerTests | 50 | 47 | 0 | 3 |
+| ActivityIndicatorHandlerTests | 42 | 39 | 0 | 3 |
+| BorderHandlerTests | 43 | 40 | 0 | 3 |
+| ButtonHandlerTests | 49 | 46 | 0 | 3 |
 | ButtonHandlerTests+ButtonTextStyleTests | 22 | 22 | 0 | 0 |
-| CheckBoxHandlerTests | 37 | 34 | 0 | 3 |
-| ContentViewTests | 34 | 31 | 0 | 3 |
-| DatePickerHandlerTests | 35 | 32 | 0 | 3 |
+| CheckBoxHandlerTests | 36 | 33 | 0 | 3 |
+| ContentViewTests | 33 | 30 | 0 | 3 |
+| DatePickerHandlerTests | 34 | 31 | 0 | 3 |
 | DatePickerHandlerTests+DatePickerTextStyleTests | 22 | 22 | 0 | 0 |
-| EditorHandlerTests | 126 | 123 | 0 | 3 |
+| EditorHandlerTests | 125 | 122 | 0 | 3 |
 | EditorHandlerTests+EditorFocusTests | 1 | 1 | 0 | 0 |
 | EditorHandlerTests+EditorTextInputTests | 17 | 17 | 0 | 0 |
 | EditorHandlerTests+EditorTextStyleTests | 22 | 22 | 0 | 0 |
 | ElementTests | 3 | 3 | 0 | 0 |
-| EntryHandlerTests | 149 | 146 | 0 | 3 |
+| EntryHandlerTests | 148 | 145 | 0 | 3 |
 | EntryHandlerTests+EntryFocusTests | 1 | 1 | 0 | 0 |
 | EntryHandlerTests+EntryTextInputTests | 17 | 17 | 0 | 0 |
 | EntryHandlerTests+EntryTextStyleTests | 22 | 22 | 0 | 0 |
-| GraphicsViewHandlerTests | 45 | 42 | 0 | 3 |
-| ImageButtonHandlerTests | 34 | 31 | 0 | 3 |
-| ImageButtonHandlerTests+ImageButtonImageHandlerTests | 58 | 55 | 0 | 3 |
-| ImageHandlerTests | 58 | 55 | 0 | 3 |
-| IndicatorViewHandlerTests | 32 | 29 | 0 | 3 |
-| LabelHandlerTests | 61 | 58 | 0 | 3 |
+| GraphicsViewHandlerTests | 44 | 41 | 0 | 3 |
+| ImageButtonHandlerTests | 33 | 30 | 0 | 3 |
+| ImageButtonHandlerTests+ImageButtonImageHandlerTests | 57 | 54 | 0 | 3 |
+| ImageHandlerTests | 57 | 54 | 0 | 3 |
+| IndicatorViewHandlerTests | 31 | 28 | 0 | 3 |
+| LabelHandlerTests | 60 | 57 | 0 | 3 |
 | LabelHandlerTests+LabelTextStyleTests | 22 | 22 | 0 | 0 |
-| LayoutHandlerTests | 49 | 43 | 0 | 6 |
+| LayoutHandlerTests | 48 | 42 | 0 | 6 |
 | NavigationViewHandlerTests | 1 | 1 | 0 | 0 |
-| PageHandlerTests | 34 | 31 | 0 | 3 |
-| PickerHandlerTests | 43 | 40 | 0 | 3 |
+| PageHandlerTests | 33 | 30 | 0 | 3 |
+| PickerHandlerTests | 42 | 39 | 0 | 3 |
 | PickerHandlerTests+PickerTextStyleTests | 22 | 22 | 0 | 0 |
-| ProgressBarHandlerTests | 40 | 37 | 0 | 3 |
-| RadioButtonHandlerTests | 37 | 34 | 0 | 3 |
+| ProgressBarHandlerTests | 39 | 36 | 0 | 3 |
+| RadioButtonHandlerTests | 36 | 33 | 0 | 3 |
 | RadioButtonHandlerTests+RadioButtonTextStyleTests | 22 | 22 | 0 | 0 |
-| RefreshViewHandlerTests | 34 | 31 | 0 | 3 |
-| ScrollViewHandlerTests | 32 | 29 | 0 | 3 |
-| SearchBarHandlerTests | 119 | 116 | 0 | 3 |
+| RefreshViewHandlerTests | 33 | 30 | 0 | 3 |
+| ScrollViewHandlerTests | 31 | 28 | 0 | 3 |
+| SearchBarHandlerTests | 118 | 115 | 0 | 3 |
 | SearchBarHandlerTests+SearchBarTextInputTests | 18 | 18 | 0 | 0 |
 | SearchBarHandlerTests+SearchBarTextStyleTests | 22 | 22 | 0 | 0 |
-| ShapeViewHandlerTests | 48 | 44 | 0 | 4 |
-| SliderHandlerTests | 48 | 45 | 0 | 3 |
-| StepperHandlerTests | 36 | 33 | 0 | 3 |
-| SwipeViewHandlerTests | 33 | 30 | 0 | 3 |
-| SwitchHandlerTests | 38 | 35 | 0 | 3 |
-| TimePickerHandlerTests | 34 | 31 | 0 | 3 |
+| ShapeViewHandlerTests | 47 | 43 | 0 | 4 |
+| SliderHandlerTests | 47 | 44 | 0 | 3 |
+| StepperHandlerTests | 35 | 32 | 0 | 3 |
+| SwipeViewHandlerTests | 32 | 29 | 0 | 3 |
+| SwitchHandlerTests | 37 | 34 | 0 | 3 |
+| TimePickerHandlerTests | 33 | 30 | 0 | 3 |
 | TimePickerHandlerTests+TimePickerTextStyleTests | 22 | 22 | 0 | 0 |
-| ViewHandlerTests | 42 | 39 | 0 | 3 |
+| ViewHandlerTests | 41 | 38 | 0 | 3 |
 | WindowHandlerTests | 22 | 22 | 0 | 0 |
-| **Total** | **1751** | **1660** | **0** | **91** |
+| **Total** | **1722** | **1631** | **0** | **91** |
 
-Every `<X>HandlerTests` row includes the generic tests (about 30) MAUI runs for every handler (`HandlerTestBaseOfT.Tests.cs`: automation id, flow direction, opacity, visibility, semantics, bounds, transforms, constructors, container view).
+Every `<X>HandlerTests` row includes the generic tests (about 30) MAUI runs for every handler (`HandlerTestBaseOfT.Tests.cs`: automation id, flow direction, opacity, visibility, semantics, bounds, transforms, constructors, container view). Each such row has one test fewer than under 10.0.110: MAUI 11 removed the generic `HandlersHaveAllExpectedContructors` (29 tests).
 
 ## Gaps found and fixed (10.0.110.7)
 
@@ -123,7 +127,7 @@ Porting the remaining Core folders and re-examining the skips found these; each 
 - **G19, Window.DisplayDensity was always 1.** The Linux `WindowHandler` did not map MAUI's `RequestDisplayDensity` command; it now answers with the scale of the monitor the window is on (`WindowHandler.MapRequestDisplayDensity`).
 - **G20, an arrange did not run the Frame command.** MAUI's platforms invoke `IView.Frame` on the handler after placing a view (apps extend `ViewCommandMapper` to react); `LinuxViewHandler.PlatformArrange` now does, except for Controls' negative "not laid out yet" frame, as they do.
 - **G21, tooltips were not on the platform view.** `IToolTipElement.ToolTip` is mapped (`ViewHandler.ViewMapper`) to the new `SkiaView.ToolTipText`, as MAUI's platforms put it on the native view, and a core view's tooltip (one that is not a Controls element) is shown on hover too.
-- **G22, VisualElement.CaptureAsync / Window.CaptureAsync returned null.** MAUI built for a platform it has no screenshot code for routes them through keyed DI hooks (`"Microsoft.Maui.ViewCapture"`, `"Microsoft.Maui.WindowCapture"`); `UseLinux` registers both (`Services/ViewCapture.cs`): a view is drawn as laid out at its window's scale, a window as it shows (page, modals, popups). This turns MAUI's `View Renders To Image` (skipped by MAUI on every platform but Android for want of a root window) into 56 passing tests.
+- **G22, VisualElement.CaptureAsync / Window.CaptureAsync returned null.** MAUI 10 built for a platform it has no screenshot code for routes them through keyed DI hooks (`"Microsoft.Maui.ViewCapture"`, `"Microsoft.Maui.WindowCapture"`); `UseLinux` registered both (`Services/ViewCapture.cs`; MAUI 11 replaced the hooks, see M1): a view is drawn as laid out at its window's scale, a window as it shows (page, modals, popups). This turns MAUI's `View Renders To Image` (skipped by MAUI on every platform but Android for want of a root window) into 56 passing tests.
 - **G23, wrapped label text measured the whole width offered.** A word- or character-wrapped label reported the available width; WinUI's TextBlock and UIKit's UILabel report the widest line, so a Start-aligned label (and a frame around it) ends where its text does. `SkiaLabel` now measures the widest wrapped line. (Part of `FrameResizesItsContents`; the main suite's golden images are unchanged.)
 - **G24, SwipeView (26 of the 32 SwipeView tests; previously not ported)**: MAUI's `SwipeViewHandlerTests` drive `SwipeViewHandler` with an `ISwipeView` stub, and OpenMaui's `SwipeViewHandler` is typed to the Controls `SwipeView` (changing its base type would break its public API), so every generic test failed in `SetVirtualView` (port before the fix: 2 passed, 26 failed, 4 skipped; the 2 passes are the generic constructor test and MAUI's `RequestOpen Works Correctly`, which checks the stub without a handler). There is now a handler for any `ISwipeView`, `CoreSwipeViewHandler` (platform view `SkiaSwipeView`), with MAUI's mapper (Content, SwipeTransitionMode, the four item sides, plus Threshold, IsEnabled and Background) and command mapper (RequestOpen, RequestClose) and MAUI-signature `Map*` methods; `UseLinux` registers it for `ISwipeView`, so a library's own swipe view gets it (a library registering MAUI's platform-neutral `SwipeViewHandler` gets it too). The Controls `SwipeViewHandler` now implements `ISwipeViewHandler` and chains its mappers, its existing `Map*` methods forwarding to it. Behaviour fixed on the way, for both handlers, read from MAUI's SwipeView handlers and `MauiSwipeView` (MAUI's Windows `SwipeControl` cannot open programmatically or show item views, so Android/iOS are the reference there):
   - The swipe was never reported back: `SwipeStarted`, `SwipeChanging`, `SwipeEnded` (with MAUI's open decision) and `IsOpen` now reach the view, from a swipe and from `Open`/`Close`.
@@ -138,6 +142,23 @@ Porting the remaining Core folders and re-examining the skips found these; each 
   The main suite covers what the Core tests do not reach (they only run the generic handler tests on the stub): `Handlers/SwipeViewParityTests.cs` and `Views/SkiaSwipeViewTests.cs`.
 
   Public API added (additions only, package validation against 10.0.110.6 passes): `CoreSwipeViewHandler` (`Mapper`, `CommandMapper`, MAUI's `Map*` methods); `SwipeItemViewHandler` (`Mapper`, `CommandMapper`, `MapContent`, `MapVisibility`, `SwipeItem`); `SwipeViewHandler` implements `ISwipeViewHandler`; `SwipeItemMenuItemHandler` (new in this release) now has MAUI's mapper type and `Map*` signatures plus `MapCharacterSpacing`, `MapFont` and an `(IPropertyMapper?)` constructor; `SkiaSwipeView.IsOpen`, `SwipeOffset`, `Threshold`, `TransitionMode`, `SwipeChanging`, `IsOpenChanged`, `Open(OpenSwipeItem)`, `DirectionOf`, `SetItemsMode`/`GetItemsMode`, `SetItemsBehaviorOnInvoked`/`GetItemsBehaviorOnInvoked`; `SwipeOffsetChangedEventArgs`; `SwipeItem.Content`, `SwipeItem.IsEnabled`. Behaviour change: `SkiaSwipeView.LeftSwipeThreshold`/`RightSwipeThreshold` default to 0, meaning the open distance comes from the items (they were a fixed 100 px reveal, which the handler overwrote with `Threshold`). `MapperParityTests` no longer lists `SwipeView.SwipeTransitionMode`.
+
+## MAUI 11 port
+
+The suites were moved from tag 10.0.110 to MAUI 11 RC2 (commit `d32b7992`) after the product was retargeted to net11.0 and `Microsoft.Maui.*` 11.0.0-rc.2.26505.5.
+
+**MAUI's test changes that reach Linux.**
+
+- Core: the generic `HandlersHaveAllExpectedContructors` test is gone (one test fewer per handler class, 1751 to 1722); `Stubs/SwipeItemMenuItemStub.cs` and `Services/EssentialsStaticStateCollection.cs` are new (no Linux tests); the other changes are trimming annotations (`DynamicallyAccessedMembers`) and Android-only branches. Every `MauiPatches.Core.props` replacement still matches unchanged.
+- Controls: new `Elements/Modal/ModalNavigationPlatformTests.cs` (9 tests of MAUI 11's modal-platform extension point, below) and `Elements/Shell/RendererHandlerVariant.cs` (trait constants several files now use); new `GestureManagerTests.cs` (its test is `#if IOS || MACCATALYST || WINDOWS`, nothing for Linux; it covers a backend whose handlers are not `IPlatformViewHandler`, which is OpenMaui's case, on the platforms whose gesture manager needs one). `ModalTests.ModalPageDontLeakWithAnimation` is now Android-only (ModalTests 40 to 39). Many files gained iOS/Mac Catalyst renderer-versus-handler variants (`*NavigationHandlerTests.iOS.cs`, ...), which are platform files and not compiled. `ShellFlyoutTests` now reads the Shell's handler through an `#if ANDROID` / `#elif IOS || MACCATALYST` chain and `ModalTests` registers the iOS `TabbedRenderer` outside Android and Windows; both got a Linux branch in `Controls/MauiPatches.props` (below). Total 604 to 612.
+- Essentials: new `EssentialsStaticStateCollection.cs` (the xunit collection `SecureStorage_Tests` now uses) and two new Linux-running tests, `Permissions_Tests.PostNotifications_CheckStatus_ReturnsValidStatus` and `SecureStorage_Tests.Default_Creation_Uses_Native_PackageName`; both pass. The other new SecureStorage tests are iOS or Windows only. Total 281 to 283.
+
+**Product changes MAUI 11 required.**
+
+- **M1, VisualElement.CaptureAsync / Window.CaptureAsync returned null again (58 Core failures: `View Renders To Image`, 2 per handler class).** MAUI 11 removed the keyed `"Microsoft.Maui.ViewCapture"` / `"Microsoft.Maui.WindowCapture"` hooks (G22): its platform-neutral `ScreenshotDispatch` now resolves `IScreenshot` from the handler's services, requires `IsCaptureSupported`, and calls `IViewScreenshot.CaptureViewAsync(platformView)` (a view's `ContainerView ?? PlatformView`, or the window's platform view). `ScreenshotService` now implements `IViewScreenshot` (a Skia view is drawn as laid out at its window's scale, a window as it shows, as before), `UseLinux` registers `IScreenshot` as the `Screenshot.Default` instance, and the keyed hooks are gone. `ScreenshotService.IsCaptureSupported` is now always true, as on Windows, Android and iOS: it used to be false while the app had no laid-out main window, which would now disable every view capture outside the main window; `CaptureAsync()` still throws without a window, as on the other platforms (main-suite `Screenshot_WithoutRootView_IsSupportedButCaptureThrows`).
+- **M2, modal pages are presented through MAUI 11's `IModalNavigationPlatform` (1 Controls failure: `RegisteredPlatformSuppressesTheBuiltInPresentation`).** MAUI 11 lets a backend present modal pages by registering an `IModalNavigationPlatformFactory`: MAUI keeps the modal stack, the lifecycle events and the reconciliation loop, and calls the platform's `PushModalAsync` / `PopModalAsync` for each page. OpenMaui presented modals from `Window.ModalPushed` / `ModalPopped`, so it also presented them when an app registered its own platform (the test's page got a handler). The new `LinuxModalNavigationPlatform` (registered by `UseLinux` with `TryAdd`, so an app's factory wins) shows and removes the page's layer in the window's `WindowContext`; the window context no longer listens to the modal events. Behaviour that follows MAUI's platform ordering: the modal is on screen before `PushModalAsync` completes and before NavigatedTo and `ModalPushed`, and off screen before the page leaves the window's logical children; a failed presentation faults `PushModalAsync` and MAUI retries it. Modal pages pushed before the window opened, and those of a window shown again with a new handler, are presented when the window context adopts the window or its page gets a handler (`IModalNavigationHost.RequestSync`), which replaces `PresentPendingModals` (C6). Main-suite `ModalNavigationTests` pass unchanged.
+
+**Other MAUI 11 extension points for third-party backends** (seen while porting, not exercised by a Linux test): `IAlertManager` (an alternative to the keyed alert delegates `LinuxAlertManager` registers, which MAUI 11 still honours), `IGesturePlatformManagerFactory`, and the Essentials DI bridge (`UseMauiApp` now sets each static facade from the app's registered service; OpenMaui's registrations resolve to the facade instances, so the bridge is a no-op for them).
 
 ## Skipped
 
@@ -169,6 +190,8 @@ These are not test failures, but each is a place where OpenMaui's public API dif
 
 # Controls device tests (dotnet/maui's Controls tests against OpenMaui)
 
+Run of 2026-10-17 against MAUI 11 RC2 (commit `d32b7992`). **612 MAUI tests ported: 608 passed, 0 failed, 4 skipped** (the same 4 skips). The first MAUI 11 run had 607 passed and 1 failed (M2, under "MAUI 11 port" above).
+
 Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **604 MAUI tests ported (598 at first; `Xaml/XamlTests` added). Before the fixes: 337 passed, 257 failed, 4 skipped. After the first round: 519 passed, 75 failed, 4 skipped. After the second (Shell, TabbedPage and Window; CollectionView, memory, ScrollView and SwipeView; shapes, visual tree, Label and accessibility; window size and wrapped-label width): 600 passed, 0 failed, 4 skipped** (all 4 skips are mechanisms Linux does not have; nothing is BLOCKED).
 
 These are MAUI's `src/Controls/tests/DeviceTests`: real Controls views (`Label`, `Entry`, `CollectionView`, `Shell`, `NavigationPage`, `TabbedPage`, `FlyoutPage`, modal pages, ...) put in a window by MAUI's own `ControlsHandlerTestBase.CreateHandlerAndAddToWindow`, so they exercise the Controls layer the way an app does: page hosting, navigation, Loaded/Unloaded, layout through pages, Controls-only properties (TextTransform, LineBreakMode, MaxLines, AutoSize, ...).
@@ -177,7 +200,7 @@ These are MAUI's `src/Controls/tests/DeviceTests`: real Controls views (`Label`,
 
 | | |
 |---|---|
-| Project | `tests/Conformance/Controls/OpenMaui.Conformance.Controls.Tests.csproj` (net10.0, xunit 2.9). A second project rather than more files in the Core one: MAUI's `Microsoft.Maui.Controls.dll` grants `InternalsVisibleTo` only to the assembly name `Microsoft.Maui.Controls.DeviceTests` (the tests use those internals), and the two suites host views differently (below). The Core project excludes `Controls/**`. |
+| Project | `tests/Conformance/Controls/OpenMaui.Conformance.Controls.Tests.csproj` (net11.0, xunit 2.9). A second project rather than more files in the Core one: MAUI's `Microsoft.Maui.Controls.dll` grants `InternalsVisibleTo` only to the assembly name `Microsoft.Maui.Controls.DeviceTests` (the tests use those internals), and the two suites host views differently (below). The Core project excludes `Controls/**`. |
 | MAUI sources | the same sparse clone the Core suite uses (`tests/Conformance/get-maui-sources.sh`, property `MauiSrc`); without it the project builds with a warning and one skipped test |
 | Run | `dotnet test tests/Conformance/Controls/OpenMaui.Conformance.Controls.Tests.csproj` (about 2 minutes); `--filter Category=Shell` etc. for one area |
 | Report | `python3 tests/Conformance/conformance-report.py <results.trx> [--failures]` |
@@ -195,70 +218,71 @@ These are MAUI's `src/Controls/tests/DeviceTests`: real Controls views (`Label`,
 
 **Shared infrastructure.** `tests/Conformance/Infrastructure` is linked by both projects where the meaning is the same (xunit framework and skip list mechanism, Skia pixel assertions, `LinuxInput`); the suite-specific parts are split out (`AssemblyName.Core.cs`, `HandlerAliases.Core.cs`, `AssertionExtensions.Attach.Core.cs` for the Core suite). `LinuxTestFramework` can now also skip single theory rows (`KnownSkips.ReasonForCase`). The Core suite's results are unchanged (1369 passed, 0 failed, 106 skipped).
 
-**Build-time compile fixes.** Five MAUI files do not compile, or have no branch for this TFM, as they are; they are compiled from a copy under `obj/MauiPatched` with literal replacements listed in `tests/Conformance/Controls/MauiPatches.props` (every replacement must match or the build fails; none changes an assertion): `TextInputTests.cs` (a constraint naming `IPlatformViewHandler` next to `IViewHandler`, a duplicate here), `LabelTests.cs` (two platform `#if` chains with no fallback branch get a Linux branch reading `SkiaLabel`), `ShellFlyoutTests.cs` (`GetSafeArea` returns `Thickness.Zero` on Linux, as on Windows and Android: a desktop window has no safe area), `TestClasses/NestingView.cs` (its platform view is a `SkiaStackLayout`; its `#else` branch is UIKit), `DeviceTests.Shared/ImageAnalysis/RawBitmap.cs` (its capture throws `PlatformNotSupportedException("TODO")` off the platform TFMs; the Linux branch draws the Skia view into BGRA pixels, `Infrastructure/RawBitmap.Linux.cs`). A patch key may climb out of the Controls tests (`../../../Core/tests/DeviceTests.Shared/...`).
+**Build-time compile fixes.** Five MAUI files do not compile, or have no branch for this TFM, as they are; they are compiled from a copy under `obj/MauiPatched` with literal replacements listed in `tests/Conformance/Controls/MauiPatches.props` (every replacement must match or the build fails; none changes an assertion): `TextInputTests.cs` (a constraint naming `IPlatformViewHandler` next to `IViewHandler`, a duplicate here), `LabelTests.cs` (two platform `#if` chains with no fallback branch get a Linux branch reading `SkiaLabel`), `ShellFlyoutTests.cs` (`GetSafeArea` returns `Thickness.Zero` on Linux, as on Windows and Android: a desktop window has no safe area), `TestClasses/NestingView.cs` (its platform view is a `SkiaStackLayout`; its `#else` branch is UIKit), `DeviceTests.Shared/ImageAnalysis/RawBitmap.cs` (its capture throws `PlatformNotSupportedException("TODO")` off the platform TFMs; the Linux branch draws the Skia view into BGRA pixels, `Infrastructure/RawBitmap.Linux.cs`). MAUI 11 added two: `ShellFlyoutTests.cs` reads the Shell's handler as `shellContext` in an `#if ANDROID` / `#elif IOS || MACCATALYST` chain (Linux takes the iOS branch's `(ShellHandler)shell.Handler`, the type the 10.0 tests passed in), and `ModalTests.cs` registers `TabbedViewHandler` on Android and Windows and the iOS `TabbedRenderer` otherwise (Linux takes the Windows branch). A patch key may climb out of the Controls tests (`../../../Core/tests/DeviceTests.Shared/...`).
 
 ### MAUI files compiled in place
 
 - `src/TestUtils/src/DeviceTests/`: `AssertHelpers.cs`, `AssertionExtensions.cs`; `src/Core/tests/DeviceTests.Shared/`: `GlobalNamespaces.cs`, `HandlerTests/{TestBase, HandlerTestBasement, HandlerTestBase}.cs`, `Stubs/*.cs`, `ImageAnalysis/*.cs`
-- `src/Controls/tests/DeviceTests/`: `ControlsHandlerTestBase.cs`, `Extensions.cs`, `TestCategory.cs`, `TextTransformCases.cs`, `MapperTests.cs`, `DispatchingTests.cs`, `Stubs/{ApplicationStub, FrameStub}.cs`, `TestClasses/{LifeCycleTrackingPage, FlyoutPageAlwaysSplit, NestingView}.cs`, `TestCases/{ControlsPageTypesTestCases, ControlsViewTypesTestCases}.cs`, `Memory/MemoryTests.cs`
-- `Elements/`: `FormattedStringTests`, `PlatformBehaviorTests`, `VisualElementTests`, `Accessibility/AccessibilityTests`, `Application/ApplicationTests`, `Border/BorderTests`, `BoxView/BoxViewTests`, `Button/ButtonTests`, `CarouselView/CarouselViewTests`, `CheckBox/CheckBoxTests`, `CollectionView/{CollectionViewTests, CollectionViewSizingTestCase}`, `ContentView/ContentViewTests`, `DatePicker/DatePickerTests`, `Editor/EditorTests`, `Entry/EntryTests`, `FlyoutPage/{FlyoutPageTests, FlyoutPageLayoutBehaviorTestCases}`, `Frame/{FrameTests, FrameHandlerTest}`, `Image/ImageTests`, `Label/LabelTests`, `Layout/LayoutTests`, `Modal/ModalTests`, `NavigationPage/NavigationPageTests`, `Page/PageTests`, `Path/PathTests`, `Picker/PickerTests`, `RadioButton/RadioButtonTests`, `RefreshView/RefreshViewTests`, `ScrollView/ScrollViewTests`, `SearchBar/SearchBarTests`, `Shape/ShapeTests`, `Shell/{ShellTests, ShellFlyoutTests, ShellTabBarTests, ShellFlyoutItemTextColorTests and the Shell*TestCases}`, `Slider/SliderTests`, `SwipeView/SwipeViewTests`, `TabbedPage/TabbedPageTests`, `TemplatedView/TemplatedViewTests`, `TextInput/TextInputTests`, `Toolbar/ToolbarTests`, `View/ViewTests`, `VisualElementTree/{VisualElementTreeTests, FindVisualTreeElementInsideTestCase}`, `Window/{WindowTests, WindowOverlayTests, WindowPageSwapTestCases, ChangingToNewMauiContextDoesntCrashTestCases}`, `ContextFlyout/ContextFlyoutTests` (each `.cs` in that folder)
-- `Xaml/XamlTests.cs` with `Xaml/RadioButtonUsing.xaml(.cs)`: the XAML is compiled by MAUI's own XAML build targets (`MauiXaml` item, a direct `Microsoft.Maui.Controls` 10.0.110 package reference), as an app's is; parsed and compiled XAML with `mscorlib`, `x:Array` and `x:Double` (6, all pass)
+- `src/Controls/tests/DeviceTests/`: `ControlsHandlerTestBase.cs`, `Extensions.cs`, `TestCategory.cs`, `TextTransformCases.cs`, `MapperTests.cs`, `DispatchingTests.cs`, `GestureManagerTests.cs` (MAUI 11; no Linux test), `Stubs/{ApplicationStub, FrameStub}.cs`, `TestClasses/{LifeCycleTrackingPage, FlyoutPageAlwaysSplit, NestingView}.cs`, `TestCases/{ControlsPageTypesTestCases, ControlsViewTypesTestCases}.cs`, `Memory/MemoryTests.cs`
+- `Elements/`: `FormattedStringTests`, `PlatformBehaviorTests`, `VisualElementTests`, `Accessibility/AccessibilityTests`, `Application/ApplicationTests`, `Border/BorderTests`, `BoxView/BoxViewTests`, `Button/ButtonTests`, `CarouselView/CarouselViewTests`, `CheckBox/CheckBoxTests`, `CollectionView/{CollectionViewTests, CollectionViewSizingTestCase}`, `ContentView/ContentViewTests`, `DatePicker/DatePickerTests`, `Editor/EditorTests`, `Entry/EntryTests`, `FlyoutPage/{FlyoutPageTests, FlyoutPageLayoutBehaviorTestCases}`, `Frame/{FrameTests, FrameHandlerTest}`, `Image/ImageTests`, `Label/LabelTests`, `Layout/LayoutTests`, `Modal/{ModalTests, ModalNavigationPlatformTests}`, `NavigationPage/NavigationPageTests`, `Page/PageTests`, `Path/PathTests`, `Picker/PickerTests`, `RadioButton/RadioButtonTests`, `RefreshView/RefreshViewTests`, `ScrollView/ScrollViewTests`, `SearchBar/SearchBarTests`, `Shape/ShapeTests`, `Shell/{ShellTests, RendererHandlerVariant, ShellFlyoutTests, ShellTabBarTests, ShellFlyoutItemTextColorTests and the Shell*TestCases}`, `Slider/SliderTests`, `SwipeView/SwipeViewTests`, `TabbedPage/TabbedPageTests`, `TemplatedView/TemplatedViewTests`, `TextInput/TextInputTests`, `Toolbar/ToolbarTests`, `View/ViewTests`, `VisualElementTree/{VisualElementTreeTests, FindVisualTreeElementInsideTestCase}`, `Window/{WindowTests, WindowOverlayTests, WindowPageSwapTestCases, ChangingToNewMauiContextDoesntCrashTestCases}`, `ContextFlyout/ContextFlyoutTests` (each `.cs` in that folder)
+- `Xaml/XamlTests.cs` with `Xaml/RadioButtonUsing.xaml(.cs)`: the XAML is compiled by MAUI's own XAML build targets (`MauiXaml` item, a direct `Microsoft.Maui.Controls` 11.0.0-rc.2.26505.5 package reference), as an app's is; parsed and compiled XAML with `mscorlib`, `x:Array` and `x:Double` (6, all pass)
 
 Several of these (`RadioButtonTests`, `SliderTests`, `PathTests`, `ApplicationTests`, `ContextFlyoutTests`, whose tests are all in its Windows partial) compile but contain only platform-conditional tests, so they contribute no Linux tests.
 
-Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out-of-process WebKit host a headless test process cannot start), `Map/*` (Maps is a separate package), `TitleBar/TitleBarTests.cs` (the whole file is `#if MACCATALYST`), `MenuFlyoutItem` and `AlertDialog` (iOS and Android files only), `Compatibility/VisualElementRendererTests` (derives from `VisualElementRenderer<T>`, which `Microsoft.Maui.Controls` does not ship for net10.0), `ControlsDeviceTestExtensions.cs` and `MauiProgram.cs` (MAUI's runner setup, replaced by `Infrastructure/`). This is every shared file of `src/Controls/tests/DeviceTests` (audited against the folder for this round).
+Not compiled: `HybridWebView/*`, `WebView/*` (OpenMaui's web views run in an out-of-process WebKit host a headless test process cannot start), `Map/*` (Maps is a separate package), `TitleBar/TitleBarTests.cs` (the whole file is `#if MACCATALYST`), `MenuFlyoutItem` and `AlertDialog` (iOS and Android files only), `Compatibility/VisualElementRendererTests` (derives from `VisualElementRenderer<T>`, which `Microsoft.Maui.Controls` does not ship for the platform-neutral TFM), `ControlsDeviceTestExtensions.cs` and `MauiProgram.cs` (MAUI's runner setup, replaced by `Infrastructure/`). This is every shared file of `src/Controls/tests/DeviceTests` (audited against the folder for this round).
 
 ## Results per test class
 
-"Before" is the first complete run against the unfixed product (the harness was the same except for three translation fixes made later, noted under "Harness corrections").
+MAUI 11 RC2, final run. The 10.0.110 port's first run against the unfixed product (337 passed, 257 failed, 4 skipped of 604) and its fixes are described below; `ModalNavigationPlatformTests` is new in MAUI 11 (8 of 9 passed before M2).
 
-| Test class | Ported | Passed (before) | Failed (before) | Passed | Failed | Skipped |
-|---|---:|---:|---:|---:|---:|---:|
-| AccessibilityTests | 4 | 3 | 1 | 4 | 0 | 0 |
-| AccessibilityTests+InNewWindowCollection | 1 | 0 | 0 | 0 | 0 | 1 |
-| BorderTests | 5 | 4 | 1 | 5 | 0 | 0 |
-| BoxViewTests | 7 | 2 | 5 | 7 | 0 | 0 |
-| ButtonTests | 14 | 9 | 5 | 14 | 0 | 0 |
-| CarouselViewTests | 3 | 2 | 1 | 3 | 0 | 0 |
-| CheckBoxTests | 5 | 2 | 3 | 5 | 0 | 0 |
-| CollectionViewTests | 25 | 11 | 14 | 25 | 0 | 0 |
-| ContentViewTests | 2 | 2 | 0 | 2 | 0 | 0 |
-| DatePickerTests | 2 | 1 | 1 | 2 | 0 | 0 |
-| DispatchingTests | 1 | 1 | 0 | 1 | 0 | 0 |
-| EditorTests | 12 | 11 | 1 | 12 | 0 | 0 |
-| EditorTests+EditorTextInputTests | 40 | 35 | 5 | 40 | 0 | 0 |
-| EntryTests | 10 | 10 | 0 | 10 | 0 | 0 |
-| EntryTests+EntryTextInputTests | 40 | 35 | 5 | 40 | 0 | 0 |
-| FlyoutPageTests | 12 | 3 | 9 | 12 | 0 | 0 |
-| FormattedStringTests | 2 | 1 | 0 | 1 | 0 | 1 |
-| FrameTests | 19 | 13 | 6 | 19 | 0 | 0 |
-| ImageTests | 2 | 2 | 0 | 2 | 0 | 0 |
-| LabelTests | 50 | 26 | 24 | 50 | 0 | 0 |
-| LayoutTests | 35 | 29 | 6 | 35 | 0 | 0 |
-| MapperTests | 2 | 2 | 0 | 2 | 0 | 0 |
-| MemoryTests | 59 | 43 | 15 | 58 | 0 | 1 |
-| ModalTests | 40 | 1 | 39 | 40 | 0 | 0 |
-| NavigationPageTests | 16 | 0 | 16 | 16 | 0 | 0 |
-| PageTests | 13 | 13 | 0 | 13 | 0 | 0 |
-| PickerTests | 4 | 2 | 2 | 4 | 0 | 0 |
-| PlatformBehaviorTests | 1 | 0 | 1 | 1 | 0 | 0 |
-| RefreshViewTests | 8 | 8 | 0 | 8 | 0 | 0 |
-| ScrollViewTests | 11 | 7 | 4 | 11 | 0 | 0 |
-| SearchBarTests | 8 | 8 | 0 | 8 | 0 | 0 |
-| ShapeTests | 3 | 0 | 3 | 3 | 0 | 0 |
-| ShellTests | 49 | 3 | 46 | 49 | 0 | 0 |
-| SwipeViewTests | 2 | 0 | 2 | 2 | 0 | 0 |
-| TabbedPageTests | 12 | 3 | 9 | 12 | 0 | 0 |
-| TemplatedViewTests | 2 | 2 | 0 | 2 | 0 | 0 |
-| ToolbarTests | 12 | 0 | 12 | 12 | 0 | 0 |
-| ViewTests | 37 | 35 | 1 | 36 | 0 | 1 |
-| VisualElementTests | 2 | 2 | 0 | 2 | 0 | 0 |
-| VisualElementTests+NewWindowCollection | 4 | 0 | 4 | 4 | 0 | 0 |
-| VisualElementTreeTests | 9 | 1 | 8 | 9 | 0 | 0 |
-| WindowOverlayTests | 1 | 1 | 0 | 1 | 0 | 0 |
-| WindowTests | 12 | 4 | 8 | 12 | 0 | 0 |
-| XamlTests | 6 | n/a | n/a | 6 | 0 | 0 |
-| **Total** | **604** | **337** | **257** | **600** | **0** | **4** |
+| Test class | Ported | Passed | Failed | Skipped |
+|---|---:|---:|---:|---:|
+| AccessibilityTests | 4 | 4 | 0 | 0 |
+| AccessibilityTests+InNewWindowCollection | 1 | 0 | 0 | 1 |
+| BorderTests | 5 | 5 | 0 | 0 |
+| BoxViewTests | 7 | 7 | 0 | 0 |
+| ButtonTests | 14 | 14 | 0 | 0 |
+| CarouselViewTests | 3 | 3 | 0 | 0 |
+| CheckBoxTests | 5 | 5 | 0 | 0 |
+| CollectionViewTests | 25 | 25 | 0 | 0 |
+| ContentViewTests | 2 | 2 | 0 | 0 |
+| DatePickerTests | 2 | 2 | 0 | 0 |
+| DispatchingTests | 1 | 1 | 0 | 0 |
+| EditorTests | 12 | 12 | 0 | 0 |
+| EditorTests+EditorTextInputTests | 40 | 40 | 0 | 0 |
+| EntryTests | 10 | 10 | 0 | 0 |
+| EntryTests+EntryTextInputTests | 40 | 40 | 0 | 0 |
+| FlyoutPageTests | 12 | 12 | 0 | 0 |
+| FormattedStringTests | 2 | 1 | 0 | 1 |
+| FrameTests | 19 | 19 | 0 | 0 |
+| ImageTests | 2 | 2 | 0 | 0 |
+| LabelTests | 50 | 50 | 0 | 0 |
+| LayoutTests | 35 | 35 | 0 | 0 |
+| MapperTests | 2 | 2 | 0 | 0 |
+| MemoryTests | 59 | 58 | 0 | 1 |
+| ModalNavigationPlatformTests | 9 | 9 | 0 | 0 |
+| ModalTests | 39 | 39 | 0 | 0 |
+| NavigationPageTests | 16 | 16 | 0 | 0 |
+| PageTests | 13 | 13 | 0 | 0 |
+| PickerTests | 4 | 4 | 0 | 0 |
+| PlatformBehaviorTests | 1 | 1 | 0 | 0 |
+| RefreshViewTests | 8 | 8 | 0 | 0 |
+| ScrollViewTests | 11 | 11 | 0 | 0 |
+| SearchBarTests | 8 | 8 | 0 | 0 |
+| ShapeTests | 3 | 3 | 0 | 0 |
+| ShellTests | 49 | 49 | 0 | 0 |
+| SwipeViewTests | 2 | 2 | 0 | 0 |
+| TabbedPageTests | 12 | 12 | 0 | 0 |
+| TemplatedViewTests | 2 | 2 | 0 | 0 |
+| ToolbarTests | 12 | 12 | 0 | 0 |
+| ViewTests | 37 | 36 | 0 | 1 |
+| VisualElementTests | 2 | 2 | 0 | 0 |
+| VisualElementTests+NewWindowCollection | 4 | 4 | 0 | 0 |
+| VisualElementTreeTests | 9 | 9 | 0 | 0 |
+| WindowOverlayTests | 1 | 1 | 0 | 0 |
+| WindowTests | 12 | 12 | 0 | 0 |
+| XamlTests | 6 | 6 | 0 | 0 |
+| **Total** | **612** | **608** | **0** | **4** |
 
 ## Product gaps fixed in this round
 
@@ -345,6 +369,8 @@ Three early failures were the port's, corrected in the Linux helpers: a layout's
 
 # Essentials device tests (dotnet/maui's Essentials tests against OpenMaui)
 
+Run of 2026-10-17 against MAUI 11 RC2 (commit `d32b7992`). **283 MAUI tests ported: 240 passed, 0 failed, 43 skipped on a Plasma desktop; 228 passed, 0 failed, 55 skipped CI-like** (the first MAUI 11 run gave the same numbers: nothing to fix). The two new tests are listed under "MAUI 11 port" above.
+
 Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **281 MAUI tests ported. Before the fixes: 186 passed, 54 failed, 41 skipped. After: 238 passed, 0 failed, 43 skipped on a Plasma desktop (battery, network, URI handlers, KDE keyring); 226 passed, 0 failed, 55 skipped in a CI-like run** (no display, no session bus, no desktop applications). Every skip is a person, hardware, a desktop application or a network service the machine does not have; nothing is BLOCKED.
 
 These are MAUI's `src/Essentials/test/DeviceTests`: the static Essentials facades (`Preferences`, `SecureStorage`, `FileSystem`, `Launcher`, `AppInfo`, `Permissions`, `Screenshot`, ...) exercised the way an app calls them, with OpenMaui's Linux services behind them, as `UseLinux` installs them.
@@ -353,7 +379,7 @@ These are MAUI's `src/Essentials/test/DeviceTests`: the static Essentials facade
 
 | | |
 |---|---|
-| Project | `tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj` (net10.0, xunit 2.9). Its assembly is named `Microsoft.Maui.Essentials.DeviceTests`, MAUI's Essentials test app, which `Microsoft.Maui.Essentials` grants `InternalsVisibleTo` (the tests call `VersionTracking.InitVersionTracking`, `Permissions.EnsureDeclared`, `Preferences.GetPrivatePreferencesSharedName`) |
+| Project | `tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj` (net11.0, xunit 2.9). Its assembly is named `Microsoft.Maui.Essentials.DeviceTests`, MAUI's Essentials test app, which `Microsoft.Maui.Essentials` grants `InternalsVisibleTo` (the tests call `VersionTracking.InitVersionTracking`, `Permissions.EnsureDeclared`, `Preferences.GetPrivatePreferencesSharedName`) |
 | MAUI sources | the same sparse clone (`get-maui-sources.sh` now also checks out `src/Essentials/test/DeviceTests`); property `MauiSrc`; without it the project builds with a warning and one skipped test (`MauiSourcesMissing`) |
 | Run | `dotnet test tests/Conformance/Essentials/OpenMaui.Conformance.Essentials.Tests.csproj` (about 20 seconds); `--filter Category=Preferences` etc. |
 | Report | `python3 tests/Conformance/conformance-report.py <results.trx> [--failures]` |
@@ -369,47 +395,47 @@ These are MAUI's `src/Essentials/test/DeviceTests`: the static Essentials facade
 
 ### MAUI files compiled in place
 
-`src/Essentials/test/DeviceTests/`: `Traits.cs`, `Utils.cs`, and `Tests/`: `Accelerometer`, `ActivityStateManager` (Android-only body, compiles to nothing), `AppActions`, `AppInfo`, `Barometer_Shared`, `Battery`, `Clipboard`, `Compass`, `Connectivity`, `Contacts`, `DeviceDisplay`, `DeviceInfo`, `Email`, `FileSystem`, `Flashlight`, `Geocoding`, `Geolocation`, `Gyroscope`, `HapticFeedback`, `Launcher`, `Magnetometer`, `MainThread`, `Maps`, `Microphone`, `Permissions`, `PhoneDialer` (empty), `Preferences`, `Screenshot`, `SecureStorage`, `Share`, `VersionTracking`, `Vibration`, `WebAuthenticator`, `WebUtils`, `WindowStateManager` (iOS-only body) `_Tests.cs`.
+`src/Essentials/test/DeviceTests/`: `Traits.cs`, `Utils.cs`, `EssentialsStaticStateCollection.cs` (MAUI 11), and `Tests/`: `Accelerometer`, `ActivityStateManager` (Android-only body, compiles to nothing), `AppActions`, `AppInfo`, `Barometer_Shared`, `Battery`, `Clipboard`, `Compass`, `Connectivity`, `Contacts`, `DeviceDisplay`, `DeviceInfo`, `Email`, `FileSystem`, `Flashlight`, `Geocoding`, `Geolocation`, `Gyroscope`, `HapticFeedback`, `Launcher`, `Magnetometer`, `MainThread`, `Maps`, `Microphone`, `Permissions`, `PhoneDialer` (empty), `Preferences`, `Screenshot`, `SecureStorage`, `Share`, `VersionTracking`, `Vibration`, `WebAuthenticator`, `WebUtils`, `WindowStateManager` (iOS-only body) `_Tests.cs`.
 
 ## Results per test class
 
-"Before" is the first run against the unfixed product with the finished harness. "Desktop" is a KDE Plasma 6 laptop session; "headless" is the same machine with no display, no session bus and no desktop applications visible (`DISPLAY=`, `WAYLAND_DISPLAY=`, `DBUS_SESSION_BUS_ADDRESS` pointing nowhere, empty `XDG_DATA_DIRS`), what a CI runner looks like.
+MAUI 11 RC2, final run. "Desktop" is a KDE Plasma 6 laptop session; "headless" is the same machine with no display, no session bus and no desktop applications visible (`DISPLAY=`, `WAYLAND_DISPLAY=`, `DBUS_SESSION_BUS_ADDRESS` pointing nowhere, an empty `XDG_DATA_DIRS`), what a CI runner looks like. The 10.0.110 port's first run against the unfixed product had 186 passed, 54 failed, 41 skipped of 281; its fixes are below.
 
-| Test class | Ported | Before (pass / fail / skip) | After, desktop (pass / fail / skip) | After, headless CI-like (pass / fail / skip) |
-|---|---:|---|---|---|
-| Accelerometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
-| AppActions_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
-| AppInfo_Tests | 6 | 2 / 4 / 0 | 6 / 0 / 0 | 6 / 0 / 0 |
-| Barometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
-| Battery_Tests | 7 | 7 / 0 / 0 | 7 / 0 / 0 | 7 / 0 / 0 |
-| Clipboard_Tests | 4 | 4 / 0 / 0 | 4 / 0 / 0 | 4 / 0 / 0 |
-| Compass_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
-| Connectivity_Tests | 5 | 5 / 0 / 0 | 5 / 0 / 0 | 5 / 0 / 0 |
-| Contacts_Tests | 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 |
-| DeviceDisplay_Tests | 4 | 2 / 2 / 0 | 4 / 0 / 0 | 4 / 0 / 0 |
-| DeviceInfo_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
-| Email_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
-| FileSystem_Tests | 9 | 3 / 6 / 0 | 9 / 0 / 0 | 9 / 0 / 0 |
-| Flashlight_Tests | 1 | 0 / 0 / 1 | 0 / 0 / 1 | 0 / 0 / 1 |
-| Geocoding_Tests | 3 | 0 / 3 / 0 | 3 / 0 / 0 | 3 / 0 / 0 |
-| Geolocation_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
-| Gyroscope_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
-| HapticFeedback_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
-| Launcher_Tests | 20 | 1 / 16 / 3 | 17 / 0 / 3 | 3 / 0 / 17 |
-| Magnetometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 | 1 / 0 / 3 |
-| MainThread_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 | 2 / 0 / 0 |
-| Maps_Tests | 6 | 3 / 1 / 2 | 4 / 0 / 2 | 4 / 0 / 2 |
-| Microphone_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
-| Permissions_Tests | 9 | 0 / 8 / 1 | 8 / 0 / 1 | 8 / 0 / 1 |
-| Preferences_Tests | 125 | 124 / 1 / 0 | 125 / 0 / 0 | 125 / 0 / 0 |
-| Screenshot_Tests | 4 | 0 / 4 / 0 | 4 / 0 / 0 | 4 / 0 / 0 |
-| SecureStorage_Tests | 14 | 12 / 2 / 0 | 12 / 0 / 2 | 14 / 0 / 0 |
-| Share_Tests | 9 | 7 / 2 / 0 | 9 / 0 / 0 | 9 / 0 / 0 |
-| VersionTracking_Tests | 5 | 0 / 5 / 0 | 5 / 0 / 0 | 5 / 0 / 0 |
-| Vibration_Tests | 2 | 0 / 0 / 2 | 0 / 0 / 2 | 0 / 0 / 2 |
-| WebAuthenticator_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 | 0 / 0 / 4 |
-| WebUtils_Tests | 3 | 3 / 0 / 0 | 3 / 0 / 0 | 3 / 0 / 0 |
-| **Total** | **281** | **186 / 54 / 41** | **238 / 0 / 43** | **226 / 0 / 55** |
+| Test class | Ported | Desktop (pass / fail / skip) | Headless CI-like (pass / fail / skip) |
+|---|---:|---|---|
+| Accelerometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 |
+| AppActions_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 |
+| AppInfo_Tests | 6 | 6 / 0 / 0 | 6 / 0 / 0 |
+| Barometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 |
+| Battery_Tests | 7 | 7 / 0 / 0 | 7 / 0 / 0 |
+| Clipboard_Tests | 4 | 4 / 0 / 0 | 4 / 0 / 0 |
+| Compass_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 |
+| Connectivity_Tests | 5 | 5 / 0 / 0 | 5 / 0 / 0 |
+| Contacts_Tests | 1 | 0 / 0 / 1 | 0 / 0 / 1 |
+| DeviceDisplay_Tests | 4 | 4 / 0 / 0 | 4 / 0 / 0 |
+| DeviceInfo_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 |
+| Email_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| FileSystem_Tests | 9 | 9 / 0 / 0 | 9 / 0 / 0 |
+| Flashlight_Tests | 1 | 0 / 0 / 1 | 0 / 0 / 1 |
+| Geocoding_Tests | 3 | 3 / 0 / 0 | 3 / 0 / 0 |
+| Geolocation_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| Gyroscope_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 |
+| HapticFeedback_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 |
+| Launcher_Tests | 20 | 17 / 0 / 3 | 3 / 0 / 17 |
+| Magnetometer_Tests | 4 | 1 / 0 / 3 | 1 / 0 / 3 |
+| MainThread_Tests | 2 | 2 / 0 / 0 | 2 / 0 / 0 |
+| Maps_Tests | 6 | 4 / 0 / 2 | 4 / 0 / 2 |
+| Microphone_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| Permissions_Tests | 10 | 9 / 0 / 1 | 9 / 0 / 1 |
+| Preferences_Tests | 125 | 125 / 0 / 0 | 125 / 0 / 0 |
+| Screenshot_Tests | 4 | 4 / 0 / 0 | 4 / 0 / 0 |
+| SecureStorage_Tests | 15 | 13 / 0 / 2 | 15 / 0 / 0 |
+| Share_Tests | 9 | 9 / 0 / 0 | 9 / 0 / 0 |
+| VersionTracking_Tests | 5 | 5 / 0 / 0 | 5 / 0 / 0 |
+| Vibration_Tests | 2 | 0 / 0 / 2 | 0 / 0 / 2 |
+| WebAuthenticator_Tests | 4 | 0 / 0 / 4 | 0 / 0 / 4 |
+| WebUtils_Tests | 3 | 3 / 0 / 0 | 3 / 0 / 0 |
+| **Total** | **283** | **240 / 0 / 43** | **228 / 0 / 55** |
 
 ## Gaps found and fixed
 
