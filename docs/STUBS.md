@@ -15,16 +15,16 @@ Every finding is reviewed in `tools/StubScan/baseline.json`:
 
 The **Tests** workflow (`.gitea/workflows/tests.yml`) runs the scan. It fails when it finds something that is not in the baseline, which happens when a library update brings in a stub nobody has reviewed. To review new findings, run `dotnet run --project tools/StubScan -- --write-baseline`. That adds them as `unreviewed`, which still fails. Grep the bridge folders for the type, set each finding's status, then commit. Use `--report <file.md>` to list every open member, and `--verbose` to print them all.
 
-## Scan of 2026-10-04
+## Scan of 2026-10-17
 
 Package versions are the ones `tests/Compat` restores:
 
 | Package | Version | Findings | covered | n/a | open |
 |---|---|---:|---:|---:|---:|
-| Microsoft.Maui.Core | 10.0.110 | 573 | 496 | 77 | 0 |
-| Microsoft.Maui.Controls.Core | 10.0.110 | 317 | 274 | 43 | 0 |
-| Microsoft.Maui.Essentials | 10.0.110 | 208 | 186 | 22 | 0 |
-| Microsoft.Maui.Controls.Xaml | 10.0.110 | 0 | 0 | 0 | 0 |
+| Microsoft.Maui.Core | 11.0.0-rc.2.26505.5 | 597 | 497 | 88 | 12 |
+| Microsoft.Maui.Controls.Core | 11.0.0-rc.2.26505.5 | 321 | 272 | 43 | 6 |
+| Microsoft.Maui.Essentials | 11.0.0-rc.2.26505.5 | 248 | 190 | 22 | 36 |
+| Microsoft.Maui.Controls.Xaml | 11.0.0-rc.2.26505.5 | 0 | 0 | 0 | 0 |
 | CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
 | CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
 | CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |
@@ -53,7 +53,7 @@ Package versions are the ones `tests/Compat` restores:
 | Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2313** | **1998** | **311** | **4** |
+| **Total** | | **2381** | **2001** | **322** | **58** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -61,7 +61,10 @@ Counts are per method, so a single gap can be many findings. The Syncfusion Sche
 
 ### Microsoft.Maui.Essentials
 
-No open findings. Where Linux still differs from Windows:
+- **Passkeys** (new in MAUI 11): Windows creates and asserts credentials through `webauthn.dll`. Linux desktops have no system WebAuthn or platform-authenticator API, so `Passkeys.Default` keeps MAUI's platform-neutral implementation: `IsSupported` is false, and `CreateAsync` and `AssertAsync` throw.
+- **WebAuthenticator with a custom URI scheme** (`myapp://callback`): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the activation back to the running instance. On Linux, `WebAuthenticatorService` takes loopback callbacks (`http://localhost:<port>/`, `http://127.0.0.1:<port>/`) only, and throws `NotSupportedException` for a custom scheme. Supporting one would need a desktop-file handler and D-Bus activation.
+
+Where Linux still differs from Windows:
 
 - **Contacts** come from Evolution Data Server, where GNOME Contacts, Evolution and GNOME Online Accounts keep them. A desktop without it (KDE keeps contacts in Akonadi) throws `FeatureNotSupportedException`. A sandbox that blocks it throws `PermissionException`.
 - **Camera capture** shows OpenMaui's own capture dialog over the app window, where Windows opens its Camera app. Videos are MP4 (H.264 and AAC) when GStreamer has those encoders, and WebM otherwise. A sandboxed app reaches the camera through the xdg-desktop-portal Camera interface.
@@ -70,6 +73,11 @@ No open findings. Where Linux still differs from Windows:
 
 ### Microsoft.Maui.Core / Controls
 
+- **Keyboard activation of a tappable Border** (new in MAUI 11 on Windows): a Border with a primary single-tap TapGestureRecognizer, enabled and not InputTransparent, is a tab stop with the system focus visual, and Enter or Space (without a modifier, not auto-repeated) raises its taps at `Point.Zero`. On Linux such a Border is not focusable, and keys do not raise its taps.
+- **ToolbarItem badges** (`BadgeText`, `BadgeColor`, `BadgeTextColor`, new in MAUI 11): Windows overlays an InfoBadge on the item, a number or a dot for empty or non-numeric text. The Linux navigation bar draws no badge.
+- **`NavigationPage.BackButtonAccessibilityLabel`** (new in MAUI 11; Shell's `BackButtonBehavior.AccessibilityLabel` feeds the same Toolbar property): Windows gives the back button that accessible name. The Linux back button does not read it.
+- **SwipeItem icons:** Windows loads any image source for `IconImageSource`, font icons included, tinted with the item's `TextColor`. On Linux the handler keeps only a file source's path and `SkiaSwipeView` draws no icon, so swipe items show their text only.
+- **System animations setting:** Windows follows a change of the system setting while the app runs. `LinuxTicker` reads GNOME's `enable-animations` once, at first use, so a change takes effect at the next start.
 - **HybridWebView:** `WebResourceRequested` is raised for requests to the app origin (`app://0.0.0.1/`) only, as on iOS and Mac Catalyst. WebKit gives an embedder no way to answer http and https requests, which WebView2 on Windows intercepts too. (MAUI 10.0.110's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
 - **Items views:** CollectionView's `IsGrouped`, `CanReorderItems`, `ItemsUpdatingScrollMode` and horizontal grids, and CarouselView's `EmptyView`, scroll bars, `Loop` and vertical layout, are covered. What is left:
   - A reorder drag starts as soon as the pointer moves, by mouse or touch. On Windows a touch drag needs a press-and-hold first; OpenMaui's pointer events do not say which device sent them.
