@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Media;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using SkiaSharp;
@@ -11,25 +10,18 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// <c>IView.CaptureAsync()</c> and <c>IWindow.CaptureAsync()</c> (and so
 /// <c>VisualElement.CaptureAsync()</c> and <c>Window.CaptureAsync()</c>) on Linux. MAUI built
-/// for a platform it has no screenshot code for routes these through keyed DI hooks
-/// (<c>"Microsoft.Maui.ViewCapture"</c>, <c>"Microsoft.Maui.WindowCapture"</c>) that receive
-/// the handler's platform view; without them both return null. A view is captured by drawing
-/// its Skia view, as laid out, into an off-screen surface at its window's scale; a window by
-/// drawing what it shows (its page, modal pages and popups), as Screenshot.CaptureAsync does
-/// for the app's main window.
+/// for a platform it has no screenshot code for resolves <c>IScreenshot</c> from the handler's
+/// services and, when it is also an <c>IViewScreenshot</c>, passes it the handler's platform
+/// view (a view's, or a window's); without one both return null. <see cref="ScreenshotService"/>
+/// is that service and forwards here. A view is captured by drawing its Skia view, as laid out,
+/// into an off-screen surface at its window's scale; a window by drawing what it shows (its
+/// page, modal pages and popups), as Screenshot.CaptureAsync does for the app's main window.
 /// </summary>
 internal static class ViewCapture
 {
-    internal const string ViewCaptureKey = "Microsoft.Maui.ViewCapture";
-    internal const string WindowCaptureKey = "Microsoft.Maui.WindowCapture";
-
-    internal static void Register(IServiceCollection services)
-    {
-        services.AddKeyedSingleton<Func<object, Task<IScreenshotResult?>>>(ViewCaptureKey,
-            (_, _) => platformView => Task.FromResult(CaptureView(platformView)));
-        services.AddKeyedSingleton<Func<object, Task<IScreenshotResult?>>>(WindowCaptureKey,
-            (_, _) => platformWindow => Task.FromResult(CaptureWindow(platformWindow)));
-    }
+    /// <summary>A view or a window, as MAUI's screenshot dispatch passes it; null when it is neither.</summary>
+    internal static IScreenshotResult? Capture(object platformView) =>
+        platformView is SkiaView ? CaptureView(platformView) : CaptureWindow(platformView);
 
     /// <summary>The view as drawn at its bounds, or null when it is not a laid-out Skia view.</summary>
     internal static IScreenshotResult? CaptureView(object platformView)
