@@ -86,8 +86,8 @@ public sealed partial class WindowContext : IDisposable
     /// <see cref="Microsoft.Maui.Controls.Window"/> attaches the Linux
     /// WindowHandler to it (MAUI's AlertManager and ModalNavigationManager
     /// only engage once the window has a handler with a MauiContext) and
-    /// subscribes to its modal push/pop events so modal pages render in this
-    /// window.
+    /// makes this context the one the window's modal pages are presented in
+    /// (<see cref="LinuxModalNavigationPlatform"/>).
     /// </summary>
     public IWindow? MauiWindow
     {
@@ -99,8 +99,7 @@ public sealed partial class WindowContext : IDisposable
 
             if (_mauiWindow is Microsoft.Maui.Controls.Window oldWindow)
             {
-                oldWindow.ModalPushed -= OnMauiModalPushed;
-                oldWindow.ModalPopped -= OnMauiModalPopped;
+                LinuxModalNavigationPlatform.WindowReleased(oldWindow, this);
                 oldWindow.PropertyChanged -= OnMauiWindowPropertyChanged;
             }
 
@@ -109,9 +108,8 @@ public sealed partial class WindowContext : IDisposable
             if (value is Microsoft.Maui.Controls.Window newWindow)
             {
                 LoadedEventPatches.SetWindowClosed(newWindow, false);
+                LinuxModalNavigationPlatform.WindowAdopted(newWindow, this);
                 AttachMauiWindowHandler(newWindow);
-                newWindow.ModalPushed += OnMauiModalPushed;
-                newWindow.ModalPopped += OnMauiModalPopped;
                 newWindow.PropertyChanged += OnMauiWindowPropertyChanged;
                 ApplyInitialGeometry(newWindow);
                 // The native window is already mapped at its size; report it now rather than
@@ -120,7 +118,10 @@ public sealed partial class WindowContext : IDisposable
                     ReportFrame(native.Width, native.Height);
                 else if (IsHeadless)
                     ReportHeadlessFrame();
-                PresentPendingModals(newWindow);
+                // Modal pages pushed before this context adopted the window (in a page
+                // constructor, or before the app's window opened) were recorded by MAUI and
+                // wait for the window's modal platform; ask MAUI to present them now.
+                LinuxModalNavigationPlatform.RequestSync(newWindow);
             }
         }
     }
@@ -1171,59 +1172,24 @@ public sealed partial class WindowContext : IDisposable
     }
 
     /// <summary>
-    /// Modal pages pushed before the window was shown (Navigation.PushModalAsync in a
-    /// page constructor or before the app's window opened) are presented when the
-    /// window adopts the MAUI window, as MAUI's platforms present their pending
-    /// modal stack once the window is ready.
-    /// </summary>
-    private void PresentPendingModals(Microsoft.Maui.Controls.Window window)
-    {
-        try
-        {
-            foreach (var page in window.Navigation.ModalStack)
-            {
-                bool presented = false;
-                for (int i = 0; i < _modals.Count; i++)
-                    presented |= ReferenceEquals(_modals[i].Page, page);
-                if (!presented)
-                    PushModalView(page);
-            }
-        }
-        catch (Exception ex)
-        {
-            DiagnosticLog.Error("WindowContext", "Presenting the modal pages pushed before the window opened failed", ex);
-        }
-    }
-
-    private void OnMauiModalPushed(object? sender, ModalPushedEventArgs e)
-    {
-        try { PushModalView(e.Modal); }
-        catch (Exception ex) { DiagnosticLog.Error("WindowContext", "PushModalAsync platform presentation failed", ex); }
-    }
-
-    private void OnMauiModalPopped(object? sender, ModalPoppedEventArgs e)
-    {
-        try { PopModalView(e.Modal); }
-        catch (Exception ex) { DiagnosticLog.Error("WindowContext", "PopModalAsync platform teardown failed", ex); }
-    }
-
-    /// <summary>
     /// Presents a modal page: renders its Skia tree through
     /// <see cref="LinuxViewRenderer"/>, lays it out to the window, pushes it
     /// as the top input/render layer, and drops focus/hover/capture so the
     /// page beneath stops receiving input. Appearing/Disappearing are raised
-    /// by MAUI's ModalNavigationManager before this runs.
+    /// by MAUI's ModalNavigationManager before this runs
+    /// (<see cref="LinuxModalNavigationPlatform.PushModalAsync"/>). False when
+    /// the page could not be presented.
     /// </summary>
-    internal void PushModalView(Page page)
+    internal bool PushModalView(Page page)
     {
-        if (page == null) return;
+        if (page == null) return false;
 
         var mauiContext = _app.MauiContext
             ?? (_mauiWindow as Microsoft.Maui.Controls.Window)?.Handler?.MauiContext;
         if (mauiContext == null)
         {
             DiagnosticLog.Warn("WindowContext", $"PushModalAsync({page.GetType().Name}): no MAUI context; modal not presented");
-            return;
+            return false;
         }
 
         var renderer = new LinuxViewRenderer(mauiContext);
@@ -1231,7 +1197,7 @@ public sealed partial class WindowContext : IDisposable
         if (view == null)
         {
             DiagnosticLog.Warn("WindowContext", $"PushModalAsync({page.GetType().Name}): page produced no SkiaView; modal not presented");
-            return;
+            return false;
         }
 
         if (RenderingEngine != null)
@@ -1246,6 +1212,7 @@ public sealed partial class WindowContext : IDisposable
         RequestFullRedraw();
         DiagnosticLog.Debug("WindowContext", $"Modal pushed: {page.GetType().Name} (depth {_modals.Count})");
         Diagnostics.VisualTreeInspector.DumpAfterModalIfRequested();
+        return true;
     }
 
     /// <summary>
@@ -1641,8 +1608,7 @@ public sealed partial class WindowContext : IDisposable
 
         if (_mauiWindow is Microsoft.Maui.Controls.Window window)
         {
-            window.ModalPushed -= OnMauiModalPushed;
-            window.ModalPopped -= OnMauiModalPopped;
+            LinuxModalNavigationPlatform.WindowReleased(window, this);
             window.PropertyChanged -= OnMauiWindowPropertyChanged;
         }
 
