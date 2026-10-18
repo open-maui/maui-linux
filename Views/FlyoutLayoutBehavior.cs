@@ -3,6 +3,7 @@
 
 namespace Microsoft.Maui.Platform;
 
+[Obsolete("Use Microsoft.Maui.Controls.FlyoutLayoutBehavior; this type is removed in OpenMaui 11.0.")]
 public enum FlyoutLayoutBehavior
 {
     Default,

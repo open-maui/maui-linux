@@ -19,13 +19,28 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
     private readonly Dictionary<SkiaView, AbsoluteLayoutBounds> _childBounds = new();
 
     /// <summary>
-    /// Adds a child at the specified position and size.
+    /// Adds a child at the specified absolute position and size.
     /// </summary>
-    public void AddChild(SkiaView child, SKRect bounds, AbsoluteLayoutFlags flags = AbsoluteLayoutFlags.None)
+    public void AddChild(SkiaView child, SKRect bounds) => AddChild(child, bounds, Layouts.AbsoluteLayoutFlags.None);
+
+    /// <summary>
+    /// Adds a child at the specified position and size; <paramref name="flags"/> marks the
+    /// values that are proportional.
+    /// </summary>
+    public void AddChild(SkiaView child, SKRect bounds, Layouts.AbsoluteLayoutFlags flags)
     {
         base.AddChild(child);
         _childBounds[child] = new AbsoluteLayoutBounds(bounds, flags);
     }
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>
+    /// Adds a child at the specified position and size.
+    /// </summary>
+    [Obsolete("Use the overload that takes Microsoft.Maui.Layouts.AbsoluteLayoutFlags; this overload is removed in OpenMaui 11.0.")]
+    public void AddChild(SkiaView child, SKRect bounds, AbsoluteLayoutFlags flags = AbsoluteLayoutFlags.None)
+        => AddChild(child, bounds, flags.ToMaui());
+#pragma warning restore CS0618
 
     public override void RemoveChild(SkiaView child)
     {
@@ -40,13 +55,27 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
     {
         return _childBounds.TryGetValue(child, out var bounds)
             ? bounds
-            : new AbsoluteLayoutBounds(SKRect.Empty, AbsoluteLayoutFlags.None);
+            : new AbsoluteLayoutBounds(SKRect.Empty, Layouts.AbsoluteLayoutFlags.None);
     }
 
     /// <summary>
+    /// Sets the absolute layout bounds for a child.
+    /// </summary>
+    public void SetLayoutBounds(SkiaView child, SKRect bounds) => SetLayoutBounds(child, bounds, Layouts.AbsoluteLayoutFlags.None);
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>
     /// Sets the layout bounds for a child.
     /// </summary>
+    [Obsolete("Use the overload that takes Microsoft.Maui.Layouts.AbsoluteLayoutFlags; this overload is removed in OpenMaui 11.0.")]
     public void SetLayoutBounds(SkiaView child, SKRect bounds, AbsoluteLayoutFlags flags = AbsoluteLayoutFlags.None)
+        => SetLayoutBounds(child, bounds, flags.ToMaui());
+#pragma warning restore CS0618
+
+    /// <summary>
+    /// Sets the layout bounds for a child; <paramref name="flags"/> marks the values that are proportional.
+    /// </summary>
+    public void SetLayoutBounds(SkiaView child, SKRect bounds, Layouts.AbsoluteLayoutFlags flags)
     {
         _childBounds[child] = new AbsoluteLayoutBounds(bounds, flags);
         InvalidateMeasure();
@@ -66,21 +95,21 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
 
             var layout = GetLayoutBounds(child);
             var bounds = layout.Bounds;
-            var flags = layout.Flags;
+            var flags = layout.MauiFlags;
 
             // Each dimension as MAUI's AbsoluteLayout measures it: a fraction of
             // the layout when proportional, the child's own size when AutoSize
             // (the handler passes AutoSize as 0), otherwise the given value.
-            double width = flags.HasFlag(AbsoluteLayoutFlags.WidthProportional) ? bounds.Width * availableWidth
+            double width = flags.HasFlag(Layouts.AbsoluteLayoutFlags.WidthProportional) ? bounds.Width * availableWidth
                 : bounds.Width <= 0 ? double.PositiveInfinity : bounds.Width;
-            double height = flags.HasFlag(AbsoluteLayoutFlags.HeightProportional) ? bounds.Height * availableHeight
+            double height = flags.HasFlag(Layouts.AbsoluteLayoutFlags.HeightProportional) ? bounds.Height * availableHeight
                 : bounds.Height <= 0 ? double.PositiveInfinity : bounds.Height;
             var desired = child.Measure(new Size(width, height));
 
             // Only absolutely placed extents grow the layout; proportional ones fill it.
-            if (!flags.HasFlag(AbsoluteLayoutFlags.XProportional) && !flags.HasFlag(AbsoluteLayoutFlags.WidthProportional))
+            if (!flags.HasFlag(Layouts.AbsoluteLayoutFlags.XProportional) && !flags.HasFlag(Layouts.AbsoluteLayoutFlags.WidthProportional))
                 maxRight = Math.Max(maxRight, bounds.Left + (float)(bounds.Width <= 0 ? desired.Width + child.Margin.HorizontalThickness : bounds.Width));
-            if (!flags.HasFlag(AbsoluteLayoutFlags.YProportional) && !flags.HasFlag(AbsoluteLayoutFlags.HeightProportional))
+            if (!flags.HasFlag(Layouts.AbsoluteLayoutFlags.YProportional) && !flags.HasFlag(Layouts.AbsoluteLayoutFlags.HeightProportional))
                 maxBottom = Math.Max(maxBottom, bounds.Top + (float)(bounds.Height <= 0 ? desired.Height + child.Margin.VerticalThickness : bounds.Height));
         }
 
@@ -99,33 +128,33 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
 
             var layout = GetLayoutBounds(child);
             var childBounds = layout.Bounds;
-            var flags = layout.Flags;
+            var flags = layout.MauiFlags;
 
             float x, y, width, height;
 
             // Size first: MAUI defines a proportional position as a fraction of the
             // space left after the child's size ((layout - child) * fraction),
             // so 0.5 centres a child rather than placing its left edge mid-way.
-            if (flags.HasFlag(AbsoluteLayoutFlags.WidthProportional))
+            if (flags.HasFlag(Layouts.AbsoluteLayoutFlags.WidthProportional))
                 width = childBounds.Width * content.Width;
             else if (childBounds.Width <= 0)
                 width = (float)(child.DesiredSize.Width + child.Margin.HorizontalThickness); // AutoSize: the child and its margin
             else
                 width = childBounds.Width;
 
-            if (flags.HasFlag(AbsoluteLayoutFlags.HeightProportional))
+            if (flags.HasFlag(Layouts.AbsoluteLayoutFlags.HeightProportional))
                 height = childBounds.Height * content.Height;
             else if (childBounds.Height <= 0)
                 height = (float)(child.DesiredSize.Height + child.Margin.VerticalThickness);
             else
                 height = childBounds.Height;
 
-            if (flags.HasFlag(AbsoluteLayoutFlags.XProportional))
+            if (flags.HasFlag(Layouts.AbsoluteLayoutFlags.XProportional))
                 x = content.Left + childBounds.Left * Math.Max(0f, content.Width - width);
             else
                 x = content.Left + childBounds.Left;
 
-            if (flags.HasFlag(AbsoluteLayoutFlags.YProportional))
+            if (flags.HasFlag(Layouts.AbsoluteLayoutFlags.YProportional))
                 y = content.Top + childBounds.Top * Math.Max(0f, content.Height - height);
             else
                 y = content.Top + childBounds.Top;
@@ -149,18 +178,32 @@ public class SkiaAbsoluteLayout : SkiaLayoutView
 public readonly struct AbsoluteLayoutBounds
 {
     public SKRect Bounds { get; }
-    public AbsoluteLayoutFlags Flags { get; }
 
-    public AbsoluteLayoutBounds(SKRect bounds, AbsoluteLayoutFlags flags)
+    /// <summary>Which of <see cref="Bounds"/>' values are proportional.</summary>
+    public Layouts.AbsoluteLayoutFlags MauiFlags { get; }
+
+    public AbsoluteLayoutBounds(SKRect bounds, Layouts.AbsoluteLayoutFlags flags)
     {
         Bounds = bounds;
-        Flags = flags;
+        MauiFlags = flags;
     }
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    [Obsolete("Use MauiFlags, which holds Microsoft.Maui.Layouts.AbsoluteLayoutFlags; this property is removed in OpenMaui 11.0.")]
+    public AbsoluteLayoutFlags Flags => MauiFlags.ToLegacy();
+
+    [Obsolete("Use the constructor that takes Microsoft.Maui.Layouts.AbsoluteLayoutFlags; this constructor is removed in OpenMaui 11.0.")]
+    public AbsoluteLayoutBounds(SKRect bounds, AbsoluteLayoutFlags flags)
+        : this(bounds, flags.ToMaui())
+    {
+    }
+#pragma warning restore CS0618
 }
 
 /// <summary>
 /// Flags for absolute layout positioning.
 /// </summary>
+[Obsolete("Use Microsoft.Maui.Layouts.AbsoluteLayoutFlags; this type is removed in OpenMaui 11.0.")]
 [Flags]
 public enum AbsoluteLayoutFlags
 {

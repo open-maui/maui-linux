@@ -126,7 +126,7 @@ public partial class SkiaShell : SkiaLayoutView
             nameof(TabBarHeight),
             typeof(float),
             typeof(SkiaShell),
-            56f,
+            48f,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaShell)b).InvalidateMeasure());
 
@@ -192,7 +192,9 @@ public partial class SkiaShell : SkiaLayoutView
 
     #endregion
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     private readonly List<ShellSection> _sections = new();
+#pragma warning restore CS0618
     private SkiaView? _currentContent;
 
     private void ReadShellThemeColors()
@@ -371,7 +373,9 @@ public partial class SkiaShell : SkiaLayoutView
         return ReferenceEquals(_mauiShell.CurrentPage, page);
     }
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     private static Microsoft.Maui.Controls.Page? ResolveMauiPage(ShellContent item)
+#pragma warning restore CS0618
     {
         if (item.MauiShellContent == null) return null;
         // MAUI's own cache is only populated when the page was created through
@@ -500,11 +504,6 @@ public partial class SkiaShell : SkiaLayoutView
     }
 
     /// <summary>
-    /// Optional header view in the flyout.
-    /// </summary>
-    public SkiaView? FlyoutHeaderView { get; set; }
-
-    /// <summary>
     /// Height of the flyout header.
     /// </summary>
     public float FlyoutHeaderHeight { get; set; } = 140f;
@@ -532,9 +531,10 @@ public partial class SkiaShell : SkiaLayoutView
             var desired = FlyoutHeaderView.Measure(new Size(width, double.PositiveInfinity));
             h = double.IsNaN(desired.Height) || double.IsInfinity(desired.Height) ? FlyoutHeaderHeight : (float)desired.Height;
         }
-        // A collapsing header never gets shorter than an app bar, on every MAUI platform.
+        // A collapsing header is never shorter than its collapsed height (its MinimumHeightRequest,
+        // else an app bar's 56), on every MAUI platform.
         if (FlyoutHeaderBehavior == Microsoft.Maui.Controls.FlyoutHeaderBehavior.CollapseOnScroll)
-            h = Math.Max(h, CollapsedFlyoutHeaderHeight);
+            h = Math.Max(h, CollapsedHeaderHeight);
         return Math.Min(h, Math.Max(0f, maxHeight));
     }
 
@@ -657,7 +657,8 @@ public partial class SkiaShell : SkiaLayoutView
     }
 
     /// <summary>
-    /// Height of the tab bar (when using bottom tabs).
+    /// Height of the tab bar: the top navigation pane that lists the current ShellItem's tabs
+    /// (48 by default, WinUI's top pane height).
     /// </summary>
     public float TabBarHeight
     {
@@ -675,7 +676,8 @@ public partial class SkiaShell : SkiaLayoutView
     }
 
     /// <summary>
-    /// Gets or sets whether the tab bar is visible.
+    /// Without a MAUI Shell attached: whether the top navigation pane lists the current section's
+    /// contents. With one, MAUI's Shell.TabBarIsVisible decides, as on Windows.
     /// </summary>
     public bool TabBarIsVisible
     {
@@ -713,7 +715,9 @@ public partial class SkiaShell : SkiaLayoutView
     /// <summary>
     /// The sections in this shell.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public IReadOnlyList<ShellSection> Sections => _sections;
+#pragma warning restore CS0618
 
     /// <summary>
     /// Gets the currently selected section index.
@@ -822,6 +826,11 @@ public partial class SkiaShell : SkiaLayoutView
             OnMauiShellTitleViewChanged();
             return;
         }
+        if (e.PropertyName == Shell.FlyoutBehaviorProperty.PropertyName)
+        {
+            ApplyMauiFlyoutBehavior();
+            return;
+        }
         if (e.PropertyName != Shell.FlyoutIsPresentedProperty.PropertyName || _syncingFlyoutPresented || _mauiShell == null)
             return;
         _syncingFlyoutPresented = true;
@@ -846,7 +855,11 @@ public partial class SkiaShell : SkiaLayoutView
             OnMauiShellPropertyChanged(shell, new System.ComponentModel.PropertyChangedEventArgs(Shell.FlyoutIsPresentedProperty.PropertyName));
         shell.Navigated += OnMauiShellNavigated;
         if (shell is Microsoft.Maui.Controls.IShellController controller)
+        {
             controller.StructureChanged += OnMauiShellStructureChanged;
+            controller.FlyoutItemsChanged += OnMauiFlyoutItemsChanged;
+        }
+        ObserveFlyoutBehavior(shell);
         ObserveMauiSections();
     }
 
@@ -856,16 +869,26 @@ public partial class SkiaShell : SkiaLayoutView
         StopObservingAppearance(shell);
         shell.Navigated -= OnMauiShellNavigated;
         if (shell is Microsoft.Maui.Controls.IShellController controller)
+        {
             controller.StructureChanged -= OnMauiShellStructureChanged;
+            controller.FlyoutItemsChanged -= OnMauiFlyoutItemsChanged;
+        }
+        StopObservingFlyoutBehavior(shell);
         foreach (var section in _observedSections)
         {
             ((Microsoft.Maui.Controls.IShellSectionController)section).NavigationRequested -= OnMauiNavigationRequested;
+            ((Microsoft.Maui.Controls.IShellSectionController)section).ItemsCollectionChanged -= OnMauiSectionItemsChanged;
             section.PropertyChanged -= OnMauiSelectionPropertyChanged;
         }
         _observedSections.Clear();
         foreach (var item in _observedItems)
+        {
             item.PropertyChanged -= OnMauiSelectionPropertyChanged;
+            ((Microsoft.Maui.Controls.IShellItemController)item).ItemsCollectionChanged -= OnMauiItemSectionsChanged;
+        }
         _observedItems.Clear();
+        _topNavigation?.CloseDropDown();
+        UntrackPaneItems();
     }
 
     private readonly HashSet<Microsoft.Maui.Controls.ShellItem> _observedItems = new();
@@ -876,12 +899,16 @@ public partial class SkiaShell : SkiaLayoutView
         foreach (var item in _mauiShell.Items)
         {
             if (_observedItems.Add(item))
+            {
                 item.PropertyChanged += OnMauiSelectionPropertyChanged;
+                ((Microsoft.Maui.Controls.IShellItemController)item).ItemsCollectionChanged += OnMauiItemSectionsChanged;
+            }
             foreach (var section in item.Items)
             {
                 if (_observedSections.Add(section))
                 {
                     ((Microsoft.Maui.Controls.IShellSectionController)section).NavigationRequested += OnMauiNavigationRequested;
+                    ((Microsoft.Maui.Controls.IShellSectionController)section).ItemsCollectionChanged += OnMauiSectionItemsChanged;
                     section.PropertyChanged += OnMauiSelectionPropertyChanged;
                 }
             }
@@ -892,10 +919,33 @@ public partial class SkiaShell : SkiaLayoutView
     private void OnMauiSelectionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == "CurrentItem")
+        {
+            _topNavigation?.CloseDropDown();
             SyncFromMauiShell();
+        }
     }
 
     private void OnMauiShellStructureChanged(object? sender, EventArgs e) => ObserveMauiSections();
+
+    // A section's visible contents changed (one added, removed, or its IsVisible toggled): the
+    // top navigation pane (its drop-downs, and whether it shows), and the content under it, follow
+    // (Windows' ShellSectionHandler.OnItemsCollectionChanged maps the menu items again).
+    private void OnMauiSectionItemsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        InvalidateMeasure();
+        Invalidate();
+    }
+
+    // An item's visible sections changed: the pane's tabs follow (Windows' ShellItemHandler.OnItemsChanged).
+    private void OnMauiItemSectionsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        ObserveMauiSections();
+        InvalidateMeasure();
+        Invalidate();
+    }
+
+    // MAUI regenerated its flyout items (an item shown or hidden, FlyoutItemIsVisible, MenuItems).
+    private void OnMauiFlyoutItemsChanged(object? sender, EventArgs e) => Invalidate();
 
     private void OnMauiNavigationRequested(object? sender, Microsoft.Maui.Controls.Internals.NavigationRequestedEventArgs e)
     {
@@ -938,6 +988,8 @@ public partial class SkiaShell : SkiaLayoutView
             }
 
             SyncNavigationStack(mauiSection);
+            ApplyMauiFlyoutBehavior();
+            InvalidateMeasure(); // the top tabs follow the section
         }
         catch (Exception ex)
         {
@@ -1112,7 +1164,9 @@ public partial class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Adds a section to the shell.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public void AddSection(ShellSection section)
+#pragma warning restore CS0618
     {
         _sections.Add(section);
 
@@ -1127,7 +1181,9 @@ public partial class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Removes a section from the shell.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public void RemoveSection(ShellSection section)
+#pragma warning restore CS0618
     {
         _sections.Remove(section);
         Invalidate();
@@ -1611,8 +1667,8 @@ public partial class SkiaShell : SkiaLayoutView
         // Measure current content with padding accounted for (consistent with ArrangeOverride)
         if (_currentContent != null)
         {
-            float contentTop = NavBarIsVisible ? NavBarHeight : 0;
-            float contentBottom = IsTabBarShown ? TabBarHeight : 0;
+            float contentTop = (NavBarIsVisible ? NavBarHeight : 0) + TopPaneHeight;
+            float contentBottom = 0;
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             var contentSize = new Size(
                 availableSize.Width - Padding.Left - Padding.Right - flyoutOffset,
@@ -1631,8 +1687,9 @@ public partial class SkiaShell : SkiaLayoutView
         if (_currentContent != null)
         {
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
-            float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + ContentPadding;
-            float contentBottom = (float)bounds.Bottom - (IsTabBarShown ? TabBarHeight : 0) - ContentPadding;
+            // The content is under the navigation bar and the top navigation pane (Windows' Shell).
+            float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + TopPaneHeight + ContentPadding;
+            float contentBottom = (float)bounds.Bottom - ContentPadding;
             var contentBounds = new Rect(
                 bounds.Left + flyoutOffset + ContentPadding,
                 contentTop,
@@ -1641,6 +1698,7 @@ public partial class SkiaShell : SkiaLayoutView
             _currentContent.Arrange(contentBounds);
         }
 
+        ArrangeTopPane();
         return bounds;
     }
 
@@ -1672,6 +1730,11 @@ public partial class SkiaShell : SkiaLayoutView
         // Draw content
         _currentContent?.Draw(canvas);
 
+        // The current ShellItem's tabs: the top navigation pane under the navigation bar, as on Windows.
+        ArrangeTopPane();
+        if (IsTopPaneShown)
+            TopNavigation.Draw(canvas);
+
         // Draw navigation bar (offset for locked flyout)
         if (NavBarIsVisible)
         {
@@ -1684,19 +1747,6 @@ public partial class SkiaShell : SkiaLayoutView
             {
                 DrawNavBar(canvas, bounds);
             }
-        }
-
-        // Draw tab bar: MAUI's sections with a MAUI Shell attached, else the section's contents.
-        if (IsTabBarShown)
-        {
-            if (_mauiShell != null)
-                DrawMauiTabBar(canvas, bounds);
-            else
-                DrawTabBar(canvas, bounds);
-        }
-        else
-        {
-            _tabHits.Clear();
         }
 
         // Draw flyout overlay and panel (non-locked mode)
@@ -1789,232 +1839,7 @@ public partial class SkiaShell : SkiaLayoutView
         canvas.Restore();
     }
 
-    private void DrawTabBar(SKCanvas canvas, SKRect bounds)
-    {
-        if (_selectedSectionIndex < 0 || _selectedSectionIndex >= _sections.Count) return;
-
-        var section = _sections[_selectedSectionIndex];
-        if (section.Items.Count <= 1) return;
-
-        var tabBarBounds = new SKRect(
-            bounds.Left,
-            bounds.Bottom - TabBarHeight,
-            bounds.Right,
-            bounds.Bottom);
-
-        // Draw background
-        using var bgPaint = new SKPaint
-        {
-            Color = SkiaTheme.BackgroundWhiteSK,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRect(tabBarBounds, bgPaint);
-
-        // Draw top border
-        using var borderPaint = new SKPaint
-        {
-            Color = SkiaTheme.Gray300SK,
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1
-        };
-        canvas.DrawLine(tabBarBounds.Left, tabBarBounds.Top, tabBarBounds.Right, tabBarBounds.Top, borderPaint);
-
-        // Draw tabs
-        float tabWidth = tabBarBounds.Width / section.Items.Count;
-
-        using var textFont = SkiaFontFactory.Create(12f);
-        using var textPaint = new SKPaint
-        {
-            IsAntialias = true
-        };
-
-        for (int i = 0; i < section.Items.Count; i++)
-        {
-            var item = section.Items[i];
-            bool isSelected = i == _selectedItemIndex;
-
-            textPaint.Color = isSelected ? _navBarBackgroundColorSK : SkiaTheme.TextTertiarySK;
-
-            textFont.MeasureText(item.Title, out var textBounds);
-
-            float textX = tabBarBounds.Left + i * tabWidth + tabWidth / 2 - textBounds.MidX;
-            float textY = TextRenderingHelper.BaselineForVerticalCenter(textFont, tabBarBounds.MidY);
-
-            canvas.DrawText(item.Title, textX, textY, textFont, textPaint);
-        }
-    }
-
     private const float DefaultFlyoutRowHeight = 48f;
-
-    /// <summary>A flyout row's height: a templated row's measured height, else the built-in 48.</summary>
-    private static float FlyoutRowHeight(ShellSection section, float width)
-    {
-        if (section.TemplateView is not { } view)
-            return DefaultFlyoutRowHeight;
-        var desired = view.Measure(new Size(width, double.PositiveInfinity));
-        return desired.Height > 0 && !double.IsInfinity(desired.Height) ? (float)desired.Height : DefaultFlyoutRowHeight;
-    }
-
-    private float FlyoutItemsHeight(float width)
-    {
-        float total = 0;
-        foreach (var section in _sections)
-            if (section.IsVisibleInFlyout)
-                total += FlyoutRowHeight(section, width);
-        return total;
-    }
-
-    private void DrawFlyout(SKCanvas canvas, SKRect bounds)
-    {
-        bool isLocked = FlyoutBehavior == ShellFlyoutBehavior.Locked;
-
-        // Draw scrim only for non-locked flyout (overlay mode)
-        if (!isLocked)
-        {
-            using var scrimPaint = new SKPaint
-            {
-                Color = SkiaTheme.Shadow40SK.WithAlpha((byte)(100 * _flyoutAnimationProgress)),
-                Style = SKPaintStyle.Fill
-            };
-            canvas.DrawRect(bounds, scrimPaint);
-        }
-
-        // Draw flyout panel — locked mode uses fixed position, overlay mode uses animation
-        float flyoutX = isLocked ? bounds.Left : bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-        var flyoutBounds = new SKRect(
-            flyoutX,
-            bounds.Top,
-            flyoutX + FlyoutWidth,
-            bounds.Bottom);
-
-        using var flyoutPaint = new SKPaint
-        {
-            Color = _flyoutBackgroundColorSK,
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        canvas.DrawRect(flyoutBounds, flyoutPaint);
-
-        // Calculate header and footer heights
-        float headerHeight = ResolveFlyoutHeaderHeight(flyoutBounds.Width, flyoutBounds.Height);
-        float footerHeight = ResolveFlyoutFooterHeight(flyoutBounds.Width);
-
-        // Draw flyout header if present
-        if (FlyoutHeaderView != null)
-        {
-            var headerBounds = new SKRect(flyoutBounds.Left, flyoutBounds.Top, flyoutBounds.Right, flyoutBounds.Top + headerHeight);
-            FlyoutHeaderView.Measure(new Size(headerBounds.Width, headerBounds.Height));
-            FlyoutHeaderView.Arrange(new Rect(headerBounds.Left, headerBounds.Top, headerBounds.Width, headerBounds.Height));
-
-            // If the header view has a BackgroundColor, draw it over the flyout background
-            // to ensure it covers the default flyout color (e.g. white) in the header region
-            if (FlyoutHeaderView.BackgroundColor != null && FlyoutHeaderView.BackgroundColor != Colors.Transparent)
-            {
-                using var headerBgPaint = new SKPaint
-                {
-                    Color = FlyoutHeaderView.BackgroundColor.ToSKColor(),
-                    Style = SKPaintStyle.Fill
-                };
-                canvas.DrawRect(headerBounds, headerBgPaint);
-            }
-
-            FlyoutHeaderView.Draw(canvas);
-        }
-
-        // Draw flyout items with scrolling support
-        float itemsAreaTop = flyoutBounds.Top + headerHeight;
-        float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
-
-        // Flyout content replaces the item list.
-        if (FlyoutContentView is { } flyoutContent)
-        {
-            var contentRect = new Rect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Width, Math.Max(0, itemsAreaBottom - itemsAreaTop));
-            flyoutContent.Measure(new Size(contentRect.Width, contentRect.Height));
-            flyoutContent.Arrange(contentRect);
-            canvas.Save();
-            canvas.ClipRect(new SKRect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Right, itemsAreaBottom));
-            flyoutContent.Draw(canvas);
-            canvas.Restore();
-            DrawFlyoutFooter(canvas, flyoutBounds, footerHeight);
-            return;
-        }
-
-        // Clip to items area (between header and footer)
-        canvas.Save();
-        canvas.ClipRect(new SKRect(flyoutBounds.Left, itemsAreaTop, flyoutBounds.Right, itemsAreaBottom));
-
-        // Apply scroll offset
-        float itemY = itemsAreaTop - _flyoutScrollOffset;
-
-        using var itemTextFont = SkiaFontFactory.Create(14f);
-        using var itemTextPaint = new SKPaint
-        {
-            IsAntialias = true
-        };
-
-        for (int i = 0; i < _sections.Count; i++)
-        {
-            var section = _sections[i];
-            if (!section.IsVisibleInFlyout) continue;
-            bool isSelected = i == _selectedSectionIndex;
-            float itemHeight = FlyoutRowHeight(section, flyoutBounds.Width);
-
-            // Skip items that are scrolled above the visible area
-            if (itemY + itemHeight < itemsAreaTop)
-            {
-                itemY += itemHeight;
-                continue;
-            }
-
-            // Stop if we're below the visible area
-            if (itemY > itemsAreaBottom)
-                break;
-
-            // A templated row draws itself, selection included (it binds IsChecked).
-            if (section.TemplateView is { } rowView)
-            {
-                rowView.Arrange(new Rect(flyoutBounds.Left, itemY, flyoutBounds.Width, itemHeight));
-                rowView.Draw(canvas);
-                itemY += itemHeight;
-                continue;
-            }
-
-            // Draw selection background
-            if (isSelected)
-            {
-                using var selectionPaint = new SKPaint
-                {
-                    Color = SkiaTheme.PrimarySelectionSK,
-                    Style = SKPaintStyle.Fill
-                };
-                var selectionRect = new SKRect(flyoutBounds.Left, itemY, flyoutBounds.Right, itemY + itemHeight);
-                canvas.DrawRect(selectionRect, selectionPaint);
-            }
-
-            itemTextPaint.Color = isSelected ? SKColors.White : _flyoutTextColorSK;
-
-            // Draw icon if available
-            float textStartX = flyoutBounds.Left + 16;
-            var icon = section.IconSource != null ? GetFlyoutIcon(section.IconSource) : GetFlyoutIcon(section.IconPath);
-            if (icon != null)
-            {
-                float iconSize = 24f;
-                float iconX = flyoutBounds.Left + 16;
-                float iconY = itemY + (itemHeight - iconSize) / 2;
-                canvas.DrawBitmap(icon, new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize));
-                textStartX = iconX + iconSize + 12; // gap between icon and text
-            }
-
-            canvas.DrawText(section.Title, textStartX, itemY + 30, itemTextFont, itemTextPaint);
-
-            itemY += itemHeight;
-        }
-
-        canvas.Restore();
-
-        DrawFlyoutFooter(canvas, flyoutBounds, footerHeight);
-    }
 
     private void DrawFlyoutFooter(SKCanvas canvas, SKRect flyoutBounds, float footerHeight)
     {
@@ -2091,11 +1916,9 @@ public partial class SkiaShell : SkiaLayoutView
             return this;
         }
 
-        // Check tab bar
-        if (IsTabBarShown && y > (float)Bounds.Bottom - TabBarHeight)
-        {
-            return this;
-        }
+        // The top navigation pane takes its own input (and keyboard focus).
+        if (IsTopPaneShown && TopNavigation.Bounds.Contains(x, y))
+            return TopNavigation;
 
         // Check content
         if (_currentContent != null)
@@ -2120,61 +1943,8 @@ public partial class SkiaShell : SkiaLayoutView
 
             if (flyoutBounds.Contains(e.X, e.Y))
             {
-                // Calculate header and footer heights
-                float headerHeight = ResolveFlyoutHeaderHeight(flyoutBounds.Width, flyoutBounds.Height);
-                float footerHeight = ResolveFlyoutFooterHeight(flyoutBounds.Width);
-
-                float itemsAreaTop = flyoutBounds.Top + headerHeight;
-                float itemsAreaBottom = flyoutBounds.Bottom - footerHeight;
-
-                // Check footer area — dispatch to footer view for button clicks
-                if (e.Y >= itemsAreaBottom && FlyoutFooterView != null)
-                {
-                    var footerHit = FlyoutFooterView.HitTestAt(e.X, e.Y);
-                    if (footerHit != null)
-                    {
-                        _pressedTarget = footerHit;
-                        footerHit.OnPointerPressed(e);
-                        return;
-                    }
-                }
-
-                // Check header area — dispatch to header view
-                if (e.Y < itemsAreaTop && FlyoutHeaderView != null)
-                {
-                    var headerHit = FlyoutHeaderView.HitTestAt(e.X, e.Y);
-                    if (headerHit != null)
-                    {
-                        _pressedTarget = headerHit;
-                        headerHit.OnPointerPressed(e);
-                        return;
-                    }
-                }
-
-                // Only check items if tap is in items area
-                if (FlyoutContentView == null && e.Y >= itemsAreaTop && e.Y < itemsAreaBottom)
-                {
-                    // Apply scroll offset to find which item was tapped
-                    float itemY = itemsAreaTop - _flyoutScrollOffset;
-
-                    for (int i = 0; i < _sections.Count; i++)
-                    {
-                        if (!_sections[i].IsVisibleInFlyout) continue;
-                        float itemHeight = FlyoutRowHeight(_sections[i], flyoutBounds.Width);
-                        if (e.Y >= itemY && e.Y < itemY + itemHeight)
-                        {
-                            SelectSection(i, 0);
-                            if (!isLocked)
-                            {
-                                FlyoutIsPresented = false;
-                                _flyoutScrollOffset = 0; // Reset scroll when closing
-                            }
-                            e.Handled = true;
-                            return;
-                        }
-                        itemY += itemHeight;
-                    }
-                }
+                if (TryPressFlyout(e, flyoutBounds, isLocked))
+                    return;
             }
             else if (FlyoutIsPresented && !isLocked)
             {
@@ -2222,31 +1992,6 @@ public partial class SkiaShell : SkiaLayoutView
             }
         }
 
-        // Check tab bar tap
-        if (_mauiShell != null && IsTabBarShown && e.Y > (float)Bounds.Bottom - TabBarHeight)
-        {
-            TryPressMauiTab(e.X, e.Y);
-            e.Handled = true;
-            return;
-        }
-        if (_mauiShell == null && TabBarIsVisible && e.Y > (float)Bounds.Bottom - TabBarHeight)
-        {
-            if (_selectedSectionIndex >= 0 && _selectedSectionIndex < _sections.Count)
-            {
-                var section = _sections[_selectedSectionIndex];
-                float tabWidth = (float)Bounds.Width / section.Items.Count;
-                int tappedIndex = (int)((e.X - (float)Bounds.Left) / tabWidth);
-                tappedIndex = Math.Clamp(tappedIndex, 0, section.Items.Count - 1);
-
-                if (tappedIndex != _selectedItemIndex)
-                {
-                    SelectSection(_selectedSectionIndex, tappedIndex);
-                }
-                e.Handled = true;
-                return;
-            }
-        }
-
         base.OnPointerPressed(e);
     }
 
@@ -2264,25 +2009,10 @@ public partial class SkiaShell : SkiaLayoutView
 
     public override void OnScroll(ScrollEventArgs e)
     {
-        if (FlyoutIsPresented && _flyoutAnimationProgress > 0)
+        if (TryScrollFlyout(e))
         {
-            float flyoutX = (float)Bounds.Left - FlyoutWidth + (FlyoutWidth * _flyoutAnimationProgress);
-            var flyoutBounds = new SKRect(flyoutX, (float)Bounds.Top, flyoutX + FlyoutWidth, (float)Bounds.Bottom);
-
-            if (flyoutBounds.Contains(e.X, e.Y))
-            {
-                float headerHeight = ResolveFlyoutHeaderHeight(flyoutBounds.Width, flyoutBounds.Height);
-                float footerHeight = ResolveFlyoutFooterHeight(flyoutBounds.Width);
-                float totalItemsHeight = FlyoutItemsHeight(flyoutBounds.Width);
-                float viewableHeight = flyoutBounds.Height - headerHeight - footerHeight;
-                float maxScroll = Math.Max(0f, totalItemsHeight - viewableHeight);
-
-                _flyoutScrollOffset += e.DeltaY * 30f;
-                _flyoutScrollOffset = Math.Max(0f, Math.Min(_flyoutScrollOffset, maxScroll));
-                Invalidate();
-                e.Handled = true;
-                return;
-            }
+            e.Handled = true;
+            return;
         }
         base.OnScroll(e);
     }
@@ -2312,6 +2042,7 @@ public enum ShellFlyoutBehavior
 /// <summary>
 /// Represents a section in the shell (typically shown in flyout).
 /// </summary>
+[Obsolete("Use SkiaShellSection; this type is removed in OpenMaui 11.0.")]
 public class ShellSection
 {
     /// <summary>
@@ -2355,8 +2086,19 @@ public class ShellSection
 }
 
 /// <summary>
+/// Represents a section in the shell (typically shown in flyout).
+/// (The name <c>ShellSection</c> is also a MAUI Controls type; this is the name to use.)
+/// </summary>
+#pragma warning disable CS0618 // legacy base kept for binary compatibility until OpenMaui 11.0
+public class SkiaShellSection : ShellSection
+#pragma warning restore CS0618
+{
+}
+
+/// <summary>
 /// Represents content within a shell section.
 /// </summary>
+[Obsolete("Use SkiaShellContent; this type is removed in OpenMaui 11.0.")]
 public class ShellContent
 {
     /// <summary>
@@ -2386,14 +2128,30 @@ public class ShellContent
 }
 
 /// <summary>
+/// Represents content within a shell section.
+/// (The name <c>ShellContent</c> is also a MAUI Controls type; this is the name to use.)
+/// </summary>
+#pragma warning disable CS0618 // legacy base kept for binary compatibility until OpenMaui 11.0
+public class SkiaShellContent : ShellContent
+#pragma warning restore CS0618
+{
+}
+
+/// <summary>
 /// Event args for shell navigation events.
 /// </summary>
 public class ShellNavigationEventArgs : EventArgs
 {
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public ShellSection Section { get; }
+#pragma warning restore CS0618
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public ShellContent Content { get; }
+#pragma warning restore CS0618
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public ShellNavigationEventArgs(ShellSection section, ShellContent content)
+#pragma warning restore CS0618
     {
         Section = section;
         Content = content;

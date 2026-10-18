@@ -17,8 +17,10 @@ namespace Microsoft.Maui.Platform;
 /// </summary>
 public class SkiaStackLayout : SkiaLayoutView
 {
+#pragma warning disable CS0618 // legacy StackOrientation storage, kept for binary compatibility until OpenMaui 11.0
     /// <summary>
-    /// Bindable property for Orientation.
+    /// Bindable property for Orientation (stores the legacy
+    /// <c>Microsoft.Maui.Platform.StackOrientation</c>; use <see cref="MauiOrientation"/>).
     /// </summary>
     public static readonly BindableProperty OrientationProperty =
         BindableProperty.Create(
@@ -32,11 +34,22 @@ public class SkiaStackLayout : SkiaLayoutView
     /// <summary>
     /// Gets or sets the orientation of the stack.
     /// </summary>
+    [Obsolete("Use MauiOrientation, which takes Microsoft.Maui.Controls.StackOrientation; this property is removed in OpenMaui 11.0.")]
     public StackOrientation Orientation
     {
         get => (StackOrientation)GetValue(OrientationProperty);
         set => SetValue(OrientationProperty, value);
     }
+
+    /// <summary>
+    /// Gets or sets the orientation of the stack.
+    /// </summary>
+    public Controls.StackOrientation MauiOrientation
+    {
+        get => ((StackOrientation)GetValue(OrientationProperty)).ToMaui();
+        set => SetValue(OrientationProperty, value.ToLegacy());
+    }
+#pragma warning restore CS0618
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -60,7 +73,7 @@ public class SkiaStackLayout : SkiaLayoutView
 
         // For stack layouts, give children infinite size in the stacking direction
         // so they can measure to their natural size
-        var childAvailable = Orientation == StackOrientation.Horizontal
+        var childAvailable = MauiOrientation == Controls.StackOrientation.Horizontal
             ? new Size(double.PositiveInfinity, contentHeight)  // Horizontal: infinite width, constrained height
             : new Size(contentWidth, double.PositiveInfinity);  // Vertical: constrained width, infinite height
 
@@ -80,7 +93,7 @@ public class SkiaStackLayout : SkiaLayoutView
             var childWidth = double.IsNaN(childSize.Width) ? 0f : (float)(childSize.Width + childMargin.HorizontalThickness);
             var childHeight = double.IsNaN(childSize.Height) ? 0f : (float)(childSize.Height + childMargin.VerticalThickness);
 
-            if (Orientation == StackOrientation.Vertical)
+            if (MauiOrientation == Controls.StackOrientation.Vertical)
             {
                 totalHeight += childHeight;
                 maxWidth = Math.Max(maxWidth, childWidth);
@@ -96,7 +109,7 @@ public class SkiaStackLayout : SkiaLayoutView
         var visibleCount = Children.Count(c => c.IsVisible);
         var totalSpacing = (float)(Math.Max(0, visibleCount - 1) * Spacing);
 
-        if (Orientation == StackOrientation.Vertical)
+        if (MauiOrientation == Controls.StackOrientation.Vertical)
         {
             totalHeight += totalSpacing;
             return new Size(
@@ -139,14 +152,14 @@ public class SkiaStackLayout : SkiaLayoutView
                 : (float)(childDesired.Height + slotMargin.VerticalThickness);
 
             float childBoundsLeft, childBoundsTop, childBoundsWidth, childBoundsHeight;
-            if (Orientation == StackOrientation.Vertical)
+            if (MauiOrientation == Controls.StackOrientation.Vertical)
             {
                 // For ScrollView children, give them the remaining viewport height
                 // Clamp to avoid giving them their content size
                 var remainingHeight = Math.Max(0, contentHeight - offset);
                 // (only one that scrolls vertically: a horizontal scroller keeps its content's
                 // height, and taking the rest pushed everything after it out of view).
-                var useHeight = child is SkiaScrollView { Orientation: not (ScrollOrientation.Horizontal or ScrollOrientation.Neither) }
+                var useHeight = child is SkiaScrollView { MauiOrientation: not (Microsoft.Maui.ScrollOrientation.Horizontal or Microsoft.Maui.ScrollOrientation.Neither) }
                     ? remainingHeight
                     : Math.Min(childHeight, remainingHeight > 0 ? remainingHeight : childHeight);
 
@@ -155,23 +168,23 @@ public class SkiaStackLayout : SkiaLayoutView
                 float childLeft = content.Left;
 
                 var hAlign = child.MauiView is IView hv
-                    ? (LayoutAlignment)(int)hv.HorizontalLayoutAlignment
+                    ? hv.HorizontalLayoutAlignment
                     : LayoutAlignmentHelper.MapFromMaui(child.HorizontalOptions);
 
-                if (hAlign == LayoutAlignment.Center)
+                if (hAlign == Primitives.LayoutAlignment.Center)
                 {
                     childLeft = content.Left + (contentWidth - useWidth) / 2;
                 }
-                else if (hAlign == LayoutAlignment.End)
+                else if (hAlign == Primitives.LayoutAlignment.End)
                 {
                     childLeft = content.Left + contentWidth - useWidth;
                 }
-                else if (hAlign == LayoutAlignment.Fill && HasExplicitWidth(child) && useWidth < contentWidth)
+                else if (hAlign == Primitives.LayoutAlignment.Fill && HasExplicitWidth(child) && useWidth < contentWidth)
                 {
                     // MAUI centres a Fill view that has an explicit size (ComputeFrame).
                     childLeft = content.Left + (contentWidth - useWidth) / 2;
                 }
-                else if (hAlign == LayoutAlignment.Fill)
+                else if (hAlign == Primitives.LayoutAlignment.Fill)
                 {
                     useWidth = contentWidth;
                 }
@@ -194,25 +207,25 @@ public class SkiaStackLayout : SkiaLayoutView
                 float childBottomCalc = content.Top + useHeight;
 
                 var vAlign = child.MauiView is IView vv
-                    ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
+                    ? vv.VerticalLayoutAlignment
                     : LayoutAlignmentHelper.MapFromMaui(child.VerticalOptions);
 
-                if (vAlign == LayoutAlignment.Center)
+                if (vAlign == Primitives.LayoutAlignment.Center)
                 {
                     childTop = content.Top + (contentHeight - useHeight) / 2;
                     childBottomCalc = childTop + useHeight;
                 }
-                else if (vAlign == LayoutAlignment.End)
+                else if (vAlign == Primitives.LayoutAlignment.End)
                 {
                     childTop = content.Top + contentHeight - useHeight;
                     childBottomCalc = content.Top + contentHeight;
                 }
-                else if (vAlign == LayoutAlignment.Fill && HasExplicitHeight(child) && useHeight < contentHeight)
+                else if (vAlign == Primitives.LayoutAlignment.Fill && HasExplicitHeight(child) && useHeight < contentHeight)
                 {
                     childTop = content.Top + (contentHeight - useHeight) / 2;
                     childBottomCalc = childTop + useHeight;
                 }
-                else if (vAlign == LayoutAlignment.Fill)
+                else if (vAlign == Primitives.LayoutAlignment.Fill)
                 {
                     childTop = content.Top;
                     childBottomCalc = content.Top + contentHeight;
@@ -247,6 +260,7 @@ public class SkiaStackLayout : SkiaLayoutView
 /// <summary>
 /// Stack orientation options.
 /// </summary>
+[Obsolete("Use Microsoft.Maui.Controls.StackOrientation; this type is removed in OpenMaui 11.0.")]
 public enum StackOrientation
 {
     Vertical,
