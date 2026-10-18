@@ -62,8 +62,8 @@ public sealed partial class WindowContext : IDisposable
         DisplayWindow = displayWindow;
         RenderingEngine = renderingEngine;
         // The window's TitleBar takes presses on its interactive parts in the decoration.
-        if (displayWindow is WaylandWindow wayland)
-            wayland.CsdTitleBarPassthrough = IsTitleBarPassthrough;
+        if (displayWindow is IClientDecoratedWindow decorated)
+            decorated.Decorations.TitleBarPassthrough = IsTitleBarPassthrough;
         ToolTips = new ToolTipController(() => RenderingEngine?.InvalidateAll());
         if (renderingEngine != null)
             renderingEngine.ToolTips = ToolTips;
@@ -112,6 +112,7 @@ public sealed partial class WindowContext : IDisposable
                 AttachMauiWindowHandler(newWindow);
                 newWindow.PropertyChanged += OnMauiWindowPropertyChanged;
                 ApplyInitialGeometry(newWindow);
+                UpdateClientDecorations();
                 // The native window is already mapped at its size; report it now rather than
                 // at the first resize, which may never come.
                 if (DisplayWindow is { } native)
@@ -184,7 +185,7 @@ public sealed partial class WindowContext : IDisposable
             // The descendant's press is cancelled as a press that left it: the pointer exits it
             // (a button drops its pressed state) and is released away from it.
             GestureManager.CancelPointer(captured);
-            var away = new PointerEventArgs(-1_000_000f, -1_000_000f, e.Button);
+            var away = e.At(-1_000_000f, -1_000_000f);
             captured.OnPointerExited(away);
             captured.OnPointerReleased(away);
             if (ReferenceEquals(HoveredView, captured))
@@ -273,7 +274,7 @@ public sealed partial class WindowContext : IDisposable
     /// </summary>
     internal float CsdPointerInsetLogical =>
         RenderingEngine?.TopInsetLogical
-        ?? (DisplayWindow is WaylandWindow w && w.UseCsd ? WaylandWindow.CsdTitlebarHeightLogical : 0f);
+        ?? (DisplayWindow is IClientDecoratedWindow { Decorations.Active: true } ? ClientDecorations.DefaultTitlebarHeight : 0f);
 
     /// <summary>Window-physical pixels to the logical view-tree space pointer dispatch uses.</summary>
     internal (float X, float Y) ToLogicalPoint(double physicalX, double physicalY)
@@ -283,7 +284,7 @@ public sealed partial class WindowContext : IDisposable
     {
         float inset = CsdPointerInsetLogical;
         if (Scale <= 1.0f && inset <= 0f) return e;
-        return new PointerEventArgs(ToLogical(e.X), ToLogical(e.Y) - inset, e.Button);
+        return e.At(ToLogical(e.X), ToLogical(e.Y) - inset);
     }
 
     private ScrollEventArgs ScaleScrollArgs(ScrollEventArgs e)
@@ -700,7 +701,7 @@ public sealed partial class WindowContext : IDisposable
     private static PointerEventArgs InViewSpace(SkiaView view, PointerEventArgs e)
     {
         var p = view.FromWindow(e.X, e.Y);
-        return p.X == e.X && p.Y == e.Y ? e : new PointerEventArgs(p.X, p.Y, e.Button);
+        return p.X == e.X && p.Y == e.Y ? e : e.At(p.X, p.Y);
     }
 
     private CursorType _appliedCursor = CursorType.Arrow;
