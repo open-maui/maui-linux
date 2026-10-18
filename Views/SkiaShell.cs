@@ -888,6 +888,7 @@ public partial class SkiaShell : SkiaLayoutView
         }
         _observedItems.Clear();
         _topNavigation?.CloseDropDown();
+        DetachSearchHandler();
         UntrackPaneItems();
     }
 
@@ -989,6 +990,8 @@ public partial class SkiaShell : SkiaLayoutView
 
             SyncNavigationStack(mauiSection);
             ApplyMauiFlyoutBehavior();
+            // Windows' ShellItemHandler.OnShellNavigated: the presented page's SearchHandler.
+            UpdateSearchHandler();
             InvalidateMeasure(); // the top tabs follow the section
         }
         catch (Exception ex)
@@ -1733,7 +1736,11 @@ public partial class SkiaShell : SkiaLayoutView
         // The current ShellItem's tabs: the top navigation pane under the navigation bar, as on Windows.
         ArrangeTopPane();
         if (IsTopPaneShown)
+        {
             TopNavigation.Draw(canvas);
+            if (IsSearchBoxShown)
+                SearchBox.Draw(canvas);
+        }
 
         // Draw navigation bar (offset for locked flyout)
         if (NavBarIsVisible)
@@ -1915,6 +1922,10 @@ public partial class SkiaShell : SkiaLayoutView
                 return titleHit;
             return this;
         }
+
+        // The search box in the pane takes its own input (its entry the keyboard focus).
+        if (IsSearchBoxShown && SearchBox.Bounds.Contains(x, y))
+            return SearchBox.HitTestAt(x, y) ?? TopNavigation;
 
         // The top navigation pane takes its own input (and keyboard focus).
         if (IsTopPaneShown && TopNavigation.Bounds.Contains(x, y))

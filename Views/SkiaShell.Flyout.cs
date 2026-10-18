@@ -251,7 +251,11 @@ public partial class SkiaShell
         float bottom = panel.Bottom - footer;
         float viewport = Math.Max(0f, bottom - panel.Top);
 
-        // FlyoutContent scrolls itself (it is the app's own view); the header stays put above it.
+        // FlyoutContent scrolls itself (it is the app's own view); the header stays put above it
+        // whatever FlyoutHeaderBehavior says, as on Windows: ShellHandler.Windows.cs moves the
+        // header only from the NavigationView's own MenuItemsScrollViewer (OnScrollViewerViewChanged),
+        // and FlyoutContent replaces those menu items as the pane's custom content
+        // (RootNavigationView.ReplacePaneMenuItemsWithCustomContent), whose scrolling it never sees.
         if (FlyoutContentView != null)
             return new FlyoutGeometry(panel, panel.Top, full, panel.Top + full, panel.Top + full, bottom, footer, 0f, 0f);
 

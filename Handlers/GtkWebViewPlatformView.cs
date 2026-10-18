@@ -48,12 +48,21 @@ public sealed class GtkWebViewPlatformView : IDisposable
     public event EventHandler<(ScriptDialogType Type, string Message, Action<bool> Callback)>? ScriptDialogRequested;
 
     public GtkWebViewPlatformView()
+        : this(IntPtr.Zero)
+    {
+    }
+
+    /// <summary>
+    /// A view in <paramref name="webContext"/> (a WebKitWebContext*), or in WebKit's default
+    /// context when it is zero. The context is fixed for the view's lifetime.
+    /// </summary>
+    internal GtkWebViewPlatformView(IntPtr webContext)
     {
         if (!WebKitNative.Initialize())
         {
             throw new InvalidOperationException("Failed to initialize WebKitGTK. Is libwebkit2gtk-4.x installed?");
         }
-        _widget = WebKitNative.WebViewNew();
+        _widget = webContext == IntPtr.Zero ? WebKitNative.WebViewNew() : WebKitNative.WebViewNewWithContext(webContext);
         if (_widget == IntPtr.Zero)
         {
             throw new InvalidOperationException("Failed to create WebKitWebView widget");

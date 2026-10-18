@@ -16,9 +16,12 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <item><c>PickContactAsync</c>: a contact chooser over the app window (the Windows contact
 /// picker's counterpart); null when the user cancels.</item>
 /// </list>
-/// Without Evolution Data Server (a desktop that keeps contacts elsewhere, KDE's Akonadi for
-/// one) both throw <see cref="FeatureNotSupportedException"/>; when a sandbox does not let the
-/// app reach it, <see cref="PermissionException"/>, as Windows throws when the store is denied.
+/// KDE's contacts are read too, from Akonadi's vCard resources (the Personal Contacts folder
+/// ~/.local/share/contacts, vCard folders and files) and KPeople's vCard folder; Evolution Data
+/// Server's come first (<see cref="DesktopContactSource"/>). With neither, both throw
+/// <see cref="FeatureNotSupportedException"/>; when a sandbox does not let the app reach
+/// Evolution Data Server and there are no readable KDE contacts, <see cref="PermissionException"/>,
+/// as Windows throws when the store is denied.
 /// </summary>
 public class ContactsService : IContacts
 {
@@ -26,7 +29,7 @@ public class ContactsService : IContacts
     private readonly Func<IReadOnlyList<Contact>, Task<Contact?>> _chooser;
 
     public ContactsService()
-        : this(EdsContactSource.Instance, ChooseWithDialogAsync)
+        : this(DesktopContactSource.Instance, ChooseWithDialogAsync)
     {
     }
 

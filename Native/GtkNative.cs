@@ -40,6 +40,10 @@ internal static partial class GtkNative
     [LibraryImport("libgtk-3.so.0")]
     public static partial IntPtr gtk_window_new(int windowType);
 
+    /// <summary>Shows, raises and focuses the window (GTK supplies the last user-interaction time).</summary>
+    [LibraryImport("libgtk-3.so.0")]
+    public static partial void gtk_window_present(IntPtr window);
+
     [LibraryImport("libgtk-3.so.0", StringMarshalling = StringMarshalling.Utf8)]
     public static partial void gtk_window_set_title(IntPtr window, string title);
 
