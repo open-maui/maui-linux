@@ -16,7 +16,9 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                         Microsoft.Maui.Platform.Linux.Services.IX11Surface,
                         Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow,
                         Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl,
-                        Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow
+                        Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow,
+                        IClientDecoratedWindow,
+                        IX11DecorationHost
 {
     private bool _isSuspended;
 
@@ -100,6 +102,17 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
     private CursorType _currentCursorType = CursorType.Arrow;
 
     private static int _eventCounter;
+
+    // Client-side decorations (used while the MAUI window has a TitleBar), the window title
+    // they draw, the maximized state (_NET_WM_STATE) and the resize-edge cursor shown on hover.
+    private readonly X11ClientDecorations _decorations;
+    private string _title;
+    private bool _isMaximized;
+    private IntPtr _netWmStateAtom;
+    private CsdResizeEdge _hoverEdge;
+    private readonly Dictionary<CsdResizeEdge, IntPtr> _edgeCursors = new();
+    private PointerButton _csdSwallowedReleases;
+    private readonly Dictionary<string, bool> _wmSupported = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets the native display handle.
@@ -193,6 +206,8 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
     {
         _width = width;
         _height = height;
+        _title = title ?? string.Empty;
+        _decorations = new X11ClientDecorations(this);
 
         // Open display
         _display = X11.XOpenDisplay(IntPtr.Zero);
@@ -294,6 +309,8 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         _sizeNorthSouthCursor = LoadCursor("ns-resize", 116); // XC_sb_v_double_arrow
         _sizeAllCursor = LoadCursor("move", 52);              // XC_fleur
         _currentCursor = _arrowCursor;
+
+        _netWmStateAtom = X11.XInternAtom(_display, "_NET_WM_STATE", false);
     }
 
     private IntPtr LoadCursor(string themeName, uint fontShape)
@@ -331,8 +348,13 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
             if (cursor != _currentCursor)
             {
                 _currentCursor = cursor;
-                X11.XDefineCursor(_display, _window, _currentCursor);
-                X11.XFlush(_display);
+                // Over a resize edge of our own decorations the edge's cursor stays; the
+                // app's cursor comes back when the pointer leaves the edge.
+                if (_hoverEdge == CsdResizeEdge.None)
+                {
+                    X11.XDefineCursor(_display, _window, _currentCursor);
+                    X11.XFlush(_display);
+                }
             }
         }
     }
@@ -482,8 +504,39 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
     /// </summary>
     public void SetTitle(string title)
     {
+        _title = title ?? string.Empty;
         X11.XStoreName(_display, _window, title);
+        if (_decorations.State.Active)
+            Exposed?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>The window title (drawn in OpenMaui's own titlebar while it draws the decorations).</summary>
+    public string Title => _title;
+
+    /// <summary>Whether the window manager has the window maximized (both axes in _NET_WM_STATE).</summary>
+    public bool IsMaximized => _isMaximized;
+
+    /// <summary>Whether OpenMaui draws the window's decorations (the window has a TitleBar).</summary>
+    public bool UseCsd => _decorations.State.Active;
+
+    ClientDecorations IClientDecoratedWindow.Decorations => _decorations.State;
+
+    /// <inheritdoc cref="IClientDecoratedWindow.SetClientDecorationsWanted"/>
+    public void SetClientDecorationsWanted(bool wanted)
+    {
+        if (_display == IntPtr.Zero || _window == IntPtr.Zero)
+            return;
+        if (!_decorations.SetWanted(wanted))
+            return;
+        DiagnosticLog.Debug("X11Window", $"Client-side decorations {(wanted ? "on (window manager frame off)" : "off (window manager frame on)")}");
+        if (!wanted)
+            SetHoverEdge(CsdResizeEdge.None);
+        // The titlebar's inset changes the page's area.
+        Exposed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private float LogicalWidth => _scale > 0f ? _width / _scale : _width;
+    private float LogicalHeight => _scale > 0f ? _height / _scale : _height;
 
     /// <summary>
     /// Resizes the window.
@@ -753,6 +806,11 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 break;
 
             case XEventType.PropertyNotify:
+                if (xEvent.PropertyEvent.Window == _window && xEvent.PropertyEvent.Atom == _netWmStateAtom)
+                {
+                    RefreshMaximized();
+                    break;
+                }
                 if (xEvent.PropertyEvent.Window == _rootWindow)
                 {
                     if (xEvent.PropertyEvent.Atom == _resourceManagerAtom)
@@ -836,6 +894,24 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         }
 
         var button = MapButton(buttonEvent.Button);
+
+        // A new press: the release of an earlier one the window manager took over (a move or
+        // resize ends inside its grab, so that release may never reach us) is not pending.
+        _csdSwallowedReleases &= ~button;
+
+        // Our own decorations take presses on the titlebar, the window buttons and the edges.
+        if (_decorations.State.Active && button is PointerButton.Left or PointerButton.Right)
+        {
+            float scale = _scale > 0f ? _scale : 1f;
+            if (_decorations.HandlePress(button, buttonEvent.X / scale, buttonEvent.Y / scale,
+                    buttonEvent.XRoot, buttonEvent.YRoot, buttonEvent.Time,
+                    LogicalWidth, LogicalHeight, _isMaximized))
+            {
+                _csdSwallowedReleases |= button;
+                return;
+            }
+        }
+
         PointerPressed?.Invoke(this, new PointerEventArgs(buttonEvent.X, buttonEvent.Y, button));
     }
 
@@ -846,13 +922,175 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
             return;
 
         var button = MapButton(buttonEvent.Button);
+        // The release of a press the decorations took (the views never saw the press).
+        if ((_csdSwallowedReleases & button) != 0 && button != PointerButton.None)
+        {
+            _csdSwallowedReleases &= ~button;
+            return;
+        }
         PointerReleased?.Invoke(this, new PointerEventArgs(buttonEvent.X, buttonEvent.Y, button));
     }
 
     private void HandleMotion(ref XMotionEvent motionEvent)
     {
+        if (_decorations.State.Active)
+        {
+            float scale = _scale > 0f ? _scale : 1f;
+            SetHoverEdge(ClientDecorations.EdgeAt(motionEvent.X / scale, motionEvent.Y / scale,
+                LogicalWidth, LogicalHeight, _isMaximized));
+        }
         PointerMoved?.Invoke(this, new PointerEventArgs(motionEvent.X, motionEvent.Y));
     }
+
+    /// <summary>
+    /// Shows the resize cursor while the pointer is over an edge our decorations resize, and the
+    /// app's cursor again when it leaves.
+    /// </summary>
+    private void SetHoverEdge(CsdResizeEdge edge)
+    {
+        if (edge == _hoverEdge || _display == IntPtr.Zero)
+            return;
+        _hoverEdge = edge;
+        X11.XDefineCursor(_display, _window, edge == CsdResizeEdge.None ? _currentCursor : EdgeCursor(edge));
+        X11.XFlush(_display);
+    }
+
+    private IntPtr EdgeCursor(CsdResizeEdge edge)
+    {
+        if (_edgeCursors.TryGetValue(edge, out var cursor))
+            return cursor;
+        cursor = edge switch
+        {
+            CsdResizeEdge.Top or CsdResizeEdge.Bottom => _sizeNorthSouthCursor,
+            CsdResizeEdge.Left or CsdResizeEdge.Right => _sizeWestEastCursor,
+            CsdResizeEdge.TopLeft => LoadCursor("nw-resize", 134),     // XC_top_left_corner
+            CsdResizeEdge.TopRight => LoadCursor("ne-resize", 136),    // XC_top_right_corner
+            CsdResizeEdge.BottomLeft => LoadCursor("sw-resize", 12),   // XC_bottom_left_corner
+            CsdResizeEdge.BottomRight => LoadCursor("se-resize", 14),  // XC_bottom_right_corner
+            _ => _arrowCursor,
+        };
+        _edgeCursors[edge] = cursor;
+        return cursor;
+    }
+
+    /// <summary>Re-reads _NET_WM_STATE: maximized when both maximized axes are listed.</summary>
+    private void RefreshMaximized()
+    {
+        bool maximized = false;
+        try
+        {
+            var atoms = ReadAtomList(_window, _netWmStateAtom);
+            var vert = (long)X11.XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_VERT", false);
+            var horz = (long)X11.XInternAtom(_display, "_NET_WM_STATE_MAXIMIZED_HORZ", false);
+            maximized = atoms.Contains(vert) && atoms.Contains(horz);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("X11Window", $"Reading _NET_WM_STATE failed: {ex.Message}");
+            return;
+        }
+        if (maximized == _isMaximized)
+            return;
+        _isMaximized = maximized;
+        if (maximized)
+            SetHoverEdge(CsdResizeEdge.None);
+        // The maximize button's glyph follows the state.
+        if (_decorations.State.Active)
+            Exposed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>A format-32 ATOM-list property of a window (empty when absent).</summary>
+    private List<long> ReadAtomList(IntPtr window, IntPtr property)
+    {
+        var result = new List<long>();
+        const long XaAtom = 4;
+        int status = X11.XGetWindowProperty(_display, window, property, 0, 4096, false, (IntPtr)XaAtom,
+            out _, out int format, out IntPtr nitems, out _, out IntPtr data);
+        if (status != 0 || data == IntPtr.Zero)
+            return result;
+        try
+        {
+            // Format-32 items are C longs in client memory.
+            if (format == 32)
+            {
+                long count = (long)nitems;
+                for (long i = 0; i < count; i++)
+                    result.Add((long)System.Runtime.InteropServices.Marshal.ReadIntPtr(data, (int)(i * IntPtr.Size)));
+            }
+        }
+        finally
+        {
+            X11.XFree(data);
+        }
+        return result;
+    }
+
+    #region IX11DecorationHost (Xlib side of the client-side decorations)
+
+    long IX11DecorationHost.Atom(string name) => (long)X11.XInternAtom(_display, name, false);
+
+    unsafe void IX11DecorationHost.SetProperty32(string property, string type, long[] values)
+    {
+        // Format-32 property data is an array of C longs.
+        var data = new nint[values.Length];
+        for (int i = 0; i < values.Length; i++)
+            data[i] = (nint)values[i];
+        var propertyAtom = X11.XInternAtom(_display, property, false);
+        var typeAtom = X11.XInternAtom(_display, type, false);
+        fixed (nint* ptr = data)
+        {
+            X11.XChangeProperty(_display, _window, propertyAtom, typeAtom, 32, 0 /* PropModeReplace */, (IntPtr)ptr, data.Length);
+        }
+    }
+
+    void IX11DecorationHost.SendRootClientMessage(string messageType, long[] data)
+    {
+        var xev = new XEvent();
+        xev.ClientMessageEvent.Type = X11.ClientMessage;
+        xev.ClientMessageEvent.Window = _window;
+        xev.ClientMessageEvent.MessageType = X11.XInternAtom(_display, messageType, false);
+        xev.ClientMessageEvent.Format = 32;
+        xev.ClientMessageEvent.Data.L0 = data.Length > 0 ? data[0] : 0;
+        xev.ClientMessageEvent.Data.L1 = data.Length > 1 ? data[1] : 0;
+        xev.ClientMessageEvent.Data.L2 = data.Length > 2 ? data[2] : 0;
+        xev.ClientMessageEvent.Data.L3 = data.Length > 3 ? data[3] : 0;
+        xev.ClientMessageEvent.Data.L4 = data.Length > 4 ? data[4] : 0;
+        X11.XSendEvent(_display, _rootWindow, false,
+            X11.SubstructureRedirectMask | X11.SubstructureNotifyMask, ref xev);
+    }
+
+    void IX11DecorationHost.UngrabPointer(ulong time) => X11.XUngrabPointer(_display, time);
+
+    bool IX11DecorationHost.WmSupports(string atom)
+    {
+        if (_wmSupported.TryGetValue(atom, out var supported))
+            return supported;
+        try
+        {
+            var list = ReadAtomList(_rootWindow, X11.XInternAtom(_display, "_NET_SUPPORTED", false));
+            supported = list.Contains((long)X11.XInternAtom(_display, atom, false));
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Debug("X11Window", $"Reading _NET_SUPPORTED failed: {ex.Message}");
+            supported = false;
+        }
+        _wmSupported[atom] = supported;
+        return supported;
+    }
+
+    void IX11DecorationHost.Iconify() => Minimize();
+
+    void IX11DecorationHost.RequestClose()
+    {
+        // As WM_DELETE_WINDOW from the window manager's close button.
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+        _isRunning = false;
+    }
+
+    void IX11DecorationHost.Flush() => X11.XFlush(_display);
+
+    #endregion
 
     private bool _resizePending;
     private int _pendingWidth, _pendingHeight;
@@ -932,6 +1170,14 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 if (_sizeWestEastCursor != IntPtr.Zero) X11.XFreeCursor(_display, _sizeWestEastCursor);
                 if (_sizeNorthSouthCursor != IntPtr.Zero) X11.XFreeCursor(_display, _sizeNorthSouthCursor);
                 if (_sizeAllCursor != IntPtr.Zero) X11.XFreeCursor(_display, _sizeAllCursor);
+                foreach (var (edge, edgeCursor) in _edgeCursors)
+                {
+                    // Top/bottom/left/right reuse the size cursors freed above.
+                    if (edge is CsdResizeEdge.TopLeft or CsdResizeEdge.TopRight or CsdResizeEdge.BottomLeft or CsdResizeEdge.BottomRight
+                        && edgeCursor != IntPtr.Zero)
+                        X11.XFreeCursor(_display, edgeCursor);
+                }
+                _edgeCursors.Clear();
                 _arrowCursor = IntPtr.Zero;
                 _handCursor = IntPtr.Zero;
                 _textCursor = IntPtr.Zero;
