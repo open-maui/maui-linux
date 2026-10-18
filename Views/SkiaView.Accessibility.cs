@@ -346,6 +346,23 @@ public abstract partial class SkiaView
     }
 
     /// <summary>
+    /// Tells assistive technology that a property of <paramref name="accessible"/> (a view, or a
+    /// part one draws) changed, when a screen reader is listening.
+    /// </summary>
+    internal static void NotifyAccessibleChanged(IAccessible accessible, AccessibleProperty property)
+    {
+        try
+        {
+            if (_accessibilityInitialized && _accessibilityService is { IsEnabled: true } service)
+                service.NotifyPropertyChanged(accessible, property);
+        }
+        catch (Exception)
+        {
+            // Accessibility is optional.
+        }
+    }
+
+    /// <summary>
     /// Gets the default accessible name based on view content.
     /// </summary>
     protected virtual string GetDefaultAccessibleName() => string.Empty;

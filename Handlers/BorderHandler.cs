@@ -64,6 +64,9 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         {
             platformView.MauiView = view;
         }
+        // A Border with a primary single-tap recognizer is a tab stop that Enter and Space
+        // activate (MAUI 11's GesturePlatformManager on Windows).
+        platformView.AttachTapStop(VirtualView as View);
 
         // Explicitly map size requests since they may be set before handler creation.
         // Background/BackgroundColor are deliberately NOT echoed here: when MauiView
@@ -86,6 +89,7 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
 
     protected override void DisconnectHandler(SkiaBorder platformView)
     {
+        platformView.AttachTapStop(null);
         platformView.MauiView = null;
         VisualStateBridge.Detach(platformView);
         base.DisconnectHandler(platformView);
