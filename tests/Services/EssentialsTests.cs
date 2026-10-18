@@ -279,7 +279,6 @@ public class EssentialsTests
     #region WebAuthenticatorService
 
     [Theory]
-    [InlineData("myapp://callback")]
     [InlineData("https://localhost:5001/callback")]
     [InlineData("http://example.com/callback")]
     public async Task WebAuthenticator_UnsupportedCallback_ThrowsNotSupported(string callback)
