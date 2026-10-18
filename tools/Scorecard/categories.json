@@ -987,11 +987,11 @@
       },
       {
         "name": "MarketAlly.Mopups (Mopups fork)",
-        "version": "3.0.12",
+        "version": "3.0.13",
         "tests": [
           "MarketAllyMopupsCompatTests"
         ],
-        "notEvaluated": "The published 3.0.12 presents popups as modal pages on generic net10.0: it was built without the change that takes the IPopupPlatform OpenMaui registers (popups as window layers, click-through backgrounds, no Disappearing on the page beneath). MarketAllyMopupsCompatTests (7 tests) are ready and skipped until the release that includes it."
+        "notes": "Generic net10.0 asset, ConfigureMopups() and MopupService. Popups are window layers (no modal navigation, no Disappearing on the page beneath); default scale animation; background click with CloseWhenBackgroundIsClicked on and off; BackgroundInputTransparent; PopAllAsync. Needs 3.0.13 or later: 3.0.12 always used modal pages. Needed the dimmed-backdrop click fix."
       },
       {
         "name": "Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler, DataGrid, ImageEditor, PullToRefresh, Toolbar)",
