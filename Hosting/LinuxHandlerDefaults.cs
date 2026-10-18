@@ -91,9 +91,17 @@ internal static class LinuxHandlerDefaults
     {
         var implementation = descriptor.ImplementationType;
         if (implementation == null)
-            return true; // a factory or instance registration is always the app's or a library's
+            return !IsMauiFactory(descriptor); // MAUI 11 registers its own handlers as factories
         return !IsMauiHandler(implementation) && implementation.Assembly != typeof(LinuxHandlerDefaults).Assembly;
     }
+
+    /// <summary>
+    /// True when <paramref name="descriptor"/> is a factory registration made by MAUI itself
+    /// (MAUI 11's <c>AddHandler&lt;Button&gt;(static _ =&gt; new ButtonHandler())</c>): its delegate's
+    /// code lives in a MAUI assembly, as that of MAUI's portable handler types does.
+    /// </summary>
+    internal static bool IsMauiFactory(ServiceDescriptor descriptor) =>
+        descriptor.ImplementationFactory?.Method.DeclaringType is { } declaring && IsMauiHandler(declaring);
 
     /// <summary>True when <paramref name="handlerType"/> is one of MAUI's own (portable) handlers.</summary>
     internal static bool IsMauiHandler(Type handlerType) => s_mauiAssemblies.GetOrAdd(handlerType.Assembly, assembly =>

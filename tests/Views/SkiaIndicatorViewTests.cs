@@ -16,7 +16,7 @@ public class SkiaIndicatorViewTests
 
         Assert.Equal(0, indicator.Count);
         Assert.Equal(0, indicator.Position);
-        Assert.Equal(SkiaIndicatorShape.Circle, indicator.IndicatorsShape);
+        Assert.Equal(SkiaIndicatorShape.Circle, indicator.IndicatorShape);
     }
 
     [Fact]
@@ -117,9 +117,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorsShape = SkiaIndicatorShape.Square;
+        indicator.IndicatorShape = SkiaIndicatorShape.Square;
 
-        Assert.Equal(SkiaIndicatorShape.Square, indicator.IndicatorsShape);
+        Assert.Equal(SkiaIndicatorShape.Square, indicator.IndicatorShape);
     }
 
     [Fact]
@@ -127,9 +127,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorsShape = SkiaIndicatorShape.RoundedSquare;
+        indicator.IndicatorShape = SkiaIndicatorShape.RoundedSquare;
 
-        Assert.Equal(SkiaIndicatorShape.RoundedSquare, indicator.IndicatorsShape);
+        Assert.Equal(SkiaIndicatorShape.RoundedSquare, indicator.IndicatorShape);
     }
 
     [Fact]
@@ -137,9 +137,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorsShape = SkiaIndicatorShape.Diamond;
+        indicator.IndicatorShape = SkiaIndicatorShape.Diamond;
 
-        Assert.Equal(SkiaIndicatorShape.Diamond, indicator.IndicatorsShape);
+        Assert.Equal(SkiaIndicatorShape.Diamond, indicator.IndicatorShape);
     }
 
     [Fact]

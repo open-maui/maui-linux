@@ -47,8 +47,8 @@ public class SkiaGridTests
     {
         // Arrange
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(50));
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(50));
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
 
         var child = new SkiaButton { Text = "Test" };
         grid.AddChild(child, row: 0, column: 0);
@@ -66,8 +66,8 @@ public class SkiaGridTests
     {
         // Arrange
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(50));
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(50));
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
 
         var child = new SkiaButton { Text = "Test" };
         grid.AddChild(child, row: 0, column: 0);

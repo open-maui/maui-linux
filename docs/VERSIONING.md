@@ -48,6 +48,10 @@ A public API is removed only after it has carried `[Obsolete("... use X instead"
 
 Exceptions, stated in `CHANGELOG.md` when used: APIs that never worked (their removal cannot break a working app), and security fixes.
 
+### Deliberate break: 10.0.110.8
+
+10.0.110.8 breaks the rules above on purpose, once. OpenMaui's public types in `Microsoft.Maui.Platform` whose names were also MAUI types (`StackOrientation`, `GridLength`, `ShellSection`, `TextChangedEventArgs` and 37 others) made every file that imports `Microsoft.Maui.Platform` together with `Microsoft.Maui.Controls` fail with CS0104 "ambiguous reference", and the concrete-handler `Map*` overloads stopped MAUI-style mapper code from compiling. Deprecating them for a release line would have kept the ambiguity, because an obsolete type still takes part in name lookup. They were removed in 10.0.110.8 instead of 11.0: duplicates of MAUI types give way to MAUI's own (the members keep their names and take MAUI's types), OpenMaui's own types keep only their `Skia`/`Linux` names, and the `Map*` methods keep only MAUI's interface-typed signatures. Code that used the removed names must be recompiled against 10.0.110.8, and an app compiled against 10.0.110.7 that used them does not load against it. The full list and the replacements are in `CHANGELOG.md` (**Removed**) and [`MIGRATION.md`](MIGRATION.md).
+
 ## How API compatibility is enforced
 
 Each packable library project sets `<EnablePackageValidation>true</EnablePackageValidation>`, so `dotnet pack` runs the .NET SDK's package validation on the package it builds (consistency of the package's own assemblies and target frameworks). No `PackageValidationBaselineVersion` is set: the packages are published from this repository, so a comparison against the previous published package adds nothing. The rules above are kept by review, the `[Obsolete]` deprecation policy, and the `CHANGELOG.md` and `MIGRATION.md` entries for every change to the public surface.

@@ -229,7 +229,8 @@ public static class MauiHandlerExtensions
 
     /// <summary>
     /// True when the registration MAUI resolves for <paramref name="type"/> is a factory or instance
-    /// (<c>AddHandler&lt;T&gt;(sp =&gt; ...)</c>), whose handler type is only known once it is made.
+    /// the app or a library made (<c>AddHandler&lt;T&gt;(sp =&gt; ...)</c>), whose handler type is only
+    /// known once it is made; MAUI's own factory registrations (MAUI 11) are its portable defaults.
     /// </summary>
     private static bool HasFactoryRegistration(IMauiHandlersFactory factory, Type type)
     {
@@ -262,7 +263,7 @@ public static class MauiHandlerExtensions
                     break;
             }
         }
-        return best != null && registrations[best].ImplementationType == null;
+        return best != null && registrations[best].ImplementationType == null && !LinuxHandlerDefaults.IsMauiFactory(registrations[best]);
     }
 
     /// <summary>
