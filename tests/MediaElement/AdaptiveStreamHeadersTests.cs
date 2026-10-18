@@ -115,4 +115,47 @@ public class AdaptiveStreamHeadersTests
             GStreamerInterop.gst_object_unref(soup);
         }
     }
+
+    [Theory]
+    [InlineData("https://media.example.com/live/master.m3u8", "https://media.example.com/live/seg1.ts", true)]
+    [InlineData("https://media.example.com/live/master.m3u8", "https://MEDIA.example.com/other/seg1.ts", true)]
+    [InlineData("https://media.example.com/live/master.m3u8", "https://cdn.example.net/seg1.ts", false)]
+    [InlineData("https://media.example.com/live/master.m3u8", "https://media.example.com:8443/seg1.ts", false)]
+    [InlineData("https://media.example.com/live/master.m3u8", "http://media.example.com/seg1.ts", false)]
+    [InlineData("https://media.example.com/live/master.m3u8", null, false)]
+    [InlineData(null, "https://media.example.com/seg1.ts", false)]
+    public void Headers_go_only_to_the_media_sources_host_and_port(string? source, string? location, bool shares)
+    {
+        SkiaMediaElement.SharesOrigin(source, location).Should().Be(shares);
+    }
+
+    [Fact]
+    public void A_segment_source_pointed_at_another_host_drops_the_headers_and_gets_its_user_agent_back()
+    {
+        var soup = MakeElement("souphttpsrc");
+        if (soup == IntPtr.Zero)
+            return;
+        try
+        {
+            const string Source = "https://media.example.com/live/master.m3u8";
+            var original = SkiaMediaElement.ReadString(soup, "user-agent");
+
+            GStreamerInterop.g_object_set_string(soup, "location", "https://media.example.com/live/seg1.ts", IntPtr.Zero);
+            SkiaMediaElement.UpdateHeadersForLocation(soup, Source, Headers, original);
+            g_object_get_ptr(soup, "extra-headers", out var structure, IntPtr.Zero);
+            structure.Should().NotBe(IntPtr.Zero, "a segment on the source's host gets the headers");
+            GStreamerInterop.gst_structure_free(structure);
+            SkiaMediaElement.ReadString(soup, "user-agent").Should().Be("Player/2");
+
+            GStreamerInterop.g_object_set_string(soup, "location", "https://cdn.example.net/seg2.ts", IntPtr.Zero);
+            SkiaMediaElement.UpdateHeadersForLocation(soup, Source, Headers, original);
+            g_object_get_ptr(soup, "extra-headers", out structure, IntPtr.Zero);
+            structure.Should().Be(IntPtr.Zero, "a segment on another host gets no Authorization or other app header");
+            SkiaMediaElement.ReadString(soup, "user-agent").Should().Be(original);
+        }
+        finally
+        {
+            GStreamerInterop.gst_object_unref(soup);
+        }
+    }
 }
