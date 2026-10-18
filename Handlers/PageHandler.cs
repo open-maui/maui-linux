@@ -244,6 +244,7 @@ public partial class ContentPageHandler : PageHandler
                 DiagnosticLog.Debug("ContentPageHandler", $"Toolbar item icon: {fileSource.File}");
             }
 
+            NavigationPageHandler.ApplyToolbarBadge(item, skiaItem);
             platformView.ToolbarItems.Add(skiaItem);
         }
 
