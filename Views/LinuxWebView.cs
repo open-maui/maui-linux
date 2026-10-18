@@ -110,6 +110,7 @@ public class LinuxWebView : SkiaView
 
             // Create a top-level window to host the WebView
             // GTK_WINDOW_TOPLEVEL = 0
+            Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
             _gtkWindow = WebKitGtk.gtk_window_new(0);
             if (_gtkWindow == IntPtr.Zero)
             {

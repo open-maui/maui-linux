@@ -134,6 +134,7 @@ public sealed class GtkHostWindow : IDisposable, IActivatableWindow
             throw new InvalidOperationException("Failed to initialize GTK. Is a display available?");
         }
 
+        Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
         _window = GtkNative.gtk_window_new(0);
         if (_window == IntPtr.Zero)
         {
