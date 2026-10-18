@@ -28,6 +28,7 @@ public static class GtkContextMenuService
         _callbacks.Clear();
         _actions.Clear();
 
+        Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
         IntPtr menu = GtkNative.gtk_menu_new();
         if (menu == IntPtr.Zero)
         {
