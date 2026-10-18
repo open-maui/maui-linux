@@ -22,9 +22,3 @@ public class LinuxDragEventArgs : EventArgs
         Y = y;
     }
 }
-
-[Obsolete("Use LinuxDragEventArgs; this type is removed in OpenMaui 11.0.")]
-public class DragEventArgs : LinuxDragEventArgs
-{
-    public DragEventArgs(DragData data, int x, int y) : base(data, x, y) { }
-}

@@ -56,7 +56,7 @@ public static class LinuxProgramHost
 
         var root = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
             Spacing = 15,
             BackgroundColor = Color.FromRgb(0xF5, 0xF5, 0xF5)
         };
@@ -80,7 +80,7 @@ public static class LinuxProgramHost
         // ========== LABELS SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Labels"));
-        var labelSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical, Spacing = 5 };
+        var labelSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical, Spacing = 5 };
         labelSection.AddChild(new SkiaLabel { Text = "Normal Label", FontSize = 16, TextColor = Colors.Black });
         labelSection.AddChild(new SkiaLabel { Text = "Bold Label", FontSize = 16, TextColor = Colors.Black, FontAttributes = FontAttributes.Bold });
         labelSection.AddChild(new SkiaLabel { Text = "Italic Label", FontSize = 16, TextColor = Colors.Gray, FontAttributes = FontAttributes.Italic });
@@ -90,7 +90,7 @@ public static class LinuxProgramHost
         // ========== BUTTONS SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Buttons"));
-        var buttonSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
+        var buttonSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
 
         var btnPrimary = new SkiaButton { Text = "Primary", FontSize = 14 };
         btnPrimary.BackgroundColor = Color.FromRgb(0x21, 0x96, 0xF3);
@@ -141,7 +141,7 @@ public static class LinuxProgramHost
         // ========== CHECKBOX SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("CheckBox"));
-        var checkSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 20 };
+        var checkSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 20 };
         var cb1 = new SkiaCheckBox { IsChecked = true };
         checkSection.AddChild(cb1);
         checkSection.AddChild(new SkiaLabel { Text = "Checked", FontSize = 14 });
@@ -153,7 +153,7 @@ public static class LinuxProgramHost
         // ========== SWITCH SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Switch"));
-        var switchSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 20 };
+        var switchSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 20 };
         var sw1 = new SkiaSwitch { IsOn = true };
         switchSection.AddChild(sw1);
         switchSection.AddChild(new SkiaLabel { Text = "On", FontSize = 14 });
@@ -165,7 +165,7 @@ public static class LinuxProgramHost
         // ========== RADIOBUTTON SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("RadioButton"));
-        var radioSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 15 };
+        var radioSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 15 };
         radioSection.AddChild(new SkiaRadioButton { Content = "Option A", IsChecked = true, GroupName = "demo" });
         radioSection.AddChild(new SkiaRadioButton { Content = "Option B", IsChecked = false, GroupName = "demo" });
         radioSection.AddChild(new SkiaRadioButton { Content = "Option C", IsChecked = false, GroupName = "demo" });
@@ -183,7 +183,7 @@ public static class LinuxProgramHost
         // ========== STEPPER SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Stepper"));
-        var stepperSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
+        var stepperSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
         var stepperLabel = new SkiaLabel { Text = "Value: 5", FontSize = 14 };
         var stepper = new SkiaStepper { Value = 5, Minimum = 0, Maximum = 10, Increment = 1 };
         stepper.ValueChanged += (s, e) => stepperLabel.Text = $"Value: {(int)stepper.Value}";
@@ -201,7 +201,7 @@ public static class LinuxProgramHost
         // ========== ACTIVITYINDICATOR SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("ActivityIndicator"));
-        var activitySection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
+        var activitySection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
         var activity = new SkiaActivityIndicator { IsRunning = true };
         activitySection.AddChild(activity);
         activitySection.AddChild(new SkiaLabel { Text = "Loading...", FontSize = 14, TextColor = Colors.Gray });
@@ -279,7 +279,7 @@ public static class LinuxProgramHost
         // ========== IMAGEBUTTON SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("ImageButton"));
-        var imageButtonSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
+        var imageButtonSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
 
         // Create ImageButton with a generated icon (since we don't have image files)
         var imgBtn = new SkiaImageButton
@@ -302,7 +302,7 @@ public static class LinuxProgramHost
         // ========== IMAGE SECTION ==========
         root.AddChild(CreateSeparator());
         root.AddChild(CreateSectionHeader("Image"));
-        var imageSection = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
+        var imageSection = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal, Spacing = 10 };
 
         // Create Image with a generated sample image
         var img = new SkiaImage();

@@ -227,7 +227,7 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
             return;
         var delta = e.ScrollOffset - _lastScrollOffset;
         _lastScrollOffset = e.ScrollOffset;
-        var horizontal = PlatformView?.MauiOrientation == Controls.ItemsLayoutOrientation.Horizontal;
+        var horizontal = PlatformView?.Orientation == Controls.ItemsLayoutOrientation.Horizontal;
         view.SendScrolled(new ItemsViewScrolledEventArgs
         {
             VerticalOffset = horizontal ? 0 : e.ScrollOffset,
@@ -648,13 +648,13 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
     public static void MapHorizontalScrollBarVisibility(CollectionViewHandler handler, CollectionView collectionView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MauiHorizontalScrollBarVisibility = collectionView.HorizontalScrollBarVisibility;
+        handler.PlatformView.HorizontalScrollBarVisibility = collectionView.HorizontalScrollBarVisibility;
     }
 
     public static void MapVerticalScrollBarVisibility(CollectionViewHandler handler, CollectionView collectionView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MauiVerticalScrollBarVisibility = collectionView.VerticalScrollBarVisibility;
+        handler.PlatformView.VerticalScrollBarVisibility = collectionView.VerticalScrollBarVisibility;
     }
 
     public static void MapSelectedItem(CollectionViewHandler handler, CollectionView collectionView)
@@ -787,7 +787,7 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         handler.ObserveItemsLayout(layout);
         if (layout is LinearItemsLayout linearLayout)
         {
-            handler.PlatformView.MauiOrientation = linearLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical
+            handler.PlatformView.Orientation = linearLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical
                 ? Controls.ItemsLayoutOrientation.Vertical
                 : Controls.ItemsLayoutOrientation.Horizontal;
             handler.PlatformView.SpanCount = 1;
@@ -797,7 +797,7 @@ public partial class CollectionViewHandler : LinuxViewHandler<CollectionView, Sk
         else if (layout is GridItemsLayout gridLayout)
         {
             var vertical = gridLayout.Orientation == Controls.ItemsLayoutOrientation.Vertical;
-            handler.PlatformView.MauiOrientation = vertical
+            handler.PlatformView.Orientation = vertical
                 ? Controls.ItemsLayoutOrientation.Vertical
                 : Controls.ItemsLayoutOrientation.Horizontal;
             handler.PlatformView.SpanCount = gridLayout.Span;

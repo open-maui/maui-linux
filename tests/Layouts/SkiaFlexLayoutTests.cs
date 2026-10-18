@@ -4,13 +4,9 @@
 using System.Linq;
 using FluentAssertions;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Layouts;
 using Microsoft.Maui.Platform;
 using Xunit;
-// MAUI's flex enums; OpenMaui's obsolete duplicates in Microsoft.Maui.Platform share their names until 11.0.
-using FlexAlignItems = Microsoft.Maui.Layouts.FlexAlignItems;
-using FlexDirection = Microsoft.Maui.Layouts.FlexDirection;
-using FlexJustify = Microsoft.Maui.Layouts.FlexJustify;
-using FlexWrap = Microsoft.Maui.Layouts.FlexWrap;
 
 namespace Microsoft.Maui.Controls.Linux.Tests.Layouts;
 
@@ -21,7 +17,7 @@ public class SkiaFlexLayoutTests
 
     private static SkiaFlexLayout Layout(FlexDirection direction, FlexWrap wrap = FlexWrap.NoWrap, FlexJustify justify = FlexJustify.Start, FlexAlignItems align = FlexAlignItems.Start)
     {
-        var l = new SkiaFlexLayout { MauiDirection = direction, MauiWrap = wrap, MauiJustifyContent = justify, MauiAlignItems = align };
+        var l = new SkiaFlexLayout { Direction = direction, Wrap = wrap, JustifyContent = justify, AlignItems = align };
         return l;
     }
 

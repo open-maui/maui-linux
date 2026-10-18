@@ -28,9 +28,7 @@ public class SkiaMenuFlyout : SkiaView
     private Color _hoverBackgroundColor = Color.FromRgb(230, 230, 230);
     private Color _separatorColor = Color.FromRgb(220, 220, 220);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public List<MenuItem> Items { get; set; } = new List<MenuItem>();
-#pragma warning restore CS0618
+    public List<SkiaMenuItem> Items { get; set; } = new List<SkiaMenuItem>();
 
     public SKPoint Position { get; set; }
 

@@ -841,28 +841,6 @@ public class EssentialsTests
         capture.Launches.Should().BeEmpty();
     }
 
-    // The legacy static facade is obsolete (Microsoft.Maui.ApplicationModel.Browser replaces it);
-    // it keeps working until OpenMaui 11.0.
-#pragma warning disable CS0618
-    [Fact]
-    public async Task Browser_StaticFacade_ForwardsToDefault()
-    {
-        using var capture = new LaunchCapture(true);
-        var original = Microsoft.Maui.Platform.Linux.Services.Browser.Default;
-        try
-        {
-            var mock = new Mock<IBrowser>();
-            mock.Setup(b => b.OpenAsync(It.IsAny<Uri>(), It.IsAny<BrowserLaunchOptions>())).ReturnsAsync(true);
-            Microsoft.Maui.Platform.Linux.Services.Browser.Default = mock.Object;
-
-            (await Microsoft.Maui.Platform.Linux.Services.Browser.OpenAsync(new Uri("https://example.com"), BrowserLaunchMode.External)).Should().BeTrue();
-            mock.Verify(b => b.OpenAsync(new Uri("https://example.com"), It.Is<BrowserLaunchOptions>(o => o.LaunchMode == BrowserLaunchMode.External)), Times.Once);
-            capture.Launches.Should().BeEmpty();
-        }
-        finally { Microsoft.Maui.Platform.Linux.Services.Browser.Default = original; }
-    }
-#pragma warning restore CS0618
-
     #endregion
 
     #region EmailService

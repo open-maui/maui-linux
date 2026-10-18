@@ -11,7 +11,7 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 
 ## 10.0.110.7 to 10.0.110.8
 
-**API: no breaking changes.** Additions, and deprecations that are removed in 11.0 (below).
+**API: a deliberate breaking change.** The types whose names clashed with MAUI's, and the concrete-handler `Map*` overloads, are removed in this release (see "Removed" below and `VERSIONING.md`). Everything else is additions. Recompile against 10.0.110.8.
 
 ### Behaviour changes to check
 
@@ -33,35 +33,36 @@ These are fixes (the new behaviour is what MAUI specifies), but an app that work
 - **Contacts are also read from KDE's file-based stores** (Akonadi Personal Contacts, vCard folders and files, KDE Connect), merged after Evolution Data Server's address books.
 - **`Application.Quit()` closes the app** (every window); before, it did nothing.
 
-### Deprecated: types renamed to stop clashing with MAUI (removed in 11.0)
+### Removed: types whose names clashed with MAUI's
 
-Some public OpenMaui types in `Microsoft.Maui.Platform` had the same names as MAUI types, so a file
-importing `Microsoft.Maui.Platform` with `Microsoft.Maui.Controls` (or `.Layouts`, `.Primitives`)
-got CS0104 "ambiguous reference" as soon as it named one. They are now `[Obsolete]`; the warning
-names the replacement. Nothing breaks in 10.0.110.x, and compiled apps keep working. The types
-still exist until 11.0, so the ambiguity remains until then; code that moves to the replacements
-now compiles unchanged when they are removed.
+Some public OpenMaui types in `Microsoft.Maui.Platform` and `Microsoft.Maui.Platform.Linux.Services` had the same names as MAUI types. A file that imported `Microsoft.Maui.Platform` together with `Microsoft.Maui.Controls`, `.Layouts` or `.Primitives` got CS0104 ("ambiguous reference") as soon as it named one. Those types are removed in 10.0.110.8. Code that named them must be recompiled against the new names.
 
-- Enums and structs that duplicated MAUI's: use MAUI's type and the `Maui`-prefixed member
-  (`stack.MauiOrientation = StackOrientation.Horizontal;` with `Microsoft.Maui.Controls.StackOrientation`,
-  `grid.MauiRowDefinitions.Add(GridLength.Star)` with `Microsoft.Maui.GridLength`,
-  `scroll.MauiOrientation = ScrollOrientation.Both`, ...). Methods take MAUI's enums through new
-  overloads (`ScrollToAsync(view, Microsoft.Maui.Controls.ScrollToPosition.Center, true)`).
-- OpenMaui's own models: construct `SkiaMenuItem`, `SkiaMenuBarItem`, `SkiaShellSection`,
-  `SkiaShellContent`, `SkiaSwipeItem`; the collections still hold the old types, so read them with `var`.
-- Event handlers: declare the parameter with the Skia name
-  (`void OnTextChanged(object? sender, SkiaTextChangedEventArgs e)`); `entry.TextChanged += OnTextChanged`
-  still binds. Swipe args expose MAUI's `SwipeDirection` as `e.SwipeDirection`.
-- `SkiaIndicatorView.IndicatorShape` -> `IndicatorsShape` (`SkiaIndicatorShape`);
-  `IButtonController` -> `ISkiaButtonController`; `FontExtensions` -> `SkiaFontExtensions`
-  (`font.ToSKFont()` is unchanged); `Microsoft.Maui.Platform.Linux.Services.Browser` ->
-  `Microsoft.Maui.ApplicationModel.Browser`; `DragEventArgs`/`DropEventArgs` (Linux services) ->
-  `LinuxDragEventArgs`/`LinuxDropEventArgs`.
-- In 11.0 the old types are removed and the Skia views' members are retyped to the new types.
+- **Enums and structs that duplicated MAUI's**: use MAUI's type. The Skia views' members keep their names and now have MAUI's types. For example:
+  - `stack.Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal`
+  - `grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star)`
+  - `scroll.Orientation = Microsoft.Maui.ScrollOrientation.Both`
+  - `scroll.ScrollToAsync(view, Microsoft.Maui.Controls.ScrollToPosition.Center, true)`
+  - `SkiaFlexLayout.SetAlignSelf(child, Microsoft.Maui.Layouts.FlexAlignSelf.End)`
+  - `swipe.Open(Microsoft.Maui.SwipeDirection.Left)`
 
-### Deprecated: concrete-handler `Map*` overloads (removed in 11.0)
+  A file that imports `Microsoft.Maui`, `Microsoft.Maui.Controls` or `Microsoft.Maui.Layouts` can use the short names.
+  - OpenMaui's `ScrollBarVisibility.Auto` has no MAUI counterpart. Use `Default`, which behaves the same.
+  - OpenMaui's `SwipeDirection.None` is gone. `SkiaSwipeView.DirectionOf` returns `SwipeDirection?`, which is null for no direction.
+- **OpenMaui's own models**: use `SkiaMenuItem`, `SkiaMenuBarItem`, `SkiaShellSection`, `SkiaShellContent` and `SkiaSwipeItem`. The views' collections hold these types.
+- **Event handlers**: declare the parameter with the Skia name, for example `void OnTextChanged(object? sender, SkiaTextChangedEventArgs e)`. The events are declared with these types.
+  - The swipe args expose MAUI's `SwipeDirection` as `e.SwipeDirection`.
+  - `SwipeOffsetChangedEventArgs.Direction` is removed; use `SwipeDirection`.
+- **Other renames**:
+  - `SkiaIndicatorView.IndicatorShape` now has the `SkiaIndicatorShape` type.
+  - `IButtonController` becomes `ISkiaButtonController`.
+  - `FontExtensions` becomes `SkiaFontExtensions`. `font.ToSKFont()` is unchanged.
+  - `Microsoft.Maui.Platform.Linux.Services.Browser` becomes `Microsoft.Maui.ApplicationModel.Browser`.
+  - In the Linux services, `DragEventArgs` and `DropEventArgs` become `LinuxDragEventArgs` and `LinuxDropEventArgs`.
+- **`PointerEventArgs` is unchanged**: it is the parameter of the `SkiaView.OnPointer*` overrides.
 
-Each Linux handler's static `Map*` methods now have MAUI's interface-typed signatures (`EntryHandler.MapText(IEntryHandler, IEntry)`). The concrete-typed overloads (`MapText(EntryHandler, IEntry)`) are `[Obsolete]`; calls that pass the concrete handler bind to the new overload, so recompiled code gets no warning.
+### Removed: concrete-handler `Map*` overloads
+
+Each Linux handler's static `Map*` methods now have only MAUI's interface-typed signatures, for example `EntryHandler.MapText(IEntryHandler, IEntry)`. The concrete-typed overloads, such as `MapText(EntryHandler, IEntry)`, are removed. A call that passes the concrete handler, or a method group used in a mapper, binds to the interface overload without changes.
 
 ## 10.0.101.x to 10.0.110.x
 

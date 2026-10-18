@@ -154,7 +154,7 @@ public partial class CoreIndicatorViewHandler : LinuxViewHandler<IIndicatorView,
     {
         if (IndicatorPlatformView(handler) is not { } platform)
             return;
-        platform.IndicatorsShape = IsSquare(indicatorView.IndicatorsShape) ? SkiaIndicatorShape.Square : SkiaIndicatorShape.Circle;
+        platform.IndicatorShape = IsSquare(indicatorView.IndicatorsShape) ? SkiaIndicatorShape.Square : SkiaIndicatorShape.Circle;
         platform.Invalidate();
     }
 
