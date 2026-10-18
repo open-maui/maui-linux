@@ -6272,19 +6272,19 @@
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::BeginIconLoad",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::CanCreateTintedIconSource",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ClearFontIconLoad",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ConnectHandler",
@@ -6296,7 +6296,7 @@
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::CreateTintedIconSource",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::DisconnectHandler",
@@ -6308,7 +6308,7 @@
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::GetIconSourceManager",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::GetParentSwipeView",
@@ -6320,19 +6320,19 @@
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::IsFontIconLoadCurrent",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::IsIconLoadCurrent",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::LoadIconAsync",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::OnSwipeItemInvoked",
@@ -6344,19 +6344,19 @@
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ResetFontIconLoad",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::SetFontIconLoad",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::UpdateIconColorPlatform",
       "status": "covered",
       "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
-      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeViewHandler::CanAddSwipeItems",
