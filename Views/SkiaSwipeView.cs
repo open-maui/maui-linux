@@ -575,19 +575,74 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
             };
             canvas.DrawRect(itemBounds, bgPaint);
 
-            // Draw icon or text
-            if (!string.IsNullOrEmpty(item.Text))
-            {
-                using var textFont = SkiaFontFactory.Create(14f);
-                using var textPaint = new SKPaint
-                {
-                    Color = item.GetTextColorSK(),
-                    IsAntialias = true
-                };
+            DrawItemContent(canvas, item, itemBounds);
+        }
 
-                float textY = itemBounds.MidY + 5;
-                canvas.DrawText(item.Text, itemBounds.MidX, textY, SKTextAlign.Center, textFont, textPaint);
+        canvas.Restore();
+    }
+
+    /// <summary>The height of a menu item's icon (WinUI's AppBarButton content height).</summary>
+    internal const float ItemIconSize = 16f;
+
+    /// <summary>The space between a menu item's icon and its text.</summary>
+    internal const float ItemIconSpacing = 4f;
+
+    /// <summary>The size of a menu item's text (WinUI's AppBarButton label).</summary>
+    internal const float ItemFontSize = 12f;
+
+    /// <summary>
+    /// Where a menu item's icon and text go, as Windows' SwipeItem (an AppBarButton) lays them
+    /// out: the icon, 16 high, above the 12-point text, the two centred together in the item.
+    /// </summary>
+    internal static (SKRect? Icon, float? Baseline) ItemContentLayout(SwipeItem item, SKRect bounds, SKFontMetrics metrics)
+    {
+        var icon = item.Icon;
+        bool hasIcon = icon is { Width: > 0, Height: > 0 };
+        bool hasText = !string.IsNullOrEmpty(item.Text);
+        float lineHeight = metrics.Descent - metrics.Ascent;
+
+        float height = (hasIcon ? ItemIconSize : 0) + (hasIcon && hasText ? ItemIconSpacing : 0) + (hasText ? lineHeight : 0);
+        float top = bounds.MidY - height / 2;
+
+        SKRect? iconRect = null;
+        if (hasIcon)
+        {
+            // As WinUI's Viewbox of fixed height: the icon keeps its aspect, within the item's width.
+            float w = ItemIconSize * icon!.Width / icon.Height;
+            float h = ItemIconSize;
+            if (w > bounds.Width)
+            {
+                h *= bounds.Width / w;
+                w = bounds.Width;
             }
+            iconRect = SKRect.Create(bounds.MidX - w / 2, top + (ItemIconSize - h) / 2, w, h);
+            top += ItemIconSize + (hasText ? ItemIconSpacing : 0);
+        }
+
+        float? baseline = hasText ? top - metrics.Ascent : null;
+        return (iconRect, baseline);
+    }
+
+    private static void DrawItemContent(SKCanvas canvas, SwipeItem item, SKRect bounds)
+    {
+        using var font = SkiaFontFactory.Create(ItemFontSize);
+        var (iconRect, baseline) = ItemContentLayout(item, bounds, font.Metrics);
+
+        canvas.Save();
+        canvas.ClipRect(bounds);
+
+        if (iconRect is { } dest && item.Icon is { } icon)
+        {
+            using var image = SKImage.FromBitmap(icon);
+            using var filter = item.IconTintColor is { } tint ? SKColorFilter.CreateBlendMode(tint.ToSKColor(), SKBlendMode.SrcIn) : null;
+            using var iconPaint = new SKPaint { IsAntialias = true, ColorFilter = filter };
+            canvas.DrawImage(image, dest, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), iconPaint);
+        }
+
+        if (baseline is { } y)
+        {
+            using var textPaint = new SKPaint { Color = item.GetTextColorSK(), IsAntialias = true };
+            canvas.DrawText(item.Text, bounds.MidX, y, SKTextAlign.Center, font, textPaint);
         }
 
         canvas.Restore();
