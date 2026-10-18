@@ -420,7 +420,7 @@
     {
       "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::OnAdaptiveMediaSourceDownloadRequested",
       "status": "open",
-      "reason": "UriMediaSource.HttpHeaders reach the request for the source URI (progressive file or HLS/DASH manifest) through playbin's source-setup, but not the segment requests of adaptive streams: GStreamer's adaptive demuxers fetch segments with their own HTTP sources that playbin never exposes (measured on 1.28: manifest carries the headers, segments do not)"
+      "reason": "UriMediaSource.HttpHeaders reach the source URI request (source-setup) and the HLS/DASH segment and init-segment requests (playbin deep-element-added sets extra-headers on the demuxers' HTTP sources), but not an HLS master playlist's media playlist or its live reloads: GStreamer 1.28's hlsdemux fetches those with an internal downloader no signal exposes"
     },
     {
       "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::OnMediaElementIsMutedChanged",

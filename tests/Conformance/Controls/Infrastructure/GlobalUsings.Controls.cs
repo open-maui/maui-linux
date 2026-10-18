@@ -16,6 +16,8 @@ global using Xunit;
 // code imports routinely) whose names are also Controls types; any file that
 // imports both gets CS0104 / CS0176. An alias outranks namespace imports, so
 // MAUI's meaning wins here. Recorded as API-surface findings in docs/CONFORMANCE.md.
+// Those OpenMaui types are [Obsolete] since 10.0.110.x (each names its non-clashing
+// replacement) but still exist, so the aliases stay until they are removed in OpenMaui 11.0.
 global using LayoutAlignment = Microsoft.Maui.Controls.LayoutAlignment;
 global using MenuBarItem = Microsoft.Maui.Controls.MenuBarItem;
 global using FlyoutLayoutBehavior = Microsoft.Maui.Controls.FlyoutLayoutBehavior;

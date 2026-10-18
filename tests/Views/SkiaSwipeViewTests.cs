@@ -19,7 +19,7 @@ public class SkiaSwipeViewTests
         Assert.Empty(swipeView.RightItems);
         Assert.Empty(swipeView.TopItems);
         Assert.Empty(swipeView.BottomItems);
-        Assert.Equal(SwipeMode.Reveal, swipeView.Mode);
+        Assert.Equal(Microsoft.Maui.SwipeMode.Reveal, swipeView.MauiMode);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class SkiaSwipeViewTests
     public void LeftItems_CanAddItems()
     {
         var swipeView = new SkiaSwipeView();
-        var item = new SwipeItem { Text = "Delete", BackgroundColor = Colors.Red };
+        var item = new SkiaSwipeItem { Text = "Delete", BackgroundColor = Colors.Red };
 
         swipeView.LeftItems.Add(item);
 
@@ -49,7 +49,7 @@ public class SkiaSwipeViewTests
     public void RightItems_CanAddItems()
     {
         var swipeView = new SkiaSwipeView();
-        var item = new SwipeItem { Text = "Archive", BackgroundColor = Colors.Blue };
+        var item = new SkiaSwipeItem { Text = "Archive", BackgroundColor = Colors.Blue };
 
         swipeView.RightItems.Add(item);
 
@@ -59,7 +59,7 @@ public class SkiaSwipeViewTests
     [Fact]
     public void SwipeItem_InvokedEvent_CanBeSubscribed()
     {
-        var item = new SwipeItem { Text = "Test" };
+        var item = new SkiaSwipeItem { Text = "Test" };
         bool invoked = false;
 
         item.Invoked += (s, e) => invoked = true;
@@ -71,9 +71,9 @@ public class SkiaSwipeViewTests
     public void Open_OpensSwipeInDirection()
     {
         var swipeView = new SkiaSwipeView();
-        swipeView.RightItems.Add(new SwipeItem { Text = "Delete" });
+        swipeView.RightItems.Add(new SkiaSwipeItem { Text = "Delete" });
 
-        swipeView.Open(SwipeDirection.Left);
+        swipeView.Open(Microsoft.Maui.SwipeDirection.Left);
 
         // Open state is internal, but we verify no exception
     }
@@ -82,8 +82,8 @@ public class SkiaSwipeViewTests
     public void Close_ClosesOpenSwipe()
     {
         var swipeView = new SkiaSwipeView();
-        swipeView.LeftItems.Add(new SwipeItem { Text = "Test" });
-        swipeView.Open(SwipeDirection.Right);
+        swipeView.LeftItems.Add(new SkiaSwipeItem { Text = "Test" });
+        swipeView.Open(Microsoft.Maui.SwipeDirection.Right);
 
         swipeView.Close();
 
@@ -95,9 +95,9 @@ public class SkiaSwipeViewTests
     {
         var swipeView = new SkiaSwipeView();
 
-        swipeView.Mode = SwipeMode.Execute;
+        swipeView.MauiMode = Microsoft.Maui.SwipeMode.Execute;
 
-        Assert.Equal(SwipeMode.Execute, swipeView.Mode);
+        Assert.Equal(Microsoft.Maui.SwipeMode.Execute, swipeView.MauiMode);
     }
 
     [Fact]
@@ -124,11 +124,11 @@ public class SkiaSwipeViewTests
     public void SwipeStartedEvent_CanBeSubscribed()
     {
         var swipeView = new SkiaSwipeView();
-        SwipeDirection? direction = null;
+        Microsoft.Maui.SwipeDirection? direction = null;
 
-        swipeView.SwipeStarted += (s, e) => direction = e.Direction;
+        swipeView.SwipeStarted += (s, e) => direction = e.SwipeDirection;
         // Simulate internal swipe start
-        swipeView.LeftItems.Add(new SwipeItem { Text = "Test" });
+        swipeView.LeftItems.Add(new SkiaSwipeItem { Text = "Test" });
 
         Assert.NotNull(swipeView);
     }
@@ -147,7 +147,7 @@ public class SkiaSwipeViewTests
     [Fact]
     public void SwipeItem_TextColor_CanBeSet()
     {
-        var item = new SwipeItem { TextColor = Colors.Yellow };
+        var item = new SkiaSwipeItem { TextColor = Colors.Yellow };
 
         Assert.Equal(Colors.Yellow, item.TextColor);
     }
@@ -155,7 +155,7 @@ public class SkiaSwipeViewTests
     [Fact]
     public void SwipeItem_BackgroundColor_CanBeSet()
     {
-        var item = new SwipeItem { BackgroundColor = Colors.Green };
+        var item = new SkiaSwipeItem { BackgroundColor = Colors.Green };
 
         Assert.Equal(Colors.Green, item.BackgroundColor);
     }
@@ -163,7 +163,7 @@ public class SkiaSwipeViewTests
     [Fact]
     public void SwipeItem_IconSource_CanBeSet()
     {
-        var item = new SwipeItem { IconSource = "delete.png" };
+        var item = new SkiaSwipeItem { IconSource = "delete.png" };
 
         Assert.Equal("delete.png", item.IconSource);
     }
@@ -172,7 +172,7 @@ public class SkiaSwipeViewTests
     public void TopItems_CanAddItems()
     {
         var swipeView = new SkiaSwipeView();
-        swipeView.TopItems.Add(new SwipeItem { Text = "Top" });
+        swipeView.TopItems.Add(new SkiaSwipeItem { Text = "Top" });
 
         Assert.Single(swipeView.TopItems);
     }
@@ -181,7 +181,7 @@ public class SkiaSwipeViewTests
     public void BottomItems_CanAddItems()
     {
         var swipeView = new SkiaSwipeView();
-        swipeView.BottomItems.Add(new SwipeItem { Text = "Bottom" });
+        swipeView.BottomItems.Add(new SkiaSwipeItem { Text = "Bottom" });
 
         Assert.Single(swipeView.BottomItems);
     }
@@ -211,7 +211,7 @@ public class SkiaSwipeViewTests
     }
 
     // A white content in a 300 x 60 swipe view, drawn into a bitmap.
-    private static SkiaSwipeView Row(params SwipeItem[] rightItems)
+    private static SkiaSwipeView Row(params SkiaSwipeItem[] rightItems)
     {
         var swipeView = new SkiaSwipeView { Content = new SkiaContentView { BackgroundColor = Colors.White } };
         foreach (var item in rightItems)
@@ -240,9 +240,9 @@ public class SkiaSwipeViewTests
     [Fact]
     public void Open_reveals_the_items_and_moves_the_content()
     {
-        var view = Row(new SwipeItem { BackgroundColor = Colors.Red });
+        var view = Row(new SkiaSwipeItem { BackgroundColor = Colors.Red });
 
-        view.Open(SwipeDirection.Left);
+        view.Open(Microsoft.Maui.SwipeDirection.Left);
 
         Assert.True(view.IsOpen);
         Assert.Equal(-100f, view.SwipeOffset);
@@ -254,9 +254,9 @@ public class SkiaSwipeViewTests
     [Fact]
     public void A_side_without_items_does_not_open()
     {
-        var view = Row(new SwipeItem());
+        var view = Row(new SkiaSwipeItem());
 
-        view.Open(SwipeDirection.Right);
+        view.Open(Microsoft.Maui.SwipeDirection.Right);
 
         Assert.False(view.IsOpen);
         Assert.Equal(0f, view.SwipeOffset);
@@ -266,12 +266,12 @@ public class SkiaSwipeViewTests
     public void Reveal_keeps_the_items_in_place_and_drag_moves_them()
     {
         // Two items open to 200; a 150 swipe uncovers x 150..300.
-        var reveal = Row(new SwipeItem { BackgroundColor = Colors.Red }, new SwipeItem { BackgroundColor = Colors.Blue });
+        var reveal = Row(new SkiaSwipeItem { BackgroundColor = Colors.Red }, new SkiaSwipeItem { BackgroundColor = Colors.Blue });
         DragTo(reveal, 290, 140);
         Assert.Equal(-150f, reveal.SwipeOffset);
         Assert.Equal(SKColors.Blue, PixelAt(reveal, 210, 5));
 
-        var drag = Row(new SwipeItem { BackgroundColor = Colors.Red }, new SwipeItem { BackgroundColor = Colors.Blue });
+        var drag = Row(new SkiaSwipeItem { BackgroundColor = Colors.Red }, new SkiaSwipeItem { BackgroundColor = Colors.Blue });
         drag.TransitionMode = SwipeTransitionMode.Drag;
         DragTo(drag, 290, 140);
         Assert.Equal(SKColors.Red, PixelAt(drag, 210, 5));
@@ -281,7 +281,7 @@ public class SkiaSwipeViewTests
     public void Top_items_open_downwards_over_the_content_height()
     {
         var view = new SkiaSwipeView { Content = new SkiaContentView { BackgroundColor = Colors.White } };
-        view.TopItems.Add(new SwipeItem { BackgroundColor = Colors.Green });
+        view.TopItems.Add(new SkiaSwipeItem { BackgroundColor = Colors.Green });
         view.Measure(new Size(300, 60));
         view.Arrange(new Rect(0, 0, 300, 60));
 
@@ -294,10 +294,10 @@ public class SkiaSwipeViewTests
     [Fact]
     public void Execute_mode_opens_to_most_of_the_content()
     {
-        var view = Row(new SwipeItem());
-        view.SetItemsMode(OpenSwipeItem.RightItems, SwipeMode.Execute);
+        var view = Row(new SkiaSwipeItem());
+        view.SetItemsMode(OpenSwipeItem.RightItems, Microsoft.Maui.SwipeMode.Execute);
 
-        view.Open(SwipeDirection.Left);
+        view.Open(Microsoft.Maui.SwipeDirection.Left);
 
         Assert.Equal(-240f, view.SwipeOffset);
     }
