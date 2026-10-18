@@ -6,6 +6,8 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -14,8 +16,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Maps IImage interface to SkiaImage platform view.
 /// IImage has: Aspect, IsOpaque (inherits from IImageSourcePart)
 /// </summary>
-public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
+public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>, IImageHandler
 {
+    IImage IImageHandler.VirtualView => VirtualView;
+    object IImageHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IImage, ImageHandler> Mapper = new PropertyMapper<IImage, ImageHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IImage.Aspect)] = MapAspect,
@@ -61,10 +66,21 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
         base.DisconnectHandler(platformView);
     }
 
-    public static void MapAspect(ImageHandler handler, IImage image)
+    /// <summary>MAUI's <c>MapAspect</c> signature; maps the property on a Linux <see cref="ImageHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapAspect(IImageHandler handler, IImage image)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Aspect = image.Aspect;
+        if (handler is ImageHandler linuxHandler)
+            MapAspectCore(linuxHandler, image);
+    }
+
+    [Obsolete("Use the IImageHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapAspect(ImageHandler handler, IImage image) => MapAspectCore(handler, image);
+
+    private static void MapAspectCore(ImageHandler handler, IImage image)
+    {
+        handler.PlatformView?.UpdateAspect(image);
     }
 
     public static void MapIsOpaque(ImageHandler handler, IImage image)
@@ -73,13 +89,36 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
         handler.PlatformView.IsOpaque = image.IsOpaque;
     }
 
-    public static void MapIsAnimationPlaying(ImageHandler handler, IImage image)
+    /// <summary>MAUI's <c>MapIsAnimationPlaying</c> signature; maps the property on a Linux <see cref="ImageHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsAnimationPlaying(IImageHandler handler, IImage image)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsAnimationPlaying = image.IsAnimationPlaying;
+        if (handler is ImageHandler linuxHandler)
+            MapIsAnimationPlayingCore(linuxHandler, image);
     }
 
-    public static void MapSource(ImageHandler handler, IImage image)
+    [Obsolete("Use the IImageHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsAnimationPlaying(ImageHandler handler, IImage image) => MapIsAnimationPlayingCore(handler, image);
+
+    private static void MapIsAnimationPlayingCore(ImageHandler handler, IImage image)
+    {
+        handler.PlatformView?.UpdateIsAnimationPlaying(image);
+    }
+
+    /// <summary>MAUI's <c>MapSource</c> signature; maps the property on a Linux <see cref="ImageHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapSource(IImageHandler handler, IImage image)
+    {
+        if (handler is ImageHandler linuxHandler)
+            MapSourceCore(linuxHandler, image);
+    }
+
+    [Obsolete("Use the IImageHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapSource(ImageHandler handler, IImage image) => MapSourceCore(handler, image);
+
+    private static void MapSourceCore(ImageHandler handler, IImage image)
     {
         if (handler.PlatformView is null) return;
 
@@ -96,7 +135,7 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
             }
         }
 
-        handler.SourceLoader.UpdateImageSourceAsync();
+        _ = handler.ImageLoad.UpdateImageSourceAsync();
     }
 
     public static void MapBackground(ImageHandler handler, IImage image)
@@ -160,10 +199,33 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
     }
 
     // Image source loading helper
-    private ImageSourceServiceResultManager _sourceLoader = null!;
+    private ImageSourceServiceResultManager? _imageLoad;
+    private ImageSourcePartLoader? _imageSourcePartLoader;
 
-    private ImageSourceServiceResultManager SourceLoader =>
-        _sourceLoader ??= new ImageSourceServiceResultManager(this);
+    private ImageSourceServiceResultManager ImageLoad =>
+        _imageLoad ??= new ImageSourceServiceResultManager(this);
+
+    /// <summary>
+    /// MAUI's <c>IImageHandler.SourceLoader</c>: its <see cref="ImageSourcePartLoader.UpdateImageSourceAsync"/>
+    /// loads the virtual view's source into the SkiaImage (through the image source service, with
+    /// IsLoading and the loading events), as the handler's own Source mapping does.
+    /// </summary>
+    public virtual ImageSourcePartLoader SourceLoader =>
+        _imageSourcePartLoader ??= new LinuxImageSourcePartLoader(
+            new LinuxImageSourcePartSetter(this, SetPlatformImage),
+            () => ImageLoad.UpdateImageSourceAsync());
+
+    // A platform image handed to the part setter directly (MAUI's loader sets a null image
+    // for a null source): a bitmap is shown, anything else clears the picture.
+    private void SetPlatformImage(object? platformImage)
+    {
+        if (PlatformView is null)
+            return;
+        if (LinuxImageSourcePartSetter.ToBitmap(platformImage) is { } bitmap)
+            PlatformView.LoadFromBitmap(bitmap);
+        else
+            PlatformView.ClearImage();
+    }
 
     internal class ImageSourceServiceResultManager
     {
@@ -175,7 +237,7 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>
             _handler = handler;
         }
 
-        public async void UpdateImageSourceAsync()
+        public async Task UpdateImageSourceAsync()
         {
             _cts?.Cancel();
             _cts = new CancellationTokenSource();

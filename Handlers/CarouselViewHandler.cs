@@ -86,6 +86,7 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         platformView.PositionChanged -= OnPositionChanged;
         platformView.Scrolled -= OnScrolled;
         ObserveScrollToRequests(null);
+        ObserveItemsLayout(null);
         _collectionSubscription?.Dispose();
         _collectionSubscription = null;
         platformView.ClearItems();
@@ -282,7 +283,7 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
             MapScrollTo(this, view, e);
     }
 
-    private void OnPositionChanged(object? sender, PositionChangedEventArgs e)
+    private void OnPositionChanged(object? sender, SkiaPositionChangedEventArgs e)
     {
         if (VirtualView is null || _isUpdatingPosition) return;
 
@@ -438,14 +439,14 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
     public static void MapHorizontalScrollBarVisibility(CarouselViewHandler handler, CarouselView carouselView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.HorizontalScrollBarVisibility = (ScrollBarVisibility)carouselView.HorizontalScrollBarVisibility;
+        handler.PlatformView.MauiHorizontalScrollBarVisibility = carouselView.HorizontalScrollBarVisibility;
         handler.PlatformView.Invalidate();
     }
 
     public static void MapVerticalScrollBarVisibility(CarouselViewHandler handler, CarouselView carouselView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.VerticalScrollBarVisibility = (ScrollBarVisibility)carouselView.VerticalScrollBarVisibility;
+        handler.PlatformView.MauiVerticalScrollBarVisibility = carouselView.VerticalScrollBarVisibility;
     }
 
     /// <summary>Read when the items change (see <see cref="OnItemsSourceChanged"/>); nothing to set on the platform view.</summary>
@@ -511,10 +512,14 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         }
     }
 
+    /// <summary>
+    /// IsBounceEnabled: a drag past the first or last item stretches past it and springs back
+    /// (an elastic overscroll); without it the carousel stops at its ends.
+    /// </summary>
     public static void MapIsBounceEnabled(CarouselViewHandler handler, CarouselView carouselView)
     {
-        // SkiaCarouselView handles bounce internally
-        // Could add IsBounceEnabled property if needed
+        if (handler.PlatformView is null) return;
+        handler.PlatformView.IsBounceEnabled = carouselView.IsBounceEnabled;
     }
 
     public static void MapIsSwipeEnabled(CarouselViewHandler handler, CarouselView carouselView)
@@ -533,27 +538,55 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
     public static void MapPeekAreaInsets(CarouselViewHandler handler, CarouselView carouselView)
     {
         if (handler.PlatformView is null) return;
-        // PeekAreaInsets is a Thickness in MAUI: its leading side along the carousel's axis.
+        // PeekAreaInsets is a Thickness: Windows pads the carousel's list with it, so the left
+        // and right sides (top and bottom for a vertical carousel) each show their own peek.
         var insets = carouselView.PeekAreaInsets;
-        handler.PlatformView.PeekAreaInsets = (float)(handler.PlatformView.Orientation == Platform.ItemsLayoutOrientation.Vertical ? insets.Top : insets.Left);
+        if (handler.PlatformView.MauiOrientation == Controls.ItemsLayoutOrientation.Vertical)
+            handler.PlatformView.SetPeekAreaInsets(insets.Top, insets.Bottom);
+        else
+            handler.PlatformView.SetPeekAreaInsets(insets.Left, insets.Right);
         handler.PlatformView.Invalidate();
     }
 
     /// <summary>
-    /// The carousel's LinearItemsLayout: a vertical carousel moves its items up and down, and
-    /// ItemSpacing separates them, as MAUI's handlers lay a CarouselView out.
+    /// The carousel's LinearItemsLayout: a vertical carousel moves its items up and down,
+    /// ItemSpacing separates them, and its SnapPointsType and SnapPointsAlignment set where a
+    /// drag comes to rest, as Windows sets them on the carousel's ScrollViewer. A change of the
+    /// layout's properties is followed.
     /// </summary>
     public static void MapItemsLayout(CarouselViewHandler handler, CarouselView carouselView)
     {
         if (handler.PlatformView is null) return;
         var layout = carouselView.ItemsLayout;
-        handler.PlatformView.Orientation = layout?.Orientation == Controls.ItemsLayoutOrientation.Vertical
-            ? Platform.ItemsLayoutOrientation.Vertical
-            : Platform.ItemsLayoutOrientation.Horizontal;
+        handler.ObserveItemsLayout(layout);
+        handler.PlatformView.SnapPointsType = layout?.SnapPointsType ?? SnapPointsType.MandatorySingle;
+        handler.PlatformView.SnapPointsAlignment = layout?.SnapPointsAlignment ?? SnapPointsAlignment.Center;
+        handler.PlatformView.MauiOrientation = layout?.Orientation == Controls.ItemsLayoutOrientation.Vertical
+            ? Controls.ItemsLayoutOrientation.Vertical
+            : Controls.ItemsLayoutOrientation.Horizontal;
         handler.PlatformView.ItemSpacing = layout?.ItemSpacing ?? 0;
         MapPeekAreaInsets(handler, carouselView);
         if (handler.PlatformView.ItemCount > 0)
             handler.PlatformView.ScrollTo(Math.Clamp(carouselView.Position, 0, handler.PlatformView.ItemCount - 1), false);
+    }
+
+    // The ItemsLayout's changes, observed weakly: the default layout is shared by every carousel.
+    private WeakPropertyChangedProxy<CarouselViewHandler>? _layoutSubscription;
+
+    private void ObserveItemsLayout(LinearItemsLayout? layout)
+    {
+        if (ReferenceEquals(_layoutSubscription?.Source, layout) && layout != null)
+            return;
+        _layoutSubscription?.Dispose();
+        _layoutSubscription = layout != null
+            ? new WeakPropertyChangedProxy<CarouselViewHandler>(layout, this, static (h, _, _) => h.OnItemsLayoutPropertyChanged())
+            : null;
+    }
+
+    private void OnItemsLayoutPropertyChanged()
+    {
+        if (VirtualView is { } view && PlatformView != null)
+            MapItemsLayout(this, view);
     }
 
     public static void MapBackground(CarouselViewHandler handler, CarouselView carouselView)

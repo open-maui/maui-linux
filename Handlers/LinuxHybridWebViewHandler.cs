@@ -6,6 +6,8 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Native;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Views;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -237,7 +239,19 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
 
     #region Commands
 
-    public static async void MapEvaluateJavaScriptAsync(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args)
+    /// <summary>MAUI's <c>MapEvaluateJavaScriptAsync</c> signature; runs the command on a Linux <see cref="LinuxHybridWebViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapEvaluateJavaScriptAsync(IHybridWebViewHandler handler, IHybridWebView hybridWebView, object? arg)
+    {
+        if (handler is LinuxHybridWebViewHandler linuxHandler)
+            MapEvaluateJavaScriptAsyncCore(linuxHandler, hybridWebView, arg);
+    }
+
+    [Obsolete("Use the IHybridWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapEvaluateJavaScriptAsync(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args) => MapEvaluateJavaScriptAsyncCore(handler, hybridWebView, args);
+
+    private static async void MapEvaluateJavaScriptAsyncCore(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args)
     {
         if (args is not EvaluateJavaScriptAsyncRequest request)
             return;
@@ -256,7 +270,19 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
         }
     }
 
-    public static async void MapInvokeJavaScriptAsync(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args)
+    /// <summary>MAUI's <c>MapInvokeJavaScriptAsync</c> signature; runs the command on a Linux <see cref="LinuxHybridWebViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapInvokeJavaScriptAsync(IHybridWebViewHandler handler, IHybridWebView hybridWebView, object? arg)
+    {
+        if (handler is LinuxHybridWebViewHandler linuxHandler)
+            MapInvokeJavaScriptAsyncCore(linuxHandler, hybridWebView, arg);
+    }
+
+    [Obsolete("Use the IHybridWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapInvokeJavaScriptAsync(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args) => MapInvokeJavaScriptAsyncCore(handler, hybridWebView, args);
+
+    private static async void MapInvokeJavaScriptAsyncCore(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args)
     {
         if (args is not HybridWebViewInvokeJavaScriptRequest request)
             return;
@@ -275,7 +301,19 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
         }
     }
 
-    public static void MapSendRawMessage(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args)
+    /// <summary>MAUI's <c>MapSendRawMessage</c> signature; runs the command on a Linux <see cref="LinuxHybridWebViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapSendRawMessage(IHybridWebViewHandler handler, IHybridWebView hybridWebView, object? arg)
+    {
+        if (handler is LinuxHybridWebViewHandler linuxHandler)
+            MapSendRawMessageCore(linuxHandler, hybridWebView, arg);
+    }
+
+    [Obsolete("Use the IHybridWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapSendRawMessage(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args) => MapSendRawMessageCore(handler, hybridWebView, args);
+
+    private static void MapSendRawMessageCore(LinuxHybridWebViewHandler handler, IHybridWebView hybridWebView, object? args)
     {
         if (args is HybridWebViewRawMessage message)
             handler._bridge?.SendRawMessage(message.Message ?? string.Empty);
