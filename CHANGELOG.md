@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.12] - 2026-10-18
+
+### Changed
+
+- **New apps are published ReadyToRun**: the `dotnet new openmaui-linux` and `openmaui-linux-xaml` templates, and the Visual Studio extension's OpenMaui Linux App template, set `PublishReadyToRun` for the Linux (plain `net10.0`) target in the app's own project, where `dotnet restore` sees it. A published app starts faster (on claude-toolkit the first frame came 1.25 s sooner) and the publish is larger (158 MB to 209 MB self-contained). Remove the property to publish IL only. The README's Distribution section explains the setting for existing apps.
+
 ## [10.0.110.11] - 2026-10-18
 
 ### Fixed
