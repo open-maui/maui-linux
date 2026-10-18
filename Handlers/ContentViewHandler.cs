@@ -5,6 +5,8 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -12,8 +14,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for ContentView on Linux using Skia rendering.
 /// ContentView is a simple container with a single Content child.
 /// </summary>
-public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaContentView>
+public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaContentView>, IContentViewHandler
 {
+    IContentView IContentViewHandler.VirtualView => VirtualView;
+    object IContentViewHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IContentView, ContentViewHandler> Mapper =
         new PropertyMapper<IContentView, ContentViewHandler>(ViewHandler.ViewMapper)
         {
@@ -59,7 +64,19 @@ public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaCon
         MapContent(this, VirtualView);
     }
 
-    public static void MapContent(ContentViewHandler handler, IContentView contentView)
+    /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="ContentViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapContent(IContentViewHandler handler, IContentView page)
+    {
+        if (handler is ContentViewHandler linuxHandler)
+            MapContentCore(linuxHandler, page);
+    }
+
+    [Obsolete("Use the IContentViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapContent(ContentViewHandler handler, IContentView contentView) => MapContentCore(handler, contentView);
+
+    private static void MapContentCore(ContentViewHandler handler, IContentView contentView)
     {
         if (handler.PlatformView is null || handler.MauiContext is null) return;
 
