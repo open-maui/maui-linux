@@ -33,6 +33,7 @@ public partial class ToolbarHandler : ElementHandler<IToolbar, SkiaToolbar>, ITo
             // platform toolbar (Toolbar.Windows.cs).
             [nameof(Toolbar.BackButtonEnabled)] = MapBackButtonEnabled,
             [nameof(Toolbar.BackButtonTitle)] = MapBackButtonTitle,
+            [nameof(Toolbar.BackButtonAccessibilityLabel)] = MapBackButtonAccessibilityLabel,
             [nameof(Toolbar.TitleIcon)] = MapTitleIcon,
             [nameof(Toolbar.TitleView)] = MapTitleView,
             [nameof(Toolbar.IconColor)] = MapIconColor,
@@ -83,6 +84,16 @@ public partial class ToolbarHandler : ElementHandler<IToolbar, SkiaToolbar>, ITo
     {
         if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
             platform.BackButtonTitle = controls.BackButtonTitle;
+    }
+
+    /// <summary>
+    /// The back button's accessible name (NavigationPage.BackButtonAccessibilityLabel,
+    /// Shell's BackButtonBehavior.AccessibilityLabel).
+    /// </summary>
+    public static void MapBackButtonAccessibilityLabel(ToolbarHandler handler, IToolbar toolbar)
+    {
+        if (handler.PlatformView is { } platform && toolbar is Toolbar controls)
+            platform.BackButtonAccessibilityLabel = controls.BackButtonAccessibilityLabel;
     }
 
     public static void MapTitleIcon(ToolbarHandler handler, IToolbar toolbar)
@@ -164,6 +175,13 @@ public class SkiaToolbar
 
     /// <summary>The back button's title (the previous page's NavigationPage.BackButtonTitle).</summary>
     public string? BackButtonTitle { get; set; }
+
+    /// <summary>
+    /// The back button's accessible name (the shown page's
+    /// NavigationPage.BackButtonAccessibilityLabel, Shell's BackButtonBehavior.AccessibilityLabel);
+    /// null or empty leaves the default name, "Back".
+    /// </summary>
+    public string? BackButtonAccessibilityLabel { get; set; }
 
     /// <summary>The image left of the title (NavigationPage.TitleIconImageSource).</summary>
     public ImageSource? TitleIcon { get; set; }
