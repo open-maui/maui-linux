@@ -161,9 +161,9 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
     {
         get
         {
-            bool csd = _window is Window.WaylandWindow { UseCsd: true };
+            bool csd = _window is Window.IClientDecoratedWindow { Decorations.Active: true };
             float titleBar = TitleBarView is { IsVisible: true } ? _titleBarHeight : 0f;
-            return csd ? Math.Max(Window.WaylandWindow.CsdTitlebarHeightLogical, titleBar) : titleBar;
+            return csd ? Math.Max(Window.ClientDecorations.DefaultTitlebarHeight, titleBar) : titleBar;
         }
     }
 
@@ -320,7 +320,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         // smaller window (height minus titlebar) and are drawn translated down
         // by the titlebar height inside RenderRegion. The titlebar itself is
         // drawn after the view passes, in the strip the view tree doesn't cover.
-        bool csdActive = _window is Window.WaylandWindow waylandCsd && waylandCsd.UseCsd;
+        bool csdActive = _window is Window.IClientDecoratedWindow { Decorations.Active: true };
         // The window's TitleBar (Window.TitleBar): measured first, since its height decides
         // the strip above the page. With CSD it fills the decoration's title bar.
         var titleBar = TitleBarView is { IsVisible: true } shownTitleBar ? shownTitleBar : null;
@@ -341,8 +341,8 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
             }
         }
         float csdInsetLogical = TopInsetLogical;
-        if (csdActive && _window is Window.WaylandWindow csdWindow)
-            csdWindow.CsdTitlebarHeight = csdInsetLogical;
+        if (csdActive && _window is Window.IClientDecoratedWindow csdWindow)
+            csdWindow.Decorations.TitlebarHeight = csdInsetLogical;
 
         // Measure and arrange at logical pixel dimensions
         var logicalWidth = (double)LogicalWidth;
@@ -502,7 +502,7 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
         // the view tree (or its background fill) may have leaked into the
         // titlebar strip. Drawn in logical coords matching the DpiScale matrix
         // used everywhere else in this method.
-        if (csdActive && _window is Window.WaylandWindow waylandCsdDraw)
+        if (csdActive && _window is Window.IClientDecoratedWindow csdDrawWindow)
         {
             try
             {
@@ -523,9 +523,9 @@ public class SkiaRenderingEngine : IDisposable, IRenderContext
                 }
                 Window.WaylandCsdRenderer.DrawTitlebar(
                     canvas,
-                    waylandCsdDraw,
+                    csdDrawWindow,
                     LogicalWidth,
-                    waylandCsdDraw.Title ?? string.Empty,
+                    csdDrawWindow.Title ?? string.Empty,
                     csdInsetLogical,
                     drawTitleBar);
                 canvas.Restore();
