@@ -571,6 +571,28 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         SendWindowStateEvent(fullscreen, "_NET_WM_STATE_FULLSCREEN");
     }
 
+    /// <summary>
+    /// Asks the window manager to raise and focus the window (EWMH _NET_ACTIVE_WINDOW,
+    /// source "application"), mapping it first in case it was minimized. The window
+    /// manager may refuse under its focus-stealing prevention, as Windows may refuse
+    /// SetForegroundWindow.
+    /// </summary>
+    internal void RequestActivation()
+    {
+        X11.XMapWindow(_display, _window);
+        var xev = new XEvent();
+        xev.ClientMessageEvent.Type = X11.ClientMessage;
+        xev.ClientMessageEvent.Window = _window;
+        xev.ClientMessageEvent.MessageType = X11.XInternAtom(_display, "_NET_ACTIVE_WINDOW", false);
+        xev.ClientMessageEvent.Format = 32;
+        xev.ClientMessageEvent.Data.L0 = 1; // source indication: application
+        xev.ClientMessageEvent.Data.L1 = 0; // CurrentTime
+        xev.ClientMessageEvent.Data.L2 = 0;
+        X11.XSendEvent(_display, X11.XRootWindow(_display, _screen), false,
+            X11.SubstructureRedirectMask | X11.SubstructureNotifyMask, ref xev);
+        X11.XFlush(_display);
+    }
+
     private void SendWindowStateEvent(bool add, params string[] stateNames)
     {
         var wmState = X11.XInternAtom(_display, "_NET_WM_STATE", false);

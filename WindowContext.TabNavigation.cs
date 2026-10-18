@@ -22,6 +22,19 @@ public sealed partial class WindowContext
     /// </summary>
     internal static event Action<WindowContext, SkiaView?>? TabNavigating;
 
+    /// <summary>
+    /// True while Tab navigation is moving focus: the view that gains it shows keyboard focus
+    /// (WinUI's FocusState.Keyboard, for which the system focus visual is drawn).
+    /// </summary>
+    [ThreadStatic]
+    private static bool t_movingFocusByKeyboard;
+
+    internal static bool IsMovingFocusByKeyboard
+    {
+        get => t_movingFocusByKeyboard;
+        private set => t_movingFocusByKeyboard = value;
+    }
+
     private bool TryTabNavigation(KeyEventArgs e)
     {
         if (e.Handled || e.Key != Key.Tab || (e.Modifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Super)) != 0)
@@ -43,7 +56,15 @@ public sealed partial class WindowContext
             int next = index < 0
                 ? (backward ? stops.Count - 1 : 0)
                 : (index + (backward ? stops.Count - 1 : 1)) % stops.Count;
-            FocusedView = stops[next];
+            IsMovingFocusByKeyboard = true;
+            try
+            {
+                FocusedView = stops[next];
+            }
+            finally
+            {
+                IsMovingFocusByKeyboard = false;
+            }
             e.Handled = true;
             return true;
         }
