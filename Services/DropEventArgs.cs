@@ -3,7 +3,7 @@
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-public class DropEventArgs : EventArgs
+public class LinuxDropEventArgs : EventArgs
 {
     public DragData Data { get; }
     public string? DroppedData { get; }
@@ -19,16 +19,23 @@ public class DropEventArgs : EventArgs
 
     public bool Handled { get; set; }
 
-    public DropEventArgs(DragData data, string? droppedData)
+    public LinuxDropEventArgs(DragData data, string? droppedData)
         : this(data, droppedData, 0, 0)
     {
     }
 
-    public DropEventArgs(DragData data, string? droppedData, int x, int y)
+    public LinuxDropEventArgs(DragData data, string? droppedData, int x, int y)
     {
         Data = data;
         DroppedData = droppedData;
         X = x;
         Y = y;
     }
+}
+
+[Obsolete("Use LinuxDropEventArgs; this type is removed in OpenMaui 11.0.")]
+public class DropEventArgs : LinuxDropEventArgs
+{
+    public DropEventArgs(DragData data, string? droppedData) : base(data, droppedData) { }
+    public DropEventArgs(DragData data, string? droppedData, int x, int y) : base(data, droppedData, x, y) { }
 }
