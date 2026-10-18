@@ -70,7 +70,8 @@ public class ShellSearchHandlerTests
         {
             Home = new ContentPage { Title = "Home", Content = new Label { Text = "home" } },
             Other = new ContentPage { Title = "Other", Content = new Label { Text = "other" } },
-            Handler = new AnimalSearchHandler { Placeholder = "Search animals" },
+            // ShowsResults is false by default in MAUI; the suggestion tests turn it on as apps that show results do.
+            Handler = new AnimalSearchHandler { Placeholder = "Search animals", ShowsResults = true },
         };
         configure?.Invoke(f.Handler);
         Shell.SetSearchHandler(f.Home, f.Handler);
