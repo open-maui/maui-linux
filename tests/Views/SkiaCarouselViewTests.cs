@@ -259,7 +259,7 @@ public class PositionChangedEventArgsTests
     [Fact]
     public void Constructor_SetsProperties()
     {
-        var args = new PositionChangedEventArgs(0, 2);
+        var args = new SkiaPositionChangedEventArgs(0, 2);
 
         Assert.Equal(0, args.PreviousPosition);
         Assert.Equal(2, args.CurrentPosition);

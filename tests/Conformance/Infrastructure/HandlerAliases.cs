@@ -21,37 +21,17 @@ namespace Microsoft.Maui.DeviceTests
 		public LabelHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
 	}
 	// MAUI's text-input tests build PropertyMapper<IEntry, IEntryHandler> and put
-	// EntryHandler.MapKeyboard etc. (MAUI signature: (IEntryHandler, IEntry)) first.
-	// The Linux handlers implement neither the I*Handler interfaces nor public
-	// MAUI-signature Map* methods; the alias adds the interface and Map* methods
-	// that run the Linux mapper's own entry for that property, so the test still
-	// checks what it is about (mapping order), on the Linux mapping.
-	public class EntryHandler : Linux.EntryHandler, IPlatformViewHandler, IEntryHandler
+	// EntryHandler.MapKeyboard etc. first: the Linux handlers implement IEntryHandler /
+	// IEditorHandler and have MAUI's interface-typed Map* methods.
+	public class EntryHandler : Linux.EntryHandler, IPlatformViewHandler
 	{
 		public EntryHandler() { }
 		public EntryHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
-
-		IEntry IEntryHandler.VirtualView => VirtualView;
-		object IEntryHandler.PlatformView => PlatformView;
-
-		public static void MapKeyboard(IEntryHandler handler, IEntry entry) => LinuxMapping.Run(Linux.EntryHandler.Mapper, handler, entry, nameof(IEntry.Keyboard));
-		public static void MapIsReadOnly(IEntryHandler handler, IEntry entry) => LinuxMapping.Run(Linux.EntryHandler.Mapper, handler, entry, nameof(IEntry.IsReadOnly));
-		public static void MapIsPassword(IEntryHandler handler, IEntry entry) => LinuxMapping.Run(Linux.EntryHandler.Mapper, handler, entry, nameof(IEntry.IsPassword));
 	}
-	public class EditorHandler : Linux.EditorHandler, IPlatformViewHandler, IEditorHandler
+	public class EditorHandler : Linux.EditorHandler, IPlatformViewHandler
 	{
 		public EditorHandler() { }
 		public EditorHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
-
-		IEditor IEditorHandler.VirtualView => VirtualView;
-		object IEditorHandler.PlatformView => PlatformView;
-
-		public static void MapKeyboard(IEditorHandler handler, IEditor editor) => LinuxMapping.Run(Linux.EditorHandler.Mapper, handler, editor, nameof(IEditor.Keyboard));
-	}
-	static class LinuxMapping
-	{
-		public static void Run(IPropertyMapper mapper, IElementHandler handler, IElement view, string property) =>
-			mapper.UpdateProperty(handler, view, property);
 	}
 	public class CheckBoxHandler : Linux.CheckBoxHandler, IPlatformViewHandler
 	{
@@ -83,34 +63,17 @@ namespace Microsoft.Maui.DeviceTests
 		public ActivityIndicatorHandler() { }
 		public ActivityIndicatorHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
 	}
-	// MAUI's ImageHandlerTests<TImageHandler, ...> require IImageHandler, which the
-	// Linux image handlers do not implement (they resolve the IImageSourceService and
-	// load with their own loader: MAUI's ImageSourcePartLoader has no load path on the
-	// platform-neutral build). The alias
-	// implements the interface by forwarding VirtualView/PlatformView; SourceLoader
-	// has no Linux counterpart and throws, so a test that needs it fails visibly.
-	public class ImageHandler : Linux.ImageHandler, IPlatformViewHandler, IImageHandler
+	// MAUI's ImageHandlerTests<TImageHandler, ...> require IImageHandler, which the Linux
+	// image handlers implement (SourceLoader loads through the Linux image pipeline).
+	public class ImageHandler : Linux.ImageHandler, IPlatformViewHandler
 	{
 		public ImageHandler() { }
 		public ImageHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
-
-		IImage IImageHandler.VirtualView => VirtualView;
-		object IImageHandler.PlatformView => PlatformView;
-		ImageSourcePartLoader IImageHandler.SourceLoader => throw ImageAliasGap.NoSourceLoader();
 	}
-	public class ImageButtonHandler : Linux.ImageButtonHandler, IPlatformViewHandler, IImageHandler
+	public class ImageButtonHandler : Linux.ImageButtonHandler, IPlatformViewHandler
 	{
 		public ImageButtonHandler() { }
 		public ImageButtonHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
-
-		IImage IImageHandler.VirtualView => VirtualView;
-		object IImageHandler.PlatformView => PlatformView;
-		ImageSourcePartLoader IImageHandler.SourceLoader => throw ImageAliasGap.NoSourceLoader();
-	}
-	static class ImageAliasGap
-	{
-		public static System.Exception NoSourceLoader() => new System.NotSupportedException(
-			"Linux image handlers do not implement IImageHandler.SourceLoader (MAUI's ImageSourcePartLoader).");
 	}
 	public class DatePickerHandler : Linux.DatePickerHandler, IPlatformViewHandler
 	{
@@ -127,18 +90,11 @@ namespace Microsoft.Maui.DeviceTests
 		public PickerHandler() { }
 		public PickerHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
 	}
-	public class SearchBarHandler : Linux.SearchBarHandler, IPlatformViewHandler, ISearchBarHandler
+	// ISearchBarHandler.QueryEditor is null: the Skia search bar draws its own field.
+	public class SearchBarHandler : Linux.SearchBarHandler, IPlatformViewHandler
 	{
 		public SearchBarHandler() { }
 		public SearchBarHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
-
-		ISearchBar ISearchBarHandler.VirtualView => VirtualView;
-		object ISearchBarHandler.PlatformView => PlatformView;
-		// MAUI exposes the search field as an editor (QueryEditor); the Skia search bar
-		// draws its own field and has no child editor view.
-		object ISearchBarHandler.QueryEditor => null;
-
-		public static void MapKeyboard(ISearchBarHandler handler, ISearchBar searchBar) => LinuxMapping.Run(Linux.SearchBarHandler.Mapper, handler, searchBar, nameof(ISearchBar.Keyboard));
 	}
 	public class RadioButtonHandler : Linux.RadioButtonHandler, IPlatformViewHandler
 	{
@@ -156,41 +112,12 @@ namespace Microsoft.Maui.DeviceTests
 		public ScrollViewHandler(IPropertyMapper mapper) : base(mapper) { }
 		public ScrollViewHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
 	}
-	// MAUI's LayoutHandler implements ILayoutHandler (Add/Insert/Remove/Clear/Update/
-	// UpdateZIndex as methods); the Linux one only handles the same operations as
-	// commands (handler.Invoke("Add", LayoutHandlerUpdate)), which is how
-	// Controls.Layout drives it. The alias implements ILayoutHandler by sending
-	// exactly the command Controls.Layout would send for each call.
-	public class LayoutHandler : Linux.LayoutHandler, IPlatformViewHandler, ILayoutHandler
+	// The Linux LayoutHandler implements ILayoutHandler (Add/Insert/Remove/Clear/Update/
+	// UpdateZIndex), as MAUI's does.
+	public class LayoutHandler : Linux.LayoutHandler, IPlatformViewHandler
 	{
 		public LayoutHandler() { }
 		public LayoutHandler(IPropertyMapper mapper, CommandMapper commandMapper) : base(mapper, commandMapper) { }
-
-		ILayout ILayoutHandler.VirtualView => VirtualView;
-		object ILayoutHandler.PlatformView => PlatformView;
-
-		public void Add(IView view) =>
-			Invoke(nameof(ILayoutHandler.Add), new LayoutHandlerUpdate(VirtualView.IndexOf(view), view));
-
-		public void Insert(int index, IView view) =>
-			Invoke(nameof(ILayoutHandler.Insert), new LayoutHandlerUpdate(index, view));
-
-		public void Update(int index, IView view) =>
-			Invoke(nameof(ILayoutHandler.Update), new LayoutHandlerUpdate(index, view));
-
-		// Controls.Layout sends the index the child had before it was removed;
-		// the stub layout has already dropped it, so recover it from the
-		// platform children (which mirror the layout's order).
-		public void Remove(IView view)
-		{
-			var platform = view.Handler?.PlatformView as Microsoft.Maui.Platform.SkiaView;
-			var index = platform is null ? -1 : System.Linq.Enumerable.ToList(PlatformView.Children).IndexOf(platform);
-			Invoke(nameof(ILayoutHandler.Remove), new LayoutHandlerUpdate(index, view));
-		}
-
-		public void Clear() => Invoke(nameof(ILayoutHandler.Clear), null);
-
-		public void UpdateZIndex(IView view) => Invoke(nameof(ILayoutHandler.UpdateZIndex), view);
 	}
 	public class GraphicsViewHandler : Linux.GraphicsViewHandler, IPlatformViewHandler
 	{
