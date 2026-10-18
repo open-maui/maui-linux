@@ -6,7 +6,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ## [11.0.0.1] - unreleased
 
-.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.10 is included.
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.11 is included (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
 
 ### Changed
 
@@ -36,6 +36,18 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
 - **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
 - **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
+
+## [10.0.110.11] - 2026-10-18
+
+### Fixed
+
+- **Linux publishes on a clean machine failed with NETSDK1094 (since 10.0.110.10)**: 10.0.110.10 turned `PublishReadyToRun` on from the package's build targets. NuGet only downloads the ReadyToRun compiler when the property is already true during restore, and a project sees a package's build files only after that package is restored, so on a clean CI runner the restore skipped the compiler and `dotnet publish -r linux-*` then failed ("Unable to optimize assemblies for performance: a valid runtime package was not found"). The default is withdrawn: OpenMaui no longer sets `PublishReadyToRun`. ReadyToRun still shortens startup (on claude-toolkit the first frame came 1.25 s sooner); an app opts in from its own project, where restore sees it:
+
+  ```xml
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+  ```
 
 ## [10.0.110.10] - 2026-10-18
 
