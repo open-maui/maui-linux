@@ -33,6 +33,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 - **`VisualElement.CaptureAsync` and `Window.CaptureAsync` returned null on MAUI 11**, which replaced the keyed capture hooks with `IScreenshot` and `IViewScreenshot`: the Linux screenshot service implements `IViewScreenshot` and `UseLinux` registers `IScreenshot`. `Screenshot.IsCaptureSupported` is true, as on the other platforms; capturing without a window still throws.
 - **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
+- **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
 
 ## [10.0.110.7] - 2026-10-04
 
