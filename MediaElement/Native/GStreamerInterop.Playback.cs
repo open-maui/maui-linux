@@ -83,6 +83,14 @@ public static partial class GStreamerInterop
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate void DeepElementAddedCallback(IntPtr bin, IntPtr subBin, IntPtr element, IntPtr userData);
 
+    /// <summary>GObject "notify::&lt;property&gt;": (gobject, pspec, user_data).</summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void NotifyCallback(IntPtr gobject, IntPtr pspec, IntPtr userData);
+
+    /// <summary>g_object_get of one string property (the returned string is owned by the caller: g_free it).</summary>
+    [DllImport(LibGObject, EntryPoint = "g_object_get", CharSet = CharSet.Ansi)]
+    internal static extern void g_object_get_string_ptr(IntPtr obj, [MarshalAs(UnmanagedType.LPStr)] string property, out IntPtr value, IntPtr terminator);
+
     [LibraryImport(LibGObject, EntryPoint = "g_signal_connect_data", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial nuint g_signal_connect_data(IntPtr instance, string detailedSignal, IntPtr handler, IntPtr data, IntPtr destroyData, int connectFlags);
 
