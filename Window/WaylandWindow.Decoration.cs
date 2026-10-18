@@ -11,9 +11,9 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 //
 //   zxdg_decoration_manager_v1: lets us request server-side decorations (titlebar,
 //   borders) from the compositor. KDE/Sway honor this; GNOME defaults to client-side
-//   only and will respond with mode=client_side, leaving us responsible for drawing
-//   our own titlebar (a follow-up task — for now, on GNOME-Wayland the user is
-//   expected to use MAUI_PREFER_X11=1 until CSD lands).
+//   only and will respond with mode=client_side, leaving us to draw our own titlebar
+//   (WaylandCsdRenderer). A window with a TitleBar (MAUI's Window.TitleBar) asks for
+//   client_side instead, so the TitleBar fills our titlebar as on Windows.
 //
 //   wp_fractional_scale_v1: lets the compositor tell us the exact scale factor it
 //   wants (in 120ths). Without it we'd render at integer scale and the compositor
@@ -42,32 +42,49 @@ public partial class WaylandWindow
     private IntPtr _decorationManager;
     private IntPtr _toplevelDecoration;
 
-    // Client-side decoration state. Set true when:
+    // Client-side decoration state (shared with the X11 window's decorations). Active when:
     //   1. Compositor has no zxdg_decoration_manager_v1 (must draw our own).
-    //   2. Compositor responds to set_mode(server_side) with configure(client_side)
-    //      — GNOME/Mutter does this unconditionally.
+    //   2. Compositor configures mode client_side: GNOME/Mutter does this unconditionally,
+    //      and KDE/Sway do it when we ask for client_side because the window has a TitleBar.
     //   3. MAUI_PREFER_CSD=1 is set (testing override on KDE/Sway).
     // Read by SkiaRenderingEngine to reserve the titlebar strip and by the pointer
     // handler to intercept titlebar clicks for move/resize/buttons.
-    private bool _useCsd;
-    public bool UseCsd => _useCsd;
+    private readonly ClientDecorations _csd = new();
+
+    // MAUI_PREFER_CSD=1: no decoration object, always client-side.
+    private bool _forceCsd;
+    // Whether the window's MAUI window has a TitleBar (asks for client-side mode).
+    private bool _clientDecorationsWanted;
+    // The compositor's last zxdg_toplevel_decoration_v1.configure mode, null before the first.
+    private uint? _configuredDecorationMode;
+
+    public bool UseCsd => _csd.Active;
+
+    /// <summary>The decoration state the renderer and the pointer hit-test share.</summary>
+    internal ClientDecorations Decorations => _csd;
+
+    ClientDecorations IClientDecoratedWindow.Decorations => _csd;
 
     // Cached titlebar button bounds (in logical pixels). Recomputed each frame
     // by WaylandCsdRenderer.DrawTitlebar; consulted by the pointer hit-test
     // before forwarding events to MAUI views.
-    internal SKRect CsdCloseButtonBounds;
-    internal SKRect CsdMaximizeButtonBounds;
-    internal SKRect CsdMinimizeButtonBounds;
+    internal SKRect CsdCloseButtonBounds { get => _csd.CloseButtonBounds; set => _csd.CloseButtonBounds = value; }
+    internal SKRect CsdMaximizeButtonBounds { get => _csd.MaximizeButtonBounds; set => _csd.MaximizeButtonBounds = value; }
+    internal SKRect CsdMinimizeButtonBounds { get => _csd.MinimizeButtonBounds; set => _csd.MinimizeButtonBounds = value; }
 
     // Logical titlebar height. Kept as a constant so SkiaRenderingEngine and the
     // pointer hit-test agree on the inset without a back-channel.
-    internal const float CsdTitlebarHeightLogical = 32f;
+    internal const float CsdTitlebarHeightLogical = ClientDecorations.DefaultTitlebarHeight;
 
     /// <summary>
     /// The titlebar's height this frame (logical pixels): <see cref="CsdTitlebarHeightLogical"/>,
     /// or taller when the window's TitleBar (MAUI's Window.TitleBar) is (set by the renderer).
     /// </summary>
-    internal float CsdTitlebarHeight { get; set; } = CsdTitlebarHeightLogical;
+    internal float CsdTitlebarHeight
+    {
+        get => _csd.TitlebarHeight;
+        set => _csd.TitlebarHeight = value;
+    }
 
     /// <summary>
     /// Asked for a left press in the titlebar (logical window coordinates): true when an
@@ -75,7 +92,34 @@ public partial class WaylandWindow
     /// elements, the parts Windows keeps out of the drag region), so the press reaches the
     /// view instead of moving the window. Set by the window's context.
     /// </summary>
-    internal Func<float, float, bool>? CsdTitleBarPassthrough { get; set; }
+    internal Func<float, float, bool>? CsdTitleBarPassthrough
+    {
+        get => _csd.TitleBarPassthrough;
+        set => _csd.TitleBarPassthrough = value;
+    }
+
+    /// <summary>
+    /// With a TitleBar the window asks the compositor for client-side mode, so the TitleBar
+    /// fills OpenMaui's own titlebar (KDE and Sway otherwise draw their own decorations);
+    /// without one it asks for server-side mode again. The compositor answers with a
+    /// configure: when it keeps server-side decorations, the TitleBar stays a strip at the top
+    /// of the client area. Only requests are sent and flushed here; the answer arrives through
+    /// the run loop's normal dispatch.
+    /// </summary>
+    public void SetClientDecorationsWanted(bool wanted)
+    {
+        if (_clientDecorationsWanted == wanted)
+            return;
+        _clientDecorationsWanted = wanted;
+        // Without the protocol (or with MAUI_PREFER_CSD) the window is client-decorated already.
+        if (_forceCsd || _toplevelDecoration == IntPtr.Zero)
+            return;
+        uint mode = WaylandDecorationPolicy.RequestedMode(wanted);
+        DiagnosticLog.Debug("WaylandWindow", $"TitleBar {(wanted ? "set" : "removed")}; requesting decoration mode {(mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE ? "client_side" : "server_side")}");
+        wl_proxy_marshal(_toplevelDecoration, ZXDG_TOPLEVEL_DECORATION_V1_SET_MODE, mode);
+        if (_display != IntPtr.Zero)
+            wl_display_flush(_display);
+    }
 
     private delegate void ZxdgToplevelDecorationV1ConfigureDelegate(IntPtr data, IntPtr proxy, uint mode);
 
@@ -127,20 +171,21 @@ public partial class WaylandWindow
         // its own on top because we never request server-side mode.
         var preferCsd = Environment.GetEnvironmentVariable("MAUI_PREFER_CSD");
         bool forceCsd = !string.IsNullOrEmpty(preferCsd) && preferCsd != "0";
+        _forceCsd = forceCsd;
 
         // No decoration manager at all (e.g. GNOME 3.x pre-extension, custom
         // compositors) means there's no protocol to negotiate SSD over —
         // we must draw client-side.
         if (_decorationManager == IntPtr.Zero || _xdgToplevel == IntPtr.Zero)
         {
-            _useCsd = true;
+            _csd.Active = true;
             DiagnosticLog.Debug("WaylandWindow", "No zxdg_decoration_manager_v1; using CSD");
             return;
         }
 
         if (forceCsd)
         {
-            _useCsd = true;
+            _csd.Active = true;
             DiagnosticLog.Debug("WaylandWindow", "MAUI_PREFER_CSD=1; using CSD (skipping SSD request)");
             return;
         }
@@ -156,7 +201,7 @@ public partial class WaylandWindow
         if (_toplevelDecoration == IntPtr.Zero)
         {
             // Couldn't construct a toplevel decoration object — fall back to CSD.
-            _useCsd = true;
+            _csd.Active = true;
             DiagnosticLog.Debug("WaylandWindow", "get_toplevel_decoration failed; using CSD");
             return;
         }
@@ -172,10 +217,10 @@ public partial class WaylandWindow
         _decorationListenerHandle = GCHandle.Alloc(_decorationListener, GCHandleType.Pinned);
         wl_proxy_add_listener(_toplevelDecoration, _decorationListenerHandle.AddrOfPinnedObject(), GCHandle.ToIntPtr(_thisHandle));
 
-        // Request server-side mode. The compositor decides; we observe its
-        // choice via the configure event handler above.
+        // Request server-side mode, or client-side when the window already has a TitleBar.
+        // The compositor decides; we observe its choice via the configure event handler above.
         wl_proxy_marshal(_toplevelDecoration, ZXDG_TOPLEVEL_DECORATION_V1_SET_MODE,
-            ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+            WaylandDecorationPolicy.RequestedMode(_clientDecorationsWanted));
     }
 
     private static void OnDecorationConfigure(IntPtr data, IntPtr proxy, uint mode)
@@ -184,10 +229,13 @@ public partial class WaylandWindow
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
 
-        bool wantsCsd = mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
-        if (window._useCsd == wantsCsd) return;
+        window._configuredDecorationMode = mode;
+        bool wantsCsd = WaylandDecorationPolicy.UsesClientDecorations(hasDecorationProtocol: true, window._forceCsd, mode);
+        if (window._clientDecorationsWanted && !wantsCsd)
+            DiagnosticLog.Info("WaylandWindow", "Compositor kept server-side decorations; the window's TitleBar is shown below its titlebar");
+        if (window._csd.Active == wantsCsd) return;
 
-        window._useCsd = wantsCsd;
+        window._csd.Active = wantsCsd;
         DiagnosticLog.Debug("WaylandWindow", $"Decoration mode = {(wantsCsd ? "client_side (CSD)" : "server_side")}; redrawing");
 
         // The titlebar inset reservation changes the available content area, so
@@ -428,7 +476,10 @@ public partial class WaylandWindow
     }
 
     /// <summary>Width of the strip along each window edge that resizes the window, in logical pixels.</summary>
-    internal const float CsdResizeMargin = 6f;
+    internal const float CsdResizeMargin = ClientDecorations.ResizeMargin;
+
+    private float LogicalWidthForCsd => _bufferToLogicalScale > 0f ? _width / _bufferToLogicalScale : _width;
+    private float LogicalHeightForCsd => _bufferToLogicalScale > 0f ? _height / _bufferToLogicalScale : _height;
 
     /// <summary>
     /// The window edge (an XDG_TOPLEVEL_RESIZE_EDGE value) under a point in logical pixels, or
@@ -437,73 +488,82 @@ public partial class WaylandWindow
     /// </summary>
     internal uint CsdEdgeAt(float x, float y)
     {
-        if (!_useCsd || _isMaximized || _bufferToLogicalScale <= 0f)
+        if (!_csd.Active || _bufferToLogicalScale <= 0f)
             return XDG_TOPLEVEL_RESIZE_EDGE_NONE;
-        float logicalWidth = _width / _bufferToLogicalScale;
-        float logicalHeight = _height / _bufferToLogicalScale;
-        bool atLeft = x <= CsdResizeMargin;
-        bool atRight = x >= logicalWidth - CsdResizeMargin;
-        bool atTop = y <= CsdResizeMargin;
-        bool atBottom = y >= logicalHeight - CsdResizeMargin;
-        if (atTop && atLeft) return XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT;
-        if (atTop && atRight) return XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT;
-        if (atBottom && atLeft) return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT;
-        if (atBottom && atRight) return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT;
-        if (atTop) return XDG_TOPLEVEL_RESIZE_EDGE_TOP;
-        if (atBottom) return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
-        if (atLeft) return XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
-        if (atRight) return XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
-        return XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+        return ClientDecorations.ToXdgResizeEdge(
+            ClientDecorations.EdgeAt(x, y, LogicalWidthForCsd, LogicalHeightForCsd, _isMaximized));
     }
 
     /// <summary>
-    /// CSD pointer hit-test. Returns true if the press was consumed by the
-    /// titlebar (move/resize/button); false to let the event propagate to
-    /// MAUI views. Coordinates are in logical pixels.
+    /// CSD pointer hit-test for a left press. Returns true if the press was consumed by the
+    /// titlebar (move/resize/button); false to let the event propagate to MAUI views.
+    /// Coordinates are in logical pixels.
     /// </summary>
     internal bool HandleCsdPointerDown(float x, float y, uint serial)
+        => HandleCsdPointerDown(x, y, serial, Microsoft.Maui.Platform.PointerButton.Left, time: 0);
+
+    /// <summary>
+    /// CSD pointer hit-test. A left press resizes on an edge, works the window buttons, moves the
+    /// window on the titlebar (a double-click toggles maximize) and leaves the TitleBar's
+    /// interactive parts and the page to the views; a right press on the titlebar's move area
+    /// opens the compositor's window menu (xdg_toplevel.show_window_menu). Returns true when the
+    /// decorations took the press. <paramref name="time"/> is the event's millisecond timestamp.
+    /// </summary>
+    internal bool HandleCsdPointerDown(float x, float y, uint serial, Microsoft.Maui.Platform.PointerButton button, uint time)
     {
-        if (!_useCsd) return false;
+        if (!_csd.Active) return false;
 
-        // Edge resize (only when not maximized: a maximized window is not resized by its edges).
-        uint edge = CsdEdgeAt(x, y);
-        if (edge != XDG_TOPLEVEL_RESIZE_EDGE_NONE)
+        var hit = _csd.HitTest(x, y, LogicalWidthForCsd, LogicalHeightForCsd, _isMaximized);
+
+        if (button == Microsoft.Maui.Platform.PointerButton.Right)
         {
-            RequestCsdResize(serial, edge);
+            _csd.ResetClickTracking();
+            if (hit.Region != CsdRegion.Move)
+                return false;
+            ShowWindowMenu(serial, x, y);
             return true;
         }
-
-        // Below the titlebar → event is for the content area; don't consume.
-        if (y > CsdTitlebarHeight)
+        if (button != Microsoft.Maui.Platform.PointerButton.Left)
             return false;
 
-        // Button hits take priority over titlebar drag.
-        if (CsdCloseButtonBounds.Contains(x, y))
+        switch (hit.Region)
         {
-            CloseFromCsd();
-            return true;
+            case CsdRegion.ResizeEdge:
+                _csd.ResetClickTracking();
+                RequestCsdResize(serial, ClientDecorations.ToXdgResizeEdge(hit.Edge));
+                return true;
+            case CsdRegion.Close:
+                _csd.ResetClickTracking();
+                CloseFromCsd();
+                return true;
+            case CsdRegion.Maximize:
+                _csd.ResetClickTracking();
+                ToggleMaximize();
+                return true;
+            case CsdRegion.Minimize:
+                _csd.ResetClickTracking();
+                Minimize();
+                return true;
+            case CsdRegion.Move:
+                // time 0: the caller has no timestamp (no double-click tracking).
+                if (time != 0 && _csd.RegisterMoveClick(time, x, y))
+                    ToggleMaximize();
+                else
+                    RequestCsdMove(serial);
+                return true;
+            default:
+                // An interactive part of the window's TitleBar (Windows' passthrough region)
+                // or the page takes the press.
+                _csd.ResetClickTracking();
+                return false;
         }
-        if (CsdMaximizeButtonBounds.Contains(x, y))
-        {
-            ToggleMaximize();
-            return true;
-        }
-        if (CsdMinimizeButtonBounds.Contains(x, y))
-        {
-            Minimize();
-            return true;
-        }
+    }
 
-        // An interactive part of the window's TitleBar takes the press (Windows' passthrough
-        // region); the rest of the bar moves the window.
-        if (CsdTitleBarPassthrough?.Invoke(x, y) == true)
-            return false;
-
-        // Any other point in the titlebar starts an interactive move.
-        // Double-click on the titlebar should toggle maximize, but we don't
-        // have double-click detection plumbed yet — leave as v2.
-        RequestCsdMove(serial);
-        return true;
+    /// <summary>Opens the compositor's window menu at a surface point (logical pixels).</summary>
+    internal void ShowWindowMenu(uint serial, float x, float y)
+    {
+        if (_xdgToplevel == IntPtr.Zero || _seat == IntPtr.Zero) return;
+        wl_proxy_marshal(_xdgToplevel, XDG_TOPLEVEL_SHOW_WINDOW_MENU, _seat, serial, (int)x, (int)y);
     }
 
     #endregion
