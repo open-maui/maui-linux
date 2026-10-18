@@ -86,7 +86,7 @@ public partial class SkiaShell
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0f;
             return new Rect(
                 Bounds.Left + flyoutOffset,
-                Bounds.Top + (NavBarIsVisible ? NavBarHeight : 0f),
+                Bounds.Top + (IsNavBarShown ? NavBarHeight : 0f),
                 Math.Max(0, Bounds.Width - flyoutOffset),
                 TabBarHeight);
         }
