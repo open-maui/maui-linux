@@ -5,12 +5,18 @@ using System;
 
 namespace Microsoft.Maui.Platform;
 
-public class CheckedChangedEventArgs : EventArgs
+public class SkiaCheckedChangedEventArgs : EventArgs
 {
     public bool IsChecked { get; }
 
-    public CheckedChangedEventArgs(bool isChecked)
+    public SkiaCheckedChangedEventArgs(bool isChecked)
     {
         IsChecked = isChecked;
     }
+}
+
+[Obsolete("Use SkiaCheckedChangedEventArgs; this type is removed in OpenMaui 11.0.")]
+public class CheckedChangedEventArgs : SkiaCheckedChangedEventArgs
+{
+    public CheckedChangedEventArgs(bool isChecked) : base(isChecked) { }
 }
