@@ -10,8 +10,8 @@ using Xunit;
 
 namespace Microsoft.Maui.Controls.Linux.Tests.Golden;
 
-using StackOrientation = Microsoft.Maui.Platform.StackOrientation;
-using SwipeItem = Microsoft.Maui.Platform.SwipeItem;
+using StackOrientation = Microsoft.Maui.Controls.StackOrientation;
+using SwipeItem = Microsoft.Maui.Platform.SkiaSwipeItem;
 using OpenSwipeItem = Microsoft.Maui.OpenSwipeItem;
 
 /// <summary>

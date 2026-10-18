@@ -34,6 +34,19 @@
     <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
+  <!--
+    A published Linux app is compiled ahead of time (ReadyToRun) unless the project says
+    otherwise (set here, after the project body, so the project's own value wins): without it every method MAUI, OpenMaui and the app run is JIT-compiled the first
+    time it runs, on the UI thread for UI code. Measured on claude-toolkit (self-contained
+    linux-x64): the first frame came 4.1 s after launch with 1.3 s of JIT before it, and 2.9 s
+    with 0.2 s of JIT when published ReadyToRun; the publish grows from 158 MB to 209 MB. It only
+    affects `dotnet publish` with a runtime identifier (builds and debugging still JIT). Set
+    <PublishReadyToRun>false</PublishReadyToRun> in the project to opt out.
+  -->
+  <PropertyGroup Condition="'$(OpenMauiLinux)' == 'true'">
+    <PublishReadyToRun Condition="'$(PublishReadyToRun)' == ''">true</PublishReadyToRun>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(OpenMauiLinux)' == 'true'">
     <!-- Re-include Linux platform files that MAUI's SingleProject.targets excluded -->
     <Compile Update="Platforms\Linux\**\*$(DefaultLanguageSourceExtension)"
