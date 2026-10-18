@@ -8,14 +8,19 @@ using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for Border on Linux using Skia rendering.
 /// </summary>
-public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
+public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>, IBorderHandler
 {
+    IBorderView IBorderHandler.VirtualView => VirtualView;
+    object IBorderHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IBorderView, BorderHandler> Mapper =
         new PropertyMapper<IBorderView, BorderHandler>(ViewHandler.ViewMapper)
         {
@@ -91,7 +96,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         base.DisconnectHandler(platformView);
     }
 
-    public static void MapContent(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapContent(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapContentCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapContent(BorderHandler handler, IBorderView border) => MapContentCore(handler, border);
+
+    private static void MapContentCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null || handler.MauiContext is null) return;
 
@@ -115,7 +132,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         }
     }
 
-    public static void MapStroke(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStroke</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStroke(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStroke(BorderHandler handler, IBorderView border) => MapStrokeCore(handler, border);
+
+    private static void MapStrokeCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -125,13 +154,37 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         }
     }
 
-    public static void MapStrokeThickness(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStrokeThickness</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeThickness(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeThicknessCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeThickness(BorderHandler handler, IBorderView border) => MapStrokeThicknessCore(handler, border);
+
+    private static void MapStrokeThicknessCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.StrokeThickness = border.StrokeThickness;
     }
 
-    public static void MapBackground(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapBackground</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapBackground(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapBackgroundCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapBackground(BorderHandler handler, IBorderView border) => MapBackgroundCore(handler, border);
+
+    private static void MapBackgroundCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -195,11 +248,23 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         ApplyShape(handler, border.Shape);
     }
 
+    /// <summary>MAUI's <c>MapStrokeDashPattern</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeDashPattern(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeDashPatternCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeDashPattern(BorderHandler handler, IBorderView border) => MapStrokeDashPatternCore(handler, border);
+
     /// <summary>
     /// MAUI's BorderHandler.MapStrokeDashPattern: the dash pattern of the stroke (for a
     /// Controls Border, its StrokeDashArray).
     /// </summary>
-    public static void MapStrokeDashPattern(BorderHandler handler, IBorderView border)
+    private static void MapStrokeDashPatternCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -221,7 +286,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapStrokeShape(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStrokeShape</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeShape(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeShapeCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeShape(BorderHandler handler, IBorderView border) => MapStrokeShapeCore(handler, border);
+
+    private static void MapStrokeShapeCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -271,7 +348,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapStrokeDashOffset(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStrokeDashOffset</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeDashOffset(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeDashOffsetCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeDashOffset(BorderHandler handler, IBorderView border) => MapStrokeDashOffsetCore(handler, border);
+
+    private static void MapStrokeDashOffsetCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -283,7 +372,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapStrokeLineCap(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStrokeLineCap</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeLineCap(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeLineCapCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeLineCap(BorderHandler handler, IBorderView border) => MapStrokeLineCapCore(handler, border);
+
+    private static void MapStrokeLineCapCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -294,7 +395,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapStrokeLineJoin(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStrokeLineJoin</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeLineJoin(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeLineJoinCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeLineJoin(BorderHandler handler, IBorderView border) => MapStrokeLineJoinCore(handler, border);
+
+    private static void MapStrokeLineJoinCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 
@@ -305,7 +418,19 @@ public partial class BorderHandler : LinuxViewHandler<IBorderView, SkiaBorder>
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapStrokeMiterLimit(BorderHandler handler, IBorderView border)
+    /// <summary>MAUI's <c>MapStrokeMiterLimit</c> signature; maps the property on a Linux <see cref="BorderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeMiterLimit(IBorderHandler handler, IBorderView border)
+    {
+        if (handler is BorderHandler linuxHandler)
+            MapStrokeMiterLimitCore(linuxHandler, border);
+    }
+
+    [Obsolete("Use the IBorderHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeMiterLimit(BorderHandler handler, IBorderView border) => MapStrokeMiterLimitCore(handler, border);
+
+    private static void MapStrokeMiterLimitCore(BorderHandler handler, IBorderView border)
     {
         if (handler.PlatformView is null) return;
 

@@ -6,14 +6,19 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for RadioButton on Linux using Skia rendering.
 /// </summary>
-public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRadioButton>
+public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRadioButton>, IRadioButtonHandler
 {
+    IRadioButton IRadioButtonHandler.VirtualView => VirtualView;
+    object IRadioButtonHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IRadioButton, RadioButtonHandler> Mapper =
         new PropertyMapper<IRadioButton, RadioButtonHandler>(ViewHandler.ViewMapper)
         {
@@ -76,13 +81,37 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
         VirtualView.IsChecked = PlatformView.IsChecked;
     }
 
-    public static void MapIsChecked(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapIsChecked</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsChecked(IRadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler is RadioButtonHandler linuxHandler)
+            MapIsCheckedCore(linuxHandler, radioButton);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsChecked(RadioButtonHandler handler, IRadioButton radioButton) => MapIsCheckedCore(handler, radioButton);
+
+    private static void MapIsCheckedCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.IsChecked = radioButton.IsChecked;
     }
 
-    public static void MapTextColor(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(IRadioButtonHandler handler, ITextStyle textStyle)
+    {
+        if (handler is RadioButtonHandler linuxHandler && textStyle is IRadioButton linuxView)
+            MapTextColorCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTextColor(RadioButtonHandler handler, IRadioButton radioButton) => MapTextColorCore(handler, radioButton);
+
+    private static void MapTextColorCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
 
@@ -92,7 +121,19 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
         }
     }
 
-    public static void MapFont(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFont(IRadioButtonHandler handler, ITextStyle textStyle)
+    {
+        if (handler is RadioButtonHandler linuxHandler && textStyle is IRadioButton linuxView)
+            MapFontCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFont(RadioButtonHandler handler, IRadioButton radioButton) => MapFontCore(handler, radioButton);
+
+    private static void MapFontCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
 
@@ -105,13 +146,37 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
         handler.PlatformView.FontAttributes = TextStyleMapping.ToFontAttributes(font);
     }
 
-    public static void MapCharacterSpacing(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCharacterSpacing(IRadioButtonHandler handler, ITextStyle textStyle)
+    {
+        if (handler is RadioButtonHandler linuxHandler && textStyle is IRadioButton linuxView)
+            MapCharacterSpacingCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCharacterSpacing(RadioButtonHandler handler, IRadioButton radioButton) => MapCharacterSpacingCore(handler, radioButton);
+
+    private static void MapCharacterSpacingCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.CharacterSpacing = radioButton.CharacterSpacing;
     }
 
-    public static void MapContent(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapContent(IRadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler is RadioButtonHandler linuxHandler)
+            MapContentCore(linuxHandler, radioButton);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapContent(RadioButtonHandler handler, IRadioButton radioButton) => MapContentCore(handler, radioButton);
+
+    private static void MapContentCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
         // SkiaRadioButton draws text only; like Android's native RadioButton, non-string
@@ -119,27 +184,75 @@ public partial class RadioButtonHandler : LinuxViewHandler<IRadioButton, SkiaRad
         handler.PlatformView.Content = radioButton.Content?.ToString() ?? string.Empty;
     }
 
-    public static void MapStrokeColor(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapStrokeColor</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeColor(IRadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler is RadioButtonHandler linuxHandler)
+            MapStrokeColorCore(linuxHandler, radioButton);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeColor(RadioButtonHandler handler, IRadioButton radioButton) => MapStrokeColorCore(handler, radioButton);
+
+    private static void MapStrokeColorCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.StrokeColor = radioButton.StrokeColor;
     }
 
-    public static void MapStrokeThickness(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapStrokeThickness</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeThickness(IRadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler is RadioButtonHandler linuxHandler)
+            MapStrokeThicknessCore(linuxHandler, radioButton);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeThickness(RadioButtonHandler handler, IRadioButton radioButton) => MapStrokeThicknessCore(handler, radioButton);
+
+    private static void MapStrokeThicknessCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
         // RadioButton.BorderWidth defaults to -1 ("unset"): no outline.
         handler.PlatformView.StrokeThickness = Math.Max(0, radioButton.StrokeThickness);
     }
 
-    public static void MapCornerRadius(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapCornerRadius</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCornerRadius(IRadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler is RadioButtonHandler linuxHandler)
+            MapCornerRadiusCore(linuxHandler, radioButton);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCornerRadius(RadioButtonHandler handler, IRadioButton radioButton) => MapCornerRadiusCore(handler, radioButton);
+
+    private static void MapCornerRadiusCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
         // RadioButton.CornerRadius defaults to -1 ("unset"): square corners.
         handler.PlatformView.CornerRadius = Math.Max(0, radioButton.CornerRadius);
     }
 
-    public static void MapBackground(RadioButtonHandler handler, IRadioButton radioButton)
+    /// <summary>MAUI's <c>MapBackground</c> signature; maps the property on a Linux <see cref="RadioButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapBackground(IRadioButtonHandler handler, IRadioButton radioButton)
+    {
+        if (handler is RadioButtonHandler linuxHandler)
+            MapBackgroundCore(linuxHandler, radioButton);
+    }
+
+    [Obsolete("Use the IRadioButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapBackground(RadioButtonHandler handler, IRadioButton radioButton) => MapBackgroundCore(handler, radioButton);
+
+    private static void MapBackgroundCore(RadioButtonHandler handler, IRadioButton radioButton)
     {
         if (handler.PlatformView is null) return;
 

@@ -7,6 +7,8 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -85,7 +87,19 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
         }
     }
 
-    public static void MapContent(RefreshViewHandler handler, RefreshView refreshView)
+    /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="RefreshViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapContent(IRefreshViewHandler handler, IRefreshView refreshView)
+    {
+        if (handler is RefreshViewHandler linuxHandler && refreshView is RefreshView linuxView)
+            MapContentCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IRefreshViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapContent(RefreshViewHandler handler, RefreshView refreshView) => MapContentCore(handler, refreshView);
+
+    private static void MapContentCore(RefreshViewHandler handler, RefreshView refreshView)
     {
         if (handler.PlatformView is null || handler.MauiContext is null) return;
 
@@ -108,7 +122,19 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
         }
     }
 
-    public static void MapIsRefreshing(RefreshViewHandler handler, RefreshView refreshView)
+    /// <summary>MAUI's <c>MapIsRefreshing</c> signature; maps the property on a Linux <see cref="RefreshViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsRefreshing(IRefreshViewHandler handler, IRefreshView refreshView)
+    {
+        if (handler is RefreshViewHandler linuxHandler && refreshView is RefreshView linuxView)
+            MapIsRefreshingCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IRefreshViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsRefreshing(RefreshViewHandler handler, RefreshView refreshView) => MapIsRefreshingCore(handler, refreshView);
+
+    private static void MapIsRefreshingCore(RefreshViewHandler handler, RefreshView refreshView)
     {
         if (handler.PlatformView is null || handler._isUpdatingRefreshing) return;
 
@@ -123,7 +149,19 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
         }
     }
 
-    public static void MapRefreshColor(RefreshViewHandler handler, RefreshView refreshView)
+    /// <summary>MAUI's <c>MapRefreshColor</c> signature; maps the property on a Linux <see cref="RefreshViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapRefreshColor(IRefreshViewHandler handler, IRefreshView refreshView)
+    {
+        if (handler is RefreshViewHandler linuxHandler && refreshView is RefreshView linuxView)
+            MapRefreshColorCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IRefreshViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapRefreshColor(RefreshViewHandler handler, RefreshView refreshView) => MapRefreshColorCore(handler, refreshView);
+
+    private static void MapRefreshColorCore(RefreshViewHandler handler, RefreshView refreshView)
     {
         if (handler.PlatformView is null) return;
 
@@ -160,5 +198,12 @@ public partial class RefreshViewHandler : LinuxViewHandler<RefreshView, SkiaRefr
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.IsPullEnabled = ((IRefreshView)refreshView).IsRefreshEnabled;
+    }
+
+    /// <summary>MAUI's <c>MapRefreshViewBackground</c>: the refresh indicator's background.</summary>
+    public static void MapRefreshViewBackground(IRefreshViewHandler handler, IView view)
+    {
+        if (handler is RefreshViewHandler linuxHandler && view is RefreshView refreshView)
+            MapBackground(linuxHandler, refreshView);
     }
 }

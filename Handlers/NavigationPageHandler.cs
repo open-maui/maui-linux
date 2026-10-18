@@ -16,8 +16,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for NavigationPage on Linux using Skia rendering.
 /// </summary>
-public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, SkiaNavigationPage>
+public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, SkiaNavigationPage>, INavigationViewHandler
 {
+    IStackNavigationView INavigationViewHandler.VirtualView => VirtualView;
+    object INavigationViewHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<NavigationPage, NavigationPageHandler> Mapper =
         new PropertyMapper<NavigationPage, NavigationPageHandler>(ViewHandler.ViewMapper)
         {
@@ -295,19 +298,19 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         DiagnosticLog.Debug("NavigationPageHandler", "VirtualView PoppedToRoot confirmed");
     }
 
-    private void OnPushed(object? sender, NavigationEventArgs e)
+    private void OnPushed(object? sender, SkiaNavigationEventArgs e)
     {
         // Navigation was completed on platform side
     }
 
-    private void OnPopped(object? sender, NavigationEventArgs e)
+    private void OnPopped(object? sender, SkiaNavigationEventArgs e)
     {
         // Platform pop events are handled by MapRequestNavigation, which drives navigation.
         // No need to sync back — MAUI's stack is already correct when this fires.
         DiagnosticLog.Debug("NavigationPageHandler", $"Platform Popped: {e.Page?.GetType().Name}");
     }
 
-    private void OnPoppedToRoot(object? sender, NavigationEventArgs e)
+    private void OnPoppedToRoot(object? sender, SkiaNavigationEventArgs e)
     {
         // Navigation was reset
     }

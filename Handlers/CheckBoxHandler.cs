@@ -4,6 +4,8 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -11,8 +13,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for CheckBox on Linux using Skia rendering.
 /// Maps ICheckBox interface to SkiaCheckBox platform view.
 /// </summary>
-public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>
+public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>, ICheckBoxHandler
 {
+    ICheckBox ICheckBoxHandler.VirtualView => VirtualView;
+    object ICheckBoxHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<ICheckBox, CheckBoxHandler> Mapper = new PropertyMapper<ICheckBox, CheckBoxHandler>(ViewHandler.ViewMapper)
     {
         [nameof(ICheckBox.IsChecked)] = MapIsChecked,
@@ -57,7 +62,7 @@ public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>
         base.DisconnectHandler(platformView);
     }
 
-    private void OnCheckedChanged(object? sender, Platform.CheckedChangedEventArgs e)
+    private void OnCheckedChanged(object? sender, SkiaCheckedChangedEventArgs e)
     {
         if (VirtualView is not null && VirtualView.IsChecked != e.IsChecked)
         {
@@ -65,13 +70,37 @@ public partial class CheckBoxHandler : LinuxViewHandler<ICheckBox, SkiaCheckBox>
         }
     }
 
-    public static void MapIsChecked(CheckBoxHandler handler, ICheckBox checkBox)
+    /// <summary>MAUI's <c>MapIsChecked</c> signature; maps the property on a Linux <see cref="CheckBoxHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsChecked(ICheckBoxHandler handler, ICheckBox check)
+    {
+        if (handler is CheckBoxHandler linuxHandler)
+            MapIsCheckedCore(linuxHandler, check);
+    }
+
+    [Obsolete("Use the ICheckBoxHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsChecked(CheckBoxHandler handler, ICheckBox checkBox) => MapIsCheckedCore(handler, checkBox);
+
+    private static void MapIsCheckedCore(CheckBoxHandler handler, ICheckBox checkBox)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.IsChecked = checkBox.IsChecked;
     }
 
-    public static void MapForeground(CheckBoxHandler handler, ICheckBox checkBox)
+    /// <summary>MAUI's <c>MapForeground</c> signature; maps the property on a Linux <see cref="CheckBoxHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapForeground(ICheckBoxHandler handler, ICheckBox check)
+    {
+        if (handler is CheckBoxHandler linuxHandler)
+            MapForegroundCore(linuxHandler, check);
+    }
+
+    [Obsolete("Use the ICheckBoxHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapForeground(CheckBoxHandler handler, ICheckBox checkBox) => MapForegroundCore(handler, checkBox);
+
+    private static void MapForegroundCore(CheckBoxHandler handler, ICheckBox checkBox)
     {
         if (handler.PlatformView is null) return;
 

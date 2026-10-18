@@ -4,14 +4,19 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for ScrollView on Linux using SkiaScrollView.
 /// </summary>
-public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrollView>
+public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrollView>, IScrollViewHandler
 {
+    IScrollView IScrollViewHandler.VirtualView => VirtualView;
+    object IScrollViewHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IScrollView, ScrollViewHandler> Mapper =
         new PropertyMapper<IScrollView, ScrollViewHandler>(ViewMapper)
         {
@@ -64,7 +69,7 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
     /// their content as it scrolls into view listen for that (Syncfusion's
     /// SfListView created only the rows of its first screen without it).
     /// </summary>
-    private void OnPlatformScrolled(object? sender, ScrolledEventArgs e)
+    private void OnPlatformScrolled(object? sender, SkiaScrolledEventArgs e)
     {
         if (VirtualView is not { } view)
             return;
@@ -73,7 +78,19 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
         view.ScrollFinished();
     }
 
-    public static void MapContent(ScrollViewHandler handler, IScrollView scrollView)
+    /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapContent(IViewHandler handler, IScrollView scrollView)
+    {
+        if (handler is ScrollViewHandler linuxHandler)
+            MapContentCore(linuxHandler, scrollView);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapContent(ScrollViewHandler handler, IScrollView scrollView) => MapContentCore(handler, scrollView);
+
+    private static void MapContentCore(ScrollViewHandler handler, IScrollView scrollView)
     {
         if (handler.PlatformView == null || handler.MauiContext == null)
             return;
@@ -101,38 +118,70 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
         }
     }
 
-    public static void MapHorizontalScrollBarVisibility(ScrollViewHandler handler, IScrollView scrollView)
+    /// <summary>MAUI's <c>MapHorizontalScrollBarVisibility</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapHorizontalScrollBarVisibility(IViewHandler handler, IScrollView scrollView)
     {
-        handler.PlatformView.HorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility switch
-        {
-            Microsoft.Maui.ScrollBarVisibility.Always => ScrollBarVisibility.Always,
-            Microsoft.Maui.ScrollBarVisibility.Never => ScrollBarVisibility.Never,
-            _ => ScrollBarVisibility.Default
-        };
+        if (handler is ScrollViewHandler linuxHandler)
+            MapHorizontalScrollBarVisibilityCore(linuxHandler, scrollView);
     }
 
-    public static void MapVerticalScrollBarVisibility(ScrollViewHandler handler, IScrollView scrollView)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapHorizontalScrollBarVisibility(ScrollViewHandler handler, IScrollView scrollView) => MapHorizontalScrollBarVisibilityCore(handler, scrollView);
+
+    private static void MapHorizontalScrollBarVisibilityCore(ScrollViewHandler handler, IScrollView scrollView)
     {
-        handler.PlatformView.VerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility switch
-        {
-            Microsoft.Maui.ScrollBarVisibility.Always => ScrollBarVisibility.Always,
-            Microsoft.Maui.ScrollBarVisibility.Never => ScrollBarVisibility.Never,
-            _ => ScrollBarVisibility.Default
-        };
+        handler.PlatformView.MauiHorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility;
     }
 
-    public static void MapOrientation(ScrollViewHandler handler, IScrollView scrollView)
+    /// <summary>MAUI's <c>MapVerticalScrollBarVisibility</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapVerticalScrollBarVisibility(IViewHandler handler, IScrollView scrollView)
     {
-        handler.PlatformView.Orientation = scrollView.Orientation switch
-        {
-            Microsoft.Maui.ScrollOrientation.Horizontal => ScrollOrientation.Horizontal,
-            Microsoft.Maui.ScrollOrientation.Both => ScrollOrientation.Both,
-            Microsoft.Maui.ScrollOrientation.Neither => ScrollOrientation.Neither,
-            _ => ScrollOrientation.Vertical
-        };
+        if (handler is ScrollViewHandler linuxHandler)
+            MapVerticalScrollBarVisibilityCore(linuxHandler, scrollView);
     }
 
-    public static void MapRequestScrollTo(ScrollViewHandler handler, IScrollView scrollView, object? args)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapVerticalScrollBarVisibility(ScrollViewHandler handler, IScrollView scrollView) => MapVerticalScrollBarVisibilityCore(handler, scrollView);
+
+    private static void MapVerticalScrollBarVisibilityCore(ScrollViewHandler handler, IScrollView scrollView)
+    {
+        handler.PlatformView.MauiVerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility;
+    }
+
+    /// <summary>MAUI's <c>MapOrientation</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapOrientation(IViewHandler handler, IScrollView scrollView)
+    {
+        if (handler is ScrollViewHandler linuxHandler)
+            MapOrientationCore(linuxHandler, scrollView);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapOrientation(ScrollViewHandler handler, IScrollView scrollView) => MapOrientationCore(handler, scrollView);
+
+    private static void MapOrientationCore(ScrollViewHandler handler, IScrollView scrollView)
+    {
+        handler.PlatformView.MauiOrientation = scrollView.Orientation;
+    }
+
+    /// <summary>MAUI's <c>MapRequestScrollTo</c> signature; runs the command on a Linux <see cref="ScrollViewHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapRequestScrollTo(IScrollViewHandler handler, IScrollView scrollView, object? args)
+    {
+        if (handler is ScrollViewHandler linuxHandler)
+            MapRequestScrollToCore(linuxHandler, scrollView, args);
+    }
+
+    [Obsolete("Use the IScrollViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapRequestScrollTo(ScrollViewHandler handler, IScrollView scrollView, object? args) => MapRequestScrollToCore(handler, scrollView, args);
+
+    private static void MapRequestScrollToCore(ScrollViewHandler handler, IScrollView scrollView, object? args)
     {
         if (args is ScrollToRequest request)
         {
@@ -141,6 +190,20 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
             // ScrollToAsync waits for this; a scroll to where the view already
             // is raises no Scrolled, and the await would never finish.
             scrollView.ScrollFinished();
+        }
+    }
+
+    /// <summary>
+    /// MAUI's <c>MapContentSize</c>: the scrollable extent follows the content. The
+    /// <see cref="SkiaScrollView"/> takes its extent from its content's measure, so the scroll
+    /// view is measured again.
+    /// </summary>
+    public static void MapContentSize(IViewHandler handler, IScrollView scrollView)
+    {
+        if (handler is ScrollViewHandler { PlatformView: { } platformView })
+        {
+            platformView.InvalidateMeasure();
+            platformView.Invalidate();
         }
     }
 }
