@@ -10,6 +10,13 @@
     <ApplicationTitle>OpenMauiLinuxApp</ApplicationTitle>
   </PropertyGroup>
 
+  <!-- Linux publishes are compiled ahead of time (ReadyToRun): the app starts faster, since MAUI,
+       OpenMaui and app code is not JIT-compiled on first use (the publish is larger). Set here, in
+       the project, so restore downloads the ReadyToRun compiler. Remove it to publish IL only. -->
+  <PropertyGroup Condition="!$(TargetFramework.Contains('-'))">
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- OpenMaui: UseLinux() stub (safe no-op on non-Linux platforms) -->
     <PackageReference Include="OpenMaui.Hosting" Version="11.0.*" />
