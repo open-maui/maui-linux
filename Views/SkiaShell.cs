@@ -309,9 +309,10 @@ public partial class SkiaShell : SkiaLayoutView
         {
             UpdateTitleView();
         }
-        else if (e.PropertyName == Shell.TabBarIsVisibleProperty.PropertyName && ReferenceEquals(sender, _lifecyclePage))
+        else if ((e.PropertyName == Shell.TabBarIsVisibleProperty.PropertyName || e.PropertyName == Shell.NavBarIsVisibleProperty.PropertyName)
+            && ReferenceEquals(sender, _lifecyclePage))
         {
-            // The page shows or hides the tab bar; the content takes or gives back its room.
+            // The page shows or hides the tab bar or the navigation bar; the content takes or gives back its room.
             InvalidateMeasure();
             Invalidate();
         }
@@ -669,6 +670,26 @@ public partial class SkiaShell : SkiaLayoutView
     {
         get => (bool)GetValue(NavBarIsVisibleProperty);
         set => SetValue(NavBarIsVisibleProperty, value);
+    }
+
+    /// <summary>
+    /// The navigation bar is laid out and drawn: <see cref="NavBarIsVisible"/>, and with a MAUI
+    /// Shell attached, Shell.NavBarIsVisible for the presented page as MAUI resolves it on every
+    /// platform (Shell.GetEffectiveValue: the page, else its ShellContent, ShellSection, ShellItem,
+    /// else the Shell's own value). A page that hides the bar (a splash or sign-in page) gets the
+    /// full height.
+    /// </summary>
+    internal bool IsNavBarShown
+    {
+        get
+        {
+            if (!NavBarIsVisible)
+                return false;
+            if (_mauiShell?.CurrentItem is not { } item)
+                return true;
+            Element? element = DisplayedMauiPage(item.CurrentItem) ?? (Element?)item.CurrentItem?.CurrentItem ?? item;
+            return EffectiveShellValue(element, Shell.NavBarIsVisibleProperty, (bool)_mauiShell.GetValue(Shell.NavBarIsVisibleProperty));
+        }
     }
 
     /// <summary>
@@ -1660,7 +1681,7 @@ public partial class SkiaShell : SkiaLayoutView
         // Measure current content with padding accounted for (consistent with ArrangeOverride)
         if (_currentContent != null)
         {
-            float contentTop = (NavBarIsVisible ? NavBarHeight : 0) + TopPaneHeight;
+            float contentTop = (IsNavBarShown ? NavBarHeight : 0) + TopPaneHeight;
             float contentBottom = 0;
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             var contentSize = new Size(
@@ -1681,7 +1702,7 @@ public partial class SkiaShell : SkiaLayoutView
         {
             float flyoutOffset = FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0;
             // The content is under the navigation bar and the top navigation pane (Windows' Shell).
-            float contentTop = (float)bounds.Top + (NavBarIsVisible ? NavBarHeight : 0) + TopPaneHeight + ContentPadding;
+            float contentTop = (float)bounds.Top + (IsNavBarShown ? NavBarHeight : 0) + TopPaneHeight + ContentPadding;
             float contentBottom = (float)bounds.Bottom - ContentPadding;
             var contentBounds = new Rect(
                 bounds.Left + flyoutOffset + ContentPadding,
@@ -1735,7 +1756,7 @@ public partial class SkiaShell : SkiaLayoutView
         }
 
         // Draw navigation bar (offset for locked flyout)
-        if (NavBarIsVisible)
+        if (IsNavBarShown)
         {
             if (isLocked)
             {
@@ -1908,7 +1929,7 @@ public partial class SkiaShell : SkiaLayoutView
         }
 
         // Check nav bar: its TitleView takes its own input.
-        if (NavBarIsVisible && y < (float)Bounds.Top + NavBarHeight)
+        if (IsNavBarShown && y < (float)Bounds.Top + NavBarHeight)
         {
             if (_titleView != null && _titleViewBounds.Contains(x, y) && _titleView.HitTestAt(x, y) is { } titleHit)
                 return titleHit;
@@ -1958,7 +1979,7 @@ public partial class SkiaShell : SkiaLayoutView
             }
         }
 
-        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && TryPressToolbarItem(e.X, e.Y))
+        if (IsNavBarShown && e.Y < Bounds.Top + NavBarHeight && TryPressToolbarItem(e.X, e.Y))
         {
             e.Handled = true;
             return;
@@ -1968,7 +1989,7 @@ public partial class SkiaShell : SkiaLayoutView
         // The nav bar starts after a locked flyout (a rail), as DrawNavBar draws it; the
         // back arrow's hit area moved with it (it only ever matched with no rail).
         float navLeft = (float)Bounds.Left + (FlyoutBehavior == ShellFlyoutBehavior.Locked ? FlyoutWidth : 0);
-        if (NavBarIsVisible && e.Y < Bounds.Top + NavBarHeight && e.X >= navLeft && e.X < navLeft + 56)
+        if (IsNavBarShown && e.Y < Bounds.Top + NavBarHeight && e.X >= navLeft && e.X < navLeft + 56)
         {
             if (IsBackButtonVisible)
             {

@@ -6,7 +6,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ## [11.0.0.1] - unreleased
 
-.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.12 is included (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.13 is included (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
 
 ### Changed
 
@@ -36,6 +36,12 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
 - **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
 - **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
+
+## [10.0.110.13] - 2026-10-18
+
+### Fixed
+
+- **Shell.NavBarIsVisible was ignored**: OpenMaui's Shell always showed its navigation bar, so a page that hides it, such as a splash or sign-in page calling `Shell.SetNavBarIsVisible(this, false)`, still had a bar above it. The bar now follows Shell.NavBarIsVisible for the presented page as MAUI resolves it on every platform: the page's value, else its ShellContent's, section's or item's, else the Shell's. A page without the bar is laid out over the whole height, the bar's title, back button, toolbar items and flyout button go with it, and a change while the page is shown takes effect at once.
 
 ## [10.0.110.12] - 2026-10-18
 
