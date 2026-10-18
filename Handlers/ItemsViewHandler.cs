@@ -128,13 +128,13 @@ public partial class ItemsViewHandler<TItemsView> : LinuxViewHandler<TItemsView,
     public static void MapHorizontalScrollBarVisibility(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.HorizontalScrollBarVisibility = (ScrollBarVisibility)itemsView.HorizontalScrollBarVisibility;
+        handler.PlatformView.MauiHorizontalScrollBarVisibility = itemsView.HorizontalScrollBarVisibility;
     }
 
     public static void MapVerticalScrollBarVisibility(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.VerticalScrollBarVisibility = (ScrollBarVisibility)itemsView.VerticalScrollBarVisibility;
+        handler.PlatformView.MauiVerticalScrollBarVisibility = itemsView.VerticalScrollBarVisibility;
     }
 
     public static void MapBackground(ItemsViewHandler<TItemsView> handler, TItemsView itemsView)

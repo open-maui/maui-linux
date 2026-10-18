@@ -4,6 +4,8 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -11,8 +13,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for ActivityIndicator on Linux using Skia rendering.
 /// Maps IActivityIndicator interface to SkiaActivityIndicator platform view.
 /// </summary>
-public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndicator, SkiaActivityIndicator>
+public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndicator, SkiaActivityIndicator>, IActivityIndicatorHandler
 {
+    IActivityIndicator IActivityIndicatorHandler.VirtualView => VirtualView;
+    object IActivityIndicatorHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IActivityIndicator, ActivityIndicatorHandler> Mapper = new PropertyMapper<IActivityIndicator, ActivityIndicatorHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IActivityIndicator.IsRunning)] = MapIsRunning,
@@ -53,8 +58,20 @@ public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndica
         }
     }
 
+    /// <summary>MAUI's <c>MapIsRunning</c> signature; maps the property on a Linux <see cref="ActivityIndicatorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsRunning(IActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    {
+        if (handler is ActivityIndicatorHandler linuxHandler)
+            MapIsRunningCore(linuxHandler, activityIndicator);
+    }
+
+    [Obsolete("Use the IActivityIndicatorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsRunning(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator) => MapIsRunningCore(handler, activityIndicator);
+
     /// <summary>It spins only while running and visible, as MAUI's handlers do on every platform.</summary>
-    public static void MapIsRunning(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    private static void MapIsRunningCore(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.IsRunning = activityIndicator.IsRunning && activityIndicator.Visibility == Visibility.Visible;
@@ -67,7 +84,19 @@ public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndica
         MapIsRunning(handler, activityIndicator);
     }
 
-    public static void MapColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    /// <summary>MAUI's <c>MapColor</c> signature; maps the property on a Linux <see cref="ActivityIndicatorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapColor(IActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
+    {
+        if (handler is ActivityIndicatorHandler linuxHandler)
+            MapColorCore(linuxHandler, activityIndicator);
+    }
+
+    [Obsolete("Use the IActivityIndicatorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator) => MapColorCore(handler, activityIndicator);
+
+    private static void MapColorCore(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
         if (handler.PlatformView is null) return;
 

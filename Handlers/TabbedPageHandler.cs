@@ -13,8 +13,10 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for TabbedPage on Linux using Skia rendering.
 /// Maps ITabbedView interface to SkiaTabbedPage platform view.
 /// </summary>
-public partial class TabbedPageHandler : LinuxViewHandler<ITabbedView, SkiaTabbedPage>
+public partial class TabbedPageHandler : LinuxViewHandler<ITabbedView, SkiaTabbedPage>, ITabbedViewHandler
 {
+    ITabbedView ITabbedViewHandler.VirtualView => VirtualView;
+
     private bool _isUpdatingSelection;
 
     public static IPropertyMapper<ITabbedView, TabbedPageHandler> Mapper = new PropertyMapper<ITabbedView, TabbedPageHandler>(ViewHandler.ViewMapper)

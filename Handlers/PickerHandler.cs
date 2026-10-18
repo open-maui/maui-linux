@@ -6,6 +6,8 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -13,8 +15,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Picker on Linux using Skia rendering.
 /// Maps IPicker interface to SkiaPicker platform view.
 /// </summary>
-public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
+public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>, IPickerHandler
 {
+    IPicker IPickerHandler.VirtualView => VirtualView;
+    object IPickerHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IPicker, PickerHandler> Mapper =
         new PropertyMapper<IPicker, PickerHandler>(ViewHandler.ViewMapper)
         {
@@ -36,6 +41,7 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
     public static CommandMapper<IPicker, PickerHandler> CommandMapper =
         new(ViewHandler.ViewCommandMapper)
         {
+            ["Reload"] = MapReload,
         };
 
     private INotifyCollectionChanged? _itemsCollection;
@@ -135,13 +141,37 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         PlatformView.SelectedIndex = index >= 0 && index < items.Length ? index : -1;
     }
 
-    public static void MapTitle(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapTitle</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTitle(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapTitleCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTitle(PickerHandler handler, IPicker picker) => MapTitleCore(handler, picker);
+
+    private static void MapTitleCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Title = picker.Title ?? "";
     }
 
-    public static void MapTitleColor(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapTitleColor</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTitleColor(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapTitleColorCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTitleColor(PickerHandler handler, IPicker picker) => MapTitleColorCore(handler, picker);
+
+    private static void MapTitleColorCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
         if (picker.TitleColor is not null)
@@ -150,7 +180,19 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         }
     }
 
-    public static void MapSelectedIndex(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapSelectedIndex</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapSelectedIndex(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapSelectedIndexCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapSelectedIndex(PickerHandler handler, IPicker picker) => MapSelectedIndexCore(handler, picker);
+
+    private static void MapSelectedIndexCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
 
@@ -160,7 +202,19 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         }
     }
 
-    public static void MapTextColor(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapTextColorCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTextColor(PickerHandler handler, IPicker picker) => MapTextColorCore(handler, picker);
+
+    private static void MapTextColorCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
         if (picker.TextColor is not null)
@@ -169,7 +223,19 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         }
     }
 
-    public static void MapFont(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFont(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapFontCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFont(PickerHandler handler, IPicker picker) => MapFontCore(handler, picker);
+
+    private static void MapFontCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
 
@@ -194,19 +260,55 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapCharacterSpacing(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCharacterSpacing(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapCharacterSpacingCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCharacterSpacing(PickerHandler handler, IPicker picker) => MapCharacterSpacingCore(handler, picker);
+
+    private static void MapCharacterSpacingCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.CharacterSpacing = picker.CharacterSpacing;
     }
 
-    public static void MapHorizontalTextAlignment(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapHorizontalTextAlignment</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapHorizontalTextAlignment(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapHorizontalTextAlignmentCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapHorizontalTextAlignment(PickerHandler handler, IPicker picker) => MapHorizontalTextAlignmentCore(handler, picker);
+
+    private static void MapHorizontalTextAlignmentCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.HorizontalTextAlignment = picker.HorizontalTextAlignment;
     }
 
-    public static void MapVerticalTextAlignment(PickerHandler handler, IPicker picker)
+    /// <summary>MAUI's <c>MapVerticalTextAlignment</c> signature; maps the property on a Linux <see cref="PickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapVerticalTextAlignment(IPickerHandler handler, IPicker view)
+    {
+        if (handler is PickerHandler linuxHandler)
+            MapVerticalTextAlignmentCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the IPickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapVerticalTextAlignment(PickerHandler handler, IPicker picker) => MapVerticalTextAlignmentCore(handler, picker);
+
+    private static void MapVerticalTextAlignmentCore(PickerHandler handler, IPicker picker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.VerticalTextAlignment = picker.VerticalTextAlignment;
@@ -255,5 +357,12 @@ public partial class PickerHandler : LinuxViewHandler<IPicker, SkiaPicker>
     {
         if (VirtualView is { } view && PlatformView is { } platform && view.IsOpen != platform.IsOpen)
             view.IsOpen = platform.IsOpen;
+    }
+
+    /// <summary>MAUI's <c>MapReload</c> command: the items changed; the drop-down is filled again.</summary>
+    public static void MapReload(IPickerHandler handler, IPicker picker, object? args)
+    {
+        if (handler is PickerHandler linuxHandler)
+            linuxHandler.ReloadItems();
     }
 }
