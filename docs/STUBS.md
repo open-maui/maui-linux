@@ -83,7 +83,7 @@ No open findings. Where Linux still differs from Windows:
 
 ### CommunityToolkit.Maui
 
-- **MediaElement:** `UriMediaSource.HttpHeaders` are sent with the request for the source URI and with the segment requests of HLS and DASH streams (including DASH init segments). They are not sent with the request for an HLS master playlist's media playlist, or its reloads for a live stream. GStreamer 1.28's `hlsdemux` fetches it with an internal downloader that no signal exposes, and it sends a `Referer` header but not the app's headers. The headers are not tied to a host: a segment on another host gets them too.
+- **MediaElement:** `UriMediaSource.HttpHeaders` are sent with the request for the source URI and with the segment requests of HLS and DASH streams (including DASH init segments). They are not sent with the request for an HLS master playlist's media playlist, or its reloads for a live stream. GStreamer 1.28's `hlsdemux` fetches it with an internal downloader that no signal exposes, and it sends a `Referer` header but not the app's headers. The headers go only to the media source's host and port; a segment on another host (a CDN) is fetched without them.
 - **Platform differences that are not gaps** (they follow the toolkit's Windows build):
   - Toast and Snackbar are desktop notifications, so `SnackbarOptions` and `Anchor` do not apply.
   - `DrawingView.GetImageStream` ignores the requested size.
