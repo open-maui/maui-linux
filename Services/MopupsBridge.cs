@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Mopups popups on Linux. When the app uses Mopups, an <c>IPopupPlatform</c>
 /// is registered in its services; Mopups' platform-neutral build (from
-/// MarketAlly.Mopups 3.0.12) takes it from there. Popups are shown as window
+/// MarketAlly.Mopups 3.0.13) takes it from there. Popups are shown as window
 /// layers without modal navigation, as the native Mopups platforms show them:
 /// the page beneath gets no Disappearing/Appearing (pages that reload in
 /// OnAppearing would otherwise lose unsaved edits every time a dialog opened).

@@ -1250,8 +1250,9 @@ public sealed partial class WindowContext : IDisposable
     }
 
     /// <summary>
-    /// True when <paramref name="hit"/> is a popup's backdrop: nothing, or a
-    /// container that paints no background and takes no input, as native
+    /// True when <paramref name="hit"/> is a popup's backdrop: nothing, the
+    /// popup page itself, or a container in it that paints no background and
+    /// takes no input, as native
     /// hit-testing treats it (a transparent panel is not hit on WinUI, a view
     /// with no listeners does not consume the touch on Android).
     /// </summary>
@@ -1261,12 +1262,14 @@ public sealed partial class WindowContext : IDisposable
         {
             if (view is not (SkiaLayoutView or SkiaPage))
                 return false;
+            // The popup page's own background is the dimmed backdrop (Mopups'
+            // PopupPage.BackgroundColor): a press on it is a background click.
+            if (ReferenceEquals(view, layer))
+                break;
             if (view.IsFocusable || view.BackgroundColor is { Alpha: > 0 }
                 || (view.MauiView is { } maui && (maui.GestureRecognizers.Count > 0 || !Microsoft.Maui.Controls.Brush.IsNullOrEmpty(maui.Background)
                     || maui.BackgroundColor is { Alpha: > 0 })))
                 return false;
-            if (ReferenceEquals(view, layer))
-                break;
         }
         return true;
     }
