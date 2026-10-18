@@ -19,17 +19,13 @@ public class SkiaContentPresenter : SkiaView
         BindableProperty.Create(nameof(Content), typeof(SkiaView), typeof(SkiaContentPresenter), null,
             propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).OnContentChanged((SkiaView?)o, (SkiaView?)n));
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty HorizontalContentAlignmentProperty =
-        BindableProperty.Create(nameof(HorizontalContentAlignment), typeof(LayoutAlignment), typeof(SkiaContentPresenter), LayoutAlignment.Fill,
+        BindableProperty.Create(nameof(HorizontalContentAlignment), typeof(Primitives.LayoutAlignment), typeof(SkiaContentPresenter), Primitives.LayoutAlignment.Fill,
             propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty VerticalContentAlignmentProperty =
-        BindableProperty.Create(nameof(VerticalContentAlignment), typeof(LayoutAlignment), typeof(SkiaContentPresenter), LayoutAlignment.Fill,
+        BindableProperty.Create(nameof(VerticalContentAlignment), typeof(Primitives.LayoutAlignment), typeof(SkiaContentPresenter), Primitives.LayoutAlignment.Fill,
             propertyChanged: (b, o, n) => ((SkiaContentPresenter)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
     public static readonly BindableProperty PaddingProperty =
         BindableProperty.Create(nameof(Padding), typeof(Thickness), typeof(SkiaContentPresenter), default(Thickness),
@@ -48,47 +44,23 @@ public class SkiaContentPresenter : SkiaView
         set => SetValue(ContentProperty, value);
     }
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     /// <summary>
     /// Gets or sets the horizontal alignment of the content.
     /// </summary>
-    [Obsolete("Use MauiHorizontalContentAlignment, which takes Microsoft.Maui.Primitives.LayoutAlignment; this property is removed in OpenMaui 11.0.")]
-    public LayoutAlignment HorizontalContentAlignment
+    public Primitives.LayoutAlignment HorizontalContentAlignment
     {
-        get => (LayoutAlignment)GetValue(HorizontalContentAlignmentProperty);
+        get => (Primitives.LayoutAlignment)GetValue(HorizontalContentAlignmentProperty);
         set => SetValue(HorizontalContentAlignmentProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the horizontal alignment of the content.
-    /// </summary>
-    public Primitives.LayoutAlignment MauiHorizontalContentAlignment
-    {
-        get => ((LayoutAlignment)GetValue(HorizontalContentAlignmentProperty)).ToMaui();
-        set => SetValue(HorizontalContentAlignmentProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>
     /// Gets or sets the vertical alignment of the content.
     /// </summary>
-    [Obsolete("Use MauiVerticalContentAlignment, which takes Microsoft.Maui.Primitives.LayoutAlignment; this property is removed in OpenMaui 11.0.")]
-    public LayoutAlignment VerticalContentAlignment
+    public Primitives.LayoutAlignment VerticalContentAlignment
     {
-        get => (LayoutAlignment)GetValue(VerticalContentAlignmentProperty);
+        get => (Primitives.LayoutAlignment)GetValue(VerticalContentAlignmentProperty);
         set => SetValue(VerticalContentAlignmentProperty, value);
     }
-
-    /// <summary>
-    /// Gets or sets the vertical alignment of the content.
-    /// </summary>
-    public Primitives.LayoutAlignment MauiVerticalContentAlignment
-    {
-        get => ((LayoutAlignment)GetValue(VerticalContentAlignmentProperty)).ToMaui();
-        set => SetValue(VerticalContentAlignmentProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
 
     /// <summary>
     /// Gets or sets the padding around the content.
@@ -166,10 +138,10 @@ public class SkiaContentPresenter : SkiaView
 
         // When alignment is not Fill, give content unlimited size in that dimension
         // so it can measure its natural size without truncation
-        var measureWidth = MauiHorizontalContentAlignment == Primitives.LayoutAlignment.Fill
+        var measureWidth = HorizontalContentAlignment == Primitives.LayoutAlignment.Fill
             ? (float)Math.Max(0, availableSize.Width - paddingLeft - paddingRight)
             : float.PositiveInfinity;
-        var measureHeight = MauiVerticalContentAlignment == Primitives.LayoutAlignment.Fill
+        var measureHeight = VerticalContentAlignment == Primitives.LayoutAlignment.Fill
             ? (float)Math.Max(0, availableSize.Height - paddingTop - paddingBottom)
             : float.PositiveInfinity;
 
@@ -192,7 +164,7 @@ public class SkiaContentPresenter : SkiaView
 
             // Apply alignment
             var contentSize = Content.DesiredSize;
-            var arrangedBounds = ApplyAlignment(contentBounds, contentSize, MauiHorizontalContentAlignment, MauiVerticalContentAlignment);
+            var arrangedBounds = ApplyAlignment(contentBounds, contentSize, HorizontalContentAlignment, VerticalContentAlignment);
             Content.Arrange(arrangedBounds);
         }
 

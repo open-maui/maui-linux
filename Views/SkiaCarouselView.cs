@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// A carousel: one item at a time across its width (or down its height, when
-/// <see cref="MauiOrientation"/> is vertical), moved by dragging, snapping to an item.
+/// <see cref="Orientation"/> is vertical), moved by dragging, snapping to an item.
 /// </summary>
 public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
 {
@@ -56,9 +56,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
                 int oldPosition = _currentPosition;
                 _currentPosition = value;
                 AnimateToPosition(value);
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-                PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, value));
-#pragma warning restore CS0618
+                PositionChanged?.Invoke(this, new SkiaPositionChangedEventArgs(oldPosition, value));
             }
         }
     }
@@ -90,24 +88,11 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
 
     private Controls.ItemsLayoutOrientation _orientation = Controls.ItemsLayoutOrientation.Horizontal;
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     /// <summary>
     /// The direction the items follow each other: across (Horizontal, the default) or down
     /// (Vertical), as the CarouselView's LinearItemsLayout orientation sets it.
     /// </summary>
-    [Obsolete("Use MauiOrientation, which takes Microsoft.Maui.Controls.ItemsLayoutOrientation; this property is removed in OpenMaui 11.0.")]
-    public ItemsLayoutOrientation Orientation
-    {
-        get => _orientation.ToLegacy();
-        set => MauiOrientation = value.ToMaui();
-    }
-#pragma warning restore CS0618
-
-    /// <summary>
-    /// The direction the items follow each other: across (Horizontal, the default) or down
-    /// (Vertical), as the CarouselView's LinearItemsLayout orientation sets it.
-    /// </summary>
-    public Controls.ItemsLayoutOrientation MauiOrientation
+    public Controls.ItemsLayoutOrientation Orientation
     {
         get => _orientation;
         set
@@ -255,9 +240,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>
     /// Event raised when position changes.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<PositionChangedEventArgs>? PositionChanged;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaPositionChangedEventArgs>? PositionChanged;
 
     /// <summary>
     /// Event raised when scrolling.
@@ -349,28 +332,10 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// scrolled), Always keeps it shown, Never hides it. A looping carousel shows none, as on
     /// Windows. A vertical carousel does not scroll across, so it never shows one.
     /// </summary>
-    public Microsoft.Maui.ScrollBarVisibility MauiHorizontalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
+    public Microsoft.Maui.ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
 
-    /// <summary>The vertical scroll bar of a vertical carousel; see <see cref="MauiHorizontalScrollBarVisibility"/>.</summary>
-    public Microsoft.Maui.ScrollBarVisibility MauiVerticalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>The horizontal scroll bar of a horizontal carousel; see <see cref="MauiHorizontalScrollBarVisibility"/>.</summary>
-    [Obsolete("Use MauiHorizontalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
-    public ScrollBarVisibility HorizontalScrollBarVisibility
-    {
-        get => MauiHorizontalScrollBarVisibility.ToLegacy();
-        set => MauiHorizontalScrollBarVisibility = value.ToMaui();
-    }
-
-    /// <summary>The vertical scroll bar of a vertical carousel; see <see cref="MauiHorizontalScrollBarVisibility"/>.</summary>
-    [Obsolete("Use MauiVerticalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
-    public ScrollBarVisibility VerticalScrollBarVisibility
-    {
-        get => MauiVerticalScrollBarVisibility.ToLegacy();
-        set => MauiVerticalScrollBarVisibility = value.ToMaui();
-    }
-#pragma warning restore CS0618
+    /// <summary>The vertical scroll bar of a vertical carousel; see <see cref="HorizontalScrollBarVisibility"/>.</summary>
+    public Microsoft.Maui.ScrollBarVisibility VerticalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
 
     /// <summary>
     /// Removes an item from the carousel.
@@ -430,9 +395,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
 
         if (oldPosition != position)
         {
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-            PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, position));
-#pragma warning restore CS0618
+            PositionChanged?.Invoke(this, new SkiaPositionChangedEventArgs(oldPosition, position));
         }
     }
 
@@ -773,7 +736,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>Where the carousel will rest once settled.</summary>
     internal float RestingOffset => _isAnimating ? _animationTargetOffset : _scrollOffset;
 
-    private bool ShowsScrollBar => !Loop && _items.Count > 1 && (IsVertical ? MauiVerticalScrollBarVisibility : MauiHorizontalScrollBarVisibility) switch
+    private bool ShowsScrollBar => !Loop && _items.Count > 1 && (IsVertical ? VerticalScrollBarVisibility : HorizontalScrollBarVisibility) switch
     {
         Microsoft.Maui.ScrollBarVisibility.Always => true,
         Microsoft.Maui.ScrollBarVisibility.Never => false,
@@ -1036,7 +999,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         }
         Invalidate();
         if (oldPosition != position)
-            PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, position));
+            PositionChanged?.Invoke(this, new SkiaPositionChangedEventArgs(oldPosition, position));
     }
 
     /// <summary>The offset of snap point <paramref name="index"/> and the item it shows.</summary>

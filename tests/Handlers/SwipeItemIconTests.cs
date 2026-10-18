@@ -65,8 +65,8 @@ public class SwipeItemIconTests
         condition().Should().BeTrue("the icon did not load in time");
     }
 
-    private static Microsoft.Maui.Platform.SwipeItem PlatformItem(SwipeItem item) =>
-        (Microsoft.Maui.Platform.SwipeItem)((IElement)item).Handler!.PlatformView!;
+    private static Microsoft.Maui.Platform.SkiaSwipeItem PlatformItem(SwipeItem item) =>
+        (Microsoft.Maui.Platform.SkiaSwipeItem)((IElement)item).Handler!.PlatformView!;
 
     private static FontImageSource Glyph(Color? color = null) => new() { Glyph = "A", Color = color, Size = 24 };
 
@@ -198,7 +198,7 @@ public class SwipeItemIconTests
     {
         using var icon = new SKBitmap(16, 16);
         icon.Erase(SKColors.Black);
-        var item = new Microsoft.Maui.Platform.SwipeItem
+        var item = new Microsoft.Maui.Platform.SkiaSwipeItem
         {
             Text = "Delete",
             Icon = icon,

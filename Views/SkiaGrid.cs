@@ -55,31 +55,12 @@ public class SkiaGrid : SkiaLayoutView
     /// <summary>
     /// Gets the row definitions.
     /// </summary>
-    public IList<Microsoft.Maui.GridLength> MauiRowDefinitions => _rowDefinitions;
+    public IList<Microsoft.Maui.GridLength> RowDefinitions => _rowDefinitions;
 
     /// <summary>
     /// Gets the column definitions.
     /// </summary>
-    public IList<Microsoft.Maui.GridLength> MauiColumnDefinitions => _columnDefinitions;
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    private IList<GridLength>? _legacyRowDefinitions;
-    private IList<GridLength>? _legacyColumnDefinitions;
-
-    /// <summary>
-    /// Gets the row definitions, as a live view of <see cref="MauiRowDefinitions"/>.
-    /// </summary>
-    [Obsolete("Use MauiRowDefinitions, which holds Microsoft.Maui.GridLength; this property is removed in OpenMaui 11.0.")]
-    public IList<GridLength> RowDefinitions =>
-        _legacyRowDefinitions ??= new ConvertingList<GridLength, Microsoft.Maui.GridLength>(_rowDefinitions, LegacyTypeMap.ToLegacy, LegacyTypeMap.ToMaui);
-
-    /// <summary>
-    /// Gets the column definitions, as a live view of <see cref="MauiColumnDefinitions"/>.
-    /// </summary>
-    [Obsolete("Use MauiColumnDefinitions, which holds Microsoft.Maui.GridLength; this property is removed in OpenMaui 11.0.")]
-    public IList<GridLength> ColumnDefinitions =>
-        _legacyColumnDefinitions ??= new ConvertingList<GridLength, Microsoft.Maui.GridLength>(_columnDefinitions, LegacyTypeMap.ToLegacy, LegacyTypeMap.ToMaui);
-#pragma warning restore CS0618
+    public IList<Microsoft.Maui.GridLength> ColumnDefinitions => _columnDefinitions;
 
     /// <summary>
     /// Spacing between rows.
@@ -734,41 +715,4 @@ public readonly struct GridPosition
         RowSpan = Math.Max(1, rowSpan);
         ColumnSpan = Math.Max(1, columnSpan);
     }
-}
-
-/// <summary>
-/// Grid length specification.
-/// </summary>
-[Obsolete("Use Microsoft.Maui.GridLength; this type is removed in OpenMaui 11.0.")]
-public readonly struct GridLength
-{
-    public float Value { get; }
-    public GridUnitType GridUnitType { get; }
-
-    public bool IsAbsolute => GridUnitType == GridUnitType.Absolute;
-    public bool IsAuto => GridUnitType == GridUnitType.Auto;
-    public bool IsStar => GridUnitType == GridUnitType.Star;
-
-    public static GridLength Auto => new(1, GridUnitType.Auto);
-    public static GridLength Star => new(1, GridUnitType.Star);
-
-    public GridLength(float value, GridUnitType unitType = GridUnitType.Absolute)
-    {
-        Value = value;
-        GridUnitType = unitType;
-    }
-
-    public static GridLength FromAbsolute(float value) => new(value, GridUnitType.Absolute);
-    public static GridLength FromStar(float value = 1) => new(value, GridUnitType.Star);
-}
-
-/// <summary>
-/// Grid unit type options.
-/// </summary>
-[Obsolete("Use Microsoft.Maui.GridUnitType; this type is removed in OpenMaui 11.0.")]
-public enum GridUnitType
-{
-    Absolute,
-    Star,
-    Auto
 }

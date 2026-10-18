@@ -1,10 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-// Platform.SwipeItem is this handler's platform element type (and the element type of
-// SkiaSwipeView's item lists) until OpenMaui 11.0, when SkiaSwipeItem replaces it.
-#pragma warning disable CS0618
-
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
@@ -20,7 +16,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// (IconImageSource) is loaded through its image-source service, any kind (file, URI, stream,
 /// font glyph, an app's own), and tinted as MAUI's Windows handler tints it.
 /// </summary>
-public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuItem, Platform.SwipeItem>, ISwipeItemMenuItemHandler
+public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuItem, SkiaSwipeItem>, ISwipeItemMenuItemHandler
 {
     public static IPropertyMapper<ISwipeItemMenuItem, ISwipeItemMenuItemHandler> Mapper =
         new PropertyMapper<ISwipeItemMenuItem, ISwipeItemMenuItemHandler>(ElementHandler.ElementMapper)
@@ -61,9 +57,9 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
 
     object ISwipeItemMenuItemHandler.PlatformView => PlatformView;
 
-    protected override Platform.SwipeItem CreatePlatformElement() => new SkiaSwipeItem();
+    protected override SkiaSwipeItem CreatePlatformElement() => new SkiaSwipeItem();
 
-    protected override void ConnectHandler(Platform.SwipeItem platformView)
+    protected override void ConnectHandler(SkiaSwipeItem platformView)
     {
         base.ConnectHandler(platformView);
         platformView.Invoked += OnInvoked;
@@ -84,7 +80,7 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
             UpdateValue(nameof(IMenuElement.Source));
     }
 
-    protected override void DisconnectHandler(Platform.SwipeItem platformView)
+    protected override void DisconnectHandler(SkiaSwipeItem platformView)
     {
         // As MAUI's Windows handler: a load in flight is dropped and the icon released.
         platformView.ReleaseIcon();
@@ -103,7 +99,7 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
     }
 
     /// <summary>The Linux platform item of a swipe item handler (this one or a subclass).</summary>
-    private static Platform.SwipeItem? Item(ISwipeItemMenuItemHandler handler) => handler.PlatformView as Platform.SwipeItem;
+    private static SkiaSwipeItem? Item(ISwipeItemMenuItemHandler handler) => handler.PlatformView as SkiaSwipeItem;
 
     public static void MapText(ISwipeItemMenuItemHandler handler, ISwipeItemMenuItem item)
     {
@@ -193,7 +189,7 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
     }
 
     /// <summary>The load <see cref="MapSource"/> starts; completes when the icon is shown or dropped.</summary>
-    internal static async Task LoadIconAsync(ISwipeItemMenuItemHandler handler, ISwipeItemMenuItem item, Platform.SwipeItem platformItem)
+    internal static async Task LoadIconAsync(ISwipeItemMenuItemHandler handler, ISwipeItemMenuItem item, SkiaSwipeItem platformItem)
     {
         platformItem.IconLoad?.Cancel();
         var source = item.Source;

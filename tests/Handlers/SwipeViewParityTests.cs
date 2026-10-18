@@ -10,9 +10,6 @@ using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using Xunit;
 using OpenSwipeItem = Microsoft.Maui.OpenSwipeItem;
-using SwipeDirection = Microsoft.Maui.SwipeDirection;
-using SwipeItem = Microsoft.Maui.Controls.SwipeItem;
-using SwipeMode = Microsoft.Maui.SwipeMode;
 
 namespace Microsoft.Maui.Controls.Linux.Tests.Handlers;
 

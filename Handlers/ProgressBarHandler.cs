@@ -6,7 +6,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -93,16 +92,11 @@ public partial class ProgressBarHandler : LinuxViewHandler<IProgress, SkiaProgre
     }
 
     /// <summary>MAUI's <c>MapProgress</c> signature; maps the property on a Linux <see cref="ProgressBarHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapProgress(IProgressBarHandler handler, IProgress progress)
     {
         if (handler is ProgressBarHandler linuxHandler)
             MapProgressCore(linuxHandler, progress);
     }
-
-    [Obsolete("Use the IProgressBarHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapProgress(ProgressBarHandler handler, IProgress progress) => MapProgressCore(handler, progress);
 
     private static void MapProgressCore(ProgressBarHandler handler, IProgress progress)
     {
@@ -111,16 +105,11 @@ public partial class ProgressBarHandler : LinuxViewHandler<IProgress, SkiaProgre
     }
 
     /// <summary>MAUI's <c>MapProgressColor</c> signature; maps the property on a Linux <see cref="ProgressBarHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapProgressColor(IProgressBarHandler handler, IProgress progress)
     {
         if (handler is ProgressBarHandler linuxHandler)
             MapProgressColorCore(linuxHandler, progress);
     }
-
-    [Obsolete("Use the IProgressBarHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapProgressColor(ProgressBarHandler handler, IProgress progress) => MapProgressColorCore(handler, progress);
 
     private static void MapProgressColorCore(ProgressBarHandler handler, IProgress progress)
     {

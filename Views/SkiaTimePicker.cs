@@ -26,15 +26,6 @@ public class SkiaTimeChangedEventArgs : EventArgs
 }
 
 /// <summary>
-/// Event args for time picker time changes.
-/// </summary>
-[Obsolete("Use SkiaTimeChangedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class TimeChangedEventArgs : SkiaTimeChangedEventArgs
-{
-    public TimeChangedEventArgs(TimeSpan oldTime, TimeSpan newTime) : base(oldTime, newTime) { }
-}
-
-/// <summary>
 /// Skia-rendered time picker control with clock popup.
 /// Implements MAUI ITimePicker interface patterns.
 /// </summary>
@@ -215,9 +206,7 @@ public class SkiaTimePicker : SkiaView
 
     #region Events
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<TimeChangedEventArgs>? TimeSelected;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaTimeChangedEventArgs>? TimeSelected;
 
     #endregion
 
@@ -286,9 +275,7 @@ public class SkiaTimePicker : SkiaView
     {
         _selectedHour = newValue.Hours;
         _selectedMinute = newValue.Minutes;
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-        TimeSelected?.Invoke(this, new TimeChangedEventArgs(oldValue, newValue));
-#pragma warning restore CS0618
+        TimeSelected?.Invoke(this, new SkiaTimeChangedEventArgs(oldValue, newValue));
         Invalidate();
     }
 

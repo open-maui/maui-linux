@@ -8,8 +8,6 @@ using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -108,16 +106,11 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     }
 
     /// <summary>MAUI's <c>MapTitle</c> signature; maps the property on a Linux <see cref="WindowHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTitle(IWindowHandler handler, IWindow window)
     {
         if (handler is WindowHandler linuxHandler)
             MapTitleCore(linuxHandler, window);
     }
-
-    [Obsolete("Use the IWindowHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTitle(WindowHandler handler, IWindow window) => MapTitleCore(handler, window);
 
     private static void MapTitleCore(WindowHandler handler, IWindow window)
     {
@@ -126,16 +119,11 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     }
 
     /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="WindowHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapContent(IWindowHandler handler, IWindow window)
     {
         if (handler is WindowHandler linuxHandler)
             MapContentCore(linuxHandler, window);
     }
-
-    [Obsolete("Use the IWindowHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapContent(WindowHandler handler, IWindow window) => MapContentCore(handler, window);
 
     private static void MapContentCore(WindowHandler handler, IWindow window)
     {
@@ -259,16 +247,11 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     }
 
     /// <summary>MAUI's <c>MapX</c> signature; maps the property on a Linux <see cref="WindowHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapX(IWindowHandler handler, IWindow view)
     {
         if (handler is WindowHandler linuxHandler)
             MapXCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the IWindowHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapX(WindowHandler handler, IWindow window) => MapXCore(handler, window);
 
     private static void MapXCore(WindowHandler handler, IWindow window)
     {
@@ -277,16 +260,11 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     }
 
     /// <summary>MAUI's <c>MapY</c> signature; maps the property on a Linux <see cref="WindowHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapY(IWindowHandler handler, IWindow view)
     {
         if (handler is WindowHandler linuxHandler)
             MapYCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the IWindowHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapY(WindowHandler handler, IWindow window) => MapYCore(handler, window);
 
     private static void MapYCore(WindowHandler handler, IWindow window)
     {
@@ -295,16 +273,11 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     }
 
     /// <summary>MAUI's <c>MapWidth</c> signature; maps the property on a Linux <see cref="WindowHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapWidth(IWindowHandler handler, IWindow view)
     {
         if (handler is WindowHandler linuxHandler)
             MapWidthCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the IWindowHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapWidth(WindowHandler handler, IWindow window) => MapWidthCore(handler, window);
 
     private static void MapWidthCore(WindowHandler handler, IWindow window)
     {
@@ -315,16 +288,11 @@ public partial class WindowHandler : ElementHandler<IWindow, SkiaWindow>, IWindo
     }
 
     /// <summary>MAUI's <c>MapHeight</c> signature; maps the property on a Linux <see cref="WindowHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapHeight(IWindowHandler handler, IWindow view)
     {
         if (handler is WindowHandler linuxHandler)
             MapHeightCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the IWindowHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapHeight(WindowHandler handler, IWindow window) => MapHeightCore(handler, window);
 
     private static void MapHeightCore(WindowHandler handler, IWindow window)
     {

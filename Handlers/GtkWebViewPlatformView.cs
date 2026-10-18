@@ -183,6 +183,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
             }
 
             // Create and show native GTK message dialog
+            Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
             IntPtr gtkDialog = GtkNative.gtk_message_dialog_new(
                 parentWindow,
                 GtkNative.GTK_DIALOG_MODAL | GtkNative.GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -247,6 +248,7 @@ public sealed class GtkWebViewPlatformView : IDisposable
             string? defaultText = WebKitNative.GetScriptDialogPromptDefaultText(webkitDialog) ?? "";
 
             // Create a custom dialog with OK/Cancel buttons
+            Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
             IntPtr gtkDialog = GtkNative.gtk_dialog_new_with_buttons(
                 "Prompt",
                 parentWindow,

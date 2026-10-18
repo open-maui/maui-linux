@@ -233,7 +233,7 @@ public class ItemsViewGestureParityTests
 
     private static void ScrollToRow(SkiaCollectionView skia, HeadlessMauiHost host, int index)
     {
-        skia.ScrollToIndex(index, Microsoft.Maui.Platform.ScrollToPosition.Start, animate: false);
+        skia.ScrollToIndex(index, Microsoft.Maui.Controls.ScrollToPosition.Start, animate: false);
         Render(host);
     }
 
