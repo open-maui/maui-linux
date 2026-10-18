@@ -437,7 +437,7 @@ public partial class LinuxApplication
         return PrimaryContext;
     }
 
-    private void OnNativeDragEnter(object? sender, Services.DragEventArgs e)
+    private void OnNativeDragEnter(object? sender, Services.LinuxDragEventArgs e)
     {
         // View targeting is driven from DragOver: X11 enter carries no
         // position (it only becomes known at the first XdndPosition), so a
@@ -447,7 +447,7 @@ public partial class LinuxApplication
             Handlers.GestureManager.ProcessDragLeave(left);
     }
 
-    private void OnNativeDragOver(object? sender, Services.DragEventArgs e)
+    private void OnNativeDragOver(object? sender, Services.LinuxDragEventArgs e)
     {
         var target = ResolveDropTarget(e.X, e.Y);
 
@@ -475,7 +475,7 @@ public partial class LinuxApplication
             Handlers.GestureManager.ProcessDragLeave(left);
     }
 
-    private void OnNativeDrop(object? sender, Services.DropEventArgs e)
+    private void OnNativeDrop(object? sender, Services.LinuxDropEventArgs e)
     {
         // Prefer the tracked target; fall back to hit-testing the drop
         // position (covers a drop with no preceding positioned DragOver).
