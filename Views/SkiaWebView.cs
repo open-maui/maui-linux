@@ -699,6 +699,7 @@ public partial class SkiaWebView : SkiaView
                 DiagnosticLog.Debug("SkiaWebView", $"GDK display: {gdkDisplay}");
             }
 
+            Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
             _webView = _webkitWebViewNew!();
             if (_webView == IntPtr.Zero)
             {
