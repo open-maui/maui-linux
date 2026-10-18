@@ -439,6 +439,29 @@ public static class GestureManager
     }
 
     /// <summary>
+    /// Raises the taps of <paramref name="view"/>'s recognizers that <paramref name="fires"/>
+    /// selects, as a keyboard activation does on Windows (Enter or Space on a focused Border):
+    /// each runs its Command and raises Tapped, with no pointer position (<c>Point.Zero</c>).
+    /// True when at least one recognizer was raised.
+    /// </summary>
+    internal static bool SendKeyboardTaps(View view, Func<TapGestureRecognizer, bool> fires)
+    {
+        bool handled = false;
+        Func<IElement?, Point?> noPosition = _ => Point.Zero;
+        foreach (var recognizer in view.GestureRecognizers.OfType<TapGestureRecognizer>().Where(fires).ToList())
+        {
+            if (!InvokeInternal(MauiInternals.SendTapped, recognizer, view, noPosition) && MauiInternals.SendTapped == null)
+            {
+                var command = recognizer.Command;
+                if (command != null && command.CanExecute(recognizer.CommandParameter))
+                    command.Execute(recognizer.CommandParameter);
+            }
+            handled = true;
+        }
+        return handled;
+    }
+
+    /// <summary>
     /// Checks if the view has any gesture recognizers.
     /// </summary>
     public static bool HasGestureRecognizers(View? view)
