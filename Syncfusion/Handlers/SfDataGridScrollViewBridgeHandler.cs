@@ -112,7 +112,7 @@ public class SkiaSfDataGridScrollView : SkiaScrollView
             SetState("Idle", scrolling: false);
     }
 
-    private void OnScrolled(object? sender, ScrolledEventArgs e)
+    private void OnScrolled(object? sender, SkiaScrolledEventArgs e)
     {
         if (Owner == null)
             return;
