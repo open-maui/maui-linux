@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.9] - 2026-10-18
+
+### Fixed
+
+- **Pages with many shapes, BoxViews, GraphicsViews or DrawingViews redrew and resized slowly** (since 10.0.110.7): each of them built a new MAUI `SkiaCanvas` every time it drew, and a new `SkiaCanvas` sets up its default paints and font (`SkiaCanvasStateService.EnsureDefaults`). In CiteLynq that took most of every frame, about 43 ms, so a resize ran at about 22 frames a second. They now share one canvas per thread (`MauiCanvasCache`), pointed at the frame's canvas and reset for each view, as the Syncfusion bridge already did.
+
 ## [10.0.110.8] - 2026-10-18
 
 ### Added
