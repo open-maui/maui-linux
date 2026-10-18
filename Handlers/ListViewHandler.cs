@@ -32,8 +32,9 @@ public partial class ListViewHandler : LinuxViewHandler<ListView, SkiaCollection
         }
 
         public Cell Cell { get; }
-        public int GroupIndex { get; }
-        public int Index { get; }
+        // Kept up to date as items are added or removed around the row (the row keeps its view).
+        public int GroupIndex { get; internal set; }
+        public int Index { get; internal set; }
         public bool IsGroupHeader { get; }
         public object? Item => Cell.BindingContext;
 
@@ -133,43 +134,153 @@ public partial class ListViewHandler : LinuxViewHandler<ListView, SkiaCollection
         _observedItems = null;
     }
 
-    private void OnTemplatedItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildRows();
+    /// <summary>
+    /// The items (or a group's items) changed: the rows follow in place, as Windows' ListView
+    /// updates its rows. The rows of the items still there keep their cells and views, the list
+    /// keeps the items in view where they are (WinUI's KeepItemsInView; a Reset keeps the
+    /// scroll offset), and the selection stays on its item.
+    /// </summary>
+    private void OnTemplatedItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        => UpdateRows(keepScrollOffset: e.Action == NotifyCollectionChangedAction.Reset);
+
+    private bool RecyclesElements => VirtualView is { } list && (list.CachingStrategy & ListViewCachingStrategy.RecycleElement) != 0;
 
     /// <summary>
-    /// Rebuilds the row list from MAUI's TemplatedItems. Grouped: each top
-    /// level entry is the group header cell whose BindingContext is the
-    /// group's own templated list; flat: each entry is an item cell.
+    /// What identifies a row across changes: its cell, which MAUI keeps for an item while it
+    /// stays in the list (RetainElement); with RecycleElement MAUI makes a new item cell on every
+    /// read, so the row is its item. A group header's cell is kept in both.
     /// </summary>
-    private void RebuildRows()
-    {
-        if (PlatformView is null || VirtualView is null) return;
+    private object RowKey(Row row) => RecyclesElements && !row.IsGroupHeader ? row.Item ?? row.Cell : row.Cell;
 
-        ObserveTemplatedItems();
-        _rows.Clear();
+    /// <summary>
+    /// Reads the rows from MAUI's TemplatedItems. Grouped: each top level entry is a group's
+    /// header cell, followed by the cells of the group's templated list; flat: each entry is an
+    /// item cell. A row still there (see <see cref="RowKey"/>) is reused, with its new place.
+    /// </summary>
+    private List<Row> ReadRows(bool reuse)
+    {
+        var rows = new List<Row>();
+        if (VirtualView is null)
+            return rows;
+        var recycle = RecyclesElements;
+        var previous = new Dictionary<object, Queue<Row>>(RowKeyComparer.Instance);
+        if (reuse)
+        {
+            foreach (var row in _rows)
+            {
+                var key = RowKey(row);
+                if (!previous.TryGetValue(key, out var queue))
+                    previous[key] = queue = new Queue<Row>();
+                queue.Enqueue(row);
+            }
+        }
+
+        Row Take(object? key, Func<Row> create, int groupIndex, int index)
+        {
+            if (key != null && previous.TryGetValue(key, out var queue) && queue.Count > 0)
+            {
+                var row = queue.Dequeue();
+                row.GroupIndex = groupIndex;
+                row.Index = index;
+                return row;
+            }
+            return create();
+        }
 
         var templated = VirtualView.TemplatedItems;
         if (VirtualView.IsGroupingEnabled)
         {
             for (int g = 0; g < templated.Count; g++)
             {
+                int groupIndex = g;
+                // A group's header cell is kept while the group is there, in either caching strategy.
                 var headerCell = templated[g];
-                _rows.Add(new Row(headerCell, g, -1, isGroupHeader: true));
-                if (headerCell.BindingContext is ITemplatedItemsList<Cell> group)
-                {
-                    for (int i = 0; i < group.Count; i++)
-                        _rows.Add(new Row(group[i], g, i, isGroupHeader: false));
-                }
+                rows.Add(Take(headerCell, () => new Row(headerCell, groupIndex, -1, isGroupHeader: true), g, -1));
+                // The group's items (its templated list; the header's BindingContext is the group's data when a GroupHeaderTemplate makes it).
+                var items = ((ITemplatedItemsList<Cell>)templated).GetGroup(g);
+                if (items != null)
+                    AddItemRows(rows, items, g, recycle, Take);
             }
         }
         else
         {
-            for (int i = 0; i < templated.Count; i++)
-                _rows.Add(new Row(templated[i], -1, i, isGroupHeader: false));
+            AddItemRows(rows, templated, -1, recycle, Take);
         }
+        return rows;
+    }
+
+    /// <summary>The same cell or item object; an item that is a value (a number, a string) is the same when equal.</summary>
+    private sealed class RowKeyComparer : IEqualityComparer<object>
+    {
+        public static readonly RowKeyComparer Instance = new();
+
+        public new bool Equals(object? x, object? y) =>
+            ReferenceEquals(x, y) || (x is ValueType or string && x.Equals(y));
+
+        public int GetHashCode(object obj) =>
+            obj is ValueType or string ? obj.GetHashCode() : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+    }
+
+    private static void AddItemRows(List<Row> rows, ITemplatedItemsList<Cell> items, int groupIndex, bool recycle,
+        Func<object?, Func<Row>, int, int, Row> take)
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            int index = i;
+            if (recycle)
+            {
+                // Only a new item gets a cell made for it.
+                var item = items.ListProxy[i];
+                rows.Add(take(item, () => new Row(items[index], groupIndex, index, isGroupHeader: false), groupIndex, i));
+            }
+            else
+            {
+                var cell = items[i];
+                rows.Add(take(cell, () => new Row(cell, groupIndex, index, isGroupHeader: false), groupIndex, i));
+            }
+        }
+    }
+
+    /// <summary>Shows the ListView's items from the start (a new ItemsSource, template or grouping).</summary>
+    private void RebuildRows()
+    {
+        if (PlatformView is null || VirtualView is null) return;
+
+        ObserveTemplatedItems();
+        var rows = ReadRows(reuse: false);
+        _rows.Clear();
+        _rows.AddRange(rows);
 
         PlatformView.ItemsSource = _rows.ToList();
         ApplySelection();
         PlatformView.InvalidateMeasure();
+    }
+
+    /// <summary>Follows a change of the items in place (see <see cref="OnTemplatedItemsChanged"/>).</summary>
+    private void UpdateRows(bool keepScrollOffset)
+    {
+        if (PlatformView is null || VirtualView is null) return;
+
+        ObserveTemplatedItems();
+        var rows = ReadRows(reuse: true);
+        _rows.Clear();
+        _rows.AddRange(rows);
+
+        // KeepItemsInView, as WinUI's list panel: the first item shown stays where it is. A
+        // Reset brings new rows, so the list keeps its offset instead.
+        var mode = PlatformView.ItemsUpdatingScrollMode;
+        PlatformView.ItemsUpdatingScrollMode = keepScrollOffset
+            ? ItemsUpdatingScrollMode.KeepScrollOffset
+            : ItemsUpdatingScrollMode.KeepItemsInView;
+        try
+        {
+            PlatformView.UpdateItemsSource(_rows.ToList());
+        }
+        finally
+        {
+            PlatformView.ItemsUpdatingScrollMode = mode;
+        }
+        ApplySelection();
     }
 
     private SkiaView? CreateRowView(object item)
@@ -308,7 +419,7 @@ public partial class ListViewHandler : LinuxViewHandler<ListView, SkiaCollection
     public static void MapVerticalScrollBarVisibility(ListViewHandler handler, ListView listView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.VerticalScrollBarVisibility = (Platform.ScrollBarVisibility)listView.VerticalScrollBarVisibility;
+        handler.PlatformView.MauiVerticalScrollBarVisibility = listView.VerticalScrollBarVisibility;
     }
 
     public static void MapBackground(ListViewHandler handler, ListView listView)

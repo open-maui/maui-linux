@@ -24,6 +24,8 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
         {
             [nameof(IApplication.OpenWindow)] = MapOpenWindow,
             [nameof(IApplication.CloseWindow)] = MapCloseWindow,
+            // MAUI's ApplicationHandler.TerminateCommandKey: Application.Quit() sends it.
+            ["Terminate"] = MapTerminate,
         };
 
     public ApplicationHandler() : base(Mapper, CommandMapper)
@@ -91,6 +93,41 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
         {
             handler.PlatformView?.CloseWindow(window);
         }
+    }
+
+    /// <summary>
+    /// MAUI's <c>ApplicationHandler.MapTerminate</c> (Application.Quit()): closes every open
+    /// window; the app exits when its last window has closed.
+    /// </summary>
+    public static void MapTerminate(ApplicationHandler handler, IApplication application, object? args)
+    {
+        var context = handler.PlatformView;
+        var windows = new List<IWindow>(application.Windows);
+        if (context != null)
+        {
+            foreach (var window in context.Windows)
+            {
+                if (!windows.Contains(window))
+                    windows.Add(window);
+            }
+        }
+        foreach (var window in windows)
+        {
+            if (context != null)
+                context.CloseWindow(window);
+            else
+                LinuxApplication.Current?.CloseMauiWindow(window);
+        }
+    }
+
+    /// <summary>
+    /// MAUI's <c>ApplicationHandler.MapActivateWindow</c> signature. OpenMaui's X11 and Wayland
+    /// windows have no request to raise and focus a toplevel, so this records the request in the
+    /// diagnostic log and changes nothing; it is not in <see cref="CommandMapper"/>.
+    /// </summary>
+    public static void MapActivateWindow(ApplicationHandler handler, IApplication application, object? args)
+    {
+        DiagnosticLog.Debug("ApplicationHandler", $"ActivateWindow: not supported by the Linux window backends ({(args as IWindow)?.Title})");
     }
 }
 

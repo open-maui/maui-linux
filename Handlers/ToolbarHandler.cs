@@ -6,6 +6,8 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -54,7 +56,19 @@ public partial class ToolbarHandler : ElementHandler<IToolbar, SkiaToolbar>, ITo
 
     protected override SkiaToolbar CreatePlatformElement() => new();
 
-    public static void MapTitle(ToolbarHandler handler, IToolbar toolbar)
+    /// <summary>MAUI's <c>MapTitle</c> signature; maps the property on a Linux <see cref="ToolbarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTitle(IToolbarHandler arg1, IToolbar arg2)
+    {
+        if (arg1 is ToolbarHandler linuxHandler)
+            MapTitleCore(linuxHandler, arg2);
+    }
+
+    [Obsolete("Use the IToolbarHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTitle(ToolbarHandler handler, IToolbar toolbar) => MapTitleCore(handler, toolbar);
+
+    private static void MapTitleCore(ToolbarHandler handler, IToolbar toolbar)
     {
         if (handler.PlatformView is { } platform)
             platform.Title = toolbar.Title ?? string.Empty;

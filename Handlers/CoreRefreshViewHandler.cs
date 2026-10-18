@@ -153,4 +153,11 @@ public partial class CoreRefreshViewHandler : LinuxViewHandler<IRefreshView, Ski
         if (RefreshPlatformView(handler) is { } platform)
             platform.IsEnabled = refreshView.IsEnabled;
     }
+
+    /// <summary>MAUI's <c>MapRefreshViewBackground</c>: the refresh indicator's background.</summary>
+    public static void MapRefreshViewBackground(IRefreshViewHandler handler, IView view)
+    {
+        if (view is IRefreshView refreshView)
+            MapBackground(handler, refreshView);
+    }
 }

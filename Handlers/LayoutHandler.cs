@@ -6,6 +6,8 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -16,7 +18,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <see cref="SkiaCrossPlatformLayout"/>, as on the other platforms; the
 /// handler manages the platform children, padding, clipping and background.
 /// </summary>
-public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
+public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, ILayoutHandler
 {
     public static IPropertyMapper<ILayout, LayoutHandler> Mapper = new PropertyMapper<ILayout, LayoutHandler>(ViewHandler.ViewMapper)
     {
@@ -117,13 +119,37 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
         base.DisconnectHandler(platformView);
     }
 
-    public static void MapClipsToBounds(LayoutHandler handler, ILayout layout)
+    /// <summary>MAUI's <c>MapClipsToBounds</c> signature; maps the property on a Linux <see cref="LayoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapClipsToBounds(ILayoutHandler handler, ILayout layout)
+    {
+        if (handler is LayoutHandler linuxHandler)
+            MapClipsToBoundsCore(linuxHandler, layout);
+    }
+
+    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapClipsToBounds(LayoutHandler handler, ILayout layout) => MapClipsToBoundsCore(handler, layout);
+
+    private static void MapClipsToBoundsCore(LayoutHandler handler, ILayout layout)
     {
         if (handler.PlatformView == null) return;
         handler.PlatformView.ClipToBounds = layout.ClipsToBounds;
     }
 
-    public static void MapBackground(LayoutHandler handler, ILayout layout)
+    /// <summary>MAUI's <c>MapBackground</c> signature; maps the property on a Linux <see cref="LayoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapBackground(ILayoutHandler handler, ILayout layout)
+    {
+        if (handler is LayoutHandler linuxHandler)
+            MapBackgroundCore(linuxHandler, layout);
+    }
+
+    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapBackground(LayoutHandler handler, ILayout layout) => MapBackgroundCore(handler, layout);
+
+    private static void MapBackgroundCore(LayoutHandler handler, ILayout layout)
     {
         if (handler.PlatformView is null) return;
 
@@ -164,41 +190,49 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
         }
     }
 
-    public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg)
+    /// <summary>MAUI's <c>MapAdd</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapAdd(ILayoutHandler handler, ILayout layout, object? arg)
     {
-        if (handler.PlatformView == null) return;
-
-        // Use MAUI's LayoutHandlerUpdate type (Microsoft.Maui.Handlers namespace)
-        if (arg is not Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
-            return;
-
-        var index = update.Index;
-        var child = update.View;
-
-        // Create handler for child if needed
-        if (child is IView view && child.Handler == null && handler.MauiContext != null)
-        {
-            child.Handler = view.ToViewHandler(handler.MauiContext);
-        }
-
-        if (child?.Handler?.PlatformView is SkiaView skiaView)
-        {
-            if (index >= 0 && index < handler.PlatformView.Children.Count)
-                handler.PlatformView.InsertChild(index, skiaView);
-            else
-                handler.PlatformView.AddChild(skiaView);
-            handler.PlatformView.InvalidateMeasure();
-            handler.PlatformView.Invalidate();
-        }
+        if (handler is LayoutHandler linuxHandler)
+            MapAddCore(linuxHandler, layout, arg);
+        else if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
+            handler.Add(update.View);
     }
 
-    public static void MapRemove(LayoutHandler handler, ILayout layout, object? arg)
+    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg) => MapAddCore(handler, layout, arg);
+
+    private static void MapAddCore(LayoutHandler handler, ILayout layout, object? arg)
+    {
+        // Use MAUI's LayoutHandlerUpdate type (Microsoft.Maui.Handlers namespace)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
+            handler.AddChildAt(update.Index, update.View);
+    }
+
+    /// <summary>MAUI's <c>MapRemove</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapRemove(ILayoutHandler handler, ILayout layout, object? arg)
+    {
+        if (handler is LayoutHandler linuxHandler)
+            MapRemoveCore(linuxHandler, layout, arg);
+        else if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
+            handler.Remove(update.View);
+    }
+
+    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapRemove(LayoutHandler handler, ILayout layout, object? arg) => MapRemoveCore(handler, layout, arg);
+
+    private static void MapRemoveCore(LayoutHandler handler, ILayout layout, object? arg)
     {
         if (handler.PlatformView == null) return;
 
         if (arg is not Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
             return;
 
+        // Controls.Layout sends the index the child had before it was removed.
         var index = update.Index;
         if (index >= 0 && index < handler.PlatformView.Children.Count)
         {
@@ -206,16 +240,60 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
             handler.PlatformView.InvalidateMeasure();
             handler.PlatformView.Invalidate();
         }
+        else if (update.View is { } view)
+        {
+            handler.Remove(view);
+        }
     }
 
-    public static void MapClear(LayoutHandler handler, ILayout layout, object? arg)
+    /// <summary>MAUI's <c>MapClear</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapClear(ILayoutHandler handler, ILayout layout, object? arg)
     {
-        handler.PlatformView?.ClearChildren();
+        if (handler is LayoutHandler linuxHandler)
+            MapClearCore(linuxHandler, layout, arg);
+        else
+            handler.Clear();
     }
 
-    public static void MapInsert(LayoutHandler handler, ILayout layout, object? arg)
+    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapClear(LayoutHandler handler, ILayout layout, object? arg) => MapClearCore(handler, layout, arg);
+
+    private static void MapClearCore(LayoutHandler handler, ILayout layout, object? arg)
     {
-        MapAdd(handler, layout, arg);
+        handler.Clear();
+    }
+
+    /// <summary>MAUI's <c>MapInsert</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapInsert(ILayoutHandler handler, ILayout layout, object? arg)
+    {
+        if (handler is LayoutHandler linuxHandler)
+            MapInsertCore(linuxHandler, layout, arg);
+        else if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
+            handler.Insert(update.Index, update.View);
+    }
+
+    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapInsert(LayoutHandler handler, ILayout layout, object? arg) => MapInsertCore(handler, layout, arg);
+
+    private static void MapInsertCore(LayoutHandler handler, ILayout layout, object? arg)
+    {
+        MapAddCore(handler, layout, arg);
+    }
+
+    /// <summary>
+    /// A child's ZIndex changed (MAUI's ViewHandler sends this to the parent layout): the child
+    /// takes its new place in the drawing and hit-testing order, as MAUI's layout handlers do.
+    /// </summary>
+    public static void MapUpdateZIndex(LayoutHandler handler, ILayout layout, object? arg)
+    {
+        if (arg is IView child)
+            handler.UpdateZIndex(child);
+        else
+            handler.PlatformView?.Invalidate();
     }
 
     /// <summary>
@@ -224,32 +302,108 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>
     /// The platform child there is replaced by the new view's; before, only a
     /// re-layout ran and the old rows stayed on screen.
     /// </summary>
-    /// <summary>
-    /// A child's ZIndex changed (MAUI's ViewHandler sends this to the parent layout): the child
-    /// takes its new place in the drawing and hit-testing order, as MAUI's layout handlers do.
-    /// </summary>
-    public static void MapUpdateZIndex(LayoutHandler handler, ILayout layout, object? arg)
-    {
-        if (arg is IView child && child.Handler?.PlatformView is SkiaView childView)
-            childView.ZIndex = child.ZIndex;
-        handler.PlatformView?.Invalidate();
-    }
-
     public static void MapUpdate(LayoutHandler handler, ILayout layout, object? arg)
     {
-        if (handler.PlatformView == null)
+        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
+            handler.Update(update.Index, update.View);
+        else
+            handler.PlatformView?.InvalidateMeasure();
+    }
+
+    // ILayoutHandler: the operations MAUI's layout handlers expose as methods. Controls.Layout
+    // drives them through the commands above (handler.Invoke("Add", LayoutHandlerUpdate)); MAUI
+    // code that holds an ILayoutHandler calls them directly.
+
+    /// <summary>Adds the child's platform view at the child's index in the layout.</summary>
+    public void Add(IView child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        AddChildAt(VirtualView?.IndexOf(child) ?? -1, child);
+    }
+
+    /// <summary>Inserts the child's platform view at <paramref name="index"/>.</summary>
+    public void Insert(int index, IView child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        AddChildAt(index, child);
+    }
+
+    /// <summary>Removes the child's platform view.</summary>
+    public void Remove(IView child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        if (PlatformView is null || child.Handler?.PlatformView is not SkiaView childView)
             return;
-        if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update
-            && update.Index >= 0 && update.Index < handler.PlatformView.Children.Count)
+        var children = PlatformView.Children;
+        var index = -1;
+        for (var i = 0; i < children.Count; i++)
         {
-            var current = handler.PlatformView.Children[update.Index];
-            if (!ReferenceEquals(current, update.View.Handler?.PlatformView))
+            if (ReferenceEquals(children[i], childView))
             {
-                handler.PlatformView.RemoveChildAt(update.Index);
-                MapAdd(handler, layout, arg);
+                index = i;
+                break;
             }
         }
-        handler.PlatformView.InvalidateMeasure();
+        if (index < 0)
+            return;
+        PlatformView.RemoveChildAt(index);
+        PlatformView.InvalidateMeasure();
+        PlatformView.Invalidate();
+    }
+
+    /// <summary>Removes every platform child.</summary>
+    public void Clear() => PlatformView?.ClearChildren();
+
+    /// <summary>The child at <paramref name="index"/> was replaced by <paramref name="child"/>.</summary>
+    public void Update(int index, IView child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        if (PlatformView == null)
+            return;
+        if (index >= 0 && index < PlatformView.Children.Count)
+        {
+            var current = PlatformView.Children[index];
+            if (!ReferenceEquals(current, child.Handler?.PlatformView))
+            {
+                PlatformView.RemoveChildAt(index);
+                AddChildAt(index, child);
+            }
+        }
+        PlatformView.InvalidateMeasure();
+    }
+
+    /// <summary>The child's ZIndex changed: it takes its new place in the drawing and hit-testing order.</summary>
+    public void UpdateZIndex(IView child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        if (child.Handler?.PlatformView is SkiaView childView)
+            childView.ZIndex = child.ZIndex;
+        PlatformView?.Invalidate();
+    }
+
+    ILayout ILayoutHandler.VirtualView => VirtualView;
+
+    object ILayoutHandler.PlatformView => PlatformView;
+
+    // Realizes the child (creates its handler when it has none) and puts its platform view at
+    // the index (appended when the index is out of range).
+    private void AddChildAt(int index, IView child)
+    {
+        if (PlatformView == null)
+            return;
+
+        if (child.Handler == null && MauiContext != null)
+            child.Handler = child.ToViewHandler(MauiContext);
+
+        if (child.Handler?.PlatformView is SkiaView skiaView)
+        {
+            if (index >= 0 && index < PlatformView.Children.Count)
+                PlatformView.InsertChild(index, skiaView);
+            else
+                PlatformView.AddChild(skiaView);
+            PlatformView.InvalidateMeasure();
+            PlatformView.Invalidate();
+        }
     }
 
     public static void MapPadding(LayoutHandler handler, ILayout layout)

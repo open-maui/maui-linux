@@ -42,7 +42,9 @@ internal static class WindowOverlayPatches
     private static MethodInfo? s_modelUpdate;
 
     // Scroll views a diagnostics overlay follows, with the handler it put on each.
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<VisualDiagnosticsOverlay, List<(SkiaScrollView View, EventHandler<ScrolledEventArgs> Handler)>> s_scrollSubscriptions = new();
+#pragma warning restore CS0618
 
     internal static void Install()
     {
@@ -150,7 +152,9 @@ internal static class WindowOverlayPatches
         if (s_scrollViews?.GetValue(__instance) is not Dictionary<IScrollView, object> scrollViews || !scrollViews.TryAdd(scrollBar, view))
             return false;
         var overlay = __instance;
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         EventHandler<ScrolledEventArgs> handler = (_, _) => overlay.Invalidate();
+#pragma warning restore CS0618
         view.Scrolled += handler;
         s_scrollSubscriptions.GetOrCreateValue(__instance).Add((view, handler));
         return false;
