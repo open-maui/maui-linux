@@ -165,8 +165,8 @@ public partial class LinuxApplication
                     DiagnosticLog.Debug("LinuxApplication", "Set initial UserAppTheme to Light based on system theme");
                 }
 
-                // Initialize GTK theme service and apply initial CSS
-                GtkThemeService.ApplyTheme();
+                // The GTK CSS follows the theme; it is loaded when the first GTK widget is made.
+                GtkThemeService.RequestTheme();
 
                 // Handle theme changes — both user-initiated (UserAppTheme set in code)
                 // and system-initiated (GNOME/KDE dark mode toggle).
@@ -558,8 +558,8 @@ public partial class LinuxApplication
     /// </summary>
     private static void ApplyThemeChange(LinuxApplication linuxApp)
     {
-        // Apply GTK CSS for dialogs, menus, and window decorations.
-        GtkThemeService.ApplyTheme();
+        // GTK CSS for dialogs and menus (applied now if GTK widgets already use it).
+        GtkThemeService.RequestTheme();
 
         // Refresh shell colors and rebuild section content trees. The static
         // CurrentSkiaShell covers the most recently rendered shell (primary in
