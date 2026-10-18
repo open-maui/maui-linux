@@ -26,6 +26,8 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
             [nameof(IApplication.CloseWindow)] = MapCloseWindow,
             // MAUI's ApplicationHandler.TerminateCommandKey: Application.Quit() sends it.
             ["Terminate"] = MapTerminate,
+            // Application.ActivateWindow(window) sends it with the window as the argument.
+            [nameof(IApplication.ActivateWindow)] = MapActivateWindow,
         };
 
     public ApplicationHandler() : base(Mapper, CommandMapper)
@@ -121,13 +123,18 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
     }
 
     /// <summary>
-    /// MAUI's <c>ApplicationHandler.MapActivateWindow</c> signature. OpenMaui's X11 and Wayland
-    /// windows have no request to raise and focus a toplevel, so this records the request in the
-    /// diagnostic log and changes nothing; it is not in <see cref="CommandMapper"/>.
+    /// MAUI's <c>ApplicationHandler.MapActivateWindow</c> (Application.ActivateWindow): asks the
+    /// window's native window to come to the front and take focus — _NET_ACTIVE_WINDOW on X11
+    /// (raise and focus without an EWMH window manager), xdg_activation_v1 on Wayland, and
+    /// gtk_window_present for the GTK host window. Focus-stealing prevention may only mark the
+    /// window as wanting attention; a Wayland compositor without xdg_activation_v1 leaves it alone.
     /// </summary>
     public static void MapActivateWindow(ApplicationHandler handler, IApplication application, object? args)
     {
-        DiagnosticLog.Debug("ApplicationHandler", $"ActivateWindow: not supported by the Linux window backends ({(args as IWindow)?.Title})");
+        if (args is not IWindow window)
+            return;
+        if (LinuxApplication.Current is not { } app || !app.ActivateMauiWindow(window))
+            DiagnosticLog.Debug("ApplicationHandler", $"ActivateWindow: nothing to activate ({window.Title})");
     }
 }
 
