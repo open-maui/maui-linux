@@ -5,6 +5,8 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -12,8 +14,14 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for SearchBar on Linux using Skia rendering.
 /// Maps ISearchBar interface to SkiaSearchBar platform view.
 /// </summary>
-public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchBar>
+public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchBar>, ISearchBarHandler
 {
+    ISearchBar ISearchBarHandler.VirtualView => VirtualView;
+    object ISearchBarHandler.PlatformView => PlatformView;
+    // MAUI exposes the search field as a platform editor; the Skia search bar
+    // draws its own field and has no child editor view.
+    object? ISearchBarHandler.QueryEditor => null;
+
     public static IPropertyMapper<ISearchBar, SearchBarHandler> Mapper = new PropertyMapper<ISearchBar, SearchBarHandler>(ViewHandler.ViewMapper)
     {
         [nameof(ITextInput.Text)] = MapText,
@@ -78,7 +86,7 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         base.DisconnectHandler(platformView);
     }
 
-    private void OnTextChanged(object? sender, TextChangedEventArgs e)
+    private void OnTextChanged(object? sender, SkiaTextChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
@@ -124,24 +132,32 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
 
     private bool _isMapping;
 
-    public static void MapText(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapText</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapText(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapTextCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapText(SearchBarHandler handler, ISearchBar searchBar) => MapTextCore(handler, searchBar);
+
+    private static void MapTextCore(SearchBarHandler handler, ISearchBar searchBar)
     {
         if (handler.PlatformView is null) return;
 
         // The platform holds the query as shown (TextTransform applied, cut to
         // MaxLength); a difference flows back to the view through TextChanged.
-        var text = TextInputText.GetDisplayText(searchBar);
-        if (handler.PlatformView.Text != text)
+        handler._isMapping = true;
+        try
         {
-            handler._isMapping = true;
-            try
-            {
-                handler.PlatformView.Text = text;
-            }
-            finally
-            {
-                handler._isMapping = false;
-            }
+            handler.PlatformView.SetDisplayText(searchBar);
+        }
+        finally
+        {
+            handler._isMapping = false;
         }
 
         // The query the platform holds (cut to MaxLength, transformed) is the
@@ -149,81 +165,174 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         TextInputText.UpdateVirtualText(searchBar, handler.PlatformView.Text);
     }
 
-    public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-
-        if (searchBar.TextColor is not null)
-            handler.PlatformView.TextColor = searchBar.TextColor;
+        if (handler is SearchBarHandler linuxHandler)
+            MapTextColorCore(linuxHandler, searchBar);
     }
 
-    public static void MapFont(SearchBarHandler handler, ISearchBar searchBar)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTextColor(SearchBarHandler handler, ISearchBar searchBar) => MapTextColorCore(handler, searchBar);
+
+    private static void MapTextColorCore(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-
-        var font = searchBar.Font;
-        if (font.Size > 0)
-            handler.PlatformView.FontSize = font.Size;
-
-        if (!string.IsNullOrEmpty(font.Family))
-            handler.PlatformView.FontFamily = font.Family;
-
-        // Convert Font weight/slant to FontAttributes
-        var attrs = FontAttributes.None;
-        if (font.Weight >= FontWeight.Bold)
-            attrs |= FontAttributes.Bold;
-        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
-            attrs |= FontAttributes.Italic;
-        handler.PlatformView.FontAttributes = attrs;
+        handler.PlatformView?.UpdateTextColor(searchBar);
     }
 
-    public static void MapCharacterSpacing(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFont(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = searchBar.CharacterSpacing;
+        if (handler is SearchBarHandler linuxHandler)
+            MapFontCore(linuxHandler, searchBar);
     }
 
-    public static void MapHorizontalTextAlignment(SearchBarHandler handler, ISearchBar searchBar)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFont(SearchBarHandler handler, ISearchBar searchBar) => MapFontCore(handler, searchBar);
+
+    private static void MapFontCore(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.HorizontalTextAlignment = searchBar.HorizontalTextAlignment;
+        handler.PlatformView?.UpdateFont(searchBar);
     }
 
-    public static void MapVerticalTextAlignment(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCharacterSpacing(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.VerticalTextAlignment = searchBar.VerticalTextAlignment;
+        if (handler is SearchBarHandler linuxHandler)
+            MapCharacterSpacingCore(linuxHandler, searchBar);
     }
 
-    public static void MapMaxLength(SearchBarHandler handler, ISearchBar searchBar)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCharacterSpacing(SearchBarHandler handler, ISearchBar searchBar) => MapCharacterSpacingCore(handler, searchBar);
+
+    private static void MapCharacterSpacingCore(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.MaxLength = searchBar.MaxLength;
+        handler.PlatformView?.UpdateCharacterSpacing(searchBar);
     }
 
-    public static void MapKeyboard(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapHorizontalTextAlignment</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapHorizontalTextAlignment(IViewHandler handler, ISearchBar searchBar)
     {
-        // On desktop the keyboard is the input method's content type.
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Keyboard = searchBar.Keyboard;
+        if (handler is SearchBarHandler linuxHandler)
+            MapHorizontalTextAlignmentCore(linuxHandler, searchBar);
     }
 
-    public static void MapIsReadOnly(SearchBarHandler handler, ISearchBar searchBar)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapHorizontalTextAlignment(SearchBarHandler handler, ISearchBar searchBar) => MapHorizontalTextAlignmentCore(handler, searchBar);
+
+    private static void MapHorizontalTextAlignmentCore(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsReadOnly = searchBar.IsReadOnly;
+        handler.PlatformView?.UpdateHorizontalTextAlignment(searchBar);
     }
 
-    public static void MapIsTextPredictionEnabled(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapVerticalTextAlignment</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapVerticalTextAlignment(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsTextPredictionEnabled = searchBar.IsTextPredictionEnabled;
+        if (handler is SearchBarHandler linuxHandler)
+            MapVerticalTextAlignmentCore(linuxHandler, searchBar);
     }
 
-    public static void MapIsSpellCheckEnabled(SearchBarHandler handler, ISearchBar searchBar)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapVerticalTextAlignment(SearchBarHandler handler, ISearchBar searchBar) => MapVerticalTextAlignmentCore(handler, searchBar);
+
+    private static void MapVerticalTextAlignmentCore(SearchBarHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsSpellCheckEnabled = searchBar.IsSpellCheckEnabled;
+        handler.PlatformView?.UpdateVerticalTextAlignment(searchBar);
+    }
+
+    /// <summary>MAUI's <c>MapMaxLength</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMaxLength(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapMaxLengthCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMaxLength(SearchBarHandler handler, ISearchBar searchBar) => MapMaxLengthCore(handler, searchBar);
+
+    private static void MapMaxLengthCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateMaxLength(searchBar);
+    }
+
+    /// <summary>MAUI's <c>MapKeyboard</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapKeyboard(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapKeyboardCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapKeyboard(SearchBarHandler handler, ISearchBar searchBar) => MapKeyboardCore(handler, searchBar);
+
+    private static void MapKeyboardCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateKeyboard(searchBar);
+    }
+
+    /// <summary>MAUI's <c>MapIsReadOnly</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsReadOnly(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapIsReadOnlyCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsReadOnly(SearchBarHandler handler, ISearchBar searchBar) => MapIsReadOnlyCore(handler, searchBar);
+
+    private static void MapIsReadOnlyCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateIsReadOnly(searchBar);
+    }
+
+    /// <summary>MAUI's <c>MapIsTextPredictionEnabled</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsTextPredictionEnabled(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapIsTextPredictionEnabledCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsTextPredictionEnabled(SearchBarHandler handler, ISearchBar searchBar) => MapIsTextPredictionEnabledCore(handler, searchBar);
+
+    private static void MapIsTextPredictionEnabledCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateIsTextPredictionEnabled(searchBar);
+    }
+
+    /// <summary>MAUI's <c>MapIsSpellCheckEnabled</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsSpellCheckEnabled(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapIsSpellCheckEnabledCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsSpellCheckEnabled(SearchBarHandler handler, ISearchBar searchBar) => MapIsSpellCheckEnabledCore(handler, searchBar);
+
+    private static void MapIsSpellCheckEnabledCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateIsSpellCheckEnabled(searchBar);
     }
 
     public static void MapCursorPosition(SearchBarHandler handler, ISearchBar searchBar)
@@ -254,10 +363,21 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         }
     }
 
-    public static void MapReturnType(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapReturnType</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapReturnType(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.ReturnType = searchBar.ReturnType;
+        if (handler is SearchBarHandler linuxHandler)
+            MapReturnTypeCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapReturnType(SearchBarHandler handler, ISearchBar searchBar) => MapReturnTypeCore(handler, searchBar);
+
+    private static void MapReturnTypeCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateReturnType(searchBar);
     }
 
     public static void MapSearchIconColor(SearchBarHandler handler, ISearchBar searchBar)
@@ -267,31 +387,71 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapPlaceholder</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapPlaceholder(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Placeholder = searchBar.Placeholder ?? string.Empty;
+        if (handler is SearchBarHandler linuxHandler)
+            MapPlaceholderCore(linuxHandler, searchBar);
     }
 
-    public static void MapPlaceholderColor(SearchBarHandler handler, ISearchBar searchBar)
-    {
-        if (handler.PlatformView is null) return;
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapPlaceholder(SearchBarHandler handler, ISearchBar searchBar) => MapPlaceholderCore(handler, searchBar);
 
-        if (searchBar.PlaceholderColor is not null)
-            handler.PlatformView.PlaceholderColor = searchBar.PlaceholderColor;
+    private static void MapPlaceholderCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdatePlaceholder(searchBar);
     }
 
-    public static void MapCancelButtonColor(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapPlaceholderColor</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapPlaceholderColor(IViewHandler handler, ISearchBar searchBar)
     {
-        if (handler.PlatformView is null) return;
+        if (handler is SearchBarHandler linuxHandler)
+            MapPlaceholderColorCore(linuxHandler, searchBar);
+    }
 
-        // CancelButtonColor maps to ClearButtonColor
-        if (searchBar.CancelButtonColor is not null)
-            handler.PlatformView.ClearButtonColor = searchBar.CancelButtonColor;
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapPlaceholderColor(SearchBarHandler handler, ISearchBar searchBar) => MapPlaceholderColorCore(handler, searchBar);
+
+    private static void MapPlaceholderColorCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdatePlaceholderColor(searchBar);
+    }
+
+    /// <summary>MAUI's <c>MapCancelButtonColor</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCancelButtonColor(IViewHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapCancelButtonColorCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCancelButtonColor(SearchBarHandler handler, ISearchBar searchBar) => MapCancelButtonColorCore(handler, searchBar);
+
+    private static void MapCancelButtonColorCore(SearchBarHandler handler, ISearchBar searchBar)
+    {
+        handler.PlatformView?.UpdateCancelButtonColor(searchBar);
     }
 
 
-    public static void MapBackground(SearchBarHandler handler, ISearchBar searchBar)
+    /// <summary>MAUI's <c>MapBackground</c> signature; maps the property on a Linux <see cref="SearchBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapBackground(ISearchBarHandler handler, ISearchBar searchBar)
+    {
+        if (handler is SearchBarHandler linuxHandler)
+            MapBackgroundCore(linuxHandler, searchBar);
+    }
+
+    [Obsolete("Use the ISearchBarHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapBackground(SearchBarHandler handler, ISearchBar searchBar) => MapBackgroundCore(handler, searchBar);
+
+    private static void MapBackgroundCore(SearchBarHandler handler, ISearchBar searchBar)
     {
         if (handler.PlatformView is null) return;
 
@@ -299,5 +459,12 @@ public partial class SearchBarHandler : LinuxViewHandler<ISearchBar, SkiaSearchB
         {
             handler.PlatformView.BackgroundColor = solidPaint.Color;
         }
+    }
+
+    /// <summary>MAUI's <c>MapIsEnabled</c>: the view mapper's IsEnabled, then a redraw.</summary>
+    public static void MapIsEnabled(ISearchBarHandler handler, ISearchBar searchBar)
+    {
+        ViewHandler.ViewMapper.UpdateProperty(handler, searchBar, nameof(IView.IsEnabled));
+        (handler.PlatformView as SkiaView)?.Invalidate();
     }
 }

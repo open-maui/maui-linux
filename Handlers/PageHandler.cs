@@ -8,18 +8,25 @@ using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Base handler for Page on Linux using Skia rendering.
 /// </summary>
-public partial class PageHandler : LinuxViewHandler<Page, SkiaPage>
+public partial class PageHandler : LinuxViewHandler<Page, SkiaPage>, IPageHandler
 {
+    // MAUI's page handler is a content view handler; a Controls Page that is not an
+    // IContentView (a Page subclass without content) has no content view to report.
+    IContentView IContentViewHandler.VirtualView => (VirtualView as IContentView)!;
+    object IContentViewHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<Page, PageHandler> Mapper =
         new PropertyMapper<Page, PageHandler>(ViewHandler.ViewMapper)
         {
-            [nameof(Page.Title)] = MapTitle,
+            [nameof(Page.Title)] = MapTitleCore, // MAUI's MapTitle takes an IContentView; a Page need not be one
             [nameof(Page.BackgroundImageSource)] = MapBackgroundImageSource,
             [nameof(Page.IconImageSource)] = MapIconImageSource,
             [nameof(Page.Padding)] = MapPadding,
@@ -77,7 +84,19 @@ public partial class PageHandler : LinuxViewHandler<Page, SkiaPage>
         (VirtualView as IPageController)?.SendDisappearing();
     }
 
-    public static void MapTitle(PageHandler handler, Page page)
+    /// <summary>MAUI's <c>MapTitle</c> signature; maps the property on a Linux <see cref="PageHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTitle(IPageHandler handler, IContentView page)
+    {
+        if (handler is PageHandler linuxHandler && page is Page linuxView)
+            MapTitleCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IPageHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTitle(PageHandler handler, Page page) => MapTitleCore(handler, page);
+
+    private static void MapTitleCore(PageHandler handler, Page page)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Title = page.Title ?? "";

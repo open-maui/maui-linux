@@ -24,6 +24,10 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
         {
             [nameof(IApplication.OpenWindow)] = MapOpenWindow,
             [nameof(IApplication.CloseWindow)] = MapCloseWindow,
+            // MAUI's ApplicationHandler.TerminateCommandKey: Application.Quit() sends it.
+            ["Terminate"] = MapTerminate,
+            // Application.ActivateWindow(window) sends it with the window as the argument.
+            [nameof(IApplication.ActivateWindow)] = MapActivateWindow,
         };
 
     public ApplicationHandler() : base(Mapper, CommandMapper)
@@ -91,6 +95,46 @@ public partial class ApplicationHandler : ElementHandler<IApplication, LinuxAppl
         {
             handler.PlatformView?.CloseWindow(window);
         }
+    }
+
+    /// <summary>
+    /// MAUI's <c>ApplicationHandler.MapTerminate</c> (Application.Quit()): closes every open
+    /// window; the app exits when its last window has closed.
+    /// </summary>
+    public static void MapTerminate(ApplicationHandler handler, IApplication application, object? args)
+    {
+        var context = handler.PlatformView;
+        var windows = new List<IWindow>(application.Windows);
+        if (context != null)
+        {
+            foreach (var window in context.Windows)
+            {
+                if (!windows.Contains(window))
+                    windows.Add(window);
+            }
+        }
+        foreach (var window in windows)
+        {
+            if (context != null)
+                context.CloseWindow(window);
+            else
+                LinuxApplication.Current?.CloseMauiWindow(window);
+        }
+    }
+
+    /// <summary>
+    /// MAUI's <c>ApplicationHandler.MapActivateWindow</c> (Application.ActivateWindow): asks the
+    /// window's native window to come to the front and take focus — _NET_ACTIVE_WINDOW on X11
+    /// (raise and focus without an EWMH window manager), xdg_activation_v1 on Wayland, and
+    /// gtk_window_present for the GTK host window. Focus-stealing prevention may only mark the
+    /// window as wanting attention; a Wayland compositor without xdg_activation_v1 leaves it alone.
+    /// </summary>
+    public static void MapActivateWindow(ApplicationHandler handler, IApplication application, object? args)
+    {
+        if (args is not IWindow window)
+            return;
+        if (LinuxApplication.Current is not { } app || !app.ActivateMauiWindow(window))
+            DiagnosticLog.Debug("ApplicationHandler", $"ActivateWindow: nothing to activate ({window.Title})");
     }
 }
 

@@ -9,7 +9,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// MAUI's SwipeItemViewHandler on Linux: the handler of a swipe item with custom content (a
 /// Controls <c>SwipeItemView</c> or any <see cref="ISwipeItemView"/>). Its platform view is a
 /// <see cref="SkiaContentView"/> showing the content, which the <see cref="SkiaSwipeView"/> lays
-/// out and draws in the item's place (<see cref="SwipeItem"/>); a tap on it invokes the item, as
+/// out and draws in the item's place (<see cref="SkiaSwipeItem"/>); a tap on it invokes the item, as
 /// on MAUI's Android and iOS (MAUI's Windows SwipeControl shows menu items only).
 /// </summary>
 public partial class SwipeItemViewHandler : ContentViewHandler, ISwipeItemViewHandler
@@ -26,7 +26,7 @@ public partial class SwipeItemViewHandler : ContentViewHandler, ISwipeItemViewHa
         {
         };
 
-    private SwipeItem? _swipeItem;
+    private SkiaSwipeItem? _swipeItem;
 
     public SwipeItemViewHandler() : base(Mapper, CommandMapper)
     {
@@ -50,7 +50,9 @@ public partial class SwipeItemViewHandler : ContentViewHandler, ISwipeItemViewHa
     /// The item the swipe view shows for this item view: its <see cref="SwipeItem.Content"/> is
     /// this handler's platform view, and a tap on it invokes the item view.
     /// </summary>
-    public SwipeItem SwipeItem => _swipeItem ??= new SwipeItem
+#pragma warning disable CS0618 // SwipeItem: the element type of SkiaSwipeView's item lists until OpenMaui 11.0
+    public SwipeItem SwipeItem => _swipeItem ??= new SkiaSwipeItem
+#pragma warning restore CS0618
     {
         Content = PlatformView,
         Invoker = VirtualView as ISwipeItemView,

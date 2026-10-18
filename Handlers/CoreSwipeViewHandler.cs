@@ -203,7 +203,7 @@ public partial class CoreSwipeViewHandler : LinuxViewHandler<ISwipeView, SkiaSwi
         platformItems.Clear();
         if (items is not null)
         {
-            platformView.SetItemsMode(side, items.Mode == Microsoft.Maui.SwipeMode.Execute ? SwipeMode.Execute : SwipeMode.Reveal);
+            platformView.SetItemsMode(side, items.Mode);
             platformView.SetItemsBehaviorOnInvoked(side, items.SwipeBehaviorOnInvoked);
 
             foreach (var item in items)
@@ -219,7 +219,9 @@ public partial class CoreSwipeViewHandler : LinuxViewHandler<ISwipeView, SkiaSwi
     }
 
     /// <summary>The platform item of a swipe item, from its handler.</summary>
+#pragma warning disable CS0618 // SwipeItem: the element type of SkiaSwipeView's item lists until OpenMaui 11.0
     private static SwipeItem? PlatformItem(ISwipeViewHandler handler, ISwipeItem item)
+#pragma warning restore CS0618
     {
         try
         {
@@ -235,7 +237,7 @@ public partial class CoreSwipeViewHandler : LinuxViewHandler<ISwipeView, SkiaSwi
                 if (itemView.Handler is SwipeItemViewHandler itemViewHandler)
                     return itemViewHandler.SwipeItem;
                 // A handler that is not the Linux one: show its view as the item.
-                return new SwipeItem
+                return new SkiaSwipeItem
                 {
                     Content = itemView.Handler?.PlatformView as SkiaView,
                     IsVisible = itemView.Visibility == Visibility.Visible,
@@ -244,7 +246,7 @@ public partial class CoreSwipeViewHandler : LinuxViewHandler<ISwipeView, SkiaSwi
             }
 
             // A plain ISwipeItem: a default item that invokes it.
-            return new SwipeItem { Invoker = item };
+            return new SkiaSwipeItem { Invoker = item };
         }
         catch (Exception ex)
         {
@@ -304,22 +306,14 @@ internal sealed class SwipeViewConnection
         _platformView.IsOpenChanged -= OnIsOpenChanged;
     }
 
-    internal static Microsoft.Maui.SwipeDirection ToMaui(SwipeDirection direction) => direction switch
-    {
-        SwipeDirection.Left => Microsoft.Maui.SwipeDirection.Left,
-        SwipeDirection.Up => Microsoft.Maui.SwipeDirection.Up,
-        SwipeDirection.Down => Microsoft.Maui.SwipeDirection.Down,
-        _ => Microsoft.Maui.SwipeDirection.Right,
-    };
-
-    private void OnSwipeStarted(object? sender, SwipeStartedEventArgs e) =>
-        _view()?.SwipeStarted(new SwipeViewSwipeStarted(ToMaui(e.Direction)));
+    private void OnSwipeStarted(object? sender, SkiaSwipeStartedEventArgs e) =>
+        _view()?.SwipeStarted(new SwipeViewSwipeStarted(e.SwipeDirection));
 
     private void OnSwipeChanging(object? sender, SwipeOffsetChangedEventArgs e) =>
-        _view()?.SwipeChanging(new SwipeViewSwipeChanging(ToMaui(e.Direction), e.Offset));
+        _view()?.SwipeChanging(new SwipeViewSwipeChanging(e.SwipeDirection, e.Offset));
 
-    private void OnSwipeEnded(object? sender, SwipeEndedEventArgs e) =>
-        _view()?.SwipeEnded(new SwipeViewSwipeEnded(ToMaui(e.Direction), e.IsOpen));
+    private void OnSwipeEnded(object? sender, SkiaSwipeEndedEventArgs e) =>
+        _view()?.SwipeEnded(new SwipeViewSwipeEnded(e.SwipeDirection, e.IsOpen));
 
     private void OnIsOpenChanged(object? sender, EventArgs e)
     {

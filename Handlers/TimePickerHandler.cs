@@ -6,14 +6,19 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for TimePicker on Linux using Skia rendering.
 /// </summary>
-public partial class TimePickerHandler : LinuxViewHandler<ITimePicker, SkiaTimePicker>
+public partial class TimePickerHandler : LinuxViewHandler<ITimePicker, SkiaTimePicker>, ITimePickerHandler
 {
+    ITimePicker ITimePickerHandler.VirtualView => VirtualView;
+    object ITimePickerHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<ITimePicker, TimePickerHandler> Mapper =
         new PropertyMapper<ITimePicker, TimePickerHandler>(ViewHandler.ViewMapper)
         {
@@ -61,26 +66,62 @@ public partial class TimePickerHandler : LinuxViewHandler<ITimePicker, SkiaTimeP
         base.DisconnectHandler(platformView);
     }
 
-    private void OnTimeSelected(object? sender, TimeChangedEventArgs e)
+    private void OnTimeSelected(object? sender, SkiaTimeChangedEventArgs e)
     {
         if (VirtualView is null || PlatformView is null) return;
 
         VirtualView.Time = e.NewTime;
     }
 
-    public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
+    /// <summary>MAUI's <c>MapTime</c> signature; maps the property on a Linux <see cref="TimePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTime(ITimePickerHandler handler, ITimePicker view)
+    {
+        if (handler is TimePickerHandler linuxHandler)
+            MapTimeCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the ITimePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTime(TimePickerHandler handler, ITimePicker timePicker) => MapTimeCore(handler, timePicker);
+
+    private static void MapTimeCore(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Time = timePicker.Time ?? TimeSpan.Zero;
     }
 
-    public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)
+    /// <summary>MAUI's <c>MapFormat</c> signature; maps the property on a Linux <see cref="TimePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFormat(ITimePickerHandler handler, ITimePicker view)
+    {
+        if (handler is TimePickerHandler linuxHandler)
+            MapFormatCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the ITimePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker) => MapFormatCore(handler, timePicker);
+
+    private static void MapFormatCore(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Format = timePicker.Format ?? "t";
     }
 
-    public static void MapTextColor(TimePickerHandler handler, ITimePicker timePicker)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="TimePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(ITimePickerHandler handler, ITimePicker timePicker)
+    {
+        if (handler is TimePickerHandler linuxHandler)
+            MapTextColorCore(linuxHandler, timePicker);
+    }
+
+    [Obsolete("Use the ITimePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTextColor(TimePickerHandler handler, ITimePicker timePicker) => MapTextColorCore(handler, timePicker);
+
+    private static void MapTextColorCore(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
         if (timePicker.TextColor is not null)
@@ -89,13 +130,37 @@ public partial class TimePickerHandler : LinuxViewHandler<ITimePicker, SkiaTimeP
         }
     }
 
-    public static void MapCharacterSpacing(TimePickerHandler handler, ITimePicker timePicker)
+    /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="TimePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCharacterSpacing(ITimePickerHandler handler, ITimePicker view)
+    {
+        if (handler is TimePickerHandler linuxHandler)
+            MapCharacterSpacingCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the ITimePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCharacterSpacing(TimePickerHandler handler, ITimePicker timePicker) => MapCharacterSpacingCore(handler, timePicker);
+
+    private static void MapCharacterSpacingCore(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.CharacterSpacing = timePicker.CharacterSpacing;
     }
 
-    public static void MapFont(TimePickerHandler handler, ITimePicker timePicker)
+    /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="TimePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFont(ITimePickerHandler handler, ITimePicker view)
+    {
+        if (handler is TimePickerHandler linuxHandler)
+            MapFontCore(linuxHandler, view);
+    }
+
+    [Obsolete("Use the ITimePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFont(TimePickerHandler handler, ITimePicker timePicker) => MapFontCore(handler, timePicker);
+
+    private static void MapFontCore(TimePickerHandler handler, ITimePicker timePicker)
     {
         if (handler.PlatformView is null) return;
 
