@@ -421,6 +421,9 @@ internal static partial class WpeNative
     [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
     public static partial IntPtr g_object_new(nuint objectType, string firstProperty, IntPtr value, IntPtr terminator);
 
+    [LibraryImport(LibGObject, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr g_object_new(nuint objectType, string firstProperty, IntPtr value, string secondProperty, IntPtr secondValue, IntPtr terminator);
+
     [LibraryImport(LibGObject)]
     public static partial void g_object_unref(IntPtr obj);
 

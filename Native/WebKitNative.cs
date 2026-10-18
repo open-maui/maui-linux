@@ -204,6 +204,17 @@ internal static partial class WebKitNative
         return Marshal.GetDelegateForFunctionPointer<T>(intPtr);
     }
 
+    /// <summary>A view in <paramref name="webContext"/> (a WebKitWebContext*); zero when this WebKitGTK cannot.</summary>
+    public static IntPtr WebViewNewWithContext(IntPtr webContext)
+    {
+        if (!Initialize() || _handle == IntPtr.Zero || webContext == IntPtr.Zero)
+            return IntPtr.Zero;
+        var f = dlsym(_handle, "webkit_web_view_new_with_context");
+        return f == IntPtr.Zero ? IntPtr.Zero : Marshal.GetDelegateForFunctionPointer<WebKitWebViewNewWithContextDelegate>(f)(webContext);
+    }
+
+    private delegate IntPtr WebKitWebViewNewWithContextDelegate(IntPtr webContext);
+
     public static IntPtr WebViewNew()
     {
         if (!Initialize() || _webkitWebViewNew == null)

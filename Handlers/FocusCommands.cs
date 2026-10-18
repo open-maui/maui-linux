@@ -56,7 +56,7 @@ internal static class FocusCommands
     }
 
     /// <summary>The window whose tree (page or modal/popup layer) holds <paramref name="view"/>.</summary>
-    private static WindowContext? ContextOf(SkiaView view)
+    internal static WindowContext? ContextOf(SkiaView view)
     {
         var app = LinuxApplication.Current;
         if (app == null)
