@@ -52,8 +52,8 @@ public class AlignmentTests
     {
         // Arrange: 1x1 grid, 400px wide, child is 100px wide centered
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(100));
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(100));
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = CreateAlignedChild(LayoutOptions.Center, LayoutOptions.Fill, 100, 40);
         grid.AddChild(child, row: 0, column: 0);
@@ -72,8 +72,8 @@ public class AlignmentTests
     {
         // Arrange: 1x1 grid, 300px tall, child is 40px tall centered
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(200));
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(200));
 
         var child = CreateAlignedChild(LayoutOptions.Fill, LayoutOptions.Center, 200, 40);
         grid.AddChild(child, row: 0, column: 0);
@@ -92,8 +92,8 @@ public class AlignmentTests
     {
         // Arrange: child 100x40 centered both ways in 400x300 cell
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = CreateAlignedChild(LayoutOptions.Center, LayoutOptions.Center, 100, 40);
         grid.AddChild(child, row: 0, column: 0);
@@ -112,8 +112,8 @@ public class AlignmentTests
     public void Grid_Child_End_AlignedToEnd()
     {
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = CreateAlignedChild(LayoutOptions.End, LayoutOptions.End, 100, 40);
         grid.AddChild(child, row: 0, column: 0);
@@ -134,8 +134,8 @@ public class AlignmentTests
     public void Grid_Child_Start_AlignedToStart()
     {
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = CreateAlignedChild(LayoutOptions.Start, LayoutOptions.Start, 100, 40);
         grid.AddChild(child, row: 0, column: 0);
@@ -155,8 +155,8 @@ public class AlignmentTests
     {
         // MAUI's ComputeFrame treats Fill as Center on an axis with an explicit size.
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = CreateAlignedChild(LayoutOptions.Fill, LayoutOptions.Fill, 100, 40);
         grid.AddChild(child, row: 0, column: 0);
@@ -176,8 +176,8 @@ public class AlignmentTests
         // This mimics the OnboardingHost IntroView scenario:
         // child with WidthRequest=400, HorizontalOptions=Center in a full-width grid cell
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = CreateAlignedChild(LayoutOptions.Center, LayoutOptions.Center, 400, 200);
         grid.AddChild(child, row: 0, column: 0);
@@ -199,8 +199,8 @@ public class AlignmentTests
     {
         // When MauiView is null, should fall back to SkiaView.HorizontalOptions
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child = new TestView
         {
@@ -229,7 +229,7 @@ public class AlignmentTests
     {
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child = CreateAlignedChild(LayoutOptions.Center, LayoutOptions.Fill, 100, 40);
@@ -248,7 +248,7 @@ public class AlignmentTests
     {
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child = CreateAlignedChild(LayoutOptions.End, LayoutOptions.Fill, 100, 40);
@@ -267,7 +267,7 @@ public class AlignmentTests
     {
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child = CreateAlignedChild(LayoutOptions.Fill, LayoutOptions.Fill, 100, 40);
@@ -290,7 +290,7 @@ public class AlignmentTests
     {
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
         };
 
         var child = CreateAlignedChild(LayoutOptions.Fill, LayoutOptions.Center, 100, 40);
@@ -309,7 +309,7 @@ public class AlignmentTests
     {
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
         };
 
         var child = CreateAlignedChild(LayoutOptions.Fill, LayoutOptions.End, 100, 40);
@@ -328,7 +328,7 @@ public class AlignmentTests
     {
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
         };
 
         var child = CreateAlignedChild(LayoutOptions.Fill, LayoutOptions.Fill, 100, 40);

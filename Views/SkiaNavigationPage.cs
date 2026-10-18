@@ -87,15 +87,9 @@ public class SkiaNavigationPage : SkiaView
     public SkiaPage? RootPage => _navigationStack.Count > 0 ? _navigationStack.Last() : _currentPage;
     public int StackDepth => _navigationStack.Count + (_currentPage != null ? 1 : 0);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<NavigationEventArgs>? Pushed;
-#pragma warning restore CS0618
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<NavigationEventArgs>? Popped;
-#pragma warning restore CS0618
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<NavigationEventArgs>? PoppedToRoot;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaNavigationEventArgs>? Pushed;
+    public event EventHandler<SkiaNavigationEventArgs>? Popped;
+    public event EventHandler<SkiaNavigationEventArgs>? PoppedToRoot;
 
     /// <summary>True while a push or pop is animating (the stack has already changed).</summary>
     public bool IsTransitioning => _isAnimating;
@@ -290,9 +284,7 @@ public class SkiaNavigationPage : SkiaView
             DiagnosticLog.Debug("SkiaNavigationPage", "Push: Invalidate called, _currentPage is now " + _currentPage?.Title);
         }
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-        Pushed?.Invoke(this, new NavigationEventArgs(page));
-#pragma warning restore CS0618
+        Pushed?.Invoke(this, new SkiaNavigationEventArgs(page));
     }
 
     public SkiaPage? Pop(bool animated = true)
@@ -337,9 +329,7 @@ public class SkiaNavigationPage : SkiaView
 
         if (poppedPage != null)
         {
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-            Popped?.Invoke(this, new NavigationEventArgs(poppedPage));
-#pragma warning restore CS0618
+            Popped?.Invoke(this, new SkiaNavigationEventArgs(poppedPage));
         }
 
         return poppedPage;
@@ -368,9 +358,7 @@ public class SkiaNavigationPage : SkiaView
             Invalidate();
         }
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-        PoppedToRoot?.Invoke(this, new NavigationEventArgs(_currentPage!));
-#pragma warning restore CS0618
+        PoppedToRoot?.Invoke(this, new SkiaNavigationEventArgs(_currentPage!));
     }
 
     private void ConfigurePage(SkiaPage page, bool showBackButton)

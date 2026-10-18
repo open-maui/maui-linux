@@ -32,10 +32,3 @@ public class LinuxDropEventArgs : EventArgs
         Y = y;
     }
 }
-
-[Obsolete("Use LinuxDropEventArgs; this type is removed in OpenMaui 11.0.")]
-public class DropEventArgs : LinuxDropEventArgs
-{
-    public DropEventArgs(DragData data, string? droppedData) : base(data, droppedData) { }
-    public DropEventArgs(DragData data, string? droppedData, int x, int y) : base(data, droppedData, x, y) { }
-}

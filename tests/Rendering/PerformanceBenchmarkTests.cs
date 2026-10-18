@@ -50,7 +50,7 @@ public class MeasureArrangePerformanceTests : ITestOutputHelper
         // Arrange — flat stack with 100 children
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
         for (int i = 0; i < 100; i++)
             stack.AddChild(new BenchView { WidthRequest = 200, HeightRequest = 30 });
@@ -81,7 +81,7 @@ public class MeasureArrangePerformanceTests : ITestOutputHelper
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
         for (int i = 0; i < 100; i++)
             stack.AddChild(new BenchView { WidthRequest = 200, HeightRequest = 30 });
@@ -110,11 +110,11 @@ public class MeasureArrangePerformanceTests : ITestOutputHelper
     public void Measure_DeepNesting_20Levels_Under5ms()
     {
         // Arrange — deeply nested layout (20 levels, 1 child each)
-        var root = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var root = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         var current = root;
         for (int i = 0; i < 19; i++)
         {
-            var child = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+            var child = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
             current.AddChild(child);
             current = child;
         }
@@ -145,9 +145,9 @@ public class MeasureArrangePerformanceTests : ITestOutputHelper
         // Arrange — 10x10 grid (100 cells)
         var grid = new SkiaGrid();
         for (int r = 0; r < 10; r++)
-            grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(40));
+            grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(40));
         for (int c = 0; c < 10; c++)
-            grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(80));
+            grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(80));
 
         for (int r = 0; r < 10; r++)
             for (int c = 0; c < 10; c++)
@@ -190,7 +190,7 @@ public class HitTestPerformanceTests
         // Arrange — layout with 100 children arranged vertically
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
         for (int i = 0; i < 100; i++)
             stack.AddChild(new BenchView { WidthRequest = 400, HeightRequest = 30 });
@@ -221,11 +221,11 @@ public class HitTestPerformanceTests
     public void HitTest_DeepNesting_20Levels_Under1ms()
     {
         // Arrange — deeply nested layout
-        var root = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var root = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         var current = root;
         for (int i = 0; i < 19; i++)
         {
-            var child = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+            var child = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
             current.AddChild(child);
             current = child;
         }
@@ -256,7 +256,7 @@ public class HitTestPerformanceTests
     public void HitTest_Miss_Outside_Under01ms()
     {
         // Arrange
-        var stack = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var stack = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         for (int i = 0; i < 50; i++)
             stack.AddChild(new BenchView { WidthRequest = 400, HeightRequest = 30 });
 
@@ -296,7 +296,7 @@ public class DirtyRegionPerformanceTests
         // calls through to the rendering engine. Since we can't create a
         // real rendering engine without X11, test the view invalidation path.
         var views = new List<BenchView>();
-        var stack = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var stack = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         for (int i = 0; i < 50; i++)
         {
             var v = new BenchView { WidthRequest = 400, HeightRequest = 20 };
@@ -327,12 +327,12 @@ public class DirtyRegionPerformanceTests
     public void InvalidateMeasure_Propagation_Under1ms()
     {
         // Arrange — deep tree, invalidate at leaf, check propagation speed
-        var root = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var root = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         var current = root;
         SkiaStackLayout? leaf = null;
         for (int i = 0; i < 15; i++)
         {
-            var child = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+            var child = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
             current.AddChild(child);
             current = child;
             leaf = child;
@@ -372,7 +372,7 @@ public class DrawPerformanceTests
     public void Draw_FlatLayout_100Children_Under10ms()
     {
         // Arrange
-        var stack = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var stack = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         for (int i = 0; i < 100; i++)
             stack.AddChild(new BenchView { WidthRequest = 400, HeightRequest = 30 });
 
@@ -405,7 +405,7 @@ public class DrawPerformanceTests
     public void Draw_Labels_50Items_Under20ms()
     {
         // Arrange — labels are more expensive (text shaping)
-        var stack = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var stack = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         for (int i = 0; i < 50; i++)
             stack.AddChild(new SkiaLabel { Text = $"Item {i}: Sample label text", FontSize = 14 });
 
@@ -438,7 +438,7 @@ public class DrawPerformanceTests
     public void Draw_MixedControls_Under15ms()
     {
         // Arrange — realistic mix of controls
-        var stack = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var stack = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
 
         for (int i = 0; i < 10; i++)
         {
