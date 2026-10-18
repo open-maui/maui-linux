@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
 using System.Security.Cryptography;
 using Microsoft.Maui.Platform.Linux.Services.Portal;
 using System.Text;
@@ -10,9 +9,18 @@ using Microsoft.Maui.Storage;
 namespace Microsoft.Maui.Platform.Linux.Services;
 
 /// <summary>
-/// Linux secure storage implementation using secret-tool (libsecret) or encrypted file fallback.
+/// Linux secure storage: the session's Secret Service (the desktop keyring: gnome-keyring, KDE's
+/// ksecretd, KeePassXC) over one long-lived D-Bus session, else through libsecret's
+/// <c>secret-tool</c>, else an encrypted file.
 /// </summary>
 /// <remarks>
+/// The keyring is used over D-Bus (org.freedesktop.Secret.Service through Tmds.DBus, see
+/// <see cref="DBusSecretKeyring"/>); when no Secret Service answers there, <c>secret-tool</c> is
+/// tried (when installed), and when neither reaches one (no session bus, no keyring daemon) the
+/// encrypted-file store takes over. Calls on the same key run one after another, and each returns
+/// once the keyring reflects it. <c>OPENMAUI_SECURESTORAGE=secret-tool</c> skips the D-Bus path,
+/// <c>=file</c> uses only the encrypted file.
+///
 /// Storage is per app, as on every other platform: keyring items carry the attribute
 /// <c>service = maui-secure-storage/&lt;AppInfo.PackageName&gt;</c>, and the encrypted-file
 /// fallback lives under <c>$XDG_DATA_HOME/&lt;app&gt;/.maui-secure</c>. Earlier releases stored
@@ -46,10 +54,13 @@ public class SecureStorageService : ISecureStorage
     // The legacy shared store (directory and keyring service); null: never consulted.
     private readonly string? _legacyDir;
     private readonly string? _legacyNamespace;
-    private readonly bool _useSecretService;
-    // Set when secret-tool is installed but no Secret Service answers (no session bus, no
-    // keyring daemon: CI, SSH, a bare window manager): the encrypted-file store takes over.
-    private volatile bool _secretServiceUnreachable;
+    // The keyrings in fallback order (D-Bus, then secret-tool); empty: encrypted file only.
+    private readonly ISecretKeyring[] _keyrings;
+    // The first keyring still believed reachable. Advanced when one reports no Secret Service
+    // (no session bus, no keyring daemon: CI, SSH, a bare window manager); past the end the
+    // encrypted-file store takes over.
+    private int _keyringIndex;
+    private readonly KeyedSerializer _keys = new();
     private readonly Lazy<Task<byte[]?>>? _portalKey;
     private readonly object _legacyLock = new();
     private HashSet<string>? _settled;
@@ -58,7 +69,7 @@ public class SecureStorageService : ISecureStorage
     {
         _legacyDir = LegacyFallbackPath;
         _legacyNamespace = ServiceName;
-        _useSecretService = CheckSecretServiceAvailable();
+        _keyrings = DefaultKeyrings(useSecretService: true);
         if (DesktopPortal.ShouldTry(PortalUse.SandboxedOrPreferred))
             _portalKey = PortalKeyFrom(DesktopPortal.Current);
     }
@@ -93,7 +104,7 @@ public class SecureStorageService : ISecureStorage
     /// <summary>
     /// Creates a store with an explicit fallback directory and backend choice
     /// (tests, hosts without a keyring). <paramref name="useSecretService"/>
-    /// true still requires <c>secret-tool</c> on PATH at call time.
+    /// true uses the Secret Service (D-Bus, then <c>secret-tool</c> when on PATH).
     /// </summary>
     internal SecureStorageService(string fallbackPath, bool useSecretService)
         : this(fallbackPath, useSecretService, keyringNamespace: null)
@@ -108,7 +119,44 @@ public class SecureStorageService : ISecureStorage
     {
         _fixedFallbackPath = fallbackPath;
         _fixedNamespace = keyringNamespace;
-        _useSecretService = useSecretService && CheckSecretServiceAvailable();
+        _keyrings = DefaultKeyrings(useSecretService);
+    }
+
+    /// <summary>
+    /// Explicit keyrings in fallback order (tests): the encrypted file in
+    /// <paramref name="fallbackPath"/> takes over once every keyring reports no Secret Service.
+    /// </summary>
+    internal SecureStorageService(string fallbackPath, IReadOnlyList<ISecretKeyring> keyrings, string? keyringNamespace = null)
+    {
+        _fixedFallbackPath = fallbackPath;
+        _fixedNamespace = keyringNamespace;
+        _keyrings = keyrings.ToArray();
+    }
+
+    /// <summary>The keyrings a store uses, in fallback order.</summary>
+    private static ISecretKeyring[] DefaultKeyrings(bool useSecretService)
+    {
+        if (!useSecretService)
+            return Array.Empty<ISecretKeyring>();
+        var choice = Environment.GetEnvironmentVariable("OPENMAUI_SECURESTORAGE")?.Trim().ToLowerInvariant();
+        if (choice == "file")
+            return Array.Empty<ISecretKeyring>();
+        var keyrings = new List<ISecretKeyring>();
+        if (choice != "secret-tool")
+            keyrings.Add(new DBusSecretKeyring(TmdsSecretServiceApi.Session));
+        if (SecretToolKeyring.IsInstalled())
+            keyrings.Add(new SecretToolKeyring());
+        return keyrings.ToArray();
+    }
+
+    /// <summary>The keyring in use now (null: the encrypted-file store).</summary>
+    internal ISecretKeyring? ActiveKeyring
+    {
+        get
+        {
+            var index = Volatile.Read(ref _keyringIndex);
+            return index < _keyrings.Length ? _keyrings[index] : null;
+        }
     }
 
     /// <summary>As above, reading <paramref name="legacyFallbackPath"/> and <paramref name="legacyNamespace"/> as the legacy shared store (tests).</summary>
@@ -119,14 +167,37 @@ public class SecureStorageService : ISecureStorage
         _legacyNamespace = legacyNamespace;
     }
 
-    private bool UseSecretService => _useSecretService && !_secretServiceUnreachable;
+    private bool UseSecretService => ActiveKeyring != null;
 
     /// <summary>The messages secret-tool prints when no Secret Service can be reached at all.</summary>
-    internal static bool IsUnreachable(string error) =>
-        error.Contains("Could not connect", StringComparison.OrdinalIgnoreCase)
-        || error.Contains("not provided by any .service files", StringComparison.OrdinalIgnoreCase)
-        || error.Contains("Cannot autolaunch", StringComparison.OrdinalIgnoreCase)
-        || error.Contains("Unable to autolaunch", StringComparison.OrdinalIgnoreCase);
+    internal static bool IsUnreachable(string error) => SecretToolKeyring.IsUnreachable(error);
+
+    /// <summary>
+    /// Runs <paramref name="operation"/> on the first reachable keyring; a keyring that reports
+    /// no Secret Service is skipped from then on, and with none left <paramref name="fileStore"/> runs.
+    /// </summary>
+    private async Task<T> OnKeyringAsync<T>(Func<ISecretKeyring, Task<T>> operation, Func<Task<T>> fileStore)
+    {
+        while (true)
+        {
+            var index = Volatile.Read(ref _keyringIndex);
+            if (index >= _keyrings.Length)
+                return await fileStore().ConfigureAwait(false);
+            var keyring = _keyrings[index];
+            try
+            {
+                return await operation(keyring).ConfigureAwait(false);
+            }
+            catch (SecretServiceUnavailableException ex)
+            {
+                if (Interlocked.CompareExchange(ref _keyringIndex, index + 1, index) == index)
+                {
+                    var next = index + 1 < _keyrings.Length ? $"trying {_keyrings[index + 1].Name}" : "using the encrypted-file store";
+                    DiagnosticLog.Warn("SecureStorageService", $"No Secret Service reachable through {keyring.Name} ({ex.Message}); {next}");
+                }
+            }
+        }
+    }
 
     /// <summary>This app's encrypted-file directory: $XDG_DATA_HOME/&lt;app&gt;/.maui-secure.</summary>
     private string FallbackPath => _fixedFallbackPath ?? Path.Combine(DataHome(), AppDirectoryName(), FallbackDirectory);
@@ -169,44 +240,17 @@ public class SecureStorageService : ISecureStorage
             : dataHome;
     }
 
-    private bool CheckSecretServiceAvailable()
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "which",
-                Arguments = "secret-tool",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null) return false;
-
-            process.WaitForExit();
-            return process.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     public Task<string?> GetAsync(string key)
     {
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        return GetOwnOrLegacyAsync(key);
+        return _keys.RunAsync(key, () => GetOwnOrLegacyAsync(key));
     }
 
     private async Task<string?> GetOwnOrLegacyAsync(string key)
     {
-        var value = UseSecretService
-            ? await GetFromSecretServiceOrFileAsync(key).ConfigureAwait(false)
-            : await GetFromFallbackAsync(FallbackPath, key).ConfigureAwait(false);
+        var value = await GetFromSecretServiceOrFileAsync(key).ConfigureAwait(false);
         if (value != null || !IsLegacyUnsettled(key))
             return value;
 
@@ -225,12 +269,25 @@ public class SecureStorageService : ISecureStorage
         if (value == null)
             throw new ArgumentNullException(nameof(value));
 
-        SettleLegacy(key);
-        return SetOwnAsync(key, value);
+        return _keys.RunAsync(key, () =>
+        {
+            SettleLegacy(key);
+            return SetOwnAsync(key, value);
+        });
     }
 
     private Task SetOwnAsync(string key, string value) =>
-        UseSecretService ? SetInSecretServiceAsync(key, value) : SetInFallbackAsync(key, value);
+        OnKeyringAsync(async keyring =>
+        {
+            await keyring.StoreAsync(KeyringNamespace, key, value).ConfigureAwait(false);
+            // A value an unreachable keyring once sent to the file must not shadow this one.
+            RemoveFromFallback(key);
+            return true;
+        }, async () =>
+        {
+            await SetInFallbackAsync(key, value).ConfigureAwait(false);
+            return true;
+        });
 
     /// <summary>Removes the key; true when it was stored.</summary>
     public bool Remove(string key)
@@ -238,30 +295,28 @@ public class SecureStorageService : ISecureStorage
         if (string.IsNullOrWhiteSpace(key))
             throw new ArgumentNullException(nameof(key));
 
-        // A removed key stays removed: the shared store must not bring it back.
-        SettleLegacy(key);
-        if (UseSecretService)
+        // Off the caller's thread: the keyring calls are asynchronous, and a caller on a
+        // thread with a synchronization context must not be needed to finish them.
+        return Task.Run(() => _keys.RunAsync(key, async () =>
         {
-            return RemoveFromSecretService(key);
-        }
-        else
-        {
-            return RemoveFromFallback(key);
-        }
+            // A removed key stays removed: the shared store must not bring it back.
+            SettleLegacy(key);
+            var removed = await OnKeyringAsync(keyring => keyring.ClearAsync(KeyringNamespace, key), () => Task.FromResult(false)).ConfigureAwait(false);
+            return RemoveFromFallback(key) || removed;
+        })).GetAwaiter().GetResult();
     }
 
     /// <summary>Removes every value this app stored (and only this app's).</summary>
     public void RemoveAll()
     {
         SettleAllLegacy();
-        if (UseSecretService)
+        var ns = KeyringNamespace;
+        // As for a single key: returns once the keyring no longer lists the app's items.
+        Task.Run(() => OnKeyringAsync(async keyring =>
         {
-            var ns = KeyringNamespace;
-            RunSecretTool(null, "clear", "service", ns);
-            // As for a single key: return once the keyring no longer lists the app's items.
-            for (var attempt = 0; attempt < 20 && KeyringHasItems(ns); attempt++)
-                Thread.Sleep(50);
-        }
+            await keyring.ClearAllAsync(ns).ConfigureAwait(false);
+            return true;
+        }, () => Task.FromResult(true))).GetAwaiter().GetResult();
 
         // The fallback holds values a failed keyring write fell back to: clear it either way.
         var dir = FallbackPath;
@@ -295,8 +350,8 @@ public class SecureStorageService : ISecureStorage
         try
         {
             string? value = null;
-            if (UseSecretService && _legacyNamespace != null)
-                value = await Task.Run(() => LookupSecret(_legacyNamespace, key)).ConfigureAwait(false);
+            if (_legacyNamespace != null)
+                value = await OnKeyringAsync(keyring => keyring.LookupAsync(_legacyNamespace, key), () => Task.FromResult<string?>(null)).ConfigureAwait(false);
             if (value == null && Directory.Exists(_legacyDir)
                 && Path.GetFullPath(_legacyDir!) != Path.GetFullPath(FallbackPath))
                 value = await GetFromFallbackAsync(_legacyDir!, key).ConfigureAwait(false);
@@ -371,149 +426,13 @@ public class SecureStorageService : ISecureStorage
 
     #endregion
 
-    #region Secret Service (libsecret)
-
-    /// <summary>True while the keyring lists any item under <paramref name="ns"/> (attributes go to stderr).</summary>
-    private static bool KeyringHasItems(string ns)
-    {
-        var (exit, _, error) = RunSecretToolCapture(null, "search", "--all", "service", ns);
-        return exit == 0 && error.Contains("attribute.key = ", StringComparison.Ordinal);
-    }
+    #region Secret Service
 
     /// <summary>The keyring's value, else the encrypted file's (a value stored while the keyring could not be reached).</summary>
     private async Task<string?> GetFromSecretServiceOrFileAsync(string key)
     {
-        var ns = KeyringNamespace;
-        var value = await Task.Run(() => LookupSecret(ns, key)).ConfigureAwait(false);
+        var value = await OnKeyringAsync(keyring => keyring.LookupAsync(KeyringNamespace, key), () => Task.FromResult<string?>(null)).ConfigureAwait(false);
         return value ?? await GetFromFallbackAsync(FallbackPath, key).ConfigureAwait(false);
-    }
-
-    private static string? LookupSecret(string ns, string key)
-    {
-        for (var attempt = 0; ; attempt++)
-        {
-            var (exit, output, error) = RunSecretToolCapture(null, "lookup", "service", ns, "key", key);
-            // secret-tool prints the secret without a trailing newline when stdout is not a
-            // terminal; older versions add one.
-            if (exit == 0)
-                return string.IsNullOrEmpty(output) ? null : output.TrimEnd('\n');
-            // Not found is a silent exit 1. An error message means the daemon failed the call
-            // (a dropped session under load): ask again rather than report "no value".
-            if (exit == -1 || string.IsNullOrWhiteSpace(error) || IsUnreachable(error) || attempt == 2)
-                return null;
-            Thread.Sleep(50 * (attempt + 1));
-        }
-    }
-
-    private async Task SetInSecretServiceAsync(string key, string value)
-    {
-        var ns = KeyringNamespace;
-        var (exit, error) = await Task.Run(() =>
-        {
-            // A keyring daemon can drop the session a store opened ("Can't find session")
-            // when clients come and go quickly; a store is idempotent, so try again.
-            (int Code, string Error) attempt = default;
-            for (var i = 0; i < 3; i++)
-            {
-                var (code, _, err) = RunSecretToolCapture(value, "store", "--label=" + key, "service", ns, "key", key);
-                attempt = (code, err);
-                if (code is 0 or -1 || IsUnreachable(err))
-                    break;
-                Thread.Sleep(50 * (i + 1));
-            }
-            return attempt;
-        }).ConfigureAwait(false);
-
-        if (exit == -1 || IsUnreachable(error))
-        {
-            // secret-tool could not be started, or no Secret Service answers: keep the value in
-            // the encrypted file instead (and stop asking the keyring for this store).
-            if (exit != -1)
-            {
-                _secretServiceUnreachable = true;
-                DiagnosticLog.Warn("SecureStorageService", $"No Secret Service reachable ({error.Trim()}); using the encrypted-file store");
-            }
-            await SetInFallbackAsync(key, value).ConfigureAwait(false);
-            return;
-        }
-        if (exit != 0)
-            throw new InvalidOperationException($"Failed to store secret: {error}");
-        // A keyring daemon (KDE's ksecretd) can acknowledge a store before a lookup sees it:
-        // return once it reads back, so a value set is a value read, as on the other platforms.
-        await Task.Run(() => WaitUntilVisible(ns, key, value)).ConfigureAwait(false);
-    }
-
-    /// <summary>Waits (about a second at most) until a lookup of <paramref name="key"/> gives <paramref name="expected"/> (null: gone).</summary>
-    private static void WaitUntilVisible(string ns, string key, string? expected)
-    {
-        for (var attempt = 0; attempt < 20; attempt++)
-        {
-            if (LookupSecret(ns, key) == expected)
-                return;
-            Thread.Sleep(50);
-        }
-        DiagnosticLog.Warn("SecureStorageService", $"The keyring did not reflect the change to '{key}' within a second");
-    }
-
-    private bool RemoveFromSecretService(string key)
-    {
-        var ns = KeyringNamespace;
-        var existed = LookupSecret(ns, key) != null;
-        if (existed)
-        {
-            RunSecretTool(null, "clear", "service", ns, "key", key);
-            WaitUntilVisible(ns, key, null);
-        }
-        return RemoveFromFallback(key) || existed;
-    }
-
-    private static int RunSecretTool(string? input, params string[] args) => RunSecretToolCapture(input, args).Exit;
-
-    // One secret-tool at a time per process: the keyring daemon drops sessions under many
-    // concurrent clients ("Can't find session"), and a lookup racing a clear of the same item
-    // could see the value after Remove returned.
-    private static readonly object s_secretToolLock = new();
-
-    /// <summary>Runs secret-tool with <paramref name="args"/> (no shell); exit -1 when it could not start.</summary>
-    private static (int Exit, string Output, string Error) RunSecretToolCapture(string? input, params string[] args)
-    {
-        lock (s_secretToolLock)
-            return RunSecretToolCaptureLocked(input, args);
-    }
-
-    private static (int Exit, string Output, string Error) RunSecretToolCaptureLocked(string? input, string[] args)
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "secret-tool",
-                UseShellExecute = false,
-                RedirectStandardInput = input != null,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-            };
-            foreach (var arg in args)
-                startInfo.ArgumentList.Add(arg);
-
-            using var process = Process.Start(startInfo);
-            if (process == null)
-                return (-1, "", "");
-            if (input != null)
-            {
-                process.StandardInput.Write(input);
-                process.StandardInput.Close();
-            }
-            var errorTask = process.StandardError.ReadToEndAsync();
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return (process.ExitCode, output, errorTask.GetAwaiter().GetResult());
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
-        {
-            return (-1, "", ex.Message);
-        }
     }
 
     #endregion
