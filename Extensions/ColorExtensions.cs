@@ -120,7 +120,7 @@ public static class ColorExtensions
 /// <summary>
 /// Font extensions for converting MAUI fonts to SkiaSharp.
 /// </summary>
-public static class FontExtensions
+public static class SkiaFontExtensions
 {
     /// <summary>
     /// Gets the SKFontStyle from a MAUI Font.
@@ -161,6 +161,23 @@ public static class FontExtensions
         var typeface = SKTypeface.FromFamilyName(font.Family ?? "sans-serif", font.ToSKFontStyle());
         return SkiaFontFactory.Create(typeface, size);
     }
+}
+
+/// <summary>
+/// Font conversions; the extension methods are on <see cref="SkiaFontExtensions"/>.
+/// </summary>
+[Obsolete("Use SkiaFontExtensions; this type is removed in OpenMaui 11.0.")]
+public static class FontExtensions
+{
+    /// <summary>
+    /// Gets the SKFontStyle from a MAUI Font.
+    /// </summary>
+    public static SKFontStyle ToSKFontStyle(Font font) => SkiaFontExtensions.ToSKFontStyle(font);
+
+    /// <summary>
+    /// Creates an SKFont from a MAUI Font.
+    /// </summary>
+    public static SKFont ToSKFont(Font font, float defaultSize = 14f) => SkiaFontExtensions.ToSKFont(font, defaultSize);
 }
 
 /// <summary>
