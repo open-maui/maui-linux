@@ -245,7 +245,9 @@ public class SkiaCheckBox : SkiaView
     /// <summary>
     /// Occurs when the IsChecked property changes.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public event EventHandler<CheckedChangedEventArgs>? CheckedChanged;
+#pragma warning restore CS0618
 
     #endregion
 
@@ -262,7 +264,9 @@ public class SkiaCheckBox : SkiaView
 
     private void OnIsCheckedChanged()
     {
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         CheckedChanged?.Invoke(this, new CheckedChangedEventArgs(IsChecked));
+#pragma warning restore CS0618
         SkiaVisualStateManager.GoToState(this, IsChecked ? "Checked" : "Unchecked");
         Invalidate();
     }
