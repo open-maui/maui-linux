@@ -4,6 +4,8 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -11,8 +13,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for Slider on Linux using Skia rendering.
 /// Maps ISlider interface to SkiaSlider platform view.
 /// </summary>
-public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
+public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>, ISliderHandler
 {
+    ISlider ISliderHandler.VirtualView => VirtualView;
+    object ISliderHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<ISlider, SliderHandler> Mapper = new PropertyMapper<ISlider, SliderHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IRange.Minimum)] = MapMinimum,
@@ -92,19 +97,55 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
         VirtualView?.DragCompleted();
     }
 
-    public static void MapMinimum(SliderHandler handler, ISlider slider)
+    /// <summary>MAUI's <c>MapMinimum</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMinimum(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapMinimumCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMinimum(SliderHandler handler, ISlider slider) => MapMinimumCore(handler, slider);
+
+    private static void MapMinimumCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Minimum = slider.Minimum;
     }
 
-    public static void MapMaximum(SliderHandler handler, ISlider slider)
+    /// <summary>MAUI's <c>MapMaximum</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMaximum(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapMaximumCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMaximum(SliderHandler handler, ISlider slider) => MapMaximumCore(handler, slider);
+
+    private static void MapMaximumCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Maximum = slider.Maximum;
     }
 
-    public static void MapValue(SliderHandler handler, ISlider slider)
+    /// <summary>MAUI's <c>MapValue</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapValue(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapValueCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapValue(SliderHandler handler, ISlider slider) => MapValueCore(handler, slider);
+
+    private static void MapValueCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
 
@@ -112,7 +153,19 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
             handler.PlatformView.Value = slider.Value;
     }
 
-    public static void MapMinimumTrackColor(SliderHandler handler, ISlider slider)
+    /// <summary>MAUI's <c>MapMinimumTrackColor</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMinimumTrackColor(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapMinimumTrackColorCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMinimumTrackColor(SliderHandler handler, ISlider slider) => MapMinimumTrackColorCore(handler, slider);
+
+    private static void MapMinimumTrackColorCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
 
@@ -120,7 +173,19 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
             handler.PlatformView.MinimumTrackColor = slider.MinimumTrackColor;
     }
 
-    public static void MapMaximumTrackColor(SliderHandler handler, ISlider slider)
+    /// <summary>MAUI's <c>MapMaximumTrackColor</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMaximumTrackColor(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapMaximumTrackColorCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMaximumTrackColor(SliderHandler handler, ISlider slider) => MapMaximumTrackColorCore(handler, slider);
+
+    private static void MapMaximumTrackColorCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
 
@@ -128,7 +193,19 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
             handler.PlatformView.MaximumTrackColor = slider.MaximumTrackColor;
     }
 
-    public static void MapThumbColor(SliderHandler handler, ISlider slider)
+    /// <summary>MAUI's <c>MapThumbColor</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapThumbColor(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapThumbColorCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapThumbColor(SliderHandler handler, ISlider slider) => MapThumbColorCore(handler, slider);
+
+    private static void MapThumbColorCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
 
@@ -156,12 +233,24 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>
     private CancellationTokenSource? _thumbImageLoad;
     private IImageSourceServiceResult<SKBitmap>? _thumbImageResult;
 
+    /// <summary>MAUI's <c>MapThumbImageSource</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapThumbImageSource(IViewHandler handler, ISlider slider)
+    {
+        if (handler is SliderHandler linuxHandler)
+            MapThumbImageSourceCore(linuxHandler, slider);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapThumbImageSource(SliderHandler handler, ISlider slider) => MapThumbImageSourceCore(handler, slider);
+
     /// <summary>
     /// The thumb's image (Slider.ThumbImageSource), loaded through its image-source service (file,
     /// font, URI, stream, or an app's own source) as MAUI's Windows handler loads it; none draws
     /// the circle thumb.
     /// </summary>
-    public static void MapThumbImageSource(SliderHandler handler, ISlider slider) =>
+    private static void MapThumbImageSourceCore(SliderHandler handler, ISlider slider) =>
         _ = handler.LoadThumbImageAsync(slider.ThumbImageSource);
 
     private async Task LoadThumbImageAsync(IImageSource? source)

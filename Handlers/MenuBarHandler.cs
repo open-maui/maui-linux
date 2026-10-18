@@ -6,6 +6,8 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -13,7 +15,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for MenuBar on Linux using Skia rendering.
 /// Maps MenuBar to SkiaMenuBar platform view.
 /// </summary>
-public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
+public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMenuBarHandler
 {
     public static IPropertyMapper<IMenuBar, MenuBarHandler> Mapper =
         new PropertyMapper<IMenuBar, MenuBarHandler>()
@@ -64,7 +66,7 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
 
         foreach (var menuBarItem in VirtualView)
         {
-            if (menuBarItem is MenuBarItem mauiItem)
+            if (menuBarItem is Microsoft.Maui.Controls.MenuBarItem mauiItem)
             {
                 var platformItem = CreatePlatformMenuBarItem(mauiItem);
                 PlatformView.Items.Add(platformItem);
@@ -74,9 +76,9 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         PlatformView.Invalidate();
     }
 
-    private static Platform.MenuBarItem CreatePlatformMenuBarItem(MenuBarItem mauiItem)
+    private static SkiaMenuBarItem CreatePlatformMenuBarItem(Microsoft.Maui.Controls.MenuBarItem mauiItem)
     {
-        var platformItem = new Platform.MenuBarItem
+        var platformItem = new SkiaMenuBarItem
         {
             Text = mauiItem.Text ?? ""
         };
@@ -99,7 +101,7 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
                 }
                 else if (child is MenuFlyoutSeparator)
                 {
-                    platformItem.Items.Add(new Platform.MenuItem { IsSeparator = true });
+                    platformItem.Items.Add(new SkiaMenuItem { IsSeparator = true });
                 }
             }
         }
@@ -107,9 +109,9 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         return platformItem;
     }
 
-    private static Platform.MenuItem CreatePlatformMenuItem(MenuFlyoutItem mauiItem)
+    private static SkiaMenuItem CreatePlatformMenuItem(MenuFlyoutItem mauiItem)
     {
-        var menuItem = new Platform.MenuItem
+        var menuItem = new SkiaMenuItem
         {
             Text = mauiItem.Text ?? "",
             IsEnabled = mauiItem.IsEnabled,
@@ -131,9 +133,9 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         return menuItem;
     }
 
-    private static Platform.MenuItem CreatePlatformMenuItemWithSubs(MenuFlyoutSubItem mauiSubItem)
+    private static SkiaMenuItem CreatePlatformMenuItemWithSubs(MenuFlyoutSubItem mauiSubItem)
     {
-        var menuItem = new Platform.MenuItem
+        var menuItem = new SkiaMenuItem
         {
             Text = mauiSubItem.Text ?? "",
             IsEnabled = mauiSubItem.IsEnabled,
@@ -155,7 +157,7 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
                 }
                 else if (child is MenuFlyoutSeparator)
                 {
-                    menuItem.SubItems.Add(new Platform.MenuItem { IsSeparator = true });
+                    menuItem.SubItems.Add(new SkiaMenuItem { IsSeparator = true });
                 }
             }
         }
@@ -185,34 +187,113 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>
         handler.PlatformView.IsEnabled = menuBar.IsEnabled;
     }
 
-    public static void MapAdd(MenuBarHandler handler, IMenuBar menuBar, object? args)
+    /// <summary>MAUI's <c>MapAdd</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapAdd(IMenuBarHandler handler, IMenuBar layout, object? arg)
+    {
+        if (handler is MenuBarHandler linuxHandler)
+            MapAddCore(linuxHandler, layout, arg);
+        else if (arg is MenuBarHandlerUpdate update)
+            handler.Add(update.MenuBarItem);
+    }
+
+    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapAdd(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapAddCore(handler, menuBar, args);
+
+    private static void MapAddCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
         handler.SyncMenuBarItems();
     }
 
-    public static void MapRemove(MenuBarHandler handler, IMenuBar menuBar, object? args)
+    /// <summary>MAUI's <c>MapRemove</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapRemove(IMenuBarHandler handler, IMenuBar layout, object? arg)
+    {
+        if (handler is MenuBarHandler linuxHandler)
+            MapRemoveCore(linuxHandler, layout, arg);
+        else if (arg is MenuBarHandlerUpdate update)
+            handler.Remove(update.MenuBarItem);
+    }
+
+    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapRemove(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapRemoveCore(handler, menuBar, args);
+
+    private static void MapRemoveCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
         handler.SyncMenuBarItems();
     }
 
-    public static void MapClear(MenuBarHandler handler, IMenuBar menuBar, object? args)
+    /// <summary>MAUI's <c>MapClear</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapClear(IMenuBarHandler handler, IMenuBar layout, object? arg)
+    {
+        if (handler is MenuBarHandler linuxHandler)
+            MapClearCore(linuxHandler, layout, arg);
+        else
+            handler.Clear();
+    }
+
+    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapClear(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapClearCore(handler, menuBar, args);
+
+    private static void MapClearCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Items.Clear();
         handler.PlatformView.Invalidate();
     }
 
-    public static void MapInsert(MenuBarHandler handler, IMenuBar menuBar, object? args)
+    /// <summary>MAUI's <c>MapInsert</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapInsert(IMenuBarHandler handler, IMenuBar layout, object? arg)
+    {
+        if (handler is MenuBarHandler linuxHandler)
+            MapInsertCore(linuxHandler, layout, arg);
+        else if (arg is MenuBarHandlerUpdate update)
+            handler.Insert(update.Index, update.MenuBarItem);
+    }
+
+    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapInsert(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapInsertCore(handler, menuBar, args);
+
+    private static void MapInsertCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
         handler.SyncMenuBarItems();
     }
+
+    // IMenuBarHandler: each change rebuilds the platform menu bar from the MenuBar's items.
+
+    /// <summary>An item was added to the menu bar.</summary>
+    public void Add(IMenuBarItem view) => SyncMenuBarItems();
+
+    /// <summary>An item was removed from the menu bar.</summary>
+    public void Remove(IMenuBarItem view) => SyncMenuBarItems();
+
+    /// <summary>The menu bar was cleared.</summary>
+    public void Clear()
+    {
+        if (PlatformView is null) return;
+        PlatformView.Items.Clear();
+        PlatformView.Invalidate();
+    }
+
+    /// <summary>An item was inserted into the menu bar.</summary>
+    public void Insert(int index, IMenuBarItem view) => SyncMenuBarItems();
+
+    IMenuBar IMenuBarHandler.VirtualView => VirtualView;
+
+    object IMenuBarHandler.PlatformView => PlatformView;
 }
 
 /// <summary>
 /// Handler for MenuFlyout (context menu) on Linux using Skia rendering.
 /// Maps IMenuFlyout to SkiaMenuFlyout platform view.
 /// </summary>
-public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFlyout>
+public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFlyout>, IMenuFlyoutHandler
 {
     public static IPropertyMapper<IMenuFlyout, MenuFlyoutHandler> Mapper =
         new PropertyMapper<IMenuFlyout, MenuFlyoutHandler>()
@@ -225,6 +306,7 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
             ["Add"] = MapAdd,
             ["Remove"] = MapRemove,
             ["Clear"] = MapClear,
+            ["Insert"] = MapInsert,
         };
 
     public MenuFlyoutHandler() : base(Mapper, CommandMapper)
@@ -271,14 +353,14 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
             }
             else if (item is MenuFlyoutSeparator)
             {
-                PlatformView.Items.Add(new Platform.MenuItem { IsSeparator = true });
+                PlatformView.Items.Add(new SkiaMenuItem { IsSeparator = true });
             }
         }
     }
 
-    private static Platform.MenuItem CreatePlatformMenuItem(MenuFlyoutItem mauiItem)
+    private static SkiaMenuItem CreatePlatformMenuItem(MenuFlyoutItem mauiItem)
     {
-        var menuItem = new Platform.MenuItem
+        var menuItem = new SkiaMenuItem
         {
             Text = mauiItem.Text ?? "",
             IsEnabled = mauiItem.IsEnabled,
@@ -300,9 +382,9 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
         return menuItem;
     }
 
-    private static Platform.MenuItem CreatePlatformMenuItemWithSubs(MenuFlyoutSubItem mauiSubItem)
+    private static SkiaMenuItem CreatePlatformMenuItemWithSubs(MenuFlyoutSubItem mauiSubItem)
     {
-        var menuItem = new Platform.MenuItem
+        var menuItem = new SkiaMenuItem
         {
             Text = mauiSubItem.Text ?? "",
             IsEnabled = mauiSubItem.IsEnabled,
@@ -324,7 +406,7 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
                 }
                 else if (child is MenuFlyoutSeparator)
                 {
-                    menuItem.SubItems.Add(new Platform.MenuItem { IsSeparator = true });
+                    menuItem.SubItems.Add(new SkiaMenuItem { IsSeparator = true });
                 }
             }
         }
@@ -348,19 +430,66 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
         return string.Join("+", parts);
     }
 
-    public static void MapAdd(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args)
+    /// <summary>MAUI's <c>MapAdd</c> signature; runs the command on a Linux <see cref="MenuFlyoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapAdd(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg)
     {
-        handler.SyncMenuItems();
+        if (handler is MenuFlyoutHandler linuxHandler)
+            linuxHandler.SyncMenuItems();
+        else if (arg is ContextFlyoutItemHandlerUpdate update)
+            handler.Add(update.MenuElement);
     }
 
-    public static void MapRemove(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args)
+    [Obsolete("Use the IMenuFlyoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapAdd(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args) => MapAdd((IMenuFlyoutHandler)handler, menuFlyout, args);
+
+    /// <summary>MAUI's <c>MapRemove</c> signature; runs the command on a Linux <see cref="MenuFlyoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapRemove(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg)
     {
-        handler.SyncMenuItems();
+        if (handler is MenuFlyoutHandler linuxHandler)
+            linuxHandler.SyncMenuItems();
+        else if (arg is ContextFlyoutItemHandlerUpdate update)
+            handler.Remove(update.MenuElement);
     }
 
-    public static void MapClear(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args)
+    [Obsolete("Use the IMenuFlyoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapRemove(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args) => MapRemove((IMenuFlyoutHandler)handler, menuFlyout, args);
+
+    /// <summary>MAUI's <c>MapClear</c> signature; runs the command on a Linux <see cref="MenuFlyoutHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapClear(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg) => handler.Clear();
+
+    [Obsolete("Use the IMenuFlyoutHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapClear(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args) => MapClear((IMenuFlyoutHandler)handler, menuFlyout, args);
+
+    /// <summary>MAUI's <c>MapInsert</c>: an element was inserted; the menu is rebuilt from the flyout.</summary>
+    public static void MapInsert(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Items.Clear();
+        if (handler is MenuFlyoutHandler linuxHandler)
+            linuxHandler.SyncMenuItems();
+        else if (arg is ContextFlyoutItemHandlerUpdate update)
+            handler.Insert(update.Index, update.MenuElement);
     }
+
+    // IMenuFlyoutHandler: each change rebuilds the platform menu from the flyout's elements.
+
+    /// <summary>An element was added to the flyout.</summary>
+    public void Add(IMenuElement view) => SyncMenuItems();
+
+    /// <summary>An element was removed from the flyout.</summary>
+    public void Remove(IMenuElement view) => SyncMenuItems();
+
+    /// <summary>The flyout was cleared.</summary>
+    public void Clear() => PlatformView?.Items.Clear();
+
+    /// <summary>An element was inserted into the flyout.</summary>
+    public void Insert(int index, IMenuElement view) => SyncMenuItems();
+
+    IMenuFlyout IMenuFlyoutHandler.VirtualView => VirtualView;
+
+    object IMenuFlyoutHandler.PlatformView => PlatformView;
 }

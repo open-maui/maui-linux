@@ -14,8 +14,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Handler for FlyoutPage on Linux using Skia rendering.
 /// Maps IFlyoutView interface to SkiaFlyoutPage platform view.
 /// </summary>
-public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyoutPage>
+public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyoutPage>, IFlyoutViewHandler
 {
+    IFlyoutView IFlyoutViewHandler.VirtualView => VirtualView;
+    object IFlyoutViewHandler.PlatformView => PlatformView;
+
     private bool _isUpdatingPresented;
 
     public static IPropertyMapper<IFlyoutView, FlyoutPageHandler> Mapper = new PropertyMapper<IFlyoutView, FlyoutPageHandler>(ViewHandler.ViewMapper)
@@ -181,22 +184,21 @@ public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyou
             // ShouldShowSplitMode): split on desktop/tablet idioms, popover on
             // phones — MAUI refuses IsPresented=false while it expects split.
             var controller = (IFlyoutPageController)flyoutPage;
-            handler.PlatformView.FlyoutLayoutBehavior = flyoutPage.FlyoutLayoutBehavior switch
+            handler.PlatformView.MauiFlyoutLayoutBehavior = flyoutPage.FlyoutLayoutBehavior switch
             {
-                Microsoft.Maui.Controls.FlyoutLayoutBehavior.Popover => FlyoutLayoutBehavior.Popover,
-                Microsoft.Maui.Controls.FlyoutLayoutBehavior.Split => FlyoutLayoutBehavior.Split,
-                Microsoft.Maui.Controls.FlyoutLayoutBehavior.SplitOnLandscape => FlyoutLayoutBehavior.SplitOnLandscape,
-                Microsoft.Maui.Controls.FlyoutLayoutBehavior.SplitOnPortrait => FlyoutLayoutBehavior.SplitOnPortrait,
-                _ => controller.ShouldShowSplitMode ? FlyoutLayoutBehavior.Split : FlyoutLayoutBehavior.Popover
+                Microsoft.Maui.Controls.FlyoutLayoutBehavior.Default => controller.ShouldShowSplitMode
+                    ? Microsoft.Maui.Controls.FlyoutLayoutBehavior.Split
+                    : Microsoft.Maui.Controls.FlyoutLayoutBehavior.Popover,
+                var behavior => behavior,
             };
         }
         else
         {
-            handler.PlatformView.FlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
+            handler.PlatformView.MauiFlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
             {
-                Microsoft.Maui.FlyoutBehavior.Locked => FlyoutLayoutBehavior.Split,
-                Microsoft.Maui.FlyoutBehavior.Flyout => FlyoutLayoutBehavior.Popover,
-                _ => FlyoutLayoutBehavior.Default
+                Microsoft.Maui.FlyoutBehavior.Locked => Microsoft.Maui.Controls.FlyoutLayoutBehavior.Split,
+                Microsoft.Maui.FlyoutBehavior.Flyout => Microsoft.Maui.Controls.FlyoutLayoutBehavior.Popover,
+                _ => Microsoft.Maui.Controls.FlyoutLayoutBehavior.Default
             };
         }
 

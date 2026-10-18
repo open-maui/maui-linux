@@ -6,14 +6,19 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for DatePicker on Linux using Skia rendering.
 /// </summary>
-public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDatePicker>
+public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDatePicker>, IDatePickerHandler
 {
+    IDatePicker IDatePickerHandler.VirtualView => VirtualView;
+    object IDatePickerHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IDatePicker, DatePickerHandler> Mapper =
         new PropertyMapper<IDatePicker, DatePickerHandler>(ViewHandler.ViewMapper)
         {
@@ -74,7 +79,19 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         VirtualView.Date = e.NewDate;
     }
 
-    public static void MapDate(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapDate</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapDate(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapDateCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapDate(DatePickerHandler handler, IDatePicker datePicker) => MapDateCore(handler, datePicker);
+
+    private static void MapDateCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
         handler._mappingDate = true;
@@ -90,25 +107,73 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         handler.PlatformView.HasDate = datePicker.Date.HasValue;
     }
 
-    public static void MapMinimumDate(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapMinimumDate</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMinimumDate(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapMinimumDateCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMinimumDate(DatePickerHandler handler, IDatePicker datePicker) => MapMinimumDateCore(handler, datePicker);
+
+    private static void MapMinimumDateCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.MinimumDate = datePicker.MinimumDate ?? DateTime.MinValue;
     }
 
-    public static void MapMaximumDate(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapMaximumDate</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMaximumDate(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapMaximumDateCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMaximumDate(DatePickerHandler handler, IDatePicker datePicker) => MapMaximumDateCore(handler, datePicker);
+
+    private static void MapMaximumDateCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.MaximumDate = datePicker.MaximumDate ?? DateTime.MaxValue;
     }
 
-    public static void MapFormat(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapFormat</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFormat(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapFormatCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFormat(DatePickerHandler handler, IDatePicker datePicker) => MapFormatCore(handler, datePicker);
+
+    private static void MapFormatCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Format = datePicker.Format ?? "d";
     }
 
-    public static void MapTextColor(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapTextColorCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTextColor(DatePickerHandler handler, IDatePicker datePicker) => MapTextColorCore(handler, datePicker);
+
+    private static void MapTextColorCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
         if (datePicker.TextColor is not null)
@@ -117,13 +182,37 @@ public partial class DatePickerHandler : LinuxViewHandler<IDatePicker, SkiaDateP
         }
     }
 
-    public static void MapCharacterSpacing(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCharacterSpacing(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapCharacterSpacingCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCharacterSpacing(DatePickerHandler handler, IDatePicker datePicker) => MapCharacterSpacingCore(handler, datePicker);
+
+    private static void MapCharacterSpacingCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.CharacterSpacing = datePicker.CharacterSpacing;
     }
 
-    public static void MapFont(DatePickerHandler handler, IDatePicker datePicker)
+    /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="DatePickerHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFont(IDatePickerHandler handler, IDatePicker datePicker)
+    {
+        if (handler is DatePickerHandler linuxHandler)
+            MapFontCore(linuxHandler, datePicker);
+    }
+
+    [Obsolete("Use the IDatePickerHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFont(DatePickerHandler handler, IDatePicker datePicker) => MapFontCore(handler, datePicker);
+
+    private static void MapFontCore(DatePickerHandler handler, IDatePicker datePicker)
     {
         if (handler.PlatformView is null) return;
 
