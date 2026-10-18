@@ -88,12 +88,16 @@ public partial class DragDropService : IDisposable
     /// <summary>
     /// Event raised when a drag enters the window.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public event EventHandler<DragEventArgs>? DragEnter;
+#pragma warning restore CS0618
 
     /// <summary>
     /// Event raised when dragging over the window.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public event EventHandler<DragEventArgs>? DragOver;
+#pragma warning restore CS0618
 
     /// <summary>
     /// Event raised when a drag leaves the window.
@@ -123,7 +127,9 @@ public partial class DragDropService : IDisposable
     /// <summary>
     /// Event raised when a drop occurs.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public event EventHandler<DropEventArgs>? Drop;
+#pragma warning restore CS0618
 
     /// <summary>
     /// Initializes the drag drop service for the specified window.
@@ -321,7 +327,9 @@ public partial class DragDropService : IDisposable
             SupportedTypes = types.ToArray()
         };
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         DragEnter?.Invoke(this, new DragEventArgs(_currentDragData, 0, 0));
+#pragma warning restore CS0618
         return true;
     }
 
@@ -347,7 +355,9 @@ public partial class DragDropService : IDisposable
 
         nint action = data[4];
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         var eventArgs = new DragEventArgs(_currentDragData, x, y)
+#pragma warning restore CS0618
         {
             AllowedAction = GetDragAction(action)
         };
@@ -524,7 +534,9 @@ public partial class DragDropService : IDisposable
         }
 
         // Position captured at the last XdndPosition (drop carries none).
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         var eventArgs = new DropEventArgs(dragData, text, _lastDragX, _lastDragY);
+#pragma warning restore CS0618
         Drop?.Invoke(this, eventArgs);
 
         // Honest finish: report accepted only when data actually arrived —
@@ -1283,20 +1295,28 @@ public partial class DragDropService : IDisposable
     // calls these to drive the public events. Kept internal so app code can only
     // subscribe to the events, not synthesize them.
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     internal DragEventArgs RaiseDragEnter(DragData data, int x, int y, IDisplayWindow? target = null)
+#pragma warning restore CS0618
     {
         CurrentTargetWindow = target;
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         var args = new DragEventArgs(data, x, y);
+#pragma warning restore CS0618
         _isDragging = true;
         _currentDragData = data;
         DragEnter?.Invoke(this, args);
         return args;
     }
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     internal DragEventArgs RaiseDragOver(DragData data, int x, int y, IDisplayWindow? target = null)
+#pragma warning restore CS0618
     {
         if (target != null) CurrentTargetWindow = target;
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         var args = new DragEventArgs(data, x, y);
+#pragma warning restore CS0618
         DragOver?.Invoke(this, args);
         return args;
     }
@@ -1308,10 +1328,14 @@ public partial class DragDropService : IDisposable
         DragLeave?.Invoke(this, EventArgs.Empty);
     }
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     internal DropEventArgs RaiseDrop(DragData data, string? text, int x = 0, int y = 0, IDisplayWindow? target = null)
+#pragma warning restore CS0618
     {
         if (target != null) CurrentTargetWindow = target;
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
         var args = new DropEventArgs(data, text, x, y);
+#pragma warning restore CS0618
         Drop?.Invoke(this, args);
         _isDragging = false;
         _currentDragData = null;
