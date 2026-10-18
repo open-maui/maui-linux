@@ -1746,8 +1746,9 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::ContentPanelOnKeyDown",
-      "status": "open",
-      "reason": "keyboard activation of a tappable Border (MAUI 11, Windows): a Border with a primary single-tap TapGestureRecognizer, enabled and not InputTransparent, is a tab stop with the system focus visual, and Enter or Space (no modifier, not auto-repeat) raises its taps at Point.Zero. On Linux such a Border is not focusable and keys do not raise its taps"
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::GetPosition",
@@ -1805,8 +1806,9 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandleElementPropertyChanged",
-      "status": "open",
-      "reason": "keyboard activation of a tappable Border (MAUI 11, Windows): a Border with a primary single-tap TapGestureRecognizer, enabled and not InputTransparent, is a tab stop with the system focus visual, and Enter or Space (no modifier, not auto-repeat) raises its taps at Point.Zero. On Linux such a Border is not focusable and keys do not raise its taps"
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandlePan",
@@ -1840,8 +1842,9 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandleTapGestureRecognizerPropertyChanged",
-      "status": "open",
-      "reason": "keyboard activation of a tappable Border (MAUI 11, Windows): a Border with a primary single-tap TapGestureRecognizer, enabled and not InputTransparent, is a tab stop with the system focus visual, and Enter or Space (no modifier, not auto-repeat) raises its taps at Point.Zero. On Linux such a Border is not focusable and keys do not raise its taps"
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandleTapped",
@@ -1977,8 +1980,9 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::UpdateContentPanelIsTapStop",
-      "status": "open",
-      "reason": "keyboard activation of a tappable Border (MAUI 11, Windows): a Border with a primary single-tap TapGestureRecognizer, enabled and not InputTransparent, is a tab stop with the system focus visual, and Enter or Space (no modifier, not auto-repeat) raises its taps at Point.Zero. On Linux such a Border is not focusable and keys do not raise its taps"
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::UpdateDragAndDropGestureRecognizers",
@@ -2310,8 +2314,9 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::MapBackButtonAccessibilityLabel",
-      "status": "open",
-      "reason": "NavigationPage.BackButtonAccessibilityLabel (MAUI 11; Shell's BackButtonBehavior.AccessibilityLabel feeds the same Toolbar property): Windows gives the back button that accessible name; the Linux back button does not read it"
+      "status": "covered",
+      "reason": "The back button's accessible name (NavigationPage.BackButtonAccessibilityLabel, Shell's BackButtonBehavior.AccessibilityLabel; \"Back\" by default) on the drawn back arrow's accessible button",
+      "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaNavigationPage.cs,Views/SkiaShell.BackButton.cs,Views/DrawnButtonAccessible.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::MapBackButtonEnabled",
@@ -2394,8 +2399,9 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::UpdateInfoBadge",
-      "status": "open",
-      "reason": "ToolbarItem badges (MAUI 11 BadgeText, BadgeColor, BadgeTextColor): Windows overlays an InfoBadge on the item (a number, or a dot for empty or non-numeric text); the Linux navigation bar draws no badge"
+      "status": "covered",
+      "reason": "ToolbarItem badges drawn as Windows' InfoBadge (a number, or a dot for empty or non-numeric text) in the badge colours, following changes",
+      "by": "Views/ToolbarBadge.cs,Views/SkiaShell.Toolbar.cs,Views/SkiaPage.cs,Handlers/NavigationPageHandler.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::UpdateMenu",
@@ -2625,13 +2631,13 @@
     },
     {
       "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.PasskeysImplementation::AssertAsync(Microsoft.Maui.Authentication.PasskeyRequestOptions,System.Threading.CancellationToken)",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.PasskeysImplementation::CreateAsync(Microsoft.Maui.Authentication.PasskeyCreationOptions,System.Threading.CancellationToken)",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::AuthenticateAsync(Microsoft.Maui.Authentication.WebAuthenticatorOptions)",
@@ -3248,173 +3254,173 @@
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::BuildAssertionResponseJson",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::BuildClientDataJson",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::BuildRegistrationResponseJson",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::Deserialize`1",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::EnsureSupported",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::GetAssertion",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::GetHwnd",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MakeCredential",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapAttestation",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapAuthenticatorAttachment",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapCoseParameters",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapCredentialIds",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapResidentKey",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapUserVerification",
-      "status": "open",
-      "reason": "Passkeys (MAUI 11 Essentials): Windows creates and asserts credentials through webauthn.dll; Linux desktops have no system WebAuthn/platform-authenticator API to call, so Passkeys.Default keeps MAUI's neutral implementation: IsSupported is false and CreateAsync and AssertAsync throw"
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorExtensions::OnAppInstanceActivated",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::CanRegisterCallbackRoute",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::CreateCallbackRouteException",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::CreateCallbackRouteKey",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::FindCallbackRouteOwner",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsRegistryCommandOwnedByCurrentExecutable",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsRegistryDeclared",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsSameCallbackRoute",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsUriProtocolDeclared",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::RedirectActivationAndExit",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::RedirectActivationAndExitAsync",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::RegisterCallbackRoute",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TerminateCurrentProcess",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryBringToForeground",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs,Window/X11Window.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetActiveAppWindow",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs,Window/X11Window.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetApplicationIdFromAppUserModelId",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetCommandExecutable",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetCurrentApplicationId",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryHandleBuiltInActivation",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::ValidateCallbackUrl",
-      "status": "open",
-      "reason": "custom URI scheme callbacks (myapp://callback): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the protocol activation back to the running instance; Linux WebAuthenticatorService supports loopback callbacks (http://localhost:<port>/, http://127.0.0.1:<port>/) only and throws NotSupportedException for a custom scheme, which would need a desktop-file handler and D-Bus activation"
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Devices.BatteryImplementation::ReportEnergySaverUpdated",
@@ -5031,8 +5037,9 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Animations.PlatformTicker::OnAnimationsEnabledChanged",
-      "status": "open",
-      "reason": "following the system animations setting while the app runs: Windows updates the ticker's SystemEnabled on UISettings.AnimationsEnabledChanged; LinuxTicker reads GNOME's enable-animations once, at first use, so a change made while the app runs takes effect at the next start"
+      "status": "covered",
+      "reason": "LinuxTicker.SystemEnabled follows the desktop's animations setting while the app runs (xdg-desktop-portal Settings: reduced-motion, GNOME enable-animations, KDE AnimationDurationFactor, through SettingChanged), with OPENMAUI_REDUCE_MOTION winning",
+      "by": "Services/SystemAnimationsSetting.cs,Hosting/LinuxTicker.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Animations.PlatformTicker::RenderingFrameEventHandler",
@@ -6263,18 +6270,21 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::BeginIconLoad",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::CanCreateTintedIconSource",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ClearFontIconLoad",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ConnectHandler",
@@ -6284,8 +6294,9 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::CreateTintedIconSource",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::DisconnectHandler",
@@ -6295,8 +6306,9 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::GetIconSourceManager",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::GetParentSwipeView",
@@ -6306,18 +6318,21 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::IsFontIconLoadCurrent",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::IsIconLoadCurrent",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::LoadIconAsync",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::OnSwipeItemInvoked",
@@ -6327,18 +6342,21 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ResetFontIconLoad",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::SetFontIconLoad",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::UpdateIconColorPlatform",
-      "status": "open",
-      "reason": "SwipeItem icons (IconImageSource): Windows loads any image source, font icons included, tinted with the item's TextColor; the Linux SwipeItemMenuItemHandler keeps only a file source's path (SwipeItem.IconSource) and SkiaSwipeView draws no icon, so swipe items show their text only"
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeViewHandler::CanAddSwipeItems",
