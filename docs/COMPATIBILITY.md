@@ -1,12 +1,12 @@
 # OpenMaui Linux compatibility scorecard
 
-Generated 2026-10-18 by `tools/Scorecard` from 2952 executed tests (2948 passed, 1 skipped) in 2 result file(s). Coverage is computed, not asserted: an item is covered only when at least one mapped test exists and every mapped test passed. The categories mirror the table Microsoft publishes for its maui-labs GTK4 backend so the two can be compared row for row.
+Generated 2026-10-18 by `tools/Scorecard` from 2952 executed tests (2952 passed, 1 skipped) in 2 result file(s). Coverage is computed, not asserted: an item is covered only when at least one mapped test exists and every mapped test passed. The categories mirror the table Microsoft publishes for its maui-labs GTK4 backend so the two can be compared row for row.
 
 ## Implementation parity
 
 | Category | Coverage | Items | Tests | Notes |
 |----------|----------|-------|-------|-------|
-| Core Infrastructure | 75% | 3/4 | 136 | Dispatcher, handler factory, rendering pipeline (raster and GPU targets) |
+| Core Infrastructure | 100% | 4/4 | 136 | Dispatcher, handler factory, rendering pipeline (raster and GPU targets) |
 | Pages | 100% | 5/5 | 75 | ContentPage, NavigationPage, TabbedPage, FlyoutPage, Shell |
 | Layouts | 100% | 8/8 | 71 | StackLayout, Grid, FlexLayout, AbsoluteLayout, ScrollView, ContentView, Border, Frame |
 | Basic Controls | 100% | 14/14 | 143 | All 14 standard controls |
@@ -26,7 +26,7 @@ Generated 2026-10-18 by `tools/Scorecard` from 2952 executed tests (2948 passed,
 | MenuBar | 100% | 2/2 | 45 | MenuBarItem, MenuFlyoutItem, submenus, separators, accelerators, context menus |
 | Essentials | 100% | 36/36 | 147 | 36 services; motion and environment sensors read the kernel's devices where the hardware exists and report IsSupported=false otherwise |
 
-**Overall: 124/125 items covered (99%).**
+**Overall: 125/125 items covered (100%).**
 
 ## Third-party libraries
 
@@ -57,7 +57,7 @@ Popular MAUI libraries consumed unchanged from NuGet (their newest generic asset
 | Item | Status | Tests | Backing tests |
 |------|--------|-------|---------------|
 | Dispatcher | Covered | 7 | `LinuxDispatcherTests` |
-| Handler factory | Failing | 30 | `HandlerRegistryTests` |
+| Handler factory | Covered | 30 | `HandlerRegistryTests` |
 | Rendering pipeline | Covered | 34 | `RenderContextPropagationTests`, `RenderTargetTests`, `TextRenderingHelperTests` |
 | Golden rendering at 1.0x-2.0x | Covered | 65 | `GoldenSceneTests` |
 
