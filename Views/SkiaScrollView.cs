@@ -14,47 +14,41 @@ public class SkiaScrollView : SkiaView
 {
     #region BindableProperties
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     /// <summary>
     /// Bindable property for Orientation.
     /// </summary>
     public static readonly BindableProperty OrientationProperty =
         BindableProperty.Create(
             nameof(Orientation),
-            typeof(ScrollOrientation),
+            typeof(Microsoft.Maui.ScrollOrientation),
             typeof(SkiaScrollView),
-            ScrollOrientation.Both,
+            Microsoft.Maui.ScrollOrientation.Both,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     /// <summary>
     /// Bindable property for HorizontalScrollBarVisibility.
     /// </summary>
     public static readonly BindableProperty HorizontalScrollBarVisibilityProperty =
         BindableProperty.Create(
             nameof(HorizontalScrollBarVisibility),
-            typeof(ScrollBarVisibility),
+            typeof(Microsoft.Maui.ScrollBarVisibility),
             typeof(SkiaScrollView),
-            ScrollBarVisibility.Auto,
+            Microsoft.Maui.ScrollBarVisibility.Default,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     /// <summary>
     /// Bindable property for VerticalScrollBarVisibility.
     /// </summary>
     public static readonly BindableProperty VerticalScrollBarVisibilityProperty =
         BindableProperty.Create(
             nameof(VerticalScrollBarVisibility),
-            typeof(ScrollBarVisibility),
+            typeof(Microsoft.Maui.ScrollBarVisibility),
             typeof(SkiaScrollView),
-            ScrollBarVisibility.Auto,
+            Microsoft.Maui.ScrollBarVisibility.Default,
             BindingMode.TwoWay,
             propertyChanged: (b, o, n) => ((SkiaScrollView)b).Invalidate());
-#pragma warning restore CS0618
 
     /// <summary>
     /// Bindable property for ScrollBarColor.
@@ -92,68 +86,32 @@ public class SkiaScrollView : SkiaView
 
     #region Properties
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     /// <summary>
     /// Gets or sets the scroll orientation.
     /// </summary>
-    [Obsolete("Use MauiOrientation, which takes Microsoft.Maui.ScrollOrientation; this property is removed in OpenMaui 11.0.")]
-    public ScrollOrientation Orientation
+    public Microsoft.Maui.ScrollOrientation Orientation
     {
-        get => (ScrollOrientation)GetValue(OrientationProperty);
+        get => (Microsoft.Maui.ScrollOrientation)GetValue(OrientationProperty);
         set => SetValue(OrientationProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets the scroll orientation.
-    /// </summary>
-    public Microsoft.Maui.ScrollOrientation MauiOrientation
-    {
-        get => ((ScrollOrientation)GetValue(OrientationProperty)).ToMaui();
-        set => SetValue(OrientationProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>
     /// Gets or sets whether to show horizontal scrollbar.
     /// </summary>
-    [Obsolete("Use MauiHorizontalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
-    public ScrollBarVisibility HorizontalScrollBarVisibility
+    public Microsoft.Maui.ScrollBarVisibility HorizontalScrollBarVisibility
     {
-        get => (ScrollBarVisibility)GetValue(HorizontalScrollBarVisibilityProperty);
+        get => (Microsoft.Maui.ScrollBarVisibility)GetValue(HorizontalScrollBarVisibilityProperty);
         set => SetValue(HorizontalScrollBarVisibilityProperty, value);
     }
 
     /// <summary>
-    /// Gets or sets whether to show horizontal scrollbar.
-    /// </summary>
-    public Microsoft.Maui.ScrollBarVisibility MauiHorizontalScrollBarVisibility
-    {
-        get => ((ScrollBarVisibility)GetValue(HorizontalScrollBarVisibilityProperty)).ToMaui();
-        set => SetValue(HorizontalScrollBarVisibilityProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>
     /// Gets or sets whether to show vertical scrollbar.
     /// </summary>
-    [Obsolete("Use MauiVerticalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
-    public ScrollBarVisibility VerticalScrollBarVisibility
+    public Microsoft.Maui.ScrollBarVisibility VerticalScrollBarVisibility
     {
-        get => (ScrollBarVisibility)GetValue(VerticalScrollBarVisibilityProperty);
+        get => (Microsoft.Maui.ScrollBarVisibility)GetValue(VerticalScrollBarVisibilityProperty);
         set => SetValue(VerticalScrollBarVisibilityProperty, value);
     }
-
-    /// <summary>
-    /// Gets or sets whether to show vertical scrollbar.
-    /// </summary>
-    public Microsoft.Maui.ScrollBarVisibility MauiVerticalScrollBarVisibility
-    {
-        get => ((ScrollBarVisibility)GetValue(VerticalScrollBarVisibilityProperty)).ToMaui();
-        set => SetValue(VerticalScrollBarVisibilityProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
 
     /// <summary>
     /// Scrollbar color.
@@ -255,9 +213,7 @@ public class SkiaScrollView : SkiaView
             if (_scrollX != clamped)
             {
                 _scrollX = clamped;
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-                Scrolled?.Invoke(this, new ScrolledEventArgs(_scrollX, _scrollY));
-#pragma warning restore CS0618
+                Scrolled?.Invoke(this, new SkiaScrolledEventArgs(_scrollX, _scrollY));
                 Invalidate();
             }
         }
@@ -275,9 +231,7 @@ public class SkiaScrollView : SkiaView
             if (_scrollY != clamped)
             {
                 _scrollY = clamped;
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-                Scrolled?.Invoke(this, new ScrolledEventArgs(_scrollX, _scrollY));
-#pragma warning restore CS0618
+                Scrolled?.Invoke(this, new SkiaScrolledEventArgs(_scrollX, _scrollY));
                 Invalidate();
             }
         }
@@ -322,9 +276,7 @@ public class SkiaScrollView : SkiaView
     /// <summary>
     /// Event raised when scroll position changes.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<ScrolledEventArgs>? Scrolled;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaScrolledEventArgs>? Scrolled;
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
@@ -338,7 +290,7 @@ public class SkiaScrollView : SkiaView
             // Ensure content is measured and arranged
             // Account for vertical scrollbar width to prevent horizontal scrollbar from appearing
             var effectiveWidth = bounds.Width;
-            if (MauiOrientation != Microsoft.Maui.ScrollOrientation.Horizontal && MauiVerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never)
+            if (Orientation != Microsoft.Maui.ScrollOrientation.Horizontal && VerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never)
             {
                 // Reserve space for vertical scrollbar if content might be taller than viewport
                 effectiveWidth -= ScrollBarWidth;
@@ -347,7 +299,7 @@ public class SkiaScrollView : SkiaView
             // horizontal scroller's content at the viewport width folded a wrap panel
             // (MAStatCardPanel) into a column as tall as the page, pushing what
             // followed it out of view.
-            var availableSize = MauiOrientation switch
+            var availableSize = Orientation switch
             {
                 Microsoft.Maui.ScrollOrientation.Horizontal => new Size(double.PositiveInfinity, bounds.Height),
                 Microsoft.Maui.ScrollOrientation.Neither => new Size(bounds.Width, bounds.Height),
@@ -364,7 +316,7 @@ public class SkiaScrollView : SkiaView
 
             // Content dimensions depend on scroll orientation
             float contentWidth, contentHeight;
-            switch (MauiOrientation)
+            switch (Orientation)
             {
                 case Microsoft.Maui.ScrollOrientation.Horizontal:
                     contentWidth = Math.Max(bounds.Width, (float)_content.DesiredSize.Width);
@@ -432,9 +384,9 @@ public class SkiaScrollView : SkiaView
 
     private bool ShouldShowVerticalScrollbar()
     {
-        if (MauiOrientation == Microsoft.Maui.ScrollOrientation.Horizontal) return false;
+        if (Orientation == Microsoft.Maui.ScrollOrientation.Horizontal) return false;
 
-        return MauiVerticalScrollBarVisibility switch
+        return VerticalScrollBarVisibility switch
         {
             Microsoft.Maui.ScrollBarVisibility.Always => true,
             Microsoft.Maui.ScrollBarVisibility.Never => false,
@@ -444,9 +396,9 @@ public class SkiaScrollView : SkiaView
 
     private bool ShouldShowHorizontalScrollbar()
     {
-        if (MauiOrientation == Microsoft.Maui.ScrollOrientation.Vertical) return false;
+        if (Orientation == Microsoft.Maui.ScrollOrientation.Vertical) return false;
 
-        return MauiHorizontalScrollBarVisibility switch
+        return HorizontalScrollBarVisibility switch
         {
             Microsoft.Maui.ScrollBarVisibility.Always => true,
             Microsoft.Maui.ScrollBarVisibility.Never => false,
@@ -508,7 +460,7 @@ public class SkiaScrollView : SkiaView
         var deltaMultiplier = 40f; // Scroll speed
         bool scrolled = false;
 
-        if (MauiOrientation != Microsoft.Maui.ScrollOrientation.Horizontal && ScrollableHeight > 0)
+        if (Orientation != Microsoft.Maui.ScrollOrientation.Horizontal && ScrollableHeight > 0)
         {
             var oldScrollY = _scrollY;
             ScrollY += e.DeltaY * deltaMultiplier;
@@ -517,7 +469,7 @@ public class SkiaScrollView : SkiaView
                 scrolled = true;
         }
 
-        if (MauiOrientation != Microsoft.Maui.ScrollOrientation.Vertical && ScrollableWidth > 0)
+        if (Orientation != Microsoft.Maui.ScrollOrientation.Vertical && ScrollableWidth > 0)
         {
             var oldScrollX = _scrollX;
             ScrollX += e.DeltaX * deltaMultiplier;
@@ -627,10 +579,10 @@ public class SkiaScrollView : SkiaView
         _velocityX = contentDeltaX;
         _velocityY = contentDeltaY;
 
-        if (MauiOrientation != Microsoft.Maui.ScrollOrientation.Horizontal)
+        if (Orientation != Microsoft.Maui.ScrollOrientation.Horizontal)
             ScrollY += contentDeltaY;
 
-        if (MauiOrientation != Microsoft.Maui.ScrollOrientation.Vertical)
+        if (Orientation != Microsoft.Maui.ScrollOrientation.Vertical)
             ScrollX += contentDeltaX;
 
         _lastPointerX = e.X;
@@ -769,16 +721,6 @@ public class SkiaScrollView : SkiaView
     /// Scrolls to make the specified element visible.
     /// Matches MAUI's ScrollView.ScrollToAsync signature for elements.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use the overload that takes Microsoft.Maui.Controls.ScrollToPosition; this overload is removed in OpenMaui 11.0.")]
-    public Task ScrollToAsync(SkiaView element, ScrollToPosition position, bool animated)
-        => ScrollToAsync(element, position.ToMaui(), animated);
-#pragma warning restore CS0618
-
-    /// <summary>
-    /// Scrolls to make the specified element visible.
-    /// Matches MAUI's ScrollView.ScrollToAsync signature for elements.
-    /// </summary>
     public Task ScrollToAsync(SkiaView element, Controls.ScrollToPosition position, bool animated)
     {
         if (element == null || _content == null)
@@ -874,13 +816,13 @@ public class SkiaScrollView : SkiaView
 
     private float ClampScrollX(float value)
     {
-        if (MauiOrientation == Microsoft.Maui.ScrollOrientation.Vertical) return 0;
+        if (Orientation == Microsoft.Maui.ScrollOrientation.Vertical) return 0;
         return Math.Clamp(value, 0, ScrollableWidth);
     }
 
     private float ClampScrollY(float value)
     {
-        if (MauiOrientation == Microsoft.Maui.ScrollOrientation.Horizontal) return 0;
+        if (Orientation == Microsoft.Maui.ScrollOrientation.Horizontal) return 0;
         return Math.Clamp(value, 0, ScrollableHeight);
     }
 
@@ -897,7 +839,7 @@ public class SkiaScrollView : SkiaView
 
             float contentWidth, contentHeight;
 
-            switch (MauiOrientation)
+            switch (Orientation)
             {
                 case Microsoft.Maui.ScrollOrientation.Horizontal:
                     // Unbounded height stays unbounded, as MAUI measures it: a stand-in
@@ -915,7 +857,7 @@ public class SkiaScrollView : SkiaView
                     // Content can still exceed viewport if it has minimum width constraints
                     // Reserve space for vertical scrollbar to prevent horizontal scrollbar
                     contentWidth = double.IsInfinity(availableSize.Width) ? 800f : (float)availableSize.Width;
-                    if (MauiVerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never)
+                    if (VerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never)
                         contentWidth -= ScrollBarWidth;
                     contentHeight = float.PositiveInfinity;
                     break;
@@ -923,7 +865,7 @@ public class SkiaScrollView : SkiaView
                 default:
                     // Reserve space for vertical scrollbar to prevent horizontal scrollbar
                     contentWidth = double.IsInfinity(availableSize.Width) ? 800f : (float)availableSize.Width;
-                    if (MauiVerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never)
+                    if (VerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never)
                         contentWidth -= ScrollBarWidth;
                     contentHeight = float.PositiveInfinity;
                     break;
@@ -952,8 +894,8 @@ public class SkiaScrollView : SkiaView
         else
         {
             // The content was measured beside a reserved vertical scrollbar: keep room for it.
-            double reserve = MauiOrientation is Microsoft.Maui.ScrollOrientation.Vertical or Microsoft.Maui.ScrollOrientation.Both
-                && MauiVerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never ? ScrollBarWidth : 0;
+            double reserve = Orientation is Microsoft.Maui.ScrollOrientation.Vertical or Microsoft.Maui.ScrollOrientation.Both
+                && VerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never ? ScrollBarWidth : 0;
             double contentWidth = ContentSize.Width + reserve;
             width = Unbounded(availableSize.Width) ? contentWidth : Math.Min(availableSize.Width, contentWidth);
             height = Unbounded(availableSize.Height) ? ContentSize.Height : Math.Min(availableSize.Height, ContentSize.Height);
@@ -1006,7 +948,7 @@ public class SkiaScrollView : SkiaView
             // - Both: both can expand
             // - Neither: both constrained to viewport
             float contentWidth, contentHeight;
-            switch (MauiOrientation)
+            switch (Orientation)
             {
                 case Microsoft.Maui.ScrollOrientation.Horizontal:
                     contentWidth = Math.Max((float)actualBounds.Width, ContentSize.Width);
@@ -1056,58 +998,6 @@ public class SkiaScrollView : SkiaView
 }
 
 /// <summary>
-/// Scroll orientation options.
-/// </summary>
-[Obsolete("Use Microsoft.Maui.ScrollOrientation; this type is removed in OpenMaui 11.0.")]
-public enum ScrollOrientation
-{
-    Vertical,
-    Horizontal,
-    Both,
-    Neither
-}
-
-/// <summary>
-/// Scrollbar visibility options.
-/// </summary>
-[Obsolete("Use Microsoft.Maui.ScrollBarVisibility; this type is removed in OpenMaui 11.0.")]
-public enum ScrollBarVisibility
-{
-    Default,
-    Always,
-    Never,
-    Auto
-}
-
-/// <summary>
-/// Specifies the position within the ScrollView to scroll an element to.
-/// Matches Microsoft.Maui.ScrollToPosition enum.
-/// </summary>
-[Obsolete("Use Microsoft.Maui.Controls.ScrollToPosition; this type is removed in OpenMaui 11.0.")]
-public enum ScrollToPosition
-{
-    /// <summary>
-    /// Scroll so the element is just visible (minimal scroll).
-    /// </summary>
-    MakeVisible,
-
-    /// <summary>
-    /// Scroll so the element is at the start of the viewport.
-    /// </summary>
-    Start,
-
-    /// <summary>
-    /// Scroll so the element is at the center of the viewport.
-    /// </summary>
-    Center,
-
-    /// <summary>
-    /// Scroll so the element is at the end of the viewport.
-    /// </summary>
-    End
-}
-
-/// <summary>
 /// Event args for scroll events.
 /// </summary>
 public class SkiaScrolledEventArgs : EventArgs
@@ -1120,13 +1010,4 @@ public class SkiaScrolledEventArgs : EventArgs
         ScrollX = scrollX;
         ScrollY = scrollY;
     }
-}
-
-/// <summary>
-/// Event args for scroll events.
-/// </summary>
-[Obsolete("Use SkiaScrolledEventArgs; this type is removed in OpenMaui 11.0.")]
-public class ScrolledEventArgs : SkiaScrolledEventArgs
-{
-    public ScrolledEventArgs(float scrollX, float scrollY) : base(scrollX, scrollY) { }
 }

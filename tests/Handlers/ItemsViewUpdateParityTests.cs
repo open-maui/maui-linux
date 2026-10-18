@@ -393,7 +393,7 @@ public class ItemsViewUpdateParityTests
         carousel.CurrentItem.Should().Be("f");
 
         carousel.HorizontalScrollBarVisibility = ScrollBarVisibility.Always;
-        skia.MauiHorizontalScrollBarVisibility.Should().Be(ScrollBarVisibility.Always);
+        skia.HorizontalScrollBarVisibility.Should().Be(ScrollBarVisibility.Always);
     }
 
     private static CarouselView Carousel(IEnumerable<string> items) => new()

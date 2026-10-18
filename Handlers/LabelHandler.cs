@@ -7,8 +7,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Window;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -100,16 +98,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     // browser twice on link clicks). The subscription is intentionally absent.
 
     /// <summary>MAUI's <c>MapText</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapText(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapTextCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapText(LabelHandler handler, ILabel label) => MapTextCore(handler, label);
 
     private static void MapTextCore(LabelHandler handler, ILabel label)
     {
@@ -117,16 +110,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTextColor(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapTextColorCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTextColor(LabelHandler handler, ILabel label) => MapTextColorCore(handler, label);
 
     private static void MapTextColorCore(LabelHandler handler, ILabel label)
     {
@@ -134,16 +122,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapFont(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapFontCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapFont(LabelHandler handler, ILabel label) => MapFontCore(handler, label);
 
     private static void MapFontCore(LabelHandler handler, ILabel label)
     {
@@ -151,16 +134,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCharacterSpacing(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapCharacterSpacingCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCharacterSpacing(LabelHandler handler, ILabel label) => MapCharacterSpacingCore(handler, label);
 
     private static void MapCharacterSpacingCore(LabelHandler handler, ILabel label)
     {
@@ -168,16 +146,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapHorizontalTextAlignment</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapHorizontalTextAlignment(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapHorizontalTextAlignmentCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapHorizontalTextAlignment(LabelHandler handler, ILabel label) => MapHorizontalTextAlignmentCore(handler, label);
 
     private static void MapHorizontalTextAlignmentCore(LabelHandler handler, ILabel label)
     {
@@ -185,16 +158,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapVerticalTextAlignment</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapVerticalTextAlignment(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapVerticalTextAlignmentCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapVerticalTextAlignment(LabelHandler handler, ILabel label) => MapVerticalTextAlignmentCore(handler, label);
 
     private static void MapVerticalTextAlignmentCore(LabelHandler handler, ILabel label)
     {
@@ -202,16 +170,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapTextDecorations</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTextDecorations(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapTextDecorationsCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTextDecorations(LabelHandler handler, ILabel label) => MapTextDecorationsCore(handler, label);
 
     private static void MapTextDecorationsCore(LabelHandler handler, ILabel label)
     {
@@ -219,16 +182,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapLineHeight</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapLineHeight(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapLineHeightCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapLineHeight(LabelHandler handler, ILabel label) => MapLineHeightCore(handler, label);
 
     private static void MapLineHeightCore(LabelHandler handler, ILabel label)
     {
@@ -279,16 +237,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapMaxLines</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapMaxLines(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapMaxLinesCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapMaxLines(LabelHandler handler, ILabel label) => MapMaxLinesCore(handler, label);
 
     private static void MapMaxLinesCore(LabelHandler handler, ILabel label)
     {
@@ -298,16 +251,11 @@ public partial class LabelHandler : LinuxViewHandler<ILabel, SkiaLabel>, ILabelH
     }
 
     /// <summary>MAUI's <c>MapPadding</c> signature; maps the property on a Linux <see cref="LabelHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapPadding(ILabelHandler handler, ILabel label)
     {
         if (handler is LabelHandler linuxHandler)
             MapPaddingCore(linuxHandler, label);
     }
-
-    [Obsolete("Use the ILabelHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapPadding(LabelHandler handler, ILabel label) => MapPaddingCore(handler, label);
 
     private static void MapPaddingCore(LabelHandler handler, ILabel label)
     {
