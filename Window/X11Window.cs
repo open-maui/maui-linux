@@ -12,13 +12,14 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// <summary>
 /// X11 window implementation for Linux.
 /// </summary>
-public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
+public partial class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                         Microsoft.Maui.Platform.Linux.Services.IX11Surface,
                         Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow,
                         Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl,
                         Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow,
                         IClientDecoratedWindow,
-                        IX11DecorationHost
+                        IX11DecorationHost,
+                        Microsoft.Maui.Platform.Linux.Services.IActivatableWindow
 {
     private bool _isSuspended;
 
@@ -311,6 +312,11 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         _currentCursor = _arrowCursor;
 
         _netWmStateAtom = X11.XInternAtom(_display, "_NET_WM_STATE", false);
+
+        // Touchscreens through XInput 2.2 (core events stay selected for the mouse), and the
+        // launcher's startup id (focus-stealing prevention, busy cursor) before the first map.
+        InitializeXInput2();
+        ApplyStartupId();
     }
 
     private IntPtr LoadCursor(string themeName, uint fontShape)
@@ -486,6 +492,7 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
     public void Show()
     {
         X11.XMapWindow(_display, _window);
+        CompleteStartupNotification();
         X11.XFlush(_display);
         _isRunning = true;
     }
@@ -708,6 +715,7 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
         switch (xEvent.Type)
         {
             case XEventType.KeyPress:
+                NoteUserTime(xEvent.KeyEvent.Time);
                 HandleKeyPress(ref xEvent.KeyEvent);
                 break;
 
@@ -719,12 +727,17 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 // XDND source ops (selection ownership, grabs, XdndDrop) need
                 // a real event timestamp — record it from every input event.
                 DragDropService.Default.NoteInputTime(xEvent.ButtonEvent.Time);
+                NoteUserTime(xEvent.ButtonEvent.Time);
+                if (IsTouchEmulatedButton(xEvent.ButtonEvent.Button))
+                    break;
                 HandleButtonPress(ref xEvent.ButtonEvent);
                 break;
 
             case XEventType.ButtonRelease:
                 // Consumed while an outgoing XDND drag is in progress (drop/cancel).
                 if (DragDropService.Default.ProcessSourceButtonRelease(xEvent.ButtonEvent.Time))
+                    break;
+                if (IsTouchEmulatedButton(xEvent.ButtonEvent.Button))
                     break;
                 HandleButtonRelease(ref xEvent.ButtonEvent);
                 break;
@@ -733,6 +746,8 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
                 // Consumed while an outgoing XDND drag tracks the pointer.
                 if (DragDropService.Default.ProcessSourceMotion(
                         xEvent.MotionEvent.XRoot, xEvent.MotionEvent.YRoot, xEvent.MotionEvent.Time))
+                    break;
+                if (_touch.IsTouchDown)
                     break;
                 HandleMotion(ref xEvent.MotionEvent);
                 break;
@@ -798,11 +813,18 @@ public class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
 
             case XEventType.UnmapNotify:
                 // ICCCM: iconifying (minimizing) unmaps the toplevel.
+                _isMapped = false;
                 SetSuspended(true);
                 break;
 
             case XEventType.MapNotify:
+                _isMapped = true;
+                FocusIfRequestedOnMap();
                 SetSuspended(false);
+                break;
+
+            case XInput2.GenericEvent:
+                HandleGenericEvent(ref xEvent);
                 break;
 
             case XEventType.PropertyNotify:

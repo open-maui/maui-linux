@@ -10,8 +10,8 @@ namespace Microsoft.Maui.Platform.Linux.Native;
 /// <summary>
 /// Custom URI schemes served per view, with the whole request (method, headers, body) and a
 /// response that can come later and carry headers: what WKURLSchemeHandler gives MAUI's
-/// HybridWebView on iOS. WebKit registers a scheme once per context (every view shares it), so
-/// one native handler per scheme routes each request to the view that made it; a view without
+/// HybridWebView on iOS. WebKit registers a scheme once per context (views share it), so
+/// one native handler per scheme and context routes each request to the view that made it; a view without
 /// its own handler falls back to the one <see cref="RegisterUriScheme"/> set (BlazorWebView's).
 /// The request and response API is WebKit 2.36+ (body 2.40+); an older WebKit gives GET requests
 /// without headers and responses without extra headers.
@@ -28,7 +28,10 @@ public sealed unsafe partial class WebKitContentApi
     }
 
     private readonly Dictionary<string, SchemeRoute> _schemeRoutes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _secureSchemes = new(StringComparer.OrdinalIgnoreCase);
+    // Schemes are registered per WebKitWebContext: most views share the default context, but a
+    // WebKitGTK view with a network of its own (CreateProxyNetwork) has a context of its own.
+    private readonly HashSet<(IntPtr Context, string Scheme)> _registeredSchemes = new();
+    private readonly HashSet<(IntPtr Context, string Scheme)> _secureSchemes = new();
     private IntPtr _soup;
 
     /// <summary>
@@ -53,27 +56,32 @@ public sealed unsafe partial class WebKitContentApi
     {
         lock (_schemeRoutes)
         {
-            if (_schemeRoutes.TryGetValue(scheme, out var existing))
-                return existing;
-            var route = new SchemeRoute();
-            _schemeRoutes[scheme] = route;
+            if (!_schemeRoutes.TryGetValue(scheme, out var route))
+            {
+                route = new SchemeRoute();
+                _schemeRoutes[scheme] = route;
+            }
 
+            var context = _webViewGetContext(webView);
+            if (!_registeredSchemes.Add((context, scheme.ToLowerInvariant())))
+                return route;
             UriSchemeRequestCallback cb = (request, _) => DispatchSchemeRequest(scheme, route, request);
             lock (_rooted) _rooted.Add(cb);
             using var s = new Utf8(scheme);
-            _registerUriScheme(_webViewGetContext(webView), s, Marshal.GetFunctionPointerForDelegate(cb), IntPtr.Zero, IntPtr.Zero);
+            _registerUriScheme(context, s, Marshal.GetFunctionPointerForDelegate(cb), IntPtr.Zero, IntPtr.Zero);
             return route;
         }
     }
 
     private void RegisterSecureScheme(IntPtr webView, string scheme)
     {
+        var context = _webViewGetContext(webView);
         lock (_secureSchemes)
         {
-            if (!_secureSchemes.Add(scheme))
+            if (!_secureSchemes.Add((context, scheme.ToLowerInvariant())))
                 return;
         }
-        var manager = Call("webkit_web_context_get_security_manager", _webViewGetContext(webView));
+        var manager = Call("webkit_web_context_get_security_manager", context);
         if (manager == IntPtr.Zero)
             return;
         using var s = new Utf8(scheme);

@@ -60,6 +60,7 @@ public class WebViewHandlerTests
         "hybrid-invoke-javascript",
         "hybrid-invoke-dotnet",
         "hybrid-web-resource-requested",
+        "hybrid-web-resource-requested-http",
         "scheme-fallback-and-per-view-routing",
     };
 

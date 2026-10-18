@@ -1337,6 +1337,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 // Per-seat; retry from SetupSeat if seat arrives later.
                 window.SetupTextInput();
                 break;
+            case "xdg_activation_v1":
+                // Window activation (Application.ActivateWindow) and the launcher's startup token.
+                window.BindActivation(registry, name);
+                break;
             case "zwp_primary_selection_device_manager_v1":
                 // Middle-click paste. Older compositors may not export this — the
                 // null-check on the interface table prevents binding without the
@@ -1584,6 +1588,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
+        window.NoteKeyboardEnter(serial);
         window.FocusGained?.Invoke(window, EventArgs.Empty);
     }
 
@@ -1592,6 +1597,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
+        window.NoteKeyboardLeave();
         window.FocusLost?.Invoke(window, EventArgs.Empty);
     }
 
@@ -1786,6 +1792,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     public void Show()
     {
         _isRunning = true;
+        TakeStartupToken();
 
         if (_externalPresentation)
         {
@@ -1940,6 +1947,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _inWaylandDispatch = true;
         try { wl_display_dispatch_pending(_display); }
         finally { _inWaylandDispatch = false; }
+        // The pump after Show runs after the first frame: the surface is mapped by now.
+        ApplyPendingStartupToken();
         wl_display_flush(_display);
     }
 
@@ -2017,6 +2026,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         DisposeTextInput();
         DisposePrimarySelection();
         DisposeDecoration();
+        DisposeActivation();
 
         if (_viewport != IntPtr.Zero)
         {

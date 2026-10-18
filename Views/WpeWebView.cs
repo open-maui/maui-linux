@@ -133,6 +133,15 @@ public partial class WpeWebView : SkiaView
     public static bool IsSupported => WpeNative.IsAvailable;
 
     public WpeWebView()
+        : this(IntPtr.Zero)
+    {
+    }
+
+    /// <summary>
+    /// A view on <paramref name="networkSession"/> (a WebKitNetworkSession*), or on WebKit's
+    /// default session when it is zero. The session is fixed for the view's lifetime.
+    /// </summary>
+    internal WpeWebView(IntPtr networkSession)
     {
         if (!WpeNative.IsAvailable)
             throw new InvalidOperationException("WPE WebKit (libWPEWebKit-2.0) is not installed");
@@ -144,7 +153,9 @@ public partial class WpeWebView : SkiaView
         if (display == IntPtr.Zero)
             throw new InvalidOperationException("WPE headless display could not be created");
 
-        _webView = WpeNative.g_object_new(WpeNative.webkit_web_view_get_type(), "display", display, IntPtr.Zero);
+        _webView = networkSession == IntPtr.Zero
+            ? WpeNative.g_object_new(WpeNative.webkit_web_view_get_type(), "display", display, IntPtr.Zero)
+            : WpeNative.g_object_new(WpeNative.webkit_web_view_get_type(), "display", display, "network-session", networkSession, IntPtr.Zero);
         if (_webView == IntPtr.Zero)
             throw new InvalidOperationException("WebKitWebView creation failed");
 

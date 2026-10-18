@@ -117,6 +117,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
     private bool _muted;
     private KeyValuePair<string, string>[] _httpHeaders = Array.Empty<KeyValuePair<string, string>>();
     private GStreamerInterop.SourceSetupCallback? _sourceSetupDelegate;
+    private GStreamerInterop.DeepElementAddedCallback? _deepElementAddedDelegate;
     private readonly MediaTransportControls _controls = new();
     private System.Threading.Timer? _controlsHideTimer;
 
@@ -201,8 +202,9 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     /// <summary>
     /// Set/replace the media source, with HTTP headers for a network source
-    /// (UriMediaSource.HttpHeaders): playbin's HTTP source element gets them as
-    /// extra request headers ("User-Agent" through its user-agent property).
+    /// (UriMediaSource.HttpHeaders): playbin's HTTP source element, and the HTTP
+    /// sources an HLS or DASH demuxer adds for its segments, get them as extra
+    /// request headers ("User-Agent" through their user-agent property).
     /// A new source is opened right away (prerolled to PAUSED), as Windows'
     /// MediaPlayer opens it: <see cref="MediaOpened"/> or
     /// <see cref="MediaFailed"/> follows whether or not it is played.
@@ -583,12 +585,17 @@ public class SkiaMediaElement : SkiaView, IDisposable
         if (scaleTempo != IntPtr.Zero)
             g_object_set(_playbin, "audio-filter", scaleTempo, IntPtr.Zero);
 
-        // UriMediaSource.HttpHeaders: set on the HTTP source when playbin creates it.
+        // UriMediaSource.HttpHeaders: set on the HTTP source when playbin creates it, and on
+        // the HTTP sources an adaptive demuxer (hlsdemux, dashdemux) creates inside the
+        // pipeline for its segments, which only deep-element-added reaches.
         if (_httpHeaders.Length > 0)
         {
             _sourceSetupDelegate ??= OnSourceSetup;
             g_signal_connect_data(_playbin, "source-setup",
                 Marshal.GetFunctionPointerForDelegate(_sourceSetupDelegate), IntPtr.Zero, IntPtr.Zero, 0);
+            _deepElementAddedDelegate ??= OnDeepElementAdded;
+            g_signal_connect_data(_playbin, "deep-element-added",
+                Marshal.GetFunctionPointerForDelegate(_deepElementAddedDelegate), IntPtr.Zero, IntPtr.Zero, 0);
         }
 
         // Set up the streaming-thread callbacks. The delegate fields must stay
@@ -971,6 +978,31 @@ public class SkiaMediaElement : SkiaView, IDisposable
             DiagnosticLog.Warn("SkiaMediaElement", $"HTTP headers not applied: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// GstBin deep-element-added on playbin (any thread): an adaptive demuxer (hlsdemux,
+    /// dashdemux) fetches its segments with HTTP sources of its own, added inside the
+    /// pipeline where source-setup never sees them. Every element with souphttpsrc's
+    /// extra-headers property gets UriMediaSource.HttpHeaders too.
+    /// </summary>
+    private void OnDeepElementAdded(IntPtr bin, IntPtr subBin, IntPtr element, IntPtr userData)
+    {
+        try
+        {
+            var headers = Volatile.Read(ref _httpHeaders);
+            if (IsHttpHeaderTarget(element, headers))
+                ApplyHttpHeaders(element, headers);
+        }
+        catch (Exception ex)
+        {
+            // Never let an exception reach native code.
+            DiagnosticLog.Warn("SkiaMediaElement", $"HTTP headers not applied to a segment source: {ex.Message}");
+        }
+    }
+
+    /// <summary>True for an element that takes HTTP request headers (souphttpsrc's extra-headers), when there are headers.</summary>
+    internal static bool IsHttpHeaderTarget(IntPtr element, IReadOnlyList<KeyValuePair<string, string>> headers) =>
+        headers.Count > 0 && element != IntPtr.Zero && HasProperty(element, "extra-headers");
 
     internal static void ApplyHttpHeaders(IntPtr source, IReadOnlyList<KeyValuePair<string, string>> headers)
     {
