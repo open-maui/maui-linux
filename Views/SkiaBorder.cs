@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered border/frame container control with full XAML styling support.
 /// Implements MAUI IBorderView interface patterns.
 /// </summary>
-public class SkiaBorder : SkiaLayoutView
+public partial class SkiaBorder : SkiaLayoutView
 {
     #region BindableProperties
 
@@ -449,6 +449,9 @@ public class SkiaBorder : SkiaLayoutView
             }
         }
         canvas.Restore();
+
+        // The system focus visual of a tappable Border focused from the keyboard.
+        DrawKeyboardFocusVisual(canvas, bounds);
     }
 
     #endregion
@@ -570,6 +573,7 @@ public class SkiaBorder : SkiaLayoutView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
+        _keyboardFocus = false;
         if (HasTapGestureRecognizers())
         {
             _isPressed = true;
