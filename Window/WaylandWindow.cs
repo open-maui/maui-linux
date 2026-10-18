@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// Native Wayland window implementation using xdg-shell protocol.
 /// Provides full Wayland support without XWayland dependency.
 /// </summary>
-public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IWaylandSurface, Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl, Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow
+public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IWaylandSurface, Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl, Microsoft.Maui.Platform.Linux.Services.IVisibilityAwareDisplayWindow, IClientDecoratedWindow
 {
     #region Native Interop - libwayland-client
 
@@ -94,6 +94,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     // xdg_toplevel.resize: (object seat, uint serial, uint edge)
     [LibraryImport(LibWaylandClient)]
     private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, uint arg2, uint arg3);
+
+    // xdg_toplevel.show_window_menu: (object seat, uint serial, int x, int y)
+    [LibraryImport(LibWaylandClient)]
+    private static partial void wl_proxy_marshal(IntPtr proxy, uint opcode, IntPtr arg1, uint arg2, int arg3, int arg4);
 
     [DllImport(LibWaylandClient)]
     private static extern void wl_proxy_marshal(IntPtr proxy, uint opcode,
@@ -224,6 +228,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     private const uint XDG_TOPLEVEL_DESTROY = 0;
     private const uint XDG_TOPLEVEL_SET_TITLE = 2;
     private const uint XDG_TOPLEVEL_SET_APP_ID = 3;
+    private const uint XDG_TOPLEVEL_SHOW_WINDOW_MENU = 4;
     private const uint XDG_TOPLEVEL_MOVE = 5;
     private const uint XDG_TOPLEVEL_RESIZE = 6;
     private const uint XDG_TOPLEVEL_SET_MAX_SIZE = 7;
@@ -265,6 +270,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _wl_seat_interface = dlsym(handle, "wl_seat_interface");
         _wl_pointer_interface = dlsym(handle, "wl_pointer_interface");
         _wl_keyboard_interface = dlsym(handle, "wl_keyboard_interface");
+        LoadTouchInterface(handle);
 
         // Data transfer / clipboard interfaces (all in libwayland-client).
         // wl_data_device_manager → wl_data_device → wl_data_offer / wl_data_source.
@@ -1331,6 +1337,10 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
                 // Per-seat; retry from SetupSeat if seat arrives later.
                 window.SetupTextInput();
                 break;
+            case "xdg_activation_v1":
+                // Window activation (Application.ActivateWindow) and the launcher's startup token.
+                window.BindActivation(registry, name);
+                break;
             case "zwp_primary_selection_device_manager_v1":
                 // Middle-click paste. Older compositors may not export this — the
                 // null-check on the interface table prevents binding without the
@@ -1389,6 +1399,9 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
             window._keyboard = wl_seat_get_keyboard(seat);
             window.SetupKeyboard();
         }
+
+        if ((capabilities & WL_SEAT_CAPABILITY_TOUCH) != 0)
+            window.SetupTouch(seat);
     }
 
     private static void SeatName(IntPtr data, IntPtr seat, IntPtr name) { }
@@ -1490,18 +1503,19 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (state == WL_POINTER_BUTTON_STATE_PRESSED)
         {
             // CSD mode: titlebar/edge clicks become compositor-side move/resize/buttons
-            // and are NOT forwarded to MAUI views. ptrButton == Left only, since
-            // right/middle should always reach views (context menus etc.).
+            // and are NOT forwarded to MAUI views. A right press reaches the views
+            // everywhere but the titlebar's move area, where it opens the compositor's
+            // window menu; middle presses always reach the views.
             //
             // _pointerX/Y are in BUFFER pixels (logical * DpiScale); convert back to
             // logical for the CSD hit-test since titlebar height + button bounds
             // are stored in logical coords.
-            if (window._useCsd && ptrButton == Microsoft.Maui.Platform.PointerButton.Left)
+            if (window._csd.Active && ptrButton is Microsoft.Maui.Platform.PointerButton.Left or Microsoft.Maui.Platform.PointerButton.Right)
             {
                 float invScale = window._bufferToLogicalScale > 0f ? 1f / window._bufferToLogicalScale : 1f;
                 float logicalX = window._pointerX * invScale;
                 float logicalY = window._pointerY * invScale;
-                if (window.HandleCsdPointerDown(logicalX, logicalY, serial))
+                if (window.HandleCsdPointerDown(logicalX, logicalY, serial, ptrButton, time == 0 ? 1u : time))
                     return;
             }
             window.PointerPressed?.Invoke(window, args);
@@ -1574,6 +1588,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
+        window.NoteKeyboardEnter(serial);
         window.FocusGained?.Invoke(window, EventArgs.Empty);
     }
 
@@ -1582,6 +1597,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         var handle = GCHandle.FromIntPtr(data);
         if (!handle.IsAllocated) return;
         var window = (WaylandWindow)handle.Target!;
+        window.NoteKeyboardLeave();
         window.FocusLost?.Invoke(window, EventArgs.Empty);
     }
 
@@ -1776,6 +1792,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
     public void Show()
     {
         _isRunning = true;
+        TakeStartupToken();
 
         if (_externalPresentation)
         {
@@ -1930,6 +1947,8 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         _inWaylandDispatch = true;
         try { wl_display_dispatch_pending(_display); }
         finally { _inWaylandDispatch = false; }
+        // The pump after Show runs after the first frame: the surface is mapped by now.
+        ApplyPendingStartupToken();
         wl_display_flush(_display);
     }
 
@@ -2007,6 +2026,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         DisposeTextInput();
         DisposePrimarySelection();
         DisposeDecoration();
+        DisposeActivation();
 
         if (_viewport != IntPtr.Zero)
         {
@@ -2073,6 +2093,7 @@ public partial class WaylandWindow : Microsoft.Maui.Platform.Linux.Services.IDis
         if (_seatListenerHandle.IsAllocated) _seatListenerHandle.Free();
         if (_pointerListenerHandle.IsAllocated) _pointerListenerHandle.Free();
         if (_keyboardListenerHandle.IsAllocated) _keyboardListenerHandle.Free();
+        ReleaseTouchListener();
         if (_wmBaseListenerHandle.IsAllocated) _wmBaseListenerHandle.Free();
         if (_xdgSurfaceListenerHandle.IsAllocated) _xdgSurfaceListenerHandle.Free();
         if (_toplevelListenerHandle.IsAllocated) _toplevelListenerHandle.Free();

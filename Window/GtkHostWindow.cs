@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// GTK-based host window for MAUI applications on Linux.
 /// Uses GTK3 with X11 backend for windowing and event handling.
 /// </summary>
-public sealed class GtkHostWindow : IDisposable
+public sealed class GtkHostWindow : IDisposable, IActivatableWindow
 {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate bool DeleteEventDelegate(IntPtr widget, IntPtr eventData, IntPtr userData);
@@ -275,6 +275,14 @@ public sealed class GtkHostWindow : IDisposable
     {
         if (_window == IntPtr.Zero) return;
         GtkNative.gtk_widget_hide(_window);
+    }
+
+    /// <summary>Raises and focuses the window (gtk_window_present: _NET_ACTIVE_WINDOW on X11, xdg-activation on Wayland).</summary>
+    public bool Activate()
+    {
+        if (_window == IntPtr.Zero) return false;
+        GtkNative.gtk_window_present(_window);
+        return true;
     }
 
     public void SetTitle(string title)

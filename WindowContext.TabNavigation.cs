@@ -83,7 +83,17 @@ public sealed partial class WindowContext
         if (_modals.Count > 0 && _modals[^1] is { IsPopup: true } popup)
             Collect(popup.Page, found);
         else if (PresentedPage((MauiWindow as Microsoft.Maui.Controls.Window)?.Page) is { } page)
+        {
+            // A Shell's own chrome (its top navigation pane) comes before the page, as Windows' top
+            // navigation view precedes the content in tab order.
+            if (_modals.Count == 0 && (MauiWindow as Microsoft.Maui.Controls.Window)?.Page is Microsoft.Maui.Controls.Shell { Handler.PlatformView: SkiaShell shell })
+            {
+                foreach (var stop in shell.ChromeTabStops())
+                    if (IsShown(stop) && !found.Contains(stop))
+                        found.Add(stop);
+            }
             Collect(page, found);
+        }
         return found;
     }
 
