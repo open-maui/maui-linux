@@ -145,6 +145,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
 
     protected override void DisconnectHandler(SkiaShell platformView)
     {
+        platformView.CloseTopNavigationDropDown();
         if (_rendered != null)
         {
             base.DisconnectHandler(platformView);
@@ -255,7 +256,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
         {
             if (item is FlyoutItem flyoutItem)
             {
-                var section = new Platform.ShellSection
+                var section = new SkiaShellSection
                 {
                     Route = flyoutItem.Route ?? flyoutItem.Title ?? "",
                     Title = flyoutItem.Title ?? "",
@@ -268,7 +269,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
                 {
                     foreach (var content in shellSection.Items)
                     {
-                        var contentItem = new Platform.ShellContent
+                        var contentItem = new SkiaShellContent
                         {
                             Route = content.Route ?? content.Title ?? "",
                             Title = content.Title ?? "",
@@ -284,7 +285,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
             }
             else if (item is ShellItem shellItem)
             {
-                var section = new Platform.ShellSection
+                var section = new SkiaShellSection
                 {
                     Route = shellItem.Route ?? shellItem.Title ?? "",
                     Title = shellItem.Title ?? "",
@@ -296,7 +297,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
                 {
                     foreach (var content in shellSection.Items)
                     {
-                        var contentItem = new Platform.ShellContent
+                        var contentItem = new SkiaShellContent
                         {
                             Route = content.Route ?? content.Title ?? "",
                             Title = content.Title ?? "",
@@ -431,7 +432,9 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
     {
         if (handler.PlatformView is null) return;
 
-        handler.PlatformView.FlyoutBehavior = shell.FlyoutBehavior switch
+        // MAUI's effective behaviour (IFlyoutView.FlyoutBehavior): a TabBar root has no flyout,
+        // a page or item can set its own.
+        handler.PlatformView.FlyoutBehavior = ((IFlyoutView)shell).FlyoutBehavior switch
         {
             Microsoft.Maui.FlyoutBehavior.Disabled => ShellFlyoutBehavior.Disabled,
             Microsoft.Maui.FlyoutBehavior.Flyout => ShellFlyoutBehavior.Flyout,
@@ -530,6 +533,7 @@ public partial class ShellHandler : LinuxViewHandler<Shell, SkiaShell>
                 handler.PlatformView.FlyoutHeaderHeightExplicit = headerView.HeightRequest > 0;
                 if (headerView.HeightRequest > 0)
                     handler.PlatformView.FlyoutHeaderHeight = (float)headerView.HeightRequest;
+                handler.PlatformView.FlyoutHeaderMinimumHeight = headerView.MinimumHeightRequest >= 0 ? (float)headerView.MinimumHeightRequest : -1f;
             }
         }
     }

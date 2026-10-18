@@ -6,14 +6,19 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
 /// <summary>
 /// Handler for Editor (multiline text) on Linux using Skia rendering.
 /// </summary>
-public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
+public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>, IEditorHandler
 {
+    IEditor IEditorHandler.VirtualView => VirtualView;
+    object IEditorHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IEditor, EditorHandler> Mapper =
         new PropertyMapper<IEditor, EditorHandler>(ViewHandler.ViewMapper)
         {
@@ -111,20 +116,25 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
         // Editor doesn't typically have a completed event, but we could trigger it
     }
 
-    public static void MapText(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapText</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapText(IViewHandler handler, IEditor editor)
+    {
+        if (handler is EditorHandler linuxHandler)
+            MapTextCore(linuxHandler, editor);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapText(EditorHandler handler, IEditor editor) => MapTextCore(handler, editor);
+
+    private static void MapTextCore(EditorHandler handler, IEditor editor)
     {
         if (handler.PlatformView is null) return;
 
         // The platform holds the text as shown (TextTransform applied, cut to
         // MaxLength); a difference flows back to the view through TextChanged.
-        var text = TextInputText.GetDisplayText(editor);
-        bool replaced = false;
-        if (handler.PlatformView.Text != text)
-        {
-            handler.PlatformView.Text = text;
-            handler.PlatformView.Invalidate();
-            replaced = true;
-        }
+        bool replaced = handler.PlatformView.SetDisplayText(editor);
 
         // The text the platform holds (cut to MaxLength, transformed) is the
         // view's Text, as on MAUI's platforms.
@@ -156,129 +166,250 @@ public partial class EditorHandler : LinuxViewHandler<IEditor, SkiaEditor>
         }
     }
 
-    public static void MapPlaceholder(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapPlaceholder</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapPlaceholder(IViewHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        // No placeholder stays null, as on MAUI's Android and iOS editors.
-        handler.PlatformView.Placeholder = editor.Placeholder;
+        if (handler is EditorHandler linuxHandler)
+            MapPlaceholderCore(linuxHandler, editor);
     }
 
-    public static void MapPlaceholderColor(EditorHandler handler, IEditor editor)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapPlaceholder(EditorHandler handler, IEditor editor) => MapPlaceholderCore(handler, editor);
+
+    private static void MapPlaceholderCore(EditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        if (editor.PlaceholderColor is not null)
-        {
-            handler.PlatformView.PlaceholderColor = editor.PlaceholderColor;
-        }
+        handler.PlatformView?.UpdatePlaceholder(editor);
     }
 
-    public static void MapTextColor(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapPlaceholderColor</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapPlaceholderColor(IViewHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        if (editor.TextColor is not null)
-        {
-            handler.PlatformView.TextColor = editor.TextColor;
-        }
+        if (handler is EditorHandler linuxHandler)
+            MapPlaceholderColorCore(linuxHandler, editor);
     }
 
-    public static void MapFont(EditorHandler handler, IEditor editor)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapPlaceholderColor(EditorHandler handler, IEditor editor) => MapPlaceholderColorCore(handler, editor);
+
+    private static void MapPlaceholderColorCore(EditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-
-        var font = editor.Font;
-        if (font.Size > 0)
-            handler.PlatformView.FontSize = font.Size;
-
-        if (!string.IsNullOrEmpty(font.Family))
-            handler.PlatformView.FontFamily = font.Family;
-
-        // Convert Font weight/slant to FontAttributes
-        FontAttributes attrs = FontAttributes.None;
-        if (font.Weight >= FontWeight.Bold)
-            attrs |= FontAttributes.Bold;
-        if (font.Slant == FontSlant.Italic || font.Slant == FontSlant.Oblique)
-            attrs |= FontAttributes.Italic;
-        handler.PlatformView.FontAttributes = attrs;
+        handler.PlatformView?.UpdatePlaceholderColor(editor);
     }
 
-    public static void MapCharacterSpacing(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(IViewHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.CharacterSpacing = editor.CharacterSpacing;
+        if (handler is EditorHandler linuxHandler)
+            MapTextColorCore(linuxHandler, editor);
     }
 
-    public static void MapIsReadOnly(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTextColor(IEditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsReadOnly = editor.IsReadOnly;
+        if (handler is EditorHandler linuxHandler)
+            MapTextColorCore(linuxHandler, editor);
     }
 
-    public static void MapIsTextPredictionEnabled(EditorHandler handler, IEditor editor)
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTextColor(EditorHandler handler, IEditor editor) => MapTextColorCore(handler, editor);
+
+    private static void MapTextColorCore(EditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsTextPredictionEnabled = editor.IsTextPredictionEnabled;
+        handler.PlatformView?.UpdateTextColor(editor);
     }
 
-    public static void MapIsSpellCheckEnabled(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapFont(IViewHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.IsSpellCheckEnabled = editor.IsSpellCheckEnabled;
+        if (handler is EditorHandler linuxHandler)
+            MapFontCore(linuxHandler, editor);
     }
 
-    public static void MapMaxLength(EditorHandler handler, IEditor editor)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapFont(EditorHandler handler, IEditor editor) => MapFontCore(handler, editor);
+
+    private static void MapFontCore(EditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.MaxLength = editor.MaxLength;
+        handler.PlatformView?.UpdateFont(editor);
     }
 
-    public static void MapCursorPosition(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCharacterSpacing(IViewHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        // The platform caps the caret to the text; the view gets the capped value.
-        handler.PlatformView.CursorPosition = editor.CursorPosition;
-        if (editor.CursorPosition != handler.PlatformView.CursorPosition)
-            editor.CursorPosition = handler.PlatformView.CursorPosition;
+        if (handler is EditorHandler linuxHandler)
+            MapCharacterSpacingCore(linuxHandler, editor);
     }
 
-    public static void MapSelectionLength(EditorHandler handler, IEditor editor)
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCharacterSpacing(EditorHandler handler, IEditor editor) => MapCharacterSpacingCore(handler, editor);
+
+    private static void MapCharacterSpacingCore(EditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.SelectionLength = TextInputText.ClampSelectionLength(
-            handler.PlatformView.Text, handler.PlatformView.CursorPosition, editor.SelectionLength);
-        TextInputText.ReportSelection(editor, handler.PlatformView.CursorPosition, handler.PlatformView.SelectionLength);
+        handler.PlatformView?.UpdateCharacterSpacing(editor);
     }
 
-    public static void MapKeyboard(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapIsReadOnly</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsReadOnly(IViewHandler handler, IEditor editor)
     {
-        // On desktop the keyboard is the input method's content type.
-        if (handler.PlatformView is null) return;
-        handler.PlatformView.Keyboard = editor.Keyboard;
+        if (handler is EditorHandler linuxHandler)
+            MapIsReadOnlyCore(linuxHandler, editor);
     }
 
-    public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor)
-    {
-        if (handler.PlatformView is null) return;
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsReadOnly(EditorHandler handler, IEditor editor) => MapIsReadOnlyCore(handler, editor);
 
-        handler.PlatformView.HorizontalTextAlignment = editor.HorizontalTextAlignment switch
-        {
-            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
-            _ => TextAlignment.Start
-        };
+    private static void MapIsReadOnlyCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateIsReadOnly(editor);
     }
 
-    public static void MapVerticalTextAlignment(EditorHandler handler, IEditor editor)
+    /// <summary>MAUI's <c>MapIsTextPredictionEnabled</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsTextPredictionEnabled(IEditorHandler handler, IEditor editor)
     {
-        if (handler.PlatformView is null) return;
+        if (handler is EditorHandler linuxHandler)
+            MapIsTextPredictionEnabledCore(linuxHandler, editor);
+    }
 
-        handler.PlatformView.VerticalTextAlignment = editor.VerticalTextAlignment switch
-        {
-            Microsoft.Maui.TextAlignment.Start => TextAlignment.Start,
-            Microsoft.Maui.TextAlignment.Center => TextAlignment.Center,
-            Microsoft.Maui.TextAlignment.End => TextAlignment.End,
-            _ => TextAlignment.Start
-        };
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsTextPredictionEnabled(EditorHandler handler, IEditor editor) => MapIsTextPredictionEnabledCore(handler, editor);
+
+    private static void MapIsTextPredictionEnabledCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateIsTextPredictionEnabled(editor);
+    }
+
+    /// <summary>MAUI's <c>MapIsSpellCheckEnabled</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapIsSpellCheckEnabled(IEditorHandler handler, IEditor editor)
+    {
+        if (handler is EditorHandler linuxHandler)
+            MapIsSpellCheckEnabledCore(linuxHandler, editor);
+    }
+
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapIsSpellCheckEnabled(EditorHandler handler, IEditor editor) => MapIsSpellCheckEnabledCore(handler, editor);
+
+    private static void MapIsSpellCheckEnabledCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateIsSpellCheckEnabled(editor);
+    }
+
+    /// <summary>MAUI's <c>MapMaxLength</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapMaxLength(IViewHandler handler, IEditor editor)
+    {
+        if (handler is EditorHandler linuxHandler)
+            MapMaxLengthCore(linuxHandler, editor);
+    }
+
+    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapMaxLength(EditorHandler handler, IEditor editor) => MapMaxLengthCore(handler, editor);
+
+    private static void MapMaxLengthCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateMaxLength(editor);
+    }
+
+    /// <summary>MAUI's <c>MapCursorPosition</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCursorPosition(IEditorHandler handler, ITextInput editor)
+    {
+        if (handler is EditorHandler linuxHandler && editor is IEditor linuxView)
+            MapCursorPositionCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCursorPosition(EditorHandler handler, IEditor editor) => MapCursorPositionCore(handler, editor);
+
+    private static void MapCursorPositionCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateCursorPosition(editor);
+    }
+
+    /// <summary>MAUI's <c>MapSelectionLength</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapSelectionLength(IEditorHandler handler, ITextInput editor)
+    {
+        if (handler is EditorHandler linuxHandler && editor is IEditor linuxView)
+            MapSelectionLengthCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapSelectionLength(EditorHandler handler, IEditor editor) => MapSelectionLengthCore(handler, editor);
+
+    private static void MapSelectionLengthCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateSelectionLength(editor);
+    }
+
+    /// <summary>MAUI's <c>MapKeyboard</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapKeyboard(IEditorHandler handler, IEditor editor)
+    {
+        if (handler is EditorHandler linuxHandler)
+            MapKeyboardCore(linuxHandler, editor);
+    }
+
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapKeyboard(EditorHandler handler, IEditor editor) => MapKeyboardCore(handler, editor);
+
+    private static void MapKeyboardCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateKeyboard(editor);
+    }
+
+    /// <summary>MAUI's <c>MapHorizontalTextAlignment</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapHorizontalTextAlignment(IEditorHandler handler, IEditor editor)
+    {
+        if (handler is EditorHandler linuxHandler)
+            MapHorizontalTextAlignmentCore(linuxHandler, editor);
+    }
+
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapHorizontalTextAlignment(EditorHandler handler, IEditor editor) => MapHorizontalTextAlignmentCore(handler, editor);
+
+    private static void MapHorizontalTextAlignmentCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateHorizontalTextAlignment(editor);
+    }
+
+    /// <summary>MAUI's <c>MapVerticalTextAlignment</c> signature; maps the property on a Linux <see cref="EditorHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapVerticalTextAlignment(IEditorHandler handler, IEditor editor)
+    {
+        if (handler is EditorHandler linuxHandler)
+            MapVerticalTextAlignmentCore(linuxHandler, editor);
+    }
+
+    [Obsolete("Use the IEditorHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapVerticalTextAlignment(EditorHandler handler, IEditor editor) => MapVerticalTextAlignmentCore(handler, editor);
+
+    private static void MapVerticalTextAlignmentCore(EditorHandler handler, IEditor editor)
+    {
+        handler.PlatformView?.UpdateVerticalTextAlignment(editor);
     }
 
     public static void MapBackground(EditorHandler handler, IEditor editor)

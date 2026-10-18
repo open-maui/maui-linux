@@ -13,8 +13,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// Handler for WebView using native GTK WebKitGTK widget.
 /// </summary>
-public class GtkWebViewHandler : LinuxViewHandler<IWebView, GtkWebViewProxy>
+public class GtkWebViewHandler : LinuxViewHandler<IWebView, GtkWebViewProxy>, IWebViewHandler
 {
+    IWebView IWebViewHandler.VirtualView => VirtualView;
+    object IWebViewHandler.PlatformView => PlatformView;
+
     private GtkWebViewPlatformView? _platformWebView;
     private bool _isRegisteredWithHost;
     private SKRect _lastBounds;
