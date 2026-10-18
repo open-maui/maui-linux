@@ -206,6 +206,7 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         builder.Services.TryAddSingleton<IFileSystem>(_ => FileSystem.Current);
         builder.Services.TryAddSingleton<ISemanticScreenReader>(_ => SemanticScreenReader.Default);
         builder.Services.TryAddSingleton<IWebAuthenticator>(_ => WebAuthenticator.Default);
+        builder.Services.TryAddSingleton<IPasskeys>(_ => Passkeys.Default);
 
         // Motion/environment sensors: the facades' MAUI implementations, reading the kernel's IIO
         // devices (IsSupported only with the hardware; Start throws FeatureNotSupportedException without).
