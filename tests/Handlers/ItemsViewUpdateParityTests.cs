@@ -393,7 +393,7 @@ public class ItemsViewUpdateParityTests
         carousel.CurrentItem.Should().Be("f");
 
         carousel.HorizontalScrollBarVisibility = ScrollBarVisibility.Always;
-        skia.HorizontalScrollBarVisibility.Should().Be(Microsoft.Maui.Platform.ScrollBarVisibility.Always);
+        skia.MauiHorizontalScrollBarVisibility.Should().Be(ScrollBarVisibility.Always);
     }
 
     private static CarouselView Carousel(IEnumerable<string> items) => new()
@@ -411,10 +411,21 @@ public class ItemsViewUpdateParityTests
     public void A_vertical_carousel_moves_its_items_up_and_down()
     {
         var carousel = Carousel(new[] { "a", "b", "c" });
-        carousel.ItemsLayout = new LinearItemsLayout(ItemsLayoutOrientation.Vertical) { ItemSpacing = 10 };
+        // MAUI's vertical carousel layout (LinearItemsLayout.CarouselVertical) snaps one item at a time;
+        // a bare LinearItemsLayout has no snap points, so a flick would coast past the next item.
+        carousel.ItemsLayout = new LinearItemsLayout(ItemsLayoutOrientation.Vertical)
+        {
+            ItemSpacing = 10,
+            SnapPointsType = SnapPointsType.MandatorySingle,
+            SnapPointsAlignment = SnapPointsAlignment.Center,
+        };
         using var host = new HeadlessMauiHost(new ContentPage { Content = carousel }, withEngine: true, width: 400, height: 300);
         Render(host);
         var skia = (SkiaCarouselView)carousel.Handler!.PlatformView!;
+        // Pointer events a frame apart, as a real drag delivers them: the release's fling speed
+        // comes from the time between moves, which back-to-back test events would leave at zero.
+        var now = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        skia.Clock = () => now = now.AddMilliseconds(16);
 
         skia.Items[1].Bounds.Top.Should().BeApproximately(skia.Items[0].Bounds.Bottom + 10, 0.5, "the next item is below, ItemSpacing apart");
         skia.Items[0].Bounds.Width.Should().BeApproximately(skia.Bounds.Width, 0.5);

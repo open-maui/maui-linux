@@ -391,7 +391,7 @@ public class LinuxDragEventArgsTests
     public void Constructor_SetsProperties()
     {
         var dragData = new DragData { Text = "Test" };
-        var args = new Microsoft.Maui.Platform.Linux.Services.DragEventArgs(dragData, 100, 200);
+        var args = new LinuxDragEventArgs(dragData, 100, 200);
 
         Assert.Equal(dragData, args.Data);
         Assert.Equal(100, args.X);
@@ -403,7 +403,7 @@ public class LinuxDragEventArgsTests
     [Fact]
     public void Accepted_CanBeSet()
     {
-        var args = new Microsoft.Maui.Platform.Linux.Services.DragEventArgs(new DragData(), 0, 0);
+        var args = new LinuxDragEventArgs(new DragData(), 0, 0);
 
         args.Accepted = false;
 
@@ -413,7 +413,7 @@ public class LinuxDragEventArgsTests
     [Fact]
     public void AllowedAction_CanBeSet()
     {
-        var args = new Microsoft.Maui.Platform.Linux.Services.DragEventArgs(new DragData(), 0, 0);
+        var args = new LinuxDragEventArgs(new DragData(), 0, 0);
 
         args.AllowedAction = DragAction.Move;
 
@@ -427,7 +427,7 @@ public class LinuxDropEventArgsTests
     public void Constructor_SetsProperties()
     {
         var dragData = new DragData();
-        var args = new Microsoft.Maui.Platform.Linux.Services.DropEventArgs(dragData, "dropped content");
+        var args = new LinuxDropEventArgs(dragData, "dropped content");
 
         Assert.Equal(dragData, args.Data);
         Assert.Equal("dropped content", args.DroppedData);
@@ -437,7 +437,7 @@ public class LinuxDropEventArgsTests
     [Fact]
     public void Handled_CanBeSet()
     {
-        var args = new Microsoft.Maui.Platform.Linux.Services.DropEventArgs(new DragData(), null);
+        var args = new LinuxDropEventArgs(new DragData(), null);
 
         args.Handled = true;
 

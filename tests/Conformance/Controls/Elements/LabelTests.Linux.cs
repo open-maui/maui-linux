@@ -37,17 +37,5 @@ namespace Microsoft.Maui.DeviceTests
 	}
 }
 
-namespace Microsoft.Maui.DeviceTests
-{
-	public static class LinuxLabelExtensions
-	{
-		/// <summary>
-		/// MAUI's platform LabelExtensions.UpdateLineBreakMode(platformLabel, label)
-		/// (Android TextView / iOS UILabel). OpenMaui has no public platform
-		/// extension for it; the same update runs through the label handler's
-		/// mapper, which is where OpenMaui applies LineBreakMode.
-		/// </summary>
-		public static void UpdateLineBreakMode(this SkiaLabel platformLabel, Label label) =>
-			label.Handler?.UpdateValue(nameof(Label.LineBreakMode));
-	}
-}
+// platformLabel.UpdateLineBreakMode(label) in MAUI's file binds to OpenMaui's public
+// Microsoft.Maui.Platform.SkiaLabelExtensions.UpdateLineBreakMode.
