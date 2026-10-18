@@ -117,6 +117,10 @@ public class SkiaMediaElement : SkiaView, IDisposable
     private bool _muted;
     private KeyValuePair<string, string>[] _httpHeaders = Array.Empty<KeyValuePair<string, string>>();
     private GStreamerInterop.SourceSetupCallback? _sourceSetupDelegate;
+    private GStreamerInterop.DeepElementAddedCallback? _deepElementAddedDelegate;
+    private GStreamerInterop.NotifyCallback? _segmentLocationDelegate;
+    // Segment sources the headers were offered to, with the user-agent each had before (null: not changed).
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<IntPtr, string?> _segmentSources = new();
     private readonly MediaTransportControls _controls = new();
     private System.Threading.Timer? _controlsHideTimer;
 
@@ -201,8 +205,9 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     /// <summary>
     /// Set/replace the media source, with HTTP headers for a network source
-    /// (UriMediaSource.HttpHeaders): playbin's HTTP source element gets them as
-    /// extra request headers ("User-Agent" through its user-agent property).
+    /// (UriMediaSource.HttpHeaders): playbin's HTTP source element, and the HTTP
+    /// sources an HLS or DASH demuxer adds for its segments, get them as extra
+    /// request headers ("User-Agent" through their user-agent property).
     /// A new source is opened right away (prerolled to PAUSED), as Windows'
     /// MediaPlayer opens it: <see cref="MediaOpened"/> or
     /// <see cref="MediaFailed"/> follows whether or not it is played.
@@ -583,12 +588,17 @@ public class SkiaMediaElement : SkiaView, IDisposable
         if (scaleTempo != IntPtr.Zero)
             g_object_set(_playbin, "audio-filter", scaleTempo, IntPtr.Zero);
 
-        // UriMediaSource.HttpHeaders: set on the HTTP source when playbin creates it.
+        // UriMediaSource.HttpHeaders: set on the HTTP source when playbin creates it, and on
+        // the HTTP sources an adaptive demuxer (hlsdemux, dashdemux) creates inside the
+        // pipeline for its segments, which only deep-element-added reaches.
         if (_httpHeaders.Length > 0)
         {
             _sourceSetupDelegate ??= OnSourceSetup;
             g_signal_connect_data(_playbin, "source-setup",
                 Marshal.GetFunctionPointerForDelegate(_sourceSetupDelegate), IntPtr.Zero, IntPtr.Zero, 0);
+            _deepElementAddedDelegate ??= OnDeepElementAdded;
+            g_signal_connect_data(_playbin, "deep-element-added",
+                Marshal.GetFunctionPointerForDelegate(_deepElementAddedDelegate), IntPtr.Zero, IntPtr.Zero, 0);
         }
 
         // Set up the streaming-thread callbacks. The delegate fields must stay
@@ -971,6 +981,106 @@ public class SkiaMediaElement : SkiaView, IDisposable
             DiagnosticLog.Warn("SkiaMediaElement", $"HTTP headers not applied: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// GstBin deep-element-added on playbin (any thread): an adaptive demuxer (hlsdemux,
+    /// dashdemux) fetches its segments with HTTP sources of its own, added inside the
+    /// pipeline where source-setup never sees them. Every element with souphttpsrc's
+    /// extra-headers property gets UriMediaSource.HttpHeaders for the requests it makes to the
+    /// media source's host and port (see <see cref="UpdateSegmentSourceHeaders"/>).
+    /// </summary>
+    private void OnDeepElementAdded(IntPtr bin, IntPtr subBin, IntPtr element, IntPtr userData)
+    {
+        try
+        {
+            var headers = Volatile.Read(ref _httpHeaders);
+            if (!IsHttpHeaderTarget(element, headers) || !_segmentSources.TryAdd(element, ReadString(element, "user-agent")))
+                return;
+            // A demuxer's HTTP source is pointed at each segment in turn (a new location per
+            // request), so the headers are set or cleared whenever its location changes.
+            _segmentLocationDelegate ??= OnSegmentSourceLocation;
+            g_signal_connect_data(element, "notify::location",
+                Marshal.GetFunctionPointerForDelegate(_segmentLocationDelegate), IntPtr.Zero, IntPtr.Zero, 0);
+            UpdateSegmentSourceHeaders(element);
+        }
+        catch (Exception ex)
+        {
+            // Never let an exception reach native code.
+            DiagnosticLog.Warn("SkiaMediaElement", $"HTTP headers not applied to a segment source: {ex.Message}");
+        }
+    }
+
+    /// <summary>notify::location on a demuxer's HTTP source (streaming thread).</summary>
+    private void OnSegmentSourceLocation(IntPtr element, IntPtr pspec, IntPtr userData)
+    {
+        try
+        {
+            UpdateSegmentSourceHeaders(element);
+        }
+        catch (Exception ex)
+        {
+            // Never let an exception reach native code.
+            DiagnosticLog.Warn("SkiaMediaElement", $"HTTP headers not updated for a segment source: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// UriMediaSource.HttpHeaders go with a segment request only when the segment is on the
+    /// media source's host and port: a segment elsewhere (a CDN) gets no Authorization, cookie or
+    /// other header the app meant for its own server, and keeps the source's own user-agent.
+    /// </summary>
+    private void UpdateSegmentSourceHeaders(IntPtr element)
+    {
+        var headers = Volatile.Read(ref _httpHeaders);
+        if (headers.Length == 0 || !_segmentSources.TryGetValue(element, out var originalUserAgent))
+            return;
+        UpdateHeadersForLocation(element, _currentUri, headers, originalUserAgent);
+    }
+
+    /// <summary>
+    /// Sets <paramref name="headers"/> on an HTTP source whose location is on <paramref name="sourceUri"/>'s
+    /// host and port; otherwise clears its extra headers and gives it back <paramref name="originalUserAgent"/>.
+    /// </summary>
+    internal static void UpdateHeadersForLocation(IntPtr element, string? sourceUri, IReadOnlyList<KeyValuePair<string, string>> headers, string? originalUserAgent)
+    {
+        if (SharesOrigin(sourceUri, ReadString(element, "location")))
+        {
+            ApplyHttpHeaders(element, headers);
+            return;
+        }
+        g_object_set(element, "extra-headers", IntPtr.Zero, IntPtr.Zero);
+        if (originalUserAgent != null && headers.Any(h => string.Equals(h.Key, "User-Agent", StringComparison.OrdinalIgnoreCase)))
+            g_object_set_string(element, "user-agent", originalUserAgent, IntPtr.Zero);
+    }
+
+    /// <summary>True when <paramref name="location"/> is on the same host and port as <paramref name="sourceUri"/>.</summary>
+    internal static bool SharesOrigin(string? sourceUri, string? location)
+    {
+        if (!Uri.TryCreate(sourceUri, UriKind.Absolute, out var source) || !Uri.TryCreate(location, UriKind.Absolute, out var target))
+            return false;
+        return string.Equals(source.Host, target.Host, StringComparison.OrdinalIgnoreCase) && source.Port == target.Port;
+    }
+
+    internal static string? ReadString(IntPtr element, string property)
+    {
+        if (!HasProperty(element, property))
+            return null;
+        g_object_get_string_ptr(element, property, out var value, IntPtr.Zero);
+        if (value == IntPtr.Zero)
+            return null;
+        try
+        {
+            return Marshal.PtrToStringUTF8(value);
+        }
+        finally
+        {
+            g_free(value);
+        }
+    }
+
+    /// <summary>True for an element that takes HTTP request headers (souphttpsrc's extra-headers), when there are headers.</summary>
+    internal static bool IsHttpHeaderTarget(IntPtr element, IReadOnlyList<KeyValuePair<string, string>> headers) =>
+        headers.Count > 0 && element != IntPtr.Zero && HasProperty(element, "extra-headers");
 
     internal static void ApplyHttpHeaders(IntPtr source, IReadOnlyList<KeyValuePair<string, string>> headers)
     {
@@ -1522,6 +1632,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     private void DisposePipeline()
     {
+        _segmentSources.Clear();
         _statusTimer?.Dispose();
         _statusTimer = null;
         lock (_seekLock)
