@@ -129,6 +129,39 @@ WebKit gets DOM `KeyboardEvent.code`. Printable keys reach WebKit through the te
 event; `WpeKeycodeTracker` gives that event the keycode of the key press that produced it
 (single character only, so IME commits keep code 0).
 
+## Request interception (HybridWebView http/https)
+
+These facts were established with headless probes (no window) against WPE WebKit 2.54.1 and WebKitGTK 4.1 2.54.1 (GTK on a broadwayd display) on Fedora 44:
+
+- **No request-answering API.** WebKit's GLib API has none for http/https (custom URI schemes only). The approach uses three per-network APIs instead:
+  - proxy settings: `webkit_network_session_set_proxy_settings`, or `webkit_website_data_manager_set_network_proxy_settings` on 4.1;
+  - certificates to accept for a host: `webkit_network_session_allow_tls_certificate_for_host`, or `webkit_web_context_allow_tls_certificate_for_host` on 4.1;
+  - the `authenticate` signal, which also fires for a proxy (`webkit_authentication_request_is_for_proxy`).
+- **How a custom proxy is used.** With `WEBKIT_NETWORK_PROXY_MODE_CUSTOM` and no ignore list:
+  - http goes out as absolute-form requests (`GET http://host/path`). Plain WebSocket goes out as `GET ws://host/path` with `Upgrade`.
+  - https and wss go out as `CONNECT host:443`. WebKit often opens the first CONNECT twice (a speculative connection).
+  - Requests to 127.0.0.1 go through the proxy too.
+- **Proxy authentication.**
+  - Credentials in the proxy URI work for CONNECT. For plain http, after a 407, libsoup re-sent the request as `GET http://127.0.0.1:<proxy port>/` instead of the page's URL. So credentials go through the `authenticate` signal: answering it with `webkit_credential_new(user, password, FOR_SESSION)` works for both http and CONNECT, and later connections send them preemptively.
+  - Wrong credentials make WebKit retry indefinitely, so the proxy's own credentials must always be right.
+- **Allowing the proxy's certificate.**
+  - `allow_tls_certificate_for_host` accepts that exact certificate for that host on that network only. A host missing from the certificate's names is accepted too, so one self-signed certificate per proxy is enough.
+  - Without the allowance the load fails with `load-failed-with-tls-errors` (flags 0x1, unknown CA).
+  - The allowance must be made before the proxy answers the CONNECT. The proxy waits for the UI thread to make the call before it sends `200 Connection established`.
+- **Separate network per view.** `network-session` (WPE) and `web-context` (GTK) are construct-only properties, so the decision is made when the view is created. On 4.1 a view with its own context needs the app scheme registered on that context too: `WebKitContentApi` registers schemes per context.
+- **What the page sees.**
+  - https pages keep their URL, origin and secure context.
+  - `webkit_web_view_get_tls_info` reports the proxy's certificate.
+  - From an https page, an http subresource is still blocked as mixed content before it reaches the proxy.
+- Verified end to end through the handler with the WebViewHost scenario `hybrid-web-resource-requested-http`:
+  - an https POST fetch answered by the app, with its body;
+  - an http navigation the app left alone, which reached a loopback server.
+
+  Verified with the proxy alone driven by a C WPE probe:
+  - a page from a server whose certificate does not verify failed to load (TLS verified upstream);
+  - a plain WebSocket echo through the tunnel;
+  - https://example.com loaded through the proxy with upstream TLS verification.
+
 ## Distribution
 
 - Debian sid and testing (forky) 2.54.0, Debian 13 (trixie) 2.48.3. Binary: `libwpewebkit-2.0-1`. Ubuntu has published no wpewebkit package since 22.04 (jammy had only the 1.0 API, 2.36), so Ubuntu users get the WebKitGTK fallback. Checked against packages.debian.org and packages.ubuntu.com on 2026-09-26.
