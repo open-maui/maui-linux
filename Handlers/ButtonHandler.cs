@@ -6,8 +6,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -140,16 +138,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     private void OnReleased(object? sender, EventArgs e) => VirtualView?.Released();
 
     /// <summary>MAUI's <c>MapStrokeColor</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapStrokeColor(IButtonHandler handler, IButtonStroke buttonStroke)
     {
         if (handler is ButtonHandler linuxHandler && buttonStroke is IButton linuxView)
             MapStrokeColorCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapStrokeColor(ButtonHandler handler, IButton button) => MapStrokeColorCore(handler, button);
 
     private static void MapStrokeColorCore(ButtonHandler handler, IButton button)
     {
@@ -157,16 +150,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     }
 
     /// <summary>MAUI's <c>MapStrokeThickness</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapStrokeThickness(IButtonHandler handler, IButtonStroke buttonStroke)
     {
         if (handler is ButtonHandler linuxHandler && buttonStroke is IButton linuxView)
             MapStrokeThicknessCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapStrokeThickness(ButtonHandler handler, IButton button) => MapStrokeThicknessCore(handler, button);
 
     private static void MapStrokeThicknessCore(ButtonHandler handler, IButton button)
     {
@@ -174,16 +162,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     }
 
     /// <summary>MAUI's <c>MapCornerRadius</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCornerRadius(IButtonHandler handler, IButtonStroke buttonStroke)
     {
         if (handler is ButtonHandler linuxHandler && buttonStroke is IButton linuxView)
             MapCornerRadiusCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCornerRadius(ButtonHandler handler, IButton button) => MapCornerRadiusCore(handler, button);
 
     private static void MapCornerRadiusCore(ButtonHandler handler, IButton button)
     {
@@ -202,16 +185,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     }
 
     /// <summary>MAUI's <c>MapPadding</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapPadding(IButtonHandler handler, IButton button)
     {
         if (handler is ButtonHandler linuxHandler)
             MapPaddingCore(linuxHandler, button);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapPadding(ButtonHandler handler, IButton button) => MapPaddingCore(handler, button);
 
     private static void MapPaddingCore(ButtonHandler handler, IButton button)
     {
@@ -229,16 +207,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     // is not an IText / ITextStyle has no text to map and keeps the view's defaults.
 
     /// <summary>MAUI's <c>MapText</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapText(IButtonHandler handler, IText button)
     {
         if (handler is ButtonHandler linuxHandler && button is IButton linuxView)
             MapTextCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapText(ButtonHandler handler, IButton button) => MapTextCore(handler, button);
 
     private static void MapTextCore(ButtonHandler handler, IButton button)
     {
@@ -247,16 +220,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     }
 
     /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTextColor(IButtonHandler handler, ITextStyle button)
     {
         if (handler is ButtonHandler linuxHandler && button is IButton linuxView)
             MapTextColorCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTextColor(ButtonHandler handler, IButton button) => MapTextColorCore(handler, button);
 
     private static void MapTextColorCore(ButtonHandler handler, IButton button)
     {
@@ -265,16 +233,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     }
 
     /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapFont(IButtonHandler handler, ITextStyle button)
     {
         if (handler is ButtonHandler linuxHandler && button is IButton linuxView)
             MapFontCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapFont(ButtonHandler handler, IButton button) => MapFontCore(handler, button);
 
     private static void MapFontCore(ButtonHandler handler, IButton button)
     {
@@ -283,16 +246,11 @@ public partial class ButtonHandler : LinuxViewHandler<IButton, SkiaButton>, IBut
     }
 
     /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="ButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCharacterSpacing(IButtonHandler handler, ITextStyle button)
     {
         if (handler is ButtonHandler linuxHandler && button is IButton linuxView)
             MapCharacterSpacingCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCharacterSpacing(ButtonHandler handler, IButton button) => MapCharacterSpacingCore(handler, button);
 
     private static void MapCharacterSpacingCore(ButtonHandler handler, IButton button)
     {

@@ -190,27 +190,11 @@ public class SkiaItemsView : SkiaView
         }
     }
 
-    public Microsoft.Maui.ScrollBarVisibility MauiVerticalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
-    public Microsoft.Maui.ScrollBarVisibility MauiHorizontalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Never;
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiVerticalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
-    public ScrollBarVisibility VerticalScrollBarVisibility
-    {
-        get => MauiVerticalScrollBarVisibility.ToLegacy();
-        set => MauiVerticalScrollBarVisibility = value.ToMaui();
-    }
-
-    [Obsolete("Use MauiHorizontalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
-    public ScrollBarVisibility HorizontalScrollBarVisibility
-    {
-        get => MauiHorizontalScrollBarVisibility.ToLegacy();
-        set => MauiHorizontalScrollBarVisibility = value.ToMaui();
-    }
-#pragma warning restore CS0618
+    public Microsoft.Maui.ScrollBarVisibility VerticalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
+    public Microsoft.Maui.ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Never;
 
     /// <summary>True when a vertical list shows (and takes input on) its scroll bar.</summary>
-    private bool ShowsVerticalScrollBar => !IsHorizontal && MauiVerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never;
+    private bool ShowsVerticalScrollBar => !IsHorizontal && VerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never;
 
     public object? EmptyView { get; set; }
 
@@ -1056,7 +1040,7 @@ public class SkiaItemsView : SkiaView
         canvas.Restore();
 
         // Draw scrollbar
-        if (showBar && (TotalContentHeight > bounds.Height || MauiVerticalScrollBarVisibility == Microsoft.Maui.ScrollBarVisibility.Always))
+        if (showBar && (TotalContentHeight > bounds.Height || VerticalScrollBarVisibility == Microsoft.Maui.ScrollBarVisibility.Always))
         {
             DrawScrollBar(canvas, bounds);
         }
@@ -1801,20 +1785,6 @@ public class SkiaItemsView : SkiaView
     {
         ScrollToItem(item, Controls.ScrollToPosition.Start, animate);
     }
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>
-    /// Scrolls the row at <paramref name="index"/> into view at <paramref name="position"/>.
-    /// </summary>
-    [Obsolete("Use the overload that takes Microsoft.Maui.Controls.ScrollToPosition; this overload is removed in OpenMaui 11.0.")]
-    public void ScrollToIndex(int index, ScrollToPosition position, bool animate = true)
-        => ScrollToIndex(index, position.ToMaui(), animate);
-
-    /// <summary>Scrolls the row of <paramref name="item"/> into view at <paramref name="position"/>.</summary>
-    [Obsolete("Use the overload that takes Microsoft.Maui.Controls.ScrollToPosition; this overload is removed in OpenMaui 11.0.")]
-    public void ScrollToItem(object item, ScrollToPosition position, bool animate = true)
-        => ScrollToItem(item, position.ToMaui(), animate);
-#pragma warning restore CS0618
 
     /// <summary>
     /// Scrolls the row at <paramref name="index"/> into view at <paramref name="position"/>:

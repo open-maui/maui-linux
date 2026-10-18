@@ -1,10 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-// Platform.SwipeItem is this handler's platform element type (and the element type of
-// SkiaSwipeView's item lists) until OpenMaui 11.0, when SkiaSwipeItem replaces it.
-#pragma warning disable CS0618
-
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 
@@ -17,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// item's text, colours, font, visibility and icon, and a tap on it invokes the item (its Command
 /// and Invoked event), as MAUI's SwipeItemMenuItemHandler does on every platform.
 /// </summary>
-public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuItem, Platform.SwipeItem>, ISwipeItemMenuItemHandler
+public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuItem, SkiaSwipeItem>, ISwipeItemMenuItemHandler
 {
     public static IPropertyMapper<ISwipeItemMenuItem, ISwipeItemMenuItemHandler> Mapper =
         new PropertyMapper<ISwipeItemMenuItem, ISwipeItemMenuItemHandler>(ElementHandler.ElementMapper)
@@ -54,15 +50,15 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
 
     object ISwipeItemMenuItemHandler.PlatformView => PlatformView;
 
-    protected override Platform.SwipeItem CreatePlatformElement() => new SkiaSwipeItem();
+    protected override SkiaSwipeItem CreatePlatformElement() => new SkiaSwipeItem();
 
-    protected override void ConnectHandler(Platform.SwipeItem platformView)
+    protected override void ConnectHandler(SkiaSwipeItem platformView)
     {
         base.ConnectHandler(platformView);
         platformView.Invoked += OnInvoked;
     }
 
-    protected override void DisconnectHandler(Platform.SwipeItem platformView)
+    protected override void DisconnectHandler(SkiaSwipeItem platformView)
     {
         platformView.Invoked -= OnInvoked;
         base.DisconnectHandler(platformView);
@@ -76,7 +72,7 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
     }
 
     /// <summary>The Linux platform item of a swipe item handler (this one or a subclass).</summary>
-    private static Platform.SwipeItem? Item(ISwipeItemMenuItemHandler handler) => handler.PlatformView as Platform.SwipeItem;
+    private static SkiaSwipeItem? Item(ISwipeItemMenuItemHandler handler) => handler.PlatformView as SkiaSwipeItem;
 
     public static void MapText(ISwipeItemMenuItemHandler handler, ISwipeItemMenuItem item)
     {

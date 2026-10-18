@@ -4,8 +4,6 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -59,16 +57,11 @@ public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndica
     }
 
     /// <summary>MAUI's <c>MapIsRunning</c> signature; maps the property on a Linux <see cref="ActivityIndicatorHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsRunning(IActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
         if (handler is ActivityIndicatorHandler linuxHandler)
             MapIsRunningCore(linuxHandler, activityIndicator);
     }
-
-    [Obsolete("Use the IActivityIndicatorHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsRunning(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator) => MapIsRunningCore(handler, activityIndicator);
 
     /// <summary>It spins only while running and visible, as MAUI's handlers do on every platform.</summary>
     private static void MapIsRunningCore(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
@@ -85,16 +78,11 @@ public partial class ActivityIndicatorHandler : LinuxViewHandler<IActivityIndica
     }
 
     /// <summary>MAUI's <c>MapColor</c> signature; maps the property on a Linux <see cref="ActivityIndicatorHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapColor(IActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {
         if (handler is ActivityIndicatorHandler linuxHandler)
             MapColorCore(linuxHandler, activityIndicator);
     }
-
-    [Obsolete("Use the IActivityIndicatorHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapColor(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator) => MapColorCore(handler, activityIndicator);
 
     private static void MapColorCore(ActivityIndicatorHandler handler, IActivityIndicator activityIndicator)
     {

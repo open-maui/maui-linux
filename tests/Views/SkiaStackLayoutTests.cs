@@ -18,7 +18,7 @@ public class SkiaStackLayoutTests
         var layout = new SkiaStackLayout();
 
         // Assert
-        layout.MauiOrientation.Should().Be(Microsoft.Maui.Controls.StackOrientation.Vertical);
+        layout.Orientation.Should().Be(Microsoft.Maui.Controls.StackOrientation.Vertical);
         layout.Spacing.Should().Be(0);
         layout.Children.Should().BeEmpty();
     }
@@ -60,7 +60,7 @@ public class SkiaStackLayoutTests
         // Arrange
         var layout = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
             Spacing = 10
         };
         layout.AddChild(new SkiaButton { Text = "1" });
@@ -81,7 +81,7 @@ public class SkiaStackLayoutTests
         // Arrange
         var layout = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal,
             Spacing = 10
         };
         layout.AddChild(new SkiaButton { Text = "1" });
@@ -102,7 +102,7 @@ public class SkiaStackLayoutTests
         // Arrange
         var layout = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
             Spacing = 10
         };
         var button1 = new SkiaButton { Text = "1" };
@@ -124,7 +124,7 @@ public class SkiaStackLayoutTests
         // Arrange
         var layout = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal,
             Spacing = 10
         };
         var button1 = new SkiaButton { Text = "1" };
@@ -146,7 +146,7 @@ public class SkiaStackLayoutTests
         // Arrange
         var layout = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
             Padding = new Microsoft.Maui.Thickness(20, 20, 20, 20)
         };
         var button = new SkiaButton { Text = "Test" };
@@ -182,7 +182,7 @@ public class SkiaStackLayoutTests
     public void HitTest_ReturnsView()
     {
         // Arrange
-        var layout = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
+        var layout = new SkiaStackLayout { Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical };
         var button1 = new SkiaButton { Text = "1" };
         var button2 = new SkiaButton { Text = "2" };
         layout.AddChild(button1);

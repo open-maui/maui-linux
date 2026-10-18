@@ -192,7 +192,7 @@ The phases made OpenMaui fast and measurable; this round closes the places where
 |------|--------|
 | App handler registrations | Done: a handler the app or a library registers for a built-in control is used wherever its views are realized, resolved by type as MAUI does; one that cannot draw on Linux is reported and replaced by OpenMaui's |
 | MAUI's handler API | Done: the Linux handlers implement MAUI's `I<Control>Handler` interfaces (with working `ILayoutHandler` operations and `IImageHandler.SourceLoader`), every `Map*` method exists with MAUI's signature, and MAUI-style `UpdateX(platformView, view)` extensions exist for the Skia views |
-| Type names that clash with MAUI | Done: non-clashing replacements, the old names deprecated and removed in 11.0, and a test that fails on a new clash |
+| Type names that clash with MAUI | Done: the clashing names removed in 10.0.110.8 (a deliberate break, see VERSIONING.md): MAUI's own types where OpenMaui duplicated one, `Skia`/`Linux` names for its own; a test fails on a new clash |
 | Shell | Done: tabs in a Windows-style top navigation pane (a section's contents in a drop-down), MAUI's flyout item list and effective flyout behaviour, Scroll and CollapseOnScroll headers |
 | Items views | Done: CarouselView bounce, snap points and per-side peek; ListView in-place updates; touch reorder press-and-hold |
 | Window.TitleBar | Done: client-side decorations with a TitleBar on X11 and on Wayland compositors that agree to client-side mode |

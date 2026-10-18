@@ -4,8 +4,6 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -79,16 +77,11 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
     }
 
     /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapContent(IViewHandler handler, IScrollView scrollView)
     {
         if (handler is ScrollViewHandler linuxHandler)
             MapContentCore(linuxHandler, scrollView);
     }
-
-    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapContent(ScrollViewHandler handler, IScrollView scrollView) => MapContentCore(handler, scrollView);
 
     private static void MapContentCore(ScrollViewHandler handler, IScrollView scrollView)
     {
@@ -119,67 +112,47 @@ public partial class ScrollViewHandler : LinuxViewHandler<IScrollView, SkiaScrol
     }
 
     /// <summary>MAUI's <c>MapHorizontalScrollBarVisibility</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapHorizontalScrollBarVisibility(IViewHandler handler, IScrollView scrollView)
     {
         if (handler is ScrollViewHandler linuxHandler)
             MapHorizontalScrollBarVisibilityCore(linuxHandler, scrollView);
     }
 
-    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapHorizontalScrollBarVisibility(ScrollViewHandler handler, IScrollView scrollView) => MapHorizontalScrollBarVisibilityCore(handler, scrollView);
-
     private static void MapHorizontalScrollBarVisibilityCore(ScrollViewHandler handler, IScrollView scrollView)
     {
-        handler.PlatformView.MauiHorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility;
+        handler.PlatformView.HorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility;
     }
 
     /// <summary>MAUI's <c>MapVerticalScrollBarVisibility</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapVerticalScrollBarVisibility(IViewHandler handler, IScrollView scrollView)
     {
         if (handler is ScrollViewHandler linuxHandler)
             MapVerticalScrollBarVisibilityCore(linuxHandler, scrollView);
     }
 
-    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapVerticalScrollBarVisibility(ScrollViewHandler handler, IScrollView scrollView) => MapVerticalScrollBarVisibilityCore(handler, scrollView);
-
     private static void MapVerticalScrollBarVisibilityCore(ScrollViewHandler handler, IScrollView scrollView)
     {
-        handler.PlatformView.MauiVerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility;
+        handler.PlatformView.VerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility;
     }
 
     /// <summary>MAUI's <c>MapOrientation</c> signature; maps the property on a Linux <see cref="ScrollViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapOrientation(IViewHandler handler, IScrollView scrollView)
     {
         if (handler is ScrollViewHandler linuxHandler)
             MapOrientationCore(linuxHandler, scrollView);
     }
 
-    [Obsolete("Use the IViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapOrientation(ScrollViewHandler handler, IScrollView scrollView) => MapOrientationCore(handler, scrollView);
-
     private static void MapOrientationCore(ScrollViewHandler handler, IScrollView scrollView)
     {
-        handler.PlatformView.MauiOrientation = scrollView.Orientation;
+        handler.PlatformView.Orientation = scrollView.Orientation;
     }
 
     /// <summary>MAUI's <c>MapRequestScrollTo</c> signature; runs the command on a Linux <see cref="ScrollViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapRequestScrollTo(IScrollViewHandler handler, IScrollView scrollView, object? args)
     {
         if (handler is ScrollViewHandler linuxHandler)
             MapRequestScrollToCore(linuxHandler, scrollView, args);
     }
-
-    [Obsolete("Use the IScrollViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapRequestScrollTo(ScrollViewHandler handler, IScrollView scrollView, object? args) => MapRequestScrollToCore(handler, scrollView, args);
 
     private static void MapRequestScrollToCore(ScrollViewHandler handler, IScrollView scrollView, object? args)
     {

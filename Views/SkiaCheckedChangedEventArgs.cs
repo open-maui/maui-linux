@@ -14,9 +14,3 @@ public class SkiaCheckedChangedEventArgs : EventArgs
         IsChecked = isChecked;
     }
 }
-
-[Obsolete("Use SkiaCheckedChangedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class CheckedChangedEventArgs : SkiaCheckedChangedEventArgs
-{
-    public CheckedChangedEventArgs(bool isChecked) : base(isChecked) { }
-}

@@ -5,8 +5,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -65,16 +63,11 @@ public partial class ContentViewHandler : LinuxViewHandler<IContentView, SkiaCon
     }
 
     /// <summary>MAUI's <c>MapContent</c> signature; maps the property on a Linux <see cref="ContentViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapContent(IContentViewHandler handler, IContentView page)
     {
         if (handler is ContentViewHandler linuxHandler)
             MapContentCore(linuxHandler, page);
     }
-
-    [Obsolete("Use the IContentViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapContent(ContentViewHandler handler, IContentView contentView) => MapContentCore(handler, contentView);
 
     private static void MapContentCore(ContentViewHandler handler, IContentView contentView)
     {

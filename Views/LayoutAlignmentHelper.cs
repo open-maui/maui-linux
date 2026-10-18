@@ -3,15 +3,6 @@
 
 namespace Microsoft.Maui.Platform;
 
-[Obsolete("Use Microsoft.Maui.Primitives.LayoutAlignment; this type is removed in OpenMaui 11.0.")]
-public enum LayoutAlignment
-{
-    Fill,
-    Start,
-    Center,
-    End
-}
-
 /// <summary>
 /// Maps MAUI Controls LayoutAlignment (Start=0, Center=1, End=2, Fill=3)
 /// to Microsoft.Maui.Primitives.LayoutAlignment (Fill=0, Start=1, Center=2, End=3).
