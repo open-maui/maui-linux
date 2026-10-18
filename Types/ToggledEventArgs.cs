@@ -5,12 +5,18 @@ using System;
 
 namespace Microsoft.Maui.Platform;
 
-public class ToggledEventArgs : EventArgs
+public class SkiaToggledEventArgs : EventArgs
 {
     public bool Value { get; }
 
-    public ToggledEventArgs(bool value)
+    public SkiaToggledEventArgs(bool value)
     {
         Value = value;
     }
+}
+
+[Obsolete("Use SkiaToggledEventArgs; this type is removed in OpenMaui 11.0.")]
+public class ToggledEventArgs : SkiaToggledEventArgs
+{
+    public ToggledEventArgs(bool value) : base(value) { }
 }
