@@ -14,7 +14,9 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered button control matching the .NET MAUI Button API.
 /// </summary>
-public class SkiaButton : SkiaView, IButtonController
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+public class SkiaButton : SkiaView, ISkiaButtonController, IButtonController
+#pragma warning restore CS0618
 {
     #region BindableProperties
 
@@ -395,11 +397,17 @@ public class SkiaButton : SkiaView, IButtonController
 
     #endregion
 
-    #region IButtonController
+    #region ISkiaButtonController
 
+    void ISkiaButtonController.SendClicked() => OnClicked();
+    void ISkiaButtonController.SendPressed() => OnPressed();
+    void ISkiaButtonController.SendReleased() => OnReleased();
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     void IButtonController.SendClicked() => OnClicked();
     void IButtonController.SendPressed() => OnPressed();
     void IButtonController.SendReleased() => OnReleased();
+#pragma warning restore CS0618
 
     #endregion
 
@@ -1425,8 +1433,19 @@ public class ButtonContentLayout
 }
 
 /// <summary>
+/// Sends a Skia button's click, press and release (the members of MAUI's IButtonController).
+/// </summary>
+public interface ISkiaButtonController
+{
+    void SendClicked();
+    void SendPressed();
+    void SendReleased();
+}
+
+/// <summary>
 /// Interface for button controller (matches MAUI).
 /// </summary>
+[Obsolete("Use ISkiaButtonController; this type is removed in OpenMaui 11.0.")]
 public interface IButtonController
 {
     void SendClicked();

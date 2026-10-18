@@ -128,17 +128,17 @@ public class SkiaFlyoutPage : SkiaLayoutView
         set => _gestureEnabled = value;
     }
 
-    private FlyoutLayoutBehavior _flyoutLayoutBehavior = FlyoutLayoutBehavior.Default;
+    private Controls.FlyoutLayoutBehavior _flyoutLayoutBehavior = Controls.FlyoutLayoutBehavior.Default;
 
     /// <summary>
-    /// The flyout layout behavior. <see cref="FlyoutLayoutBehavior.Split"/>,
-    /// <see cref="FlyoutLayoutBehavior.SplitOnLandscape"/> and
-    /// <see cref="FlyoutLayoutBehavior.SplitOnPortrait"/> show the flyout
+    /// The flyout layout behavior. <see cref="Controls.FlyoutLayoutBehavior.Split"/>,
+    /// <see cref="Controls.FlyoutLayoutBehavior.SplitOnLandscape"/> and
+    /// <see cref="Controls.FlyoutLayoutBehavior.SplitOnPortrait"/> show the flyout
     /// side by side with the detail (desktop windows are treated as
-    /// landscape); <see cref="FlyoutLayoutBehavior.Popover"/> and
-    /// <see cref="FlyoutLayoutBehavior.Default"/> overlay it on demand.
+    /// landscape); <see cref="Controls.FlyoutLayoutBehavior.Popover"/> and
+    /// <see cref="Controls.FlyoutLayoutBehavior.Default"/> overlay it on demand.
     /// </summary>
-    public FlyoutLayoutBehavior FlyoutLayoutBehavior
+    public Controls.FlyoutLayoutBehavior MauiFlyoutLayoutBehavior
     {
         get => _flyoutLayoutBehavior;
         set
@@ -160,13 +160,23 @@ public class SkiaFlyoutPage : SkiaLayoutView
         }
     }
 
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>The flyout layout behavior; see <see cref="MauiFlyoutLayoutBehavior"/>.</summary>
+    [Obsolete("Use MauiFlyoutLayoutBehavior, which takes Microsoft.Maui.Controls.FlyoutLayoutBehavior; this property is removed in OpenMaui 11.0.")]
+    public FlyoutLayoutBehavior FlyoutLayoutBehavior
+    {
+        get => _flyoutLayoutBehavior.ToLegacy();
+        set => MauiFlyoutLayoutBehavior = value.ToMaui();
+    }
+#pragma warning restore CS0618
+
     /// <summary>
     /// True when the current layout behavior places the flyout beside the
     /// detail rather than over it.
     /// </summary>
-    public bool IsSplit => _flyoutLayoutBehavior is FlyoutLayoutBehavior.Split
-        or FlyoutLayoutBehavior.SplitOnLandscape
-        or FlyoutLayoutBehavior.SplitOnPortrait;
+    public bool IsSplit => _flyoutLayoutBehavior is Controls.FlyoutLayoutBehavior.Split
+        or Controls.FlyoutLayoutBehavior.SplitOnLandscape
+        or Controls.FlyoutLayoutBehavior.SplitOnPortrait;
 
     /// <summary>
     /// The horizontal offset of the detail content: the flyout width in
