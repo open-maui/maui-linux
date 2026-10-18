@@ -347,6 +347,32 @@ public class GoldenSceneTests
         second.Push(detail, animated: false);
         GoldenHarness.Verify("navigation-bar-title-view", second, 360, 120, scale);
     }
+
+    /// <summary>
+    /// Toolbar item badges (ToolbarItem.BadgeText, BadgeColor, BadgeTextColor) as MAUI's Windows
+    /// toolbar shows them, a WinUI InfoBadge over the item's top-right corner: a number in a pill
+    /// on the accent colour, a number in custom colours, and a dot for non-numeric text.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Scales))]
+    public void Navigation_bar_toolbar_item_badges(float scale)
+    {
+        using var icon = new SkiaSharp.SKBitmap(48, 48);
+        using (var c = new SkiaSharp.SKCanvas(icon))
+        {
+            c.Clear(SkiaSharp.SKColors.Transparent);
+            using var paint = new SkiaSharp.SKPaint { Color = new SkiaSharp.SKColor(0x30, 0x30, 0x30), IsAntialias = true, Style = SkiaSharp.SKPaintStyle.Stroke, StrokeWidth = 4 };
+            c.DrawRect(new SkiaSharp.SKRect(6, 10, 42, 38), paint);
+        }
+        var page = new SkiaContentPage { Title = "Inbox", Content = Label("Messages") };
+        page.ToolbarItems.Add(new SkiaToolbarItem { Text = "Mail", Icon = icon, BadgeText = "3" });
+        page.ToolbarItems.Add(new SkiaToolbarItem { Text = "Alerts", Icon = icon, BadgeText = "128", BadgeColor = Colors.Orange, BadgeTextColor = Colors.Black });
+        page.ToolbarItems.Add(new SkiaToolbarItem { Text = "News", BadgeText = "new", BadgeColor = Colors.Red });
+
+        // A light bar, as Windows' default toolbar, so the accent badge shows.
+        var navigation = new SkiaNavigationPage(page) { BarBackgroundColor = Colors.WhiteSmoke, BarTextColor = Colors.Black };
+        GoldenHarness.Verify("navigation-bar-badges", navigation, 360, 100, scale);
+    }
 }
 
 internal static class GoldenExtensions

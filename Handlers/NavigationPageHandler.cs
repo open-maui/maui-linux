@@ -87,6 +87,8 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         foreach (var toolbar in _toolbarSubscriptions.Values)
             toolbar.Items.CollectionChanged -= toolbar.Handler;
         _toolbarSubscriptions.Clear();
+        foreach (var page in _toolbarBadgeWatches.Keys.ToList())
+            ReleaseToolbarBadges(page);
 
         if (VirtualView != null)
         {
@@ -169,6 +171,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             DiagnosticLog.Debug("NavigationPageHandler", $"MapToolbarItems for '{page.Title}', count={page.ToolbarItems.Count}");
 
             ReleaseToolbarIcons(contentPage);
+            ReleaseToolbarBadges(contentPage);
             contentPage.ToolbarItems.Clear();
             foreach (var item in page.ToolbarItems)
             {
@@ -203,6 +206,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
                     Command = clickCommand
                 };
                 contentPage.ToolbarItems.Add(skiaItem);
+                WatchToolbarBadge(contentPage, item, skiaItem);
                 if (item.IconImageSource is { IsEmpty: false } iconSource)
                     _ = LoadToolbarIconAsync(contentPage, skiaItem, iconSource);
             }
@@ -260,6 +264,46 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         {
             DiagnosticLog.Error("NavigationPageHandler", $"Loading the toolbar icon of '{skiaItem.Text}' failed", ex);
         }
+    }
+
+    /// <summary>The items whose badges each page's bar follows, released when its items are mapped again.</summary>
+    private readonly Dictionary<SkiaContentPage, List<(ToolbarItem Item, System.ComponentModel.PropertyChangedEventHandler Handler)>> _toolbarBadgeWatches = new();
+
+    /// <summary>
+    /// The item's badge (BadgeText, BadgeColor, BadgeTextColor) on its bar item, followed as it
+    /// changes, as MAUI's Windows toolbar updates its InfoBadge.
+    /// </summary>
+    private void WatchToolbarBadge(SkiaContentPage page, ToolbarItem item, SkiaToolbarItem skiaItem)
+    {
+        ApplyToolbarBadge(item, skiaItem);
+        System.ComponentModel.PropertyChangedEventHandler handler = (s, e) =>
+        {
+            if (e.PropertyName is nameof(ToolbarItem.BadgeText) or nameof(ToolbarItem.BadgeColor) or nameof(ToolbarItem.BadgeTextColor))
+            {
+                ApplyToolbarBadge(item, skiaItem);
+                page.Invalidate();
+                PlatformView?.Invalidate();
+            }
+        };
+        item.PropertyChanged += handler;
+        if (!_toolbarBadgeWatches.TryGetValue(page, out var watches))
+            _toolbarBadgeWatches[page] = watches = new();
+        watches.Add((item, handler));
+    }
+
+    internal static void ApplyToolbarBadge(ToolbarItem item, SkiaToolbarItem skiaItem)
+    {
+        skiaItem.BadgeText = item.BadgeText;
+        skiaItem.BadgeColor = item.BadgeColor;
+        skiaItem.BadgeTextColor = item.BadgeTextColor;
+    }
+
+    private void ReleaseToolbarBadges(SkiaContentPage page)
+    {
+        if (!_toolbarBadgeWatches.Remove(page, out var watches))
+            return;
+        foreach (var (item, handler) in watches)
+            item.PropertyChanged -= handler;
     }
 
     private void ReleaseToolbarIcons(SkiaContentPage page)
@@ -475,7 +519,11 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             _barSubscriptions.Remove(page);
             ReleaseTitleIcon(page);
             if (_toolbarSubscriptions.Remove(page, out var toolbar))
+            {
                 toolbar.Items.CollectionChanged -= toolbar.Handler;
+                if (toolbar.Page is SkiaContentPage contentPage)
+                    ReleaseToolbarBadges(contentPage);
+            }
         }
     }
 
@@ -488,6 +536,7 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
             || e.PropertyName == NavigationPage.TitleViewProperty.PropertyName
             || e.PropertyName == NavigationPage.TitleIconImageSourceProperty.PropertyName
             || e.PropertyName == NavigationPage.IconColorProperty.PropertyName
+            || e.PropertyName == NavigationPage.BackButtonAccessibilityLabelProperty.PropertyName
             || e.PropertyName == Page.TitleProperty.PropertyName)
         {
             ApplyPageBar(page);
@@ -516,7 +565,11 @@ public partial class NavigationPageHandler : LinuxViewHandler<NavigationPage, Sk
         int index = -1;
         for (int i = 0; i < stack.Count; i++)
             if (ReferenceEquals(stack[i], page)) { index = i; break; }
-        skiaPage.BackButtonTitle = index > 0 && stack[index - 1] is Page previous ? NavigationPage.GetBackButtonTitle(previous) : null;
+        var beneath = index > 0 ? stack[index - 1] as Page : null;
+        skiaPage.BackButtonTitle = beneath != null ? NavigationPage.GetBackButtonTitle(beneath) : null;
+        // The back button's accessible name is the page's own NavigationPage.BackButtonAccessibilityLabel:
+        // MAUI's NavigationPageToolbar reads it from the top of the navigation stack, the page shown.
+        skiaPage.BackButtonAccessibilityLabel = NavigationPage.GetBackButtonAccessibilityLabel(page);
         skiaPage.InvalidateMeasure();
         skiaPage.Invalidate();
         PlatformView?.Invalidate();
