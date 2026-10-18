@@ -197,7 +197,8 @@ The phases made OpenMaui fast and measurable; this round closes the places where
 | Items views | Done: CarouselView bounce, snap points and per-side peek; ListView in-place updates; touch reorder press-and-hold |
 | Window.TitleBar | Done: client-side decorations with a TitleBar on X11 and on Wayland compositors that agree to client-side mode |
 | SecureStorage | Done: one long-lived Secret Service D-Bus session, consistent under concurrency on KDE's ksecretd |
-| Open | XInput2 touch on X11 (touch is seen as a mouse there); Shell SearchHandler (no search box); a fixed flyout header with `Shell.FlyoutContent`; `ApplicationHandler.MapActivateWindow` (backends cannot activate a window); HybridWebView `WebResourceRequested` for http(s) and MediaElement segment headers (WebKit and GStreamer limits); Contacts on KDE (no Evolution Data Server) |
+| Also done | XInput2 touch on X11; `Application.ActivateWindow` (X11 `_NET_ACTIVE_WINDOW`, Wayland `xdg_activation_v1`, GTK `gtk_window_present`) with X11/Wayland startup notification; Shell `SearchHandler` (Windows' search box in the top pane); HybridWebView `WebResourceRequested` for http and https (through a per-view loopback proxy); MediaElement headers on HLS/DASH segments; Contacts from KDE's file-based Akonadi and KPeople stores |
+| Open | Touch in GTK host mode (no source device); pen on X11; MediaElement headers on an HLS master playlist's media playlist (no GStreamer hook); Contacts from Akonadi's database-only resources (CardDAV, Google, EWS); HybridWebView interception for a handler added after the view exists |
 
 ### Not prioritised
 

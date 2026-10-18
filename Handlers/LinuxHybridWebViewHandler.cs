@@ -18,8 +18,9 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// app's <c>Resources/Raw/{HybridRoot}</c> (<c>DefaultFile</c> for the root), with MAUI's own
 /// <c>_framework/hybridwebview.js</c>; <c>SendRawMessage</c>, <c>RawMessageReceived</c>,
 /// <c>InvokeJavaScriptAsync</c>, <c>window.HybridWebView.InvokeDotNet</c>,
-/// <c>EvaluateJavaScriptAsync</c>, <c>WebResourceRequested</c> (for requests to the app origin;
-/// WebKit, as on iOS, cannot intercept http and https), <c>WebViewInitializing</c> and
+/// <c>EvaluateJavaScriptAsync</c>, <c>WebResourceRequested</c> (for requests to the app origin,
+/// and, as on Windows, for http and https requests when the app handles the event by the time the
+/// handler creates the view; see <see cref="HybridWebViewHttpInterception"/>), <c>WebViewInitializing</c> and
 /// <c>WebViewInitialized</c> behave as there. <c>AddHybridWebViewDeveloperTools()</c> turns on
 /// WebKit's inspector. <see cref="Browser"/> is the view's <see cref="ILinuxWebView"/>.
 /// </summary>
@@ -39,6 +40,7 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
     private HybridWebViewBridge? _bridge;
     private IDisposable? _schemeRegistration;
     private IDisposable? _messageRegistration;
+    private HybridWebViewHttpInterception? _httpInterception;
 
     public LinuxHybridWebViewHandler() : base(Mapper, CommandMapper)
     {
@@ -65,11 +67,36 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
         SkiaView view;
         if (WebViewBackend.Resolve() == WebViewBackend.Kind.Wpe)
         {
-            view = new WpeWebView();
+            // An app that handles WebResourceRequested gets http and https requests too: the
+            // view then has a network of its own, behind the interception proxy.
+            _httpInterception = HybridWebViewHttpInterception.TryCreate(VirtualView,
+                WebKitContentApi.For(WpeNative.LibWpeWebKit, WebKitContentApi.Flavor.Modern));
+            try
+            {
+                view = new WpeWebView(_httpInterception?.Network ?? IntPtr.Zero);
+            }
+            catch
+            {
+                _httpInterception?.Dispose(viewAlive: false);
+                _httpInterception = null;
+                throw;
+            }
         }
         else
         {
-            _gtkView = new GtkWebViewPlatformView();
+            if (WebKitNative.Initialize() && WebKitNative.LoadedLibraryName is { } library)
+                _httpInterception = HybridWebViewHttpInterception.TryCreate(VirtualView,
+                    WebKitContentApi.For(library, WebKitContentApi.Flavor.WebKitGtk41));
+            try
+            {
+                _gtkView = new GtkWebViewPlatformView(_httpInterception?.Network ?? IntPtr.Zero);
+            }
+            catch
+            {
+                _httpInterception?.Dispose(viewAlive: false);
+                _httpInterception = null;
+                throw;
+            }
             _gtkHostLink = new GtkWebViewHostLink(_gtkView);
             view = new GtkWebViewProxy(_gtkView, _gtkHostLink);
         }
@@ -104,6 +131,20 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
             DiagnosticLog.Error("HybridWebView", "Connecting the app scheme and message bridge failed", ex);
         }
 
+        if (_httpInterception != null)
+        {
+            try
+            {
+                _httpInterception.Attach(browser);
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Error("HybridWebView", "Starting http and https interception failed: WebResourceRequested is raised for the app origin only", ex);
+                _httpInterception.Dispose();
+                _httpInterception = null;
+            }
+        }
+
         RaiseInitializationCompleted();
         browser.Navigate(HybridWebViewBridge.AppOrigin);
     }
@@ -116,6 +157,9 @@ public class LinuxHybridWebViewHandler : LinuxViewHandler<IHybridWebView, SkiaVi
         _messageRegistration = null;
         _schemeRegistration?.Dispose();
         _schemeRegistration = null;
+        // Before the native view goes: the interception disconnects from it.
+        _httpInterception?.Dispose(viewAlive: _gtkView == null || _gtkView.Widget != IntPtr.Zero);
+        _httpInterception = null;
 
         if (_gtkView != null)
         {

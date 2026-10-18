@@ -30,8 +30,15 @@ public partial class SkiaShell
     /// <summary>The top navigation pane (a view of its own so it takes keyboard focus and is read by assistive technology).</summary>
     internal ShellTopNavigationView TopNavigation => _topNavigation ??= new ShellTopNavigationView(this);
 
-    /// <summary>Closes an open tab drop-down (the Shell's handler disconnects, so its window may be closing).</summary>
-    internal void CloseTopNavigationDropDown() => _topNavigation?.CloseDropDown();
+    /// <summary>
+    /// Closes an open tab drop-down and the search box's suggestion list (the Shell's handler
+    /// disconnects, so its window may be closing: their popup overlays are unregistered).
+    /// </summary>
+    internal void CloseTopNavigationDropDown()
+    {
+        _topNavigation?.CloseDropDown();
+        _searchBox?.CloseList();
+    }
 
     /// <summary>
     /// The pane is shown (WinUI's Top pane display mode): with a MAUI Shell, as Windows'
@@ -83,11 +90,7 @@ public partial class SkiaShell
     }
 
     /// <summary>A SearchHandler applies to the presented page (Windows shows the pane for its search box).</summary>
-    private bool HasSearchHandler(Microsoft.Maui.Controls.ShellItem item)
-    {
-        Element? element = DisplayedMauiPage(item.CurrentItem) ?? (Element?)item.CurrentItem?.CurrentItem;
-        return EffectiveShellValue<SearchHandler?>(element, Shell.SearchHandlerProperty, null) != null;
-    }
+    private bool HasSearchHandler(Microsoft.Maui.Controls.ShellItem item) => EffectiveSearchHandler(item) != null;
 
     /// <summary>The page the section presents: the top of its stack, else its content's page (Shell.GetCurrentShellPage).</summary>
     private static Microsoft.Maui.Controls.Page? DisplayedMauiPage(Microsoft.Maui.Controls.ShellSection? section)
@@ -244,6 +247,7 @@ public partial class SkiaShell
         {
             pane.CloseDropDown();
         }
+        ArrangeSearchBox();
         if (shown != _topPaneWasShown)
         {
             _topPaneWasShown = shown;
@@ -256,13 +260,20 @@ public partial class SkiaShell
     {
         if (IsTopPaneShown && _topNavigation is { } pane && pane.Bounds.Width > 0 && pane.Bounds.Height > 0)
             yield return pane;
+        // The search box follows the tabs, as WinUI's AutoSuggestBox follows the top pane's items.
+        if (IsSearchBoxShown && _searchBox is { IsEnabled: true } box && box.Bounds.Width > 0 && box.Bounds.Height > 0)
+            yield return box.Entry;
     }
 
     protected override List<IAccessible> GetAccessibleChildren()
     {
         var children = base.GetAccessibleChildren();
         if (IsTopPaneShown)
+        {
             children.Insert(0, TopNavigation);
+            if (IsSearchBoxShown)
+                children.Insert(1, SearchBox);
+        }
         return children;
     }
 
@@ -512,7 +523,9 @@ public partial class SkiaShell
             _slotRects.Clear();
             _parts.Clear();
 
-            var pane = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right, (float)Bounds.Bottom);
+            // The search box takes the pane's right end (WinUI's AutoSuggestBox area); the tabs get the rest.
+            float searchArea = _shell.SearchAreaWidth((float)Bounds.Width);
+            var pane = new SKRect((float)Bounds.Left, (float)Bounds.Top, (float)Bounds.Right - searchArea, (float)Bounds.Bottom);
             using var font = SkiaFontFactory.Create(FontSize);
             var widths = _items.Select(i => ItemWidth(font, i)).ToArray();
 

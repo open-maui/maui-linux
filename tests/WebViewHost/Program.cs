@@ -49,6 +49,7 @@ public static partial class Program
         ["hybrid-invoke-javascript"] = HybridInvokeJavaScript,
         ["hybrid-invoke-dotnet"] = HybridInvokeDotNet,
         ["hybrid-web-resource-requested"] = HybridWebResourceRequested,
+        ["hybrid-web-resource-requested-http"] = HybridWebResourceRequestedHttp,
         ["scheme-fallback-and-per-view-routing"] = SchemeFallbackAndPerViewRouting,
     };
 
