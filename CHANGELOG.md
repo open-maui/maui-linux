@@ -37,7 +37,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
 - **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
 
-## [10.0.110.10] - unreleased
+## [10.0.110.10] - 2026-10-18
 
 ### Changed
 
