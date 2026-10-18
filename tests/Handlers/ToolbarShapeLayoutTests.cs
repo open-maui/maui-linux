@@ -94,8 +94,8 @@ public class ToolbarShapeLayoutTests
         // A virtualising list realises one item per visible row; offered
         // infinite height it realises them all.
         var grid = new SkiaGrid();
-        grid.RowDefinitions.Add(Microsoft.Maui.Platform.GridLength.Auto);
-        grid.RowDefinitions.Add(Microsoft.Maui.Platform.GridLength.Star);
+        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Auto);
+        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
         var header = new HeightProbe();
         var list = new HeightProbe();
         grid.AddChild(header, 0, 0);

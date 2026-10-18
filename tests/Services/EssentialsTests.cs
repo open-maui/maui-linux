@@ -840,6 +840,9 @@ public class EssentialsTests
         capture.Launches.Should().BeEmpty();
     }
 
+    // The legacy static facade is obsolete (Microsoft.Maui.ApplicationModel.Browser replaces it);
+    // it keeps working until OpenMaui 11.0.
+#pragma warning disable CS0618
     [Fact]
     public async Task Browser_StaticFacade_ForwardsToDefault()
     {
@@ -857,6 +860,7 @@ public class EssentialsTests
         }
         finally { Microsoft.Maui.Platform.Linux.Services.Browser.Default = original; }
     }
+#pragma warning restore CS0618
 
     #endregion
 

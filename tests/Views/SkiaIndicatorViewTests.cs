@@ -16,7 +16,7 @@ public class SkiaIndicatorViewTests
 
         Assert.Equal(0, indicator.Count);
         Assert.Equal(0, indicator.Position);
-        Assert.Equal(IndicatorShape.Circle, indicator.IndicatorShape);
+        Assert.Equal(SkiaIndicatorShape.Circle, indicator.IndicatorsShape);
     }
 
     [Fact]
@@ -117,9 +117,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorShape = IndicatorShape.Square;
+        indicator.IndicatorsShape = SkiaIndicatorShape.Square;
 
-        Assert.Equal(IndicatorShape.Square, indicator.IndicatorShape);
+        Assert.Equal(SkiaIndicatorShape.Square, indicator.IndicatorsShape);
     }
 
     [Fact]
@@ -127,9 +127,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorShape = IndicatorShape.RoundedSquare;
+        indicator.IndicatorsShape = SkiaIndicatorShape.RoundedSquare;
 
-        Assert.Equal(IndicatorShape.RoundedSquare, indicator.IndicatorShape);
+        Assert.Equal(SkiaIndicatorShape.RoundedSquare, indicator.IndicatorsShape);
     }
 
     [Fact]
@@ -137,9 +137,9 @@ public class SkiaIndicatorViewTests
     {
         var indicator = new SkiaIndicatorView();
 
-        indicator.IndicatorShape = IndicatorShape.Diamond;
+        indicator.IndicatorsShape = SkiaIndicatorShape.Diamond;
 
-        Assert.Equal(IndicatorShape.Diamond, indicator.IndicatorShape);
+        Assert.Equal(SkiaIndicatorShape.Diamond, indicator.IndicatorsShape);
     }
 
     [Fact]
@@ -264,9 +264,9 @@ public class IndicatorShapeTests
     [Fact]
     public void AllShapesAreDefined()
     {
-        Assert.Equal(IndicatorShape.Circle, (IndicatorShape)0);
-        Assert.Equal(IndicatorShape.Square, (IndicatorShape)1);
-        Assert.Equal(IndicatorShape.RoundedSquare, (IndicatorShape)2);
-        Assert.Equal(IndicatorShape.Diamond, (IndicatorShape)3);
+        Assert.Equal(SkiaIndicatorShape.Circle, (SkiaIndicatorShape)0);
+        Assert.Equal(SkiaIndicatorShape.Square, (SkiaIndicatorShape)1);
+        Assert.Equal(SkiaIndicatorShape.RoundedSquare, (SkiaIndicatorShape)2);
+        Assert.Equal(SkiaIndicatorShape.Diamond, (SkiaIndicatorShape)3);
     }
 }
