@@ -108,14 +108,6 @@ namespace Microsoft.Maui.DeviceTests
 			if (s_untaggedHardware.TryGetValue(simple + "." + method, out var untagged) && !untagged.Present())
 				return $"This machine has {untagged.Missing}.";
 
-			// MAUI skips these two on Windows and Mac Catalyst. On Linux they run against the
-			// session's Secret Service, or the encrypted-file store when there is none (CI).
-			if (simple == "SecureStorage_Tests" && method is "Set_Get_Async_MultipleTimes" or "Set_Get_Remove_Async_MultipleTimes"
-				&& SecretService.Daemon() == "ksecretd")
-				return "The session's Secret Service is KDE's ksecretd, which under 100 concurrent store/lookup/clear calls acknowledges " +
-					"writes before reads see them and briefly returns cleared items (one secret-tool call at a time from this process; " +
-					"the same tests pass against the encrypted-file store). MAUI skips these two tests on Windows and Mac Catalyst as well.";
-
 			// Geocoding is an online service on every platform (Bing Maps, Google, Apple; on
 			// Linux Nominatim). Without network access to it, the tests cannot run.
 			if (simple == "Geocoding_Tests" && GeocodingReachability.Unreachable() is string unreachable)
@@ -233,43 +225,6 @@ namespace Microsoft.Maui.DeviceTests
 			catch (Exception ex)
 			{
 				return s_result = $"cannot connect to {uri.Host}:{uri.Port}: {ex.GetBaseException().Message}";
-			}
-		}
-	}
-
-	/// <summary>Which program owns org.freedesktop.secrets on the session bus (null: none, or unknown).</summary>
-	static class SecretService
-	{
-		static string s_daemon;
-		static bool s_checked;
-
-		public static string Daemon()
-		{
-			if (s_checked)
-				return s_daemon;
-			s_checked = true;
-			try
-			{
-				var psi = new System.Diagnostics.ProcessStartInfo("busctl")
-				{
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					UseShellExecute = false,
-				};
-				foreach (var arg in new[] { "--user", "call", "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "GetConnectionUnixProcessID", "s", "org.freedesktop.secrets" })
-					psi.ArgumentList.Add(arg);
-				using var process = System.Diagnostics.Process.Start(psi);
-				var output = process.StandardOutput.ReadToEnd();
-				process.WaitForExit(10000);
-				// "u 1234"
-				var parts = output.Trim().Split(' ');
-				if (process.ExitCode != 0 || parts.Length != 2 || !int.TryParse(parts[1], out var pid))
-					return s_daemon = null;
-				return s_daemon = System.IO.File.ReadAllText($"/proc/{pid}/comm").Trim();
-			}
-			catch (Exception)
-			{
-				return s_daemon = null;
 			}
 		}
 	}

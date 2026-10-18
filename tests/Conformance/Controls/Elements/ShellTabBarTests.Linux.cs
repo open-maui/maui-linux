@@ -10,8 +10,11 @@ using Xunit.Sdk;
 
 namespace Microsoft.Maui.DeviceTests
 {
-	// Linux counterpart of ShellTabBarTests.Windows.cs / .Android.cs: the bottom tab bar
-	// SkiaShell draws for the current ShellItem's sections (an icon above a title per tab).
+	// Linux counterpart of ShellTabBarTests.Windows.cs: as on Windows, SkiaShell shows the current
+	// ShellItem's sections as tabs in a top navigation pane (WinUI's NavigationView in Top mode,
+	// an icon beside a title per tab, coloured as ShellItemHandler.UpdateAppearance colours them).
+	// SkiaShell.TabBarItemBounds gives the icon and title of the tab standing for a section (its
+	// own, or its content's for the section MAUI made around a bare ShellContent).
 	public partial class ShellTests
 	{
 		Task ValidateTabBarIconColor(Microsoft.Maui.Controls.ShellSection item, Color iconColor, bool hasColor) =>

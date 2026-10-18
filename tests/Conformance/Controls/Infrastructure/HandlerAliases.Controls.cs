@@ -6,12 +6,12 @@
 // The Core suite declares subclasses of the Linux handlers under MAUI's names
 // (../../Infrastructure/HandlerAliases.cs); that cannot work for Controls
 // views in a window. OpenMaui realizes a page's views itself
-// (MauiHandlerExtensions.ToHandler: a fixed Controls-type -> Linux-handler map
-// that does not consult the app's handler registrations for the built-in
-// types), so a Label inside a hosted page always gets
-// Microsoft.Maui.Platform.Linux.Handlers.LabelHandler, never a subclass a test
-// registered, and MAUI's `CreateHandlerAndAddToWindow<LabelHandler>` would not
-// find its handler. Aliasing the names to the exact Linux types makes MAUI's
+// (MauiHandlerExtensions.ToHandler), using the handler the app registered for a
+// type when that handler makes a Skia view, and otherwise its own Linux handler:
+// a test's registration of MAUI's portable LabelHandler would be replaced by
+// Microsoft.Maui.Platform.Linux.Handlers.LabelHandler, and MAUI's
+// `CreateHandlerAndAddToWindow<LabelHandler>` would not find its handler.
+// Aliasing the names to the exact Linux types makes MAUI's
 // registrations (handlers.AddHandler<Label, LabelHandler>()), its casts and its
 // generic constraints all mean "the handler an OpenMaui app gets".
 //

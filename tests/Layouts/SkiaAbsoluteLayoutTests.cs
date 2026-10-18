@@ -7,10 +7,11 @@ using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Handlers;
 using SkiaSharp;
 using Xunit;
+// MAUI's flags; OpenMaui's obsolete duplicate in Microsoft.Maui.Platform shares the name until 11.0.
+using AbsoluteLayoutFlags = Microsoft.Maui.Layouts.AbsoluteLayoutFlags;
 
 namespace Microsoft.Maui.Controls.Linux.Tests.Layouts;
 
-using AbsoluteLayoutFlags = Microsoft.Maui.Platform.AbsoluteLayoutFlags;
 
 /// <summary>
 /// AbsoluteLayout: absolute and proportional bounds and flags. Until
