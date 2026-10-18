@@ -393,7 +393,7 @@ public class FormattedTextTests
     [MemberData(nameof(Scales))]
     public void Formatted_text_golden(float scale)
     {
-        var root = new SkiaStackLayout { Orientation = Microsoft.Maui.Platform.StackOrientation.Vertical, Spacing = 8, Padding = new Thickness(12) };
+        var root = new SkiaStackLayout { MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical, Spacing = 8, Padding = new Thickness(12) };
         root.AddChild(new SkiaLabel
         {
             FontSize = 16,
