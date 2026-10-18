@@ -1717,19 +1717,56 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
 /// <summary>
 /// Event args for pointer events.
 /// </summary>
-public class PointerEventArgs : EventArgs
+public class SkiaPointerEventArgs : EventArgs
 {
     public float X { get; }
     public float Y { get; }
     public PointerButton Button { get; }
     public bool Handled { get; set; }
 
-    public PointerEventArgs(float x, float y, PointerButton button = PointerButton.None)
+    public SkiaPointerEventArgs(float x, float y, PointerButton button = PointerButton.None)
     {
         X = x;
         Y = y;
         Button = button;
     }
+
+    /// <summary>
+    /// The kind of device that sent the event: <see cref="PointerDeviceKind.Mouse"/> (the
+    /// default, also for a touchpad), or <see cref="PointerDeviceKind.Touch"/> when the display
+    /// backend delivers a touchscreen contact as such (Wayland's wl_touch). A view that behaves
+    /// differently for touch, as WinUI does (a list's reorder drag waits for a press-and-hold),
+    /// reads it.
+    /// </summary>
+    public PointerDeviceKind PointerDeviceType { get; init; } = PointerDeviceKind.Mouse;
+
+    /// <summary>The same event at another point (a view's own space), from the same device.</summary>
+    internal PointerEventArgs At(float x, float y) => new(x, y, Button) { PointerDeviceType = PointerDeviceType };
+}
+
+/// <summary>The kind of device a pointer event comes from (WinUI's PointerDeviceType).</summary>
+public enum PointerDeviceKind
+{
+    /// <summary>A mouse, or a touchpad driving the pointer.</summary>
+    Mouse = 0,
+
+    /// <summary>A finger on a touchscreen.</summary>
+    Touch = 1,
+
+    /// <summary>A pen or stylus.</summary>
+    Pen = 2,
+}
+
+/// <summary>
+/// Event args for pointer events: the type <see cref="SkiaView"/>'s pointer events
+/// and <c>OnPointer*</c> overrides carry. Its name is also a MAUI Controls type; code
+/// that handles the events can name <see cref="SkiaPointerEventArgs"/> instead. Not
+/// marked obsolete in 10.0.110.x because the virtual <c>OnPointer*</c> methods, which
+/// subclasses override, take this type; OpenMaui 11.0 replaces it.
+/// </summary>
+public class PointerEventArgs : SkiaPointerEventArgs
+{
+    public PointerEventArgs(float x, float y, PointerButton button = PointerButton.None) : base(x, y, button) { }
 }
 
 /// <summary>A pointer event as routed to a view (<see cref="SkiaView.PointerRouted"/>).</summary>
@@ -1744,7 +1781,7 @@ public sealed class RoutedPointerEventArgs : EventArgs
     /// <summary>Which stage of the pointer interaction this is.</summary>
     public SkiaView.RoutedPointerKind Kind { get; }
 
-    /// <summary>The event, in window-logical coordinates; <see cref="PointerEventArgs.Handled"/> is shared with the view's own handling.</summary>
+    /// <summary>The event, in window-logical coordinates; <see cref="SkiaPointerEventArgs.Handled"/> is shared with the view's own handling.</summary>
     public PointerEventArgs Pointer { get; }
 }
 

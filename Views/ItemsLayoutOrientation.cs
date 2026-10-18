@@ -6,6 +6,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Layout orientation for items.
 /// </summary>
+[Obsolete("Use Microsoft.Maui.Controls.ItemsLayoutOrientation; this type is removed in OpenMaui 11.0.")]
 public enum ItemsLayoutOrientation
 {
     Vertical,

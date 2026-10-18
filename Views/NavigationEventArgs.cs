@@ -5,12 +5,18 @@ using System;
 
 namespace Microsoft.Maui.Platform;
 
-public class NavigationEventArgs : EventArgs
+public class SkiaNavigationEventArgs : EventArgs
 {
     public SkiaPage Page { get; }
 
-    public NavigationEventArgs(SkiaPage page)
+    public SkiaNavigationEventArgs(SkiaPage page)
     {
         Page = page;
     }
+}
+
+[Obsolete("Use SkiaNavigationEventArgs; this type is removed in OpenMaui 11.0.")]
+public class NavigationEventArgs : SkiaNavigationEventArgs
+{
+    public NavigationEventArgs(SkiaPage page) : base(page) { }
 }
