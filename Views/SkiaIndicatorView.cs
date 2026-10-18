@@ -115,9 +115,22 @@ public class SkiaIndicatorView : SkiaView
     public double IndicatorSpacing { get; set; } = 8.0;
 
     /// <summary>
+    /// Gets or sets the indicator shape (MAUI's IndicatorView.IndicatorsShape, plus OpenMaui's
+    /// RoundedSquare and Diamond).
+    /// </summary>
+    public SkiaIndicatorShape IndicatorsShape { get; set; } = SkiaIndicatorShape.Circle;
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>
     /// Gets or sets the indicator shape.
     /// </summary>
-    public IndicatorShape IndicatorShape { get; set; } = IndicatorShape.Circle;
+    [Obsolete("Use IndicatorsShape, which takes SkiaIndicatorShape; this property is removed in OpenMaui 11.0.")]
+    public IndicatorShape IndicatorShape
+    {
+        get => (IndicatorShape)(int)IndicatorsShape;
+        set => IndicatorsShape = (SkiaIndicatorShape)(int)value;
+    }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Gets or sets whether indicators should have a border.
@@ -236,9 +249,9 @@ public class SkiaIndicatorView : SkiaView
     {
         float radius = size / 2;
 
-        switch (IndicatorShape)
+        switch (IndicatorsShape)
         {
-            case IndicatorShape.Circle:
+            case SkiaIndicatorShape.Circle:
                 canvas.DrawCircle(x, y, radius, fillPaint);
                 if (ShowBorder)
                 {
@@ -246,7 +259,7 @@ public class SkiaIndicatorView : SkiaView
                 }
                 break;
 
-            case IndicatorShape.Square:
+            case SkiaIndicatorShape.Square:
                 var rect = new SKRect(x - radius, y - radius, x + radius, y + radius);
                 canvas.DrawRect(rect, fillPaint);
                 if (ShowBorder)
@@ -255,7 +268,7 @@ public class SkiaIndicatorView : SkiaView
                 }
                 break;
 
-            case IndicatorShape.RoundedSquare:
+            case SkiaIndicatorShape.RoundedSquare:
                 var roundRect = new SKRect(x - radius, y - radius, x + radius, y + radius);
                 float cornerRadius = radius * 0.3f;
                 canvas.DrawRoundRect(roundRect, cornerRadius, cornerRadius, fillPaint);
@@ -265,7 +278,7 @@ public class SkiaIndicatorView : SkiaView
                 }
                 break;
 
-            case IndicatorShape.Diamond:
+            case SkiaIndicatorShape.Diamond:
                 using (var path = new SKPath())
                 {
                     path.MoveTo(x, y - radius);

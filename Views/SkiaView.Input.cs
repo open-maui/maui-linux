@@ -53,7 +53,7 @@ public abstract partial class SkiaView
         var p = ToWindow(e.X, e.Y);
         if (p.X == e.X && p.Y == e.Y)
             return e;
-        return new PointerEventArgs(p.X, p.Y, e.Button) { Handled = e.Handled };
+        return new PointerEventArgs(p.X, p.Y, e.Button) { Handled = e.Handled, PointerDeviceType = e.PointerDeviceType };
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Microsoft.Maui.Controls.Element, object> s_pointerBubbleBoundaries = new();
