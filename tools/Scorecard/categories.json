@@ -986,10 +986,12 @@
         "notes": "net8.0/net9.0 assets only; the generic build has no image service or CachedImage handler."
       },
       {
-        "name": "Mopups",
-        "version": "1.3.4",
-        "tests": [],
-        "notEvaluated": "Popup coverage uses CommunityToolkit.Maui Popup (the task picks one popup library); Mopups ships net8.0 assets only."
+        "name": "MarketAlly.Mopups (Mopups fork)",
+        "version": "3.0.12",
+        "tests": [
+          "MarketAllyMopupsCompatTests"
+        ],
+        "notEvaluated": "The published 3.0.12 presents popups as modal pages on generic net10.0: it was built without the change that takes the IPopupPlatform OpenMaui registers (popups as window layers, click-through backgrounds, no Disappearing on the page beneath). MarketAllyMopupsCompatTests (7 tests) are ready and skipped until the release that includes it."
       },
       {
         "name": "Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler, DataGrid, ImageEditor, PullToRefresh, Toolbar)",

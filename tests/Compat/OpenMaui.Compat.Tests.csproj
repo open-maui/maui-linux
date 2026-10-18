@@ -58,6 +58,8 @@
     <PackageReference Include="Syncfusion.Maui.DataGrid" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.ImageEditor" Version="34.2.9" />
     <PackageReference Include="Syncfusion.Maui.Toolbar" Version="34.2.9" />
+    <!-- The user's Mopups fork (MarketAlly.Mopups), from its gitcaddy feed. -->
+    <PackageReference Include="MarketAlly.Mopups" Version="3.0.12" />
   </ItemGroup>
 
   <ItemGroup>
@@ -76,4 +78,7 @@
   <ItemGroup>
     <Content Include="..\xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <PropertyGroup>
+    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);https://git.marketally.com/api/packages/marketally/nuget/index.json</RestoreAdditionalProjectSources>
+  </PropertyGroup>
 </Project>

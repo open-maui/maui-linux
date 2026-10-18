@@ -21,9 +21,9 @@ Package versions are the ones `tests/Compat` restores:
 
 | Package | Version | Findings | covered | n/a | open |
 |---|---|---:|---:|---:|---:|
-| Microsoft.Maui.Core | 11.0.0-rc.2.26505.5 | 597 | 497 | 88 | 12 |
-| Microsoft.Maui.Controls.Core | 11.0.0-rc.2.26505.5 | 321 | 272 | 43 | 6 |
-| Microsoft.Maui.Essentials | 11.0.0-rc.2.26505.5 | 248 | 190 | 22 | 36 |
+| Microsoft.Maui.Core | 11.0.0-rc.2.26505.5 | 597 | 509 | 88 | 0 |
+| Microsoft.Maui.Controls.Core | 11.0.0-rc.2.26505.5 | 321 | 278 | 43 | 0 |
+| Microsoft.Maui.Essentials | 11.0.0-rc.2.26505.5 | 248 | 226 | 22 | 0 |
 | Microsoft.Maui.Controls.Xaml | 11.0.0-rc.2.26505.5 | 0 | 0 | 0 | 0 |
 | CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
 | CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
@@ -53,7 +53,7 @@ Package versions are the ones `tests/Compat` restores:
 | Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2381** | **2001** | **322** | **58** |
+| **Total** | | **2381** | **2055** | **322** | **4** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -61,11 +61,10 @@ Counts are per method, so a single gap can be many findings. The Syncfusion Sche
 
 ### Microsoft.Maui.Essentials
 
-- **Passkeys** (new in MAUI 11): Windows creates and asserts credentials through `webauthn.dll`. Linux desktops have no system WebAuthn or platform-authenticator API, so `Passkeys.Default` keeps MAUI's platform-neutral implementation: `IsSupported` is false, and `CreateAsync` and `AssertAsync` throw.
-- **WebAuthenticator with a custom URI scheme** (`myapp://callback`): MAUI 11 on Windows registers the scheme for an unpackaged app and routes the activation back to the running instance. On Linux, `WebAuthenticatorService` takes loopback callbacks (`http://localhost:<port>/`, `http://127.0.0.1:<port>/`) only, and throws `NotSupportedException` for a custom scheme. Supporting one would need a desktop-file handler and D-Bus activation.
+No open gaps. Where Linux still differs from Windows:
 
-Where Linux still differs from Windows:
-
+- **WebAuthenticator with a custom URI scheme** (`myapp://callback`) works as on Windows: the browser's redirect starts a second process, which hands the URI to the running instance and exits, and the request completes with MAUI's `WebAuthenticatorResult`. Windows makes an unpackaged app register the scheme itself (`ActivationRegistrationManager.RegisterForProtocolActivation`); on Linux `AuthenticateAsync` registers it when the desktop does not already open the scheme with the app (`WebAuthenticatorService.RegisterCallbackScheme`, on by default; `UriSchemeRegistration` does it by hand). The registration is a hidden desktop entry (`~/.local/share/applications/<app>-<scheme>-handler.desktop`) made the scheme's default in `~/.config/mimeapps.list`, and it stays until `UriSchemeRegistration.Unregister`, as the registry entry does on Windows. A Flatpak declares the scheme in its exported desktop file (`MimeType=x-scheme-handler/myapp;`), as a packaged Windows app does in its manifest; there is no portal for registering one. Running instances find each other through a Unix socket in `$XDG_RUNTIME_DIR` (shared by a Flatpak's instances), and the app must start through `LinuxApplication.Run`, which forwards the callback before any window exists. The window is brought to the front before the result is returned on X11; a Wayland compositor gives focus only with an activation token, so there it stays where it is. Loopback callbacks (`http://localhost:<port>/`, `http://127.0.0.1:<port>/`), which Windows refuses, still work too.
+- **Passkeys** are created and used on FIDO2 security keys (USB, and NFC where libfido2 has a reader) through libfido2 (`libfido2.so.1`: the `libfido2` package on Fedora, where the OpenSSH client depends on it, and `libfido2-1` on Debian and Ubuntu), loaded at run time, so it is not a package dependency. `IsSupported` is true when libfido2 is installed and a key is connected; without libfido2 `CreateAsync` and `AssertAsync` throw `FeatureNotSupportedException`, and without a key they ask for one, as Windows does. The options and responses are the WebAuthn JSON MAUI uses on Windows (origin `https://<rpId>`). The PIN, "touch your security key", the choice between several keys and between accounts are OpenMaui dialogs, where Windows shows its system dialog. Linux has no platform authenticator (Windows Hello) and no phone (hybrid) sign-in: a request for `authenticatorAttachment: "platform"` fails with `InvalidOperationException`, as on a Windows PC without Windows Hello. A key with neither a PIN nor built-in verification cannot satisfy `userVerification: "required"`, and the request fails with `InvalidOperationException`; OpenMaui does not set PINs. A Flatpak needs libfido2 inside the sandbox and `--device=all` to reach the keys.
 - **Contacts** come from Evolution Data Server, where GNOME Contacts, Evolution and GNOME Online Accounts keep them. A desktop without it (KDE keeps contacts in Akonadi) throws `FeatureNotSupportedException`. A sandbox that blocks it throws `PermissionException`.
 - **Camera capture** shows OpenMaui's own capture dialog over the app window, where Windows opens its Camera app. Videos are MP4 (H.264 and AAC) when GStreamer has those encoders, and WebM otherwise. A sandboxed app reaches the camera through the xdg-desktop-portal Camera interface.
 - **Motion and environment sensors** read the kernel's IIO devices, so they are supported only on machines with the hardware: convertibles, tablets and phones.
@@ -73,11 +72,6 @@ Where Linux still differs from Windows:
 
 ### Microsoft.Maui.Core / Controls
 
-- **Keyboard activation of a tappable Border** (new in MAUI 11 on Windows): a Border with a primary single-tap TapGestureRecognizer, enabled and not InputTransparent, is a tab stop with the system focus visual, and Enter or Space (without a modifier, not auto-repeated) raises its taps at `Point.Zero`. On Linux such a Border is not focusable, and keys do not raise its taps.
-- **ToolbarItem badges** (`BadgeText`, `BadgeColor`, `BadgeTextColor`, new in MAUI 11): Windows overlays an InfoBadge on the item, a number or a dot for empty or non-numeric text. The Linux navigation bar draws no badge.
-- **`NavigationPage.BackButtonAccessibilityLabel`** (new in MAUI 11; Shell's `BackButtonBehavior.AccessibilityLabel` feeds the same Toolbar property): Windows gives the back button that accessible name. The Linux back button does not read it.
-- **SwipeItem icons:** Windows loads any image source for `IconImageSource`, font icons included, tinted with the item's `TextColor`. On Linux the handler keeps only a file source's path and `SkiaSwipeView` draws no icon, so swipe items show their text only.
-- **System animations setting:** Windows follows a change of the system setting while the app runs. `LinuxTicker` reads GNOME's `enable-animations` once, at first use, so a change takes effect at the next start.
 - **HybridWebView:** `WebResourceRequested` is raised for requests to the app origin (`app://0.0.0.1/`) only, as on iOS and Mac Catalyst. WebKit gives an embedder no way to answer http and https requests, which WebView2 on Windows intercepts too. (MAUI 10.0.110's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
 - **Items views:** CollectionView's `IsGrouped`, `CanReorderItems`, `ItemsUpdatingScrollMode` and horizontal grids, and CarouselView's `EmptyView`, scroll bars, `Loop` and vertical layout, are covered. What is left:
   - A reorder drag starts as soon as the pointer moves, by mouse or touch. On Windows a touch drag needs a press-and-hold first; OpenMaui's pointer events do not say which device sent them.
