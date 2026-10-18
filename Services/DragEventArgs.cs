@@ -3,7 +3,7 @@
 
 namespace Microsoft.Maui.Platform.Linux.Services;
 
-public class DragEventArgs : EventArgs
+public class LinuxDragEventArgs : EventArgs
 {
     public DragData Data { get; }
     public int X { get; }
@@ -15,10 +15,16 @@ public class DragEventArgs : EventArgs
     public DragAction AllowedAction { get; set; }
     public DragAction AcceptedAction { get; set; } = DragAction.Copy;
 
-    public DragEventArgs(DragData data, int x, int y)
+    public LinuxDragEventArgs(DragData data, int x, int y)
     {
         Data = data;
         X = x;
         Y = y;
     }
+}
+
+[Obsolete("Use LinuxDragEventArgs; this type is removed in OpenMaui 11.0.")]
+public class DragEventArgs : LinuxDragEventArgs
+{
+    public DragEventArgs(DragData data, int x, int y) : base(data, x, y) { }
 }

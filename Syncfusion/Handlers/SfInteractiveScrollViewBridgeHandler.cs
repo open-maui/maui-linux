@@ -83,23 +83,10 @@ public class SfInteractiveScrollViewBridgeHandler : LinuxViewHandler<SfInteracti
     {
         if (handler.PlatformView is not { } view)
             return;
-        view.Orientation = scrollView.Orientation switch
-        {
-            Microsoft.Maui.ScrollOrientation.Horizontal => ScrollOrientation.Horizontal,
-            Microsoft.Maui.ScrollOrientation.Both => ScrollOrientation.Both,
-            Microsoft.Maui.ScrollOrientation.Neither => ScrollOrientation.Neither,
-            _ => ScrollOrientation.Vertical,
-        };
-        view.HorizontalScrollBarVisibility = Visibility(scrollView.HorizontalScrollBarVisibility);
-        view.VerticalScrollBarVisibility = Visibility(scrollView.VerticalScrollBarVisibility);
+        view.MauiOrientation = scrollView.Orientation;
+        view.MauiHorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility;
+        view.MauiVerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility;
     }
-
-    private static ScrollBarVisibility Visibility(Microsoft.Maui.ScrollBarVisibility visibility) => visibility switch
-    {
-        Microsoft.Maui.ScrollBarVisibility.Always => ScrollBarVisibility.Always,
-        Microsoft.Maui.ScrollBarVisibility.Never => ScrollBarVisibility.Never,
-        _ => ScrollBarVisibility.Default,
-    };
 
     /// <summary>
     /// ScrollTo (Syncfusion's internal ScrollToParameters). Done now when the
@@ -139,7 +126,7 @@ public class SfInteractiveScrollViewBridgeHandler : LinuxViewHandler<SfInteracti
             ScrollTo(pending.X, pending.Y, animated: false);
     }
 
-    private void OnPlatformScrolled(object? sender, ScrolledEventArgs e)
+    private void OnPlatformScrolled(object? sender, SkiaScrolledEventArgs e)
     {
         Report(e.ScrollX, e.ScrollY);
         if (VirtualView is { } scrollView)
