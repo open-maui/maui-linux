@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.11] - 2026-10-18
+
+### Fixed
+
+- **Linux publishes on a clean machine failed with NETSDK1094 (since 10.0.110.10)**: 10.0.110.10 turned `PublishReadyToRun` on from the package's build targets. NuGet only downloads the ReadyToRun compiler when the property is already true during restore, and a project sees a package's build files only after that package is restored, so on a clean CI runner the restore skipped the compiler and `dotnet publish -r linux-*` then failed ("Unable to optimize assemblies for performance: a valid runtime package was not found"). The default is withdrawn: OpenMaui no longer sets `PublishReadyToRun`. ReadyToRun still shortens startup (on claude-toolkit the first frame came 1.25 s sooner); an app opts in from its own project, where restore sees it:
+
+  ```xml
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+  ```
+
 ## [10.0.110.10] - 2026-10-18
 
 ### Changed
