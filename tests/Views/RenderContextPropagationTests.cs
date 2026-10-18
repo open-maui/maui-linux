@@ -12,7 +12,6 @@ using Xunit;
 
 namespace Microsoft.Maui.Controls.Linux.Tests.Views;
 
-using StackOrientation = Microsoft.Maui.Platform.StackOrientation;
 
 /// <summary>
 /// Views inside layouts must see the engine's render context (typeface
@@ -34,8 +33,8 @@ public class RenderContextPropagationTests
     [Fact]
     public void Children_of_a_layout_resolve_the_root_context()
     {
-        var root = new SkiaStackLayout { Orientation = StackOrientation.Vertical };
-        var inner = new SkiaStackLayout { Orientation = StackOrientation.Horizontal };
+        var root = new SkiaStackLayout { MauiOrientation = StackOrientation.Vertical };
+        var inner = new SkiaStackLayout { MauiOrientation = StackOrientation.Horizontal };
         var label = new SkiaLabel { Text = "x" };
         inner.AddChild(label);
         root.AddChild(inner);
@@ -75,7 +74,7 @@ public class RenderContextPropagationTests
     [Fact]
     public void Italic_label_inside_a_layout_renders_slanted()
     {
-        var root = new SkiaStackLayout { Orientation = StackOrientation.Vertical, Spacing = 8, Padding = new Thickness(12) };
+        var root = new SkiaStackLayout { MauiOrientation = StackOrientation.Vertical, Spacing = 8, Padding = new Thickness(12) };
         root.AddChild(new SkiaLabel { Text = "Regular text", FontSize = 16 });
         var italic = new SkiaLabel { Text = "Italic text", FontSize = 16, FontAttributes = FontAttributes.Italic };
         root.AddChild(italic);

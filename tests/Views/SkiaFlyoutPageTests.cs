@@ -13,7 +13,6 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Views;
 
 using PointerEventArgs = Microsoft.Maui.Platform.PointerEventArgs;
 using PointerButton = Microsoft.Maui.Platform.PointerButton;
-using FlyoutLayoutBehavior = Microsoft.Maui.Platform.FlyoutLayoutBehavior;
 
 /// <summary>
 /// SkiaFlyoutPage on its own (presentation, scrim, split vs popover layout,
@@ -68,7 +67,7 @@ public class SkiaFlyoutPageTests
         page.IsPresented.Should().BeFalse();
         page.IsSplit.Should().BeFalse();
         page.GestureEnabled.Should().BeTrue();
-        page.FlyoutLayoutBehavior.Should().Be(FlyoutLayoutBehavior.Default);
+        page.MauiFlyoutLayoutBehavior.Should().Be(FlyoutLayoutBehavior.Default);
     }
 
     [Fact]
@@ -153,7 +152,7 @@ public class SkiaFlyoutPageTests
     {
         var page = CreatePage(out var flyout, out var detail);
 
-        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
+        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
         Layout(page);
 
         page.IsSplit.Should().BeTrue();
@@ -171,7 +170,7 @@ public class SkiaFlyoutPageTests
     public void Split_layout_cannot_be_closed_by_IsPresented_or_scrim_taps()
     {
         var page = CreatePage(out _, out var detail);
-        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
+        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
         Layout(page);
 
         page.IsPresented = false;
@@ -186,10 +185,10 @@ public class SkiaFlyoutPageTests
     public void Popover_layout_gives_the_detail_the_full_width()
     {
         var page = CreatePage(out _, out var detail);
-        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
+        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
         Layout(page);
 
-        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Popover;
+        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Popover;
         Layout(page);
 
         page.IsSplit.Should().BeFalse();
