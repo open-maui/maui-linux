@@ -206,6 +206,36 @@ public partial class LinuxApplication
     }
 
     /// <summary>
+    /// MAUI's Application.ActivateWindow: asks the native window presenting
+    /// <paramref name="window"/> to come to the front and take focus (X11
+    /// _NET_ACTIVE_WINDOW, Wayland xdg_activation_v1, GTK gtk_window_present).
+    /// The window manager or compositor has the last word. False when the window
+    /// has no native window that can be activated.
+    /// </summary>
+    internal bool ActivateMauiWindow(IWindow window)
+    {
+        for (int i = 0; i < _windowContexts.Count; i++)
+        {
+            var ctx = _windowContexts[i];
+            if (ctx.MauiWindow != window)
+                continue;
+
+            var native = ctx.DisplayWindow as IActivatableWindow;
+            // GTK mode: the primary context renders into the GtkHostWindow.
+            if (native == null && _useGtk && ReferenceEquals(ctx, PrimaryContext))
+                native = _gtkWindow;
+            if (native == null)
+            {
+                DiagnosticLog.Debug("LinuxApplication", "ActivateWindow: the window has no native window to activate");
+                return false;
+            }
+            return native.Activate();
+        }
+        DiagnosticLog.Debug("LinuxApplication", "ActivateWindow: no native window found for IWindow");
+        return false;
+    }
+
+    /// <summary>
     /// Closes the native window presenting the given MAUI IWindow. The actual
     /// teardown (IWindow.Destroying, engine/native dispose, registry removal)
     /// happens in the run loop's ReapClosedContexts; the app exits when the
