@@ -15,8 +15,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// fallback. Unlike the GTK path this works in native Wayland/X11 mode, maps
 /// UserAgent, and returns real results from EvaluateJavaScriptAsync.
 /// </summary>
-public class WpeWebViewHandler : LinuxViewHandler<IWebView, WpeWebView>
+public class WpeWebViewHandler : LinuxViewHandler<IWebView, WpeWebView>, IWebViewHandler
 {
+    IWebView IWebViewHandler.VirtualView => VirtualView;
+    object IWebViewHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IWebView, WpeWebViewHandler> Mapper = new PropertyMapper<IWebView, WpeWebViewHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IWebView.Source)] = MapSource,
