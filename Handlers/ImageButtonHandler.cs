@@ -5,6 +5,8 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -13,8 +15,13 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// Maps IImageButton interface to SkiaImageButton platform view.
 /// IImageButton extends: IImage, IView, IButtonStroke, IPadding
 /// </summary>
-public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaImageButton>
+public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaImageButton>, IImageButtonHandler
 {
+    IImageButton IImageButtonHandler.VirtualView => VirtualView;
+    object IImageButtonHandler.PlatformView => PlatformView;
+    IImage IImageHandler.VirtualView => VirtualView;
+    object IImageHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IImageButton, ImageButtonHandler> Mapper = new PropertyMapper<IImageButton, ImageButtonHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IImage.Aspect)] = MapAspect,
@@ -109,10 +116,22 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     public static void MapSource(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
-        handler.SourceLoader.UpdateImageSourceAsync();
+        _ = handler.ImageLoad.UpdateImageSourceAsync();
     }
 
-    public static void MapStrokeColor(ImageButtonHandler handler, IImageButton imageButton)
+    /// <summary>MAUI's <c>MapStrokeColor</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeColor(IImageButtonHandler handler, IButtonStroke buttonStroke)
+    {
+        if (handler is ImageButtonHandler linuxHandler && buttonStroke is IImageButton linuxView)
+            MapStrokeColorCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeColor(ImageButtonHandler handler, IImageButton imageButton) => MapStrokeColorCore(handler, imageButton);
+
+    private static void MapStrokeColorCore(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
 
@@ -120,19 +139,55 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
             handler.PlatformView.StrokeColor = imageButton.StrokeColor;
     }
 
-    public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton)
+    /// <summary>MAUI's <c>MapStrokeThickness</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapStrokeThickness(IImageButtonHandler handler, IButtonStroke buttonStroke)
+    {
+        if (handler is ImageButtonHandler linuxHandler && buttonStroke is IImageButton linuxView)
+            MapStrokeThicknessCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton) => MapStrokeThicknessCore(handler, imageButton);
+
+    private static void MapStrokeThicknessCore(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.StrokeThickness = imageButton.StrokeThickness;
     }
 
-    public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton)
+    /// <summary>MAUI's <c>MapCornerRadius</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapCornerRadius(IImageButtonHandler handler, IButtonStroke buttonStroke)
+    {
+        if (handler is ImageButtonHandler linuxHandler && buttonStroke is IImageButton linuxView)
+            MapCornerRadiusCore(linuxHandler, linuxView);
+    }
+
+    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton) => MapCornerRadiusCore(handler, imageButton);
+
+    private static void MapCornerRadiusCore(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.CornerRadius = imageButton.CornerRadius;
     }
 
-    public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton)
+    /// <summary>MAUI's <c>MapPadding</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapPadding(IImageButtonHandler handler, IImageButton imageButton)
+    {
+        if (handler is ImageButtonHandler linuxHandler)
+            MapPaddingCore(linuxHandler, imageButton);
+    }
+
+    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton) => MapPaddingCore(handler, imageButton);
+
+    private static void MapPaddingCore(ImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler.PlatformView is null) return;
         handler.PlatformView.Padding = imageButton.Padding;
@@ -201,10 +256,33 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     }
 
     // Image source loading helper
-    private ImageSourceServiceResultManager _sourceLoader = null!;
+    private ImageSourceServiceResultManager? _imageLoad;
+    private ImageSourcePartLoader? _imageSourcePartLoader;
 
-    private ImageSourceServiceResultManager SourceLoader =>
-        _sourceLoader ??= new ImageSourceServiceResultManager(this);
+    private ImageSourceServiceResultManager ImageLoad =>
+        _imageLoad ??= new ImageSourceServiceResultManager(this);
+
+    /// <summary>
+    /// MAUI's <c>IImageHandler.SourceLoader</c>: its <see cref="ImageSourcePartLoader.UpdateImageSourceAsync"/>
+    /// loads the virtual view's source into the SkiaImageButton (through the image source service, with
+    /// IsLoading and the loading events), as the handler's own Source mapping does.
+    /// </summary>
+    public virtual ImageSourcePartLoader SourceLoader =>
+        _imageSourcePartLoader ??= new LinuxImageSourcePartLoader(
+            new LinuxImageSourcePartSetter(this, SetPlatformImage),
+            () => ImageLoad.UpdateImageSourceAsync());
+
+    // A platform image handed to the part setter directly (MAUI's loader sets a null image
+    // for a null source): a bitmap is shown, anything else clears the picture.
+    private void SetPlatformImage(object? platformImage)
+    {
+        if (PlatformView is null)
+            return;
+        if (LinuxImageSourcePartSetter.ToBitmap(platformImage) is { } bitmap)
+            PlatformView.LoadFromBitmap(bitmap);
+        else
+            PlatformView.ClearImage();
+    }
 
     internal class ImageSourceServiceResultManager
     {
@@ -216,7 +294,7 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
             _handler = handler;
         }
 
-        public async void UpdateImageSourceAsync()
+        public async Task UpdateImageSourceAsync()
         {
             _cts?.Cancel();
             _cts = new CancellationTokenSource();
