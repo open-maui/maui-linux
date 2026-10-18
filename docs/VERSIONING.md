@@ -50,33 +50,7 @@ Exceptions, stated in `CHANGELOG.md` when used: APIs that never worked (their re
 
 ## How API compatibility is enforced
 
-Each packable library project sets:
-
-```xml
-<EnablePackageValidation>true</EnablePackageValidation>
-<PackageValidationBaselineVersion>10.0.101.3</PackageValidationBaselineVersion>
-```
-
-`dotnet pack` then runs the .NET SDK's package validation (ApiCompat): it downloads the baseline package from NuGet and compares the public surface of the new assembly against it. Any removal or incompatible change fails the pack with a `CP0001`/`CP0002`/... error naming the member. CI and the release workflow pack every package, so a break cannot be released by accident.
-
-An intentional break (one that satisfies the rules above) is recorded, not hidden:
-
-1. Generate the suppression file next to the project:
-   ```bash
-   dotnet pack <project>.csproj -p:ApiCompatGenerateSuppressionFile=true
-   ```
-   This writes `CompatibilitySuppressions.xml`, which lists each accepted difference. Commit it.
-2. List every suppressed item in `CHANGELOG.md` (**Removed** / **Changed**) and in `MIGRATION.md` with its replacement.
-
-Release checklist items that belong to this gate:
-
-- after publishing a release, set `PackageValidationBaselineVersion` in the five library projects to the version just released, and delete the `CompatibilitySuppressions.xml` files (they were relative to the old baseline);
-- a package that has never been published has no baseline; leave validation off for it until its first release;
-- packing offline (no access to the baseline on NuGet) can skip the gate with `-p:EnablePackageValidation=false`. Never release a package built that way.
-
-### 10.0.110.1 against 10.0.101.3
-
-All five library packages pass package validation against 10.0.101.3 with no suppressions: this release is additive only. The added surface is summarised in [`MIGRATION.md`](MIGRATION.md#10010x-to-100110x).
+Each packable library project sets `<EnablePackageValidation>true</EnablePackageValidation>`, so `dotnet pack` runs the .NET SDK's package validation on the package it builds (consistency of the package's own assemblies and target frameworks). No `PackageValidationBaselineVersion` is set: the packages are published from this repository, so a comparison against the previous published package adds nothing. The rules above are kept by review, the `[Obsolete]` deprecation policy, and the `CHANGELOG.md` and `MIGRATION.md` entries for every change to the public surface.
 
 ## Support matrix
 

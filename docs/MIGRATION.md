@@ -9,6 +9,55 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 3. Read the section for your jump below and check the behaviour changes it lists against your app.
 4. Run `OPENMAUI_DOCTOR=1 ./YourApp` on your target machines after upgrading; new releases can start using optional system libraries you do not have yet.
 
+## 10.0.110.7 to 10.0.110.8
+
+**API: no breaking changes.** Additions, and deprecations that are removed in 11.0 (below).
+
+### Behaviour changes to check
+
+These are fixes (the new behaviour is what MAUI specifies), but an app that worked around the old behaviour can look or act differently:
+
+- **Handlers your app registers are now used.** `ConfigureMauiHandlers(h => h.AddHandler<Label, MyLabelHandler>())` (or any `AddHandler` for a built-in control: Button, Entry, pages, layouts...) used to have no effect on Linux: views inside pages always got OpenMaui's handler. They now get the registered handler, as on Android, iOS and Windows, including inside NavigationPage, Shell, templates and CollectionView rows, and a registration for a control also applies to its subclasses. If your app (or a library it uses) registers handlers that were silently ignored before, check that they behave on Linux. A registered handler must create a `SkiaView`: derive from OpenMaui's handler for the control (`Microsoft.Maui.Platform.Linux.Handlers.LabelHandler`, `TextButtonHandler`, `EntryHandler`, ...) or customise it through its `Mapper`. A cross-platform handler built on MAUI's portable handler (for example `class MyLabelHandler : Microsoft.Maui.Handlers.LabelHandler`) cannot draw on Linux; OpenMaui logs a warning naming it (with `DiagnosticLog.IsEnabled`) and keeps using its own handler for those views. A handler that is written for Linux but fails (throws, or makes a platform view that is not a `SkiaView`) is logged as an error once and replaced the same way.
+- **`UseLinux()` keeps handlers registered before it.** A `ConfigureMauiHandlers` call placed before `UseLinux()` used to be overwritten by OpenMaui's registrations for the same control; the earlier registration now wins, as it does on MAUI's other platforms.
+- **Shell tabs are at the top, as on Windows.** A Shell's sections are a row of tabs in a top navigation pane under the navigation bar (they were Android/iOS-style bottom tabs), and a section with several ShellContents opens a drop-down of them from its tab. The page content now runs to the window's bottom edge and starts under the pane. A pushed page keeps the tabs; set `Shell.TabBarIsVisible="False"` on it to hide them. A FlyoutItem holding one Tab with several ShellContents now shows the pane. `SkiaShell.TabBarBounds` reports the pane at the top and `TabBarHeight` defaults to 48 (was 56).
+- **A Shell's flyout follows MAUI's effective behaviour.** With no `Shell.FlyoutBehavior` set, a Shell whose root is a TabBar, or one made of a single bare page, has no flyout and no hamburger button, as on MAUI's other platforms. The flyout lists MAUI's flyout items, so a TabBar's sections are no longer listed in it.
+- **ListView keeps its place when its items change.** Adding, removing, replacing or moving items updates only those rows; the list no longer jumps back to the top. A Reset keeps the scroll offset.
+- **CarouselView snaps as its `ItemsLayout` says.** CarouselView's defaults (`SnapPointsType.MandatorySingle`, `SnapPointsAlignment.Center`) now apply: a swipe moves at most one item and the item settles centred, and a drag past either end bounces (`IsBounceEnabled`). Each side of `PeekAreaInsets` is applied separately. A CarouselView given a bare `LinearItemsLayout` has no snap points (`SnapPointsType.None`), so a flick now coasts freely, as on MAUI's other platforms; use `LinearItemsLayout.CarouselDefault` / `CarouselVertical`, or set `SnapPointsType`, to snap item by item.
+- **A touch reorder needs a press-and-hold.** With `CanReorderItems`, a finger must rest on an item for 500 ms before it can be dragged (Wayland; X11 reports touch as a mouse). A mouse drag starts at once, as before.
+- **A window with a TitleBar draws its own title bar on X11 and on KDE Wayland.** The window manager's frame is turned off and the TitleBar fills the title bar, as Windows extends content into it. Windows without a TitleBar keep the system frame.
+- **SecureStorage uses the Secret Service over D-Bus.** Values stored by earlier releases (through `secret-tool`) are found and replaced in place. `OPENMAUI_SECURESTORAGE=secret-tool` keeps the old process-per-call path; `=file` uses only the encrypted file.
+- **`Application.Quit()` closes the app** (every window); before, it did nothing.
+
+### Deprecated: types renamed to stop clashing with MAUI (removed in 11.0)
+
+Some public OpenMaui types in `Microsoft.Maui.Platform` had the same names as MAUI types, so a file
+importing `Microsoft.Maui.Platform` with `Microsoft.Maui.Controls` (or `.Layouts`, `.Primitives`)
+got CS0104 "ambiguous reference" as soon as it named one. They are now `[Obsolete]`; the warning
+names the replacement. Nothing breaks in 10.0.110.x, and compiled apps keep working. The types
+still exist until 11.0, so the ambiguity remains until then; code that moves to the replacements
+now compiles unchanged when they are removed.
+
+- Enums and structs that duplicated MAUI's: use MAUI's type and the `Maui`-prefixed member
+  (`stack.MauiOrientation = StackOrientation.Horizontal;` with `Microsoft.Maui.Controls.StackOrientation`,
+  `grid.MauiRowDefinitions.Add(GridLength.Star)` with `Microsoft.Maui.GridLength`,
+  `scroll.MauiOrientation = ScrollOrientation.Both`, ...). Methods take MAUI's enums through new
+  overloads (`ScrollToAsync(view, Microsoft.Maui.Controls.ScrollToPosition.Center, true)`).
+- OpenMaui's own models: construct `SkiaMenuItem`, `SkiaMenuBarItem`, `SkiaShellSection`,
+  `SkiaShellContent`, `SkiaSwipeItem`; the collections still hold the old types, so read them with `var`.
+- Event handlers: declare the parameter with the Skia name
+  (`void OnTextChanged(object? sender, SkiaTextChangedEventArgs e)`); `entry.TextChanged += OnTextChanged`
+  still binds. Swipe args expose MAUI's `SwipeDirection` as `e.SwipeDirection`.
+- `SkiaIndicatorView.IndicatorShape` -> `IndicatorsShape` (`SkiaIndicatorShape`);
+  `IButtonController` -> `ISkiaButtonController`; `FontExtensions` -> `SkiaFontExtensions`
+  (`font.ToSKFont()` is unchanged); `Microsoft.Maui.Platform.Linux.Services.Browser` ->
+  `Microsoft.Maui.ApplicationModel.Browser`; `DragEventArgs`/`DropEventArgs` (Linux services) ->
+  `LinuxDragEventArgs`/`LinuxDropEventArgs`.
+- In 11.0 the old types are removed and the Skia views' members are retyped to the new types.
+
+### Deprecated: concrete-handler `Map*` overloads (removed in 11.0)
+
+Each Linux handler's static `Map*` methods now have MAUI's interface-typed signatures (`EntryHandler.MapText(IEntryHandler, IEntry)`). The concrete-typed overloads (`MapText(EntryHandler, IEntry)`) are `[Obsolete]`; calls that pass the concrete handler bind to the new overload, so recompiled code gets no warning.
+
 ## 10.0.101.x to 10.0.110.x
 
 **API: no breaking changes.** All five library packages pass package validation against 10.0.101.3 with no suppressions. Code that compiled against 10.0.101.3 compiles and runs against 10.0.110.1 unchanged.

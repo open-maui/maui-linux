@@ -121,7 +121,7 @@ Deep code review of the 10.0.70.x surfaces; no new features, but several crash-c
 
 ## Planned
 
-Priorities are ordered. Phases 1 and 2 shipped in 10.0.101.2; Phase 3 is the current focus.
+Priorities are ordered. Phases 1 and 2 shipped in 10.0.101.2 and Phase 3 in 10.0.101.3; the items under "Also planned" shipped in 10.0.110.1. The current focus is MAUI parity, below.
 
 ### Phase 1: GPU-native presentation
 
@@ -184,6 +184,21 @@ Shipped in 10.0.101.3. Every visual defect fixed in 10.0.101.1 (glyph gaps at fr
 | Stable-contract commitment | Done in 10.0.110.1: package validation against the previous release fails `dotnet pack` on an unrecorded breaking change; versioning, deprecation policy and support matrix in `docs/VERSIONING.md`, upgrade notes in `docs/MIGRATION.md` |
 | Frame-accurate HTTP scrubbing | Done in 10.0.110.1: the drift was the KEY_UNIT seek flag, not HTTP; seeks are exact over HTTP and locally, serialised on a worker so rapid scrubbing cannot stall a range request |
 
+### MAUI parity *(10.0.110.8)*
+
+The phases made OpenMaui fast and measurable; this round closes the places where code written for MAUI behaves differently on Linux. Windows is the desktop reference.
+
+| Item | Status |
+|------|--------|
+| App handler registrations | Done: a handler the app or a library registers for a built-in control is used wherever its views are realized, resolved by type as MAUI does; one that cannot draw on Linux is reported and replaced by OpenMaui's |
+| MAUI's handler API | Done: the Linux handlers implement MAUI's `I<Control>Handler` interfaces (with working `ILayoutHandler` operations and `IImageHandler.SourceLoader`), every `Map*` method exists with MAUI's signature, and MAUI-style `UpdateX(platformView, view)` extensions exist for the Skia views |
+| Type names that clash with MAUI | Done: non-clashing replacements, the old names deprecated and removed in 11.0, and a test that fails on a new clash |
+| Shell | Done: tabs in a Windows-style top navigation pane (a section's contents in a drop-down), MAUI's flyout item list and effective flyout behaviour, Scroll and CollapseOnScroll headers |
+| Items views | Done: CarouselView bounce, snap points and per-side peek; ListView in-place updates; touch reorder press-and-hold |
+| Window.TitleBar | Done: client-side decorations with a TitleBar on X11 and on Wayland compositors that agree to client-side mode |
+| SecureStorage | Done: one long-lived Secret Service D-Bus session, consistent under concurrency on KDE's ksecretd |
+| Open | XInput2 touch on X11 (touch is seen as a mouse there); Shell SearchHandler (no search box); a fixed flyout header with `Shell.FlyoutContent`; `ApplicationHandler.MapActivateWindow` (backends cannot activate a window); HybridWebView `WebResourceRequested` for http(s) and MediaElement segment headers (WebKit and GStreamer limits); Contacts on KDE (no Evolution Data Server) |
+
 ### Not prioritised
 
 A public multi-distro, multi-desktop CI matrix (GNOME/KDE/Sway across Ubuntu and Fedora, on x64 and ARM64, at every scale factor) is a good idea and remains open to contributors, but it is not on the core team's list: the platform is developed and used daily on real desktops, and Phase 3 puts the verification effort into offscreen golden tests that run anywhere.
@@ -194,7 +209,7 @@ We welcome contributions! Priority areas:
 
 1. **GPU presentation** - EGL/Vulkan render targets and benchmarks (Phase 1)
 2. **WPE WebKit** - WPEPlatform embedding, Fedora packaging (COPR), BlazorWebView (Phase 2)
-3. **Conformance** - golden screenshot tests and the compatibility scorecard (Phase 3)
+3. **Conformance and parity** - golden screenshot tests, the compatibility scorecard, and the open parity items above
 4. **Distribution** - CI matrices across distros and desktops, deb/rpm output
 5. **Documentation** - API docs and tutorials
 
@@ -217,7 +232,10 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 | v10.0.101.1 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released |
 | v10.0.101.2 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released: Phase 1 GPU presentation and Phase 2 WPE WebView + Blazor |
 | v10.0.101.3 | .NET 10 / MAUI 10.0.101 | Q3 2026 | Released: Phase 3 conformance (scorecard, golden tests, the handlers and services it exposed) |
-| v10.0.110.1 | .NET 10 / MAUI 10.0.110 | Q3 2026 | In development: MAUI 10.0.110 and the remaining roadmap: runtime scale, partial damage, Vulkan, zero-copy WebView and video, portals, multi-window round-out, third-party KPI, benchmarks and gates, ARM64, API compatibility gate, `openmaui doctor` |
+| v10.0.110.1 | .NET 10 / MAUI 10.0.110 | Q3 2026 | Released (2026-09-26): MAUI 10.0.110 and the remaining roadmap: runtime scale, partial damage, Vulkan, zero-copy WebView and video, portals, multi-window round-out |
+| v10.0.110.2 to .7 | .NET 10 / MAUI 10.0.110 | Q3-Q4 2026 | Released (2026-09-27 to 2026-10-04): fixes, the Pdf package, and MAUI conformance |
+| v10.0.110.8 | .NET 10 / MAUI 10.0.110 | Q4 2026 | In development: MAUI parity (above) |
+| v11.0.0.1 | .NET 11 / MAUI 11 | Q4 2026 | In development on the RC: MAUI 11 support |
 
 ## Feedback
 
@@ -225,5 +243,5 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for details.
 
 ---
 
-*Last updated: September 2026*
+*Last updated: October 2026*
 *Copyright 2025-2026 MarketAlly Pte Ltd*
