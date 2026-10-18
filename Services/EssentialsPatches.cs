@@ -148,6 +148,9 @@ internal static class EssentialsPatches
         try { RegisterEssential<Microsoft.Maui.Authentication.IWebAuthenticator>("com.openmaui.essentials.webauthenticator", "Microsoft.Maui.Authentication.WebAuthenticator", "Microsoft.Maui.Authentication.WebAuthenticatorImplementation", new WebAuthenticatorService()); }
         catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"WebAuthenticator registration failed: {ex.Message}", ex); }
 
+        try { RegisterEssential<Microsoft.Maui.Authentication.IPasskeys>("com.openmaui.essentials.passkeys", "Microsoft.Maui.Authentication.Passkeys", "Microsoft.Maui.Authentication.PasskeysImplementation", new Passkeys.PasskeysService()); }
+        catch (Exception ex) { DiagnosticLog.Error("EssentialsPatches", $"Passkeys registration failed: {ex.Message}", ex); }
+
         // Motion/environment sensors: MAUI's own implementations, with their platform members
         // reading the kernel's IIO devices (IsSupported only where the hardware is).
         try { SensorPatches.Install(harmony); }
