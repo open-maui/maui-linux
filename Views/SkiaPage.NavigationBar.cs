@@ -97,6 +97,13 @@ public partial class SkiaPage
     /// </summary>
     public string? BackButtonTitle { get; set; }
 
+    /// <summary>
+    /// The accessible name of the back button shown with this page (its
+    /// NavigationPage.BackButtonAccessibilityLabel: MAUI's toolbar reads it from the page at the
+    /// top of the stack); null or empty leaves the default name, "Back", as on Windows.
+    /// </summary>
+    public string? BackButtonAccessibilityLabel { get; set; }
+
     private Microsoft.Maui.Controls.Brush? _titleBarBrush;
 
     /// <summary>
