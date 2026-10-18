@@ -8,6 +8,7 @@ namespace Microsoft.Maui.Platform.Linux.Services;
 /// <summary>
 /// Static Browser class providing MAUI-compatible API for opening URLs.
 /// </summary>
+[Obsolete("Use Microsoft.Maui.ApplicationModel.Browser (OpenMaui registers its Linux browser service as its Default); this type is removed in OpenMaui 11.0.")]
 public static class Browser
 {
     private static IBrowser? _browser;
