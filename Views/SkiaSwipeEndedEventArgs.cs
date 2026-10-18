@@ -20,15 +20,3 @@ public class SkiaSwipeEndedEventArgs : EventArgs
     /// <summary>Whether the swipe left the items open.</summary>
     public bool IsOpen { get; }
 }
-
-[Obsolete("Use SkiaSwipeEndedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class SwipeEndedEventArgs : SkiaSwipeEndedEventArgs
-{
-    // The legacy None has no MAUI counterpart; SwipeDirection is then default (0).
-    public SwipeEndedEventArgs(SwipeDirection direction, bool isOpen) : base(direction.ToMaui() ?? default, isOpen)
-    {
-        Direction = direction;
-    }
-
-    public SwipeDirection Direction { get; }
-}

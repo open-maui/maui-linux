@@ -15,7 +15,6 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Handlers;
 // Inside the namespace so they beat the platform's own types in lookup.
 using PointerEventArgs = Microsoft.Maui.Platform.PointerEventArgs;
 using PointerButton = Microsoft.Maui.Platform.PointerButton;
-using SwipeDirection = Microsoft.Maui.SwipeDirection;
 using Rect = Microsoft.Maui.Graphics.Rect;
 
 /// <summary>

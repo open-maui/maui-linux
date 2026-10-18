@@ -7,8 +7,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Platform;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -82,16 +80,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapCount</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCount(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapCountCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCount(IndicatorViewHandler handler, IndicatorView indicatorView) => MapCountCore(handler, indicatorView);
 
     private static void MapCountCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {
@@ -100,16 +93,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapPosition</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapPosition(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapPositionCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapPosition(IndicatorViewHandler handler, IndicatorView indicatorView) => MapPositionCore(handler, indicatorView);
 
     private static void MapPositionCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {
@@ -127,16 +115,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapIndicatorColor</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIndicatorColor(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapIndicatorColorCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIndicatorColor(IndicatorViewHandler handler, IndicatorView indicatorView) => MapIndicatorColorCore(handler, indicatorView);
 
     private static void MapIndicatorColorCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {
@@ -149,16 +132,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapSelectedIndicatorColor</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapSelectedIndicatorColor(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapSelectedIndicatorColorCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapSelectedIndicatorColor(IndicatorViewHandler handler, IndicatorView indicatorView) => MapSelectedIndicatorColorCore(handler, indicatorView);
 
     private static void MapSelectedIndicatorColorCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {
@@ -171,16 +149,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapIndicatorSize</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIndicatorSize(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapIndicatorSizeCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIndicatorSize(IndicatorViewHandler handler, IndicatorView indicatorView) => MapIndicatorSizeCore(handler, indicatorView);
 
     private static void MapIndicatorSizeCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {
@@ -193,7 +166,7 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     {
         if (handler.PlatformView is null) return;
 
-        handler.PlatformView.IndicatorsShape = indicatorView.IndicatorsShape switch
+        handler.PlatformView.IndicatorShape = indicatorView.IndicatorsShape switch
         {
             Controls.IndicatorShape.Circle => SkiaIndicatorShape.Circle,
             Controls.IndicatorShape.Square => SkiaIndicatorShape.Square,
@@ -202,16 +175,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapMaximumVisible</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapMaximumVisible(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapMaximumVisibleCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapMaximumVisible(IndicatorViewHandler handler, IndicatorView indicatorView) => MapMaximumVisibleCore(handler, indicatorView);
 
     private static void MapMaximumVisibleCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {
@@ -220,16 +188,11 @@ public partial class IndicatorViewHandler : LinuxViewHandler<IndicatorView, Skia
     }
 
     /// <summary>MAUI's <c>MapHideSingle</c> signature; maps the property on a Linux <see cref="IndicatorViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapHideSingle(IIndicatorViewHandler handler, IIndicatorView indicator)
     {
         if (handler is IndicatorViewHandler linuxHandler && indicator is IndicatorView linuxView)
             MapHideSingleCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IIndicatorViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapHideSingle(IndicatorViewHandler handler, IndicatorView indicatorView) => MapHideSingleCore(handler, indicatorView);
 
     private static void MapHideSingleCore(IndicatorViewHandler handler, IndicatorView indicatorView)
     {

@@ -164,23 +164,6 @@ public static class SkiaFontExtensions
 }
 
 /// <summary>
-/// Font conversions; the extension methods are on <see cref="SkiaFontExtensions"/>.
-/// </summary>
-[Obsolete("Use SkiaFontExtensions; this type is removed in OpenMaui 11.0.")]
-public static class FontExtensions
-{
-    /// <summary>
-    /// Gets the SKFontStyle from a MAUI Font.
-    /// </summary>
-    public static SKFontStyle ToSKFontStyle(Font font) => SkiaFontExtensions.ToSKFontStyle(font);
-
-    /// <summary>
-    /// Creates an SKFont from a MAUI Font.
-    /// </summary>
-    public static SKFont ToSKFont(Font font, float defaultSize = 14f) => SkiaFontExtensions.ToSKFont(font, defaultSize);
-}
-
-/// <summary>
 /// Thickness extensions for converting MAUI Thickness to SKRect.
 /// </summary>
 public static class ThicknessExtensions

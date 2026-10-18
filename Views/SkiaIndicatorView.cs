@@ -118,19 +118,7 @@ public class SkiaIndicatorView : SkiaView
     /// Gets or sets the indicator shape (MAUI's IndicatorView.IndicatorsShape, plus OpenMaui's
     /// RoundedSquare and Diamond).
     /// </summary>
-    public SkiaIndicatorShape IndicatorsShape { get; set; } = SkiaIndicatorShape.Circle;
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>
-    /// Gets or sets the indicator shape.
-    /// </summary>
-    [Obsolete("Use IndicatorsShape, which takes SkiaIndicatorShape; this property is removed in OpenMaui 11.0.")]
-    public IndicatorShape IndicatorShape
-    {
-        get => (IndicatorShape)(int)IndicatorsShape;
-        set => IndicatorsShape = (SkiaIndicatorShape)(int)value;
-    }
-#pragma warning restore CS0618
+    public SkiaIndicatorShape IndicatorShape { get; set; } = SkiaIndicatorShape.Circle;
 
     /// <summary>
     /// Gets or sets whether indicators should have a border.
@@ -249,7 +237,7 @@ public class SkiaIndicatorView : SkiaView
     {
         float radius = size / 2;
 
-        switch (IndicatorsShape)
+        switch (IndicatorShape)
         {
             case SkiaIndicatorShape.Circle:
                 canvas.DrawCircle(x, y, radius, fillPaint);

@@ -19,7 +19,7 @@ public class SkiaSwipeViewTests
         Assert.Empty(swipeView.RightItems);
         Assert.Empty(swipeView.TopItems);
         Assert.Empty(swipeView.BottomItems);
-        Assert.Equal(Microsoft.Maui.SwipeMode.Reveal, swipeView.MauiMode);
+        Assert.Equal(Microsoft.Maui.SwipeMode.Reveal, swipeView.Mode);
     }
 
     [Fact]
@@ -95,9 +95,9 @@ public class SkiaSwipeViewTests
     {
         var swipeView = new SkiaSwipeView();
 
-        swipeView.MauiMode = Microsoft.Maui.SwipeMode.Execute;
+        swipeView.Mode = Microsoft.Maui.SwipeMode.Execute;
 
-        Assert.Equal(Microsoft.Maui.SwipeMode.Execute, swipeView.MauiMode);
+        Assert.Equal(Microsoft.Maui.SwipeMode.Execute, swipeView.Mode);
     }
 
     [Fact]

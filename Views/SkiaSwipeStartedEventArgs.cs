@@ -16,15 +16,3 @@ public class SkiaSwipeStartedEventArgs : EventArgs
     /// <summary>The direction of the swipe.</summary>
     public Microsoft.Maui.SwipeDirection SwipeDirection { get; }
 }
-
-[Obsolete("Use SkiaSwipeStartedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class SwipeStartedEventArgs : SkiaSwipeStartedEventArgs
-{
-    // The legacy None has no MAUI counterpart; SwipeDirection is then default (0).
-    public SwipeStartedEventArgs(SwipeDirection direction) : base(direction.ToMaui() ?? default)
-    {
-        Direction = direction;
-    }
-
-    public SwipeDirection Direction { get; }
-}

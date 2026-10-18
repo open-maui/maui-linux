@@ -67,7 +67,7 @@ public class SkiaFlyoutPageTests
         page.IsPresented.Should().BeFalse();
         page.IsSplit.Should().BeFalse();
         page.GestureEnabled.Should().BeTrue();
-        page.MauiFlyoutLayoutBehavior.Should().Be(FlyoutLayoutBehavior.Default);
+        page.FlyoutLayoutBehavior.Should().Be(FlyoutLayoutBehavior.Default);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class SkiaFlyoutPageTests
     {
         var page = CreatePage(out var flyout, out var detail);
 
-        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
+        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
         Layout(page);
 
         page.IsSplit.Should().BeTrue();
@@ -170,7 +170,7 @@ public class SkiaFlyoutPageTests
     public void Split_layout_cannot_be_closed_by_IsPresented_or_scrim_taps()
     {
         var page = CreatePage(out _, out var detail);
-        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
+        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
         Layout(page);
 
         page.IsPresented = false;
@@ -185,10 +185,10 @@ public class SkiaFlyoutPageTests
     public void Popover_layout_gives_the_detail_the_full_width()
     {
         var page = CreatePage(out _, out var detail);
-        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
+        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Split;
         Layout(page);
 
-        page.MauiFlyoutLayoutBehavior = FlyoutLayoutBehavior.Popover;
+        page.FlyoutLayoutBehavior = FlyoutLayoutBehavior.Popover;
         Layout(page);
 
         page.IsSplit.Should().BeFalse();

@@ -50,9 +50,7 @@ public partial class SwipeItemViewHandler : ContentViewHandler, ISwipeItemViewHa
     /// The item the swipe view shows for this item view: its <see cref="SwipeItem.Content"/> is
     /// this handler's platform view, and a tap on it invokes the item view.
     /// </summary>
-#pragma warning disable CS0618 // SwipeItem: the element type of SkiaSwipeView's item lists until OpenMaui 11.0
-    public SwipeItem SwipeItem => _swipeItem ??= new SkiaSwipeItem
-#pragma warning restore CS0618
+    public SkiaSwipeItem SwipeItem => _swipeItem ??= new SkiaSwipeItem
     {
         Content = PlatformView,
         Invoker = VirtualView as ISwipeItemView,
