@@ -12,9 +12,7 @@ namespace Microsoft.Maui.Platform;
 /// </summary>
 public class SkiaMenuBar : SkiaView
 {
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    private readonly List<MenuBarItem> _items = new();
-#pragma warning restore CS0618
+    private readonly List<SkiaMenuBarItem> _items = new();
     private int _hoveredIndex = -1;
     private int _openIndex = -1;
     private SkiaMenuFlyout? _openFlyout;
@@ -34,9 +32,7 @@ public class SkiaMenuBar : SkiaView
     /// <summary>
     /// Gets the menu bar items.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public IList<MenuBarItem> Items => _items;
-#pragma warning restore CS0618
+    public IList<SkiaMenuBarItem> Items => _items;
 
     /// <summary>
     /// Gets or sets the menu bar background color.

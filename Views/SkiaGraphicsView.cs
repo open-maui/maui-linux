@@ -45,8 +45,8 @@ public class SkiaGraphicsView : SkiaView
             canvas.Save();
             canvas.ClipRect(bounds);
             canvas.Translate(bounds.Left, bounds.Top);
-            using (var skiaCanvas = new SkiaCanvas { Canvas = canvas })
-                _drawable.Draw(skiaCanvas, new RectF(0, 0, bounds.Width, bounds.Height));
+            using (var lease = Linux.Rendering.MauiCanvasCache.Rent(canvas))
+                _drawable.Draw(lease.Canvas, new RectF(0, 0, bounds.Width, bounds.Height));
             canvas.Restore();
         }
     }

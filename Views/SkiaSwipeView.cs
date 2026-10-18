@@ -1,10 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-// SwipeItem is the element type of the public item lists (LeftItems, ...) until OpenMaui 11.0,
-// when SkiaSwipeItem replaces it; the swipe events carry the legacy event args until then.
-#pragma warning disable CS0618
-
 using SkiaSharp;
 using Microsoft.Maui.Platform.Linux.Rendering;
 
@@ -28,10 +24,10 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     private const float SwipeStartDistance = 10f;
 
     private SkiaView? _content;
-    private readonly List<SwipeItem> _leftItems = new();
-    private readonly List<SwipeItem> _rightItems = new();
-    private readonly List<SwipeItem> _topItems = new();
-    private readonly List<SwipeItem> _bottomItems = new();
+    private readonly List<SkiaSwipeItem> _leftItems = new();
+    private readonly List<SkiaSwipeItem> _rightItems = new();
+    private readonly List<SkiaSwipeItem> _topItems = new();
+    private readonly List<SkiaSwipeItem> _bottomItems = new();
     private readonly Dictionary<OpenSwipeItem, Microsoft.Maui.SwipeMode> _itemsModes = new();
     private readonly Dictionary<OpenSwipeItem, SwipeBehaviorOnInvoked> _itemsBehaviors = new();
 
@@ -44,7 +40,6 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     private float _swipeStartOffset;
     private bool _isOpen = false;
     private Rect? _arranging;
-
 
     /// <summary>
     /// Gets or sets the content view.
@@ -77,40 +72,30 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>
     /// Gets the left swipe items.
     /// </summary>
-    public IList<SwipeItem> LeftItems => _leftItems;
+    public IList<SkiaSwipeItem> LeftItems => _leftItems;
 
     /// <summary>
     /// Gets the right swipe items.
     /// </summary>
-    public IList<SwipeItem> RightItems => _rightItems;
+    public IList<SkiaSwipeItem> RightItems => _rightItems;
 
     /// <summary>
     /// Gets the top swipe items.
     /// </summary>
-    public IList<SwipeItem> TopItems => _topItems;
+    public IList<SkiaSwipeItem> TopItems => _topItems;
 
     /// <summary>
     /// Gets the bottom swipe items.
     /// </summary>
-    public IList<SwipeItem> BottomItems => _bottomItems;
+    public IList<SkiaSwipeItem> BottomItems => _bottomItems;
 
     private Microsoft.Maui.SwipeMode _mode = Microsoft.Maui.SwipeMode.Reveal;
-
-    /// <summary>
-    /// Gets or sets the swipe mode of the items whose own mode is not set.
-    /// </summary>
-    [Obsolete("Use MauiMode, which takes Microsoft.Maui.SwipeMode; this property is removed in OpenMaui 11.0.")]
-    public SwipeMode Mode
-    {
-        get => _mode.ToLegacy();
-        set => _mode = value.ToMaui();
-    }
 
     /// <summary>
     /// Gets or sets the swipe mode of the items whose own mode is not set
     /// (<see cref="SetItemsMode(OpenSwipeItem, Microsoft.Maui.SwipeMode)"/>).
     /// </summary>
-    public Microsoft.Maui.SwipeMode MauiMode
+    public Microsoft.Maui.SwipeMode Mode
     {
         get => _mode;
         set => _mode = value;
@@ -153,7 +138,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>
     /// Event raised when swipe is started.
     /// </summary>
-    public event EventHandler<SwipeStartedEventArgs>? SwipeStarted;
+    public event EventHandler<SkiaSwipeStartedEventArgs>? SwipeStarted;
 
     /// <summary>Raised as a swipe moves the content (MAUI's SwipeChanging).</summary>
     public event EventHandler<SwipeOffsetChangedEventArgs>? SwipeChanging;
@@ -161,18 +146,10 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>
     /// Event raised when swipe ends.
     /// </summary>
-    public event EventHandler<SwipeEndedEventArgs>? SwipeEnded;
+    public event EventHandler<SkiaSwipeEndedEventArgs>? SwipeEnded;
 
     /// <summary>Raised when <see cref="IsOpen"/> changes.</summary>
     public event EventHandler? IsOpenChanged;
-
-    /// <summary>The mode of a side's items (MAUI's SwipeItems.Mode).</summary>
-    [Obsolete("Use the overload that takes Microsoft.Maui.SwipeMode; this overload is removed in OpenMaui 11.0.")]
-    public void SetItemsMode(OpenSwipeItem items, SwipeMode mode) => SetItemsMode(items, mode.ToMaui());
-
-    /// <summary>The mode of a side's items: its own, or <see cref="Mode"/>.</summary>
-    [Obsolete("Use GetMauiItemsMode, which returns Microsoft.Maui.SwipeMode; this method is removed in OpenMaui 11.0.")]
-    public SwipeMode GetItemsMode(OpenSwipeItem items) => GetMauiItemsMode(items).ToLegacy();
 
     /// <summary>The mode of a side's items (MAUI's SwipeItems.Mode).</summary>
     public void SetItemsMode(OpenSwipeItem items, Microsoft.Maui.SwipeMode mode)
@@ -181,8 +158,8 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         OnItemsChanged();
     }
 
-    /// <summary>The mode of a side's items: its own, or <see cref="MauiMode"/>.</summary>
-    public Microsoft.Maui.SwipeMode GetMauiItemsMode(OpenSwipeItem items) =>
+    /// <summary>The mode of a side's items: its own, or <see cref="Mode"/>.</summary>
+    public Microsoft.Maui.SwipeMode GetItemsMode(OpenSwipeItem items) =>
         _itemsModes.TryGetValue(items, out var mode) ? mode : _mode;
 
     /// <summary>What happens after a side's item is invoked (MAUI's SwipeItems.SwipeBehaviorOnInvoked).</summary>
@@ -199,13 +176,6 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// </summary>
     public void Open(Microsoft.Maui.SwipeDirection direction) => OpenTo(direction);
 
-    /// <summary>
-    /// Opens the swipe view in the specified direction (Right shows the left items, Left the right
-    /// items, Down the top items, Up the bottom items). A side without visible items stays closed.
-    /// </summary>
-    [Obsolete("Use the overload that takes Microsoft.Maui.SwipeDirection; this overload is removed in OpenMaui 11.0.")]
-    public void Open(SwipeDirection direction) => OpenTo(direction.ToMaui());
-
     private void OpenTo(Microsoft.Maui.SwipeDirection? direction)
     {
         if (direction == null)
@@ -221,7 +191,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     }
 
     /// <summary>Opens the given items (MAUI's <c>SwipeView.Open(OpenSwipeItem)</c>).</summary>
-    public void Open(OpenSwipeItem items) => OpenTo(MauiDirectionOf(items));
+    public void Open(OpenSwipeItem items) => OpenTo(DirectionOf(items));
 
     /// <summary>
     /// Closes the swipe view.
@@ -233,12 +203,8 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         SetIsOpen(false);
     }
 
-    /// <summary>The swipe direction that shows the given items.</summary>
-    [Obsolete("Use MauiDirectionOf, which returns Microsoft.Maui.SwipeDirection; this method is removed in OpenMaui 11.0.")]
-    public static SwipeDirection DirectionOf(OpenSwipeItem items) => MauiDirectionOf(items).ToLegacy();
-
     /// <summary>The swipe direction that shows the given items (null for a value that is not an <see cref="OpenSwipeItem"/> member).</summary>
-    public static Microsoft.Maui.SwipeDirection? MauiDirectionOf(OpenSwipeItem items) => items switch
+    public static Microsoft.Maui.SwipeDirection? DirectionOf(OpenSwipeItem items) => items switch
     {
         OpenSwipeItem.LeftItems => Microsoft.Maui.SwipeDirection.Right,
         OpenSwipeItem.RightItems => Microsoft.Maui.SwipeDirection.Left,
@@ -261,16 +227,16 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     private static float SignOf(Microsoft.Maui.SwipeDirection? direction) =>
         direction is Microsoft.Maui.SwipeDirection.Right or Microsoft.Maui.SwipeDirection.Down ? 1f : -1f;
 
-    private List<SwipeItem> ItemsFor(Microsoft.Maui.SwipeDirection? direction) => direction switch
+    private List<SkiaSwipeItem> ItemsFor(Microsoft.Maui.SwipeDirection? direction) => direction switch
     {
         Microsoft.Maui.SwipeDirection.Right => _leftItems,
         Microsoft.Maui.SwipeDirection.Left => _rightItems,
         Microsoft.Maui.SwipeDirection.Down => _topItems,
         Microsoft.Maui.SwipeDirection.Up => _bottomItems,
-        _ => new List<SwipeItem>(),
+        _ => new List<SkiaSwipeItem>(),
     };
 
-    private List<SwipeItem> VisibleItems(Microsoft.Maui.SwipeDirection? direction) => Visible(ItemsFor(direction));
+    private List<SkiaSwipeItem> VisibleItems(Microsoft.Maui.SwipeDirection? direction) => Visible(ItemsFor(direction));
 
     private void SetIsOpen(bool isOpen)
     {
@@ -338,7 +304,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         float extent = ContentExtent(direction);
         float distance;
 
-        if (GetMauiItemsMode(ItemsOf(direction)) == Microsoft.Maui.SwipeMode.Reveal)
+        if (GetItemsMode(ItemsOf(direction)) == Microsoft.Maui.SwipeMode.Reveal)
         {
             if (horizontal)
             {
@@ -366,7 +332,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         return extent > 0 ? Math.Min(distance, extent) : distance;
     }
 
-    private static float ItemWidth(SwipeItem item)
+    private static float ItemWidth(SkiaSwipeItem item)
     {
         if (item.Content is { } view)
         {
@@ -377,7 +343,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         return SwipeItemWidth;
     }
 
-    private static float ItemHeight(SwipeItem item, float fallback)
+    private static float ItemHeight(SkiaSwipeItem item, float fallback)
     {
         if (item.Content is { } view)
         {
@@ -388,7 +354,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         return fallback;
     }
 
-    private static float? ItemViewsHeight(List<SwipeItem> items)
+    private static float? ItemViewsHeight(List<SkiaSwipeItem> items)
     {
         float? height = null;
         foreach (var item in items)
@@ -413,15 +379,15 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// The rectangles of a side's visible items at the full open distance: from the edge they are
     /// revealed at, in item order. In Drag mode they are drawn moved with the content.
     /// </summary>
-    private List<(SwipeItem Item, SKRect Rect)> ItemRects(Microsoft.Maui.SwipeDirection? direction, SKRect bounds)
+    private List<(SkiaSwipeItem Item, SKRect Rect)> ItemRects(Microsoft.Maui.SwipeDirection? direction, SKRect bounds)
     {
-        var result = new List<(SwipeItem, SKRect)>();
+        var result = new List<(SkiaSwipeItem, SKRect)>();
         var items = VisibleItems(direction);
         if (items.Count == 0)
             return result;
 
         float open = OpenDistance(direction);
-        bool execute = GetMauiItemsMode(ItemsOf(direction)) == Microsoft.Maui.SwipeMode.Execute;
+        bool execute = GetItemsMode(ItemsOf(direction)) == Microsoft.Maui.SwipeMode.Execute;
 
         if (IsHorizontal(direction))
         {
@@ -558,11 +524,11 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     }
 
     /// <summary>The items of a side that are shown (SwipeItem.IsVisible).</summary>
-    private static List<SwipeItem> Visible(List<SwipeItem> items) =>
+    private static List<SkiaSwipeItem> Visible(List<SkiaSwipeItem> items) =>
         items.TrueForAll(IsShown) ? items : items.FindAll(IsShown);
 
     /// <summary>An item is shown when it and its view (an item view's) are visible.</summary>
-    private static bool IsShown(SwipeItem item) => item.IsVisible && (item.Content?.IsVisible ?? true);
+    private static bool IsShown(SkiaSwipeItem item) => item.IsVisible && (item.Content?.IsVisible ?? true);
 
     protected override void OnDraw(SKCanvas canvas, SKRect bounds)
     {
@@ -635,7 +601,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// Where a menu item's icon and text go, as Windows' SwipeItem (an AppBarButton) lays them
     /// out: the icon, 16 high, above the 12-point text, the two centred together in the item.
     /// </summary>
-    internal static (SKRect? Icon, float? Baseline) ItemContentLayout(SwipeItem item, SKRect bounds, SKFontMetrics metrics)
+    internal static (SKRect? Icon, float? Baseline) ItemContentLayout(SkiaSwipeItem item, SKRect bounds, SKFontMetrics metrics)
     {
         var icon = item.Icon;
         bool hasIcon = icon is { Width: > 0, Height: > 0 };
@@ -664,7 +630,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         return (iconRect, baseline);
     }
 
-    private static void DrawItemContent(SKCanvas canvas, SwipeItem item, SKRect bounds)
+    private static void DrawItemContent(SKCanvas canvas, SkiaSwipeItem item, SKRect bounds)
     {
         using var font = SkiaFontFactory.Create(ItemFontSize);
         var (iconRect, baseline) = ItemContentLayout(item, bounds, font.Metrics);
@@ -690,7 +656,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     }
 
     /// <summary>The item at a point, when the view is open and the point is on its items.</summary>
-    private SwipeItem? ItemAt(float x, float y)
+    private SkiaSwipeItem? ItemAt(float x, float y)
     {
         if (!_isOpen || _activeDirection == null)
             return null;
@@ -740,7 +706,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
     /// Invokes an item as MAUI's SwipeView does (when enabled), then closes the view unless the
     /// items' SwipeBehaviorOnInvoked is RemainOpen.
     /// </summary>
-    private void InvokeItem(SwipeItem item, Microsoft.Maui.SwipeDirection? direction)
+    private void InvokeItem(SkiaSwipeItem item, Microsoft.Maui.SwipeDirection? direction)
     {
         if (item.IsEnabled)
             item.OnInvoked();
@@ -830,7 +796,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
             if (!_swipeStarted && (Math.Abs(deltaX) > SwipeStartDistance || Math.Abs(deltaY) > SwipeStartDistance))
             {
                 _swipeStarted = true;
-                SwipeStarted?.Invoke(this, new SwipeStartedEventArgs(_activeDirection.ToLegacy()));
+                SwipeStarted?.Invoke(this, new SkiaSwipeStartedEventArgs(_activeDirection.Value));
             }
 
             bool horizontal = IsHorizontal(_activeDirection);
@@ -880,7 +846,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
         var items = VisibleItems(direction);
         var itemsSide = ItemsOf(direction);
 
-        if (reached && GetMauiItemsMode(itemsSide) == Microsoft.Maui.SwipeMode.Execute)
+        if (reached && GetItemsMode(itemsSide) == Microsoft.Maui.SwipeMode.Execute)
         {
             // Execute mode runs the first visible item (one action per swipe, as MAUI).
             if (items.Count > 0)
@@ -898,7 +864,7 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
             Close();
         }
 
-        SwipeEnded?.Invoke(this, new SwipeEndedEventArgs(direction.ToLegacy(), isOpen));
+        SwipeEnded?.Invoke(this, new SkiaSwipeEndedEventArgs(direction ?? default, isOpen));
         if (!_isOpen)
             _activeDirection = null;
 
@@ -909,23 +875,11 @@ public class SkiaSwipeView : SkiaLayoutView, IPointerDragInterceptor
 /// <summary>A swipe's direction and how far it has moved the content (MAUI's SwipeChanging).</summary>
 public class SwipeOffsetChangedEventArgs : EventArgs
 {
-    [Obsolete("Use the constructor that takes Microsoft.Maui.SwipeDirection; this constructor is removed in OpenMaui 11.0.")]
-    public SwipeOffsetChangedEventArgs(SwipeDirection direction, double offset)
-    {
-        Direction = direction;
-        SwipeDirection = direction.ToMaui() ?? default;
-        Offset = offset;
-    }
-
     public SwipeOffsetChangedEventArgs(Microsoft.Maui.SwipeDirection swipeDirection, double offset)
     {
         SwipeDirection = swipeDirection;
-        Direction = ((Microsoft.Maui.SwipeDirection?)swipeDirection).ToLegacy();
         Offset = offset;
     }
-
-    [Obsolete("Use SwipeDirection (Microsoft.Maui.SwipeDirection); this property is removed in OpenMaui 11.0.")]
-    public SwipeDirection Direction { get; }
 
     /// <summary>The direction of the swipe.</summary>
     public Microsoft.Maui.SwipeDirection SwipeDirection { get; }

@@ -6,8 +6,6 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -120,16 +118,11 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
     }
 
     /// <summary>MAUI's <c>MapClipsToBounds</c> signature; maps the property on a Linux <see cref="LayoutHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapClipsToBounds(ILayoutHandler handler, ILayout layout)
     {
         if (handler is LayoutHandler linuxHandler)
             MapClipsToBoundsCore(linuxHandler, layout);
     }
-
-    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapClipsToBounds(LayoutHandler handler, ILayout layout) => MapClipsToBoundsCore(handler, layout);
 
     private static void MapClipsToBoundsCore(LayoutHandler handler, ILayout layout)
     {
@@ -138,16 +131,11 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
     }
 
     /// <summary>MAUI's <c>MapBackground</c> signature; maps the property on a Linux <see cref="LayoutHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapBackground(ILayoutHandler handler, ILayout layout)
     {
         if (handler is LayoutHandler linuxHandler)
             MapBackgroundCore(linuxHandler, layout);
     }
-
-    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapBackground(LayoutHandler handler, ILayout layout) => MapBackgroundCore(handler, layout);
 
     private static void MapBackgroundCore(LayoutHandler handler, ILayout layout)
     {
@@ -191,7 +179,6 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
     }
 
     /// <summary>MAUI's <c>MapAdd</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapAdd(ILayoutHandler handler, ILayout layout, object? arg)
     {
         if (handler is LayoutHandler linuxHandler)
@@ -199,10 +186,6 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
         else if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
             handler.Add(update.View);
     }
-
-    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapAdd(LayoutHandler handler, ILayout layout, object? arg) => MapAddCore(handler, layout, arg);
 
     private static void MapAddCore(LayoutHandler handler, ILayout layout, object? arg)
     {
@@ -212,7 +195,6 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
     }
 
     /// <summary>MAUI's <c>MapRemove</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapRemove(ILayoutHandler handler, ILayout layout, object? arg)
     {
         if (handler is LayoutHandler linuxHandler)
@@ -220,10 +202,6 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
         else if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
             handler.Remove(update.View);
     }
-
-    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapRemove(LayoutHandler handler, ILayout layout, object? arg) => MapRemoveCore(handler, layout, arg);
 
     private static void MapRemoveCore(LayoutHandler handler, ILayout layout, object? arg)
     {
@@ -247,7 +225,6 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
     }
 
     /// <summary>MAUI's <c>MapClear</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapClear(ILayoutHandler handler, ILayout layout, object? arg)
     {
         if (handler is LayoutHandler linuxHandler)
@@ -256,17 +233,12 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
             handler.Clear();
     }
 
-    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapClear(LayoutHandler handler, ILayout layout, object? arg) => MapClearCore(handler, layout, arg);
-
     private static void MapClearCore(LayoutHandler handler, ILayout layout, object? arg)
     {
         handler.Clear();
     }
 
     /// <summary>MAUI's <c>MapInsert</c> signature; runs the command on a Linux <see cref="LayoutHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapInsert(ILayoutHandler handler, ILayout layout, object? arg)
     {
         if (handler is LayoutHandler linuxHandler)
@@ -274,10 +246,6 @@ public partial class LayoutHandler : LinuxViewHandler<ILayout, SkiaLayoutView>, 
         else if (arg is Microsoft.Maui.Handlers.LayoutHandlerUpdate update)
             handler.Insert(update.Index, update.View);
     }
-
-    [Obsolete("Use the ILayoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapInsert(LayoutHandler handler, ILayout layout, object? arg) => MapInsertCore(handler, layout, arg);
 
     private static void MapInsertCore(LayoutHandler handler, ILayout layout, object? arg)
     {

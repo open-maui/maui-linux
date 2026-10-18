@@ -27,7 +27,7 @@ public class StackLayoutIntegrationTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child1 = new TestView { HeightRequest = 30, WidthRequest = 100 };
@@ -51,7 +51,7 @@ public class StackLayoutIntegrationTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
         };
 
         var child1 = new TestView { WidthRequest = 50, HeightRequest = 30 };
@@ -75,7 +75,7 @@ public class StackLayoutIntegrationTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child1 = new TestView { HeightRequest = 40, WidthRequest = 100 };
@@ -102,7 +102,7 @@ public class StackLayoutIntegrationTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
         };
 
         var child1 = new TestView { WidthRequest = 60, HeightRequest = 30 };
@@ -129,12 +129,12 @@ public class StackLayoutIntegrationTests
         // Arrange
         var outerStack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var innerStack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Horizontal
         };
 
         var innerChild1 = new TestView { WidthRequest = 50, HeightRequest = 30 };
@@ -164,7 +164,7 @@ public class StackLayoutIntegrationTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child1 = new TestView { HeightRequest = 30, WidthRequest = 100 };
@@ -190,7 +190,7 @@ public class StackLayoutIntegrationTests
         // Arrange - 3 children with spacing=10, middle one invisible
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
             Spacing = 10
         };
 
@@ -222,8 +222,8 @@ public class GridIntegrationTests
     {
         // Arrange
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Auto);
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Auto);
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Auto);
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Auto);
 
         var button = new TestView { WidthRequest = 80, HeightRequest = 40 };
         grid.AddChild(button, row: 0, column: 0);
@@ -241,9 +241,9 @@ public class GridIntegrationTests
     {
         // Arrange
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(50));
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(50));
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(50));
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(50));
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child1 = new TestView { WidthRequest = 100, HeightRequest = 30 };
         var child2 = new TestView { WidthRequest = 100, HeightRequest = 30 };
@@ -265,9 +265,9 @@ public class GridIntegrationTests
     {
         // Arrange
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(Microsoft.Maui.GridLength.Star);
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
+        grid.RowDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(100));
 
         var child1 = new TestView { WidthRequest = 80, HeightRequest = 30 };
         var child2 = new TestView { WidthRequest = 80, HeightRequest = 30 };
@@ -289,10 +289,10 @@ public class GridIntegrationTests
     {
         // Arrange
         var grid = new SkiaGrid();
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(60));
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(40));
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(120));
-        grid.MauiColumnDefinitions.Add(new Microsoft.Maui.GridLength(80));
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(60));
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(40));
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(120));
+        grid.ColumnDefinitions.Add(new Microsoft.Maui.GridLength(80));
 
         // Act - no children added
         var size = grid.Measure(new Size(400, 300));
@@ -308,9 +308,9 @@ public class GridIntegrationTests
     {
         // Arrange
         var grid = new SkiaGrid { RowSpacing = 20 };
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(50));
-        grid.MauiRowDefinitions.Add(new Microsoft.Maui.GridLength(50));
-        grid.MauiColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(50));
+        grid.RowDefinitions.Add(new Microsoft.Maui.GridLength(50));
+        grid.ColumnDefinitions.Add(Microsoft.Maui.GridLength.Star);
 
         var child1 = new TestView { WidthRequest = 100, HeightRequest = 30 };
         var child2 = new TestView { WidthRequest = 100, HeightRequest = 30 };
@@ -338,7 +338,7 @@ public class MeasureArrangePipelineTests
         // Arrange - parent with padding subtracts from available space
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical,
             Padding = new Thickness(20)
         };
 
@@ -359,7 +359,7 @@ public class MeasureArrangePipelineTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child1 = new TestView { WidthRequest = 100, HeightRequest = 40 };
@@ -386,7 +386,7 @@ public class MeasureArrangePipelineTests
         // Arrange
         var stack = new SkiaStackLayout
         {
-            MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical
+            Orientation = Microsoft.Maui.Controls.StackOrientation.Vertical
         };
 
         var child = new TestView { WidthRequest = 100, HeightRequest = 30 };

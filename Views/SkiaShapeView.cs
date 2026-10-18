@@ -96,11 +96,11 @@ public class SkiaShapeView : SkiaView
 
         canvas.Save();
         canvas.Translate(bounds.Left, bounds.Top);
-        using (var skiaCanvas = new SkiaCanvas { Canvas = canvas })
+        using (var lease = Linux.Rendering.MauiCanvasCache.Rent(canvas))
         {
             var rect = new RectF(0, 0, bounds.Width, bounds.Height);
-            skiaCanvas.SetFillPaint(background, rect);
-            skiaCanvas.FillRectangle(rect);
+            lease.Canvas.SetFillPaint(background, rect);
+            lease.Canvas.FillRectangle(rect);
         }
         canvas.Restore();
     }
@@ -124,8 +124,8 @@ public class SkiaShapeView : SkiaView
         canvas.Save();
         canvas.ClipRect(bounds);
         canvas.Translate(bounds.Left, bounds.Top);
-        using (var skiaCanvas = new SkiaCanvas { Canvas = canvas })
-            drawable.Draw(skiaCanvas, rect);
+        using (var lease = Linux.Rendering.MauiCanvasCache.Rent(canvas))
+            drawable.Draw(lease.Canvas, rect);
         canvas.Restore();
     }
 

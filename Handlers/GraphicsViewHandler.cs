@@ -4,8 +4,6 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -45,16 +43,11 @@ public partial class GraphicsViewHandler : LinuxViewHandler<IGraphicsView, SkiaG
     }
 
     /// <summary>MAUI's <c>MapDrawable</c> signature; maps the property on a Linux <see cref="GraphicsViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapDrawable(IGraphicsViewHandler handler, IGraphicsView graphicsView)
     {
         if (handler is GraphicsViewHandler linuxHandler)
             MapDrawableCore(linuxHandler, graphicsView);
     }
-
-    [Obsolete("Use the IGraphicsViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapDrawable(GraphicsViewHandler handler, IGraphicsView graphicsView) => MapDrawableCore(handler, graphicsView);
 
     private static void MapDrawableCore(GraphicsViewHandler handler, IGraphicsView graphicsView)
     {
@@ -73,16 +66,11 @@ public partial class GraphicsViewHandler : LinuxViewHandler<IGraphicsView, SkiaG
     }
 
     /// <summary>MAUI's <c>MapInvalidate</c> signature; runs the command on a Linux <see cref="GraphicsViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapInvalidate(IGraphicsViewHandler handler, IGraphicsView graphicsView, object? arg)
     {
         if (handler is GraphicsViewHandler linuxHandler)
             MapInvalidateCore(linuxHandler, graphicsView, arg);
     }
-
-    [Obsolete("Use the IGraphicsViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapInvalidate(GraphicsViewHandler handler, IGraphicsView graphicsView, object? args) => MapInvalidateCore(handler, graphicsView, args);
 
     private static void MapInvalidateCore(GraphicsViewHandler handler, IGraphicsView graphicsView, object? args)
     {

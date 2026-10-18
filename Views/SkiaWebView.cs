@@ -509,12 +509,8 @@ public partial class SkiaWebView : SkiaView
 
     #region Events
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<WebNavigatingEventArgs>? Navigating;
-#pragma warning restore CS0618
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<WebNavigatedEventArgs>? Navigated;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaWebNavigatingEventArgs>? Navigating;
+    public event EventHandler<SkiaWebNavigatedEventArgs>? Navigated;
     public event EventHandler<string>? TitleChanged;
     public event EventHandler<double>? LoadProgressChanged;
 
@@ -629,14 +625,10 @@ public partial class SkiaWebView : SkiaView
         switch (loadEvent)
         {
             case 0: // STARTED
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-                instance.Navigating?.Invoke(instance, new WebNavigatingEventArgs(url));
-#pragma warning restore CS0618
+                instance.Navigating?.Invoke(instance, new SkiaWebNavigatingEventArgs(url));
                 break;
             case 3: // FINISHED
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-                instance.Navigated?.Invoke(instance, new WebNavigatedEventArgs(url, true));
-#pragma warning restore CS0618
+                instance.Navigated?.Invoke(instance, new SkiaWebNavigatedEventArgs(url, true));
                 break;
         }
     }
@@ -707,6 +699,7 @@ public partial class SkiaWebView : SkiaView
                 DiagnosticLog.Debug("SkiaWebView", $"GDK display: {gdkDisplay}");
             }
 
+            Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
             _webView = _webkitWebViewNew!();
             if (_webView == IntPtr.Zero)
             {
@@ -853,9 +846,7 @@ public partial class SkiaWebView : SkiaView
         if (!_isInitialized) Initialize();
         if (_webView != IntPtr.Zero && _webkitLoadUri != null)
         {
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-            Navigating?.Invoke(this, new WebNavigatingEventArgs(url));
-#pragma warning restore CS0618
+            Navigating?.Invoke(this, new SkiaWebNavigatingEventArgs(url));
             _webkitLoadUri(_webView, url);
             DiagnosticLog.Debug("SkiaWebView", $"URL loaded: {url}");
             ShowNativeWindow();
@@ -1587,12 +1578,6 @@ public class SkiaWebNavigatingEventArgs : EventArgs
     }
 }
 
-[Obsolete("Use SkiaWebNavigatingEventArgs; this type is removed in OpenMaui 11.0.")]
-public class WebNavigatingEventArgs : SkiaWebNavigatingEventArgs
-{
-    public WebNavigatingEventArgs(string url) : base(url) { }
-}
-
 public class SkiaWebNavigatedEventArgs : EventArgs
 {
     public string Url { get; }
@@ -1605,12 +1590,6 @@ public class SkiaWebNavigatedEventArgs : EventArgs
         Success = success;
         Error = error;
     }
-}
-
-[Obsolete("Use SkiaWebNavigatedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class WebNavigatedEventArgs : SkiaWebNavigatedEventArgs
-{
-    public WebNavigatedEventArgs(string url, bool success, string? error = null) : base(url, success, error) { }
 }
 
 #endregion

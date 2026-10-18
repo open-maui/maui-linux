@@ -5,8 +5,6 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -76,16 +74,11 @@ public partial class CorePageHandler : LinuxViewHandler<IContentView, SkiaPage>,
     }
 
     /// <summary>MAUI's <c>MapTitle</c> signature; maps the property on a Linux <see cref="CorePageHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTitle(IPageHandler handler, IContentView page)
     {
         if (handler is CorePageHandler linuxHandler)
             MapTitleCore(linuxHandler, page);
     }
-
-    [Obsolete("Use the IPageHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTitle(CorePageHandler handler, IContentView page) => MapTitleCore(handler, page);
 
     private static void MapTitleCore(CorePageHandler handler, IContentView page)
     {

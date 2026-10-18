@@ -14,10 +14,9 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Hosting;
 /// <c>Microsoft.Maui.Platform.Linux.Services</c>) shares its simple name with a public MAUI type
 /// in a namespace apps import (<c>Microsoft.Maui</c>, <c>Microsoft.Maui.Controls</c>,
 /// <c>Microsoft.Maui.Primitives</c>, <c>Microsoft.Maui.Layouts</c>, ...): a file importing both
-/// gets CS0104 (ambiguous reference). The types that did were marked [Obsolete] in 10.0.110.x,
-/// each naming its replacement, and are removed in OpenMaui 11.0. The test fails when a new
-/// non-obsolete clash appears, when a listed exception no longer clashes (take it off), and when
-/// an obsolete clashing type names a replacement that does not exist.
+/// gets CS0104 (ambiguous reference). The types that did were removed in 10.0.110.8 (each has a
+/// Skia/Linux-prefixed or MAUI replacement). The test fails when a clash appears and when a
+/// listed exception no longer clashes (take it off).
 /// </summary>
 public class PlatformTypeNameClashTests
 {
@@ -55,12 +54,11 @@ public class PlatformTypeNameClashTests
         "Microsoft.Maui.Platform.Linux.Services",
     };
 
-    /// <summary>Clashing types that stay usable without a warning in 10.0.110.x, and why.</summary>
+    /// <summary>Clashing types that stay, and why.</summary>
     private static readonly Dictionary<string, string> KnownExceptions = new()
     {
-        // The parameter type of SkiaView's virtual OnPointer* methods: obsoleting it would warn on
-        // every override with no replacement until 11.0 changes the signatures. Code that handles
-        // the pointer events can name its base, SkiaPointerEventArgs.
+        // The parameter type of SkiaView's virtual OnPointer* methods, which subclasses override.
+        // Code that handles the pointer events can name its base, SkiaPointerEventArgs.
         ["Microsoft.Maui.Platform.PointerEventArgs"] = "virtual OnPointer* parameter type",
     };
 
@@ -94,8 +92,6 @@ public class PlatformTypeNameClashTests
         return tick < 0 ? type.Name : type.Name[..tick];
     }
 
-    private static bool IsObsolete(Type type) => type.GetCustomAttribute<ObsoleteAttribute>() != null;
-
     /// <summary>MAUI's public top-level types in the app namespaces, by simple name.</summary>
     private static Dictionary<string, List<string>> MauiTypesByName() =>
         MauiAssemblies()
@@ -118,51 +114,23 @@ public class PlatformTypeNameClashTests
     }
 
     [Fact]
-    public void No_active_OpenMaui_type_shares_a_name_with_a_MAUI_type()
+    public void No_OpenMaui_type_shares_a_name_with_a_MAUI_type()
     {
-        var active = Clashes()
-            .Where(c => !IsObsolete(c.Type) && !KnownExceptions.ContainsKey(c.Type.FullName!))
+        var clashing = Clashes()
+            .Where(c => !KnownExceptions.ContainsKey(c.Type.FullName!))
             .Select(c => $"{c.Type.FullName} (MAUI: {string.Join(", ", c.Maui)})")
             .ToList();
 
-        active.Should().BeEmpty(
+        clashing.Should().BeEmpty(
             "app code importing Microsoft.Maui.Platform with MAUI's namespaces gets CS0104 for these; give the type a name of its own (a Skia/Linux prefix) or use MAUI's type");
     }
 
     [Fact]
-    public void Known_exceptions_still_clash_and_are_not_obsolete()
+    public void Known_exceptions_still_clash()
     {
-        var clashing = Clashes().Where(c => !IsObsolete(c.Type)).Select(c => c.Type.FullName!).ToHashSet();
+        var clashing = Clashes().Select(c => c.Type.FullName!).ToHashSet();
 
         KnownExceptions.Keys.Where(k => !clashing.Contains(k)).Should().BeEmpty(
-            "a listed exception that is obsolete, gone or no longer clashing should be taken off the list");
-    }
-
-    [Fact]
-    public void Obsolete_clashing_types_name_a_replacement_that_exists()
-    {
-        var known = MauiAssemblies().Concat(OpenMauiAssemblies())
-            .SelectMany(a => a.GetExportedTypes())
-            .SelectMany(t => new[] { t.FullName!, $"{t.Namespace}.{SimpleName(t)}", SimpleName(t) })
-            .ToHashSet();
-
-        var wrong = new List<string>();
-        foreach (var (type, _) in Clashes().Where(c => IsObsolete(c.Type)))
-        {
-            var message = type.GetCustomAttribute<ObsoleteAttribute>()!.Message ?? "";
-            if (!message.StartsWith("Use ", StringComparison.Ordinal) || !message.Contains("11.0", StringComparison.Ordinal))
-            {
-                wrong.Add($"{type.FullName}: '{message}' does not say 'Use X' and the 11.0 removal");
-                continue;
-            }
-
-            var replacement = message[4..].Split(';', ' ', ',')[0];
-            if (!known.Contains(replacement))
-                wrong.Add($"{type.FullName}: replacement '{replacement}' is not a public type");
-            else if (SimpleName(type) == replacement)
-                wrong.Add($"{type.FullName}: replacement '{replacement}' is the clashing name itself");
-        }
-
-        wrong.Should().BeEmpty();
+            "a listed exception that is gone or no longer clashing should be taken off the list");
     }
 }

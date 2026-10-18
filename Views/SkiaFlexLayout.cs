@@ -13,35 +13,25 @@ namespace Microsoft.Maui.Platform;
 /// </summary>
 public class SkiaFlexLayout : SkiaLayoutView
 {
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty DirectionProperty = BindableProperty.Create(
-        nameof(Direction), typeof(FlexDirection), typeof(SkiaFlexLayout), FlexDirection.Row,
+        nameof(Direction), typeof(Layouts.FlexDirection), typeof(SkiaFlexLayout), Layouts.FlexDirection.Row,
         BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaFlexLayout)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty WrapProperty = BindableProperty.Create(
-        nameof(Wrap), typeof(FlexWrap), typeof(SkiaFlexLayout), FlexWrap.NoWrap,
+        nameof(Wrap), typeof(Layouts.FlexWrap), typeof(SkiaFlexLayout), Layouts.FlexWrap.NoWrap,
         BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaFlexLayout)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty JustifyContentProperty = BindableProperty.Create(
-        nameof(JustifyContent), typeof(FlexJustify), typeof(SkiaFlexLayout), FlexJustify.Start,
+        nameof(JustifyContent), typeof(Layouts.FlexJustify), typeof(SkiaFlexLayout), Layouts.FlexJustify.Start,
         BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaFlexLayout)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty AlignItemsProperty = BindableProperty.Create(
-        nameof(AlignItems), typeof(FlexAlignItems), typeof(SkiaFlexLayout), FlexAlignItems.Stretch,
+        nameof(AlignItems), typeof(Layouts.FlexAlignItems), typeof(SkiaFlexLayout), Layouts.FlexAlignItems.Stretch,
         BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaFlexLayout)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty AlignContentProperty = BindableProperty.Create(
-        nameof(AlignContent), typeof(FlexAlignContent), typeof(SkiaFlexLayout), FlexAlignContent.Stretch,
+        nameof(AlignContent), typeof(Layouts.FlexAlignContent), typeof(SkiaFlexLayout), Layouts.FlexAlignContent.Stretch,
         BindingMode.TwoWay, propertyChanged: (b, o, n) => ((SkiaFlexLayout)b).InvalidateMeasure());
-#pragma warning restore CS0618
 
     public static readonly BindableProperty OrderProperty = BindableProperty.CreateAttached(
         "Order", typeof(int), typeof(SkiaFlexLayout), 0, BindingMode.TwoWay);
@@ -52,90 +42,41 @@ public class SkiaFlexLayout : SkiaLayoutView
     public static readonly BindableProperty ShrinkProperty = BindableProperty.CreateAttached(
         "Shrink", typeof(float), typeof(SkiaFlexLayout), 1f, BindingMode.TwoWay);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty BasisProperty = BindableProperty.CreateAttached(
-        "Basis", typeof(FlexBasis), typeof(SkiaFlexLayout), FlexBasis.Auto, BindingMode.TwoWay);
-#pragma warning restore CS0618
+        "Basis", typeof(Layouts.FlexBasis), typeof(SkiaFlexLayout), Layouts.FlexBasis.Auto, BindingMode.TwoWay);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty AlignSelfProperty = BindableProperty.CreateAttached(
-        "AlignSelf", typeof(FlexAlignSelf), typeof(SkiaFlexLayout), FlexAlignSelf.Auto, BindingMode.TwoWay);
-#pragma warning restore CS0618
+        "AlignSelf", typeof(Layouts.FlexAlignSelf), typeof(SkiaFlexLayout), Layouts.FlexAlignSelf.Auto, BindingMode.TwoWay);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiDirection, which takes Microsoft.Maui.Layouts.FlexDirection; this property is removed in OpenMaui 11.0.")]
-    public FlexDirection Direction
+    public Layouts.FlexDirection Direction
     {
-        get => (FlexDirection)GetValue(DirectionProperty);
+        get => (Layouts.FlexDirection)GetValue(DirectionProperty);
         set => SetValue(DirectionProperty, value);
     }
 
-    public Layouts.FlexDirection MauiDirection
+    public Layouts.FlexWrap Wrap
     {
-        get => ((FlexDirection)GetValue(DirectionProperty)).ToMaui();
-        set => SetValue(DirectionProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiWrap, which takes Microsoft.Maui.Layouts.FlexWrap; this property is removed in OpenMaui 11.0.")]
-    public FlexWrap Wrap
-    {
-        get => (FlexWrap)GetValue(WrapProperty);
+        get => (Layouts.FlexWrap)GetValue(WrapProperty);
         set => SetValue(WrapProperty, value);
     }
 
-    public Layouts.FlexWrap MauiWrap
+    public Layouts.FlexJustify JustifyContent
     {
-        get => ((FlexWrap)GetValue(WrapProperty)).ToMaui();
-        set => SetValue(WrapProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiJustifyContent, which takes Microsoft.Maui.Layouts.FlexJustify; this property is removed in OpenMaui 11.0.")]
-    public FlexJustify JustifyContent
-    {
-        get => (FlexJustify)GetValue(JustifyContentProperty);
+        get => (Layouts.FlexJustify)GetValue(JustifyContentProperty);
         set => SetValue(JustifyContentProperty, value);
     }
 
-    public Layouts.FlexJustify MauiJustifyContent
+    public Layouts.FlexAlignItems AlignItems
     {
-        get => ((FlexJustify)GetValue(JustifyContentProperty)).ToMaui();
-        set => SetValue(JustifyContentProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiAlignItems, which takes Microsoft.Maui.Layouts.FlexAlignItems; this property is removed in OpenMaui 11.0.")]
-    public FlexAlignItems AlignItems
-    {
-        get => (FlexAlignItems)GetValue(AlignItemsProperty);
+        get => (Layouts.FlexAlignItems)GetValue(AlignItemsProperty);
         set => SetValue(AlignItemsProperty, value);
     }
 
-    public Layouts.FlexAlignItems MauiAlignItems
+    public Layouts.FlexAlignContent AlignContent
     {
-        get => ((FlexAlignItems)GetValue(AlignItemsProperty)).ToMaui();
-        set => SetValue(AlignItemsProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiAlignContent, which takes Microsoft.Maui.Layouts.FlexAlignContent; this property is removed in OpenMaui 11.0.")]
-    public FlexAlignContent AlignContent
-    {
-        get => (FlexAlignContent)GetValue(AlignContentProperty);
+        get => (Layouts.FlexAlignContent)GetValue(AlignContentProperty);
         set => SetValue(AlignContentProperty, value);
     }
-
-    public Layouts.FlexAlignContent MauiAlignContent
-    {
-        get => ((FlexAlignContent)GetValue(AlignContentProperty)).ToMaui();
-        set => SetValue(AlignContentProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
 
     public static int GetOrder(SkiaView view) => (int)view.GetValue(OrderProperty);
     public static void SetOrder(SkiaView view, int value) => view.SetValue(OrderProperty, value);
@@ -146,37 +87,25 @@ public class SkiaFlexLayout : SkiaLayoutView
     public static float GetShrink(SkiaView view) => (float)view.GetValue(ShrinkProperty);
     public static void SetShrink(SkiaView view, float value) => view.SetValue(ShrinkProperty, value);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use GetMauiBasis, which returns Microsoft.Maui.Layouts.FlexBasis; this method is removed in OpenMaui 11.0.")]
-    public static FlexBasis GetBasis(SkiaView view) => (FlexBasis)view.GetValue(BasisProperty);
-    [Obsolete("Use the overload that takes Microsoft.Maui.Layouts.FlexBasis; this overload is removed in OpenMaui 11.0.")]
-    public static void SetBasis(SkiaView view, FlexBasis value) => view.SetValue(BasisProperty, value);
-
-    [Obsolete("Use GetMauiAlignSelf, which returns Microsoft.Maui.Layouts.FlexAlignSelf; this method is removed in OpenMaui 11.0.")]
-    public static FlexAlignSelf GetAlignSelf(SkiaView view) => (FlexAlignSelf)view.GetValue(AlignSelfProperty);
-    [Obsolete("Use the overload that takes Microsoft.Maui.Layouts.FlexAlignSelf; this overload is removed in OpenMaui 11.0.")]
-    public static void SetAlignSelf(SkiaView view, FlexAlignSelf value) => view.SetValue(AlignSelfProperty, value);
-
     /// <summary>The flex basis of a child: Auto (its measured size) or an absolute length.</summary>
-    public static Layouts.FlexBasis GetMauiBasis(SkiaView view) => ((FlexBasis)view.GetValue(BasisProperty)).ToMaui();
+    public static Layouts.FlexBasis GetBasis(SkiaView view) => (Layouts.FlexBasis)view.GetValue(BasisProperty);
 
     /// <summary>
     /// Sets the flex basis of a child: Auto (its measured size) or an absolute length.
     /// A relative basis is not supported by this Skia-composed layout and is treated as Auto
     /// (MAUI's FlexLayout, laid out by MAUI's own manager, supports it).
     /// </summary>
-    public static void SetBasis(SkiaView view, Layouts.FlexBasis value) => view.SetValue(BasisProperty, value.ToLegacy());
+    public static void SetBasis(SkiaView view, Layouts.FlexBasis value) => view.SetValue(BasisProperty, value);
 
-    /// <summary>The cross-axis alignment of a child; Auto follows <see cref="MauiAlignItems"/>.</summary>
-    public static Layouts.FlexAlignSelf GetMauiAlignSelf(SkiaView view) => ((FlexAlignSelf)view.GetValue(AlignSelfProperty)).ToMaui();
+    /// <summary>The cross-axis alignment of a child; Auto follows <see cref="AlignItems"/>.</summary>
+    public static Layouts.FlexAlignSelf GetAlignSelf(SkiaView view) => (Layouts.FlexAlignSelf)view.GetValue(AlignSelfProperty);
 
-    /// <summary>Sets the cross-axis alignment of a child; Auto follows <see cref="MauiAlignItems"/>.</summary>
-    public static void SetAlignSelf(SkiaView view, Layouts.FlexAlignSelf value) => view.SetValue(AlignSelfProperty, value.ToLegacy());
-#pragma warning restore CS0618
+    /// <summary>Sets the cross-axis alignment of a child; Auto follows <see cref="AlignItems"/>.</summary>
+    public static void SetAlignSelf(SkiaView view, Layouts.FlexAlignSelf value) => view.SetValue(AlignSelfProperty, value);
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        bool isRow = MauiDirection == Layouts.FlexDirection.Row || MauiDirection == Layouts.FlexDirection.RowReverse;
+        bool isRow = Direction == Layouts.FlexDirection.Row || Direction == Layouts.FlexDirection.RowReverse;
         var lines = BuildLines(availableSize, isRow);
         float mainExtent = 0f, crossExtent = 0f;
         foreach (var line in lines)
@@ -202,19 +131,20 @@ public class SkiaFlexLayout : SkiaLayoutView
             return lines;
 
         float mainLimit = isRow ? (float)available.Width : (float)available.Height;
-        bool wrap = MauiWrap != Layouts.FlexWrap.NoWrap && !float.IsInfinity(mainLimit) && !float.IsNaN(mainLimit);
+        bool wrap = Wrap != Layouts.FlexWrap.NoWrap && !float.IsInfinity(mainLimit) && !float.IsNaN(mainLimit);
 
         var current = new List<FlexItem>();
         float used = 0f;
         foreach (var child in ordered)
         {
-            var basis = GetMauiBasis(child);
+            var basis = GetBasis(child);
             // An item's slot is its size plus its margin (chips spaced by a trailing margin
             // ran together); the child is measured inside the margin.
             var margin = child.Margin;
             var inner = new Size(Math.Max(0, available.Width - margin.HorizontalThickness), Math.Max(0, available.Height - margin.VerticalThickness));
             Size size;
-            if (basis.Equals(Layouts.FlexBasis.Auto))
+            // A relative basis is not supported here and is treated as Auto (see SetBasis).
+            if (basis.Equals(Layouts.FlexBasis.Auto) || basis.Equals(new Layouts.FlexBasis(basis.Length, isRelative: true)))
                 size = child.Measure(inner);
             else
                 size = isRow ? child.Measure(new Size(basis.Length, inner.Height)) : child.Measure(new Size(inner.Width, basis.Length));
@@ -243,15 +173,15 @@ public class SkiaFlexLayout : SkiaLayoutView
         if (Children.Count == 0)
             return bounds;
 
-        bool isRow = MauiDirection == Layouts.FlexDirection.Row || MauiDirection == Layouts.FlexDirection.RowReverse;
-        bool isReverse = MauiDirection == Layouts.FlexDirection.RowReverse || MauiDirection == Layouts.FlexDirection.ColumnReverse;
+        bool isRow = Direction == Layouts.FlexDirection.Row || Direction == Layouts.FlexDirection.RowReverse;
+        bool isReverse = Direction == Layouts.FlexDirection.RowReverse || Direction == Layouts.FlexDirection.ColumnReverse;
         float mainSize = isRow ? (float)bounds.Width : (float)bounds.Height;
         float crossSize = isRow ? (float)bounds.Height : (float)bounds.Width;
 
         var lines = BuildLines(new Size(bounds.Width, bounds.Height), isRow);
         if (lines.Count == 0)
             return bounds;
-        if (MauiWrap == Layouts.FlexWrap.Reverse)
+        if (Wrap == Layouts.FlexWrap.Reverse)
             lines.Reverse();
 
         // Resolve grow/shrink per line and the line's cross extent.
@@ -279,9 +209,9 @@ public class SkiaFlexLayout : SkiaLayoutView
         float crossPos = isRow ? (float)bounds.Top : (float)bounds.Left;
         float lineGap = 0f;
         bool stretchLines = false;
-        if (resolved.Count > 1 || MauiAlignContent == Layouts.FlexAlignContent.Stretch)
+        if (resolved.Count > 1 || AlignContent == Layouts.FlexAlignContent.Stretch)
         {
-            switch (MauiAlignContent)
+            switch (AlignContent)
             {
                 case Layouts.FlexAlignContent.Center: crossPos += crossFree / 2f; break;
                 case Layouts.FlexAlignContent.End: crossPos += crossFree; break;
@@ -304,7 +234,7 @@ public class SkiaFlexLayout : SkiaLayoutView
             float remaining = Math.Max(0f, mainSize - used);
             float position = isRow ? (float)bounds.Left : (float)bounds.Top;
             float spacing = 0f;
-            switch (MauiJustifyContent)
+            switch (JustifyContent)
             {
                 case Layouts.FlexJustify.Center: position += remaining / 2f; break;
                 case Layouts.FlexJustify.End: position += remaining; break;
@@ -316,8 +246,15 @@ public class SkiaFlexLayout : SkiaLayoutView
             var ordered = isReverse ? items.AsEnumerable().Reverse() : items;
             foreach (var (child, main, cross) in ordered)
             {
-                var alignSelf = GetMauiAlignSelf(child);
-                var align = alignSelf == Layouts.FlexAlignSelf.Auto ? MauiAlignItems : (Layouts.FlexAlignItems)alignSelf;
+                var alignSelf = GetAlignSelf(child);
+                var align = alignSelf switch
+                {
+                    Layouts.FlexAlignSelf.Stretch => Layouts.FlexAlignItems.Stretch,
+                    Layouts.FlexAlignSelf.Center => Layouts.FlexAlignItems.Center,
+                    Layouts.FlexAlignSelf.Start => Layouts.FlexAlignItems.Start,
+                    Layouts.FlexAlignSelf.End => Layouts.FlexAlignItems.End,
+                    _ => AlignItems,
+                };
                 float itemCross = cross;
                 float itemCrossPos = crossPos;
                 switch (align)
