@@ -19,8 +19,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// on the next iteration of the main loop), as MAUI's StackNavigationManager does. The back arrow (and Escape) asks the view for the stack
 /// without its top page. A view given MAUI's own NavigationViewHandler gets this one.
 /// </summary>
-public partial class CoreNavigationViewHandler : LinuxViewHandler<IStackNavigationView, SkiaNavigationPage>
+public partial class CoreNavigationViewHandler : LinuxViewHandler<IStackNavigationView, SkiaNavigationPage>, INavigationViewHandler
 {
+    IStackNavigationView INavigationViewHandler.VirtualView => VirtualView;
+    object INavigationViewHandler.PlatformView => PlatformView;
+
     private readonly ConditionalWeakTable<IView, SkiaPage> _pageHosts = new();
     private IReadOnlyList<IView> _stack = Array.Empty<IView>();
 
@@ -138,5 +141,12 @@ public partial class CoreNavigationViewHandler : LinuxViewHandler<IStackNavigati
             return false;
         view.RequestNavigation(new NavigationRequest(_stack.Take(_stack.Count - 1).ToList(), true));
         return true;
+    }
+
+    /// <summary>MAUI's <c>NavigationViewHandler.RequestNavigation</c> command.</summary>
+    public static void RequestNavigation(INavigationViewHandler arg1, IStackNavigation arg2, object? arg3)
+    {
+        if (arg1 is CoreNavigationViewHandler linuxHandler && arg2 is IStackNavigationView view)
+            MapRequestNavigation(linuxHandler, view, arg3);
     }
 }

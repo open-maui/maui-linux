@@ -1,6 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+// Platform.SwipeItem is this handler's platform element type (and the element type of
+// SkiaSwipeView's item lists) until OpenMaui 11.0, when SkiaSwipeItem replaces it.
+#pragma warning disable CS0618
+
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 
@@ -9,7 +13,7 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// <summary>
 /// MAUI's SwipeItemMenuItemHandler on Linux, for any <see cref="ISwipeItemMenuItem"/> (a
 /// Controls <c>SwipeItem</c> or a library's own): its platform element is the
-/// <see cref="Platform.SwipeItem"/> the <see cref="SkiaSwipeView"/> draws, kept in step with the
+/// <see cref="SkiaSwipeItem"/> the <see cref="SkiaSwipeView"/> draws, kept in step with the
 /// item's text, colours, font, visibility and icon, and a tap on it invokes the item (its Command
 /// and Invoked event), as MAUI's SwipeItemMenuItemHandler does on every platform.
 /// </summary>
@@ -50,7 +54,7 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
 
     object ISwipeItemMenuItemHandler.PlatformView => PlatformView;
 
-    protected override Platform.SwipeItem CreatePlatformElement() => new Platform.SwipeItem();
+    protected override Platform.SwipeItem CreatePlatformElement() => new SkiaSwipeItem();
 
     protected override void ConnectHandler(Platform.SwipeItem platformView)
     {
@@ -134,5 +138,19 @@ public partial class SwipeItemMenuItemHandler : ElementHandler<ISwipeItemMenuIte
                 return;
             }
         }
+    }
+
+    /// <summary>MAUI's <c>MapSourceAsync</c>: the item's icon (a file image source) is shown.</summary>
+    public static Task MapSourceAsync(ISwipeItemMenuItemHandler handler, ISwipeItemMenuItem image)
+    {
+        MapSource(handler, image);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>MAUI's <c>MapTextColor</c> signature (an <see cref="ITextStyle"/>).</summary>
+    public static void MapTextColor(ISwipeItemMenuItemHandler handler, ITextStyle view)
+    {
+        if (view is ISwipeItemMenuItem item)
+            MapTextColor(handler, item);
     }
 }

@@ -5,6 +5,8 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using Microsoft.Maui.Platform.Linux.Services;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -17,8 +19,11 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// OpenMaui's <see cref="PageHandler"/> and <see cref="ContentPageHandler"/> stay the handlers of
 /// Controls pages. A view given MAUI's own PageHandler gets this one.
 /// </summary>
-public partial class CorePageHandler : LinuxViewHandler<IContentView, SkiaPage>
+public partial class CorePageHandler : LinuxViewHandler<IContentView, SkiaPage>, IPageHandler
 {
+    IContentView IContentViewHandler.VirtualView => VirtualView;
+    object IContentViewHandler.PlatformView => PlatformView;
+
     public static IPropertyMapper<IContentView, CorePageHandler> Mapper = new PropertyMapper<IContentView, CorePageHandler>(ViewHandler.ViewMapper)
     {
         [nameof(IContentView.Content)] = MapContent,
@@ -70,7 +75,19 @@ public partial class CorePageHandler : LinuxViewHandler<IContentView, SkiaPage>
         }
     }
 
-    public static void MapTitle(CorePageHandler handler, IContentView page)
+    /// <summary>MAUI's <c>MapTitle</c> signature; maps the property on a Linux <see cref="CorePageHandler"/>.</summary>
+    [OverloadResolutionPriority(1)]
+    public static void MapTitle(IPageHandler handler, IContentView page)
+    {
+        if (handler is CorePageHandler linuxHandler)
+            MapTitleCore(linuxHandler, page);
+    }
+
+    [Obsolete("Use the IPageHandler overload; this one is removed in OpenMaui 11.0.")]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static void MapTitle(CorePageHandler handler, IContentView page) => MapTitleCore(handler, page);
+
+    private static void MapTitleCore(CorePageHandler handler, IContentView page)
     {
         if (handler.PlatformView is null)
             return;
