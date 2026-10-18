@@ -5,8 +5,8 @@ using FluentAssertions;
 using Xunit;
 using DragData = Microsoft.Maui.Platform.Linux.Services.DragData;
 using DragDropService = Microsoft.Maui.Platform.Linux.Services.DragDropService;
-using DragEventArgs = Microsoft.Maui.Platform.Linux.Services.DragEventArgs;
-using DropEventArgs = Microsoft.Maui.Platform.Linux.Services.DropEventArgs;
+using LinuxDragEventArgs = Microsoft.Maui.Platform.Linux.Services.LinuxDragEventArgs;
+using LinuxDropEventArgs = Microsoft.Maui.Platform.Linux.Services.LinuxDropEventArgs;
 
 namespace Microsoft.Maui.Platform.Tests;
 
@@ -26,7 +26,7 @@ public class WaylandDragDropServiceTests
     public void RaiseDragEnter_FiresEventAndTracksIsDragging()
     {
         var svc = new DragDropService();
-        DragEventArgs? seen = null;
+        LinuxDragEventArgs? seen = null;
         svc.DragEnter += (s, e) => seen = e;
 
         var data = new DragData { Text = "hello" };
@@ -46,7 +46,7 @@ public class WaylandDragDropServiceTests
         TestRaise.DragEnter(svc, new DragData(), 0, 0);
         svc.IsDragging.Should().BeTrue();
 
-        DropEventArgs? seen = null;
+        LinuxDropEventArgs? seen = null;
         svc.Drop += (s, e) => seen = e;
         var data = new DragData();
 
@@ -83,10 +83,10 @@ public class WaylandDragDropServiceTests
         private static readonly System.Reflection.MethodInfo MLeave =
             typeof(DragDropService).GetMethod("RaiseDragLeave", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
-        public static DragEventArgs DragEnter(DragDropService s, DragData d, int x, int y)
-            => (DragEventArgs)MEnter.Invoke(s, new object?[] { d, x, y, null })!;
-        public static DropEventArgs Drop(DragDropService s, DragData d, string? text)
-            => (DropEventArgs)MDrop.Invoke(s, new object?[] { d, text, 0, 0, null })!;
+        public static LinuxDragEventArgs DragEnter(DragDropService s, DragData d, int x, int y)
+            => (LinuxDragEventArgs)MEnter.Invoke(s, new object?[] { d, x, y, null })!;
+        public static LinuxDropEventArgs Drop(DragDropService s, DragData d, string? text)
+            => (LinuxDropEventArgs)MDrop.Invoke(s, new object?[] { d, text, 0, 0, null })!;
         public static void DragLeave(DragDropService s)
             => MLeave.Invoke(s, Array.Empty<object>());
     }

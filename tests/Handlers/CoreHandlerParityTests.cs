@@ -91,7 +91,7 @@ public class CoreHandlerParityTests
 
         handler.PlatformView.Count.Should().Be(4);
         handler.PlatformView.Position.Should().Be(1);
-        handler.PlatformView.IndicatorShape.Should().Be(Microsoft.Maui.Platform.IndicatorShape.Square);
+        handler.PlatformView.IndicatorsShape.Should().Be(SkiaIndicatorShape.Square);
         handler.PlatformView.SelectedIndicatorColor.Should().Be(Colors.Blue);
 
         handler.PlatformView.Position = 3; // what a click on the fourth indicator does

@@ -23,7 +23,7 @@ public class SkiaMenuBarTests
     public void Items_CanAddMenuBarItem()
     {
         var menuBar = new SkiaMenuBar();
-        var item = new MenuBarItem { Text = "File" };
+        var item = new SkiaMenuBarItem { Text = "File" };
 
         menuBar.Items.Add(item);
 
@@ -34,10 +34,10 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuBarItem_CanAddMenuItems()
     {
-        var menuBarItem = new MenuBarItem { Text = "Edit" };
-        menuBarItem.Items.Add(new MenuItem { Text = "Cut" });
-        menuBarItem.Items.Add(new MenuItem { Text = "Copy" });
-        menuBarItem.Items.Add(new MenuItem { Text = "Paste" });
+        var menuBarItem = new SkiaMenuBarItem { Text = "Edit" };
+        menuBarItem.Items.Add(new SkiaMenuItem { Text = "Cut" });
+        menuBarItem.Items.Add(new SkiaMenuItem { Text = "Copy" });
+        menuBarItem.Items.Add(new SkiaMenuItem { Text = "Paste" });
 
         Assert.Equal(3, menuBarItem.Items.Count);
     }
@@ -45,7 +45,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_CanHaveShortcut()
     {
-        var item = new MenuItem { Text = "Save", Shortcut = "Ctrl+S" };
+        var item = new SkiaMenuItem { Text = "Save", Shortcut = "Ctrl+S" };
 
         Assert.Equal("Ctrl+S", item.Shortcut);
     }
@@ -53,7 +53,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_CanBeSeparator()
     {
-        var item = new MenuItem { IsSeparator = true };
+        var item = new SkiaMenuItem { IsSeparator = true };
 
         Assert.True(item.IsSeparator);
     }
@@ -61,7 +61,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_IsEnabled_DefaultsToTrue()
     {
-        var item = new MenuItem { Text = "Test" };
+        var item = new SkiaMenuItem { Text = "Test" };
 
         Assert.True(item.IsEnabled);
     }
@@ -69,7 +69,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_CanBeDisabled()
     {
-        var item = new MenuItem { Text = "Test", IsEnabled = false };
+        var item = new SkiaMenuItem { Text = "Test", IsEnabled = false };
 
         Assert.False(item.IsEnabled);
     }
@@ -77,7 +77,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_CanBeChecked()
     {
-        var item = new MenuItem { Text = "Option", IsChecked = true };
+        var item = new SkiaMenuItem { Text = "Option", IsChecked = true };
 
         Assert.True(item.IsChecked);
     }
@@ -85,7 +85,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_CanHaveIcon()
     {
-        var item = new MenuItem { Text = "Open", IconSource = "open.png" };
+        var item = new SkiaMenuItem { Text = "Open", IconSource = "open.png" };
 
         Assert.Equal("open.png", item.IconSource);
     }
@@ -93,9 +93,9 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_CanHaveSubItems()
     {
-        var item = new MenuItem { Text = "Recent" };
-        item.SubItems.Add(new MenuItem { Text = "File1.txt" });
-        item.SubItems.Add(new MenuItem { Text = "File2.txt" });
+        var item = new SkiaMenuItem { Text = "Recent" };
+        item.SubItems.Add(new SkiaMenuItem { Text = "File1.txt" });
+        item.SubItems.Add(new SkiaMenuItem { Text = "File2.txt" });
 
         Assert.Equal(2, item.SubItems.Count);
     }
@@ -103,7 +103,7 @@ public class SkiaMenuBarTests
     [Fact]
     public void MenuItem_ClickedEvent_CanBeSubscribed()
     {
-        var item = new MenuItem { Text = "Test" };
+        var item = new SkiaMenuItem { Text = "Test" };
         bool clicked = false;
 
         item.Clicked += (s, e) => clicked = true;
@@ -242,10 +242,10 @@ public class SkiaMenuFlyoutTests
     public void Items_CanBeSet()
     {
         var flyout = new SkiaMenuFlyout();
-        flyout.Items = new List<MenuItem>
+        flyout.Items = new()
         {
-            new() { Text = "Item1" },
-            new() { Text = "Item2" }
+            new SkiaMenuItem { Text = "Item1" },
+            new SkiaMenuItem { Text = "Item2" }
         };
 
         Assert.Equal(2, flyout.Items.Count);
@@ -346,7 +346,7 @@ public class SkiaMenuFlyoutTests
     public void ItemClickedEvent_CanBeSubscribed()
     {
         var flyout = new SkiaMenuFlyout();
-        MenuItem? clickedItem = null;
+        object? clickedItem = null;
 
         flyout.ItemClicked += (s, e) => clickedItem = e.Item;
 
@@ -359,7 +359,7 @@ public class MenuItemClickedEventArgsTests
     [Fact]
     public void Constructor_SetsItem()
     {
-        var item = new MenuItem { Text = "Test" };
+        var item = new SkiaMenuItem { Text = "Test" };
         var args = new MenuItemClickedEventArgs(item);
 
         Assert.Equal(item, args.Item);
