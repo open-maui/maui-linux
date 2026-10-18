@@ -5,15 +5,30 @@ using System;
 
 namespace Microsoft.Maui.Platform;
 
-public class SwipeEndedEventArgs : EventArgs
+/// <summary>Raised by <see cref="SkiaSwipeView.SwipeEnded"/> when a swipe ends.</summary>
+public class SkiaSwipeEndedEventArgs : EventArgs
 {
-    public SwipeDirection Direction { get; }
-
-    public bool IsOpen { get; }
-
-    public SwipeEndedEventArgs(SwipeDirection direction, bool isOpen)
+    public SkiaSwipeEndedEventArgs(Microsoft.Maui.SwipeDirection swipeDirection, bool isOpen)
     {
-        Direction = direction;
+        SwipeDirection = swipeDirection;
         IsOpen = isOpen;
     }
+
+    /// <summary>The direction of the swipe.</summary>
+    public Microsoft.Maui.SwipeDirection SwipeDirection { get; }
+
+    /// <summary>Whether the swipe left the items open.</summary>
+    public bool IsOpen { get; }
+}
+
+[Obsolete("Use SkiaSwipeEndedEventArgs; this type is removed in OpenMaui 11.0.")]
+public class SwipeEndedEventArgs : SkiaSwipeEndedEventArgs
+{
+    // The legacy None has no MAUI counterpart; SwipeDirection is then default (0).
+    public SwipeEndedEventArgs(SwipeDirection direction, bool isOpen) : base(direction.ToMaui() ?? default, isOpen)
+    {
+        Direction = direction;
+    }
+
+    public SwipeDirection Direction { get; }
 }

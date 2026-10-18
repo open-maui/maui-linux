@@ -285,20 +285,20 @@ public partial class SkiaPage : SkiaView
     internal static Rect AlignContent(SkiaView content, SKRect area, Size desired)
     {
         var hAlign = content.MauiView is IView hv
-            ? (LayoutAlignment)(int)hv.HorizontalLayoutAlignment
+            ? hv.HorizontalLayoutAlignment
             : LayoutAlignmentHelper.MapFromMaui(content.HorizontalOptions);
         var vAlign = content.MauiView is IView vv
-            ? (LayoutAlignment)(int)vv.VerticalLayoutAlignment
+            ? vv.VerticalLayoutAlignment
             : LayoutAlignmentHelper.MapFromMaui(content.VerticalOptions);
 
-        static (double Start, double Length) Place(LayoutAlignment align, double start, double available, double wanted)
+        static (double Start, double Length) Place(Primitives.LayoutAlignment align, double start, double available, double wanted)
         {
-            if (align == LayoutAlignment.Fill || wanted <= 0 || double.IsNaN(wanted) || wanted >= available)
+            if (align == Primitives.LayoutAlignment.Fill || wanted <= 0 || double.IsNaN(wanted) || wanted >= available)
                 return (start, available);
             return align switch
             {
-                LayoutAlignment.Center => (start + (available - wanted) / 2, wanted),
-                LayoutAlignment.End => (start + available - wanted, wanted),
+                Primitives.LayoutAlignment.Center => (start + (available - wanted) / 2, wanted),
+                Primitives.LayoutAlignment.End => (start + available - wanted, wanted),
                 _ => (start, wanted),
             };
         }
@@ -307,10 +307,10 @@ public partial class SkiaPage : SkiaView
         // places it (a 16 px chevron in a 34 px round button sat in its corner).
         if (content.MauiView is IView sized)
         {
-            if (hAlign == LayoutAlignment.Fill && Microsoft.Maui.Primitives.Dimension.IsExplicitSet(sized.Width))
-                hAlign = LayoutAlignment.Center;
-            if (vAlign == LayoutAlignment.Fill && Microsoft.Maui.Primitives.Dimension.IsExplicitSet(sized.Height))
-                vAlign = LayoutAlignment.Center;
+            if (hAlign == Primitives.LayoutAlignment.Fill && Microsoft.Maui.Primitives.Dimension.IsExplicitSet(sized.Width))
+                hAlign = Primitives.LayoutAlignment.Center;
+            if (vAlign == Primitives.LayoutAlignment.Fill && Microsoft.Maui.Primitives.Dimension.IsExplicitSet(sized.Height))
+                vAlign = Primitives.LayoutAlignment.Center;
         }
 
         var (x, w) = Place(hAlign, area.Left, area.Width, desired.Width);
@@ -415,7 +415,7 @@ public partial class SkiaPage : SkiaView
         if (_content != null) e = InContentSpace(e);
         if (e.Y > contentTop && _content != null && ContentContains(e))
         {
-            var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
+            var contentE = e.At(e.X - _paddingLeft, e.Y - contentTop - _paddingTop);
             _content.OnPointerPressed(contentE);
         }
     }
@@ -427,7 +427,7 @@ public partial class SkiaPage : SkiaView
         if (_content != null) e = InContentSpace(e);
         if (e.Y > contentTop && _content != null && ContentContains(e))
         {
-            var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
+            var contentE = e.At(e.X - _paddingLeft, e.Y - contentTop - _paddingTop);
             _content.OnPointerMoved(contentE);
         }
     }
@@ -439,7 +439,7 @@ public partial class SkiaPage : SkiaView
         if (_content != null) e = InContentSpace(e);
         if (e.Y > contentTop && _content != null && ContentContains(e))
         {
-            var contentE = new PointerEventArgs(e.X - _paddingLeft, e.Y - contentTop - _paddingTop, e.Button);
+            var contentE = e.At(e.X - _paddingLeft, e.Y - contentTop - _paddingTop);
             _content.OnPointerReleased(contentE);
         }
     }
@@ -447,7 +447,7 @@ public partial class SkiaPage : SkiaView
     private PointerEventArgs InContentSpace(PointerEventArgs e)
     {
         var p = _content!.ToOwnSpace(e.X, e.Y);
-        return p.X == e.X && p.Y == e.Y ? e : new PointerEventArgs(p.X, p.Y, e.Button);
+        return p.X == e.X && p.Y == e.Y ? e : e.At(p.X, p.Y);
     }
 
     public override void OnKeyDown(KeyEventArgs e)
