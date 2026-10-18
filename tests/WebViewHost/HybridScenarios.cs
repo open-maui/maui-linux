@@ -79,7 +79,8 @@ public static partial class Program
     {
         private readonly string _rootDirectory;
 
-        public HybridFixture()
+        /// <param name="configure">Runs before the handler is created (an event the app handles from the start).</param>
+        public HybridFixture(Action<HybridWebView>? configure = null)
         {
             if (s_mainLoopContext == null)
             {
@@ -98,6 +99,7 @@ public static partial class Program
             View.RawMessageReceived += (_, e) => Messages.Enqueue(e.Message ?? string.Empty);
             View.WebViewInitializing += (_, _) => Initializing++;
             View.WebViewInitialized += (_, _) => Initialized++;
+            configure?.Invoke(View);
 
             Handler = new LinuxHybridWebViewHandler();
             Handler.SetMauiContext(new MauiContext(new ServiceCollection().BuildServiceProvider()));
@@ -255,6 +257,114 @@ public static partial class Program
         Check(seenQuery == "1", $"QueryParameters[x] was '{seenQuery}'");
         Check(seenAccept == "application/json", $"Headers[Accept] was '{seenAccept}'");
     }
+    /// <summary>
+    /// An app that handles WebResourceRequested from the start sees http and https requests too
+    /// (the view's own network, through the loopback interception proxy): an https fetch it
+    /// answers, and an http navigation it leaves alone, which reaches the server unchanged.
+    /// </summary>
+    private static void HybridWebResourceRequestedHttp()
+    {
+        // The view's own network keeps its data under the app's data directory: a scratch one here.
+        var home = Path.Combine(Path.GetTempPath(), "openmaui-hybrid-http-" + Guid.NewGuid().ToString("N")[..8]);
+        Environment.SetEnvironmentVariable("XDG_DATA_HOME", Path.Combine(home, "data"));
+        Environment.SetEnvironmentVariable("XDG_CACHE_HOME", Path.Combine(home, "cache"));
+        try
+        {
+            HybridWebResourceRequestedHttpCore();
+        }
+        finally
+        {
+            try { Directory.Delete(home, recursive: true); } catch { }
+        }
+    }
+
+    private static void HybridWebResourceRequestedHttpCore()
+    {
+        using var server = new LoopbackPageServer("<html><head><title>from the server</title></head><body>server</body></html>");
+        var offered = new ConcurrentQueue<string>();
+        using var hybrid = new HybridFixture(view => view.WebResourceRequested += (_, e) =>
+        {
+            if (e.Uri.Scheme is "http" or "https")
+                offered.Enqueue($"{e.Method} {e.Uri}");
+            if (e.Uri.Host == "intercepted.test")
+            {
+                e.Handled = true;
+                e.SetResponse(200, "OK", new Dictionary<string, string>
+                {
+                    ["Content-Type"] = "text/plain",
+                    ["Access-Control-Allow-Origin"] = "*",
+                }, new MemoryStream(Encoding.UTF8.GetBytes("from the app " + e.Method)));
+            }
+        });
+
+        Await(hybrid.View.EvaluateJavaScriptAsync("""
+            (async function () {
+              try {
+                var r = await fetch('https://intercepted.test/data?x=1', { method: 'POST', body: 'payload' });
+                window.HybridWebView.SendRawMessage('https:' + r.status + ':' + await r.text());
+              } catch (e) {
+                window.HybridWebView.SendRawMessage('https:failed ' + e);
+              }
+            })(); 0
+            """));
+        var https = hybrid.WaitForMessage(m => m.StartsWith("https:", StringComparison.Ordinal));
+        Check(https == "https:200:from the app POST", $"the https fetch said '{https}' (offered: {string.Join(" | ", offered)})");
+        Check(offered.Contains("POST https://intercepted.test/data?x=1"), $"the https request was not offered as a POST (offered: {string.Join(" | ", offered)})");
+
+        hybrid.Browser.Navigate(server.Url);
+        Pump(() => hybrid.Browser.Title == "from the server");
+        Check(hybrid.Browser.Title == "from the server", $"the http navigation the app left alone showed '{hybrid.Browser.Title}'");
+        Check(offered.Contains($"GET {server.Url}"), $"the http navigation was not offered (offered: {string.Join(" | ", offered)})");
+        Check(server.Requests > 0, "the server never saw the request the app left alone");
+    }
+
+    /// <summary>A one-page HTTP server on 127.0.0.1.</summary>
+    private sealed class LoopbackPageServer : IDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener = new(System.Net.IPAddress.Loopback, 0);
+        private readonly byte[] _response;
+        private int _requests;
+
+        public LoopbackPageServer(string html)
+        {
+            var body = Encoding.UTF8.GetBytes(html);
+            _response = Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n")
+                .Concat(body).ToArray();
+            _listener.Start();
+            Url = $"http://127.0.0.1:{((System.Net.IPEndPoint)_listener.LocalEndpoint).Port}/page";
+            _ = Task.Run(ServeAsync);
+        }
+
+        public string Url { get; }
+        public int Requests => Volatile.Read(ref _requests);
+
+        private async Task ServeAsync()
+        {
+            while (true)
+            {
+                System.Net.Sockets.TcpClient client;
+                try { client = await _listener.AcceptTcpClientAsync(); }
+                catch { return; }
+                using (client)
+                {
+                    var stream = client.GetStream();
+                    var buffer = new byte[8192];
+                    var head = new StringBuilder();
+                    while (!head.ToString().Contains("\r\n\r\n"))
+                    {
+                        int read = await stream.ReadAsync(buffer);
+                        if (read == 0) break;
+                        head.Append(Encoding.ASCII.GetString(buffer, 0, read));
+                    }
+                    Interlocked.Increment(ref _requests);
+                    await stream.WriteAsync(_response);
+                }
+            }
+        }
+
+        public void Dispose() => _listener.Stop();
+    }
+
     private static void SchemeFallbackAndPerViewRouting()
     {
         // BlazorWebView's process-wide handler and a HybridWebView's per-view one share "app".

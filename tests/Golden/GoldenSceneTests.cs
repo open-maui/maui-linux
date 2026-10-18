@@ -12,8 +12,6 @@ using Xunit;
 namespace Microsoft.Maui.Controls.Linux.Tests.Golden;
 
 // Inside the namespace so they beat the enclosing Microsoft.Maui types in lookup.
-using GridLength = Microsoft.Maui.Platform.GridLength;
-using StackOrientation = Microsoft.Maui.Platform.StackOrientation;
 
 /// <summary>
 /// The scene catalog. Each scene is rendered at every scale factor and
@@ -29,10 +27,10 @@ public class GoldenSceneTests
     public static IEnumerable<object[]> Scales => GoldenHarness.Scales.Select(s => new object[] { s });
 
     private static SkiaStackLayout Column(double spacing = 8, double padding = 12)
-        => new() { Orientation = StackOrientation.Vertical, Spacing = spacing, Padding = new Thickness(padding) };
+        => new() { MauiOrientation = StackOrientation.Vertical, Spacing = spacing, Padding = new Thickness(padding) };
 
     private static SkiaStackLayout Row(double spacing = 8)
-        => new() { Orientation = StackOrientation.Horizontal, Spacing = spacing };
+        => new() { MauiOrientation = StackOrientation.Horizontal, Spacing = spacing };
 
     private static SkiaLabel Label(string text, double size = 16, FontAttributes attrs = FontAttributes.None)
         => new() { Text = text, FontSize = size, FontAttributes = attrs };
@@ -176,11 +174,11 @@ public class GoldenSceneTests
     public void Grid_and_border(float scale)
     {
         var grid = new SkiaGrid { Padding = new Thickness(12), Spacing = 8 };
-        grid.ColumnDefinitions.Add(GridLength.Star);
-        grid.ColumnDefinitions.Add(GridLength.Star);
-        grid.RowDefinitions.Add(GridLength.Auto);
-        grid.RowDefinitions.Add(new GridLength(60));
-        grid.RowDefinitions.Add(GridLength.Star);
+        grid.MauiColumnDefinitions.Add(GridLength.Star);
+        grid.MauiColumnDefinitions.Add(GridLength.Star);
+        grid.MauiRowDefinitions.Add(GridLength.Auto);
+        grid.MauiRowDefinitions.Add(new GridLength(60));
+        grid.MauiRowDefinitions.Add(GridLength.Star);
         grid.AddChild(Label("Header spanning two columns", 18, FontAttributes.Bold), 0, 0, 1, 2);
         grid.AddChild(new SkiaButton { Text = "Left", FontSize = 14 }, 1, 0);
         grid.AddChild(new SkiaButton { Text = "Right", FontSize = 14 }, 1, 1);

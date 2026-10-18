@@ -8,9 +8,11 @@ using Xunit;
 namespace Microsoft.Maui.Controls.Linux.Tests.Views;
 
 /// <summary>
-/// The Shell's bottom tab bar shows the current ShellItem's sections, as on MAUI's platforms: shown
-/// when the item has more than one, hidden by Shell.TabBarIsVisible, the content laid out above
-/// it, and a click on a tab selects its section through MAUI.
+/// The Shell's tab bar as MAUI's Windows implementation shows it: the current ShellItem's sections
+/// as tabs in a top navigation pane under the navigation bar (WinUI's NavigationView in Top pane
+/// mode), shown when the item shows tabs (Windows' ShellItem.ShowTabs), hidden by
+/// Shell.TabBarIsVisible (LeftMinimal, no tab row), the content laid out under it, a click on a tab
+/// selecting its section through MAUI, and the pane staying while a page is pushed (Windows).
 /// </summary>
 [Collection("LinuxApplication.Current")]
 public class ShellTabBarTests
@@ -32,7 +34,7 @@ public class ShellTabBarTests
     }
 
     [Fact]
-    public void A_ShellItem_with_two_sections_shows_them_as_tabs_and_a_click_selects_one()
+    public void A_ShellItem_with_two_sections_shows_them_as_top_tabs_and_a_click_selects_one()
     {
         var (shell, first, second) = TwoTabs();
         using var host = new HeadlessMauiHost(shell, withEngine: true);
@@ -42,21 +44,32 @@ public class ShellTabBarTests
         platform.TabBarSections.Select(s => s.Title).Should().Equal("First", "Second");
         var bar = platform.TabBarBounds;
         bar.Height.Should().Be(platform.TabBarHeight);
-        bar.Bottom.Should().Be(600);
-        platform.CurrentContent!.Bounds.Bottom.Should().BeLessThanOrEqualTo(bar.Top, "the page is laid out above the bar");
+        bar.Top.Should().Be(platform.NavBarHeight, "the pane is under the navigation bar, at the top of the content area");
+        platform.CurrentContent!.Bounds.Top.Should().BeGreaterThanOrEqualTo(bar.Bottom, "the page is laid out under the pane");
+        platform.CurrentContent!.Bounds.Bottom.Should().Be(600, "nothing is at the bottom");
 
-        // The second tab is the right half of the bar.
-        float x = (float)(bar.Left + bar.Width * 0.75), y = (float)bar.Center.Y;
-        host.DisplayWindow.RaisePointerPressed(x, y);
-        host.DisplayWindow.RaisePointerReleased(x, y);
+        // A section MAUI made around a bare ShellContent is listed by that content (Windows' MapMenuItems).
+        platform.TopNavigation.Items.Select(i => i.Data).Should().Equal(shell.Items[0].Items[0].Items[0], shell.Items[0].Items[1].Items[0]);
+        platform.TopNavigation.Items[0].IsSelected.Should().BeTrue();
+
+        // The tabs are laid out left to right from the pane's left edge.
+        var firstTab = platform.TopNavigation.ItemBounds(shell.Items[0].Items[0].Items[0]);
+        var secondTab = platform.TopNavigation.ItemBounds(shell.Items[0].Items[1].Items[0]);
+        firstTab.Left.Should().Be((float)bar.Left);
+        secondTab.Left.Should().Be(firstTab.Right);
+        platform.TabBarItemBounds(shell.Items[0].Items[1]).Title.IsEmpty.Should().BeFalse();
+
+        host.DisplayWindow.RaisePointerPressed(secondTab.MidX, secondTab.MidY);
+        host.DisplayWindow.RaisePointerReleased(secondTab.MidX, secondTab.MidY);
         host.Context.Render();
 
         shell.CurrentItem.CurrentItem.Title.Should().Be("Second", "the click selects the section through MAUI");
         platform.CurrentMauiPage.Should().BeSameAs(second);
+        platform.TopNavigation.Items[1].IsSelected.Should().BeTrue();
     }
 
     [Fact]
-    public void The_bar_is_hidden_for_a_single_section_and_by_TabBarIsVisible()
+    public void The_pane_is_hidden_for_a_single_section_and_by_TabBarIsVisible()
     {
         var single = new ContentPage { Content = new Label { Text = "a" } };
         var lone = new Shell { Items = { new ShellContent { Content = single } } };
@@ -64,8 +77,9 @@ public class ShellTabBarTests
         {
             host.Context.Render();
             var platform = (SkiaShell)lone.Handler!.PlatformView!;
-            platform.TabBarSections.Should().BeEmpty("one section shows no tabs");
+            platform.TabBarSections.Should().BeEmpty("one section with one content shows no tabs");
             platform.TabBarBounds.IsEmpty.Should().BeTrue();
+            platform.CurrentContent!.Bounds.Top.Should().Be(platform.NavBarHeight);
         }
 
         var (shell, first, _) = TwoTabs();
@@ -74,13 +88,56 @@ public class ShellTabBarTests
         {
             host.Context.Render();
             var platform = (SkiaShell)shell.Handler!.PlatformView!;
-            platform.TabBarBounds.IsEmpty.Should().BeTrue("the presented page hides the tab bar");
-            platform.CurrentContent!.Bounds.Bottom.Should().Be(600, "the page takes the bar's place");
+            platform.TabBarBounds.IsEmpty.Should().BeTrue("the presented page hides the tab bar (LeftMinimal)");
+            platform.CurrentContent!.Bounds.Top.Should().Be(platform.NavBarHeight, "the page takes the pane's place");
 
             Shell.SetTabBarIsVisible(first, true);
             host.Context.Render();
             platform.TabBarBounds.IsEmpty.Should().BeFalse("the page shows it again");
+            platform.CurrentContent!.Bounds.Top.Should().Be(platform.NavBarHeight + platform.TabBarHeight);
         }
+    }
+
+    [Fact]
+    public async Task The_pane_stays_for_a_pushed_page_unless_the_page_hides_it()
+    {
+        var (shell, _, _) = TwoTabs();
+        using var host = new HeadlessMauiHost(shell, withEngine: true);
+        host.Context.Render();
+        var platform = (SkiaShell)shell.Handler!.PlatformView!;
+
+        await shell.Navigation.PushAsync(new ContentPage { Title = "Pushed", Content = new Label { Text = "pushed" } });
+        host.Context.Render();
+        platform.TabBarBounds.IsEmpty.Should().BeFalse("on Windows the pane stays over the section's frame");
+        platform.TabBarSections.Should().HaveCount(2);
+
+        var hiding = new ContentPage { Title = "Hiding", Content = new Label { Text = "hiding" } };
+        Shell.SetTabBarIsVisible(hiding, false);
+        await shell.Navigation.PushAsync(hiding);
+        host.Context.Render();
+        platform.TabBarBounds.IsEmpty.Should().BeTrue("the pushed page hides it");
+
+        await shell.Navigation.PopAsync();
+        host.Context.Render();
+        platform.TabBarBounds.IsEmpty.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Sections_added_and_hidden_later_are_followed()
+    {
+        var (shell, _, _) = TwoTabs();
+        using var host = new HeadlessMauiHost(shell, withEngine: true);
+        host.Context.Render();
+        var platform = (SkiaShell)shell.Handler!.PlatformView!;
+
+        var third = new ShellContent { Route = "third", Title = "Third", Content = new ContentPage { Content = new Label { Text = "c" } } };
+        shell.Items[0].Items.Add(third);
+        host.Context.Render();
+        platform.TopNavigation.Items.Select(i => i.Title).Should().Equal("First", "Second", "Third");
+
+        third.IsVisible = false;
+        host.Context.Render();
+        platform.TopNavigation.Items.Select(i => i.Title).Should().Equal("First", "Second");
     }
 }
 

@@ -16,7 +16,6 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Views;
 
 using Rect = Microsoft.Maui.Graphics.Rect;
 using Size = Microsoft.Maui.Graphics.Size;
-using StackOrientation = Microsoft.Maui.Platform.StackOrientation;
 using ShapePath = Microsoft.Maui.Controls.Shapes.Path;
 
 /// <summary>

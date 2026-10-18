@@ -130,8 +130,36 @@ internal sealed class HeadlessMauiHost : IDisposable
     /// tests can inject native events synchronously (as X11/Wayland do), and
     /// keeps a copy of the last presented raster frame for pixel assertions.
     /// </summary>
-    public sealed class FakeDisplayWindow : IDisplayWindow, IScaleAwareDisplayWindow, IDesktopWindowControl, IVisibilityAwareDisplayWindow
+    public sealed class FakeDisplayWindow : IDisplayWindow, IScaleAwareDisplayWindow, IDesktopWindowControl, IVisibilityAwareDisplayWindow, IClientDecoratedWindow
     {
+        private readonly ClientDecorations _decorations = new();
+        private bool? _clientDecorationsWanted;
+
+        /// <summary>
+        /// Whether the fake grants client-side decorations when a TitleBar asks for them (as X11
+        /// and a Wayland compositor that honours client_side do). False (the default) is a
+        /// compositor that keeps server-side decorations: the TitleBar stays a strip.
+        /// </summary>
+        public bool GrantClientDecorations { get; set; }
+
+        /// <summary>Each change the window context asked for (true: a TitleBar wants client-side decorations).</summary>
+        public List<bool> ClientDecorationRequests { get; } = new();
+
+        public bool IsMaximized { get; set; }
+
+        ClientDecorations IClientDecoratedWindow.Decorations => _decorations;
+
+        string IClientDecoratedWindow.Title => Title ?? string.Empty;
+
+        void IClientDecoratedWindow.SetClientDecorationsWanted(bool wanted)
+        {
+            if (_clientDecorationsWanted == wanted)
+                return;
+            _clientDecorationsWanted = wanted;
+            ClientDecorationRequests.Add(wanted);
+            _decorations.Active = wanted && GrantClientDecorations;
+        }
+
         public bool IsSuspended { get; private set; }
         public event EventHandler<bool>? SuspendedChanged;
         public void RaiseSuspended(bool suspended) { IsSuspended = suspended; SuspendedChanged?.Invoke(this, suspended); }
@@ -229,6 +257,14 @@ internal sealed class HeadlessMauiHost : IDisposable
             PointerPressed?.Invoke(this, new PointerEventArgs(x, y, button));
         public void RaisePointerReleased(float x, float y) =>
             PointerReleased?.Invoke(this, new PointerEventArgs(x, y, PointerButton.Left));
+
+        /// <summary>A finger: pressed, moved and lifted as the Wayland backend reports a wl_touch contact.</summary>
+        public void RaiseTouchPressed(float x, float y) =>
+            PointerPressed?.Invoke(this, new PointerEventArgs(x, y, PointerButton.Left) { PointerDeviceType = PointerDeviceKind.Touch });
+        public void RaiseTouchMoved(float x, float y) =>
+            PointerMoved?.Invoke(this, new PointerEventArgs(x, y) { PointerDeviceType = PointerDeviceKind.Touch });
+        public void RaiseTouchReleased(float x, float y) =>
+            PointerReleased?.Invoke(this, new PointerEventArgs(x, y, PointerButton.Left) { PointerDeviceType = PointerDeviceKind.Touch });
         public void RaiseScroll(float x, float y, float deltaY) =>
             Scroll?.Invoke(this, new ScrollEventArgs(x, y, 0, deltaY));
         public void RaisePointerMoved(float x, float y) =>
