@@ -434,6 +434,16 @@ openmaui-appimage --project ./MyApp
 
 Publishes the project, auto-detects the executable and icon, generates the `.desktop` file and installer, and produces a self-contained AppImage that runs on most Linux distributions. Full reference (options, CI recipes, host-dependency checks, signing, self-update): [OpenMaui.AppImage packaging guide](https://github.com/open-maui/appimage/blob/main/docs/PACKAGING-GUIDE.md) — written to be followed verbatim by humans or AI assistants.
 
+**Faster startup (ReadyToRun).** A published app JIT-compiles MAUI, OpenMaui and its own code the first time each method runs, much of it on the UI thread at startup. Compiling ahead of time removes most of that: measured on one app, the first frame came 1.25 s sooner (4.1 s to 2.9 s), at the cost of a larger publish (158 MB to 209 MB self-contained). Opt in from the app's own project file, where `dotnet restore` sees it and downloads the ReadyToRun compiler:
+
+```xml
+<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <PublishReadyToRun>true</PublishReadyToRun>
+</PropertyGroup>
+```
+
+Set it in the project rather than only on the `dotnet publish` command line, so a separate `dotnet restore` step (as in most CI workflows) also downloads the compiler; otherwise publishing fails with NETSDK1094. OpenMaui does not turn it on for you: a package cannot, because NuGet only reads a package's build settings after that package is restored.
+
 ## Quick Example
 
 ```csharp
