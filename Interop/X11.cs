@@ -137,6 +137,15 @@ internal static partial class X11
     public static partial int XLowerWindow(IntPtr display, IntPtr window);
 
     [LibraryImport(LibX11)]
+    public static partial int XMapRaised(IntPtr display, IntPtr window);
+
+    /// <summary>RevertTo for <see cref="XSetInputFocus"/>: focus reverts to the parent.</summary>
+    public const int RevertToParent = 2;
+
+    [LibraryImport(LibX11)]
+    public static partial int XSetInputFocus(IntPtr display, IntPtr window, int revertTo, ulong time);
+
+    [LibraryImport(LibX11)]
     public static partial int XSelectInput(IntPtr display, IntPtr window, long eventMask);
 
     [LibraryImport(LibX11)]
