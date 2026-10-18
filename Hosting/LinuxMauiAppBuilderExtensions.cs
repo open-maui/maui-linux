@@ -101,10 +101,40 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         return builder;
     }
 
+    /// <summary>
+    /// MAUI times every Measure and Arrange with a System.Diagnostics activity and records layout
+    /// metrics (each one allocates a TagList, a boxed Rect, a Guid and strings) whenever its
+    /// IDiagnosticsManager is registered, which UseMauiApp does unless
+    /// System.Diagnostics.Metrics.Meter.IsSupported is switched off. The MAUI SDK switches it off
+    /// for trimmed mobile apps; a plain net10.0 Linux app never gets that switch, so every
+    /// layout pass paid for it (gigabytes of garbage and frequent GC pauses in a busy app). The
+    /// manager is kept only when the app asks for MAUI's diagnostics
+    /// (<c>RuntimeFeature.EnableMauiDiagnostics</c>, the EnableMauiDiagnostics or EnableDiagnostics
+    /// MSBuild property).
+    /// </summary>
+    internal static void RemoveMauiLayoutDiagnostics(IServiceCollection services)
+    {
+        // MAUI's RuntimeFeature.EnableMauiDiagnostics (internal): its own switch, else EnableDiagnostics, else off.
+        bool enabled = AppContext.TryGetSwitch("Microsoft.Maui.RuntimeFeature.EnableMauiDiagnostics", out var maui)
+            ? maui
+            : AppContext.TryGetSwitch("Microsoft.Maui.RuntimeFeature.EnableDiagnostics", out var any) && any;
+        if (enabled)
+            return;
+        for (int i = services.Count - 1; i >= 0; i--)
+        {
+            var name = services[i].ServiceType.FullName;
+            if (name is "Microsoft.Maui.Diagnostics.IDiagnosticsManager"
+                or "Microsoft.Maui.Diagnostics.IDiagnosticMetrics"
+                or "Microsoft.Maui.Diagnostics.IDiagnosticTagger")
+                services.RemoveAt(i);
+        }
+    }
+
     internal static void RegisterLinuxServices(MauiAppBuilder builder, Action<LinuxApplicationOptions>? configure)
     {
         // Patch MAUI Essentials stubs before any services use them
         EssentialsPatches.Apply();
+        RemoveMauiLayoutDiagnostics(builder.Services);
         // Mopups popups as window layers, when the app uses Mopups.
         MopupsBridge.Register(builder.Services);
         // VisualElement.Focus()/Unfocus() through the window's focus.

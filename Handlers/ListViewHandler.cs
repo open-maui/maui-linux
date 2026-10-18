@@ -419,7 +419,7 @@ public partial class ListViewHandler : LinuxViewHandler<ListView, SkiaCollection
     public static void MapVerticalScrollBarVisibility(ListViewHandler handler, ListView listView)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.MauiVerticalScrollBarVisibility = listView.VerticalScrollBarVisibility;
+        handler.PlatformView.VerticalScrollBarVisibility = listView.VerticalScrollBarVisibility;
     }
 
     public static void MapBackground(ListViewHandler handler, ListView listView)

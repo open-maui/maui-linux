@@ -35,15 +35,13 @@ public class SkiaCollectionView : SkiaItemsView
         BindingMode.OneWay,
         propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnSelectedItemChanged(n));
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public static readonly BindableProperty OrientationProperty = BindableProperty.Create(
         nameof(Orientation),
-        typeof(ItemsLayoutOrientation),
+        typeof(Controls.ItemsLayoutOrientation),
         typeof(SkiaCollectionView),
-        ItemsLayoutOrientation.Vertical,
+        Controls.ItemsLayoutOrientation.Vertical,
         BindingMode.TwoWay,
         propertyChanged: (b, o, n) => ((SkiaCollectionView)b).OnLayoutChanged());
-#pragma warning restore CS0618
 
     public static readonly BindableProperty SpanCountProperty = BindableProperty.Create(
         nameof(SpanCount),
@@ -160,20 +158,11 @@ public class SkiaCollectionView : SkiaItemsView
         }
     }
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    [Obsolete("Use MauiOrientation, which takes Microsoft.Maui.Controls.ItemsLayoutOrientation; this property is removed in OpenMaui 11.0.")]
-    public ItemsLayoutOrientation Orientation
+    public Controls.ItemsLayoutOrientation Orientation
     {
-        get => (ItemsLayoutOrientation)GetValue(OrientationProperty);
+        get => (Controls.ItemsLayoutOrientation)GetValue(OrientationProperty);
         set => SetValue(OrientationProperty, value);
     }
-
-    public Controls.ItemsLayoutOrientation MauiOrientation
-    {
-        get => ((ItemsLayoutOrientation)GetValue(OrientationProperty)).ToMaui();
-        set => SetValue(OrientationProperty, value.ToLegacy());
-    }
-#pragma warning restore CS0618
 
     public int SpanCount
     {
@@ -239,7 +228,7 @@ public class SkiaCollectionView : SkiaItemsView
     /// A horizontal ItemsLayout: a linear one lays the items in a row, a grid one in columns of
     /// <see cref="SpanCount"/> items (filled top to bottom); both scroll horizontally.
     /// </remarks>
-    protected override bool IsHorizontal => MauiOrientation == Controls.ItemsLayoutOrientation.Horizontal;
+    protected override bool IsHorizontal => Orientation == Controls.ItemsLayoutOrientation.Horizontal;
 
     /// <inheritdoc />
     protected override int Span => Math.Max(1, SpanCount);
@@ -626,7 +615,7 @@ public class SkiaCollectionView : SkiaItemsView
     {
         bool isSelected = _selectedItems.Contains(item);
 
-        if (ShowSeparators && MauiOrientation == Controls.ItemsLayoutOrientation.Vertical && SpanCount == 1)
+        if (ShowSeparators && Orientation == Controls.ItemsLayoutOrientation.Vertical && SpanCount == 1)
         {
             paint.Color = SeparatorColorSK;
             paint.Style = SKPaintStyle.Stroke;
@@ -894,10 +883,10 @@ public class SkiaCollectionView : SkiaItemsView
 
         if (horizontal)
         {
-            if (ShowsBar(MauiHorizontalScrollBarVisibility, total > bounds.Width))
+            if (ShowsBar(HorizontalScrollBarVisibility, total > bounds.Width))
                 DrawHorizontalScrollBar(canvas, bounds, scrollOffset, total);
         }
-        else if (ShowsBar(MauiVerticalScrollBarVisibility, total > bounds.Height))
+        else if (ShowsBar(VerticalScrollBarVisibility, total > bounds.Height))
         {
             DrawScrollBarInternal(canvas, bounds, scrollOffset, total);
         }

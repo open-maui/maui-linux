@@ -795,9 +795,7 @@ public partial class SkiaEntry : SkiaView, IInputContext
     /// <summary>
     /// Event raised when text changes.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<TextChangedEventArgs>? TextChanged;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaTextChangedEventArgs>? TextChanged;
 
     /// <summary>
     /// Event raised when Enter is pressed.
@@ -902,9 +900,7 @@ public partial class SkiaEntry : SkiaView, IInputContext
         _cursorPosition = Math.Min(_cursorPosition, (newText ?? "").Length);
         _scrollOffset = 0; // Reset scroll when text changes externally
         _selectionLength = 0;
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-        TextChanged?.Invoke(this, new TextChangedEventArgs(oldText, newText ?? ""));
-#pragma warning restore CS0618
+        TextChanged?.Invoke(this, new SkiaTextChangedEventArgs(oldText, newText ?? ""));
         NotifyImeSurroundingChanged();
         Invalidate();
     }
@@ -941,13 +937,4 @@ public class SkiaTextChangedEventArgs : EventArgs
         OldTextValue = oldText;
         NewTextValue = newText;
     }
-}
-
-/// <summary>
-/// Event args for text changed events.
-/// </summary>
-[Obsolete("Use SkiaTextChangedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class TextChangedEventArgs : SkiaTextChangedEventArgs
-{
-    public TextChangedEventArgs(string oldText, string newText) : base(oldText, newText) { }
 }

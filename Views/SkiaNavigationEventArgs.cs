@@ -14,9 +14,3 @@ public class SkiaNavigationEventArgs : EventArgs
         Page = page;
     }
 }
-
-[Obsolete("Use SkiaNavigationEventArgs; this type is removed in OpenMaui 11.0.")]
-public class NavigationEventArgs : SkiaNavigationEventArgs
-{
-    public NavigationEventArgs(SkiaPage page) : base(page) { }
-}

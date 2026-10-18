@@ -191,7 +191,7 @@ public abstract class SkiaTemplatedView : SkiaView
     {
         var layout = new SkiaStackLayout
         {
-            MauiOrientation = sl.Orientation,
+            Orientation = sl.Orientation,
             Spacing = (float)sl.Spacing
         };
 
@@ -215,13 +215,13 @@ public abstract class SkiaTemplatedView : SkiaView
         // Set row definitions
         foreach (var rowDef in grid.RowDefinitions)
         {
-            layout.MauiRowDefinitions.Add(rowDef.Height);
+            layout.RowDefinitions.Add(rowDef.Height);
         }
 
         // Set column definitions
         foreach (var colDef in grid.ColumnDefinitions)
         {
-            layout.MauiColumnDefinitions.Add(colDef.Width);
+            layout.ColumnDefinitions.Add(colDef.Width);
         }
 
         // Add children

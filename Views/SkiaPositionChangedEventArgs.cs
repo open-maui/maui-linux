@@ -19,12 +19,3 @@ public class SkiaPositionChangedEventArgs : EventArgs
         CurrentPosition = currentPosition;
     }
 }
-
-/// <summary>
-/// Event args for position changed events in carousel views.
-/// </summary>
-[Obsolete("Use SkiaPositionChangedEventArgs; this type is removed in OpenMaui 11.0.")]
-public class PositionChangedEventArgs : SkiaPositionChangedEventArgs
-{
-    public PositionChangedEventArgs(int previousPosition, int currentPosition) : base(previousPosition, currentPosition) { }
-}

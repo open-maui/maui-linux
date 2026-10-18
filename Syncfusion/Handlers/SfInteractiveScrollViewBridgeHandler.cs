@@ -83,9 +83,9 @@ public class SfInteractiveScrollViewBridgeHandler : LinuxViewHandler<SfInteracti
     {
         if (handler.PlatformView is not { } view)
             return;
-        view.MauiOrientation = scrollView.Orientation;
-        view.MauiHorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility;
-        view.MauiVerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility;
+        view.Orientation = scrollView.Orientation;
+        view.HorizontalScrollBarVisibility = scrollView.HorizontalScrollBarVisibility;
+        view.VerticalScrollBarVisibility = scrollView.VerticalScrollBarVisibility;
     }
 
     /// <summary>

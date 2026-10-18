@@ -138,7 +138,7 @@ public class SkiaFlyoutPage : SkiaLayoutView
     /// landscape); <see cref="Controls.FlyoutLayoutBehavior.Popover"/> and
     /// <see cref="Controls.FlyoutLayoutBehavior.Default"/> overlay it on demand.
     /// </summary>
-    public Controls.FlyoutLayoutBehavior MauiFlyoutLayoutBehavior
+    public Controls.FlyoutLayoutBehavior FlyoutLayoutBehavior
     {
         get => _flyoutLayoutBehavior;
         set
@@ -159,16 +159,6 @@ public class SkiaFlyoutPage : SkiaLayoutView
             Invalidate();
         }
     }
-
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    /// <summary>The flyout layout behavior; see <see cref="MauiFlyoutLayoutBehavior"/>.</summary>
-    [Obsolete("Use MauiFlyoutLayoutBehavior, which takes Microsoft.Maui.Controls.FlyoutLayoutBehavior; this property is removed in OpenMaui 11.0.")]
-    public FlyoutLayoutBehavior FlyoutLayoutBehavior
-    {
-        get => _flyoutLayoutBehavior.ToLegacy();
-        set => MauiFlyoutLayoutBehavior = value.ToMaui();
-    }
-#pragma warning restore CS0618
 
     /// <summary>
     /// True when the current layout behavior places the flyout beside the
