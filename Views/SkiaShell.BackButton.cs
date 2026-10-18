@@ -35,7 +35,7 @@ public partial class SkiaShell
         () => IsBackButtonVisible && (_backButtonBehavior?.IsEnabled ?? true),
         PressBackButton);
 
-    private bool BackButtonShown => NavBarIsVisible && IsBackButtonVisible;
+    private bool BackButtonShown => IsNavBarShown && IsBackButtonVisible;
 
     /// <summary>
     /// The back button: the page's BackButtonBehavior.Command replaces the navigation when it
