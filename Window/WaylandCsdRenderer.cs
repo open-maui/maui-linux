@@ -9,8 +9,9 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 
 /// <summary>
 /// Draws client-side decorations (titlebar + window-control buttons) on a Wayland
-/// surface when the compositor refuses server-side decorations (Mutter/GNOME) or
-/// the protocol isn't available. Pixel-exact in *logical* coordinates so the
+/// surface when the compositor refuses server-side decorations (Mutter/GNOME), the
+/// protocol isn't available or the window has a TitleBar, and on an X11 window with a
+/// TitleBar (the window manager's frame is turned off then). Pixel-exact in *logical* coordinates so the
 /// SkiaRenderingEngine's existing DpiScale matrix applies uniformly.
 ///
 /// Layout (logical pixels, with titlebar height = 32):
@@ -22,7 +23,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 ///   │                       (MAUI content area)                           │
 ///
 /// Each button is 28x28, with 4px gap, packed to the right edge. The button
-/// bounds are written back to the WaylandWindow.Csd*ButtonBounds fields so the
+/// bounds are written back to the window's <see cref="ClientDecorations"/> so the
 /// pointer-button hit-test can find them.
 /// </summary>
 internal static class WaylandCsdRenderer
@@ -38,8 +39,8 @@ internal static class WaylandCsdRenderer
     /// titlebar spans the full width). <paramref name="title"/> is the window
     /// title; pass an empty string to draw the strip without text.
     /// </summary>
-    public static void DrawTitlebar(SKCanvas canvas, WaylandWindow window, float logicalWidth, string title)
-        => DrawTitlebar(canvas, window, logicalWidth, title, WaylandWindow.CsdTitlebarHeightLogical, null);
+    public static void DrawTitlebar(SKCanvas canvas, IClientDecoratedWindow window, float logicalWidth, string title)
+        => DrawTitlebar(canvas, window, logicalWidth, title, ClientDecorations.DefaultTitlebarHeight, null);
 
     /// <summary>
     /// Draws a titlebar <paramref name="height"/> tall. With <paramref name="drawContent"/> (the
@@ -47,7 +48,7 @@ internal static class WaylandCsdRenderer
     /// in place of the title text, and the window buttons on top of it, as Windows draws its
     /// caption buttons over a custom title bar.
     /// </summary>
-    public static void DrawTitlebar(SKCanvas canvas, WaylandWindow window, float logicalWidth, string title, float height, Action<SKCanvas>? drawContent)
+    public static void DrawTitlebar(SKCanvas canvas, IClientDecoratedWindow window, float logicalWidth, string title, float height, Action<SKCanvas>? drawContent)
     {
         float h = height;
         var bounds = new SKRect(0, 0, logicalWidth, h);
@@ -99,9 +100,9 @@ internal static class WaylandCsdRenderer
         // Store hit-test rects so OnPointerButton can route clicks. Anyone
         // reading these mid-flight would race, but the pointer event is
         // dispatched on the same thread as Render so we're safe.
-        window.CsdCloseButtonBounds = closeRect;
-        window.CsdMaximizeButtonBounds = maxRect;
-        window.CsdMinimizeButtonBounds = minRect;
+        window.Decorations.CloseButtonBounds = closeRect;
+        window.Decorations.MaximizeButtonBounds = maxRect;
+        window.Decorations.MinimizeButtonBounds = minRect;
 
         if (drawContent != null)
         {
