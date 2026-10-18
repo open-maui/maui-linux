@@ -1672,6 +1672,8 @@ public partial class SkiaShell : SkiaLayoutView
         // Draw content
         _currentContent?.Draw(canvas);
 
+        SyncBackButtonAccessible();
+
         // Draw navigation bar (offset for locked flyout)
         if (NavBarIsVisible)
         {
@@ -2199,17 +2201,7 @@ public partial class SkiaShell : SkiaLayoutView
         {
             if (IsBackButtonVisible)
             {
-                // Back button pressed: the page's BackButtonBehavior.Command replaces
-                // the navigation when it has one (MAUI's ShellToolbar).
-                if (_backButtonBehavior?.Command is { } command)
-                {
-                    if (_backButtonBehavior.IsEnabled && command.CanExecute(_backButtonBehavior.CommandParameter))
-                        command.Execute(_backButtonBehavior.CommandParameter);
-                }
-                else
-                {
-                    GoBack();
-                }
+                PressBackButton();
                 e.Handled = true;
                 return;
             }
