@@ -94,6 +94,24 @@ public class WindowSyncTests
     }
 
     [Fact]
+    public void A_resize_by_the_compositor_is_reported_but_not_requested_back()
+    {
+        using var host = new HeadlessMauiHost(new ContentPage(), withEngine: true);
+
+        // The compositor resizes the window: MAUI is told the new frame, and sets Window.Width
+        // then Window.Height. Those are the window's size, not a request: echoing them back
+        // resized the window to the new width with the old height, and rendered it, twice per
+        // resize step (a laggy resize).
+        host.DisplayWindow.RaiseResized(1000, 700);
+
+        host.Window.Width.Should().Be(1000);
+        host.Window.Height.Should().Be(700);
+        host.DisplayWindow.RequestedLogicalSize.Should().BeNull("a reported frame is not a size request");
+        host.DisplayWindow.Width.Should().Be(1000);
+        host.DisplayWindow.Height.Should().Be(700);
+    }
+
+    [Fact]
     public void A_size_equal_to_the_native_size_is_not_re_requested()
     {
         using var host = new HeadlessMauiHost(new ContentPage(), withEngine: true);
