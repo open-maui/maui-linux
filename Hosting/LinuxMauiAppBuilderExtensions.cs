@@ -231,73 +231,77 @@ public static class LinuxMauiAppBuilderExtensionsInternal
         // Register type converters for XAML support
         RegisterTypeConverters();
 
-        // Register Linux-specific handlers
+        // Register Linux-specific handlers, as the platform's defaults (LinuxHandlerDefaults):
+        // a handler the app or a library registered for the same type, before or after
+        // UseLinux(), is the one used, as on MAUI's own platforms. The CommunityToolkit
+        // registrations below replace the toolkit's portable handlers (no platform view).
         builder.ConfigureMauiHandlers(handlers =>
         {
             // Application handler
-            handlers.AddHandler<IApplication, ApplicationHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(IApplication), typeof(ApplicationHandler));
 
             // Shapes
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Ellipse, EllipseHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Line, LineHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Rectangle, RectangleHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polygon, PolygonHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Polyline, PolylineHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.Path, ShapePathHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Shapes.RoundRectangle, RoundRectangleHandler>();
-            handlers.AddHandler<MenuBar, MenuBarHandler>();
-            handlers.AddHandler<MenuFlyout, MenuFlyoutHandler>();
-            handlers.AddHandler<Toolbar, ToolbarHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.Ellipse), typeof(EllipseHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.Line), typeof(LineHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.Rectangle), typeof(RectangleHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.Polygon), typeof(PolygonHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.Polyline), typeof(PolylineHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.Path), typeof(ShapePathHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Shapes.RoundRectangle), typeof(RoundRectangleHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(MenuBar), typeof(MenuBarHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(MenuFlyout), typeof(MenuFlyoutHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Toolbar), typeof(ToolbarHandler));
 
             // Core controls
-            handlers.AddHandler<BoxView, BoxViewHandler>();
-            handlers.AddHandler<Button, TextButtonHandler>();
-            handlers.AddHandler<Label, LabelHandler>();
-            handlers.AddHandler<Entry, EntryHandler>();
-            handlers.AddHandler<Editor, EditorHandler>();
-            handlers.AddHandler<CheckBox, CheckBoxHandler>();
-            handlers.AddHandler<Switch, SwitchHandler>();
-            handlers.AddHandler<Slider, SliderHandler>();
-            handlers.AddHandler<Stepper, StepperHandler>();
-            handlers.AddHandler<RadioButton, RadioButtonHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(BoxView), typeof(BoxViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Button), typeof(TextButtonHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Label), typeof(LabelHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Entry), typeof(EntryHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Editor), typeof(EditorHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(CheckBox), typeof(CheckBoxHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Switch), typeof(SwitchHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Slider), typeof(SliderHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Stepper), typeof(StepperHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(RadioButton), typeof(RadioButtonHandler));
 
             // Layout controls
-            handlers.AddHandler<Grid, GridHandler>();
-            handlers.AddHandler<StackLayout, StackLayoutHandler>();
-            handlers.AddHandler<VerticalStackLayout, StackLayoutHandler>();
-            handlers.AddHandler<HorizontalStackLayout, StackLayoutHandler>();
-            handlers.AddHandler<AbsoluteLayout, AbsoluteLayoutHandler>();
-            handlers.AddHandler<FlexLayout, FlexLayoutHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Grid), typeof(GridHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(StackLayout), typeof(StackLayoutHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(VerticalStackLayout), typeof(StackLayoutHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(HorizontalStackLayout), typeof(StackLayoutHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(AbsoluteLayout), typeof(AbsoluteLayoutHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(FlexLayout), typeof(FlexLayoutHandler));
             // Any other Layout subclass (third-party or app-defined): its own ILayoutManager.
-            handlers.AddHandler<Layout, CrossPlatformLayoutHandler>();
-            handlers.AddHandler<ScrollView, ScrollViewHandler>();
-            handlers.AddHandler<Frame, FrameHandler>();
-            handlers.AddHandler<Border, BorderHandler>();
-            handlers.AddHandler<ContentView, ContentViewHandler>();
-            handlers.AddHandler<ContentPresenter, ContentPresenterHandler>();
-            handlers.AddHandler<TemplatedView, TemplatedViewHandler>();
-            handlers.AddHandler<RefreshView, RefreshViewHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Layout), typeof(CrossPlatformLayoutHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ScrollView), typeof(ScrollViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Frame), typeof(FrameHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Border), typeof(BorderHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ContentView), typeof(ContentViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ContentPresenter), typeof(ContentPresenterHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(TemplatedView), typeof(TemplatedViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(RefreshView), typeof(RefreshViewHandler));
             // A library's own IRefreshView (not a Controls RefreshView): MAUI's RefreshViewHandler on Linux.
-            handlers.AddHandler<IRefreshView, CoreRefreshViewHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(IRefreshView), typeof(CoreRefreshViewHandler));
 
             // Picker controls
-            handlers.AddHandler<Picker, PickerHandler>();
-            handlers.AddHandler<DatePicker, DatePickerHandler>();
-            handlers.AddHandler<TimePicker, TimePickerHandler>();
-            handlers.AddHandler<SearchBar, SearchBarHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Picker), typeof(PickerHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(DatePicker), typeof(DatePickerHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(TimePicker), typeof(TimePickerHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(SearchBar), typeof(SearchBarHandler));
 
             // Progress & Activity
-            handlers.AddHandler<ProgressBar, ProgressBarHandler>();
-            handlers.AddHandler<ActivityIndicator, ActivityIndicatorHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(ProgressBar), typeof(ProgressBarHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ActivityIndicator), typeof(ActivityIndicatorHandler));
 
             // Image & Graphics
-            handlers.AddHandler<Image, ImageHandler>();
-            handlers.AddHandler<ImageButton, ImageButtonHandler>();
-            handlers.AddHandler<GraphicsView, GraphicsViewHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Image), typeof(ImageHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ImageButton), typeof(ImageButtonHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(GraphicsView), typeof(GraphicsViewHandler));
 
-            // SkiaSharp native views (LiveCharts, Microcharts, custom drawings)
-            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKCanvasView, SKCanvasViewHandler>();
-            handlers.AddHandler<SkiaSharp.Views.Maui.Controls.SKGLView, SKGLViewHandler>();
+            // SkiaSharp native views (LiveCharts, Microcharts, custom drawings): replaces the
+            // portable handlers UseSkiaSharp() registers, which have no platform view here.
+            handlers.AddHandler(typeof(SkiaSharp.Views.Maui.Controls.SKCanvasView), typeof(SKCanvasViewHandler));
+            handlers.AddHandler(typeof(SkiaSharp.Views.Maui.Controls.SKGLView), typeof(SKGLViewHandler));
 
             // CommunityToolkit.Maui DrawingView (only when the toolkit is in the app)
             if (DrawingViewHandler.ToolkitDrawingViewType is { } drawingView)
@@ -308,38 +312,38 @@ public static class LinuxMauiAppBuilderExtensionsInternal
 
             // Web: one handler on either engine, WPE WebKit composited in the Skia tree when
             // installed (works in native Wayland/X11 mode), else the GTK-hosted WebKitGTK view.
-            handlers.AddHandler<WebView, LinuxWebViewHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(WebView), typeof(LinuxWebViewHandler));
             // HybridWebView on the same engines, unless the app turned the feature off
             // ($(MauiHybridWebViewSupported)=false), as MAUI registers its own.
             if (IsHybridWebViewSupported)
-                handlers.AddHandler<HybridWebView, LinuxHybridWebViewHandler>();
+                LinuxHandlerDefaults.Register(handlers, typeof(HybridWebView), typeof(LinuxHybridWebViewHandler));
 
             // Collection Views
-            handlers.AddHandler<CollectionView, CollectionViewHandler>();
-            handlers.AddHandler<ListView, ListViewHandler>();
-            handlers.AddHandler<TableView, TableViewHandler>();
-            handlers.AddHandler<CarouselView, CarouselViewHandler>();
-            handlers.AddHandler<IndicatorView, IndicatorViewHandler>();
-            handlers.AddHandler<IIndicatorView, CoreIndicatorViewHandler>();
-            handlers.AddHandler<SwipeView, SwipeViewHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.SwipeItem, SwipeItemMenuItemHandler>();
-            handlers.AddHandler<SwipeItemView, SwipeItemViewHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(CollectionView), typeof(CollectionViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ListView), typeof(ListViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(TableView), typeof(TableViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(CarouselView), typeof(CarouselViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(IndicatorView), typeof(IndicatorViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(IIndicatorView), typeof(CoreIndicatorViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(SwipeView), typeof(SwipeViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.SwipeItem), typeof(SwipeItemMenuItemHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(SwipeItemView), typeof(SwipeItemViewHandler));
             // A library's own swipe view and swipe items (MAUI's interfaces) get the Linux handlers.
-            handlers.AddHandler<ISwipeView, CoreSwipeViewHandler>();
-            handlers.AddHandler<ISwipeItemMenuItem, SwipeItemMenuItemHandler>();
-            handlers.AddHandler<ISwipeItemView, SwipeItemViewHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(ISwipeView), typeof(CoreSwipeViewHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ISwipeItemMenuItem), typeof(SwipeItemMenuItemHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ISwipeItemView), typeof(SwipeItemViewHandler));
 
             // Pages & Navigation
-            handlers.AddHandler<Page, PageHandler>();
-            handlers.AddHandler<ContentPage, ContentPageHandler>();
-            handlers.AddHandler<NavigationPage, NavigationPageHandler>();
-            handlers.AddHandler<Shell, ShellHandler>();
-            handlers.AddHandler<FlyoutPage, FlyoutPageHandler>();
-            handlers.AddHandler<TabbedPage, TabbedPageHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Page), typeof(PageHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(ContentPage), typeof(ContentPageHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(NavigationPage), typeof(NavigationPageHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Shell), typeof(ShellHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(FlyoutPage), typeof(FlyoutPageHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(TabbedPage), typeof(TabbedPageHandler));
 
             // Application & Window
-            handlers.AddHandler<Application, ApplicationHandler>();
-            handlers.AddHandler<Microsoft.Maui.Controls.Window, WindowHandler>();
+            LinuxHandlerDefaults.Register(handlers, typeof(Application), typeof(ApplicationHandler));
+            LinuxHandlerDefaults.Register(handlers, typeof(Microsoft.Maui.Controls.Window), typeof(WindowHandler));
         });
 
         // Store options for later use
