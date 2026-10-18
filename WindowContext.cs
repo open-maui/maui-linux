@@ -417,6 +417,7 @@ public sealed partial class WindowContext : IDisposable
         if (MauiWindow == null || physicalWidth <= 0 || physicalHeight <= 0)
             return;
         float scale = Scale;
+        _reportingFrame = true;
         try
         {
             MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(
@@ -426,7 +427,19 @@ public sealed partial class WindowContext : IDisposable
         {
             DiagnosticLog.Error("WindowContext", "IWindow.FrameChanged threw", ex);
         }
+        finally
+        {
+            _reportingFrame = false;
+        }
     }
+
+    /// <summary>
+    /// True while <see cref="ReportFrame"/> tells MAUI the native window's frame. MAUI then sets
+    /// Window.X, Y, Width and Height one at a time; those changes record the window's size, they
+    /// are not the app asking for one. Applying them would resize the window to a half-updated
+    /// size (the new width with the old height) and render it, twice per resize step.
+    /// </summary>
+    private bool _reportingFrame;
 
     /// <summary>
     /// The native window moved to a monitor with a different scale (or the
@@ -897,11 +910,13 @@ public sealed partial class WindowContext : IDisposable
                     break;
                 case nameof(Microsoft.Maui.Controls.Window.Width):
                 case nameof(Microsoft.Maui.Controls.Window.Height):
-                    ApplyRequestedSize(window.Width, window.Height);
+                    if (!_reportingFrame)
+                        ApplyRequestedSize(window.Width, window.Height);
                     break;
                 case nameof(Microsoft.Maui.Controls.Window.X):
                 case nameof(Microsoft.Maui.Controls.Window.Y):
-                    ApplyRequestedPosition(window.X, window.Y);
+                    if (!_reportingFrame)
+                        ApplyRequestedPosition(window.X, window.Y);
                     break;
                 case nameof(Microsoft.Maui.Controls.Window.MinimumWidth):
                 case nameof(Microsoft.Maui.Controls.Window.MinimumHeight):
@@ -1084,6 +1099,7 @@ public sealed partial class WindowContext : IDisposable
     {
         if (MauiWindow == null)
             return;
+        _reportingFrame = true;
         try
         {
             MauiWindow.FrameChanged(new Microsoft.Maui.Graphics.Rect(_headlessX, _headlessY, _headlessWidth, _headlessHeight));
@@ -1091,6 +1107,10 @@ public sealed partial class WindowContext : IDisposable
         catch (Exception ex)
         {
             DiagnosticLog.Error("WindowContext", "IWindow.FrameChanged threw", ex);
+        }
+        finally
+        {
+            _reportingFrame = false;
         }
     }
 
