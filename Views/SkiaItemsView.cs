@@ -190,11 +190,27 @@ public class SkiaItemsView : SkiaView
         }
     }
 
-    public ScrollBarVisibility VerticalScrollBarVisibility { get; set; } = ScrollBarVisibility.Default;
-    public ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = ScrollBarVisibility.Never;
+    public Microsoft.Maui.ScrollBarVisibility MauiVerticalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
+    public Microsoft.Maui.ScrollBarVisibility MauiHorizontalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Never;
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    [Obsolete("Use MauiVerticalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
+    public ScrollBarVisibility VerticalScrollBarVisibility
+    {
+        get => MauiVerticalScrollBarVisibility.ToLegacy();
+        set => MauiVerticalScrollBarVisibility = value.ToMaui();
+    }
+
+    [Obsolete("Use MauiHorizontalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
+    public ScrollBarVisibility HorizontalScrollBarVisibility
+    {
+        get => MauiHorizontalScrollBarVisibility.ToLegacy();
+        set => MauiHorizontalScrollBarVisibility = value.ToMaui();
+    }
+#pragma warning restore CS0618
 
     /// <summary>True when a vertical list shows (and takes input on) its scroll bar.</summary>
-    private bool ShowsVerticalScrollBar => !IsHorizontal && VerticalScrollBarVisibility != ScrollBarVisibility.Never;
+    private bool ShowsVerticalScrollBar => !IsHorizontal && MauiVerticalScrollBarVisibility != Microsoft.Maui.ScrollBarVisibility.Never;
 
     public object? EmptyView { get; set; }
 
@@ -1040,7 +1056,7 @@ public class SkiaItemsView : SkiaView
         canvas.Restore();
 
         // Draw scrollbar
-        if (showBar && (TotalContentHeight > bounds.Height || VerticalScrollBarVisibility == ScrollBarVisibility.Always))
+        if (showBar && (TotalContentHeight > bounds.Height || MauiVerticalScrollBarVisibility == Microsoft.Maui.ScrollBarVisibility.Always))
         {
             DrawScrollBar(canvas, bounds);
         }
@@ -1251,6 +1267,22 @@ public class SkiaItemsView : SkiaView
     public bool IsReordering => _reorderFrom >= 0 && _reorderStarted;
 
     private const float ReorderDragThreshold = 8f;
+
+    /// <summary>
+    /// How long a finger rests on an item before it can be dragged to a new place. On Windows a
+    /// touch reorder starts with a press-and-hold (a mouse drag starts at once), and a finger
+    /// that moves sooner pans the list instead.
+    /// </summary>
+    internal static readonly TimeSpan TouchReorderHoldDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>How far a finger may wander during the hold (the same distance that starts a drag).</summary>
+    internal const float TouchReorderHoldTolerance = ReorderDragThreshold;
+
+    /// <summary>The clock the touch hold is timed with (tests replace it).</summary>
+    internal Func<DateTime> ReorderClock { get; set; } = static () => DateTime.UtcNow;
+
+    private bool _reorderByTouch;
+    private DateTime _reorderPressTime;
     private const float ReorderAutoScrollZone = 32f;
 
     private int _reorderFrom = -1;     // the dragged item
@@ -1423,7 +1455,7 @@ public class SkiaItemsView : SkiaView
             return;
         _rowContentPressed = null;
         _rowContentHovered.Clear();
-        var away = new PointerEventArgs(-1_000_000f, -1_000_000f, e.Button);
+        var away = e.At(-1_000_000f, -1_000_000f);
         RaiseOnRowContent(pressed, RoutedPointerKind.Exited, away);
         RaiseOnRowContent(pressed, RoutedPointerKind.Released, away);
     }
@@ -1510,6 +1542,8 @@ public class SkiaItemsView : SkiaView
                 _reorderPressX = _reorderPointerX = x;
                 _reorderPressY = _reorderPointerY = y;
                 _reorderCell = CellOf(index);
+                _reorderByTouch = e.PointerDeviceType == PointerDeviceKind.Touch;
+                _reorderPressTime = ReorderClock();
             }
         }
 
@@ -1564,28 +1598,8 @@ public class SkiaItemsView : SkiaView
             RaiseOnRowContent(_rowContentHovered, RoutedPointerKind.Moved, e);
         }
 
-        if (_reorderFrom >= 0)
-        {
-            var screen = ScreenBounds;
-            _reorderPointerX = e.X - (float)screen.Left;
-            _reorderPointerY = e.Y - (float)screen.Top;
-            if (!_reorderStarted)
-            {
-                var dx = _reorderPointerX - _reorderPressX;
-                var dy = _reorderPointerY - _reorderPressY;
-                if (dx * dx + dy * dy < ReorderDragThreshold * ReorderDragThreshold)
-                    return;
-                // The drag moves the item, not the list.
-                _reorderStarted = true;
-                _isDragging = false;
-                CancelRowContentPress(e);
-            }
-            AutoScrollForReorder();
-            UpdateReorderTarget();
-            Invalidate();
-            e.Handled = true;
+        if (_reorderFrom >= 0 && TrackReorderDrag(e))
             return;
-        }
 
         if (!_isDragging) return;
 
@@ -1607,6 +1621,43 @@ public class SkiaItemsView : SkiaView
         // takes a touch over (PointerCanceled) once it pans.
         if (_scrollOffset != _dragStartOffset)
             CancelRowContentPress(e);
+    }
+
+    /// <summary>
+    /// Follows a press on a reorderable item: once it moves far enough the item is dragged. A
+    /// mouse drag starts at once; a finger has to rest on the item for
+    /// <see cref="TouchReorderHoldDelay"/> first, and one that moves sooner gives the press back
+    /// to the list, which pans (false).
+    /// </summary>
+    private bool TrackReorderDrag(PointerEventArgs e)
+    {
+        var screen = ScreenBounds;
+        _reorderPointerX = e.X - (float)screen.Left;
+        _reorderPointerY = e.Y - (float)screen.Top;
+        if (!_reorderStarted)
+        {
+            var dx = _reorderPointerX - _reorderPressX;
+            var dy = _reorderPointerY - _reorderPressY;
+            var threshold = _reorderByTouch ? TouchReorderHoldTolerance : ReorderDragThreshold;
+            if (dx * dx + dy * dy < threshold * threshold)
+                return true;
+            if (_reorderByTouch && ReorderClock() - _reorderPressTime < TouchReorderHoldDelay)
+            {
+                // A finger that moves before the hold pans the list, as on Windows.
+                _reorderFrom = _reorderTo = -1;
+                _reorderByTouch = false;
+                return false;
+            }
+            // The drag moves the item, not the list.
+            _reorderStarted = true;
+            _isDragging = false;
+            CancelRowContentPress(e);
+        }
+        AutoScrollForReorder();
+        UpdateReorderTarget();
+        Invalidate();
+        e.Handled = true;
+        return true;
     }
 
     public override void OnPointerReleased(PointerEventArgs e)
@@ -1743,20 +1794,34 @@ public class SkiaItemsView : SkiaView
 
     public void ScrollToIndex(int index, bool animate = true)
     {
-        ScrollToIndex(index, ScrollToPosition.Start, animate);
+        ScrollToIndex(index, Controls.ScrollToPosition.Start, animate);
     }
 
     public void ScrollToItem(object item, bool animate = true)
     {
-        ScrollToItem(item, ScrollToPosition.Start, animate);
+        ScrollToItem(item, Controls.ScrollToPosition.Start, animate);
     }
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>
+    /// Scrolls the row at <paramref name="index"/> into view at <paramref name="position"/>.
+    /// </summary>
+    [Obsolete("Use the overload that takes Microsoft.Maui.Controls.ScrollToPosition; this overload is removed in OpenMaui 11.0.")]
+    public void ScrollToIndex(int index, ScrollToPosition position, bool animate = true)
+        => ScrollToIndex(index, position.ToMaui(), animate);
+
+    /// <summary>Scrolls the row of <paramref name="item"/> into view at <paramref name="position"/>.</summary>
+    [Obsolete("Use the overload that takes Microsoft.Maui.Controls.ScrollToPosition; this overload is removed in OpenMaui 11.0.")]
+    public void ScrollToItem(object item, ScrollToPosition position, bool animate = true)
+        => ScrollToItem(item, position.ToMaui(), animate);
+#pragma warning restore CS0618
 
     /// <summary>
     /// Scrolls the row at <paramref name="index"/> into view at <paramref name="position"/>:
     /// the start, center or end of the viewport, or (MakeVisible) as little as it takes,
     /// as MAUI's ItemsView.ScrollTo places an item.
     /// </summary>
-    public void ScrollToIndex(int index, ScrollToPosition position, bool animate = true)
+    public void ScrollToIndex(int index, Controls.ScrollToPosition position, bool animate = true)
     {
         if (index < 0 || index >= _items.Count) return;
 
@@ -1765,17 +1830,17 @@ public class SkiaItemsView : SkiaView
         var viewport = ViewportExtent;
         var targetOffset = position switch
         {
-            ScrollToPosition.Center => itemStart - (viewport - itemLength) / 2,
-            ScrollToPosition.End => itemStart + itemLength - viewport,
-            ScrollToPosition.MakeVisible when itemStart >= _scrollOffset && itemStart + itemLength <= _scrollOffset + viewport => _scrollOffset,
-            ScrollToPosition.MakeVisible when itemStart + itemLength > _scrollOffset + viewport && itemLength <= viewport => itemStart + itemLength - viewport,
+            Controls.ScrollToPosition.Center => itemStart - (viewport - itemLength) / 2,
+            Controls.ScrollToPosition.End => itemStart + itemLength - viewport,
+            Controls.ScrollToPosition.MakeVisible when itemStart >= _scrollOffset && itemStart + itemLength <= _scrollOffset + viewport => _scrollOffset,
+            Controls.ScrollToPosition.MakeVisible when itemStart + itemLength > _scrollOffset + viewport && itemLength <= viewport => itemStart + itemLength - viewport,
             _ => itemStart,
         };
         SetScrollOffset(targetOffset);
     }
 
-    /// <summary>Scrolls the row of <paramref name="item"/> into view; see <see cref="ScrollToIndex(int, ScrollToPosition, bool)"/>.</summary>
-    public void ScrollToItem(object item, ScrollToPosition position, bool animate = true)
+    /// <summary>Scrolls the row of <paramref name="item"/> into view; see <see cref="ScrollToIndex(int, Controls.ScrollToPosition, bool)"/>.</summary>
+    public void ScrollToItem(object item, Controls.ScrollToPosition position, bool animate = true)
     {
         var index = _items.IndexOf(item);
         if (index >= 0)

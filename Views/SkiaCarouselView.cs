@@ -4,12 +4,14 @@
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Rendering;
 using SkiaSharp;
+using SnapPointsAlignment = Microsoft.Maui.Controls.SnapPointsAlignment;
+using SnapPointsType = Microsoft.Maui.Controls.SnapPointsType;
 
 namespace Microsoft.Maui.Platform;
 
 /// <summary>
 /// A carousel: one item at a time across its width (or down its height, when
-/// <see cref="Orientation"/> is vertical), moved by dragging, snapping to an item.
+/// <see cref="MauiOrientation"/> is vertical), moved by dragging, snapping to an item.
 /// </summary>
 public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
 {
@@ -24,6 +26,9 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     private float _velocity = 0f;
     private DateTime _lastDragTime;
     private float _lastDragX;
+
+    /// <summary>The clock drags and animations are timed with (tests replace it).</summary>
+    internal Func<DateTime> Clock { get; set; } = static () => DateTime.UtcNow;
 
     // Animation
     private bool _isAnimating = false;
@@ -51,7 +56,9 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
                 int oldPosition = _currentPosition;
                 _currentPosition = value;
                 AnimateToPosition(value);
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
                 PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, value));
+#pragma warning restore CS0618
             }
         }
     }
@@ -81,13 +88,26 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         }
     }
 
-    private ItemsLayoutOrientation _orientation = ItemsLayoutOrientation.Horizontal;
+    private Controls.ItemsLayoutOrientation _orientation = Controls.ItemsLayoutOrientation.Horizontal;
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>
+    /// The direction the items follow each other: across (Horizontal, the default) or down
+    /// (Vertical), as the CarouselView's LinearItemsLayout orientation sets it.
+    /// </summary>
+    [Obsolete("Use MauiOrientation, which takes Microsoft.Maui.Controls.ItemsLayoutOrientation; this property is removed in OpenMaui 11.0.")]
+    public ItemsLayoutOrientation Orientation
+    {
+        get => _orientation.ToLegacy();
+        set => MauiOrientation = value.ToMaui();
+    }
+#pragma warning restore CS0618
 
     /// <summary>
     /// The direction the items follow each other: across (Horizontal, the default) or down
     /// (Vertical), as the CarouselView's LinearItemsLayout orientation sets it.
     /// </summary>
-    public ItemsLayoutOrientation Orientation
+    public Controls.ItemsLayoutOrientation MauiOrientation
     {
         get => _orientation;
         set
@@ -104,12 +124,90 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         }
     }
 
-    private bool IsVertical => _orientation == ItemsLayoutOrientation.Vertical;
+    private bool IsVertical => _orientation == Controls.ItemsLayoutOrientation.Vertical;
+
+    private double _leadingPeek;
+    private double _trailingPeek;
 
     /// <summary>
-    /// Gets or sets the peek amount (how much of adjacent items to show).
+    /// How much of the neighbouring items shows on both sides. Setting it sets
+    /// <see cref="LeadingPeekAreaInset"/> and <see cref="TrailingPeekAreaInset"/>; reading it
+    /// gives the leading one.
     /// </summary>
-    public double PeekAreaInsets { get; set; } = 0.0;
+    public double PeekAreaInsets
+    {
+        get => _leadingPeek;
+        set => SetPeekAreaInsets(value, value);
+    }
+
+    /// <summary>
+    /// How much of the previous item shows before the current one: the left side of MAUI's
+    /// PeekAreaInsets for a horizontal carousel, the top for a vertical one.
+    /// </summary>
+    public double LeadingPeekAreaInset
+    {
+        get => _leadingPeek;
+        set => SetPeekAreaInsets(value, _trailingPeek);
+    }
+
+    /// <summary>How much of the next item shows after the current one (the right, or bottom, of PeekAreaInsets).</summary>
+    public double TrailingPeekAreaInset
+    {
+        get => _trailingPeek;
+        set => SetPeekAreaInsets(_leadingPeek, value);
+    }
+
+    /// <summary>
+    /// Sets the peek on each side of the current item. As on Windows, where the carousel's
+    /// list is padded by PeekAreaInsets, an item is as long as the carousel less both peeks,
+    /// the first item rests after the leading peek and the last before the trailing one.
+    /// </summary>
+    public void SetPeekAreaInsets(double leading, double trailing)
+    {
+        leading = Math.Max(0, leading);
+        trailing = Math.Max(0, trailing);
+        if (_leadingPeek == leading && _trailingPeek == trailing)
+            return;
+        _leadingPeek = leading;
+        _trailingPeek = trailing;
+        InvalidateMeasure();
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Whether a drag past the first or last item stretches past it and springs back when
+    /// released (MAUI's IsBounceEnabled); without it the carousel stops at its ends. A looping
+    /// carousel has no ends.
+    /// </summary>
+    public bool IsBounceEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Where a drag or a fling comes to rest (the ItemsLayout's SnapPointsType): None anywhere,
+    /// Mandatory at the item nearest to where the fling would carry it, MandatorySingle at most
+    /// one item on from the one the gesture started on (CarouselView's default).
+    /// </summary>
+    public SnapPointsType SnapPointsType { get; set; } = SnapPointsType.MandatorySingle;
+
+    private SnapPointsAlignment _snapPointsAlignment = SnapPointsAlignment.Center;
+
+    /// <summary>
+    /// Which part of an item a snap point lines up with the carousel (the ItemsLayout's
+    /// SnapPointsAlignment), as a WinUI ScrollViewer aligns its snap points: Start puts the
+    /// item's leading edge at the carousel's leading edge, Center its middle at the middle,
+    /// End its trailing edge at the trailing edge. At the ends the carousel stops at its first
+    /// and last offsets (the peeks), as a scroll viewer does.
+    /// </summary>
+    public SnapPointsAlignment SnapPointsAlignment
+    {
+        get => _snapPointsAlignment;
+        set
+        {
+            if (_snapPointsAlignment == value)
+                return;
+            _snapPointsAlignment = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the spacing between items.
@@ -157,7 +255,9 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>
     /// Event raised when position changes.
     /// </summary>
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
     public event EventHandler<PositionChangedEventArgs>? PositionChanged;
+#pragma warning restore CS0618
 
     /// <summary>
     /// Event raised when scrolling.
@@ -249,10 +349,28 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// scrolled), Always keeps it shown, Never hides it. A looping carousel shows none, as on
     /// Windows. A vertical carousel does not scroll across, so it never shows one.
     /// </summary>
-    public ScrollBarVisibility HorizontalScrollBarVisibility { get; set; } = ScrollBarVisibility.Default;
+    public Microsoft.Maui.ScrollBarVisibility MauiHorizontalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
 
-    /// <summary>The vertical scroll bar of a vertical carousel; see <see cref="HorizontalScrollBarVisibility"/>.</summary>
-    public ScrollBarVisibility VerticalScrollBarVisibility { get; set; } = ScrollBarVisibility.Default;
+    /// <summary>The vertical scroll bar of a vertical carousel; see <see cref="MauiHorizontalScrollBarVisibility"/>.</summary>
+    public Microsoft.Maui.ScrollBarVisibility MauiVerticalScrollBarVisibility { get; set; } = Microsoft.Maui.ScrollBarVisibility.Default;
+
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
+    /// <summary>The horizontal scroll bar of a horizontal carousel; see <see cref="MauiHorizontalScrollBarVisibility"/>.</summary>
+    [Obsolete("Use MauiHorizontalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
+    public ScrollBarVisibility HorizontalScrollBarVisibility
+    {
+        get => MauiHorizontalScrollBarVisibility.ToLegacy();
+        set => MauiHorizontalScrollBarVisibility = value.ToMaui();
+    }
+
+    /// <summary>The vertical scroll bar of a vertical carousel; see <see cref="MauiHorizontalScrollBarVisibility"/>.</summary>
+    [Obsolete("Use MauiVerticalScrollBarVisibility, which takes Microsoft.Maui.ScrollBarVisibility; this property is removed in OpenMaui 11.0.")]
+    public ScrollBarVisibility VerticalScrollBarVisibility
+    {
+        get => MauiVerticalScrollBarVisibility.ToLegacy();
+        set => MauiVerticalScrollBarVisibility = value.ToMaui();
+    }
+#pragma warning restore CS0618
 
     /// <summary>
     /// Removes an item from the carousel.
@@ -312,7 +430,9 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
 
         if (oldPosition != position)
         {
+#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
             PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, position));
+#pragma warning restore CS0618
         }
     }
 
@@ -320,7 +440,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     {
         _animationStartOffset = _scrollOffset;
         _animationTargetOffset = NearestOffsetFor(position);
-        _animationStartTime = DateTime.UtcNow;
+        _animationStartTime = Clock();
         _isAnimating = true;
         Invalidate();
     }
@@ -333,8 +453,45 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     // The viewport being arranged to (Bounds takes it only after ArrangeOverride returns).
     private float? _arrangeViewport;
 
-    /// <summary>The length of an item along the scroll axis (the viewport less the peek on both sides).</summary>
-    private float ItemLength => Viewport - (float)PeekAreaInsets * 2;
+    private float LeadingPeek => (float)_leadingPeek;
+    private float TrailingPeek => (float)_trailingPeek;
+
+    /// <summary>The length of an item along the scroll axis (the viewport less the peek on each side).</summary>
+    private float ItemLength => Viewport - LeadingPeek - TrailingPeek;
+
+    /// <summary>The furthest offset of a carousel that does not loop (its last item in view).</summary>
+    private float MaxOffset => Math.Max(0, (_items.Count - 1) * Stride);
+
+    /// <summary>
+    /// Where the snap point of item <paramref name="index"/> is relative to index × stride (the
+    /// offset at which the item rests after the leading peek), by <paramref name="alignment"/>.
+    /// </summary>
+    private float SnapShift(SnapPointsAlignment alignment) => alignment switch
+    {
+        SnapPointsAlignment.Start => LeadingPeek,
+        SnapPointsAlignment.End => -TrailingPeek,
+        _ => (LeadingPeek - TrailingPeek) / 2,
+    };
+
+    /// <summary>The alignment an item rests at: the snap points', or the middle (Windows scrolls a carousel's item to its center) when it does not snap.</summary>
+    private SnapPointsAlignment RestAlignment => SnapPointsType == SnapPointsType.None ? SnapPointsAlignment.Center : _snapPointsAlignment;
+
+    /// <summary>The offset of the snap point of item <paramref name="index"/> (any index while looping).</summary>
+    private float SnapOffset(int index)
+    {
+        var offset = index * Stride + SnapShift(RestAlignment);
+        return Loops ? offset : Math.Clamp(offset, 0, MaxOffset);
+    }
+
+    /// <summary>The snap point nearest <paramref name="offset"/> (an index, any while looping).</summary>
+    private int NearestSnapIndex(float offset)
+    {
+        var stride = Stride;
+        if (stride <= 0)
+            return 0;
+        var index = (int)MathF.Round((offset - SnapShift(RestAlignment)) / stride);
+        return Loops ? index : Math.Clamp(index, 0, Math.Max(0, _items.Count - 1));
+    }
 
     /// <summary>The distance from one item to the next.</summary>
     private float Stride => ItemLength + (float)ItemSpacing;
@@ -342,7 +499,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>The length of one round of a looping carousel.</summary>
     private float LoopLength => _items.Count * Stride;
 
-    private float GetOffsetForPosition(int position) => position * Stride;
+    private float GetOffsetForPosition(int position) => SnapOffset(position);
 
     /// <summary>
     /// The offset that shows <paramref name="position"/>: a looping carousel goes the short way
@@ -358,11 +515,12 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         return target + k * round;
     }
 
+    /// <summary>The item whose middle is nearest the carousel's middle at <paramref name="offset"/> (Windows' position).</summary>
     private int GetPositionForOffset(float offset)
     {
         var stride = Stride;
-        if (ItemLength <= 0 || stride <= 0) return 0;
-        var index = (int)Math.Round(offset / stride);
+        if (ItemLength <= 0 || stride <= 0 || _items.Count == 0) return 0;
+        var index = (int)MathF.Round((offset - (LeadingPeek - TrailingPeek) / 2) / stride);
         if (Loops)
             return Mod(index, _items.Count);
         return Math.Clamp(index, 0, Math.Max(0, _items.Count - 1));
@@ -373,7 +531,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     /// <summary>Where item <paramref name="index"/> starts along the scroll axis, relative to the carousel's start.</summary>
     private float ItemStart(int index)
     {
-        var start = (float)PeekAreaInsets + index * Stride - _scrollOffset;
+        var start = LeadingPeek + index * Stride - _scrollOffset;
         if (Loops && LoopLength > 0)
         {
             // The copy of the item nearest the viewport: one round before or after.
@@ -404,11 +562,11 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         if (IsVertical)
         {
             itemWidth = (float)availableSize.Width;
-            itemHeight = (float)availableSize.Height - (float)PeekAreaInsets * 2 - indicators;
+            itemHeight = (float)availableSize.Height - LeadingPeek - TrailingPeek - indicators;
         }
         else
         {
-            itemWidth = (float)availableSize.Width - (float)PeekAreaInsets * 2;
+            itemWidth = (float)availableSize.Width - LeadingPeek - TrailingPeek;
             itemHeight = (float)availableSize.Height - indicators;
         }
 
@@ -421,10 +579,11 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     }
 
     /// <summary>The bounds of item <paramref name="index"/> in a carousel at <paramref name="bounds"/>.</summary>
-    private SKRect ItemBounds(int index, SKRect bounds)
+    private SKRect ItemBounds(int index, SKRect bounds) => ItemBoundsAt(ItemStart(index), bounds);
+
+    private SKRect ItemBoundsAt(float start, SKRect bounds)
     {
         var indicators = ShowIndicators ? 30f : 0f;
-        var start = ItemStart(index);
         var length = ItemLength;
         return IsVertical
             ? new SKRect(bounds.Left, bounds.Top + start, bounds.Right, bounds.Top + start + Math.Max(0, length - indicators))
@@ -434,13 +593,17 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
     // The item stride the offset was last computed with: a carousel resized (or laid out after a
     // ScrollTo made before it had a size) keeps showing its current item.
     private float _layoutStride = -1;
+    private float _layoutRest = float.NaN;
 
     private void KeepCurrentItemOnResize()
     {
+        // The stride, and where the current item rests (the peeks and the snap alignment).
         var stride = Stride;
-        if (Math.Abs(stride - _layoutStride) < 0.01f)
+        var rest = SnapShift(RestAlignment);
+        if (Math.Abs(stride - _layoutStride) < 0.01f && Math.Abs(rest - _layoutRest) < 0.01f)
             return;
         _layoutStride = stride;
+        _layoutRest = rest;
         if (!_isDragging)
         {
             _isAnimating = false;
@@ -474,7 +637,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         // Update animation
         if (_isAnimating)
         {
-            float elapsed = (float)(DateTime.UtcNow - _animationStartTime).TotalMilliseconds;
+            float elapsed = (float)(Clock() - _animationStartTime).TotalMilliseconds;
             float progress = Math.Clamp(elapsed / AnimationDurationMs, 0f, 1f);
 
             // Ease out cubic
@@ -505,18 +668,40 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
             return;
         }
 
-        // Draw the items in view, where the offset puts them now.
+        // Draw the items in view, where the offset puts them now. A looping carousel can show
+        // an item twice (two items with a peek: the other one on both sides); the item is laid
+        // out at its first place and drawn again, shifted, at the other.
+        var viewport = IsVertical ? bounds.Height : bounds.Width;
         for (int i = 0; i < _items.Count; i++)
         {
-            var itemBounds = ItemBounds(i, bounds);
-            if (itemBounds.Right <= bounds.Left || itemBounds.Left >= bounds.Right
-                || itemBounds.Bottom <= bounds.Top || itemBounds.Top >= bounds.Bottom)
-                continue;
             var item = _items[i];
-            if (Math.Abs(item.Bounds.Left - itemBounds.Left) > 0.01 || Math.Abs(item.Bounds.Top - itemBounds.Top) > 0.01
-                || Math.Abs(item.Bounds.Width - itemBounds.Width) > 0.01 || Math.Abs(item.Bounds.Height - itemBounds.Height) > 0.01)
-                item.Arrange(new Rect(itemBounds.Left, itemBounds.Top, itemBounds.Width, itemBounds.Height));
-            item.Draw(canvas);
+            var primary = ItemStart(i);
+            bool arranged = false;
+            foreach (var start in PlacesOf(primary, viewport))
+            {
+                var itemBounds = ItemBoundsAt(start, bounds);
+                if (!arranged)
+                {
+                    var home = ItemBoundsAt(primary, bounds);
+                    if (Math.Abs(item.Bounds.Left - home.Left) > 0.01 || Math.Abs(item.Bounds.Top - home.Top) > 0.01
+                        || Math.Abs(item.Bounds.Width - home.Width) > 0.01 || Math.Abs(item.Bounds.Height - home.Height) > 0.01)
+                        item.Arrange(new Rect(home.Left, home.Top, home.Width, home.Height));
+                    arranged = true;
+                }
+                var shift = start - primary;
+                if (shift == 0)
+                {
+                    item.Draw(canvas);
+                    continue;
+                }
+                canvas.Save();
+                if (IsVertical)
+                    canvas.Translate(0, shift);
+                else
+                    canvas.Translate(shift, 0);
+                item.Draw(canvas);
+                canvas.Restore();
+            }
         }
 
         // Draw indicators
@@ -533,10 +718,65 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         canvas.Restore();
     }
 
-    private bool ShowsScrollBar => !Loop && _items.Count > 1 && (IsVertical ? VerticalScrollBarVisibility : HorizontalScrollBarVisibility) switch
+    /// <summary>
+    /// The places (starts along the scroll axis, relative to the carousel) at which an item
+    /// whose nearest copy starts at <paramref name="primary"/> is in view: one, or for a looping
+    /// carousel every round's copy that reaches into the viewport.
+    /// </summary>
+    private IEnumerable<float> PlacesOf(float primary, float viewport)
     {
-        ScrollBarVisibility.Always => true,
-        ScrollBarVisibility.Never => false,
+        var length = ItemLength;
+        if (!Loops || LoopLength <= 0)
+        {
+            if (primary + length > 0 && primary < viewport)
+                yield return primary;
+            yield break;
+        }
+        var round = LoopLength;
+        // The first copy that ends after the leading edge, then every one that starts before the trailing edge.
+        var start = primary - MathF.Ceiling((primary + length) / round) * round;
+        while (start + length <= 0)
+            start += round;
+        for (int guard = 0; start < viewport && guard < 64; guard++, start += round)
+            yield return start;
+    }
+
+    /// <summary>The items in view and where each starts along the scroll axis, relative to the carousel (a looping item may be listed twice).</summary>
+    internal IReadOnlyList<(int Index, float Start)> VisibleItemPlacements()
+    {
+        var list = new List<(int, float)>();
+        var viewport = Viewport;
+        for (int i = 0; i < _items.Count; i++)
+            foreach (var start in PlacesOf(ItemStart(i), viewport))
+                list.Add((i, start));
+        list.Sort((a, b) => a.Item2.CompareTo(b.Item2));
+        return list;
+    }
+
+    /// <summary>The offset along the scroll axis (unbounded while looping).</summary>
+    internal float ScrollOffset => _scrollOffset;
+
+    /// <summary>Whether the carousel is moving to rest (after a drag, or to a new position).</summary>
+    internal bool IsSettling => _isAnimating;
+
+    /// <summary>Moves a settling carousel to its rest place at once (tests).</summary>
+    internal void FinishSettling()
+    {
+        if (!_isAnimating)
+            return;
+        _isAnimating = false;
+        _scrollOffset = _animationTargetOffset;
+        NormalizeLoopOffset();
+        Invalidate();
+    }
+
+    /// <summary>Where the carousel will rest once settled.</summary>
+    internal float RestingOffset => _isAnimating ? _animationTargetOffset : _scrollOffset;
+
+    private bool ShowsScrollBar => !Loop && _items.Count > 1 && (IsVertical ? MauiVerticalScrollBarVisibility : MauiHorizontalScrollBarVisibility) switch
+    {
+        Microsoft.Maui.ScrollBarVisibility.Always => true,
+        Microsoft.Maui.ScrollBarVisibility.Never => false,
         _ => _isDragging || _isAnimating,
     };
 
@@ -550,7 +790,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         float total = _items.Count * Stride - (float)ItemSpacing;
         if (total <= 0 || trackLength <= 0)
             return;
-        float maxOffset = Math.Max(1f, GetOffsetForPosition(_items.Count - 1));
+        float maxOffset = Math.Max(1f, MaxOffset);
         float thumbLength = Math.Max(24f, trackLength * Math.Min(1f, Viewport / total));
         float ratio = Math.Clamp(_scrollOffset / maxOffset, 0f, 1f);
         float start = (trackLength - thumbLength) * ratio;
@@ -649,7 +889,7 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         _dragStartX = Along(e);
         _dragStartOffset = _scrollOffset;
         _lastDragX = Along(e);
-        _lastDragTime = DateTime.UtcNow;
+        _lastDragTime = Clock();
         _velocity = 0;
         _isAnimating = false;
     }
@@ -688,17 +928,10 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         if (!_isDragging) return;
 
         float delta = _dragStartX - Along(e);
-        _scrollOffset = _dragStartOffset + delta;
-
-        // Clamp scrolling (a looping carousel goes round instead)
-        if (!Loops)
-        {
-            float maxOffset = GetOffsetForPosition(_items.Count - 1);
-            _scrollOffset = Math.Clamp(_scrollOffset, 0, Math.Max(0, maxOffset));
-        }
+        _scrollOffset = DraggedOffset(_dragStartOffset + delta);
 
         // Calculate velocity
-        var now = DateTime.UtcNow;
+        var now = Clock();
         float timeDelta = (float)(now - _lastDragTime).TotalSeconds;
         if (timeDelta > 0)
         {
@@ -714,41 +947,113 @@ public class SkiaCarouselView : SkiaLayoutView, IPointerDragInterceptor
         base.OnPointerMoved(e);
     }
 
+    /// <summary>
+    /// The offset a drag to <paramref name="raw"/> shows: a looping carousel goes round; one
+    /// that does not stops at its ends, or with <see cref="IsBounceEnabled"/> stretches past
+    /// them with growing resistance (an elastic overscroll, as iOS and Android show it).
+    /// </summary>
+    private float DraggedOffset(float raw)
+    {
+        if (Loops)
+            return raw;
+        var max = MaxOffset;
+        if (raw >= 0 && raw <= max)
+            return raw;
+        if (!IsBounceEnabled)
+            return Math.Clamp(raw, 0, max);
+        var over = raw < 0 ? -raw : raw - max;
+        var stretched = RubberBand(over, Math.Max(1f, Viewport));
+        return raw < 0 ? -stretched : max + stretched;
+    }
+
+    /// <summary>The distance a drag of <paramref name="over"/> past an end shows (never more than half the viewport).</summary>
+    internal static float RubberBand(float over, float viewport)
+    {
+        const float c = 0.55f;
+        return (1f - 1f / (over * c / viewport + 1f)) * viewport * 0.5f;
+    }
+
+    /// <summary>How far ahead a fling's speed carries the carousel (seconds of travel).</summary>
+    private const float FlingProjection = 0.3f;
+
+    /// <summary>The speed past which a release moves on to the next item.</summary>
+    private const float FlingVelocity = 500f;
+
+    /// <summary>
+    /// A drag ended: the carousel moves to where its SnapPointsType sets it to rest (an item a
+    /// fling reaches, at most the next one, or wherever the fling stops), back inside its ends
+    /// when it was stretched past them, and reports the item now at its middle.
+    /// </summary>
+    private void Settle()
+    {
+        if (_items.Count == 0)
+            return;
+        var stride = Stride;
+        float target;
+        int position;
+        var fling = Math.Abs(_velocity) > FlingVelocity ? Math.Sign(_velocity) : 0;
+
+        switch (SnapPointsType)
+        {
+            case SnapPointsType.None:
+            {
+                var projected = _scrollOffset + _velocity * FlingProjection;
+                target = Loops ? projected : Math.Clamp(projected, 0, MaxOffset);
+                position = GetPositionForOffset(target);
+                break;
+            }
+            case SnapPointsType.Mandatory:
+            {
+                var index = NearestSnapIndex(_scrollOffset + _velocity * FlingProjection);
+                if (fling != 0 && index == NearestSnapIndex(_scrollOffset))
+                    index += fling;
+                (target, position) = SnapTarget(index);
+                break;
+            }
+            default:
+            {
+                // MandatorySingle: at most one item on from the one the gesture started on.
+                // A fling goes on to the neighbour it is thrown towards; a slow release goes to
+                // the item nearest where the drag left it.
+                var from = NearestSnapIndex(_dragStartOffset);
+                var index = fling != 0 ? from + fling : NearestSnapIndex(_scrollOffset);
+                index = Math.Clamp(index, from - 1, from + 1);
+                (target, position) = SnapTarget(index);
+                break;
+            }
+        }
+
+        int oldPosition = _currentPosition;
+        _currentPosition = position;
+        _animationStartOffset = _scrollOffset;
+        _animationTargetOffset = target;
+        _animationStartTime = Clock();
+        _isAnimating = Math.Abs(target - _scrollOffset) > 0.01f;
+        if (!_isAnimating)
+        {
+            _scrollOffset = target;
+            NormalizeLoopOffset();
+        }
+        Invalidate();
+        if (oldPosition != position)
+            PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, position));
+    }
+
+    /// <summary>The offset of snap point <paramref name="index"/> and the item it shows.</summary>
+    private (float Offset, int Position) SnapTarget(int index)
+    {
+        if (Loops)
+            return (index * Stride + SnapShift(RestAlignment), Mod(index, _items.Count));
+        index = Math.Clamp(index, 0, _items.Count - 1);
+        return (SnapOffset(index), index);
+    }
+
     public override void OnPointerReleased(PointerEventArgs e)
     {
         if (!_isDragging) return;
 
         _isDragging = false;
-
-        // Determine target position based on velocity and position
-        var stride = Stride;
-        int targetSlot = stride > 0 ? (int)Math.Round(_scrollOffset / stride) : 0;
-
-        // Apply velocity influence
-        if (Math.Abs(_velocity) > 500)
-        {
-            if (_velocity > 0) targetSlot++;
-            else if (_velocity < 0) targetSlot--;
-        }
-
-        if (Loops)
-        {
-            // Snap to the slot reached (in whichever round), then report the item there.
-            int target = Mod(targetSlot, _items.Count);
-            int oldPosition = _currentPosition;
-            _currentPosition = target;
-            _animationStartOffset = _scrollOffset;
-            _animationTargetOffset = targetSlot * stride;
-            _animationStartTime = DateTime.UtcNow;
-            _isAnimating = true;
-            Invalidate();
-            if (oldPosition != target)
-                PositionChanged?.Invoke(this, new PositionChangedEventArgs(oldPosition, target));
-        }
-        else
-        {
-            ScrollTo(Math.Clamp(targetSlot, 0, Math.Max(0, _items.Count - 1)), true);
-        }
+        Settle();
         e.Handled = true;
 
         base.OnPointerReleased(e);

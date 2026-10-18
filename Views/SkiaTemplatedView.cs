@@ -191,9 +191,7 @@ public abstract class SkiaTemplatedView : SkiaView
     {
         var layout = new SkiaStackLayout
         {
-            Orientation = sl.Orientation == Microsoft.Maui.Controls.StackOrientation.Vertical
-                ? StackOrientation.Vertical
-                : StackOrientation.Horizontal,
+            MauiOrientation = sl.Orientation,
             Spacing = (float)sl.Spacing
         };
 
@@ -217,19 +215,13 @@ public abstract class SkiaTemplatedView : SkiaView
         // Set row definitions
         foreach (var rowDef in grid.RowDefinitions)
         {
-            var gridLength = rowDef.Height.IsAuto ? GridLength.Auto :
-                            rowDef.Height.IsStar ? new GridLength((float)rowDef.Height.Value, GridUnitType.Star) :
-                            new GridLength((float)rowDef.Height.Value, GridUnitType.Absolute);
-            layout.RowDefinitions.Add(gridLength);
+            layout.MauiRowDefinitions.Add(rowDef.Height);
         }
 
         // Set column definitions
         foreach (var colDef in grid.ColumnDefinitions)
         {
-            var gridLength = colDef.Width.IsAuto ? GridLength.Auto :
-                            colDef.Width.IsStar ? new GridLength((float)colDef.Width.Value, GridUnitType.Star) :
-                            new GridLength((float)colDef.Width.Value, GridUnitType.Absolute);
-            layout.ColumnDefinitions.Add(gridLength);
+            layout.MauiColumnDefinitions.Add(colDef.Width);
         }
 
         // Add children
