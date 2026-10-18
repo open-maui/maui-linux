@@ -103,6 +103,19 @@ public sealed partial class WindowContext
         engine.TitleBarView = titleBar is { IsVisible: true } ? titleBar : null;
         if (titleBar != null && !ReferenceEquals(titleBar.RenderContext, engine))
             titleBar.RenderContext = engine;
+        UpdateClientDecorations();
+    }
+
+    /// <summary>
+    /// A window with a (visible) TitleBar draws its own decorations, as Windows extends the
+    /// content into the title bar: the X11 window drops the window manager's frame, the Wayland
+    /// window asks the compositor for client-side mode. Windows without one keep the system
+    /// decorations. The native window only acts on a change.
+    /// </summary>
+    private void UpdateClientDecorations()
+    {
+        if (DisplayWindow is IClientDecoratedWindow decorated)
+            decorated.SetClientDecorationsWanted(TitleBarView is { IsVisible: true });
     }
 
     // The overlay that took the current press (DisableUITouchEventPassthrough, or a touched
