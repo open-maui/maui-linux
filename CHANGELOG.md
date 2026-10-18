@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.10] - unreleased
+
+### Changed
+
+- **Linux apps are published ReadyToRun by default**: without it, every method MAUI, OpenMaui and the app run is JIT-compiled the first time it runs, on the UI thread for UI code. The package's build targets now set `PublishReadyToRun` to true for the plain `net10.0` Linux target when the project does not set it. Measured on claude-toolkit (self-contained linux-x64): the first frame came 4.1 s after launch with 1.3 s of JIT before it, and 2.9 s with 0.2 s of JIT published ReadyToRun; the publish grows from 158 MB to 209 MB. It only affects `dotnet publish` with a runtime identifier; builds and debugging are unchanged. Set `<PublishReadyToRun>false</PublishReadyToRun>` in the project to opt out. (The Harmony/MonoMod JIT hook that showed up in profiles is not the cost: it added 0.1 s to 23 s of JIT work.)
+
+### Fixed
+
+- **Startup waited 1.3 s for GTK's CSS**: OpenMaui loaded its GTK theme CSS at startup, which is GTK's first style work for the screen (it sets up its theme, settings and fonts then), and blocked the first window for about 1.3 s in every app measured. The CSS only styles GTK widgets (the GTK host window, WebKitGTK views, GTK menus, the print dialog, the tray menu), which an app on the Wayland or X11 backend may never create. It is now loaded the first time OpenMaui creates one, and follows theme changes from then on.
+
 ## [10.0.110.9] - 2026-10-18
 
 ### Fixed
