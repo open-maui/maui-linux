@@ -54,10 +54,14 @@ public partial class SkiaShell
         }
     }
 
-    /// <summary>The back button while the bar shows it, then the shell's views.</summary>
+    /// <summary>
+    /// The back button while the bar shows it, then the top navigation pane and its search box
+    /// while shown, then the shell's views.
+    /// </summary>
     protected override List<IAccessible> GetAccessibleChildren()
     {
         var children = base.GetAccessibleChildren();
+        children.InsertRange(0, TopPaneAccessibles());
         if (BackButtonShown)
             children.Insert(0, BackButtonAccessible);
         return children;
