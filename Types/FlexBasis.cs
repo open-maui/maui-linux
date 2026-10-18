@@ -1,5 +1,6 @@
 namespace Microsoft.Maui.Platform;
 
+[Obsolete("Use Microsoft.Maui.Layouts.FlexBasis; this type is removed in OpenMaui 11.0.")]
 public struct FlexBasis
 {
     public bool IsAuto { get; }
