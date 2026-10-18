@@ -87,8 +87,9 @@ public class SkiaDrawingView : SkiaView
         canvas.Translate(bounds.Left, bounds.Top);
         var local = new RectF(0, 0, bounds.Width, bounds.Height);
 
-        using (var mauiCanvas = new SkiaCanvas { Canvas = canvas })
+        using (var lease = Linux.Rendering.MauiCanvasCache.Rent(canvas))
         {
+            var mauiCanvas = lease.Canvas;
             if (view is IView { Background: SolidPaint { Color: { } background } })
             {
                 mauiCanvas.FillColor = background;

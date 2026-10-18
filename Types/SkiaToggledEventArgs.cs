@@ -14,9 +14,3 @@ public class SkiaToggledEventArgs : EventArgs
         Value = value;
     }
 }
-
-[Obsolete("Use SkiaToggledEventArgs; this type is removed in OpenMaui 11.0.")]
-public class ToggledEventArgs : SkiaToggledEventArgs
-{
-    public ToggledEventArgs(bool value) : base(value) { }
-}

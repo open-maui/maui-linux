@@ -6,7 +6,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Hosting;
 using SkiaSharp;
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
@@ -188,7 +187,6 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMe
     }
 
     /// <summary>MAUI's <c>MapAdd</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapAdd(IMenuBarHandler handler, IMenuBar layout, object? arg)
     {
         if (handler is MenuBarHandler linuxHandler)
@@ -197,17 +195,12 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMe
             handler.Add(update.MenuBarItem);
     }
 
-    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapAdd(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapAddCore(handler, menuBar, args);
-
     private static void MapAddCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
         handler.SyncMenuBarItems();
     }
 
     /// <summary>MAUI's <c>MapRemove</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapRemove(IMenuBarHandler handler, IMenuBar layout, object? arg)
     {
         if (handler is MenuBarHandler linuxHandler)
@@ -216,17 +209,12 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMe
             handler.Remove(update.MenuBarItem);
     }
 
-    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapRemove(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapRemoveCore(handler, menuBar, args);
-
     private static void MapRemoveCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
         handler.SyncMenuBarItems();
     }
 
     /// <summary>MAUI's <c>MapClear</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapClear(IMenuBarHandler handler, IMenuBar layout, object? arg)
     {
         if (handler is MenuBarHandler linuxHandler)
@@ -234,10 +222,6 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMe
         else
             handler.Clear();
     }
-
-    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapClear(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapClearCore(handler, menuBar, args);
 
     private static void MapClearCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
@@ -247,7 +231,6 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMe
     }
 
     /// <summary>MAUI's <c>MapInsert</c> signature; runs the command on a Linux <see cref="MenuBarHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapInsert(IMenuBarHandler handler, IMenuBar layout, object? arg)
     {
         if (handler is MenuBarHandler linuxHandler)
@@ -255,10 +238,6 @@ public partial class MenuBarHandler : ElementHandler<IMenuBar, SkiaMenuBar>, IMe
         else if (arg is MenuBarHandlerUpdate update)
             handler.Insert(update.Index, update.MenuBarItem);
     }
-
-    [Obsolete("Use the IMenuBarHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapInsert(MenuBarHandler handler, IMenuBar menuBar, object? args) => MapInsertCore(handler, menuBar, args);
 
     private static void MapInsertCore(MenuBarHandler handler, IMenuBar menuBar, object? args)
     {
@@ -440,10 +419,6 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
             handler.Add(update.MenuElement);
     }
 
-    [Obsolete("Use the IMenuFlyoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapAdd(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args) => MapAdd((IMenuFlyoutHandler)handler, menuFlyout, args);
-
     /// <summary>MAUI's <c>MapRemove</c> signature; runs the command on a Linux <see cref="MenuFlyoutHandler"/>.</summary>
     [OverloadResolutionPriority(1)]
     public static void MapRemove(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg)
@@ -454,17 +429,9 @@ public partial class MenuFlyoutHandler : ElementHandler<IMenuFlyout, SkiaMenuFly
             handler.Remove(update.MenuElement);
     }
 
-    [Obsolete("Use the IMenuFlyoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapRemove(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args) => MapRemove((IMenuFlyoutHandler)handler, menuFlyout, args);
-
     /// <summary>MAUI's <c>MapClear</c> signature; runs the command on a Linux <see cref="MenuFlyoutHandler"/>.</summary>
     [OverloadResolutionPriority(1)]
     public static void MapClear(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg) => handler.Clear();
-
-    [Obsolete("Use the IMenuFlyoutHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapClear(MenuFlyoutHandler handler, IMenuFlyout menuFlyout, object? args) => MapClear((IMenuFlyoutHandler)handler, menuFlyout, args);
 
     /// <summary>MAUI's <c>MapInsert</c>: an element was inserted; the menu is rebuilt from the flyout.</summary>
     public static void MapInsert(IMenuFlyoutHandler handler, IMenuFlyout menuElement, object? arg)

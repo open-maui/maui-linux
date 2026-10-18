@@ -214,9 +214,7 @@ public class SkiaSwitch : SkiaView
     /// <summary>
     /// Event raised when the switch is toggled.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public event EventHandler<ToggledEventArgs>? Toggled;
-#pragma warning restore CS0618
+    public event EventHandler<SkiaToggledEventArgs>? Toggled;
 
     #endregion
 
@@ -237,9 +235,7 @@ public class SkiaSwitch : SkiaView
         // Start animation
         StartAnimation(newValue);
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-        Toggled?.Invoke(this, new ToggledEventArgs(newValue));
-#pragma warning restore CS0618
+        Toggled?.Invoke(this, new SkiaToggledEventArgs(newValue));
         SkiaVisualStateManager.GoToState(this, newValue ? "On" : "Off");
     }
 

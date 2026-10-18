@@ -12,6 +12,15 @@ public static class GtkThemeService
     private static bool _initialized = false;
 
     /// <summary>
+    /// The CSS has been loaded into GTK. Loading it is GTK's first style work for the screen
+    /// (theme, settings and fonts are set up then), which took 1.3 s at startup, and the CSS only
+    /// styles GTK widgets: an app on the Wayland or X11 backend may never create one. So startup
+    /// and theme changes only request the CSS (<see cref="RequestTheme"/>), and it is loaded the
+    /// first time OpenMaui creates a GTK widget (<see cref="EnsureApplied"/>).
+    /// </summary>
+    private static bool _applied;
+
+    /// <summary>
     /// Initializes the GTK theme service and applies initial CSS.
     /// </summary>
     public static void Initialize()
@@ -19,6 +28,23 @@ public static class GtkThemeService
         if (_initialized) return;
         _initialized = true;
         ApplyTheme();
+    }
+
+    /// <summary>
+    /// The app's theme was set or changed: the CSS follows it now when GTK widgets already use
+    /// it, otherwise when the first one is created (<see cref="EnsureApplied"/>).
+    /// </summary>
+    internal static void RequestTheme()
+    {
+        if (_applied)
+            ApplyTheme();
+    }
+
+    /// <summary>Loads the CSS for the current theme before OpenMaui creates its first GTK widget.</summary>
+    internal static void EnsureApplied()
+    {
+        if (!_applied)
+            ApplyTheme();
     }
 
     /// <summary>
@@ -79,6 +105,7 @@ public static class GtkThemeService
 
             // Store reference to current provider
             _currentCssProvider = newProvider;
+            _applied = true;
 
             DiagnosticLog.Debug("GtkThemeService", "CSS applied successfully");
         }

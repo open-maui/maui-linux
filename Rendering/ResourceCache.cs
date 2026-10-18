@@ -10,7 +10,9 @@ public class ResourceCache : IDisposable
 {
     // Value carries ownership: faces handed out by the font registrar belong to
     // the registrar and must not be disposed when this cache is cleared.
-    private readonly Dictionary<string, (SKTypeface Typeface, bool Owned)> _typefaces = new();
+    // Keyed by value: a string key was built (and dropped) on every lookup, and text measuring
+    // and drawing look a typeface up for every label on every pass.
+    private readonly Dictionary<(string Family, int Weight, int Width, SKFontStyleSlant Slant), (SKTypeface Typeface, bool Owned)> _typefaces = new();
     private readonly LinuxFontRegistrar? _registrar;
     private bool _disposed;
 
@@ -46,7 +48,7 @@ public class ResourceCache : IDisposable
     /// </summary>
     public SKTypeface GetTypeface(string fontFamily, SKFontStyle style)
     {
-        var key = $"{fontFamily}_{style.Weight}_{style.Width}_{style.Slant}";
+        var key = (fontFamily, style.Weight, style.Width, style.Slant);
 
         if (!_typefaces.TryGetValue(key, out var entry))
         {

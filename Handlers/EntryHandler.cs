@@ -5,8 +5,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Controls;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -120,16 +118,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapText</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapText(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapTextCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapText(EntryHandler handler, IEntry entry) => MapTextCore(handler, entry);
 
     private static void MapTextCore(EntryHandler handler, IEntry entry)
     {
@@ -170,16 +163,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapTextColor</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTextColor(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapTextColorCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTextColor(EntryHandler handler, IEntry entry) => MapTextColorCore(handler, entry);
 
     private static void MapTextColorCore(EntryHandler handler, IEntry entry)
     {
@@ -187,16 +175,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapFont</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapFont(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapFontCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapFont(EntryHandler handler, IEntry entry) => MapFontCore(handler, entry);
 
     private static void MapFontCore(EntryHandler handler, IEntry entry)
     {
@@ -204,16 +187,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapCharacterSpacing</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCharacterSpacing(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapCharacterSpacingCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCharacterSpacing(EntryHandler handler, IEntry entry) => MapCharacterSpacingCore(handler, entry);
 
     private static void MapCharacterSpacingCore(EntryHandler handler, IEntry entry)
     {
@@ -221,16 +199,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapPlaceholder</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapPlaceholder(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapPlaceholderCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapPlaceholder(EntryHandler handler, IEntry entry) => MapPlaceholderCore(handler, entry);
 
     private static void MapPlaceholderCore(EntryHandler handler, IEntry entry)
     {
@@ -238,16 +211,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapPlaceholderColor</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapPlaceholderColor(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapPlaceholderColorCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapPlaceholderColor(EntryHandler handler, IEntry entry) => MapPlaceholderColorCore(handler, entry);
 
     private static void MapPlaceholderColorCore(EntryHandler handler, IEntry entry)
     {
@@ -255,16 +223,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapIsReadOnly</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsReadOnly(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapIsReadOnlyCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsReadOnly(EntryHandler handler, IEntry entry) => MapIsReadOnlyCore(handler, entry);
 
     private static void MapIsReadOnlyCore(EntryHandler handler, IEntry entry)
     {
@@ -272,16 +235,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapMaxLength</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapMaxLength(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapMaxLengthCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapMaxLength(EntryHandler handler, IEntry entry) => MapMaxLengthCore(handler, entry);
 
     private static void MapMaxLengthCore(EntryHandler handler, IEntry entry)
     {
@@ -289,16 +247,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapKeyboard</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapKeyboard(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapKeyboardCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapKeyboard(EntryHandler handler, IEntry entry) => MapKeyboardCore(handler, entry);
 
     private static void MapKeyboardCore(EntryHandler handler, IEntry entry)
     {
@@ -306,16 +259,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapCursorPosition</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCursorPosition(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapCursorPositionCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCursorPosition(EntryHandler handler, IEntry entry) => MapCursorPositionCore(handler, entry);
 
     private static void MapCursorPositionCore(EntryHandler handler, IEntry entry)
     {
@@ -323,16 +271,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapSelectionLength</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapSelectionLength(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapSelectionLengthCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapSelectionLength(EntryHandler handler, IEntry entry) => MapSelectionLengthCore(handler, entry);
 
     private static void MapSelectionLengthCore(EntryHandler handler, IEntry entry)
     {
@@ -340,16 +283,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapIsPassword</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsPassword(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapIsPasswordCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsPassword(EntryHandler handler, IEntry entry) => MapIsPasswordCore(handler, entry);
 
     private static void MapIsPasswordCore(EntryHandler handler, IEntry entry)
     {
@@ -357,16 +295,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapReturnType</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapReturnType(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapReturnTypeCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapReturnType(EntryHandler handler, IEntry entry) => MapReturnTypeCore(handler, entry);
 
     private static void MapReturnTypeCore(EntryHandler handler, IEntry entry)
     {
@@ -374,16 +307,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapClearButtonVisibility</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapClearButtonVisibility(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapClearButtonVisibilityCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapClearButtonVisibility(EntryHandler handler, IEntry entry) => MapClearButtonVisibilityCore(handler, entry);
 
     private static void MapClearButtonVisibilityCore(EntryHandler handler, IEntry entry)
     {
@@ -391,16 +319,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapIsTextPredictionEnabled</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsTextPredictionEnabled(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapIsTextPredictionEnabledCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsTextPredictionEnabled(EntryHandler handler, IEntry entry) => MapIsTextPredictionEnabledCore(handler, entry);
 
     private static void MapIsTextPredictionEnabledCore(EntryHandler handler, IEntry entry)
     {
@@ -408,16 +331,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapIsSpellCheckEnabled</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsSpellCheckEnabled(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapIsSpellCheckEnabledCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsSpellCheckEnabled(EntryHandler handler, IEntry entry) => MapIsSpellCheckEnabledCore(handler, entry);
 
     private static void MapIsSpellCheckEnabledCore(EntryHandler handler, IEntry entry)
     {
@@ -425,16 +343,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapHorizontalTextAlignment</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapHorizontalTextAlignment(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapHorizontalTextAlignmentCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapHorizontalTextAlignment(EntryHandler handler, IEntry entry) => MapHorizontalTextAlignmentCore(handler, entry);
 
     private static void MapHorizontalTextAlignmentCore(EntryHandler handler, IEntry entry)
     {
@@ -442,16 +355,11 @@ public partial class EntryHandler : LinuxViewHandler<IEntry, SkiaEntry>, IEntryH
     }
 
     /// <summary>MAUI's <c>MapVerticalTextAlignment</c> signature; maps the property on a Linux <see cref="EntryHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapVerticalTextAlignment(IEntryHandler handler, IEntry entry)
     {
         if (handler is EntryHandler linuxHandler)
             MapVerticalTextAlignmentCore(linuxHandler, entry);
     }
-
-    [Obsolete("Use the IEntryHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapVerticalTextAlignment(EntryHandler handler, IEntry entry) => MapVerticalTextAlignmentCore(handler, entry);
 
     private static void MapVerticalTextAlignmentCore(EntryHandler handler, IEntry entry)
     {

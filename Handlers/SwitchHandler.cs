@@ -4,8 +4,6 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -68,16 +66,11 @@ public partial class SwitchHandler : LinuxViewHandler<ISwitch, SkiaSwitch>, ISwi
     }
 
     /// <summary>MAUI's <c>MapIsOn</c> signature; maps the property on a Linux <see cref="SwitchHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsOn(ISwitchHandler handler, ISwitch view)
     {
         if (handler is SwitchHandler linuxHandler)
             MapIsOnCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the ISwitchHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsOn(SwitchHandler handler, ISwitch @switch) => MapIsOnCore(handler, @switch);
 
     private static void MapIsOnCore(SwitchHandler handler, ISwitch @switch)
     {
@@ -86,16 +79,11 @@ public partial class SwitchHandler : LinuxViewHandler<ISwitch, SkiaSwitch>, ISwi
     }
 
     /// <summary>MAUI's <c>MapTrackColor</c> signature; maps the property on a Linux <see cref="SwitchHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapTrackColor(ISwitchHandler handler, ISwitch view)
     {
         if (handler is SwitchHandler linuxHandler)
             MapTrackColorCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the ISwitchHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapTrackColor(SwitchHandler handler, ISwitch @switch) => MapTrackColorCore(handler, @switch);
 
     private static void MapTrackColorCore(SwitchHandler handler, ISwitch @switch)
     {
@@ -111,16 +99,11 @@ public partial class SwitchHandler : LinuxViewHandler<ISwitch, SkiaSwitch>, ISwi
     }
 
     /// <summary>MAUI's <c>MapThumbColor</c> signature; maps the property on a Linux <see cref="SwitchHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapThumbColor(ISwitchHandler handler, ISwitch view)
     {
         if (handler is SwitchHandler linuxHandler)
             MapThumbColorCore(linuxHandler, view);
     }
-
-    [Obsolete("Use the ISwitchHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapThumbColor(SwitchHandler handler, ISwitch @switch) => MapThumbColorCore(handler, @switch);
 
     private static void MapThumbColorCore(SwitchHandler handler, ISwitch @switch)
     {

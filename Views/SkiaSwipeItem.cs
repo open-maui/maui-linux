@@ -11,8 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Represents an item in a swipe view. MAUI-compliant using Color types.
 /// </summary>
-[Obsolete("Use SkiaSwipeItem; this type is removed in OpenMaui 11.0.")]
-public class SwipeItem
+public class SkiaSwipeItem
 {
     public string Text { get; set; } = string.Empty;
 
@@ -100,14 +99,4 @@ public class SwipeItem
     /// Helper to convert TextColor to SKColor for rendering.
     /// </summary>
     internal SKColor GetTextColorSK() => TextColor.ToSKColor();
-}
-
-/// <summary>
-/// Represents an item in a swipe view. MAUI-compliant using Color types.
-/// (The name <c>SwipeItem</c> is also a MAUI Controls type; this is the name to use.)
-/// </summary>
-#pragma warning disable CS0618 // legacy base kept for binary compatibility until OpenMaui 11.0
-public class SkiaSwipeItem : SwipeItem
-#pragma warning restore CS0618
-{
 }
