@@ -5,8 +5,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -120,16 +118,11 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     }
 
     /// <summary>MAUI's <c>MapStrokeColor</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapStrokeColor(IImageButtonHandler handler, IButtonStroke buttonStroke)
     {
         if (handler is ImageButtonHandler linuxHandler && buttonStroke is IImageButton linuxView)
             MapStrokeColorCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapStrokeColor(ImageButtonHandler handler, IImageButton imageButton) => MapStrokeColorCore(handler, imageButton);
 
     private static void MapStrokeColorCore(ImageButtonHandler handler, IImageButton imageButton)
     {
@@ -140,16 +133,11 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     }
 
     /// <summary>MAUI's <c>MapStrokeThickness</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapStrokeThickness(IImageButtonHandler handler, IButtonStroke buttonStroke)
     {
         if (handler is ImageButtonHandler linuxHandler && buttonStroke is IImageButton linuxView)
             MapStrokeThicknessCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapStrokeThickness(ImageButtonHandler handler, IImageButton imageButton) => MapStrokeThicknessCore(handler, imageButton);
 
     private static void MapStrokeThicknessCore(ImageButtonHandler handler, IImageButton imageButton)
     {
@@ -158,16 +146,11 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     }
 
     /// <summary>MAUI's <c>MapCornerRadius</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapCornerRadius(IImageButtonHandler handler, IButtonStroke buttonStroke)
     {
         if (handler is ImageButtonHandler linuxHandler && buttonStroke is IImageButton linuxView)
             MapCornerRadiusCore(linuxHandler, linuxView);
     }
-
-    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapCornerRadius(ImageButtonHandler handler, IImageButton imageButton) => MapCornerRadiusCore(handler, imageButton);
 
     private static void MapCornerRadiusCore(ImageButtonHandler handler, IImageButton imageButton)
     {
@@ -176,16 +159,11 @@ public partial class ImageButtonHandler : LinuxViewHandler<IImageButton, SkiaIma
     }
 
     /// <summary>MAUI's <c>MapPadding</c> signature; maps the property on a Linux <see cref="ImageButtonHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapPadding(IImageButtonHandler handler, IImageButton imageButton)
     {
         if (handler is ImageButtonHandler linuxHandler)
             MapPaddingCore(linuxHandler, imageButton);
     }
-
-    [Obsolete("Use the IImageButtonHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapPadding(ImageButtonHandler handler, IImageButton imageButton) => MapPaddingCore(handler, imageButton);
 
     private static void MapPaddingCore(ImageButtonHandler handler, IImageButton imageButton)
     {

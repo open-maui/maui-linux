@@ -219,9 +219,7 @@ public partial class CoreSwipeViewHandler : LinuxViewHandler<ISwipeView, SkiaSwi
     }
 
     /// <summary>The platform item of a swipe item, from its handler.</summary>
-#pragma warning disable CS0618 // SwipeItem: the element type of SkiaSwipeView's item lists until OpenMaui 11.0
-    private static SwipeItem? PlatformItem(ISwipeViewHandler handler, ISwipeItem item)
-#pragma warning restore CS0618
+    private static SkiaSwipeItem? PlatformItem(ISwipeViewHandler handler, ISwipeItem item)
     {
         try
         {

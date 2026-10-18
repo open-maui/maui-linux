@@ -184,7 +184,7 @@ public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyou
             // ShouldShowSplitMode): split on desktop/tablet idioms, popover on
             // phones — MAUI refuses IsPresented=false while it expects split.
             var controller = (IFlyoutPageController)flyoutPage;
-            handler.PlatformView.MauiFlyoutLayoutBehavior = flyoutPage.FlyoutLayoutBehavior switch
+            handler.PlatformView.FlyoutLayoutBehavior = flyoutPage.FlyoutLayoutBehavior switch
             {
                 Microsoft.Maui.Controls.FlyoutLayoutBehavior.Default => controller.ShouldShowSplitMode
                     ? Microsoft.Maui.Controls.FlyoutLayoutBehavior.Split
@@ -194,7 +194,7 @@ public partial class FlyoutPageHandler : LinuxViewHandler<IFlyoutView, SkiaFlyou
         }
         else
         {
-            handler.PlatformView.MauiFlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
+            handler.PlatformView.FlyoutLayoutBehavior = flyoutView.FlyoutBehavior switch
             {
                 Microsoft.Maui.FlyoutBehavior.Locked => Microsoft.Maui.Controls.FlyoutLayoutBehavior.Split,
                 Microsoft.Maui.FlyoutBehavior.Flyout => Microsoft.Maui.Controls.FlyoutLayoutBehavior.Popover,

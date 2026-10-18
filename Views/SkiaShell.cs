@@ -192,9 +192,7 @@ public partial class SkiaShell : SkiaLayoutView
 
     #endregion
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    private readonly List<ShellSection> _sections = new();
-#pragma warning restore CS0618
+    private readonly List<SkiaShellSection> _sections = new();
     private SkiaView? _currentContent;
 
     private void ReadShellThemeColors()
@@ -373,9 +371,7 @@ public partial class SkiaShell : SkiaLayoutView
         return ReferenceEquals(_mauiShell.CurrentPage, page);
     }
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    private static Microsoft.Maui.Controls.Page? ResolveMauiPage(ShellContent item)
-#pragma warning restore CS0618
+    private static Microsoft.Maui.Controls.Page? ResolveMauiPage(SkiaShellContent item)
     {
         if (item.MauiShellContent == null) return null;
         // MAUI's own cache is only populated when the page was created through
@@ -715,9 +711,7 @@ public partial class SkiaShell : SkiaLayoutView
     /// <summary>
     /// The sections in this shell.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public IReadOnlyList<ShellSection> Sections => _sections;
-#pragma warning restore CS0618
+    public IReadOnlyList<SkiaShellSection> Sections => _sections;
 
     /// <summary>
     /// Gets the currently selected section index.
@@ -1167,9 +1161,7 @@ public partial class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Adds a section to the shell.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public void AddSection(ShellSection section)
-#pragma warning restore CS0618
+    public void AddSection(SkiaShellSection section)
     {
         _sections.Add(section);
 
@@ -1184,9 +1176,7 @@ public partial class SkiaShell : SkiaLayoutView
     /// <summary>
     /// Removes a section from the shell.
     /// </summary>
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public void RemoveSection(ShellSection section)
-#pragma warning restore CS0618
+    public void RemoveSection(SkiaShellSection section)
     {
         _sections.Remove(section);
         Invalidate();
@@ -2045,8 +2035,7 @@ public enum ShellFlyoutBehavior
 /// <summary>
 /// Represents a section in the shell (typically shown in flyout).
 /// </summary>
-[Obsolete("Use SkiaShellSection; this type is removed in OpenMaui 11.0.")]
-public class ShellSection
+public class SkiaShellSection
 {
     /// <summary>
     /// The route identifier for this section.
@@ -2085,24 +2074,13 @@ public class ShellSection
     /// <summary>
     /// Items in this section.
     /// </summary>
-    public List<ShellContent> Items { get; } = new();
-}
-
-/// <summary>
-/// Represents a section in the shell (typically shown in flyout).
-/// (The name <c>ShellSection</c> is also a MAUI Controls type; this is the name to use.)
-/// </summary>
-#pragma warning disable CS0618 // legacy base kept for binary compatibility until OpenMaui 11.0
-public class SkiaShellSection : ShellSection
-#pragma warning restore CS0618
-{
+    public List<SkiaShellContent> Items { get; } = new();
 }
 
 /// <summary>
 /// Represents content within a shell section.
 /// </summary>
-[Obsolete("Use SkiaShellContent; this type is removed in OpenMaui 11.0.")]
-public class ShellContent
+public class SkiaShellContent
 {
     /// <summary>
     /// The route identifier for this content.
@@ -2131,30 +2109,14 @@ public class ShellContent
 }
 
 /// <summary>
-/// Represents content within a shell section.
-/// (The name <c>ShellContent</c> is also a MAUI Controls type; this is the name to use.)
-/// </summary>
-#pragma warning disable CS0618 // legacy base kept for binary compatibility until OpenMaui 11.0
-public class SkiaShellContent : ShellContent
-#pragma warning restore CS0618
-{
-}
-
-/// <summary>
 /// Event args for shell navigation events.
 /// </summary>
 public class ShellNavigationEventArgs : EventArgs
 {
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public ShellSection Section { get; }
-#pragma warning restore CS0618
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public ShellContent Content { get; }
-#pragma warning restore CS0618
+    public SkiaShellSection Section { get; }
+    public SkiaShellContent Content { get; }
 
-#pragma warning disable CS0618 // legacy type kept for binary compatibility until OpenMaui 11.0
-    public ShellNavigationEventArgs(ShellSection section, ShellContent content)
-#pragma warning restore CS0618
+    public ShellNavigationEventArgs(SkiaShellSection section, SkiaShellContent content)
     {
         Section = section;
         Content = content;

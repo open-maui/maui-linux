@@ -5,8 +5,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Views;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -220,16 +218,11 @@ public class LinuxWebViewHandler : LinuxViewHandler<IWebView, SkiaView>, IWebVie
     }
 
     /// <summary>MAUI's <c>MapSource</c> signature; maps the property on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapSource(IWebViewHandler handler, IWebView webView)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapSourceCore(linuxHandler, webView);
     }
-
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapSource(LinuxWebViewHandler handler, IWebView webView) => MapSourceCore(handler, webView);
 
     private static void MapSourceCore(LinuxWebViewHandler handler, IWebView webView)
     {
@@ -247,16 +240,11 @@ public class LinuxWebViewHandler : LinuxViewHandler<IWebView, SkiaView>, IWebVie
     }
 
     /// <summary>MAUI's <c>MapUserAgent</c> signature; maps the property on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapUserAgent(IWebViewHandler handler, IWebView webView)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapUserAgentCore(linuxHandler, webView);
     }
-
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapUserAgent(LinuxWebViewHandler handler, IWebView webView) => MapUserAgentCore(handler, webView);
 
     private static void MapUserAgentCore(LinuxWebViewHandler handler, IWebView webView)
     {
@@ -265,56 +253,36 @@ public class LinuxWebViewHandler : LinuxViewHandler<IWebView, SkiaView>, IWebVie
     }
 
     /// <summary>MAUI's <c>MapGoBack</c> signature; runs the command on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapGoBack(IWebViewHandler handler, IWebView webView, object? arg)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapGoBackCore(linuxHandler, webView, arg);
     }
 
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapGoBack(LinuxWebViewHandler handler, IWebView webView, object? args) => MapGoBackCore(handler, webView, args);
-
     private static void MapGoBackCore(LinuxWebViewHandler handler, IWebView webView, object? args) => handler.Browser?.GoBack();
     /// <summary>MAUI's <c>MapGoForward</c> signature; runs the command on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapGoForward(IWebViewHandler handler, IWebView webView, object? arg)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapGoForwardCore(linuxHandler, webView, arg);
     }
 
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapGoForward(LinuxWebViewHandler handler, IWebView webView, object? args) => MapGoForwardCore(handler, webView, args);
-
     private static void MapGoForwardCore(LinuxWebViewHandler handler, IWebView webView, object? args) => handler.Browser?.GoForward();
     /// <summary>MAUI's <c>MapReload</c> signature; runs the command on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapReload(IWebViewHandler handler, IWebView webView, object? arg)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapReloadCore(linuxHandler, webView, arg);
     }
 
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapReload(LinuxWebViewHandler handler, IWebView webView, object? args) => MapReloadCore(handler, webView, args);
-
     private static void MapReloadCore(LinuxWebViewHandler handler, IWebView webView, object? args) => handler.Browser?.Reload();
 
     /// <summary>MAUI's <c>MapEval</c> signature; runs the command on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapEval(IWebViewHandler handler, IWebView webView, object? arg)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapEvalCore(linuxHandler, webView, arg);
     }
-
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapEval(LinuxWebViewHandler handler, IWebView webView, object? args) => MapEvalCore(handler, webView, args);
 
     private static void MapEvalCore(LinuxWebViewHandler handler, IWebView webView, object? args)
     {
@@ -323,16 +291,11 @@ public class LinuxWebViewHandler : LinuxViewHandler<IWebView, SkiaView>, IWebVie
     }
 
     /// <summary>MAUI's <c>MapEvaluateJavaScriptAsync</c> signature; runs the command on a Linux <see cref="LinuxWebViewHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapEvaluateJavaScriptAsync(IWebViewHandler handler, IWebView webView, object? arg)
     {
         if (handler is LinuxWebViewHandler linuxHandler)
             MapEvaluateJavaScriptAsyncCore(linuxHandler, webView, arg);
     }
-
-    [Obsolete("Use the IWebViewHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapEvaluateJavaScriptAsync(LinuxWebViewHandler handler, IWebView webView, object? args) => MapEvaluateJavaScriptAsyncCore(handler, webView, args);
 
     private static void MapEvaluateJavaScriptAsyncCore(LinuxWebViewHandler handler, IWebView webView, object? args)
     {

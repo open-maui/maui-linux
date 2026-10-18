@@ -149,6 +149,7 @@ internal static class GtkPrintDialog
                     return;
                 }
 
+                Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
                 var dialog = gtk_print_unix_dialog_new(title, parentWindow);
                 if (dialog == IntPtr.Zero)
                 {

@@ -6,8 +6,6 @@ using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Microsoft.Maui.Platform.Linux.Handlers;
 
@@ -67,16 +65,11 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>, IImageH
     }
 
     /// <summary>MAUI's <c>MapAspect</c> signature; maps the property on a Linux <see cref="ImageHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapAspect(IImageHandler handler, IImage image)
     {
         if (handler is ImageHandler linuxHandler)
             MapAspectCore(linuxHandler, image);
     }
-
-    [Obsolete("Use the IImageHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapAspect(ImageHandler handler, IImage image) => MapAspectCore(handler, image);
 
     private static void MapAspectCore(ImageHandler handler, IImage image)
     {
@@ -90,16 +83,11 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>, IImageH
     }
 
     /// <summary>MAUI's <c>MapIsAnimationPlaying</c> signature; maps the property on a Linux <see cref="ImageHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapIsAnimationPlaying(IImageHandler handler, IImage image)
     {
         if (handler is ImageHandler linuxHandler)
             MapIsAnimationPlayingCore(linuxHandler, image);
     }
-
-    [Obsolete("Use the IImageHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapIsAnimationPlaying(ImageHandler handler, IImage image) => MapIsAnimationPlayingCore(handler, image);
 
     private static void MapIsAnimationPlayingCore(ImageHandler handler, IImage image)
     {
@@ -107,16 +95,11 @@ public partial class ImageHandler : LinuxViewHandler<IImage, SkiaImage>, IImageH
     }
 
     /// <summary>MAUI's <c>MapSource</c> signature; maps the property on a Linux <see cref="ImageHandler"/>.</summary>
-    [OverloadResolutionPriority(1)]
     public static void MapSource(IImageHandler handler, IImage image)
     {
         if (handler is ImageHandler linuxHandler)
             MapSourceCore(linuxHandler, image);
     }
-
-    [Obsolete("Use the IImageHandler overload; this one is removed in OpenMaui 11.0.")]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public static void MapSource(ImageHandler handler, IImage image) => MapSourceCore(handler, image);
 
     private static void MapSourceCore(ImageHandler handler, IImage image)
     {

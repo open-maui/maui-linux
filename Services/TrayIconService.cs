@@ -370,6 +370,7 @@ internal sealed class AppIndicatorBackend : ITrayBackend
         // closures are destroyed with it (or once a popped-open copy closes),
         // and each destruction frees that item's action GCHandle via
         // s_menuItemDestroyed.
+        Microsoft.Maui.Platform.Linux.Services.GtkThemeService.EnsureApplied();
         var menu = gtk_menu_new();
         foreach (var item in icon.MenuItems)
         {

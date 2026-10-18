@@ -7,10 +7,6 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Layouts;
 using Microsoft.Maui.Platform;
-using GridLength = Microsoft.Maui.GridLength;
-using FlexWrap = Microsoft.Maui.Layouts.FlexWrap;
-using FlexJustify = Microsoft.Maui.Layouts.FlexJustify;
-using FlexAlignItems = Microsoft.Maui.Layouts.FlexAlignItems;
 using Switch = Microsoft.Maui.Controls.Switch;
 
 namespace OpenMaui.Benchmarks;
