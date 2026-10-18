@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.13] - 2026-10-18
+
+### Fixed
+
+- **Shell.NavBarIsVisible was ignored**: OpenMaui's Shell always showed its navigation bar, so a page that hides it, such as a splash or sign-in page calling `Shell.SetNavBarIsVisible(this, false)`, still had a bar above it. The bar now follows Shell.NavBarIsVisible for the presented page as MAUI resolves it on every platform: the page's value, else its ShellContent's, section's or item's, else the Shell's. A page without the bar is laid out over the whole height, the bar's title, back button, toolbar items and flyout button go with it, and a change while the page is shown takes effect at once.
+
 ## [10.0.110.12] - 2026-10-18
 
 ### Changed
