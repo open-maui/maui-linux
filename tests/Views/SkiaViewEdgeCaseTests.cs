@@ -448,11 +448,11 @@ public class SkiaStackLayoutEdgeCaseTests
     {
         // Arrange - measure with and without spacing to verify spacing is added
         var layoutNoSpacing = new SkiaStackLayout();
-        layoutNoSpacing.Orientation = Microsoft.Maui.Platform.StackOrientation.Vertical;
+        layoutNoSpacing.MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical;
         layoutNoSpacing.Spacing = 0;
 
         var layoutWithSpacing = new SkiaStackLayout();
-        layoutWithSpacing.Orientation = Microsoft.Maui.Platform.StackOrientation.Vertical;
+        layoutWithSpacing.MauiOrientation = Microsoft.Maui.Controls.StackOrientation.Vertical;
         layoutWithSpacing.Spacing = 10;
 
         for (int i = 0; i < 3; i++)

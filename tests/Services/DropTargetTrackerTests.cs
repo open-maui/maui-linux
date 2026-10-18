@@ -4,7 +4,6 @@
 using FluentAssertions;
 using Xunit;
 using DragData = Microsoft.Maui.Platform.Linux.Services.DragData;
-using DropEventArgs = Microsoft.Maui.Platform.Linux.Services.DropEventArgs;
 using Microsoft.Maui.Platform.Linux.Services;
 
 namespace Microsoft.Maui.Platform.Tests;
@@ -110,7 +109,7 @@ public class DropEventArgsCoordinateTests
     {
         var data = new DragData();
 
-        var args = new DropEventArgs(data, "text", 120, 45);
+        var args = new LinuxDropEventArgs(data, "text", 120, 45);
 
         args.X.Should().Be(120);
         args.Y.Should().Be(45);
@@ -121,7 +120,7 @@ public class DropEventArgsCoordinateTests
     [Fact]
     public void Constructor_LegacyTwoArg_DefaultsToOrigin()
     {
-        var args = new DropEventArgs(new DragData(), null);
+        var args = new LinuxDropEventArgs(new DragData(), null);
 
         args.X.Should().Be(0);
         args.Y.Should().Be(0);
