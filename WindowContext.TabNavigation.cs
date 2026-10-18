@@ -79,7 +79,10 @@ public sealed partial class WindowContext
     internal List<SkiaView> TabStops()
     {
         var found = new List<SkiaView>();
-        if (PresentedPage((MauiWindow as Microsoft.Maui.Controls.Window)?.Page) is { } page)
+        // A popup (Mopups) is not modal navigation but takes the input while it is up.
+        if (_modals.Count > 0 && _modals[^1] is { IsPopup: true } popup)
+            Collect(popup.Page, found);
+        else if (PresentedPage((MauiWindow as Microsoft.Maui.Controls.Window)?.Page) is { } page)
             Collect(page, found);
         return found;
     }

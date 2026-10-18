@@ -255,6 +255,36 @@ public class MarketAllyMopupsCompatTests : IDisposable
     }
 
     [Fact]
+    public async Task Tab_moves_focus_between_the_popup_controls_only()
+    {
+        var beneathEntry = new Entry { WidthRequest = 200 };
+        var page = new ContentPage { Content = new VerticalStackLayout { beneathEntry } };
+        using var host = new CompatHost(page, b => b.ConfigureMopups());
+        Microsoft.Maui.IPlatformApplication.Current = host.LinuxApp;
+        host.Render();
+        await Clear(host);
+
+        var first = new Entry { WidthRequest = 200 };
+        var second = new Entry { WidthRequest = 200 };
+        var popup = MakePopup(Centered(new VerticalStackLayout { first, second }));
+        await Frames(host, MopupService.Instance.PushAsync(popup, false));
+        host.Render();
+
+        var stops = new[] { CompatHost.PlatformOf(first), CompatHost.PlatformOf(second) };
+        for (int i = 0; i < 3; i++)
+        {
+            host.DisplayWindow.RaiseKeyDown(Microsoft.Maui.Platform.Key.Tab);
+            host.Render();
+            stops.Should().Contain(host.Context.FocusedView!, "Tab stays in the popup, as in a native popup window");
+        }
+
+        host.DisplayWindow.RaiseTextInput("x");
+        host.Render();
+        (beneathEntry.Text ?? "").Should().BeEmpty("the page beneath gets no typing while the popup is up");
+        await Clear(host);
+    }
+
+    [Fact]
     public async Task PopAllAsync_removes_every_popup()
     {
         var (host, _, _) = Start();
