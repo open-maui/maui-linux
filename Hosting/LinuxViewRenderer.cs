@@ -193,12 +193,8 @@ public class LinuxViewRenderer
                 skiaShell.FlyoutWidth = (float)shell.FlyoutWidth;
             else if (e.PropertyName == nameof(Shell.FlyoutBehavior))
             {
-                skiaShell.FlyoutBehavior = shell.FlyoutBehavior switch
-                {
-                    FlyoutBehavior.Locked => ShellFlyoutBehavior.Locked,
-                    FlyoutBehavior.Disabled => ShellFlyoutBehavior.Disabled,
-                    _ => ShellFlyoutBehavior.Flyout
-                };
+                // MAUI's effective behaviour (a TabBar root has no flyout), as SkiaShell follows it.
+                skiaShell.ApplyMauiFlyoutBehavior();
                 skiaShell.InvalidateMeasure();
                 skiaShell.Invalidate();
             }
@@ -220,8 +216,14 @@ public class LinuxViewRenderer
                 skiaShell.FlyoutHeaderView = skiaHeader;
                 skiaShell.FlyoutHeaderHeight = (float)(headerView.HeightRequest > 0 ? headerView.HeightRequest : 140.0);
                 skiaShell.FlyoutHeaderHeightExplicit = headerView.HeightRequest > 0;
+                skiaShell.FlyoutHeaderMinimumHeight = headerView.MinimumHeightRequest >= 0 ? (float)headerView.MinimumHeightRequest : -1f;
                 headerView.PropertyChanged += (_, e) =>
                 {
+                    if (e.PropertyName == nameof(VisualElement.MinimumHeightRequest))
+                    {
+                        skiaShell.FlyoutHeaderMinimumHeight = headerView.MinimumHeightRequest >= 0 ? (float)headerView.MinimumHeightRequest : -1f;
+                        skiaShell.Invalidate();
+                    }
                     if (e.PropertyName == nameof(VisualElement.HeightRequest) && headerView.HeightRequest > 0)
                     {
                         skiaShell.FlyoutHeaderHeight = (float)headerView.HeightRequest;
@@ -279,6 +281,7 @@ public class LinuxViewRenderer
         skiaShell.ContentRenderer = CreateShellContentPage;
         skiaShell.PageRenderer = RenderPushedPage;
         skiaShell.ViewRenderer = RenderView;
+        skiaShell.FlyoutItemViewRenderer = element => RealizeFlyoutElementTemplate(shell, element);
         skiaShell.ColorRefresher = ApplyShellColors;
         skiaShell.IconSyncer = s => SyncFlyoutIcons(s, shell);
 
@@ -512,25 +515,58 @@ public class LinuxViewRenderer
         // ShellContent added straight to Shell.Items is wrapped in an implicit ShellItem (and
         // a content in an implicit section), and the flyout lists the section or content
         // itself (ShellFlyoutItemsManager), so that element's ItemTemplate and binding apply.
-        item = FlyoutElementOf(item);
-        var template = Shell.GetItemTemplate(item) ?? shell.ItemTemplate;
+        return RealizeFlyoutElementTemplate(shell, FlyoutElementOf(item));
+    }
+
+    // Each flyout element's realised row, made once: the platform section and the flyout list
+    // (SkiaShell.FlyoutRows) share it.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Element, FlyoutRowView> _flyoutRowViews = new();
+
+    private sealed class FlyoutRowView
+    {
+        public DataTemplate? Template;
+        public SkiaView? View;
+    }
+
+    /// <summary>
+    /// The flyout row of <paramref name="element"/> realised from its template, as MAUI's
+    /// IShellController.GetFlyoutItemDataTemplate resolves it (Shell.MenuItemTemplate for a menu
+    /// item, Shell.ItemTemplate otherwise; the element's own, else the Shell's), with the element
+    /// as its BindingContext. Null when no template is set: the built-in row is drawn.
+    /// </summary>
+    private SkiaView? RealizeFlyoutElementTemplate(Shell? shell, Element element)
+    {
+        if (shell == null)
+            return null;
+        bool isMenu = element is IMenuItemController;
+        var property = isMenu ? Shell.MenuItemTemplateProperty : Shell.ItemTemplateProperty;
+        BindableObject holder = element;
+        if (element is Microsoft.Maui.Controls.MenuItem { Parent: { } menuParent } && menuParent.IsSet(Shell.MenuItemTemplateProperty))
+            holder = menuParent;
+        var template = holder.IsSet(property) ? (DataTemplate?)holder.GetValue(property)
+            : shell.IsSet(property) ? (DataTemplate?)shell.GetValue(property)
+            : null;
         if (template is DataTemplateSelector selector)
-            template = selector.SelectTemplate(item, shell);
+            template = selector.SelectTemplate(element, shell);
         if (template == null)
             return null;
+        if (_flyoutRowViews.TryGetValue(element, out var cached) && ReferenceEquals(cached.Template, template))
+            return cached.View;
         try
         {
             if (template.CreateContent() is not View row)
                 return null;
-            row.BindingContext = item; // before the parent, or it binds to the shell's context first
+            row.BindingContext = element; // before the parent, or it binds to the shell's context first
             // A logical child of the element it shows, as MAUI's flyout item view adds it: its
             // Parent is that element, and the element's visual children include it.
-            item.AddLogicalChild(row);
-            return RenderView(row);
+            element.AddLogicalChild(row);
+            var view = RenderView(row);
+            _flyoutRowViews.AddOrUpdate(element, new FlyoutRowView { Template = template, View = view });
+            return view;
         }
         catch (Exception ex)
         {
-            DiagnosticLog.Error("LinuxViewRenderer", $"Flyout item template for '{item.Title}' failed", ex);
+            DiagnosticLog.Error("LinuxViewRenderer", $"Flyout item template for '{(element as BaseShellItem)?.Title ?? (element as Microsoft.Maui.Controls.MenuItem)?.Text}' failed", ex);
             return null;
         }
     }
@@ -574,7 +610,7 @@ public class LinuxViewRenderer
         if (item is FlyoutItem flyoutItem)
         {
             // Each FlyoutItem becomes a section
-            var section = new ShellSection
+            var section = new SkiaShellSection
             {
                 Title = flyoutItem.Title ?? "",
                 Route = flyoutItem.Route ?? flyoutItem.Title ?? "",
@@ -589,7 +625,7 @@ public class LinuxViewRenderer
             {
                 foreach (var content in shellSection.Items)
                 {
-                    var shellContent = new ShellContent
+                    var shellContent = new SkiaShellContent
                     {
                         Title = content.Title ?? shellSection.Title ?? flyoutItem.Title ?? "",
                         Route = content.Route ?? "",
@@ -617,7 +653,7 @@ public class LinuxViewRenderer
             // TabBar items get their own sections
             foreach (var tab in tabBar.Items)
             {
-                var section = new ShellSection
+                var section = new SkiaShellSection
                 {
                     Title = tab.Title ?? "",
                     Route = tab.Route ?? "",
@@ -629,7 +665,7 @@ public class LinuxViewRenderer
 
                 foreach (var content in tab.Items)
                 {
-                    var shellContent = new ShellContent
+                    var shellContent = new SkiaShellContent
                     {
                         Title = content.Title ?? tab.Title ?? "",
                         Route = content.Route ?? "",
@@ -647,7 +683,7 @@ public class LinuxViewRenderer
         else
         {
             // Generic ShellItem
-            var section = new ShellSection
+            var section = new SkiaShellSection
             {
                 Title = item.Title ?? "",
                 Route = item.Route ?? "",
@@ -661,7 +697,7 @@ public class LinuxViewRenderer
             {
                 foreach (var content in shellSection.Items)
                 {
-                    var shellContent = new ShellContent
+                    var shellContent = new SkiaShellContent
                     {
                         Title = content.Title ?? "",
                         Route = content.Route ?? "",
