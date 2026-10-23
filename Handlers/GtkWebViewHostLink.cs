@@ -20,23 +20,22 @@ internal sealed class GtkWebViewHostLink
 
     internal void Register(SKRect bounds)
     {
-        var host = GtkHostService.Instance;
-        if (host.HostWindow == null || host.WebViewManager == null)
+        int x = (int)bounds.Left, y = (int)bounds.Top, width = (int)bounds.Width, height = (int)bounds.Height;
+        if (width <= 0 || height <= 0)
+            return;
+        if (GtkHostService.Instance.EnsureHostWindow() is not { } hostWindow)
         {
             DiagnosticLog.Warn("GtkWebViewHostLink", "GTK host not initialized, cannot show the WebView");
             return;
         }
-        int x = (int)bounds.Left, y = (int)bounds.Top, width = (int)bounds.Width, height = (int)bounds.Height;
-        if (width <= 0 || height <= 0)
-            return;
         if (!_registered)
         {
-            host.HostWindow.AddWebView(_view.Widget, x, y, width, height);
+            hostWindow.AddWebView(_view.Widget, x, y, width, height);
             _registered = true;
         }
         else if (bounds != _lastBounds)
         {
-            host.HostWindow.MoveResizeWebView(_view.Widget, x, y, width, height);
+            hostWindow.MoveResizeWebView(_view.Widget, x, y, width, height);
         }
         _lastBounds = bounds;
     }
