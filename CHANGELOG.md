@@ -6,7 +6,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ## [11.0.0.1] - unreleased
 
-.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.14 is included (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.120.1 is included (its MAUI 10.0.120 move aside: this line is on MAUI 11) (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
 
 ### Changed
 
@@ -36,6 +36,20 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
 - **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
 - **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
+
+## [10.0.120.1] - 2026-10-23
+
+> Built on .NET MAUI 10.0.120.
+
+### Changed
+
+- **MAUI 10.0.120**: every package depends on MAUI 10.0.120 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move an app's own `Microsoft.Maui.Controls` reference to 10.0.120, or restore fails with `NU1605` (see `docs/MIGRATION.md`). dotnet/maui's 10.0.120 device tests pass: Core 1660 (91 skipped), Controls 604 (4 skipped), Essentials 240 (41 skipped); the stub scan's 41 new findings (internals of MAUI's Windows handlers that OpenMaui replaces) are reviewed.
+- **`OpenMaui.Hosting` depended on whatever MAUI 10.0 was newest when it was packed** (`10.0.*`): packed after MAUI 10.0.120 shipped, it required 10.0.120 while the other packages required 10.0.110, and an app on 10.0.110 failed restore with `NU1605`. It now names its MAUI version exactly, as the other packages do.
+
+### Fixed
+
+- **Children of a hidden view stayed hidden when it was shown (MAUI 10.0.120)**: MAUI 10.0.120 makes a view's `Visibility` its effective visibility, `Collapsed` inside a hidden parent. OpenMaui wrote that back to each child's own `IsVisible`, so a Border, layout or ContentView that started hidden and was shown later stayed empty. A MAUI view's own `IsVisible` is no longer written from its `Visibility`.
+- **A CarouselView lost its bound CurrentItem when it got its handler**: the handler placed the carousel at its Position (0 when unset) and made the item there the CurrentItem, so `CurrentItem="{Binding Selected}"` set the source to the first item. The first time the carousel has items, a CurrentItem it already holds now places it, as MAUI's handlers place a CarouselView initially on every platform; Position follows it. An audit of every handler that writes a value from the Skia view back to its control (Picker, DatePicker, TimePicker, Entry, Editor, SearchBar, CheckBox, Switch, RadioButton, Stepper, RefreshView, CarouselView, CollectionView, IndicatorView) found no other control that changes its bound value on connect; each is now covered by a test.
 
 ## [10.0.110.14] - 2026-10-22
 
