@@ -79,6 +79,7 @@ internal sealed class HeadlessMauiHost : IDisposable
         Microsoft.Maui.Platform.Linux.Handlers.LinuxViewMappers.Register();
         Microsoft.Maui.Platform.Linux.Handlers.LoadedEventPatches.Install(); // as RegisterLinuxServices does
         builder.ConfigureEffects(_ => { }); // as RegisterLinuxServices does
+        Microsoft.Maui.Platform.Linux.Hosting.LinuxMauiAppBuilderExtensionsInternal.RemoveMauiLayoutDiagnostics(builder.Services); // as RegisterLinuxServices does
         configure?.Invoke(builder);
         MauiApp = builder.Build();
 
@@ -235,9 +236,14 @@ internal sealed class HeadlessMauiHost : IDisposable
         public void AcknowledgeSync() { }
         public void Dispose() => Disposed = true;
 
+        /// <summary>Whether Present keeps a copy of the frame (off for allocation counts).</summary>
+        public bool KeepFrames { get; set; } = true;
+
         public void Present(IntPtr pixels, int width, int height, int stride)
         {
             PresentCount++;
+            if (!KeepFrames)
+                return;
             var copy = new byte[stride * height];
             Marshal.Copy(pixels, copy, 0, copy.Length);
             LastFrame = copy;
