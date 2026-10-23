@@ -15,16 +15,16 @@ Every finding is reviewed in `tools/StubScan/baseline.json`:
 
 The **Tests** workflow (`.gitea/workflows/tests.yml`) runs the scan. It fails when it finds something that is not in the baseline, which happens when a library update brings in a stub nobody has reviewed. To review new findings, run `dotnet run --project tools/StubScan -- --write-baseline`. That adds them as `unreviewed`, which still fails. Grep the bridge folders for the type, set each finding's status, then commit. Use `--report <file.md>` to list every open member, and `--verbose` to print them all.
 
-## Scan of 2026-10-04
+## Scan of 2026-10-23
 
 Package versions are the ones `tests/Compat` restores:
 
 | Package | Version | Findings | covered | n/a | open |
 |---|---|---:|---:|---:|---:|
-| Microsoft.Maui.Core | 10.0.110 | 573 | 496 | 77 | 0 |
-| Microsoft.Maui.Controls.Core | 10.0.110 | 317 | 274 | 43 | 0 |
-| Microsoft.Maui.Essentials | 10.0.110 | 208 | 186 | 22 | 0 |
-| Microsoft.Maui.Controls.Xaml | 10.0.110 | 0 | 0 | 0 | 0 |
+| Microsoft.Maui.Core | 10.0.120 | 586 | 507 | 79 | 0 |
+| Microsoft.Maui.Controls.Core | 10.0.120 | 345 | 302 | 43 | 0 |
+| Microsoft.Maui.Essentials | 10.0.120 | 208 | 186 | 22 | 0 |
+| Microsoft.Maui.Controls.Xaml | 10.0.120 | 0 | 0 | 0 | 0 |
 | CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
 | CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
 | CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |
@@ -53,7 +53,7 @@ Package versions are the ones `tests/Compat` restores:
 | Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2313** | **1998** | **311** | **4** |
+| **Total** | | **2354** | **2037** | **313** | **4** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -74,7 +74,7 @@ No open findings. Where Linux still differs from Windows:
   - A handler added after the view was created gets app-origin requests only. WebKit fixes a view's network when the view is created.
   - When a server's TLS certificate does not verify, the load fails as a network error. WebKit's `load-failed-with-tls-errors` is not raised for it, so the app cannot allow that certificate.
   - Requests the app leaves alone use the proxy settings from the `http_proxy`/`https_proxy`/`no_proxy` environment variables (.NET's default). They do not use the desktop's (GNOME) proxy settings. WebSocket tunnels connect directly.
-  - (MAUI 10.0.110's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
+  - (MAUI 10.0.120's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
 - **Items views:** CollectionView's `IsGrouped`, `CanReorderItems` (a touch drag waits for a press-and-hold, as on Windows), `ItemsUpdatingScrollMode` and horizontal grids; CarouselView's `EmptyView`, scroll bars, `Loop`, vertical layout, `IsBounceEnabled`, snap points and per-side `PeekAreaInsets`; and ListView's in-place updates are covered. What is left:
   - The touch press-and-hold works only where the backend reports touch as touch. The Wayland backend does (`wl_touch`), and so does the X11 backend when the X server has XInput 2.2 (it selects XI2 touch events; an older server, or `OPENMAUI_X11_NO_XI2=1`, gives emulated mouse events again). The GTK host window passes no source device, so under GTK a touch reorder still starts as soon as the finger moves.
   - A touch reorder starts on the first move after the hold. Windows also lifts the item the moment the hold ends, before any move.

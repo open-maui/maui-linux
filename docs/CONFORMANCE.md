@@ -1,6 +1,6 @@
 # MAUI handler conformance (dotnet/maui's own tests against the Linux handlers)
 
-Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1751 MAUI tests ported: 1660 passed, 0 failed, 91 skipped** (89 are MAUI's container-view tests, which assert a wrapper mechanism no handler outside `Microsoft.Maui.dll` can have on the platform-neutral build, and 2 are tests MAUI itself calls invalid; see "Skipped"). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed". The second round (RefreshView, IndicatorView, SwipeView, View, Element, Window, Page and Navigation ported; the skips re-examined) went from 1419 passed / 103 skipped of 1522 to the numbers above; its fixes are under "Gaps found and fixed, second round".
+Run of 2026-10-23 against dotnet/maui tag `10.0.120` (first run 2026-10-04 against `10.0.110`). **1751 MAUI tests ported: 1660 passed, 0 failed, 91 skipped** (89 are MAUI's container-view tests, which assert a wrapper mechanism no handler outside `Microsoft.Maui.dll` can have on the platform-neutral build, and 2 are tests MAUI itself calls invalid; see "Skipped"). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed". The second round (RefreshView, IndicatorView, SwipeView, View, Element, Window, Page and Navigation ported; the skips re-examined) went from 1419 passed / 103 skipped of 1522 to the numbers above; its fixes are under "Gaps found and fixed, second round".
 
 The suite compiles dotnet/maui's shared handler device tests (`src/Core/tests/DeviceTests/Handlers/*/<X>HandlerTests.cs` and the shared bases in `src/Core/tests/DeviceTests.Shared`) unchanged, against OpenMaui's handlers, so the assertions are MAUI's, not a reading of MAUI. Only the per-platform helper partials (MAUI's `*.Windows.cs` / `*.Android.cs`, "read the value back from the native view") are written for Linux, and they read the Skia platform view.
 
@@ -11,7 +11,7 @@ Nothing is suppressed: a test that fails stays failing in the project, and a fai
 | | |
 |---|---|
 | Project | `tests/Conformance/OpenMaui.Conformance.Tests.csproj` (net10.0, xunit 2.9), not part of `tests/OpenMaui.Controls.Linux.Tests.csproj` (that project now excludes `Conformance\**`) |
-| MAUI sources | a shallow, sparse clone of dotnet/maui at tag 10.0.110, by default in `~/.cache/openmaui-build/maui-src`; `tests/Conformance/get-maui-sources.sh [dest] [tag]` creates it |
+| MAUI sources | a shallow, sparse clone of dotnet/maui at tag 10.0.120, by default in `~/.cache/openmaui-build/maui-src`; `tests/Conformance/get-maui-sources.sh [dest] [tag]` creates it |
 | Build property | `MauiSrc` (default `$(HOME)/.cache/openmaui-build/maui-src`), e.g. `-p:MauiSrc=/path/to/maui` |
 | Without the clone | the project builds with a warning and contains one skipped test (`MauiSourcesMissing`) that says how to get the sources |
 | Run | `dotnet test tests/Conformance/OpenMaui.Conformance.Tests.csproj` (filter by handler with `--filter Category=Label`, MAUI's category trait) |
@@ -169,7 +169,7 @@ These are not test failures, but each is a place where OpenMaui's public API dif
 
 # Controls device tests (dotnet/maui's Controls tests against OpenMaui)
 
-Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **604 MAUI tests ported (598 at first; `Xaml/XamlTests` added). Before the fixes: 337 passed, 257 failed, 4 skipped. After the first round: 519 passed, 75 failed, 4 skipped. After the second (Shell, TabbedPage and Window; CollectionView, memory, ScrollView and SwipeView; shapes, visual tree, Label and accessibility; window size and wrapped-label width): 600 passed, 0 failed, 4 skipped** (all 4 skips are mechanisms Linux does not have; nothing is BLOCKED).
+Run of 2026-10-23 against dotnet/maui tag `10.0.120`: **608 MAUI tests, 604 passed, 0 failed, 4 skipped** (10.0.120 adds tests, among them "Window Does Not Leak" and "Parsed XAML binding path is preserved when trimmed"). First run 2026-10-04 against `10.0.110`. **604 MAUI tests ported (598 at first; `Xaml/XamlTests` added). Before the fixes: 337 passed, 257 failed, 4 skipped. After the first round: 519 passed, 75 failed, 4 skipped. After the second (Shell, TabbedPage and Window; CollectionView, memory, ScrollView and SwipeView; shapes, visual tree, Label and accessibility; window size and wrapped-label width): 600 passed, 0 failed, 4 skipped** (all 4 skips are mechanisms Linux does not have; nothing is BLOCKED).
 
 These are MAUI's `src/Controls/tests/DeviceTests`: real Controls views (`Label`, `Entry`, `CollectionView`, `Shell`, `NavigationPage`, `TabbedPage`, `FlyoutPage`, modal pages, ...) put in a window by MAUI's own `ControlsHandlerTestBase.CreateHandlerAndAddToWindow`, so they exercise the Controls layer the way an app does: page hosting, navigation, Loaded/Unloaded, layout through pages, Controls-only properties (TextTransform, LineBreakMode, MaxLines, AutoSize, ...).
 
@@ -345,7 +345,7 @@ Three early failures were the port's, corrected in the Linux helpers: a layout's
 
 # Essentials device tests (dotnet/maui's Essentials tests against OpenMaui)
 
-Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **281 MAUI tests ported. Before the fixes: 186 passed, 54 failed, 41 skipped. After: 240 passed, 0 failed, 41 skipped on a Plasma desktop (battery, network, URI handlers; since 10.0.110.8 the two KDE keyring concurrency tests run and pass, re-run 2026-10-18); 226 passed, 0 failed, 55 skipped in a CI-like run** (no display, no session bus, no desktop applications). Every skip is a person, hardware, a desktop application or a network service the machine does not have; nothing is BLOCKED.
+Run of 2026-10-23 against dotnet/maui tag `10.0.120`: 240 passed, 0 failed, 41 skipped, as on `10.0.110`. First run 2026-10-04 against `10.0.110`. **281 MAUI tests ported. Before the fixes: 186 passed, 54 failed, 41 skipped. After: 240 passed, 0 failed, 41 skipped on a Plasma desktop (battery, network, URI handlers; since 10.0.110.8 the two KDE keyring concurrency tests run and pass, re-run 2026-10-18); 226 passed, 0 failed, 55 skipped in a CI-like run** (no display, no session bus, no desktop applications). Every skip is a person, hardware, a desktop application or a network service the machine does not have; nothing is BLOCKED.
 
 These are MAUI's `src/Essentials/test/DeviceTests`: the static Essentials facades (`Preferences`, `SecureStorage`, `FileSystem`, `Launcher`, `AppInfo`, `Permissions`, `Screenshot`, ...) exercised the way an app calls them, with OpenMaui's Linux services behind them, as `UseLinux` installs them.
 
