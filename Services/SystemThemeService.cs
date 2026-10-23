@@ -71,7 +71,7 @@ public class SystemThemeService
         Success = new SKColor(0x4C, 0xAF, 0x50)
     };
 
-    private FileSystemWatcher? _settingsWatcher;
+    private readonly List<FileSystemWatcher> _settingsWatchers = new();
     private Timer? _pollTimer;
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
@@ -458,27 +458,37 @@ public class SystemThemeService
             };
     }
 
+    // The theme is read from two files, ~/.config/kdeglobals and ~/.config/gtk-3.0/settings.ini,
+    // so each directory gets a non-recursive watcher filtered to its file. A recursive watcher on
+    // ~/.config adds one inotify watch per subdirectory (thousands), which held up startup for
+    // seconds. Saves that replace the file by rename (KConfig) are watched as well as writes.
     private void SetupWatcher()
+    {
+        var configDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".config");
+        WatchSettingsFile(configDir, "kdeglobals");
+        WatchSettingsFile(Path.Combine(configDir, "gtk-3.0"), "settings.ini");
+    }
+
+    private void WatchSettingsFile(string directory, string fileName)
     {
         try
         {
-            var configDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".config");
-
-            if (Directory.Exists(configDir))
+            if (!Directory.Exists(directory))
+                return;
+            var watcher = new FileSystemWatcher(directory, fileName)
             {
-                _settingsWatcher = new FileSystemWatcher(configDir)
-                {
-                    NotifyFilter = NotifyFilters.LastWrite,
-                    IncludeSubdirectories = true,
-                    EnableRaisingEvents = true
-                };
-
-                _settingsWatcher.Changed += OnSettingsChanged;
-            }
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
+                IncludeSubdirectories = false
+            };
+            watcher.Changed += OnSettingsChanged;
+            watcher.Created += OnSettingsChanged;
+            watcher.Renamed += OnSettingsChanged;
+            watcher.EnableRaisingEvents = true;
+            _settingsWatchers.Add(watcher);
         }
-        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", "Settings watcher setup failed", ex); }
+        catch (Exception ex) { DiagnosticLog.Debug("SystemThemeService", $"Settings watcher setup failed for {fileName}", ex); }
     }
 
     private void SetupPolling()
