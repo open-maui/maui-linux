@@ -4,14 +4,14 @@
     MAUI handler conformance suite.
 
     Compiles dotnet/maui's OWN shared handler device tests (Core DeviceTests,
-    tag 10.0.110) against the Linux handlers, so MAUI's assertions are the
+    tag 10.0.120) against the Linux handlers, so MAUI's assertions are the
     specification. The MAUI sources are NOT vendored: they are compiled in place
     from a local clone (MIT licensed, file headers untouched).
 
       MauiSrc   Root of a dotnet/maui checkout at the tag the platform targets.
                 Default: $(HOME)/.cache/openmaui-build/maui-src
                 Populate it with tests/Conformance/get-maui-sources.sh (a shallow,
-                sparse clone of the 10.0.110 tag: src/Core/tests, src/TestUtils,
+                sparse clone of the 10.0.120 tag: src/Core/tests, src/TestUtils,
                 src/Controls/tests/DeviceTests).
                 Override: dotnet test -p:MauiSrc=/path/to/maui
 

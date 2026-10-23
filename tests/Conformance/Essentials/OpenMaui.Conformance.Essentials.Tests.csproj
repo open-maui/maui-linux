@@ -4,7 +4,7 @@
     MAUI Essentials conformance suite.
 
     Compiles dotnet/maui's OWN Essentials device tests (src/Essentials/test/DeviceTests,
-    tag 10.0.110) against OpenMaui's Linux Essentials: the static facades (Preferences,
+    tag 10.0.120) against OpenMaui's Linux Essentials: the static facades (Preferences,
     SecureStorage, FileSystem, Launcher, AppInfo, ...) are backed by the Linux services
     UseLinux installs, and MAUI's assertions are the specification. The MAUI sources are
     NOT vendored: they are compiled in place from the same local clone the Core and
