@@ -6,7 +6,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ## [11.0.0.1] - unreleased
 
-.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.13 is included (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.110.14 is included (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
 
 ### Changed
 
@@ -36,6 +36,17 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
 - **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
 - **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
+
+## [10.0.110.14] - 2026-10-22
+
+### Fixed
+
+- **A Slider or Stepper overwrote its bound Value when it got its handler** ([#29](https://github.com/open-maui/maui-linux/issues/29)): the handler maps the range one bound at a time, and the Skia view clamped its value to the half-mapped range and wrote the clamped value back to the control, so a TwoWay binding set the source to it. A Slider with `Minimum="0.5"` set a bound 4 to 0.5; a Stepper with `Maximum="200"` set a bound 150 to 100. A clamp made while the control's range or value is being applied is no longer written back (MAUI's Slider and Stepper keep their Value inside their own range), and the control's value is applied again once the range is.
+
+### Performance
+
+- **Startup no longer creates the GTK host window or loads the GTK theme CSS** ([#30](https://github.com/open-maui/maui-linux/issues/30)): the hidden GTK window that hosts WebViews was created at every start, and its constructor loaded the theme CSS, which 10.0.110.10 had meant to defer (seconds on the main thread; 7 s in the reported trace). The window is now created when it is first needed: the first WebView or HybridWebView shown, or the app's window in GTK mode.
+- **The system theme watcher no longer watches all of `~/.config`** ([#30](https://github.com/open-maui/maui-linux/issues/30)): a recursive watcher added one inotify watch per subdirectory (16,915 on the reporter's machine, 3.6 s at startup). It now watches the two files the theme is read from, `~/.config/kdeglobals` and `~/.config/gtk-3.0/settings.ini`, including saves that replace the file by rename, as KDE writes `kdeglobals`.
 
 ## [10.0.110.13] - 2026-10-18
 
