@@ -91,6 +91,7 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         _collectionSubscription = null;
         platformView.ClearItems();
         ReleaseItemElements();
+        _initialPositionApplied = false;
         base.DisconnectHandler(platformView);
     }
 
@@ -101,6 +102,9 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         if (PlatformView != null)
             ObserveScrollToRequests(VirtualView);
     }
+
+    // Whether the carousel has been placed on its first items (by CurrentItem when it holds one).
+    private bool _initialPositionApplied;
 
     // The items source's changes, observed weakly (as MAUI's ObservableItemsSource does): items
     // added or removed after the carousel is shown are shown.
@@ -388,19 +392,30 @@ public partial class CarouselViewHandler : LinuxViewHandler<CarouselView, SkiaCa
         handler.RebuildItems(carouselView);
         handler.UpdateEmptyView(carouselView);
 
-        // The items made again show the CarouselView's position.
+        // The items made again show the CarouselView's position. The first time it has items,
+        // a CurrentItem it already holds places it instead, as MAUI's handlers place a CarouselView
+        // initially (UpdateInitialPosition): a bound CurrentItem is kept, and Position follows it.
         var count = handler.PlatformView.ItemCount;
-        if (count > 0 && carouselView.Position > 0)
+        if (count == 0)
+            return;
+        var position = carouselView.Position;
+        if (!handler._initialPositionApplied)
         {
-            try
-            {
-                handler._isUpdatingPosition = true;
-                handler.PlatformView.ScrollTo(Math.Min(carouselView.Position, count - 1), false);
-            }
-            finally
-            {
-                handler._isUpdatingPosition = false;
-            }
+            handler._initialPositionApplied = true;
+            if (carouselView.CurrentItem is { } currentItem && handler._items.IndexOf(currentItem) is var index and >= 0)
+                position = index;
+        }
+        try
+        {
+            handler._isUpdatingPosition = true;
+            if (position > 0)
+                handler.PlatformView.ScrollTo(Math.Min(position, count - 1), false);
+            if (carouselView.Position != position)
+                carouselView.Position = position;
+        }
+        finally
+        {
+            handler._isUpdatingPosition = false;
         }
     }
 
