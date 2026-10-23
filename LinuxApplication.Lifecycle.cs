@@ -66,11 +66,10 @@ public partial class LinuxApplication
         if (Diagnostics.OpenMauiDoctor.IsRequested(args))
             Environment.Exit(Diagnostics.OpenMauiDoctor.RunAndPrint(options));
 
-        // Initialize the GTK host service early. Idempotent: when X11 mode is selected,
-        // SkiaWebView still needs a backing GTK widget hierarchy via this hidden host
-        // window; when GTK mode is selected, InitializeGtk reuses this same instance
-        // through GetOrCreateHostWindow, so we never create two host windows.
-        GtkHostService.Instance.Initialize(
+        // The GTK host window (the hidden window that holds WebViews in X11 mode, the app's
+        // window in GTK mode) is created on first use with this title and size, so an app
+        // without a WebView does not create it or load the GTK theme CSS at startup.
+        GtkHostService.Instance.Configure(
             options.Title ?? "MAUI Application",
             options.Width,
             options.Height);

@@ -219,8 +219,7 @@ public class GtkWebViewHandler : LinuxViewHandler<IWebView, GtkWebViewProxy>, IW
         if (_platformWebView == null)
             return;
 
-        var hostService = GtkHostService.Instance;
-        if (hostService.HostWindow == null || hostService.WebViewManager == null)
+        if (GtkHostService.Instance.EnsureHostWindow() is not { } hostWindow)
         {
             DiagnosticLog.Warn("GtkWebViewHandler", "GTK host not initialized, cannot register WebView");
             return;
@@ -239,13 +238,13 @@ public class GtkWebViewHandler : LinuxViewHandler<IWebView, GtkWebViewProxy>, IW
 
         if (!_isRegisteredWithHost)
         {
-            hostService.HostWindow.AddWebView(_platformWebView.Widget, x, y, width, height);
+            hostWindow.AddWebView(_platformWebView.Widget, x, y, width, height);
             _isRegisteredWithHost = true;
             DiagnosticLog.Debug("GtkWebViewHandler", $"Registered WebView at ({x}, {y}) size {width}x{height}");
         }
         else if (bounds != _lastBounds)
         {
-            hostService.HostWindow.MoveResizeWebView(_platformWebView.Widget, x, y, width, height);
+            hostWindow.MoveResizeWebView(_platformWebView.Widget, x, y, width, height);
             DiagnosticLog.Debug("GtkWebViewHandler", $"Updated WebView to ({x}, {y}) size {width}x{height}");
         }
 
