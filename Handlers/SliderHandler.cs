@@ -75,9 +75,12 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>, ISli
         base.DisconnectHandler(platformView);
     }
 
+    // Set while the virtual view's range or value is applied to the platform view.
+    private bool _applyingVirtualView;
+
     private void OnValueChanged(object? sender, ValueChangedEventArgs e)
     {
-        if (VirtualView is null || PlatformView is null) return;
+        if (VirtualView is null || PlatformView is null || _applyingVirtualView) return;
 
         if (Math.Abs(VirtualView.Value - e.NewValue) > 0.0001)
         {
@@ -105,7 +108,7 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>, ISli
     private static void MapMinimumCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Minimum = slider.Minimum;
+        handler.ApplyFromVirtualView(slider, p => p.Minimum = slider.Minimum);
     }
 
     /// <summary>MAUI's <c>MapMaximum</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
@@ -118,7 +121,7 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>, ISli
     private static void MapMaximumCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Maximum = slider.Maximum;
+        handler.ApplyFromVirtualView(slider, p => p.Maximum = slider.Maximum);
     }
 
     /// <summary>MAUI's <c>MapValue</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>
@@ -131,9 +134,30 @@ public partial class SliderHandler : LinuxViewHandler<ISlider, SkiaSlider>, ISli
     private static void MapValueCore(SliderHandler handler, ISlider slider)
     {
         if (handler.PlatformView is null) return;
+        handler.ApplyFromVirtualView(slider, null);
+    }
 
-        if (Math.Abs(handler.PlatformView.Value - slider.Value) > 0.0001)
-            handler.PlatformView.Value = slider.Value;
+    /// <summary>
+    /// Applies the virtual view's range (one bound at a time) or value to the platform view, then
+    /// its value again. The platform view clamps its value to its own range, which is stale until
+    /// every bound is mapped (a Minimum above its default Value, a Value above its default
+    /// Maximum); that clamp is not a user change and is not written back to the virtual view,
+    /// which coerces its own Value to its range.
+    /// </summary>
+    private void ApplyFromVirtualView(ISlider slider, Action<SkiaSlider>? apply)
+    {
+        if (PlatformView is not { } platformView) return;
+        _applyingVirtualView = true;
+        try
+        {
+            apply?.Invoke(platformView);
+            if (Math.Abs(platformView.Value - slider.Value) > 0.0001)
+                platformView.Value = slider.Value;
+        }
+        finally
+        {
+            _applyingVirtualView = false;
+        }
     }
 
     /// <summary>MAUI's <c>MapMinimumTrackColor</c> signature; maps the property on a Linux <see cref="SliderHandler"/>.</summary>

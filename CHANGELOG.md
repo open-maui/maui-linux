@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.14] - 2026-10-22
+
+### Fixed
+
+- **A Slider or Stepper overwrote its bound Value when it got its handler** ([#29](https://github.com/open-maui/maui-linux/issues/29)): the handler maps the range one bound at a time, and the Skia view clamped its value to the half-mapped range and wrote the clamped value back to the control, so a TwoWay binding set the source to it. A Slider with `Minimum="0.5"` set a bound 4 to 0.5; a Stepper with `Maximum="200"` set a bound 150 to 100. A clamp made while the control's range or value is being applied is no longer written back (MAUI's Slider and Stepper keep their Value inside their own range), and the control's value is applied again once the range is.
+
+### Performance
+
+- **Startup no longer creates the GTK host window or loads the GTK theme CSS** ([#30](https://github.com/open-maui/maui-linux/issues/30)): the hidden GTK window that hosts WebViews was created at every start, and its constructor loaded the theme CSS, which 10.0.110.10 had meant to defer (seconds on the main thread; 7 s in the reported trace). The window is now created when it is first needed: the first WebView or HybridWebView shown, or the app's window in GTK mode.
+- **The system theme watcher no longer watches all of `~/.config`** ([#30](https://github.com/open-maui/maui-linux/issues/30)): a recursive watcher added one inotify watch per subdirectory (16,915 on the reporter's machine, 3.6 s at startup). It now watches the two files the theme is read from, `~/.config/kdeglobals` and `~/.config/gtk-3.0/settings.ini`, including saves that replace the file by rename, as KDE writes `kdeglobals`.
+
 ## [10.0.110.13] - 2026-10-18
 
 ### Fixed
