@@ -240,6 +240,11 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         set
         {
             _visibility = value;
+            // A MAUI element owns IsVisible. Its Visibility is the effective one, which since MAUI
+            // 10.0.120 also follows its ancestors: written back, a child of a hidden parent had its
+            // own IsVisible set to false and stayed hidden when the parent was shown.
+            if (_mauiView is VisualElement)
+                return;
             IsVisible = value == Visibility.Visible;
         }
     }

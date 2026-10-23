@@ -72,6 +72,9 @@ public class SystemThemeService
     };
 
     private readonly List<FileSystemWatcher> _settingsWatchers = new();
+
+    /// <summary>The watchers on the files the theme is read from (see SetupWatcher).</summary>
+    internal IReadOnlyList<FileSystemWatcher> SettingsWatchers => _settingsWatchers;
     private Timer? _pollTimer;
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
