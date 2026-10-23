@@ -83,9 +83,12 @@ public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>, I
         base.DisconnectHandler(platformView);
     }
 
+    // Set while the virtual view's range or value is applied to the platform view.
+    private bool _applyingVirtualView;
+
     private void OnValueChanged(object? sender, ValueChangedEventArgs e)
     {
-        if (VirtualView is null || PlatformView is null) return;
+        if (VirtualView is null || PlatformView is null || _applyingVirtualView) return;
 
         if (Math.Abs(VirtualView.Value - e.NewValue) > 0.0001)
         {
@@ -103,9 +106,30 @@ public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>, I
     private static void MapValueCore(StepperHandler handler, IStepper stepper)
     {
         if (handler.PlatformView is null) return;
+        handler.ApplyFromVirtualView(stepper, null);
+    }
 
-        if (Math.Abs(handler.PlatformView.Value - stepper.Value) > 0.0001)
-            handler.PlatformView.Value = stepper.Value;
+    /// <summary>
+    /// Applies the virtual view's range (one bound at a time) or value to the platform view, then
+    /// its value again. The platform view clamps its value to its own range, which is stale until
+    /// every bound is mapped (a Minimum above its default Value, a Value above its default
+    /// Maximum); that clamp is not a user change and is not written back to the virtual view,
+    /// which coerces its own Value to its range.
+    /// </summary>
+    private void ApplyFromVirtualView(IStepper stepper, Action<SkiaStepper>? apply)
+    {
+        if (PlatformView is not { } platformView) return;
+        _applyingVirtualView = true;
+        try
+        {
+            apply?.Invoke(platformView);
+            if (Math.Abs(platformView.Value - stepper.Value) > 0.0001)
+                platformView.Value = stepper.Value;
+        }
+        finally
+        {
+            _applyingVirtualView = false;
+        }
     }
 
     /// <summary>MAUI's <c>MapMinimum</c> signature; maps the property on a Linux <see cref="StepperHandler"/>.</summary>
@@ -118,7 +142,7 @@ public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>, I
     private static void MapMinimumCore(StepperHandler handler, IStepper stepper)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Minimum = stepper.Minimum;
+        handler.ApplyFromVirtualView(stepper, p => p.Minimum = stepper.Minimum);
     }
 
     /// <summary>MAUI's <c>MapMaximum</c> signature; maps the property on a Linux <see cref="StepperHandler"/>.</summary>
@@ -131,7 +155,7 @@ public partial class StepperHandler : LinuxViewHandler<IStepper, SkiaStepper>, I
     private static void MapMaximumCore(StepperHandler handler, IStepper stepper)
     {
         if (handler.PlatformView is null) return;
-        handler.PlatformView.Maximum = stepper.Maximum;
+        handler.ApplyFromVirtualView(stepper, p => p.Maximum = stepper.Maximum);
     }
 
     public static void MapBackground(StepperHandler handler, IStepper stepper)
