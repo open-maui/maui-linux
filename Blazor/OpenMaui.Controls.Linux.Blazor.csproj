@@ -8,7 +8,7 @@
     <RootNamespace>Microsoft.Maui.Platform.Linux.Blazor</RootNamespace>
     <AssemblyName>OpenMaui.Controls.Linux.Blazor</AssemblyName>
     <PackageId>OpenMaui.Controls.Linux.Blazor</PackageId>
-    <Version>10.0.110.15</Version>
+    <Version>10.0.120.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui BlazorWebView (Linux)</Product>
@@ -35,7 +35,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.110" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.120" />
     <!-- Same version WebView.Maui depends on. GeneratePathProperty exposes the
          package folder so blazor.webview.js (a static web asset that MAUI's
          asset pipeline delivers on other platforms) can be embedded here and

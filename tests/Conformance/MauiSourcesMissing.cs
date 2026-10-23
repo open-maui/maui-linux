@@ -13,7 +13,7 @@ namespace OpenMaui.Conformance.Tests;
 public class MauiSourcesMissing
 {
     [Fact(Skip = "dotnet/maui test sources not found. Run tests/Conformance/get-maui-sources.sh " +
-                 "(clones tag 10.0.110 into ~/.cache/openmaui-build/maui-src) or build with -p:MauiSrc=<maui checkout>.")]
+                 "(clones tag 10.0.120 into ~/.cache/openmaui-build/maui-src) or build with -p:MauiSrc=<maui checkout>.")]
     public void MauiConformanceSuiteNeedsTheMauiSources()
     {
     }
