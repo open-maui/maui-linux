@@ -9,6 +9,12 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 3. Read the section for your jump below and check the behaviour changes it lists against your app.
 4. Run `OPENMAUI_DOCTOR=1 ./YourApp` on your target machines after upgrading; new releases can start using optional system libraries you do not have yet.
 
+## 10.0.110.x to 10.0.120.1
+
+**Dependencies:** MAUI 10.0.110 to 10.0.120 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move your own `Microsoft.Maui.Controls` reference (and the others, if your project references them) to 10.0.120, or restore fails with `NU1605`. `OpenMaui.Hosting` now depends on exactly MAUI 10.0.120 as its floor, as the other packages do; before, it took whatever 10.0 MAUI was newest when it was packed.
+
+**Behaviour:** MAUI 10.0.120 makes a view's `Visibility` its effective visibility: a view inside a hidden parent reports `Collapsed`, and showing the parent shows it. Nothing to change in an app; a view's own `IsVisible` is unchanged, as before.
+
 ## 10.0.110.7 to 10.0.110.8
 
 **API: a deliberate breaking change.** The types whose names clashed with MAUI's, and the concrete-handler `Map*` overloads, are removed in this release (see "Removed" below and `VERSIONING.md`). Everything else is additions. Recompile against 10.0.110.8.
