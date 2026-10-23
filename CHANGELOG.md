@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.110.15] - 2026-10-23
+
+### Fixed
+
+- **A CarouselView lost its bound CurrentItem when it got its handler**: the handler placed the carousel at its Position (0 when unset) and made the item there the CurrentItem, so `CurrentItem="{Binding Selected}"` set the source to the first item. The first time the carousel has items, a CurrentItem it already holds now places it, as MAUI's handlers place a CarouselView initially on every platform; Position follows it. An audit of every handler that writes a value from the Skia view back to its control (Picker, DatePicker, TimePicker, Entry, Editor, SearchBar, CheckBox, Switch, RadioButton, Stepper, RefreshView, CarouselView, CollectionView, IndicatorView) found no other control that changes its bound value on connect; each is now covered by a test.
+
 ## [10.0.110.14] - 2026-10-22
 
 ### Fixed
