@@ -4,7 +4,7 @@
     MAUI Controls conformance suite.
 
     Compiles dotnet/maui's OWN Controls device tests (src/Controls/tests/DeviceTests,
-    tag 10.0.110) against OpenMaui: real Controls views (Label, Entry, CollectionView,
+    tag 10.0.120) against OpenMaui: real Controls views (Label, Entry, CollectionView,
     Shell, NavigationPage, ...) hosted in a window the way an app hosts them, with
     MAUI's assertions as the specification. The MAUI sources are NOT vendored: they
     are compiled in place from the same local clone the Core suite uses (MIT
@@ -70,7 +70,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.152.1" />
     <!-- Direct reference (the version OpenMaui builds on) for MAUI's XAML build targets:
          Xaml/XamlTests.cs compiles RadioButtonUsing.xaml, as an app compiles its XAML. -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.120" />
   </ItemGroup>
 
   <ItemGroup>

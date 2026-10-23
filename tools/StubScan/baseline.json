@@ -16,10 +16,10 @@
     "CommunityToolkit.Maui": "15.0.1",
     "CommunityToolkit.Maui.Core": "15.0.1",
     "CommunityToolkit.Maui.MediaElement": "10.0.0",
-    "Microsoft.Maui.Controls.Core": "10.0.110",
-    "Microsoft.Maui.Controls.Xaml": "10.0.110",
-    "Microsoft.Maui.Core": "10.0.110",
-    "Microsoft.Maui.Essentials": "10.0.110",
+    "Microsoft.Maui.Controls.Core": "10.0.120",
+    "Microsoft.Maui.Controls.Xaml": "10.0.120",
+    "Microsoft.Maui.Core": "10.0.120",
+    "Microsoft.Maui.Essentials": "10.0.120",
     "Syncfusion.Maui.Buttons": "34.2.9",
     "Syncfusion.Maui.Calendar": "34.2.8",
     "Syncfusion.Maui.Cards": "34.2.9",
@@ -1005,7 +1005,31 @@
       "by": "Handlers/BoxViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::AreClose",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::CarouselScrolled",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::CenterCarouselItem",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ClearCollectionCurrentItemOverride",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::CompleteCollectionCurrentItemOverrideScroll",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1035,7 +1059,19 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::DetachScrollViewer",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::DisconnectHandler",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::DisposeCollectionCurrentItemOverrideRetryTimer",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1048,6 +1084,12 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetCollectionView",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetItemAtPosition",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1083,6 +1125,12 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetItemsSourceCount",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetWindowsSnapPointsAlignment",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
@@ -1107,7 +1155,25 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::IsCollectionCurrentItemOverrideVisible",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::IsValidPosition",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnCollectionCurrentItemOverrideItemsChanged",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnCollectionCurrentItemOverrideRetryTimerTick",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1149,7 +1215,61 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnScrollViewerPointerPressed",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnScrollViewerPointerReleased",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnUserScrollStarting",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::QueueCenterCarouselItem",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::QueueCollectionCurrentItemOverrideScroll",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::QueueCollectionCurrentItemOverrideScrollCore",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ResetRecenteringState",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ResetScrollState",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::Resize",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ScheduleCollectionCurrentItemOverrideRetry",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1174,6 +1294,42 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::SetCarouselViewPosition",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::SetPositionFromScroll",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ShouldCenterCarouselItem",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::StopCollectionCurrentItemOverrideRetryTimer",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::StopWaitingForCollectionCurrentItemOverride",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::TryGetClosestVisibleItem",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CarouselViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::TrySelectCandidate",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1516,6 +1672,12 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.SelectableItemsViewHandler`1::DisconnectHandler",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
+      "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.SelectableItemsViewHandler`1::PlatformSelectionChanged",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
@@ -2262,6 +2424,11 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.TabbedPage::OnTabbedPageDisappearing",
+      "status": "covered",
+      "by": "Handlers/TabbedPageHandler.cs,Views/SkiaTabbedPage.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.TabbedPage::OwnsNavigationViewItems",
       "status": "covered",
       "by": "Handlers/TabbedPageHandler.cs,Views/SkiaTabbedPage.cs"
     },
@@ -4938,6 +5105,24 @@
       "by": "Handlers/ActivityIndicatorHandler.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::MapInvalidateMeasure",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/BorderHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::OnDisconnectHandler",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/BorderHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::ReparentContent",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/BorderHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::SetVirtualView",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
@@ -5842,6 +6027,12 @@
       "by": "Handlers/RefreshViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::BeginTemporaryTabStop",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::ConnectHandler",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
@@ -5885,6 +6076,42 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnContentPanelSizeChanged",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnPlatformViewLoaded",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnPlatformViewLoading",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnPlatformViewUnloaded",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::QueueTemporaryTabStopRestore",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::ResetTemporaryTabStop",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/ScrollViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::RestoreIsTabStop",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/ScrollViewHandler.cs"
@@ -6201,6 +6428,11 @@
       "by": "Handlers/LinuxViewHandler.cs,Handlers/LinuxViewMappers.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::MapInputTransparentToContainer",
+      "status": "not-applicable",
+      "reason": "MAUI's ContainerView/WrapperView mechanism on Windows; Skia views apply Clip, Shadow and InputTransparent while drawing and hit-testing, without a wrapper"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::MapToolbar",
       "status": "covered",
       "by": "Handlers/NavigationPageHandler.cs"
@@ -6222,6 +6454,11 @@
       "status": "covered",
       "reason": "Every Linux handler derives from LinuxViewHandler (frame, container, focus, base view mappings)",
       "by": "Handlers/LinuxViewHandler.cs,Handlers/LinuxViewMappers.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::ReconnectContainer",
+      "status": "not-applicable",
+      "reason": "MAUI's ContainerView/WrapperView mechanism on Windows; Skia views apply Clip, Shadow and InputTransparent while drawing and hit-testing, without a wrapper"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::UpdateIsFocused",
@@ -6296,6 +6533,12 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.WebViewHandler::OnNavigationStarting",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/LinuxWebViewHandler.cs,Views/SkiaWebView.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.WebViewHandler::ProcessCoreWebView2Initialized",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/LinuxWebViewHandler.cs,Views/SkiaWebView.cs"
