@@ -8,7 +8,8 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Handlers;
 
 /// <summary>
 /// Since MAUI 10.0.120 a view's Visibility is its effective visibility: Collapsed inside a hidden
-/// parent. Mapping it to the Skia view must not write it back to the view's own IsVisible, or the
+/// parent (MAUI 11.0.0 still reports the view's own IsVisible, so this checks only what holds on
+/// both). Mapping it to the Skia view must not write it back to the view's own IsVisible, or the
 /// children of a parent shown later stay hidden.
 /// </summary>
 [Collection("LinuxApplication.Current")]
@@ -24,7 +25,6 @@ public class EffectiveVisibilityTests
         using var host = new HeadlessMauiHost(new ContentPage { Content = new Grid { parent } }, withEngine: true);
         host.Context.Render();
 
-        ((IView)label).Visibility.Should().Be(Visibility.Collapsed, "its parent is hidden");
         stack.IsVisible.Should().BeTrue();
         label.IsVisible.Should().BeTrue();
 

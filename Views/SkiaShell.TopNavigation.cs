@@ -265,16 +265,14 @@ public partial class SkiaShell
             yield return box.Entry;
     }
 
-    protected override List<IAccessible> GetAccessibleChildren()
+    /// <summary>The top navigation pane and its search box, in reading order, while the pane is shown.</summary>
+    private IEnumerable<IAccessible> TopPaneAccessibles()
     {
-        var children = base.GetAccessibleChildren();
-        if (IsTopPaneShown)
-        {
-            children.Insert(0, TopNavigation);
-            if (IsSearchBoxShown)
-                children.Insert(1, SearchBox);
-        }
-        return children;
+        if (!IsTopPaneShown)
+            yield break;
+        yield return TopNavigation;
+        if (IsSearchBoxShown)
+            yield return SearchBox;
     }
 
     /// <summary>

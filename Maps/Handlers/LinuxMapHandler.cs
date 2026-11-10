@@ -34,11 +34,14 @@ namespace Microsoft.Maui.Platform.Linux.Maps.Handlers;
 ///
 /// <c>MapType</c> (Street / Satellite / Hybrid) maps onto <see cref="SkiaMap.LayerType"/>
 /// — street uses OSM raster, satellite/hybrid use the keyless Esri sources in
-/// <c>MapTileLayers</c>. Two MAUI-Map features still have no clean Linux
-/// backend and are documented as no-ops:
+/// <c>MapTileLayers</c>. Pin.ShowInfoWindow / HideInfoWindow select and deselect the pin
+/// (the state in which the next tap on it raises InfoWindowClicked). These MAUI-Map features
+/// have no Linux backend and are documented as no-ops:
 ///   - <c>IsShowingUser</c> — would need GeolocationService wiring + a "blue dot"
 ///     overlay; deferred.
 ///   - <c>IsTrafficEnabled</c> — needs a traffic data source we don't ship.
+///   - <c>IsClusteringEnabled</c> and <c>MapStyle</c> (MAUI 11) — no-ops on Windows too;
+///     MapStyle is a Google Maps JSON style.
 /// </summary>
 public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHandler
 {
@@ -52,7 +55,7 @@ public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHand
         // VisibleRegion is deliberately NOT mapped: it is platform-reported
         // state this handler writes back, and treating it as an input would
         // let the write-back re-enter the mapper. MoveToRegion is the input.
-        // IsShowingUser / IsTrafficEnabled: see class doc — no-op.
+        // IsShowingUser / IsTrafficEnabled / IsClusteringEnabled / MapStyle: see class doc — no-op.
     };
 
     public static CommandMapper<IMap, IMapHandler> CommandMapper = new(ViewHandler.ViewCommandMapper)
@@ -61,7 +64,9 @@ public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHand
         // MoveToRegion arrives as a handler command (not a property change) when
         // app code calls Map.MoveToRegion(span). Without this entry, button-
         // driven jumps silently no-op while drag-pan still works.
-        ["MoveToRegion"] = MapMoveToRegion,
+        [nameof(IMap.MoveToRegion)] = MapMoveToRegion,
+        [nameof(IMap.ShowInfoWindow)] = MapShowInfoWindow,
+        [nameof(IMap.HideInfoWindow)] = MapHideInfoWindow,
     };
 
     public LinuxMapHandler() : base(Mapper, CommandMapper) { }
@@ -165,7 +170,13 @@ public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHand
             // platform-standard split: the first tap selects the marker and
             // fires MarkerClicked; a tap on the already-selected pin fires
             // InfoWindowClicked (SkiaMap tracks the selection).
-            skiaPin.Clicked += (_, _) => virtualPin.SendMarkerClick();
+            // A MarkerClicked handler that sets HideInfoWindow keeps the pin unselected,
+            // as it keeps the info window closed on the other platforms.
+            skiaPin.Clicked += (sender, _) =>
+            {
+                if (virtualPin.SendMarkerClick() && PlatformView is { } map && ReferenceEquals(map.SelectedPin, sender))
+                    map.SelectedPin = null;
+            };
             skiaPin.InfoWindowClicked += (_, _) => virtualPin.SendInfoWindowClick();
             platformView.Pins.Add(skiaPin);
 
@@ -296,8 +307,10 @@ public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHand
 
     /// <summary>
     /// Handle <c>Map.MoveToRegion(MapSpan)</c> command. MAUI invokes this via
-    /// the command mapper when app code calls <c>Map.MoveToRegion(span)</c>;
-    /// the <paramref name="arg"/> is the <see cref="MapSpan"/>. Translates the
+    /// the command mapper when app code calls <c>Map.MoveToRegion(span)</c>, when the
+    /// Map gets its handler (the span it was constructed with) and when Map.Region is set;
+    /// the <paramref name="arg"/> is a <see cref="MoveToRegionRequest"/> (MAUI 11; its region
+    /// is null when the Map has none yet) or a <see cref="MapSpan"/>. Translates the
     /// span's center + visible degrees into a center coordinate + integer zoom
     /// for <see cref="SkiaMap"/>. Before first layout the span is stored and
     /// applied once the view has a width.
@@ -305,7 +318,14 @@ public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHand
     public static void MapMoveToRegion(IMapHandler handler, IMap map, object? arg)
     {
         if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
-        if (arg is not MapSpan span) return;
+        // The move is not animated: SkiaMap jumps to a region.
+        var span = arg switch
+        {
+            MoveToRegionRequest request => request.Region,
+            MapSpan region => region,
+            _ => null,
+        };
+        if (span is null) return;
 
         if (self.PlatformView.Bounds.Width <= 0)
         {
@@ -314,6 +334,28 @@ public partial class LinuxMapHandler : LinuxViewHandler<IMap, SkiaMap>, IMapHand
         }
         self.ApplyRegion(span);
     }
+
+    /// <summary>
+    /// <c>Pin.ShowInfoWindow()</c>: selects the pin, as a first tap on it does, so the next
+    /// tap on it raises InfoWindowClicked. <paramref name="arg"/> is the <see cref="IMapPin"/>.
+    /// </summary>
+    public static void MapShowInfoWindow(IMapHandler handler, IMap map, object? arg)
+    {
+        if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
+        if (self.PlatformPinFor(arg) is { } pin)
+            self.PlatformView.SelectedPin = pin;
+    }
+
+    /// <summary><c>Pin.HideInfoWindow()</c>: deselects the pin if it is selected.</summary>
+    public static void MapHideInfoWindow(IMapHandler handler, IMap map, object? arg)
+    {
+        if (handler is not LinuxMapHandler self || self.PlatformView is null) return;
+        if (self.PlatformPinFor(arg) is { } pin && ReferenceEquals(self.PlatformView.SelectedPin, pin))
+            self.PlatformView.SelectedPin = null;
+    }
+
+    private MapPin? PlatformPinFor(object? virtualPin) =>
+        virtualPin is null ? null : PlatformView?.Pins.FirstOrDefault(p => ReferenceEquals(p.Tag, virtualPin));
 
     private void ApplyRegion(MapSpan span)
     {

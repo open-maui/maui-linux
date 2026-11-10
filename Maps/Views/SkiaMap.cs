@@ -135,6 +135,17 @@ public class SkiaMap : SkiaView
     // InfoWindowClicked (see OnPointerPressed).
     private MapPin? _selectedPin;
 
+    /// <summary>
+    /// The selected pin: the one tapped last (a further tap on it raises
+    /// <see cref="MapPin.InfoWindowClicked"/>), or null. Tapping empty map clears it;
+    /// MAUI's Pin.ShowInfoWindow / HideInfoWindow set and clear it.
+    /// </summary>
+    public MapPin? SelectedPin
+    {
+        get => _selectedPin;
+        set => _selectedPin = value;
+    }
+
     // Tiles that already have a redraw continuation attached to their fetch,
     // so each in-flight tile triggers at most one Invalidate no matter how
     // many frames observe it pending. Keyed by source too, since hybrid draws
