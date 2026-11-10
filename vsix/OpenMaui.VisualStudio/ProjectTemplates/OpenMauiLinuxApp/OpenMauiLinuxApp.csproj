@@ -36,8 +36,8 @@
     <PackageReference Include="OpenMaui.Controls.Linux" Version="11.0.*" />
 
     <!-- Core MAUI packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="11.0.0-rc.2.26505.5" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
