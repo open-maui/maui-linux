@@ -46,9 +46,9 @@
 
   <ItemGroup>
     <!-- MAUI Core packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="11.0.0-rc.2.26505.5" />
-    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="11.0.0-rc.2.26505.5" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="11.0.0" />
 
     <!-- SkiaSharp for rendering (4.x — SKFont text API; legacy SKPaint text members are error-obsolete) -->
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
