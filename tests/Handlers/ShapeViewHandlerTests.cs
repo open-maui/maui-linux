@@ -147,19 +147,6 @@ public class ShapeViewHandlerTests
     }
 
     [Fact]
-    public void A_shape_without_a_stroke_fills_its_bounds()
-    {
-        // MAUI 10.0.130: a shape without a Stroke is not inset by its StrokeThickness.
-        var ellipse = new Ellipse { Fill = Colors.Red, StrokeThickness = 20 };
-        using var host = Host(ellipse);
-
-        var (r, g, b, _) = Render(host, 50, 4);
-        ((int)r).Should().BeGreaterThan(200, "the fill reaches the top of the view");
-        ((int)g).Should().BeLessThan(60);
-        ((int)b).Should().BeLessThan(60);
-    }
-
-    [Fact]
     public void A_stroked_shape_is_inset_by_half_its_stroke()
     {
         var ellipse = new Ellipse { Fill = Colors.Red, Stroke = Colors.Blue, StrokeThickness = 20 };

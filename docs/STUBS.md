@@ -21,10 +21,10 @@ Package versions are the ones `tests/Compat` restores:
 
 | Package | Version | Findings | covered | n/a | open |
 |---|---|---:|---:|---:|---:|
-| Microsoft.Maui.Core | 10.0.130 | 586 | 507 | 79 | 0 |
-| Microsoft.Maui.Controls.Core | 10.0.130 | 347 | 304 | 43 | 0 |
-| Microsoft.Maui.Essentials | 10.0.130 | 208 | 186 | 22 | 0 |
-| Microsoft.Maui.Controls.Xaml | 10.0.130 | 0 | 0 | 0 | 0 |
+| Microsoft.Maui.Core | 11.0.0 | 597 | 509 | 88 | 0 |
+| Microsoft.Maui.Controls.Core | 11.0.0 | 321 | 278 | 43 | 0 |
+| Microsoft.Maui.Essentials | 11.0.0 | 248 | 226 | 22 | 0 |
+| Microsoft.Maui.Controls.Xaml | 11.0.0 | 0 | 0 | 0 | 0 |
 | CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
 | CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
 | CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |
@@ -53,7 +53,7 @@ Package versions are the ones `tests/Compat` restores:
 | Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2356** | **2039** | **313** | **4** |
+| **Total** | | **2381** | **2055** | **322** | **4** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -61,8 +61,10 @@ Counts are per method, so a single gap can be many findings. The Syncfusion Sche
 
 ### Microsoft.Maui.Essentials
 
-No open findings. Where Linux still differs from Windows:
+No open gaps. Where Linux still differs from Windows:
 
+- **WebAuthenticator with a custom URI scheme** (`myapp://callback`) works as on Windows: the browser's redirect starts a second process, which hands the URI to the running instance and exits, and the request completes with MAUI's `WebAuthenticatorResult`. Windows makes an unpackaged app register the scheme itself (`ActivationRegistrationManager.RegisterForProtocolActivation`); on Linux `AuthenticateAsync` registers it when the desktop does not already open the scheme with the app (`WebAuthenticatorService.RegisterCallbackScheme`, on by default; `UriSchemeRegistration` does it by hand). The registration is a hidden desktop entry (`~/.local/share/applications/<app>-<scheme>-handler.desktop`) made the scheme's default in `~/.config/mimeapps.list`, and it stays until `UriSchemeRegistration.Unregister`, as the registry entry does on Windows. A Flatpak declares the scheme in its exported desktop file (`MimeType=x-scheme-handler/myapp;`), as a packaged Windows app does in its manifest; there is no portal for registering one. Running instances find each other through a Unix socket in `$XDG_RUNTIME_DIR` (shared by a Flatpak's instances), and the app must start through `LinuxApplication.Run`, which forwards the callback before any window exists. The window is brought to the front before the result is returned on X11; a Wayland compositor gives focus only with an activation token, so there it stays where it is. Loopback callbacks (`http://localhost:<port>/`, `http://127.0.0.1:<port>/`), which Windows refuses, still work too.
+- **Passkeys** are created and used on FIDO2 security keys (USB, and NFC where libfido2 has a reader) through libfido2 (`libfido2.so.1`: the `libfido2` package on Fedora, where the OpenSSH client depends on it, and `libfido2-1` on Debian and Ubuntu), loaded at run time, so it is not a package dependency. `IsSupported` is true when libfido2 is installed and a key is connected; without libfido2 `CreateAsync` and `AssertAsync` throw `FeatureNotSupportedException`, and without a key they ask for one, as Windows does. The options and responses are the WebAuthn JSON MAUI uses on Windows (origin `https://<rpId>`). The PIN, "touch your security key", the choice between several keys and between accounts are OpenMaui dialogs, where Windows shows its system dialog. Linux has no platform authenticator (Windows Hello) and no phone (hybrid) sign-in: a request for `authenticatorAttachment: "platform"` fails with `InvalidOperationException`, as on a Windows PC without Windows Hello. A key with neither a PIN nor built-in verification cannot satisfy `userVerification: "required"`, and the request fails with `InvalidOperationException`; OpenMaui does not set PINs. A Flatpak needs libfido2 inside the sandbox and `--device=all` to reach the keys.
 - **Contacts** come from Evolution Data Server (GNOME Contacts, Evolution, GNOME Online Accounts) and from KDE's file-based contact stores: Akonadi's Personal Contacts folder (`~/.local/share/contacts`), vCard folder and vCard file resources, and KPeople's vCard folder (KDE Connect). Contacts Akonadi keeps only in its database (CardDAV, Google, EWS, Kolab) are not read, because Akonadi serves items over its own socket protocol, not D-Bus. A desktop with neither throws `FeatureNotSupportedException`. A sandbox that blocks Evolution Data Server throws `PermissionException` unless the app can read the KDE folders (a Flatpak needs read access to `~/.config/akonadi/agentsrc`, the resources' `~/.config/akonadi_*_resource_*rc` files and their folders, e.g. `--filesystem=xdg-config/akonadi:ro --filesystem=xdg-data/contacts:ro`; the rc files are only needed for a resource whose path is not the default). Phone and e-mail types are read but not carried, since MAUI's `ContactPhone` and `ContactEmail` have no type.
 - **Camera capture** shows OpenMaui's own capture dialog over the app window, where Windows opens its Camera app. Videos are MP4 (H.264 and AAC) when GStreamer has those encoders, and WebM otherwise. A sandboxed app reaches the camera through the xdg-desktop-portal Camera interface.
 - **Motion and environment sensors** read the kernel's IIO devices, so they are supported only on machines with the hardware: convertibles, tablets and phones.
@@ -74,7 +76,7 @@ No open findings. Where Linux still differs from Windows:
   - A handler added after the view was created gets app-origin requests only. WebKit fixes a view's network when the view is created.
   - When a server's TLS certificate does not verify, the load fails as a network error. WebKit's `load-failed-with-tls-errors` is not raised for it, so the app cannot allow that certificate.
   - Requests the app leaves alone use the proxy settings from the `http_proxy`/`https_proxy`/`no_proxy` environment variables (.NET's default). They do not use the desktop's (GNOME) proxy settings. WebSocket tunnels connect directly.
-  - (MAUI 10.0.130's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
+  - (MAUI 10.0.110's `WebView` has no `WebResourceRequested`; the `PlatformWebViewWebResourceRequestedEventArgs` findings belong to HybridWebView.)
 - **Items views:** CollectionView's `IsGrouped`, `CanReorderItems` (a touch drag waits for a press-and-hold, as on Windows), `ItemsUpdatingScrollMode` and horizontal grids; CarouselView's `EmptyView`, scroll bars, `Loop`, vertical layout, `IsBounceEnabled`, snap points and per-side `PeekAreaInsets`; and ListView's in-place updates are covered. What is left:
   - The touch press-and-hold works only where the backend reports touch as touch. The Wayland backend does (`wl_touch`), and so does the X11 backend when the X server has XInput 2.2 (it selects XI2 touch events; an older server, or `OPENMAUI_X11_NO_XI2=1`, gives emulated mouse events again). The GTK host window passes no source device, so under GTK a touch reorder still starts as soon as the finger moves.
   - A touch reorder starts on the first move after the hold. Windows also lifts the item the moment the hold ends, before any move.

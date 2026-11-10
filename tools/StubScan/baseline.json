@@ -16,10 +16,10 @@
     "CommunityToolkit.Maui": "15.0.1",
     "CommunityToolkit.Maui.Core": "15.0.1",
     "CommunityToolkit.Maui.MediaElement": "10.0.0",
-    "Microsoft.Maui.Controls.Core": "10.0.130",
-    "Microsoft.Maui.Controls.Xaml": "10.0.130",
-    "Microsoft.Maui.Core": "10.0.130",
-    "Microsoft.Maui.Essentials": "10.0.130",
+    "Microsoft.Maui.Controls.Core": "11.0.0",
+    "Microsoft.Maui.Controls.Xaml": "11.0.0",
+    "Microsoft.Maui.Core": "11.0.0",
+    "Microsoft.Maui.Essentials": "11.0.0",
     "Syncfusion.Maui.Buttons": "34.2.9",
     "Syncfusion.Maui.Calendar": "34.2.8",
     "Syncfusion.Maui.Cards": "34.2.9",
@@ -819,7 +819,7 @@
       "by": "Handlers/GestureManager.cs,Services/DragDropService.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Platform.ModalNavigationManager::get_IsModalPlatformReady()",
+      "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Platform.ModalNavigationManager::get_IsModalPlatformReadyCore()",
       "status": "covered",
       "reason": "Modal pages stacked by WindowContext from Window.ModalPushed/ModalPopped",
       "by": "WindowContext.cs"
@@ -872,10 +872,10 @@
       "by": "Handlers/EllipseHandler.cs,Handlers/PolygonHandler.cs,Handlers/RectangleHandler.cs,Handlers/PolylineHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Shapes.Shape::TransformPathForBounds(Microsoft.Maui.Graphics.PathF,Microsoft.Maui.Graphics.Rect,Double)",
+      "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Shapes.Shape::TransformPathForBounds(Microsoft.Maui.Graphics.PathF,Microsoft.Maui.Graphics.Rect)",
       "status": "covered",
-      "reason": "The Aspect transform and stroke inset (none without a Stroke, MAUI 10.0.130) are applied by SkiaShapeView.AspectTransform",
-      "by": "Views/SkiaShapeView.cs,Handlers/EllipseHandler.cs,Handlers/PolygonHandler.cs,Handlers/RectangleHandler.cs,Handlers/PolylineHandler.cs"
+      "reason": "StrokeDashArray and path bounds handled by the Linux shape handlers",
+      "by": "Handlers/EllipseHandler.cs,Handlers/PolygonHandler.cs,Handlers/RectangleHandler.cs,Handlers/PolylineHandler.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.TabbedPage::MapBarBackground(Microsoft.Maui.Handlers.ITabbedViewHandler,Microsoft.Maui.Controls.TabbedPage)",
@@ -1005,31 +1005,7 @@
       "by": "Handlers/BoxViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::AreClose",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::CarouselScrolled",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::CenterCarouselItem",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ClearCollectionCurrentItemOverride",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::CompleteCollectionCurrentItemOverrideScroll",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1059,19 +1035,7 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::DetachScrollViewer",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::DisconnectHandler",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::DisposeCollectionCurrentItemOverrideRetryTimer",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1084,12 +1048,6 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetCollectionView",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetItemAtPosition",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1125,12 +1083,6 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetItemsSourceCount",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::GetWindowsSnapPointsAlignment",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
@@ -1155,25 +1107,7 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::IsCollectionCurrentItemOverrideVisible",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::IsValidPosition",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnCollectionCurrentItemOverrideItemsChanged",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnCollectionCurrentItemOverrideRetryTimerTick",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1215,61 +1149,7 @@
       "by": "Handlers/CarouselViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnScrollViewerPointerPressed",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnScrollViewerPointerReleased",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::OnUserScrollStarting",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::QueueCenterCarouselItem",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::QueueCollectionCurrentItemOverrideScroll",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::QueueCollectionCurrentItemOverrideScrollCore",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ResetRecenteringState",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ResetScrollState",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::Resize",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ScheduleCollectionCurrentItemOverrideRetry",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1294,42 +1174,6 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::SetCarouselViewPosition",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::SetPositionFromScroll",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::ShouldCenterCarouselItem",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::StopCollectionCurrentItemOverrideRetryTimer",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::StopWaitingForCollectionCurrentItemOverride",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::TryGetClosestVisibleItem",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CarouselViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.CarouselViewHandler::TrySelectCandidate",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CarouselViewHandler.cs"
@@ -1521,18 +1365,6 @@
       "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.ItemsViewHandler`1::RealizeEmptyView",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.ItemsViewHandler`1::RealizeEmptyViewTemplate",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.ItemsViewHandler`1::RemoveEmptyView",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
@@ -1672,12 +1504,6 @@
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.SelectableItemsViewHandler`1::DisconnectHandler",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
-      "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Handlers.Items.SelectableItemsViewHandler`1::PlatformSelectionChanged",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control; MAUI's neutral one is never used",
       "by": "Handlers/CollectionViewHandler.cs,Handlers/ItemsViewHandler.cs"
@@ -1919,6 +1745,12 @@
       "by": "Handlers/GestureManager.cs,Services/DragDropService.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::ContentPanelOnKeyDown",
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::GetPosition",
       "status": "covered",
       "reason": "Tap/pan/pinch/swipe/pointer/drag-drop recognizers driven by GestureManager",
@@ -1973,6 +1805,12 @@
       "by": "Handlers/GestureManager.cs,Services/DragDropService.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandleElementPropertyChanged",
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandlePan",
       "status": "covered",
       "reason": "Tap/pan/pinch/swipe/pointer/drag-drop recognizers driven by GestureManager",
@@ -2001,6 +1839,12 @@
       "status": "covered",
       "reason": "Tap/pan/pinch/swipe/pointer/drag-drop recognizers driven by GestureManager",
       "by": "Handlers/GestureManager.cs,Services/DragDropService.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandleTapGestureRecognizerPropertyChanged",
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::HandleTapped",
@@ -2133,6 +1977,12 @@
       "status": "covered",
       "reason": "Tap/pan/pinch/swipe/pointer/drag-drop recognizers driven by GestureManager",
       "by": "Handlers/GestureManager.cs,Services/DragDropService.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::UpdateContentPanelIsTapStop",
+      "status": "covered",
+      "reason": "Keyboard activation of a tappable Border: a single-tap primary TapGestureRecognizer on an enabled, hit-testable Border makes it a tab stop with the system focus visual; Enter or Space (no modifier, not repeated) raises its taps at Point.Zero",
+      "by": "Views/SkiaBorder.Keyboard.cs,Handlers/BorderHandler.cs,Handlers/GestureManager.cs,WindowContext.TabNavigation.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Platform.GesturePlatformManager::UpdateDragAndDropGestureRecognizers",
@@ -2428,11 +2278,6 @@
       "by": "Handlers/TabbedPageHandler.cs,Views/SkiaTabbedPage.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.TabbedPage::OwnsNavigationViewItems",
-      "status": "covered",
-      "by": "Handlers/TabbedPageHandler.cs,Views/SkiaTabbedPage.cs"
-    },
-    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.TabbedPage::SetupNavigationView",
       "status": "covered",
       "by": "Handlers/TabbedPageHandler.cs,Views/SkiaTabbedPage.cs"
@@ -2468,9 +2313,10 @@
       "by": "Handlers/WindowHandler.cs,WindowContext.Chrome.cs,Rendering/SkiaRenderingEngine.cs,Window/WaylandWindow.Decoration.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::FindToolbarItemButton",
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::MapBackButtonAccessibilityLabel",
       "status": "covered",
-      "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaPage.NavigationBar.cs,Views/SkiaNavigationPage.cs"
+      "reason": "The back button's accessible name (NavigationPage.BackButtonAccessibilityLabel, Shell's BackButtonBehavior.AccessibilityLabel; \"Back\" by default) on the drawn back arrow's accessible button",
+      "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaNavigationPage.cs,Views/SkiaShell.BackButton.cs,Views/DrawnButtonAccessible.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::MapBackButtonEnabled",
@@ -2552,15 +2398,16 @@
       "reason": "Windows platform-specifics / WinUI CommandBar plumbing"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::UpdateInfoBadge",
+      "status": "covered",
+      "reason": "ToolbarItem badges drawn as Windows' InfoBadge (a number, or a dot for empty or non-numeric text) in the badge colours, following changes",
+      "by": "Views/ToolbarBadge.cs,Views/SkiaShell.Toolbar.cs,Views/SkiaPage.cs,Handlers/NavigationPageHandler.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::UpdateMenu",
       "status": "covered",
       "reason": "Title, bar colours and toolbar items (primary and secondary) drawn by the Linux navigation bar",
       "by": "Handlers/NavigationPageHandler.cs,Views/SkiaShell.Toolbar.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::UpdateToolbarItemIcon",
-      "status": "covered",
-      "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaPage.NavigationBar.cs,Views/SkiaNavigationPage.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::get_NavigationRootManager",
@@ -2634,11 +2481,6 @@
     },
     {
       "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.ApplicationModel.AppInfoImplementation::get_Name()",
-      "status": "covered",
-      "by": "Services/EssentialsPatches.cs,Services/AppInfoService.cs"
-    },
-    {
-      "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.ApplicationModel.AppInfoImplementation::get_PackageName()",
       "status": "covered",
       "by": "Services/EssentialsPatches.cs,Services/AppInfoService.cs"
     },
@@ -2786,6 +2628,28 @@
       "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.ApplicationModel.Permissions+BasePlatformPermission::EnsureDeclared()",
       "status": "covered",
       "by": "Services/EssentialsPatches.cs,Services/PermissionsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.PasskeysImplementation::AssertAsync(Microsoft.Maui.Authentication.PasskeyRequestOptions,System.Threading.CancellationToken)",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.PasskeysImplementation::CreateAsync(Microsoft.Maui.Authentication.PasskeyCreationOptions,System.Threading.CancellationToken)",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::AuthenticateAsync(Microsoft.Maui.Authentication.WebAuthenticatorOptions)",
+      "status": "covered",
+      "reason": "Loopback-redirect OAuth flow in the system browser (both overloads)",
+      "by": "Services/EssentialsPatches.cs,Services/WebAuthenticatorService.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::AuthenticateAsync(Microsoft.Maui.Authentication.WebAuthenticatorOptions,System.Threading.CancellationToken)",
+      "status": "covered",
+      "reason": "Loopback-redirect OAuth flow in the system browser (both overloads)",
+      "by": "Services/EssentialsPatches.cs,Services/WebAuthenticatorService.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Devices.BatteryImplementation::StartBatteryListeners()",
@@ -3228,6 +3092,12 @@
       "by": "Services/EssentialsPatches.cs,Services/SecureStorageService.cs"
     },
     {
+      "id": "Microsoft.Maui.Essentials|stub|Microsoft.Maui.Storage.SecureStorageImplementation::get_UsesFileSystemAppDataDirectory()",
+      "status": "covered",
+      "reason": "SecureStorage.Default is the Linux SecureStorageService, which keeps its own store; the Windows unpackaged file-store setup does not apply",
+      "by": "Services/EssentialsPatches.cs,Services/SecureStorageService.cs"
+    },
+    {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Accessibility.SemanticScreenReaderImplementation::FindAutomationPeer",
       "status": "covered",
       "by": "Services/EssentialsPatches.cs,Services/SemanticScreenReaderService.cs"
@@ -3381,6 +3251,176 @@
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.ApplicationModel.Permissions::IsCapabilityDeclared",
       "status": "not-applicable",
       "reason": "Checks the Windows appxmanifest capabilities; Linux has no capability manifest"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::BuildAssertionResponseJson",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::BuildClientDataJson",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::BuildRegistrationResponseJson",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::Deserialize`1",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::EnsureSupported",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::GetAssertion",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::GetHwnd",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MakeCredential",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapAttestation",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapAuthenticatorAttachment",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapCoseParameters",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapCredentialIds",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapResidentKey",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.PasskeysImplementation::MapUserVerification",
+      "status": "covered",
+      "by": "Services/Passkeys/PasskeysService.cs,Services/Passkeys/LibFido2Transport.cs,Services/Passkeys/WebAuthnMessages.cs,Services/Passkeys/PasskeyPrompt.cs,Services/EssentialsPatches.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorExtensions::OnAppInstanceActivated",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::CanRegisterCallbackRoute",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::CreateCallbackRouteException",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::CreateCallbackRouteKey",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::FindCallbackRouteOwner",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsRegistryCommandOwnedByCurrentExecutable",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsRegistryDeclared",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsSameCallbackRoute",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::IsUriProtocolDeclared",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::RedirectActivationAndExit",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::RedirectActivationAndExitAsync",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::RegisterCallbackRoute",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TerminateCurrentProcess",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryBringToForeground",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs,Window/X11Window.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetActiveAppWindow",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs,Window/X11Window.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetApplicationIdFromAppUserModelId",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetCommandExecutable",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryGetCurrentApplicationId",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::TryHandleBuiltInActivation",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Authentication.WebAuthenticatorImplementation::ValidateCallbackUrl",
+      "status": "covered",
+      "by": "Services/WebAuthenticatorService.cs,Services/WebAuthenticatorCallbackRoute.cs,Services/UriSchemeRegistration.cs,LinuxApplication.Lifecycle.cs"
     },
     {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Devices.BatteryImplementation::ReportEnergySaverUpdated",
@@ -3583,6 +3623,12 @@
       "reason": "Extension overloads taking WinUI Window/UIElement; Linux ScreenshotService captures the Skia window"
     },
     {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Media.ScreenshotImplementation::CaptureViewAsync",
+      "status": "covered",
+      "reason": "ScreenshotService is the IViewScreenshot MAUI 11 resolves for VisualElement/Window.CaptureAsync; it draws the Skia view or window off-screen",
+      "by": "Services/ScreenshotService.cs"
+    },
+    {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Media.ScreenshotResult::EncodeAsync",
       "status": "covered",
       "by": "Services/EssentialsPatches.cs,Services/ScreenshotService.cs"
@@ -3623,6 +3669,11 @@
       "by": "Services/EssentialsPatches.cs,Services/FileSystemService.cs"
     },
     {
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Storage.FileSystemImplementation::GetDefaultAppDataDirectory",
+      "status": "covered",
+      "by": "Services/EssentialsPatches.cs,Services/FileSystemService.cs"
+    },
+    {
       "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Storage.FileSystemImplementation::get_AppSpecificPath",
       "status": "covered",
       "by": "Services/EssentialsPatches.cs,Services/FileSystemService.cs"
@@ -3643,8 +3694,9 @@
       "reason": "Resolves files in the Windows app package (MSIX); Linux FileSystemService resolves packaged files from the app directory"
     },
     {
-      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Storage.SecureStorageImplementation::.cctor",
+      "id": "Microsoft.Maui.Essentials|windows-only|Microsoft.Maui.Storage.SecureStorageImplementation::InitializePlatform",
       "status": "covered",
+      "reason": "SecureStorage.Default is the Linux SecureStorageService, which keeps its own store; the Windows unpackaged file-store setup does not apply",
       "by": "Services/EssentialsPatches.cs,Services/SecureStorageService.cs"
     },
     {
@@ -4032,6 +4084,24 @@
     },
     {
       "id": "Microsoft.Maui|stub|Microsoft.Maui.Handlers.FlyoutViewHandler::CreatePlatformView()",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/FlyoutPageHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|stub|Microsoft.Maui.Handlers.FlyoutViewHandler::MapFlyoutBehavior(Microsoft.Maui.Handlers.IFlyoutViewHandler,Microsoft.Maui.IFlyoutView)",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/FlyoutPageHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|stub|Microsoft.Maui.Handlers.FlyoutViewHandler::MapFlyoutWidth(Microsoft.Maui.Handlers.IFlyoutViewHandler,Microsoft.Maui.IFlyoutView)",
+      "status": "covered",
+      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
+      "by": "Handlers/FlyoutPageHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|stub|Microsoft.Maui.Handlers.FlyoutViewHandler::MapIsPresented(Microsoft.Maui.Handlers.IFlyoutViewHandler,Microsoft.Maui.IFlyoutView)",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/FlyoutPageHandler.cs"
@@ -4960,6 +5030,18 @@
       "by": "Handlers/WindowOverlayPatches.cs,WindowContext.Chrome.cs,Rendering/SkiaRenderingEngine.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Animations.PlatformTicker::Dispose",
+      "status": "covered",
+      "reason": "LinuxTicker replaces the ITicker",
+      "by": "Hosting/LinuxTicker.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Animations.PlatformTicker::OnAnimationsEnabledChanged",
+      "status": "covered",
+      "reason": "LinuxTicker.SystemEnabled follows the desktop's animations setting while the app runs (xdg-desktop-portal Settings: reduced-motion, GNOME enable-animations, KDE AnimationDurationFactor, through SettingChanged), with OPENMAUI_REDUCE_MOTION winning",
+      "by": "Services/SystemAnimationsSetting.cs,Hosting/LinuxTicker.cs"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Animations.PlatformTicker::RenderingFrameEventHandler",
       "status": "covered",
       "reason": "LinuxTicker replaces the ITicker",
@@ -5113,24 +5195,6 @@
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/ActivityIndicatorHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::MapInvalidateMeasure",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/BorderHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::OnDisconnectHandler",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/BorderHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::ReparentContent",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/BorderHandler.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.BorderHandler::SetVirtualView",
@@ -5392,24 +5456,6 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.FlyoutViewHandler::DisconnectHandler",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/FlyoutPageHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.FlyoutViewHandler::MapFlyoutBehavior",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/FlyoutPageHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.FlyoutViewHandler::MapFlyoutWidth",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/FlyoutPageHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.FlyoutViewHandler::MapIsPresented",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/FlyoutPageHandler.cs"
@@ -6037,12 +6083,6 @@
       "by": "Handlers/RefreshViewHandler.cs"
     },
     {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::BeginTemporaryTabStop",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::ConnectHandler",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
@@ -6086,42 +6126,6 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnContentPanelSizeChanged",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnPlatformViewLoaded",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnPlatformViewLoading",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::OnPlatformViewUnloaded",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::QueueTemporaryTabStopRestore",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::ResetTemporaryTabStop",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/ScrollViewHandler.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ScrollViewHandler::RestoreIsTabStop",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/ScrollViewHandler.cs"
@@ -6265,10 +6269,34 @@
       "by": "Handlers/StepperHandler.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::BeginIconLoad",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::CanCreateTintedIconSource",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ClearFontIconLoad",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ConnectHandler",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/SwipeViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::CreateTintedIconSource",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::DisconnectHandler",
@@ -6277,16 +6305,58 @@
       "by": "Handlers/SwipeViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::GetIconSourceManager",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::GetParentSwipeView",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/SwipeViewHandler.cs"
     },
     {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::IsFontIconLoadCurrent",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::IsIconLoadCurrent",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::LoadIconAsync",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::OnSwipeItemInvoked",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/SwipeViewHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::ResetFontIconLoad",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::SetFontIconLoad",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeItemMenuItemHandler::UpdateIconColorPlatform",
+      "status": "covered",
+      "reason": "SwipeItem icons: SwipeItemMenuItemHandler loads any IconImageSource through its image-source service (with cancellation and release, as Windows' generation and result manager), tints it as Windows does (IconColor, glyph colour, text colour for font icons; IconColor for the app's file icons) and SkiaSwipeView draws the icon above the text",
+      "by": "Handlers/SwipeItemMenuItemHandler.cs,Views/SkiaSwipeView.cs,Views/SkiaSwipeItem.cs"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.SwipeViewHandler::CanAddSwipeItems",
@@ -6438,11 +6508,6 @@
       "by": "Handlers/LinuxViewHandler.cs,Handlers/LinuxViewMappers.cs"
     },
     {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::MapInputTransparentToContainer",
-      "status": "not-applicable",
-      "reason": "MAUI's ContainerView/WrapperView mechanism on Windows; Skia views apply Clip, Shadow and InputTransparent while drawing and hit-testing, without a wrapper"
-    },
-    {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::MapToolbar",
       "status": "covered",
       "by": "Handlers/NavigationPageHandler.cs"
@@ -6464,11 +6529,6 @@
       "status": "covered",
       "reason": "Every Linux handler derives from LinuxViewHandler (frame, container, focus, base view mappings)",
       "by": "Handlers/LinuxViewHandler.cs,Handlers/LinuxViewMappers.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::ReconnectContainer",
-      "status": "not-applicable",
-      "reason": "MAUI's ContainerView/WrapperView mechanism on Windows; Skia views apply Clip, Shadow and InputTransparent while drawing and hit-testing, without a wrapper"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.ViewHandler::UpdateIsFocused",
@@ -6543,12 +6603,6 @@
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.WebViewHandler::OnNavigationStarting",
-      "status": "covered",
-      "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
-      "by": "Handlers/LinuxWebViewHandler.cs,Views/SkiaWebView.cs"
-    },
-    {
-      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Handlers.WebViewHandler::ProcessCoreWebView2Initialized",
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/LinuxWebViewHandler.cs,Views/SkiaWebView.cs"
@@ -6680,6 +6734,61 @@
       "status": "covered",
       "reason": "OpenMaui registers its own handler for this control (Hosting/LinuxMauiAppBuilderExtensions.cs); MAUI's neutral one is never used",
       "by": "Handlers/WindowHandler.cs"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::CaptureDirectUnownedMapServiceToken",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::CaptureGeocodingDefaultForMapServiceToken",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::CleanupMapServiceToken",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::FindMapTokenImplementationState",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::FindMapTokenOwner",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::IsFacadeBridgeOwnedGeocoding",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::ReconcileMapServiceToken",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::ReleaseMapTokenImplementationState",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::RemoveMapTokenAssignmentLocked",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::RestoreWindowsMapServiceTokenLocked",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
+    },
+    {
+      "id": "Microsoft.Maui|windows-only|Microsoft.Maui.Hosting.EssentialsExtensions+EssentialsInitializer::TrackAndSetMapServiceToken",
+      "status": "not-applicable",
+      "reason": "Bing Maps service token for the Windows geocoder and map launcher; not used on Linux (Geocoding uses a Nominatim service)"
     },
     {
       "id": "Microsoft.Maui|windows-only|Microsoft.Maui.LifecycleEvents.AppHostBuilderExtensions::OnConfigureLifeCycle",
@@ -8898,110 +9007,110 @@
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::DisconnectHandler",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::GetScrollBarElements",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::OnHorizontalScrollBar_Scroll",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::OnVerticalScrollBar_Scroll",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::PlatformView_ViewChanged",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::ScrollView_ManipulationCompleted",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::ScrollView_ManipulationDelta",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::ScrollView_ManipulationStarting",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::ScrollView_PointerWheelChanged",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::SetProperties",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::SetScrollState",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::SetVirtualView",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::UnWirePlatformEvents",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::UnWireScrollBarEvents",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::WirePlatformEvents",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::WireScrollBarEvents",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::WireScrollBars",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.DataGridScrollViewHandler::get_ScrollView",
       "status": "covered",
-      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs",
-      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations"
+      "reason": "scroll state (Fling on wheel and scroll-bar scrolling, Idle when it stops) and the in-drag check; the Windows handler ignores mouse manipulations",
+      "by": "Syncfusion/Handlers/SfDataGridScrollViewBridgeHandler.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|windows-only|Syncfusion.Maui.Core.Hosting.SfMediaElementHandler::ConnectHandler",

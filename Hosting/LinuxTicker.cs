@@ -38,9 +38,10 @@ internal interface ITickerClock
 /// Semantics match <see cref="Ticker"/>: <see cref="Start"/> is idempotent,
 /// <see cref="Stop"/> tears the source down, <see cref="IsRunning"/> reflects
 /// whether a source is installed, and <see cref="SystemEnabled"/> is false when
-/// the desktop asks for reduced motion (<c>OPENMAUI_REDUCE_MOTION=1</c>, or
-/// GNOME's <c>enable-animations</c> setting turned off), in which case the
-/// animation manager completes animations immediately instead of tweening.
+/// the desktop asks for reduced motion (<c>OPENMAUI_REDUCE_MOTION=1</c>, or the
+/// desktop's animations setting turned off, followed while the app runs through
+/// <see cref="SystemAnimationsSetting"/>), in which case the animation manager
+/// completes animations immediately instead of tweening.
 /// </summary>
 internal class LinuxTicker : ITicker, ITickerClock
 {
@@ -50,9 +51,9 @@ internal class LinuxTicker : ITicker, ITickerClock
 
     private static readonly List<LinuxTicker> s_pumped = new();
     private static readonly Lock s_pumpedLock = new();
-    private static readonly Lazy<bool> s_systemEnabled = new(ProbeSystemEnabled);
 
     private readonly Func<double> _now;
+    private readonly SystemAnimationsSetting? _setting;
     private readonly Lock _lock = new();
 
     private int _maxFps = DefaultFps;
@@ -66,8 +67,12 @@ internal class LinuxTicker : ITicker, ITickerClock
     /// <inheritdoc />
     public bool IsRunning => _isRunning;
 
-    /// <inheritdoc />
-    public bool SystemEnabled => s_systemEnabled.Value;
+    /// <summary>
+    /// False when the desktop or <c>OPENMAUI_REDUCE_MOTION</c> asks for reduced motion. It
+    /// follows the desktop setting while the app runs (<see cref="SystemAnimationsSetting"/>),
+    /// as MAUI's Windows ticker follows UISettings.AnimationsEnabledChanged.
+    /// </summary>
+    public bool SystemEnabled => (_setting ?? SystemAnimationsSetting.Current).Enabled;
 
     /// <inheritdoc />
     public int MaxFps
@@ -116,9 +121,10 @@ internal class LinuxTicker : ITicker, ITickerClock
     /// (milliseconds, monotonic) instead of a stopwatch; lets tests pump frames
     /// against a fake clock.
     /// </summary>
-    internal LinuxTicker(Func<double> clock)
+    internal LinuxTicker(Func<double> clock, SystemAnimationsSetting? setting = null)
     {
         _now = clock ?? throw new ArgumentNullException(nameof(clock));
+        _setting = setting;
     }
 
     /// <inheritdoc />
@@ -266,52 +272,5 @@ internal class LinuxTicker : ITicker, ITickerClock
         // Stop() or a MaxFps change during Fire retired this source: let GLib
         // drop it now that the dispatch is over.
         return _isRunning && generation == _glibGeneration;
-    }
-
-    /// <summary>
-    /// Reduce-motion probe, evaluated once per process. <c>OPENMAUI_REDUCE_MOTION</c>
-    /// wins outright; otherwise GNOME's <c>org.gnome.desktop.interface
-    /// enable-animations</c> is consulted on GNOME desktops. Every other
-    /// desktop (and any probe failure) leaves animations enabled.
-    /// </summary>
-    private static bool ProbeSystemEnabled()
-    {
-        var env = Environment.GetEnvironmentVariable("OPENMAUI_REDUCE_MOTION");
-        if (!string.IsNullOrWhiteSpace(env))
-        {
-            var v = env.Trim().ToLowerInvariant();
-            if (v is "1" or "true" or "yes" or "on")
-                return false;
-            if (v is "0" or "false" or "no" or "off")
-                return true;
-        }
-
-        try
-        {
-            var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "";
-            if (!desktop.Contains("gnome", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            using var process = new Process();
-            process.StartInfo = new ProcessStartInfo
-            {
-                FileName = "gsettings",
-                Arguments = "get org.gnome.desktop.interface enable-animations",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            if (!process.WaitForExit(1000))
-                return true;
-
-            return !string.Equals(output.Trim(), "false", StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return true;
-        }
     }
 }

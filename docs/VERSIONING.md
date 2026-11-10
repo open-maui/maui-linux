@@ -62,8 +62,9 @@ Each packable library project sets `<EnablePackageValidation>true</EnablePackage
 
 | Line | .NET | MAUI | SkiaSharp | Status |
 |------|------|------|-----------|--------|
-| `10.0.130.x` | 10 (`net10.0`) | 10.0.130 | 4.152.1 | Current: fixes and features |
-| `10.0.120.x` | 10 (`net10.0`) | 10.0.120 | 4.152.1 | Previous: critical fixes until the next MAUI minor line ships |
+| `11.0.0.x` | 11 (`net11.0`) | 11.0.0 | 4.152.1 | Current: fixes and features (`main`) |
+| `10.0.130.x` | 10 (`net10.0`) | 10.0.130 | 4.152.1 | Previous: the line for .NET 10 apps, critical fixes (`dotNet10` branch) |
+| `10.0.120.x` | 10 (`net10.0`) | 10.0.120 | 4.152.1 | Unsupported; upgrade within the 10.0 family |
 | `10.0.110.x` | 10 (`net10.0`) | 10.0.110 | 4.152.1 | Unsupported; upgrade within the 10.0 family |
 | `10.0.101.x` | 10 (`net10.0`) | 10.0.101 | 4.152.1 | Unsupported; upgrade within the 10.0 family |
 | `10.0.90.x` and older 10.0 lines | 10 | 10.0.90 and older | 3.x (10.0.41 to 10.0.90) | Unsupported; upgrade within the 10.0 family |

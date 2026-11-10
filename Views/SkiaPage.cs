@@ -559,6 +559,7 @@ public class SkiaContentPage : SkiaPage
                 var iconY = navBarBounds.MidY - iconSize / 2;
                 var destRect = new SKRect(iconX, iconY, iconX + iconSize, iconY + iconSize);
                 canvas.DrawBitmap(item.Icon, destRect);
+                item.BadgeBounds = ToolbarBadge.Draw(canvas, destRect, item.BadgeText, item.BadgeColor, item.BadgeTextColor);
 
                 DiagnosticLog.Debug("SkiaContentPage", $"Drew toolbar icon '{item.Text}' at ({iconX}, {iconY})");
             }
@@ -577,6 +578,9 @@ public class SkiaContentPage : SkiaPage
                 var x = itemLeft + 12;
                 var y = TextRenderingHelper.BaselineForVerticalCenter(font, navBarBounds.MidY);
                 canvas.DrawText(item.Text, x, y, font, textPaint);
+                var metrics = font.Metrics;
+                var textRect = new SKRect(x, y + metrics.Ascent, x + font.MeasureText(item.Text), y + metrics.Descent);
+                item.BadgeBounds = ToolbarBadge.Draw(canvas, textRect, item.BadgeText, item.BadgeColor, item.BadgeTextColor);
             }
 
             DiagnosticLog.Debug("SkiaContentPage", $"Toolbar item '{item.Text}' HitBounds set to {item.HitBounds}");
@@ -623,6 +627,21 @@ public class SkiaToolbarItem
     public SkiaToolbarItemOrder Order { get; set; } = SkiaToolbarItemOrder.Primary;
     public System.Windows.Input.ICommand? Command { get; set; }
     public SKRect HitBounds { get; set; }
+
+    /// <summary>
+    /// The badge over the item (ToolbarItem.BadgeText): a whole number shows the number, empty
+    /// or other text a dot, null no badge, as on Windows.
+    /// </summary>
+    public string? BadgeText { get; set; }
+
+    /// <summary>The badge's colour (ToolbarItem.BadgeColor); null for the accent colour.</summary>
+    public Color? BadgeColor { get; set; }
+
+    /// <summary>The colour of the badge's number (ToolbarItem.BadgeTextColor); null for the default.</summary>
+    public Color? BadgeTextColor { get; set; }
+
+    /// <summary>Where the last frame drew the badge (empty when none).</summary>
+    public SKRect BadgeBounds { get; internal set; }
 }
 
 /// <summary>

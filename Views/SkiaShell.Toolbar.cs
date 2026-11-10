@@ -15,8 +15,9 @@ namespace Microsoft.Maui.Platform;
 /// The presented page's ToolbarItems in the navigation bar, as MAUI's Shell shows them on the
 /// other platforms: primary items at the right end (the icon, or the text when there is none),
 /// secondary items behind a "more" button, a disabled item dimmed. A click activates the item
-/// (its Clicked event and Command). Items, icons (an AppThemeBinding) and IsEnabled are followed
-/// as they change.
+/// (its Clicked event and Command). A primary item's badge (BadgeText, BadgeColor, BadgeTextColor)
+/// is drawn over it as Windows' InfoBadge. Items, icons (an AppThemeBinding), IsEnabled and badges
+/// are followed as they change.
 /// </summary>
 public partial class SkiaShell
 {
@@ -79,6 +80,7 @@ public partial class SkiaShell
         // popped page stayed reachable from the shell until the bar was drawn again (never,
         // once its window had closed). The next draw rebuilds them.
         _toolbarHits.Clear();
+        _toolbarBadges.Clear();
         _toolbarMoreHit = SKRect.Empty;
         if (_toolbarPage != null)
             _toolbarItems.AddRange(_toolbarPage.ToolbarItems);
@@ -97,7 +99,8 @@ public partial class SkiaShell
     private void OnToolbarItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ToolbarItem.IconImageSource) or nameof(ToolbarItem.Text)
-            or nameof(ToolbarItem.IsEnabled) or nameof(ToolbarItem.Order))
+            or nameof(ToolbarItem.IsEnabled) or nameof(ToolbarItem.Order)
+            or nameof(ToolbarItem.BadgeText) or nameof(ToolbarItem.BadgeColor) or nameof(ToolbarItem.BadgeTextColor))
             Invalidate();
     }
 
@@ -154,6 +157,7 @@ public partial class SkiaShell
     private float DrawToolbarItems(SKCanvas canvas, SKRect bar)
     {
         _toolbarHits.Clear();
+        _toolbarBadges.Clear();
         _toolbarMoreHit = SKRect.Empty;
         float right = bar.Right - 8;
         if (_toolbarItems.Count == 0)
@@ -195,6 +199,7 @@ public partial class SkiaShell
                 iconPaint.Color = new SKColor(255, 255, 255, alpha);
                 using var image = SKImage.FromBitmap(icon);
                 canvas.DrawImage(image, dest, sampling, iconPaint);
+                DrawToolbarBadge(canvas, item, dest);
                 _toolbarHits.Add((item, hit));
             }
             else
@@ -203,13 +208,29 @@ public partial class SkiaShell
                 width = font.MeasureText(text) + ToolbarItemPadding * 2;
                 var hit = new SKRect(right - width, bar.Top, right, bar.Bottom);
                 textPaint.Color = _navBarTextColorSK.WithAlpha(alpha);
-                canvas.DrawText(text, hit.Left + ToolbarItemPadding,
-                    TextRenderingHelper.BaselineForVerticalCenter(font, hit.MidY), SKTextAlign.Left, font, textPaint);
+                float baseline = TextRenderingHelper.BaselineForVerticalCenter(font, hit.MidY);
+                canvas.DrawText(text, hit.Left + ToolbarItemPadding, baseline, SKTextAlign.Left, font, textPaint);
+                var metrics = font.Metrics;
+                DrawToolbarBadge(canvas, item, new SKRect(hit.Left + ToolbarItemPadding, baseline + metrics.Ascent,
+                    hit.Right - ToolbarItemPadding, baseline + metrics.Descent));
                 _toolbarHits.Add((item, hit));
             }
             right -= width;
         }
         return right;
+    }
+
+    private readonly Dictionary<ToolbarItem, SKRect> _toolbarBadges = new();
+
+    /// <summary>Where the last frame drew each item's badge (tests).</summary>
+    internal IReadOnlyDictionary<ToolbarItem, SKRect> ToolbarBadgeAreas => _toolbarBadges;
+
+    /// <summary>The item's badge over its icon or text (ToolbarItem.BadgeText), as Windows shows it.</summary>
+    private void DrawToolbarBadge(SKCanvas canvas, ToolbarItem item, SKRect content)
+    {
+        var drawn = ToolbarBadge.Draw(canvas, content, item.BadgeText, item.BadgeColor, item.BadgeTextColor);
+        if (!drawn.IsEmpty)
+            _toolbarBadges[item] = drawn;
     }
 
     /// <summary>A press on a toolbar item activates it; true when the press was on one.</summary>

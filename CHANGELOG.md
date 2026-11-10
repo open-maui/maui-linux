@@ -2,7 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
-Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
+Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10, OpenMaui 11.0.x targets .NET 11 / MAUI 11).
+
+## [11.0.0.1] - unreleased
+
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0` (built from dotnet/maui tag 11.0.0) and the .NET 11 SDK (`11.0.100`). Everything in 10.0.130.1 is included, apart from its MAUI 10 moves (this line is on MAUI 11) and the shape stroke inset that follows MAUI 10.0.130, which MAUI 11.0.0 does not have (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
+
+### Changed
+
+- **Target framework `net11.0` and MAUI 11**: every package, the project templates (`dotnet new openmaui-linux`, `openmaui-linux-xaml`) and the Visual Studio template target `net11.0` and reference MAUI `11.0.0`; the other Microsoft packages are on `11.0.0` too. CommunityToolkit.Maui (15.0.1), its MediaElement (10.0.0), Syncfusion (34.2.9) and the other third-party libraries have no .NET 11 builds yet and run unmodified from their .NET 10 builds.
+- **Runtime patching on .NET 11**: every Lib.Harmony release bundles a MonoMod that refuses CoreCLR 11 ("CoreCLR version 11.0.0 is not supported"), so every runtime bridge (Essentials, the Syncfusion bridge, CommunityToolkit, HybridWebView, visual-tree lookups) would have been skipped. OpenMaui now uses Harmony's Thin package (`Lib.Harmony.Thin` 2.4.3) with `MonoMod.Core` `1.4.0-prerelease.1`, which patches .NET 11 correctly. MonoMod's build-time ".NET 11 unsupported" check is kept out of apps' builds. Plain Lib.Harmony returns once a release supports .NET 11.
+- **Package validation** runs without a baseline until the first 11.x release is published (a `net11.0` package cannot be compared with the `net10.0` 10.0.110.6 baseline).
+- **The stub scan** reads each package's newest .NET build (`lib/netN.0` against `lib/netN.0-windows*`), so MAUI 11's `net11.0` and the libraries still on `net10.0` are both scanned: 2,381 findings reviewed; the MAUI 11 findings are all closed, 4 older ones remain (see `docs/STUBS.md`).
+- **WebAuthenticator**: a null `Url` or `CallbackUrl` throws `ArgumentNullException`, and a relative one `ArgumentException`, as on Windows.
+
+### Added
+
+- **dotnet/maui's MAUI 11 device tests run against OpenMaui**: the conformance suites compile dotnet/maui's tests at the tag the MAUI 11.0.0 packages were built from (`11.0.0`). `tests/Conformance/get-maui-sources.sh` fetches a commit, tag or branch (shallow, sparse, blob-less) into `~/.cache/openmaui-build/maui-src-11`. Core 1,631 passed / 91 skipped of 1,722, Controls 608 / 4 of 612, Essentials 240 / 43 of 283: no failures.
+- **Modal pages through MAUI 11's `IModalNavigationPlatform`** (`LinuxModalNavigationPlatform`, registered by `UseLinux` unless the app registers its own `IModalNavigationPlatformFactory`): a modal is on screen before `PushModalAsync` completes, as on MAUI's platforms, and an app's own modal platform is no longer overridden.
+- **Maps: `Pin.ShowInfoWindow` and `HideInfoWindow`** (MAUI 11 commands) select and deselect the pin, and a `MarkerClicked` handler that sets `HideInfoWindow` keeps the pin unselected, as on the other platforms (`LinuxMapHandler.MapShowInfoWindow`, `MapHideInfoWindow`, `SkiaMap.SelectedPin`).
+- **Keyboard activation of a tappable Border** (MAUI 11, as on Windows): a Border with a single-tap, primary-button TapGestureRecognizer that is enabled and not InputTransparent is a Tab stop with the system focus visual (for keyboard focus only), and Enter or Space (no Ctrl, Shift or Alt, not auto-repeated) raises its taps. It follows changes to the recognizers and to `IsEnabled` and `InputTransparent`.
+- **`NavigationPage.BackButtonAccessibilityLabel` and Shell's `BackButtonBehavior.AccessibilityLabel`** name the back button for screen readers: the back arrow of the NavigationPage and Shell bars is an accessible button over AT-SPI ("Back" by default, as on Windows) with a click action. A NavigationPage now exposes its current page to assistive technology.
+- **ToolbarItem badges** (`BadgeText`, `BadgeColor`, `BadgeTextColor`): the NavigationPage and Shell bars draw Windows' InfoBadge over primary items, a number in a pill or a dot for empty or non-numeric text, and follow changes.
+- **SwipeItem icons**: `IconImageSource` is shown from any image source (file, URI, stream, `FontImageSource`, an app's own service), drawn above the text as on Windows and tinted by Windows' rules (`IconColor`, then the glyph's colour, then the text colour, for font icons and the app's file icons; other images keep their colours). `SwipeItem.IconColor` (MAUI 11) is mapped, and the text colour contrasts with the background when `TextColor` is unset.
+- **Animations follow the desktop's animations setting while the app runs**, as on Windows: the ticker tracks the xdg-desktop-portal settings (`reduced-motion`, GNOME's `enable-animations`, KDE's `AnimationDurationFactor`). `OPENMAUI_REDUCE_MOTION` still wins.
+- **WebAuthenticator custom URI scheme callbacks** (`myapp://callback`), as MAUI 11 does on Windows: `AuthenticateAsync` registers the scheme with the desktop for the app (a hidden x-scheme-handler desktop entry made the default in `mimeapps.list`; `WebAuthenticatorService.RegisterCallbackScheme`, on by default; `UriSchemeRegistration.Register`, `Unregister` and `IsRegistered`). The process the browser's redirect starts hands the URI to the running instance over a Unix socket and exits. A Flatpak declares the scheme in its exported desktop file. Loopback callbacks still work.
+- **Passkeys** (MAUI 11) on FIDO2 security keys through libfido2, loaded at run time: MAUI's WebAuthn JSON, with in-app dialogs for the PIN, touching the key and choosing a key or an account. `IsSupported` is true when libfido2 is installed and a key is connected; without libfido2 the calls throw `FeatureNotSupportedException`. Linux has no platform authenticator, so `authenticatorAttachment: "platform"` fails.
+
+### Fixed
+
+- **MAUI 11's own handler registrations were taken for the app's**: MAUI 11 registers its portable handlers as factories (`AddHandler<Button>(static _ => new ButtonHandler())`) where MAUI 10 registered types, and the 10.0.110.8 handler selection counted every factory registration as one the app made. `UseLinux()` then kept MAUI's portable handlers (Button, WebView, HybridWebView, SwipeView, and the CommunityToolkit popup and Syncfusion toolbar paths behind them). A factory whose code is in a MAUI assembly is now MAUI's default, and OpenMaui's handler replaces it.
+- **`VisualElement.CaptureAsync` and `Window.CaptureAsync` returned null on MAUI 11**, which replaced the keyed capture hooks with `IScreenshot` and `IViewScreenshot`: the Linux screenshot service implements `IViewScreenshot` and `UseLinux` registers `IScreenshot`. `Screenshot.IsCaptureSupported` is true, as on the other platforms; capturing without a window still throws.
+- **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
+- **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
+- **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
 
 ## [10.0.130.1] - unreleased
 
@@ -51,7 +84,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ### Changed
 
-- **New apps are published ReadyToRun**: the `dotnet new openmaui-linux` and `openmaui-linux-xaml` templates, and the Visual Studio extension's OpenMaui Linux App template, set `PublishReadyToRun` for the Linux (plain `net10.0`) target in the app's own project, where `dotnet restore` sees it. A published app starts faster (on claude-toolkit the first frame came 1.25 s sooner) and the publish is larger (158 MB to 209 MB self-contained). Remove the property to publish IL only. The README's Distribution section explains the setting for existing apps.
+- **New apps are published ReadyToRun**: the `dotnet new openmaui-linux` and `openmaui-linux-xaml` templates, and the Visual Studio extension's OpenMaui Linux App template, set `PublishReadyToRun` for the Linux (plain `net10.0`, on this branch `net11.0`) target in the app's own project, where `dotnet restore` sees it. A published app starts faster (on claude-toolkit the first frame came 1.25 s sooner) and the publish is larger (158 MB to 209 MB self-contained). Remove the property to publish IL only. The README's Distribution section explains the setting for existing apps.
 
 ## [10.0.110.11] - 2026-10-18
 

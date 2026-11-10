@@ -44,6 +44,15 @@ public partial class LinuxApplication
     /// <param name="configure">Optional configuration action.</param>
     public static void Run(MauiApp app, string[] args, Action<LinuxApplicationOptions>? configure)
     {
+        // A WebAuthenticator callback (myapp://callback?...) the desktop started this
+        // process for: hand it to the instance waiting for it and exit, as Windows
+        // redirects the protocol activation and terminates the transient process.
+        if (WebAuthenticatorService.TryRedirectCallbackActivation(args))
+        {
+            Environment.Exit(0);
+            return;
+        }
+
         // Force X11 backend for GTK/WebKitGTK - MUST be set before any GTK code runs.
         // Skip if the user has explicitly set GDK_BACKEND (e.g. for native-Wayland testing).
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GDK_BACKEND")))

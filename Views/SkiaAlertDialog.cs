@@ -66,6 +66,9 @@ public class SkiaAlertDialog : SkiaModalDialog
     /// </summary>
     public string? Placeholder { get; set; }
 
+    /// <summary>Draws the prompt field's text as bullets (PIN and password prompts).</summary>
+    internal bool IsPassword { get; set; }
+
     /// <summary>
     /// Gets the task that completes when the dialog is dismissed.
     /// Returns true if accept was clicked, false if cancel was clicked.
@@ -143,7 +146,8 @@ public class SkiaAlertDialog : SkiaModalDialog
             float textX = _inputBounds.Left + 10;
             float baseline = TextRenderingHelper.BaselineForVerticalCenter(inputFont, _inputBounds.MidY);
             // Keep the caret (end of text) visible when the value is wider than the field.
-            float textWidth = inputFont.MeasureText(_input);
+            var shownInput = IsPassword ? new string('\u2022', _input.Length) : _input;
+            float textWidth = inputFont.MeasureText(shownInput);
             float maxWidth = _inputBounds.Width - 20;
             canvas.Save();
             canvas.ClipRect(new SKRect(_inputBounds.Left + 4, _inputBounds.Top, _inputBounds.Right - 4, _inputBounds.Bottom));
@@ -155,7 +159,7 @@ public class SkiaAlertDialog : SkiaModalDialog
             }
             else
             {
-                canvas.DrawText(_input, textX, baseline, inputFont, inputPaint);
+                canvas.DrawText(shownInput, textX, baseline, inputFont, inputPaint);
             }
             using var caretPaint = new SKPaint { Color = TitleColor, StrokeWidth = 1.5f, IsAntialias = true };
             float caretX = textX + textWidth + 1;
@@ -337,6 +341,9 @@ public class SkiaAlertDialog : SkiaModalDialog
             return;
         }
     }
+
+    /// <summary>Closes the dialog from code, completing <see cref="Result"/> with false.</summary>
+    internal void Close() => Dismiss(false);
 
     private void Dismiss(bool result)
     {
