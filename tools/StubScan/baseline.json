@@ -16,10 +16,10 @@
     "CommunityToolkit.Maui": "15.0.1",
     "CommunityToolkit.Maui.Core": "15.0.1",
     "CommunityToolkit.Maui.MediaElement": "10.0.0",
-    "Microsoft.Maui.Controls.Core": "10.0.120",
-    "Microsoft.Maui.Controls.Xaml": "10.0.120",
-    "Microsoft.Maui.Core": "10.0.120",
-    "Microsoft.Maui.Essentials": "10.0.120",
+    "Microsoft.Maui.Controls.Core": "10.0.130",
+    "Microsoft.Maui.Controls.Xaml": "10.0.130",
+    "Microsoft.Maui.Core": "10.0.130",
+    "Microsoft.Maui.Essentials": "10.0.130",
     "Syncfusion.Maui.Buttons": "34.2.9",
     "Syncfusion.Maui.Calendar": "34.2.8",
     "Syncfusion.Maui.Cards": "34.2.9",
@@ -872,10 +872,10 @@
       "by": "Handlers/EllipseHandler.cs,Handlers/PolygonHandler.cs,Handlers/RectangleHandler.cs,Handlers/PolylineHandler.cs"
     },
     {
-      "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Shapes.Shape::TransformPathForBounds(Microsoft.Maui.Graphics.PathF,Microsoft.Maui.Graphics.Rect)",
+      "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Shapes.Shape::TransformPathForBounds(Microsoft.Maui.Graphics.PathF,Microsoft.Maui.Graphics.Rect,Double)",
       "status": "covered",
-      "reason": "StrokeDashArray and path bounds handled by the Linux shape handlers",
-      "by": "Handlers/EllipseHandler.cs,Handlers/PolygonHandler.cs,Handlers/RectangleHandler.cs,Handlers/PolylineHandler.cs"
+      "reason": "The Aspect transform and stroke inset (none without a Stroke, MAUI 10.0.130) are applied by SkiaShapeView.AspectTransform",
+      "by": "Views/SkiaShapeView.cs,Handlers/EllipseHandler.cs,Handlers/PolygonHandler.cs,Handlers/RectangleHandler.cs,Handlers/PolylineHandler.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.TabbedPage::MapBarBackground(Microsoft.Maui.Handlers.ITabbedViewHandler,Microsoft.Maui.Controls.TabbedPage)",
@@ -2468,6 +2468,11 @@
       "by": "Handlers/WindowHandler.cs,WindowContext.Chrome.cs,Rendering/SkiaRenderingEngine.cs,Window/WaylandWindow.Decoration.cs"
     },
     {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::FindToolbarItemButton",
+      "status": "covered",
+      "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaPage.NavigationBar.cs,Views/SkiaNavigationPage.cs"
+    },
+    {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::MapBackButtonEnabled",
       "status": "covered",
       "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaPage.NavigationBar.cs,Views/SkiaNavigationPage.cs"
@@ -2551,6 +2556,11 @@
       "status": "covered",
       "reason": "Title, bar colours and toolbar items (primary and secondary) drawn by the Linux navigation bar",
       "by": "Handlers/NavigationPageHandler.cs,Views/SkiaShell.Toolbar.cs"
+    },
+    {
+      "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::UpdateToolbarItemIcon",
+      "status": "covered",
+      "by": "Handlers/ToolbarHandler.cs,Handlers/NavigationPageHandler.cs,Views/SkiaPage.NavigationBar.cs,Views/SkiaNavigationPage.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|windows-only|Microsoft.Maui.Controls.Toolbar::get_NavigationRootManager",

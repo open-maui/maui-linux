@@ -9,6 +9,12 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 3. Read the section for your jump below and check the behaviour changes it lists against your app.
 4. Run `OPENMAUI_DOCTOR=1 ./YourApp` on your target machines after upgrading; new releases can start using optional system libraries you do not have yet.
 
+## 10.0.120.x to 10.0.130.1
+
+**Dependencies:** MAUI 10.0.120 to 10.0.130 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move your own `Microsoft.Maui.Controls` reference (and the others, if your project references them) to 10.0.130, or restore fails with `NU1605`.
+
+**Behaviour:** MAUI 10.0.130 no longer insets a shape without a `Stroke` by its `StrokeThickness`: a fill-only Ellipse, Rectangle or Path now fills its whole bounds, as on Windows. A layout that relied on the old inset of a fill-only shape (half the `StrokeThickness` on each side, by default 0.5) draws it slightly larger.
+
 ## 10.0.110.x to 10.0.120.1
 
 **Dependencies:** MAUI 10.0.110 to 10.0.120 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move your own `Microsoft.Maui.Controls` reference (and the others, if your project references them) to 10.0.120, or restore fails with `NU1605`. `OpenMaui.Hosting` now depends on exactly MAUI 10.0.120 as its floor, as the other packages do; before, it took whatever 10.0 MAUI was newest when it was packed.
