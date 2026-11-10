@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10).
 
+## [10.0.130.1] - unreleased
+
+> Built on .NET MAUI 10.0.130.
+
+### Changed
+
+- **MAUI 10.0.130**: every package depends on MAUI 10.0.130 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move an app's own `Microsoft.Maui.Controls` reference to 10.0.130, or restore fails with `NU1605` (see `docs/MIGRATION.md`). dotnet/maui's 10.0.130 device tests pass: Core 1660 (91 skipped), Controls 604 (4 skipped), Essentials 240 (41 skipped); the stub scan's 3 new findings (a Shape overload, two internals of MAUI's Windows toolbar) are reviewed.
+
+### Fixed
+
+- **A shape without a Stroke was inset by its StrokeThickness (MAUI 10.0.130)**: MAUI 10.0.130 builds a shape's path without the stroke inset when it has no `Stroke`, so a fill-only Ellipse, Rectangle or Path fills its whole bounds. OpenMaui's port of MAUI's Aspect transform still deflated the bounds by `StrokeThickness`, so on Linux a fill-only shape came out smaller than on Windows (with `StrokeThickness="20"`, 10 pixels short on every side). The transform now takes the same inset as MAUI.
+
 ## [10.0.120.1] - 2026-10-23
 
 > Built on .NET MAUI 10.0.120.

@@ -3,7 +3,7 @@
 # Usage: tests/Conformance/get-maui-sources.sh [dest] [tag]
 set -euo pipefail
 DEST="${1:-$HOME/.cache/openmaui-build/maui-src}"
-TAG="${2:-10.0.120}"
+TAG="${2:-10.0.130}"
 if [ ! -d "$DEST/.git" ]; then
   git clone --depth 1 --branch "$TAG" --filter=blob:none --sparse https://github.com/dotnet/maui "$DEST"
 elif [ "$(git -C "$DEST" describe --tags --exact-match 2>/dev/null)" != "$TAG" ]; then
