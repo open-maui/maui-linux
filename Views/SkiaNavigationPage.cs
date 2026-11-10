@@ -174,6 +174,7 @@ public class SkiaNavigationPage : SkiaView
             old.Parent = null;
         ReplaceBackStack(pages);
         _currentPage = newTop;
+        InvalidateAccessibleChildren(); // the page read is the current one
         newTop.Parent = this;
         ConfigurePage(newTop, _navigationStack.Count > 0);
         InvalidateMeasure();
@@ -203,6 +204,7 @@ public class SkiaNavigationPage : SkiaView
         _transitionId++;
         _animationProgress = 1;
         _currentPage = _incomingPage;
+        InvalidateAccessibleChildren(); // the page read is the current one
         _incomingPage = null;
         _isAnimating = false;
         if (_outgoingPage != null)
@@ -231,6 +233,7 @@ public class SkiaNavigationPage : SkiaView
         _navigationStack.Clear();
         _currentPage?.OnDisappearing();
         _currentPage = page;
+        InvalidateAccessibleChildren(); // the page read is the current one
         InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
         _currentPage.Parent = this;
         ConfigurePage(_currentPage, false);
@@ -277,6 +280,7 @@ public class SkiaNavigationPage : SkiaView
         {
             DiagnosticLog.Debug("SkiaNavigationPage", "Push (no animation): setting _currentPage to " + page.Title);
             _currentPage = page;
+            InvalidateAccessibleChildren(); // the page read is the current one
             InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             _currentPage.OnAppearing();
             DiagnosticLog.Debug("SkiaNavigationPage", "Push: calling Invalidate");
@@ -322,6 +326,7 @@ public class SkiaNavigationPage : SkiaView
         else
         {
             _currentPage = previousPage;
+            InvalidateAccessibleChildren(); // the page read is the current one
             InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             _currentPage?.OnAppearing();
             Invalidate();
@@ -352,6 +357,7 @@ public class SkiaNavigationPage : SkiaView
         if (rootPage != null)
         {
             _currentPage = rootPage;
+            InvalidateAccessibleChildren(); // the page read is the current one
             InvalidateMeasure(); // the new page is arranged (and gets its frame) next layout
             ConfigurePage(_currentPage, false);
             _currentPage.OnAppearing();
@@ -499,6 +505,61 @@ public class SkiaNavigationPage : SkiaView
                 DrawBackButton(canvas, bounds);
             }
         }
+        SyncAccessibleParts();
+    }
+
+    private DrawnButtonAccessible? _backButtonAccessible;
+    private bool _backButtonExposed;
+    private string? _accessibleBackName;
+
+    /// <summary>
+    /// The back button's accessible name: the current page's
+    /// NavigationPage.BackButtonAccessibilityLabel (MAUI's toolbar reads it from the top of the
+    /// stack), else WinUI's default name, "Back".
+    /// </summary>
+    internal string BackButtonAccessibleName =>
+        _currentPage?.BackButtonAccessibilityLabel is { Length: > 0 } label ? label : "Back";
+
+    /// <summary>The back button as assistive technology sees it (tests).</summary>
+    internal IAccessible BackButtonAccessible => _backButtonAccessible ??= new DrawnButtonAccessible(
+        this,
+        () => BackButtonAccessibleName,
+        () => new SKRect(0, 0, 56, _navigationBarHeight),
+        () => IsBackButtonVisible && !_isAnimating,
+        RequestBack);
+
+    /// <summary>
+    /// The back button while it is shown, then the current page: the navigation page's
+    /// accessible children (its pages are not in Children).
+    /// </summary>
+    protected override List<IAccessible> GetAccessibleChildren()
+    {
+        var children = new List<IAccessible>();
+        if (IsBackButtonVisible)
+            children.Add(BackButtonAccessible);
+        if (_currentPage is { IsExcludedWithChildren: false } page)
+            children.Add(page);
+        children.AddRange(base.GetAccessibleChildren());
+        return children;
+    }
+
+    /// <summary>
+    /// After the bar changed (the back button shown or hidden, its label set), assistive
+    /// technology reads the children and the name again. (A page change drops the children at
+    /// once, where the current page is set, so a popped page is not kept.)
+    /// </summary>
+    private void SyncAccessibleParts()
+    {
+        bool shown = IsBackButtonVisible;
+        if (shown != _backButtonExposed)
+        {
+            _backButtonExposed = shown;
+            InvalidateAccessibleChildren();
+        }
+        var name = BackButtonAccessibleName;
+        if (_accessibleBackName != null && name != _accessibleBackName && _backButtonAccessible != null)
+            NotifyAccessibleChanged(_backButtonAccessible, AccessibleProperty.Name);
+        _accessibleBackName = name;
     }
 
     private void DrawBackButton(SKCanvas canvas, SKRect bounds)

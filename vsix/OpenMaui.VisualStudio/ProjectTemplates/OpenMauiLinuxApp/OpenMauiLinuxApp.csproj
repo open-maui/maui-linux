@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>$safeprojectname$</RootNamespace>
@@ -33,11 +33,11 @@
 
   <ItemGroup>
     <!-- OpenMaui Linux Platform -->
-    <PackageReference Include="OpenMaui.Controls.Linux" Version="10.0.*" />
+    <PackageReference Include="OpenMaui.Controls.Linux" Version="11.0.*" />
 
     <!-- Core MAUI packages -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>

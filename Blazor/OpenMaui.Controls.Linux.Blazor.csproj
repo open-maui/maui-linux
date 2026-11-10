@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Microsoft.Maui.Platform.Linux.Blazor</RootNamespace>
     <AssemblyName>OpenMaui.Controls.Linux.Blazor</AssemblyName>
     <PackageId>OpenMaui.Controls.Linux.Blazor</PackageId>
-    <Version>10.0.130.1</Version>
+    <Version>11.0.0.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui BlazorWebView (Linux)</Product>
@@ -35,13 +35,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../OpenMaui.Controls.Linux.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.130" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="11.0.0" />
     <!-- Same version WebView.Maui depends on. GeneratePathProperty exposes the
          package folder so blazor.webview.js (a static web asset that MAUI's
          asset pipeline delivers on other platforms) can be embedded here and
          served for _framework/blazor.webview.js, always matching the runtime. -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView" Version="10.0.0" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView" Version="11.0.0" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>

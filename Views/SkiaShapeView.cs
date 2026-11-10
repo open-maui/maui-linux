@@ -152,14 +152,12 @@ public class SkiaShapeView : SkiaView
 
         RectF pathBounds = shape.GetPath().GetBoundsByFlattening(1);
 
-        // MAUI 10.0.130 (Shape.GetPathStrokeInset): a shape without a Stroke is not inset by
-        // its StrokeThickness, so a fill-only shape fills its bounds; its path is built the same way.
-        double strokeInset = shape.Stroke is null ? 0 : shape.StrokeThickness;
+        double strokeThickness = shape.StrokeThickness;
         var viewBounds = new Rect(
-            viewRect.X + strokeInset / 2,
-            viewRect.Y + strokeInset / 2,
-            viewRect.Width - strokeInset,
-            viewRect.Height - strokeInset);
+            viewRect.X + strokeThickness / 2,
+            viewRect.Y + strokeThickness / 2,
+            viewRect.Width - strokeThickness,
+            viewRect.Height - strokeThickness);
 
         Matrix3x2 transform;
         if (shape.Aspect == Stretch.None)
