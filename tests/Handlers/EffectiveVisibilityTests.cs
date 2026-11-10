@@ -8,7 +8,7 @@ namespace Microsoft.Maui.Controls.Linux.Tests.Handlers;
 
 /// <summary>
 /// Since MAUI 10.0.120 a view's Visibility is its effective visibility: Collapsed inside a hidden
-/// parent (MAUI 11 RC2 still reports the view's own IsVisible, so this checks only what holds on
+/// parent (MAUI 11.0.0 still reports the view's own IsVisible, so this checks only what holds on
 /// both). Mapping it to the Skia view must not write it back to the view's own IsVisible, or the
 /// children of a parent shown later stay hidden.
 /// </summary>

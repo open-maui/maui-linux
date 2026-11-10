@@ -15,16 +15,16 @@ Every finding is reviewed in `tools/StubScan/baseline.json`:
 
 The **Tests** workflow (`.gitea/workflows/tests.yml`) runs the scan. It fails when it finds something that is not in the baseline, which happens when a library update brings in a stub nobody has reviewed. To review new findings, run `dotnet run --project tools/StubScan -- --write-baseline`. That adds them as `unreviewed`, which still fails. Grep the bridge folders for the type, set each finding's status, then commit. Use `--report <file.md>` to list every open member, and `--verbose` to print them all.
 
-## Scan of 2026-10-17
+## Scan of 2026-11-10
 
 Package versions are the ones `tests/Compat` restores:
 
 | Package | Version | Findings | covered | n/a | open |
 |---|---|---:|---:|---:|---:|
-| Microsoft.Maui.Core | 11.0.0-rc.2.26505.5 | 597 | 509 | 88 | 0 |
-| Microsoft.Maui.Controls.Core | 11.0.0-rc.2.26505.5 | 321 | 278 | 43 | 0 |
-| Microsoft.Maui.Essentials | 11.0.0-rc.2.26505.5 | 248 | 226 | 22 | 0 |
-| Microsoft.Maui.Controls.Xaml | 11.0.0-rc.2.26505.5 | 0 | 0 | 0 | 0 |
+| Microsoft.Maui.Core | 11.0.0 | 597 | 509 | 88 | 0 |
+| Microsoft.Maui.Controls.Core | 11.0.0 | 321 | 278 | 43 | 0 |
+| Microsoft.Maui.Essentials | 11.0.0 | 248 | 226 | 22 | 0 |
+| Microsoft.Maui.Controls.Xaml | 11.0.0 | 0 | 0 | 0 | 0 |
 | CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
 | CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
 | CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |

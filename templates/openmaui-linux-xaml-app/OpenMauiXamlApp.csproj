@@ -28,8 +28,8 @@
     <PackageReference Include="OpenMaui.Controls.Linux" Version="11.0.*" Condition="!$(TargetFramework.Contains('-'))" />
 
     <!-- Core MAUI packages (includes XAML support) -->
-    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.2.26505.5" />
-    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="11.0.0-rc.2.26505.5" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="11.0.0" />
   </ItemGroup>
 
   <!-- Linux platform files: only compiled for the Linux target, built on Linux (the other
