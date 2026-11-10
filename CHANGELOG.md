@@ -6,11 +6,11 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ## [11.0.0.1] - unreleased
 
-.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0-rc.2.26505.5` (built from dotnet/maui commit d32b7992, release/11.0.1xx-rc2) and the .NET 11 RC2 SDK (`11.0.100-rc.2.26504.105`). Everything in 10.0.120.1 is included (its MAUI 10.0.120 move aside: this line is on MAUI 11) (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
+.NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0` (built from dotnet/maui tag 11.0.0) and the .NET 11 SDK (`11.0.100`). Everything in 10.0.130.1 is included, apart from its MAUI 10 moves (this line is on MAUI 11) and the shape stroke inset that follows MAUI 10.0.130, which MAUI 11.0.0 does not have (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).
 
 ### Changed
 
-- **Target framework `net11.0` and MAUI 11 RC2**: every package, the project templates (`dotnet new openmaui-linux`, `openmaui-linux-xaml`) and the Visual Studio template target `net11.0` and reference MAUI `11.0.0-rc.2.26505.5`; the other Microsoft packages are on their RC2 versions (`11.0.0-rc.2.26504.105`). CommunityToolkit.Maui (15.0.1), its MediaElement (10.0.0), Syncfusion (34.2.9) and the other third-party libraries have no .NET 11 builds yet and run unmodified from their .NET 10 builds.
+- **Target framework `net11.0` and MAUI 11**: every package, the project templates (`dotnet new openmaui-linux`, `openmaui-linux-xaml`) and the Visual Studio template target `net11.0` and reference MAUI `11.0.0`; the other Microsoft packages are on `11.0.0` too. CommunityToolkit.Maui (15.0.1), its MediaElement (10.0.0), Syncfusion (34.2.9) and the other third-party libraries have no .NET 11 builds yet and run unmodified from their .NET 10 builds.
 - **Runtime patching on .NET 11**: every Lib.Harmony release bundles a MonoMod that refuses CoreCLR 11 ("CoreCLR version 11.0.0 is not supported"), so every runtime bridge (Essentials, the Syncfusion bridge, CommunityToolkit, HybridWebView, visual-tree lookups) would have been skipped. OpenMaui now uses Harmony's Thin package (`Lib.Harmony.Thin` 2.4.3) with `MonoMod.Core` `1.4.0-prerelease.1`, which patches .NET 11 correctly. MonoMod's build-time ".NET 11 unsupported" check is kept out of apps' builds. Plain Lib.Harmony returns once a release supports .NET 11.
 - **Package validation** runs without a baseline until the first 11.x release is published (a `net11.0` package cannot be compared with the `net10.0` 10.0.110.6 baseline).
 - **The stub scan** reads each package's newest .NET build (`lib/netN.0` against `lib/netN.0-windows*`), so MAUI 11's `net11.0` and the libraries still on `net10.0` are both scanned: 2,381 findings reviewed; the MAUI 11 findings are all closed, 4 older ones remain (see `docs/STUBS.md`).
@@ -18,7 +18,7 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ### Added
 
-- **dotnet/maui's MAUI 11 device tests run against OpenMaui**: the conformance suites compile dotnet/maui's tests at the commit the MAUI 11 RC2 packages were built from. `tests/Conformance/get-maui-sources.sh` fetches a commit, tag or branch (shallow, sparse, blob-less) into `~/.cache/openmaui-build/maui-src-11`. Core 1,631 passed / 91 skipped of 1,722, Controls 608 / 4 of 612, Essentials 240 / 43 of 283: no failures.
+- **dotnet/maui's MAUI 11 device tests run against OpenMaui**: the conformance suites compile dotnet/maui's tests at the tag the MAUI 11.0.0 packages were built from (`11.0.0`). `tests/Conformance/get-maui-sources.sh` fetches a commit, tag or branch (shallow, sparse, blob-less) into `~/.cache/openmaui-build/maui-src-11`. Core 1,631 passed / 91 skipped of 1,722, Controls 608 / 4 of 612, Essentials 240 / 43 of 283: no failures.
 - **Modal pages through MAUI 11's `IModalNavigationPlatform`** (`LinuxModalNavigationPlatform`, registered by `UseLinux` unless the app registers its own `IModalNavigationPlatformFactory`): a modal is on screen before `PushModalAsync` completes, as on MAUI's platforms, and an app's own modal platform is no longer overridden.
 - **Maps: `Pin.ShowInfoWindow` and `HideInfoWindow`** (MAUI 11 commands) select and deselect the pin, and a `MarkerClicked` handler that sets `HideInfoWindow` keeps the pin unselected, as on the other platforms (`LinuxMapHandler.MapShowInfoWindow`, `MapHideInfoWindow`, `SkiaMap.SelectedPin`).
 - **Keyboard activation of a tappable Border** (MAUI 11, as on Windows): a Border with a single-tap, primary-button TapGestureRecognizer that is enabled and not InputTransparent is a Tab stop with the system focus visual (for keyboard focus only), and Enter or Space (no Ctrl, Shift or Alt, not auto-repeated) raises its taps. It follows changes to the recognizers and to `IsEnabled` and `InputTransparent`.
@@ -36,6 +36,18 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 - **Maps ignored the initial `MapSpan`, `Map.Region` and `Map.MoveToRegion` on MAUI 11** (which sends a `MoveToRegionRequest`), so pin taps missed too: both forms are handled.
 - **Tab moved focus to the page beneath an open popup**: Tab navigation took its stops from the modal stack, which popups are not on, so with a Mopups popup up, Tab focused (and typing went into) controls under it. Tab now cycles through the popup's own controls.
 - **A click on a dimmed popup's backdrop was not a background click**: the popup layer treated the popup page's own background colour (Mopups' usual semi-transparent `PopupPage.BackgroundColor`) as content, so `CloseWhenBackgroundIsClicked` and `BackgroundClicked` only worked on fully transparent popups. The popup page is now always its backdrop. Covered by `MarketAllyMopupsCompatTests` against MarketAlly.Mopups 3.0.13, the first release whose `net10.0` build uses the popup platform OpenMaui registers (3.0.12 always presented popups as modal pages).
+
+## [10.0.130.1] - unreleased
+
+> Built on .NET MAUI 10.0.130.
+
+### Changed
+
+- **MAUI 10.0.130**: every package depends on MAUI 10.0.130 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move an app's own `Microsoft.Maui.Controls` reference to 10.0.130, or restore fails with `NU1605` (see `docs/MIGRATION.md`). dotnet/maui's 10.0.130 device tests pass: Core 1660 (91 skipped), Controls 604 (4 skipped), Essentials 240 (41 skipped); the stub scan's 3 new findings (a Shape overload, two internals of MAUI's Windows toolbar) are reviewed.
+
+### Fixed
+
+- **A shape without a Stroke was inset by its StrokeThickness (MAUI 10.0.130)**: MAUI 10.0.130 builds a shape's path without the stroke inset when it has no `Stroke`, so a fill-only Ellipse, Rectangle or Path fills its whole bounds. OpenMaui's port of MAUI's Aspect transform still deflated the bounds by `StrokeThickness`, so on Linux a fill-only shape came out smaller than on Windows (with `StrokeThickness="20"`, 10 pixels short on every side). The transform now takes the same inset as MAUI.
 
 ## [10.0.120.1] - 2026-10-23
 

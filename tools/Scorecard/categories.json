@@ -947,7 +947,7 @@
       },
       {
         "name": "Microsoft.Maui.Controls.Maps",
-        "version": "11.0.0-rc.2.26505.5",
+        "version": "11.0.0",
         "tests": [
           "MauiMapsCompatTests"
         ],
@@ -971,7 +971,7 @@
       },
       {
         "name": "Microsoft.Extensions.DependencyInjection page resolution",
-        "version": "11.0 (RC2)",
+        "version": "11.0",
         "tests": [
           "DependencyInjectionCompatTests"
         ],
