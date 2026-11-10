@@ -1,6 +1,6 @@
 # MAUI handler conformance (dotnet/maui's own tests against the Linux handlers)
 
-Run of 2026-10-17 against MAUI 11 RC2 (dotnet/maui commit `d32b79928709cf53b671336dabd0caef5a679fc2`, branch `release/11.0.1xx-rc2`, the commit the `Microsoft.Maui.*` 11.0.0-rc.2.26505.5 packages were built from). **1722 MAUI tests ported: 1631 passed, 0 failed, 91 skipped.** The port to MAUI 11 is described under "MAUI 11 port" below: the first MAUI 11 run had 1573 passed, 58 failed, 91 skipped. The 10.0.110 history follows.
+Run of 2026-11-10 against MAUI 11.0.0 (dotnet/maui tag `11.0.0`, commit `d153424cc4c11f1825691857b2b9cedb7fc90e5f`, the release the `Microsoft.Maui.*` 11.0.0 packages were built from), on .NET 11.0.0 (SDK 11.0.100). **1722 MAUI tests ported: 1631 passed, 0 failed, 91 skipped**, as on MAUI 11 RC2 (2026-10-17, commit `d32b7992`). The port to MAUI 11 is described under "MAUI 11 port" below: the first MAUI 11 run had 1573 passed, 58 failed, 91 skipped. The 10.0.110 history follows.
 
 Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **1751 MAUI tests ported: 1660 passed, 0 failed, 91 skipped** (89 are MAUI's container-view tests, which assert a wrapper mechanism no handler outside `Microsoft.Maui.dll` can have on the platform-neutral build, and 2 are tests MAUI itself calls invalid; see "Skipped"). The first run failed 574; the gaps it found, and their fixes, are listed under "Gaps found and fixed". The second round (RefreshView, IndicatorView, SwipeView, View, Element, Window, Page and Navigation ported; the skips re-examined) went from 1419 passed / 103 skipped of 1522 to the numbers above; its fixes are under "Gaps found and fixed, second round".
 
@@ -13,7 +13,7 @@ Nothing is suppressed: a test that fails stays failing in the project, and a fai
 | | |
 |---|---|
 | Project | `tests/Conformance/OpenMaui.Conformance.Tests.csproj` (net11.0, xunit 2.9), not part of `tests/OpenMaui.Controls.Linux.Tests.csproj` (that project now excludes `Conformance\**`) |
-| MAUI sources | a shallow (depth 1), sparse, blob-less checkout of dotnet/maui at commit `d32b7992` (MAUI 11 RC2), by default in `~/.cache/openmaui-build/maui-src-11`; `tests/Conformance/get-maui-sources.sh [dest] [revision]` creates or updates it. `revision` is a commit SHA (fetched directly: `git init`, `fetch --depth 1 <sha>`), a tag or a branch; the default is the RC2 commit. The sparse paths are the four device-test folders the suites compile (`src/Core/tests/DeviceTests`, `src/Core/tests/DeviceTests.Shared`, `src/Controls/tests/DeviceTests`, `src/Essentials/test/DeviceTests`), `src/TestUtils`, and the product sources a port is read against (`src/Controls/src/Core`, `src/Core/src`, `src/Essentials/src`, `src/SingleProject/Resizetizer/src`); about 72 MB |
+| MAUI sources | a shallow (depth 1), sparse, blob-less checkout of dotnet/maui at tag `11.0.0`, by default in `~/.cache/openmaui-build/maui-src-11`; `tests/Conformance/get-maui-sources.sh [dest] [revision]` creates or updates it. `revision` is a commit SHA (fetched directly: `git init`, `fetch --depth 1 <sha>`), a tag or a branch; the default is the tag `11.0.0`. The sparse paths are the four device-test folders the suites compile (`src/Core/tests/DeviceTests`, `src/Core/tests/DeviceTests.Shared`, `src/Controls/tests/DeviceTests`, `src/Essentials/test/DeviceTests`), `src/TestUtils`, and the product sources a port is read against (`src/Controls/src/Core`, `src/Core/src`, `src/Essentials/src`, `src/SingleProject/Resizetizer/src`); about 72 MB |
 | Build property | `MauiSrc` (default `$(HOME)/.cache/openmaui-build/maui-src-11`), e.g. `-p:MauiSrc=/path/to/maui` |
 | Without the clone | the project builds with a warning and contains one skipped test (`MauiSourcesMissing`) that says how to get the sources |
 | Run | `dotnet test tests/Conformance/OpenMaui.Conformance.Tests.csproj` (filter by handler with `--filter Category=Label`, MAUI's category trait) |
@@ -190,7 +190,7 @@ These are not test failures, but each is a place where OpenMaui's public API dif
 
 # Controls device tests (dotnet/maui's Controls tests against OpenMaui)
 
-Run of 2026-10-17 against MAUI 11 RC2 (commit `d32b7992`). **612 MAUI tests ported: 608 passed, 0 failed, 4 skipped** (the same 4 skips). The first MAUI 11 run had 607 passed and 1 failed (M2, under "MAUI 11 port" above).
+Run of 2026-11-10 against MAUI 11.0.0 (tag `11.0.0`). **612 MAUI tests ported: 608 passed, 0 failed, 4 skipped** (the same 4 skips), as on MAUI 11 RC2 (2026-10-17). The first MAUI 11 run had 607 passed and 1 failed (M2, under "MAUI 11 port" above).
 
 Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **604 MAUI tests ported (598 at first; `Xaml/XamlTests` added). Before the fixes: 337 passed, 257 failed, 4 skipped. After the first round: 519 passed, 75 failed, 4 skipped. After the second (Shell, TabbedPage and Window; CollectionView, memory, ScrollView and SwipeView; shapes, visual tree, Label and accessibility; window size and wrapped-label width): 600 passed, 0 failed, 4 skipped** (all 4 skips are mechanisms Linux does not have; nothing is BLOCKED).
 
@@ -369,7 +369,7 @@ Three early failures were the port's, corrected in the Linux helpers: a layout's
 
 # Essentials device tests (dotnet/maui's Essentials tests against OpenMaui)
 
-Run of 2026-10-17 against MAUI 11 RC2 (commit `d32b7992`). **283 MAUI tests ported: 242 passed, 0 failed, 41 skipped on a Plasma desktop (the two KDE keyring concurrency tests run since 10.0.110.8; re-run 2026-10-18); 228 passed, 0 failed, 55 skipped CI-like** (the first MAUI 11 run gave the same numbers: nothing to fix). The two new tests are listed under "MAUI 11 port" above.
+Run of 2026-11-10 against MAUI 11.0.0 (tag `11.0.0`), as on MAUI 11 RC2 (2026-10-17). **283 MAUI tests ported: 242 passed, 0 failed, 41 skipped on a Plasma desktop (the two KDE keyring concurrency tests run since 10.0.110.8; re-run 2026-10-18); 228 passed, 0 failed, 55 skipped CI-like** (the first MAUI 11 run gave the same numbers: nothing to fix). The two new tests are listed under "MAUI 11 port" above.
 
 Run of 2026-10-04 against dotnet/maui tag `10.0.110`. **281 MAUI tests ported. Before the fixes: 186 passed, 54 failed, 41 skipped. After: 238 passed, 0 failed, 43 skipped on a Plasma desktop (battery, network, URI handlers, KDE keyring); 226 passed, 0 failed, 55 skipped in a CI-like run** (no display, no session bus, no desktop applications). Every skip is a person, hardware, a desktop application or a network service the machine does not have; nothing is BLOCKED.
 
