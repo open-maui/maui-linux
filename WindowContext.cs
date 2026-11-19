@@ -101,6 +101,9 @@ public sealed partial class WindowContext : IDisposable
             {
                 LinuxModalNavigationPlatform.WindowReleased(oldWindow, this);
                 oldWindow.PropertyChanged -= OnMauiWindowPropertyChanged;
+                if (_titleWindow != null)
+                    _titleWindow.TitleChanged -= OnHandlerTitleChanged;
+                _titleWindow = null;
             }
 
             _mauiWindow = value;
@@ -111,6 +114,7 @@ public sealed partial class WindowContext : IDisposable
                 LinuxModalNavigationPlatform.WindowAdopted(newWindow, this);
                 AttachMauiWindowHandler(newWindow);
                 newWindow.PropertyChanged += OnMauiWindowPropertyChanged;
+                FollowHandlerTitle(newWindow);
                 ApplyInitialGeometry(newWindow);
                 ApplyTitle(newWindow);
                 UpdateClientDecorations();
@@ -977,18 +981,44 @@ public sealed partial class WindowContext : IDisposable
         }
     }
 
+    private Handlers.SkiaWindow? _titleWindow;
+
     /// <summary>
-    /// The native window's title follows the MAUI window's: its Title, or its page's when it has
-    /// none (an app that leaves the window untitled), set when the window is adopted as well as
-    /// when it changes; a title set in <c>CreateWindow</c> was left at the native default (the
-    /// options' title) because only later changes were applied. Without either the native title
-    /// is left as it is. In GTK mode it is the GTK window's title.
+    /// Follows the window handler's Title mapping, the path MAUI's platforms take: MAUI raises it
+    /// for Window.Title and for a Shell's title (Window.ShellPropertyChanged updates the handler's
+    /// Title), so the native title changes with either.
+    /// </summary>
+    private void FollowHandlerTitle(Microsoft.Maui.Controls.Window window)
+    {
+        if (window.Handler?.PlatformView is not Handlers.SkiaWindow skiaWindow || ReferenceEquals(skiaWindow, _titleWindow))
+            return;
+        if (_titleWindow != null)
+            _titleWindow.TitleChanged -= OnHandlerTitleChanged;
+        _titleWindow = skiaWindow;
+        skiaWindow.TitleChanged += OnHandlerTitleChanged;
+    }
+
+    private void OnHandlerTitleChanged(object? sender, EventArgs e)
+    {
+        if (_mauiWindow is Microsoft.Maui.Controls.Window window)
+            ApplyTitle(window);
+    }
+
+    /// <summary>
+    /// The native window's title, as MAUI's platforms set it (WindowHandler.MapTitle on Windows and
+    /// Mac Catalyst): <c>IWindow.Title</c>, which is the window's Title, else the Title the app set
+    /// on its Shell; never a ContentPage's or a NavigationPage's title. A window without one shows
+    /// the app's default title (<see cref="LinuxApplication.DefaultWindowTitle"/>: the options'
+    /// Title, else the app's name), as an untitled window shows the app's name elsewhere. It is set
+    /// when the window is adopted and whenever it changes; a title set in <c>CreateWindow</c> was
+    /// overwritten at startup by the page's title or "OpenMaui App". In GTK mode it is the GTK
+    /// window's title.
     /// </summary>
     private void ApplyTitle(Microsoft.Maui.Controls.Window window)
     {
-        var title = !string.IsNullOrEmpty(window.Title) ? window.Title : window.Page?.Title;
+        var title = ((ITitledElement)window).Title;
         if (string.IsNullOrEmpty(title))
-            return;
+            title = LinuxApplication.DefaultWindowTitle;
         if (DisplayWindow is { } native)
             native.SetTitle(title);
         else

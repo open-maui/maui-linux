@@ -71,13 +71,17 @@ public class WindowSyncTests
     }
 
     [Fact]
-    public void A_replaced_page_title_is_used_when_the_window_has_none()
+    public void A_replaced_page_gives_the_window_its_title_only_when_it_is_a_titled_Shell()
     {
+        // As on MAUI's platforms (IWindow.Title): a swapped-in ContentPage's title is not the window
+        // title; the post-login swap to a Shell with a Title is.
         using var host = new HeadlessMauiHost(new ContentPage(), withEngine: true);
 
         host.Window.Page = new ContentPage { Title = "Dashboard" };
+        host.DisplayWindow.Title.Should().Be(Microsoft.Maui.Platform.Linux.LinuxApplication.DefaultWindowTitle);
 
-        host.DisplayWindow.Title.Should().Be("Dashboard");
+        host.Window.Page = new Shell { Title = "Inventory", Items = { new ShellContent { Content = new ContentPage() } } };
+        host.DisplayWindow.Title.Should().Be("Inventory");
     }
 
     [Fact]
