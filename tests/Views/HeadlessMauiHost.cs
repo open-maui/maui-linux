@@ -277,6 +277,8 @@ internal sealed class HeadlessMauiHost : IDisposable
             PointerMoved?.Invoke(this, new PointerEventArgs(x, y));
         public void RaiseKeyDown(Key key) =>
             KeyDown?.Invoke(this, new KeyEventArgs(key, Microsoft.Maui.Platform.KeyModifiers.None));
+        public void RaiseKeyUp(Key key) =>
+            KeyUp?.Invoke(this, new KeyEventArgs(key, Microsoft.Maui.Platform.KeyModifiers.None));
         public void RaiseTextInput(string text) =>
             TextInput?.Invoke(this, new TextInputEventArgs(text));
         public void RaiseFocusGained() => FocusGained?.Invoke(this, EventArgs.Empty);
@@ -286,7 +288,7 @@ internal sealed class HeadlessMauiHost : IDisposable
 
         private void Touch()
         {
-            _ = KeyUp; _ = Scroll; _ = Exposed;
+            _ = Scroll; _ = Exposed;
         }
     }
 }

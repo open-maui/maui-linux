@@ -299,13 +299,13 @@ public abstract partial class SkiaView
     // IAccessible implementation
     string IAccessible.AccessibleId => _accessibleId;
 
-    string IAccessible.AccessibleName => SemanticName ?? GetDefaultAccessibleName();
+    string IAccessible.AccessibleName => SemanticName ?? _decorator?.Name ?? GetDefaultAccessibleName();
 
-    string IAccessible.AccessibleDescription => SemanticDescription ?? SemanticHint ?? string.Empty;
+    string IAccessible.AccessibleDescription => SemanticDescription ?? SemanticHint ?? _decorator?.Description ?? string.Empty;
 
-    AccessibleRole IAccessible.Role => GetAccessibleRole();
+    AccessibleRole IAccessible.Role => _decorator?.Role ?? GetAccessibleRole();
 
-    AccessibleStates IAccessible.States => GetAccessibleStates();
+    AccessibleStates IAccessible.States => _decorator is { } decorator ? decorator.States(GetAccessibleStates()) : GetAccessibleStates();
 
     IAccessible? IAccessible.Parent => Parent as IAccessible;
 
@@ -317,13 +317,13 @@ public abstract partial class SkiaView
         (int)ScreenBounds.Width,
         (int)ScreenBounds.Height);
 
-    IReadOnlyList<AccessibleAction> IAccessible.Actions => GetAccessibleActions();
+    IReadOnlyList<AccessibleAction> IAccessible.Actions => _decorator?.Actions ?? GetAccessibleActions();
 
     double? IAccessible.Value => GetAccessibleValue();
     double? IAccessible.MinValue => GetAccessibleMinValue();
     double? IAccessible.MaxValue => GetAccessibleMaxValue();
 
-    bool IAccessible.DoAction(string actionName) => DoAccessibleAction(actionName);
+    bool IAccessible.DoAction(string actionName) => _decorator?.DoAction(actionName) ?? DoAccessibleAction(actionName);
     bool IAccessible.SetValue(double value) => SetAccessibleValue(value);
 
     /// <summary>
@@ -338,6 +338,20 @@ public abstract partial class SkiaView
         {
             if (_accessibilityInitialized && _accessibilityService is { IsEnabled: true } service)
                 service.NotifyPropertyChanged(this, AccessibleProperty.Children);
+        }
+        catch (Exception)
+        {
+            // Accessibility is optional.
+        }
+    }
+
+    /// <summary>Tells assistive technology that a state of <paramref name="accessible"/> changed, when a screen reader is listening.</summary>
+    internal static void NotifyAccessibleStateChanged(IAccessible accessible, AccessibleState state, bool value)
+    {
+        try
+        {
+            if (_accessibilityInitialized && _accessibilityService is { IsEnabled: true } service)
+                service.NotifyStateChanged(accessible, state, value);
         }
         catch (Exception)
         {

@@ -147,35 +147,10 @@ public partial class SkiaBorder
         base.OnKeyUp(e);
     }
 
-    /// <summary>
-    /// WinUI's system focus visual (high visibility): a 2-pixel outer ring and a 1-pixel inner
-    /// ring along the element's edges, dark outside and light inside on a light theme, and the
-    /// reverse on a dark one.
-    /// </summary>
+    /// <summary>WinUI's system focus visual along the Border's edges, for keyboard focus.</summary>
     private void DrawKeyboardFocusVisual(SKCanvas canvas, SKRect bounds)
     {
-        if (!ShowsKeyboardFocusVisual || bounds.Width < 6 || bounds.Height < 6)
-            return;
-        bool dark = SkiaTheme.IsDarkMode;
-        using var outer = new SKPaint
-        {
-            Color = dark ? new SKColor(0xFF, 0xFF, 0xFF, 0xFF) : new SKColor(0x00, 0x00, 0x00, 0xE4),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2f,
-            IsAntialias = true,
-        };
-        using var inner = new SKPaint
-        {
-            Color = dark ? new SKColor(0x00, 0x00, 0x00, 0xB3) : new SKColor(0xFF, 0xFF, 0xFF, 0xB3),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1f,
-            IsAntialias = true,
-        };
-        var outerRect = bounds;
-        outerRect.Inflate(-1f, -1f);
-        canvas.DrawRect(outerRect, outer);
-        var innerRect = bounds;
-        innerRect.Inflate(-2.5f, -2.5f);
-        canvas.DrawRect(innerRect, inner);
+        if (ShowsKeyboardFocusVisual)
+            SkiaFocusVisual.Draw(canvas, bounds);
     }
 }

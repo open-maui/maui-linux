@@ -116,6 +116,33 @@ public class GestureRecognizerTests
     }
 
     [Fact]
+    public void A_Buttons_own_tap_recognizer_fires_and_its_parents_does_not()
+    {
+        // A Button takes its press as MAUI's Windows handlers do (PreventGestureBubbling): its own
+        // recognizers get it, its ancestors' do not.
+        var button = new Button { Text = "tap" };
+        var parent = new Grid { button };
+        var handler = new ButtonHandler();
+        handler.SetVirtualView(button);
+        var platform = (SkiaView)handler.PlatformView;
+        platform.Arrange(new Rect(100, 50, 120, 44));
+        int own = 0, parents = 0, clicks = 0;
+        var ownTap = new TapGestureRecognizer();
+        ownTap.Tapped += (_, _) => own++;
+        button.GestureRecognizers.Add(ownTap);
+        var parentTap = new TapGestureRecognizer();
+        parentTap.Tapped += (_, _) => parents++;
+        parent.GestureRecognizers.Add(parentTap);
+        button.Clicked += (_, _) => clicks++;
+
+        Tap(platform, 150, 70);
+
+        clicks.Should().Be(1);
+        own.Should().Be(1, "the Button's own TapGestureRecognizer gets the tap");
+        parents.Should().Be(0, "a Button's press does not bubble");
+    }
+
+    [Fact]
     public void Tap_runs_the_command_with_its_parameter()
     {
         var (label, platform) = Host();

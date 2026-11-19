@@ -68,6 +68,20 @@ internal static class ToolkitTouchBehavior
         }
         harmony.Patch(attach, postfix: new HarmonyMethod(typeof(ToolkitTouchBehavior).GetMethod(nameof(AttachTo_Postfix), BindingFlags.Static | BindingFlags.NonPublic)));
         harmony.Patch(detach, postfix: new HarmonyMethod(typeof(ToolkitTouchBehavior).GetMethod(nameof(DetachFrom_Postfix), BindingFlags.Static | BindingFlags.NonPublic)));
+
+        // CommunityToolkit 17: a completed touch raises Clicked on a button control unless its
+        // native view already did. The neutral build answers false; the Linux Button and
+        // ImageButton raise Clicked themselves, as WinUI's ButtonBase does.
+        if (Contract.TouchBehaviorType.GetProperty("IsClickedRaisedByPlatformView", Instance)?.GetMethod is { } clickedByView)
+            harmony.Patch(clickedByView, postfix: new HarmonyMethod(typeof(ToolkitTouchBehavior).GetMethod(nameof(IsClickedRaisedByPlatformView_Postfix), BindingFlags.Static | BindingFlags.NonPublic)));
+    }
+
+    // The Windows build's "view is ButtonBase": the behavior's element is drawn by a Linux button view.
+    private static void IsClickedRaisedByPlatformView_Postfix(BindableObject __instance, ref bool __result)
+    {
+        if (s_links.TryGetValue(__instance, out var link)
+            && link.Element.Handler?.PlatformView is SkiaButton or SkiaImageButton)
+            __result = true;
     }
 
     private static void AttachTo_Postfix(Behavior __instance, BindableObject bindable)

@@ -574,8 +574,9 @@
     },
     {
       "id": "CommunityToolkit.Maui|stub|CommunityToolkit.Maui.Behaviors.TouchBehavior::get_IsClickedRaisedByPlatformView()",
-      "status": "open",
-      "reason": "Windows does not raise Clicked again from a completed touch when the native view (a Button) has raised it; on Linux a TouchBehavior attached to a Button gets no pointer input at all (SkiaButton handles its pointer events without routing them, so neither the behavior nor the Button's gesture recognizers see them), so the double-click question does not arise yet"
+      "status": "covered",
+      "reason": "a completed touch on a Button or ImageButton does not raise Clicked again: the Linux button views raise it themselves, as WinUI's ButtonBase does, and route their press and release to their own TouchBehavior and gesture recognizers (not to their ancestors, as MAUI's Windows handlers' PreventGestureBubbling)",
+      "by": "Handlers/ToolkitTouchBehavior.cs,Views/SkiaButton.cs,Views/SkiaImageButton.cs,Views/SkiaView.Input.cs"
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::DismissAfterDurationAsync",
@@ -837,23 +838,27 @@
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.Expander::UpdateHeaderAccessibility",
-      "status": "open",
-      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+      "status": "covered",
+      "reason": "the header is a tab stop while it can be activated, with the system focus visual around its row; Enter or Space (pressed without repeat, released) activates it; AT-SPI sees a button named after the header's content, expandable and expanded with the Expander, with click, expand and collapse actions",
+      "by": "Handlers/ToolkitExpander.cs,Views/SkiaView.Decorator.cs"
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.ExpanderLayoutHandler::ConnectHandler",
-      "status": "open",
-      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+      "status": "covered",
+      "reason": "the header is a tab stop while it can be activated, with the system focus visual around its row; Enter or Space (pressed without repeat, released) activates it; AT-SPI sees a button named after the header's content, expandable and expanded with the Expander, with click, expand and collapse actions",
+      "by": "Handlers/ToolkitExpander.cs,Views/SkiaView.Decorator.cs"
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.ExpanderLayoutHandler::CreatePlatformView",
-      "status": "open",
-      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+      "status": "covered",
+      "reason": "the header is a tab stop while it can be activated, with the system focus visual around its row; Enter or Space (pressed without repeat, released) activates it; AT-SPI sees a button named after the header's content, expandable and expanded with the Expander, with click, expand and collapse actions",
+      "by": "Handlers/ToolkitExpander.cs,Views/SkiaView.Decorator.cs"
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.ExpanderLayoutHandler::SetVirtualView",
-      "status": "open",
-      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+      "status": "covered",
+      "reason": "the header is a tab stop while it can be activated, with the system focus visual around its row; Enter or Space (pressed without repeat, released) activates it; AT-SPI sees a button named after the header's content, expandable and expanded with the Expander, with click, expand and collapse actions",
+      "by": "Handlers/ToolkitExpander.cs,Views/SkiaView.Decorator.cs"
     },
     {
       "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Button::MapLineBreakMode(Microsoft.Maui.Handlers.IButtonHandler,Microsoft.Maui.Controls.Button)",

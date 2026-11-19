@@ -284,6 +284,50 @@ public class CommunityToolkitPlatformFeatureTests
         behavior.CurrentHoverStatus.Should().Be(HoverStatus.Exited, "leaving the row's content ends the hover");
     }
 
+    [Fact]
+    public async Task TouchBehavior_on_a_Button_follows_the_press_and_raises_Clicked_once()
+    {
+        // CommunityToolkit 17 on Windows: the native button raises Clicked, so a completed touch
+        // does not raise it again (IsClickedRaisedByPlatformView).
+        int clicks = 0, commands = 0;
+        var button = new Button { Text = "tap", WidthRequest = 120, HeightRequest = 44, BackgroundColor = Colors.White };
+        button.Clicked += (_, _) => clicks++;
+        var behavior = new TouchBehavior { Command = new Command(() => commands++), PressedBackgroundColor = Colors.Red, DefaultBackgroundColor = Colors.White };
+        button.Behaviors.Add(behavior);
+        using var host = Host(new VerticalStackLayout { Children = { button } });
+        host.Render();
+        var (x, y) = CompatHost.CenterOf(button);
+
+        host.DisplayWindow.RaisePointerMoved(x, y);
+        host.DisplayWindow.RaisePointerPressed(x, y);
+        behavior.CurrentTouchState.Should().Be(TouchState.Pressed, "pressing the Button reaches its TouchBehavior");
+        await Until(() => button.BackgroundColor == Colors.Red, "the pressed state applies PressedBackgroundColor");
+        host.DisplayWindow.RaisePointerReleased(x, y);
+        host.Render();
+
+        commands.Should().Be(1, "the touch completes");
+        behavior.CurrentTouchStatus.Should().Be(TouchStatus.Completed);
+        clicks.Should().Be(1, "one click raises Clicked once");
+    }
+
+    [Fact]
+    public void A_Button_press_does_not_reach_a_TouchBehavior_on_its_parent()
+    {
+        // MAUI's Windows handlers keep a Button's gestures from bubbling (PreventGestureBubbling).
+        int parentCommands = 0, clicks = 0;
+        var button = new Button { Text = "tap", WidthRequest = 120, HeightRequest = 44 };
+        button.Clicked += (_, _) => clicks++;
+        var card = new Border { Padding = 20, Content = button };
+        card.Behaviors.Add(new TouchBehavior { Command = new Command(() => parentCommands++) });
+        using var host = Host(new VerticalStackLayout { Children = { card } });
+        host.Render();
+
+        host.Tap(button);
+
+        clicks.Should().Be(1);
+        parentCommands.Should().Be(0, "the Button takes its press");
+    }
+
     // ---- Toast and Snackbar ----------------------------------------------------------------
 
     private sealed class RecordingServer : INotificationServer

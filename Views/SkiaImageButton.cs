@@ -598,6 +598,7 @@ public class SkiaImageButton : SkiaView
 
     public override void OnPointerPressed(PointerEventArgs e)
     {
+        RouteOwnPointerEvent(e, RoutedPointerKind.Pressed); // its own recognizers and TouchBehavior, not its ancestors
         if (!IsEnabled) return;
 
         IsPressed = true;
@@ -608,6 +609,7 @@ public class SkiaImageButton : SkiaView
 
     public override void OnPointerReleased(PointerEventArgs e)
     {
+        RouteOwnPointerEvent(e, RoutedPointerKind.Released);
         if (!IsEnabled) return;
 
         var wasPressed = IsPressed;

@@ -26,7 +26,7 @@ Package versions are the ones `tests/Compat` restores:
 | Microsoft.Maui.Essentials | 11.0.10 | 248 | 226 | 22 | 0 |
 | Microsoft.Maui.Controls.Xaml | 11.0.10 | 0 | 0 | 0 | 0 |
 | CommunityToolkit.Maui.Core | 17.0.0 | 58 | 45 | 13 | 0 |
-| CommunityToolkit.Maui | 17.0.0 | 55 | 50 | 0 | 5 |
+| CommunityToolkit.Maui | 17.0.0 | 55 | 55 | 0 | 0 |
 | CommunityToolkit.Maui.MediaElement | 12.0.0 | 47 | 43 | 3 | 1 |
 | Syncfusion.Maui.Core | 35.2.12 | 673 | 664 | 9 | 0 |
 | Syncfusion.Maui.Scheduler | 35.2.12 | 257 | 114 | 140 | 3 |
@@ -54,7 +54,7 @@ Package versions are the ones `tests/Compat` restores:
 | Syncfusion.Maui.GridCommon | 35.2.12 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.Rotator | 35.2.12 | 0 | 0 | 0 | 0 |
 | Syncfusion.Maui.SignaturePad | 35.2.12 | 0 | 0 | 0 | 0 |
-| **Total** | | **2490** | **2153** | **328** | **9** |
+| **Total** | | **2490** | **2158** | **328** | **4** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -86,13 +86,12 @@ No open gaps. Where Linux still differs from Windows:
 
 ### CommunityToolkit.Maui
 
-- **Expander header keyboard and screen-reader access (CommunityToolkit 17):** on Windows the header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content. On Linux the header is reached only by pointer, and AT-SPI exposes no expandable or expanded state.
-- **TouchBehavior on a Button:** the Button handles its pointer events without routing them, so a TouchBehavior attached to the Button itself never sees a press (no pressed state, no command) and neither do gesture recognizers on the Button. A TouchBehavior on a layout or another view works, including one around a Button. CommunityToolkit 17's Windows build no longer raises `Clicked` a second time from a completed touch on a Button (`IsClickedRaisedByPlatformView`); that applies on Linux once the Button routes its pointer events.
 - **MediaElement:** `UriMediaSource.HttpHeaders` are sent with the request for the source URI and with the segment requests of HLS and DASH streams (including DASH init segments). They are not sent with the request for an HLS master playlist's media playlist, or its reloads for a live stream. GStreamer 1.28's `hlsdemux` fetches it with an internal downloader that no signal exposes, and it sends a `Referer` header but not the app's headers. The headers go only to the media source's host and port; a segment on another host (a CDN) is fetched without them.
 - **Platform differences that are not gaps** (they follow the toolkit's Windows build):
   - Toast and Snackbar are desktop notifications, so `SnackbarOptions` and `Anchor` do not apply.
   - `DrawingView.GetImageStream` ignores the requested size.
   - `SpeechToText` and `OfflineSpeechToText` throw `FeatureNotSupportedException`, because Linux desktops have no speech-recognition service. The toolkit does the same on an Android device that has no recognizer.
+  - A Button's or ImageButton's press and release reach its own TouchBehavior and gesture recognizers but not its ancestors', as MAUI's Windows handlers stop these controls' gestures from bubbling (`PreventGestureBubbling`): a TouchBehavior or TapGestureRecognizer on a layout around a Button does not fire for a click on the Button.
 
 ### Syncfusion
 

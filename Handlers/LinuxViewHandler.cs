@@ -34,6 +34,7 @@ public abstract class LinuxViewHandler<TVirtualView, TPlatformView> : ViewHandle
         base.ConnectHandler(platformView);
         if (platformView is SkiaView skia && skia.MauiView is null && VirtualView is Microsoft.Maui.Controls.View view)
             skia.MauiView = view;
+        ToolkitExpander.OnHandlerConnected(VirtualView);
     }
 
     /// <inheritdoc />
