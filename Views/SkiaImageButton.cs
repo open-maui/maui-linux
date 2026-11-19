@@ -18,7 +18,7 @@ namespace Microsoft.Maui.Platform;
 /// Combines button behavior with image display.
 /// Implements MAUI IImageButton interface requirements.
 /// </summary>
-public class SkiaImageButton : SkiaView
+public partial class SkiaImageButton : SkiaView
 {
     #region Private Fields
     private SKBitmap? _bitmap;

@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered date picker control with calendar popup.
 /// Implements MAUI IDatePicker interface patterns.
 /// </summary>
-public class SkiaDatePicker : SkiaView
+public partial class SkiaDatePicker : SkiaView
 {
     #region BindableProperties
 

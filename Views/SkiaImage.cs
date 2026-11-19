@@ -18,7 +18,7 @@ namespace Microsoft.Maui.Platform;
 /// Skia-rendered image control with SVG support and GIF animation.
 /// Full MAUI-compliant implementation.
 /// </summary>
-public class SkiaImage : SkiaView
+public partial class SkiaImage : SkiaView
 {
     /// <summary>
     /// Clears the image cache.

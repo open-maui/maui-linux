@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered label control matching the .NET MAUI Label API.
 /// </summary>
-public class SkiaLabel : SkiaView
+public partial class SkiaLabel : SkiaView
 {
     #region BindableProperties
 

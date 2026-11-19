@@ -246,6 +246,7 @@ public partial class LinuxApplication : IDisposable, IPlatformApplication
             RaisesMauiLifecycle = raisesMauiLifecycle,
         };
         _windowContexts.Add(ctx);
+        Services.AtSpi.AtSpiBridge.Instance?.WindowsChanged(ctx, added: true);
         return ctx;
     }
 
@@ -358,6 +359,7 @@ public partial class LinuxApplication : IDisposable, IPlatformApplication
                 continue;
 
             _windowContexts.RemoveAt(i);
+            Services.AtSpi.AtSpiBridge.Instance?.WindowsChanged(ctx, added: false);
             if (_focusedContext == ctx) _focusedContext = null;
             if (_dialogHostContext == ctx) _dialogHostContext = null;
 

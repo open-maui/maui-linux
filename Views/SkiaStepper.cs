@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform;
 /// - Minimum, Maximum, Value, Increment properties
 /// - ValueChanged event with old/new values
 /// </summary>
-public class SkiaStepper : SkiaView
+public partial class SkiaStepper : SkiaView
 {
     #region SKColor Helper
 

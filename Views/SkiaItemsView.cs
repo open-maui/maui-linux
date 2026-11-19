@@ -23,7 +23,7 @@ namespace Microsoft.Maui.Platform;
 /// horizontal one). A line is as long as its longest item. Item extents and offsets are along
 /// the scroll axis (Y for a vertical list, X for a horizontal one).
 /// </remarks>
-public class SkiaItemsView : SkiaView
+public partial class SkiaItemsView : SkiaView
 {
     private IEnumerable? _itemsSource;
     private List<object> _items = new();

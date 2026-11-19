@@ -48,5 +48,11 @@ public enum AccessibleRole
     Alert,
     Filler,
     Icon,
-    Canvas
+    Canvas,
+    Heading,
+    PasswordText,
+    Switch,
+    ScrollPane,
+    Page,
+    DateEditor
 }

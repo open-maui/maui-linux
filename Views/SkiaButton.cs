@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered button control matching the .NET MAUI Button API.
 /// </summary>
-public class SkiaButton : SkiaView, ISkiaButtonController
+public partial class SkiaButton : SkiaView, ISkiaButtonController
 {
     #region BindableProperties
 

@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform;
 /// - IsRunning property to start/stop animation
 /// - Color property for the indicator color
 /// </summary>
-public class SkiaActivityIndicator : SkiaView
+public partial class SkiaActivityIndicator : SkiaView
 {
     #region SKColor Helper
 

@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform;
 /// - MinimumTrackColor, MaximumTrackColor, ThumbColor
 /// - ValueChanged, DragStarted, DragCompleted events
 /// </summary>
-public class SkiaSlider : SkiaView
+public partial class SkiaSlider : SkiaView
 {
     #region SKColor Helper
 
