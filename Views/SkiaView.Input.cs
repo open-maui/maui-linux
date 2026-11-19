@@ -254,6 +254,33 @@ public abstract partial class SkiaView
         BubblePointerEvent(e, RoutedPointerKind.Pressed, GestureManager.ProcessPointerDown);
     }
 
+    /// <summary>
+    /// A press or release on a control that takes it for itself (a Button, an ImageButton):
+    /// the view's own gesture recognizers and <see cref="PointerRouted"/> observers (a
+    /// TouchBehavior, a PlatformEffect) get it, its ancestors do not, as MAUI's Windows
+    /// handlers stop these controls' gestures from bubbling (<c>PreventGestureBubbling</c>).
+    /// </summary>
+    private protected void RouteOwnPointerEvent(PointerEventArgs e, RoutedPointerKind kind)
+    {
+        if (MauiView is not Microsoft.Maui.Controls.View view)
+            return;
+        bool pressed = kind == RoutedPointerKind.Pressed;
+        (pressed ? PointerPressed : PointerReleased)?.Invoke(this, e);
+        var windowE = InWindowSpace(e);
+        try
+        {
+            if (pressed)
+                GestureManager.ProcessPointerDown(view, windowE.X, windowE.Y);
+            else
+                GestureManager.ProcessOwnPointerUp(view, windowE.X, windowE.Y);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Error("SkiaView", $"Gesture handling failed for {view.GetType().Name}", ex);
+        }
+        RaisePointerRouted(view, kind, windowE);
+    }
+
     public virtual void OnPointerReleased(PointerEventArgs e)
     {
         PointerReleased?.Invoke(this, e);

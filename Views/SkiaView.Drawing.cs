@@ -74,6 +74,9 @@ public abstract partial class SkiaView
             child.Draw(canvas);
         }
 
+        // A bridge's overlay (a focus visual) goes over the children.
+        _decorator?.DrawOverlay(this, canvas, skBounds);
+
         if (Opacity < 1.0f)
         {
             canvas.Restore();

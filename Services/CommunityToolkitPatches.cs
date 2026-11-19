@@ -22,6 +22,7 @@ internal static class CommunityToolkitPatches
             return;
         var harmony = new Harmony("com.openmaui.communitytoolkit");
         Run("TouchBehavior", () => ToolkitTouchBehavior.Install(harmony));
+        Run("Expander header keyboard and screen-reader access", () => ToolkitExpander.Install(harmony));
         Run("Toast/Snackbar", () => ToolkitAlertsBridge.Install(harmony));
         Run("Badge", () => LauncherBadgeService.InstallToolkitBadge(harmony));
         Run("SpeechToText", () => ToolkitSpeechBridge.Install(harmony));

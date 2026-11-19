@@ -15,6 +15,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Hosting;
 using Microsoft.Maui.Platform;
+using Microsoft.Maui.Platform.Linux.Services;
 using SkiaSharp;
 using Xunit;
 
@@ -281,6 +282,100 @@ public class CommunityToolkitMauiCompatTests
 
         expander.IsExpanded.Should().BeFalse();
         changes.Should().Equal(true, false);
+    }
+
+    [Fact]
+    public void Expander_header_is_a_tab_stop_that_Enter_and_Space_toggle()
+    {
+        // CommunityToolkit 17 on Windows: the Expander's layout is a tab stop while the header can be
+        // activated, and Enter or Space (pressed without repeat, then released) toggles it.
+        var entry = new Entry { Text = "before" };
+        var header = new Label { Text = "Details", HeightRequest = 40 };
+        var expander = new Expander { Header = header, Content = new BoxView { Color = Colors.Red, HeightRequest = 100 }, VerticalOptions = LayoutOptions.Start };
+        var changes = new List<bool>();
+        expander.ExpandedChanged += (_, e) => changes.Add(e.IsExpanded);
+        using var host = Host(new VerticalStackLayout { entry, expander });
+        host.Render();
+        var layout = CompatHost.PlatformOf(((ContentView)expander).Content);
+
+        host.Context.TabStops().Should().Contain(layout, "the header can be activated");
+        host.Context.FocusedView = CompatHost.PlatformOf(entry);
+        host.DisplayWindow.RaiseKeyDown(Key.Tab);
+        host.Context.FocusedView.Should().BeSameAs(layout, "Tab moves to the Expander");
+
+        host.DisplayWindow.RaiseKeyDown(Key.Enter);
+        expander.IsExpanded.Should().BeFalse("the header activates on release");
+        host.DisplayWindow.RaiseKeyDown(Key.Enter); // auto-repeat
+        host.DisplayWindow.RaiseKeyUp(Key.Enter);
+        expander.IsExpanded.Should().BeTrue();
+
+        host.DisplayWindow.RaiseKeyDown(Key.Space);
+        host.DisplayWindow.RaiseKeyUp(Key.Space);
+        expander.IsExpanded.Should().BeFalse();
+        changes.Should().Equal(true, false);
+
+        host.DisplayWindow.RaiseKeyDown(Key.Space);
+        host.DisplayWindow.RaiseKeyDown(Key.A); // another key cancels the activation
+        host.DisplayWindow.RaiseKeyUp(Key.Space);
+        expander.IsExpanded.Should().BeFalse();
+
+        header.IsEnabled = false;
+        host.Context.TabStops().Should().NotContain(layout, "a disabled header cannot be activated");
+    }
+
+    [Fact]
+    public void Expander_header_draws_the_focus_visual_around_its_row_for_keyboard_focus()
+    {
+        var entry = new Entry { Text = "before" };
+        var header = new Label { Text = "Details", HeightRequest = 40, BackgroundColor = Colors.White };
+        var expander = new Expander { Header = header, Content = new BoxView { Color = Colors.White, HeightRequest = 100 }, IsExpanded = true, VerticalOptions = LayoutOptions.Start };
+        using var host = Host(new VerticalStackLayout { entry, expander });
+        host.Render();
+        var headerRect = CompatHost.RectOf(header);
+        var contentRect = CompatHost.RectOf((VisualElement)expander.Content!); // the content view
+        // The rings run along the header row's edges: dark outside and light inside, or the reverse
+        // on a dark desktop theme, so one of them differs from the white page either way.
+        var topEdge = new SKRectI(headerRect.Left + 10, headerRect.Top, headerRect.Right - 10, headerRect.Top + 4);
+        int before = host.CountPixelsNot(SKColors.White, topEdge);
+        int contentBefore = host.CountPixelsNot(SKColors.White, new SKRectI(contentRect.Left + 10, contentRect.Top + 10, contentRect.Right - 10, contentRect.Bottom - 10));
+
+        host.Context.FocusedView = CompatHost.PlatformOf(entry);
+        host.DisplayWindow.RaiseKeyDown(Key.Tab);
+        host.Render();
+
+        host.CountPixelsNot(SKColors.White, topEdge).Should().BeGreaterThan(before + 100, "the focus visual runs along the header's top");
+        host.CountPixelsNot(SKColors.White, new SKRectI(contentRect.Left + 10, contentRect.Top + 10, contentRect.Right - 10, contentRect.Bottom - 10)).Should().Be(contentBefore, "the content is outside the ring");
+    }
+
+    [Fact]
+    public void Expander_header_is_an_expandable_button_for_assistive_technology()
+    {
+        var header = new HorizontalStackLayout { new Label { Text = "Shipping" }, new Label { Text = "3 items" } };
+        SemanticProperties.SetHint(header, "Shows the shipping options"); // MAUI's Description is the name, its Hint the help text
+        var expander = new Expander { Header = header, Content = new Label { Text = "body" }, VerticalOptions = LayoutOptions.Start };
+        using var host = Host(expander);
+        host.Render();
+        var accessible = (IAccessible)CompatHost.PlatformOf(((ContentView)expander).Content);
+
+        accessible.Role.Should().Be(AccessibleRole.Button);
+        accessible.AccessibleName.Should().Be("Shipping, 3 items", "named after the header's content, as Windows' automation peer");
+        accessible.AccessibleDescription.Should().Be("Shows the shipping options");
+        accessible.States.Should().HaveFlag(AccessibleStates.Expandable).And.HaveFlag(AccessibleStates.Enabled);
+        accessible.States.HasFlag(AccessibleStates.Expanded).Should().BeFalse();
+        accessible.Actions.Select(a => a.Name).Should().Equal("click", "expand", "collapse");
+
+        accessible.DoAction("expand").Should().BeTrue();
+        expander.IsExpanded.Should().BeTrue();
+        accessible.States.Should().HaveFlag(AccessibleStates.Expanded);
+        accessible.DoAction("expand").Should().BeTrue();
+        expander.IsExpanded.Should().BeTrue("expanding an expanded Expander leaves it expanded");
+        accessible.DoAction("click").Should().BeTrue();
+        expander.IsExpanded.Should().BeFalse();
+
+        header.InputTransparent = true;
+        accessible.States.HasFlag(AccessibleStates.Enabled).Should().BeFalse();
+        accessible.DoAction("click").Should().BeFalse("a header that cannot be activated is not invoked");
+        expander.IsExpanded.Should().BeFalse();
     }
 
     [Fact]

@@ -583,7 +583,15 @@ public static class GestureManager
     /// <summary>
     /// Processes a pointer up event.
     /// </summary>
-    public static void ProcessPointerUp(View? view, double x, double y)
+    public static void ProcessPointerUp(View? view, double x, double y) => ProcessPointerUp(view, x, y, ownTapOnly: false);
+
+    /// <summary>
+    /// A release on a control that keeps its gestures to itself (a Button): a tap goes to the
+    /// view's own recognizers only, not up the parent chain.
+    /// </summary>
+    internal static void ProcessOwnPointerUp(View? view, double x, double y) => ProcessPointerUp(view, x, y, ownTapOnly: true);
+
+    private static void ProcessPointerUp(View? view, double x, double y, bool ownTapOnly)
     {
         if (view == null)
         {
@@ -608,7 +616,7 @@ public static class GestureManager
             else if (distance < 15.0 && elapsed < SwipeMaxTime)
             {
                 DiagnosticLog.Debug(Tag, $"Detected tap on {view.GetType().Name} (distance={distance:F1}, elapsed={elapsed:F0}ms)");
-                if (ProcessTapCore(view, x, y) != null)
+                if ((ownTapOnly ? (ProcessTapOnView(view, x, y) ? view : null) : ProcessTapCore(view, x, y)) != null)
                 {
                     // The tap was consumed by this view or an ancestor. Pointer
                     // events bubble (SkiaView.BubblePointerEvent calls
