@@ -13,7 +13,7 @@ using Xunit;
 namespace OpenMaui.Compat.Tests;
 
 /// <summary>
-/// Syncfusion.Maui.Inputs drop-downs (SfComboBox, SfAutocomplete; 34.2.9,
+/// Syncfusion.Maui.Inputs drop-downs (SfComboBox, SfAutocomplete; 35.2.12,
 /// platform-neutral build) through <c>UseLinuxSyncfusion()</c>: the drop-down
 /// opens as a popup over the page, lists the items, takes clicks and closes.
 /// </summary>

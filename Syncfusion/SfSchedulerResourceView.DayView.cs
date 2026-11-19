@@ -99,6 +99,16 @@ internal static partial class SfSchedulerResourceView
             AddHorizontalResourceViewHeaderLayout(__instance, isCurrentView);
     });
 
+    /// <summary>
+    /// A day view control's scroll handler as its desktop builds subscribe it: through the weak
+    /// DayViewControlProxy where the release has one (Syncfusion 34), else the control's own
+    /// handler (Syncfusion 35 removed the proxy and subscribes the control directly).
+    /// </summary>
+    private static EventHandler<Microsoft.Maui.Controls.ScrolledEventArgs>? ScrollHandler(object control, string proxyMethod, string ownMethod) =>
+        Get(control, "proxy") is { } proxy
+            ? Bind<EventHandler<Microsoft.Maui.Controls.ScrolledEventArgs>>(proxy, proxyMethod)
+            : Bind<EventHandler<Microsoft.Maui.Controls.ScrolledEventArgs>>(control, ownMethod);
+
     /// <summary>DayViewControl.AddHorizontalResourceViewHeaderLayout of the desktop builds.</summary>
     internal static void AddHorizontalResourceViewHeaderLayout(object control, bool isCurrentView)
     {
@@ -119,7 +129,7 @@ internal static partial class SfSchedulerResourceView
             state.TimeRulerGrid = (Layout)New(s_schedulerGrid!)!;
             state.TimeRuler = new SfSchedulerTimeRulerView(info);
             state.TimeRulerScroll = (ScrollView)New(s_scrollViewExt!)!;
-            state.RulerScrolled = Bind<EventHandler<Microsoft.Maui.Controls.ScrolledEventArgs>>(Get(control, "proxy")!, "OnTimeRulerScrollViewScrolled");
+            state.RulerScrolled = ScrollHandler(control, "OnTimeRulerScrollViewScrolled", "TimeRulerScrollView_Scrolled");
             if (state.RulerScrolled != null)
                 state.TimeRulerScroll.Scrolled += state.RulerScrolled;
             state.TimeRulerScroll.Orientation = Microsoft.Maui.ScrollOrientation.Vertical;
@@ -144,7 +154,7 @@ internal static partial class SfSchedulerResourceView
                 Bind<Action<SemanticsNode, bool>>(control, "OnSemanticsNodeClick")!);
             Call(Get(header, "hoverView"), "UpdateVisibleDates", visibleDates);
             state.ResourceScroll = (ScrollView)New(s_scrollViewExt!)!;
-            state.ResourceScrolled = Bind<EventHandler<Microsoft.Maui.Controls.ScrolledEventArgs>>(Get(control, "proxy")!, "OnResourceViewScrollViewScrolled");
+            state.ResourceScrolled = ScrollHandler(control, "OnResourceViewScrollViewScrolled", "ResourceViewScrollView_Scrolled");
             if (state.ResourceScrolled != null)
                 state.ResourceScroll.Scrolled += state.ResourceScrolled;
             state.ResourceScroll.HorizontalScrollBarVisibility = Microsoft.Maui.ScrollBarVisibility.Never;

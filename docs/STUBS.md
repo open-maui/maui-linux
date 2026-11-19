@@ -25,35 +25,36 @@ Package versions are the ones `tests/Compat` restores:
 | Microsoft.Maui.Controls.Core | 11.0.10 | 361 | 318 | 43 | 0 |
 | Microsoft.Maui.Essentials | 11.0.10 | 248 | 226 | 22 | 0 |
 | Microsoft.Maui.Controls.Xaml | 11.0.10 | 0 | 0 | 0 | 0 |
-| CommunityToolkit.Maui.Core | 15.0.1 | 48 | 38 | 10 | 0 |
-| CommunityToolkit.Maui.MediaElement | 10.0.0 | 39 | 35 | 3 | 1 |
-| CommunityToolkit.Maui | 15.0.1 | 27 | 27 | 0 | 0 |
-| Syncfusion.Maui.Core | 34.2.9 | 668 | 659 | 9 | 0 |
-| Syncfusion.Maui.Scheduler | 34.2.9 | 253 | 113 | 137 | 3 |
-| Syncfusion.Maui.Inputs | 34.2.9 | 33 | 30 | 3 | 0 |
-| Syncfusion.Maui.DataGrid | 34.2.9 | 24 | 22 | 2 | 0 |
-| Syncfusion.Maui.Popup | 34.2.9 | 23 | 22 | 1 | 0 |
-| Syncfusion.Maui.PullToRefresh | 34.2.8 | 14 | 14 | 0 | 0 |
-| Syncfusion.Maui.ListView | 34.2.9 | 13 | 12 | 1 | 0 |
-| Syncfusion.Maui.TabView | 34.2.9 | 13 | 13 | 0 | 0 |
-| Syncfusion.Maui.Buttons | 34.2.9 | 10 | 9 | 1 | 0 |
-| Syncfusion.Maui.NavigationDrawer | 34.2.9 | 10 | 10 | 0 | 0 |
-| Syncfusion.Maui.Toolbar | 34.2.9 | 10 | 10 | 0 | 0 |
-| Syncfusion.Maui.TreeView | 34.2.9 | 9 | 9 | 0 | 0 |
-| Syncfusion.Maui.PdfToImageConverter | 34.2.9 | 7 | 7 | 0 | 0 |
-| Syncfusion.Maui.Carousel | 34.2.9 | 4 | 4 | 0 | 0 |
-| Syncfusion.Maui.Calendar | 34.2.8 | 3 | 3 | 0 | 0 |
-| Syncfusion.Maui.ImageEditor | 34.2.9 | 3 | 2 | 1 | 0 |
-| Syncfusion.Maui.Picker | 34.2.9 | 2 | 2 | 0 | 0 |
-| Syncfusion.Maui.Charts | 34.2.9 | 1 | 1 | 0 | 0 |
-| Syncfusion.Maui.Sliders | 34.2.9 | 1 | 0 | 1 | 0 |
-| Syncfusion.Maui.Cards | 34.2.9 | 0 | 0 | 0 | 0 |
-| Syncfusion.Maui.Data | 34.2.9 | 0 | 0 | 0 | 0 |
-| Syncfusion.Maui.DataSource | 34.2.9 | 0 | 0 | 0 | 0 |
-| Syncfusion.Maui.GridCommon | 34.2.9 | 0 | 0 | 0 | 0 |
-| Syncfusion.Maui.Rotator | 34.2.9 | 0 | 0 | 0 | 0 |
-| Syncfusion.Maui.SignaturePad | 34.2.9 | 0 | 0 | 0 | 0 |
-| **Total** | | **2434** | **2108** | **322** | **4** |
+| CommunityToolkit.Maui.Core | 17.0.0 | 58 | 45 | 13 | 0 |
+| CommunityToolkit.Maui | 17.0.0 | 55 | 50 | 0 | 5 |
+| CommunityToolkit.Maui.MediaElement | 12.0.0 | 47 | 43 | 3 | 1 |
+| Syncfusion.Maui.Core | 35.2.12 | 673 | 664 | 9 | 0 |
+| Syncfusion.Maui.Scheduler | 35.2.12 | 257 | 114 | 140 | 3 |
+| Syncfusion.Maui.Inputs | 35.2.12 | 33 | 30 | 3 | 0 |
+| Syncfusion.Maui.DataGrid | 35.2.12 | 25 | 23 | 2 | 0 |
+| Syncfusion.Maui.Popup | 35.2.12 | 24 | 23 | 1 | 0 |
+| Syncfusion.Maui.PullToRefresh | 35.2.12 | 14 | 14 | 0 | 0 |
+| Syncfusion.Maui.ListView | 35.2.12 | 13 | 12 | 1 | 0 |
+| Syncfusion.Maui.TabView | 35.2.12 | 13 | 13 | 0 | 0 |
+| Syncfusion.Maui.NavigationDrawer | 35.2.12 | 10 | 10 | 0 | 0 |
+| Syncfusion.Maui.Toolbar | 35.2.12 | 10 | 10 | 0 | 0 |
+| Syncfusion.Maui.Buttons | 35.2.12 | 9 | 8 | 1 | 0 |
+| Syncfusion.Maui.TreeView | 35.2.12 | 9 | 9 | 0 | 0 |
+| Syncfusion.Maui.PdfToImageConverter | 35.2.12 | 7 | 7 | 0 | 0 |
+| Syncfusion.Maui.Carousel | 35.2.12 | 4 | 4 | 0 | 0 |
+| Syncfusion.Maui.Calendar | 35.2.12 | 3 | 3 | 0 | 0 |
+| Syncfusion.Maui.ImageEditor | 35.2.12 | 3 | 2 | 1 | 0 |
+| Syncfusion.Maui.Picker | 35.2.12 | 2 | 2 | 0 | 0 |
+| Syncfusion.Maui.Charts | 35.2.12 | 1 | 1 | 0 | 0 |
+| Syncfusion.Maui.Sliders | 35.2.12 | 1 | 0 | 1 | 0 |
+| Syncfusion.Maui.Cards | 35.2.12 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.Data | 35.2.12 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.DataPager | 35.2.12 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.DataSource | 35.2.12 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.GridCommon | 35.2.12 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.Rotator | 35.2.12 | 0 | 0 | 0 | 0 |
+| Syncfusion.Maui.SignaturePad | 35.2.12 | 0 | 0 | 0 | 0 |
+| **Total** | | **2490** | **2153** | **328** | **9** |
 
 Counts are per method, so a single gap can be many findings. The Syncfusion Scheduler's 75 open findings, for example, are one desktop feature (the horizontal resource view).
 
@@ -85,6 +86,8 @@ No open gaps. Where Linux still differs from Windows:
 
 ### CommunityToolkit.Maui
 
+- **Expander header keyboard and screen-reader access (CommunityToolkit 17):** on Windows the header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content. On Linux the header is reached only by pointer, and AT-SPI exposes no expandable or expanded state.
+- **TouchBehavior on a Button:** the Button handles its pointer events without routing them, so a TouchBehavior attached to the Button itself never sees a press (no pressed state, no command) and neither do gesture recognizers on the Button. A TouchBehavior on a layout or another view works, including one around a Button. CommunityToolkit 17's Windows build no longer raises `Clicked` a second time from a completed touch on a Button (`IsClickedRaisedByPlatformView`); that applies on Linux once the Button routes its pointer events.
 - **MediaElement:** `UriMediaSource.HttpHeaders` are sent with the request for the source URI and with the segment requests of HLS and DASH streams (including DASH init segments). They are not sent with the request for an HLS master playlist's media playlist, or its reloads for a live stream. GStreamer 1.28's `hlsdemux` fetches it with an internal downloader that no signal exposes, and it sends a `Referer` header but not the app's headers. The headers go only to the media source's host and port; a segment on another host (a CDN) is fetched without them.
 - **Platform differences that are not gaps** (they follow the toolkit's Windows build):
   - Toast and Snackbar are desktop notifications, so `SnackbarOptions` and `Anchor` do not apply.

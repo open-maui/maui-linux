@@ -13,8 +13,8 @@ Status: built, packaged and inspected on every release (below); not yet run on a
 | Asset | Source | linux-arm64 |
 |-------|--------|-------------|
 | `libopenmaui_wl.so` (Wayland protocol shim) | this repo, `native/` | Yes, since 10.0.110.1 (`runtimes/linux-arm64/native/`) |
-| `libSkiaSharp.so` | SkiaSharp.NativeAssets.Linux 4.152.1 | Yes |
-| `libHarfBuzzSharp.so` | HarfBuzzSharp.NativeAssets.Linux 14.2.1.201 | Yes |
+| `libSkiaSharp.so` | SkiaSharp.NativeAssets.Linux 4.157.0 | Yes |
+| `libHarfBuzzSharp.so` | HarfBuzzSharp.NativeAssets.Linux 14.4.0.200 | Yes |
 | Harmony (runtime patching of MAUI Essentials) | Lib.Harmony 2.4.2 | Yes: MonoMod.Core carries an Arm64 detour backend and `exhelper_linux_arm64.so` |
 | Tmds.DBus, Svg.Skia, CommunityToolkit.Maui.MediaElement, MAUI | NuGet | Managed only |
 | libwayland, libxkbcommon, libX11, GTK 3, EGL/GLES, GStreamer, WPE WebKit, WebKitGTK, CUPS, AT-SPI2 | distribution packages | Yes on every supported distribution; WPE WebKit 2.54 for Fedora 43/44 aarch64 is in the `philn/wpewebkit` COPR |

@@ -906,7 +906,7 @@
     "items": [
       {
         "name": "CommunityToolkit.Maui",
-        "version": "15.0.1",
+        "version": "17.0.0",
         "tests": [
           "CommunityToolkitMauiCompatTests",
           "CommunityToolkitPlatformFeatureTests"
@@ -915,7 +915,7 @@
       },
       {
         "name": "CommunityToolkit.Maui.MediaElement",
-        "version": "10.0.0",
+        "version": "12.0.0",
         "tests": [
           "MediaElementCompatTests"
         ],
@@ -931,7 +931,7 @@
       },
       {
         "name": "SkiaSharp.Views.Maui.Controls",
-        "version": "4.152.1",
+        "version": "4.157.0",
         "tests": [
           "SkiaSharpViewsCompatTests"
         ],
@@ -955,7 +955,7 @@
       },
       {
         "name": "ReactiveUI.Maui",
-        "version": "24.3.0",
+        "version": "27.0.1",
         "tests": [
           "ReactiveUiCompatTests"
         ],
@@ -995,7 +995,7 @@
       },
       {
         "name": "Syncfusion .NET MAUI (Core, ListView, TabView, Charts, Inputs, Popup, Carousel, Rotator, SignaturePad, Scheduler, DataGrid, ImageEditor, PullToRefresh, Toolbar)",
-        "version": "34.2.9",
+        "version": "35.2.12",
         "tests": [
           "SyncfusionCompatTests",
           "SyncfusionChartsCompatTests",

@@ -13,38 +13,38 @@
     "Microsoft.Maui.Essentials"
   ],
   "scanned": {
-    "CommunityToolkit.Maui": "15.0.1",
-    "CommunityToolkit.Maui.Core": "15.0.1",
-    "CommunityToolkit.Maui.MediaElement": "10.0.0",
+    "CommunityToolkit.Maui": "17.0.0",
+    "CommunityToolkit.Maui.Core": "17.0.0",
+    "CommunityToolkit.Maui.MediaElement": "12.0.0",
     "Microsoft.Maui.Controls.Core": "11.0.10",
     "Microsoft.Maui.Controls.Xaml": "11.0.10",
     "Microsoft.Maui.Core": "11.0.10",
     "Microsoft.Maui.Essentials": "11.0.10",
-    "Syncfusion.Maui.Buttons": "34.2.9",
-    "Syncfusion.Maui.Calendar": "34.2.8",
-    "Syncfusion.Maui.Cards": "34.2.9",
-    "Syncfusion.Maui.Carousel": "34.2.9",
-    "Syncfusion.Maui.Charts": "34.2.9",
-    "Syncfusion.Maui.Core": "34.2.9",
-    "Syncfusion.Maui.Data": "34.2.9",
-    "Syncfusion.Maui.DataGrid": "34.2.9",
-    "Syncfusion.Maui.DataSource": "34.2.9",
-    "Syncfusion.Maui.GridCommon": "34.2.9",
-    "Syncfusion.Maui.ImageEditor": "34.2.9",
-    "Syncfusion.Maui.Inputs": "34.2.9",
-    "Syncfusion.Maui.ListView": "34.2.9",
-    "Syncfusion.Maui.NavigationDrawer": "34.2.9",
-    "Syncfusion.Maui.PdfToImageConverter": "34.2.9",
-    "Syncfusion.Maui.Picker": "34.2.9",
-    "Syncfusion.Maui.Popup": "34.2.9",
-    "Syncfusion.Maui.PullToRefresh": "34.2.8",
-    "Syncfusion.Maui.Rotator": "34.2.9",
-    "Syncfusion.Maui.Scheduler": "34.2.9",
-    "Syncfusion.Maui.SignaturePad": "34.2.9",
-    "Syncfusion.Maui.Sliders": "34.2.9",
-    "Syncfusion.Maui.TabView": "34.2.9",
-    "Syncfusion.Maui.Toolbar": "34.2.9",
-    "Syncfusion.Maui.TreeView": "34.2.9"
+    "Syncfusion.Maui.Buttons": "35.2.12",
+    "Syncfusion.Maui.Calendar": "35.2.12",
+    "Syncfusion.Maui.Cards": "35.2.12",
+    "Syncfusion.Maui.Carousel": "35.2.12",
+    "Syncfusion.Maui.Charts": "35.2.12",
+    "Syncfusion.Maui.Core": "35.2.12",
+    "Syncfusion.Maui.Data": "35.2.12",
+    "Syncfusion.Maui.DataGrid": "35.2.12",
+    "Syncfusion.Maui.DataSource": "35.2.12",
+    "Syncfusion.Maui.GridCommon": "35.2.12",
+    "Syncfusion.Maui.ImageEditor": "35.2.12",
+    "Syncfusion.Maui.Inputs": "35.2.12",
+    "Syncfusion.Maui.ListView": "35.2.12",
+    "Syncfusion.Maui.NavigationDrawer": "35.2.12",
+    "Syncfusion.Maui.PdfToImageConverter": "35.2.12",
+    "Syncfusion.Maui.Picker": "35.2.12",
+    "Syncfusion.Maui.Popup": "35.2.12",
+    "Syncfusion.Maui.PullToRefresh": "35.2.12",
+    "Syncfusion.Maui.Rotator": "35.2.12",
+    "Syncfusion.Maui.Scheduler": "35.2.12",
+    "Syncfusion.Maui.SignaturePad": "35.2.12",
+    "Syncfusion.Maui.Sliders": "35.2.12",
+    "Syncfusion.Maui.TabView": "35.2.12",
+    "Syncfusion.Maui.Toolbar": "35.2.12",
+    "Syncfusion.Maui.TreeView": "35.2.12"
   },
   "findings": [
     {
@@ -53,42 +53,12 @@
       "by": "Services/LauncherBadgeService.cs,Services/CommunityToolkitPatches.cs"
     },
     {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapDrawAction(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
+      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::ListenAgain()",
       "status": "covered",
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
     },
     {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapDrawingViewBackground(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
-      "status": "covered",
-      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
-    },
-    {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapIsMultiLineModeEnabled(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
-      "status": "covered",
-      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
-    },
-    {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapLineColor(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
-      "status": "covered",
-      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
-    },
-    {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapLineWidth(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
-      "status": "covered",
-      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
-    },
-    {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapLines(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
-      "status": "covered",
-      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
-    },
-    {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::MapShouldClearOnFinish(CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler,CommunityToolkit.Maui.Core.IDrawingView)",
-      "status": "covered",
-      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
-    },
-    {
-      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::SetDrawingLineAdapter(CommunityToolkit.Maui.Core.Handlers.IDrawingLineAdapter)",
+      "id": "CommunityToolkit.Maui.Core|stub|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::StopListeningUntilLoaded()",
       "status": "covered",
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
     },
@@ -153,6 +123,21 @@
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
     },
     {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::GetVirtualViewLine",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::Listen",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::ObserveVirtualViewLines",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::OnPlatformViewDrawing",
       "status": "covered",
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
@@ -179,6 +164,16 @@
     },
     {
       "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::OnVirtualViewLinesCollectionChanged",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::SetPlatformViewLines",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Handlers.DrawingViewHandler::StopListening",
       "status": "covered",
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
     },
@@ -223,7 +218,37 @@
       "by": "Views/DrawingImageExport.cs,Services/CommunityToolkitPatches.cs"
     },
     {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.DrawingViewService::GetMaximumCanvasRenderTarget",
+      "status": "covered",
+      "by": "Views/DrawingImageExport.cs,Services/CommunityToolkitPatches.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::IsDrawingWith",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnCanceled",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnCaptureLost",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnMoved",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnPointerCanceled",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnPointerCaptureLost",
       "status": "covered",
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
     },
@@ -243,6 +268,21 @@
       "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
     },
     {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnPressed",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Core.Views.MauiDrawingView::OnReleased",
+      "status": "covered",
+      "by": "Handlers/DrawingViewHandler.cs,Views/SkiaDrawingView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Media.OfflineSpeechToTextImplementation::.cctor",
+      "status": "not-applicable",
+      "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
+    },
+    {
       "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Media.OfflineSpeechToTextImplementation::Initialize",
       "status": "not-applicable",
       "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
@@ -258,12 +298,22 @@
       "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
     },
     {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Media.OfflineSpeechToTextImplementation::OnSilenceTimerElapsed",
+      "status": "not-applicable",
+      "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
+    },
+    {
       "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Media.OfflineSpeechToTextImplementation::OnSpeechRecognized",
       "status": "not-applicable",
       "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
     },
     {
       "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Media.SpeechToTextImplementation::Initialize",
+      "status": "not-applicable",
+      "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
+    },
+    {
+      "id": "CommunityToolkit.Maui.Core|windows-only|CommunityToolkit.Maui.Media.SpeechToTextImplementation::IsStillStoredAfter",
       "status": "not-applicable",
       "reason": "Windows speech-engine plumbing (WinRT SpeechRecognizer / System.Speech events and lifecycle); no speech-recognition service ships on Linux desktops, so the Linux bridge (Services/ToolkitSpeechBridge.cs) behaves as the toolkit does on a device without a recognizer: StartListenAsync throws FeatureNotSupportedException, StopListenAsync completes"
     },
@@ -393,9 +443,29 @@
       "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
     },
     {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Handlers.MediaElementHandler::UpdateSource",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Handlers.MediaElementHandler::set_MediaManager",
       "status": "not-applicable",
       "reason": "Windows MediaPlayerElement plumbing; the Linux handler owns a SkiaMediaElement instead"
+    },
+    {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::CanSeekMedia",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::ClampToTheMedia",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::ClearSource",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
     },
     {
       "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::CreatePlatformView",
@@ -409,6 +479,21 @@
     },
     {
       "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::GetFullAppPackageFilePath",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::GetPlayerInUse",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::IsCurrentSourceUpdate",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::IsNativeStateReported",
       "status": "covered",
       "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
     },
@@ -468,6 +553,11 @@
       "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
     },
     {
+      "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::SetPlayerSource",
+      "status": "covered",
+      "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui.MediaElement|windows-only|CommunityToolkit.Maui.Core.Views.MediaManager::SetUriSourceWithHeaders",
       "status": "covered",
       "by": "MediaElement/Handlers/LinuxMediaElementHandler.cs,MediaElement/Views/SkiaMediaElement.cs,MediaElement/Native/GStreamerInterop.Playback.cs"
@@ -483,7 +573,52 @@
       "reason": "Windows MediaPlayerElement plumbing; the Linux handler owns a SkiaMediaElement instead"
     },
     {
+      "id": "CommunityToolkit.Maui|stub|CommunityToolkit.Maui.Behaviors.TouchBehavior::get_IsClickedRaisedByPlatformView()",
+      "status": "open",
+      "reason": "Windows does not raise Clicked again from a completed touch when the native view (a Button) has raised it; on Linux a TouchBehavior attached to a Button gets no pointer input at all (SkiaButton handles its pointer events without routing them, so neither the behavior nor the Button's gesture recognizers see them), so the double-click question does not arise yet"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::DismissAfterDurationAsync",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::DispatchToTheUiThread",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::ForgetPlatformSnackbar",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::HandleSnackbarAction",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::OnPlatformSnackbarDismissed",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::OnPlatformSnackbarRemoved",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::RemovePlatformSnackbarAsync",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Snackbar::SetPlatformSnackbar",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Toast::.cctor",
       "status": "covered",
       "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
     },
@@ -491,6 +626,22 @@
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Toast::GetAppNotificationDuration",
       "status": "covered",
       "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Toast::RemoveAtTheEndOfTheDurationAsync",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Alerts.Toast::RemovePlatformToastAsync",
+      "status": "covered",
+      "by": "Services/ToolkitAlertsBridge.cs,Services/NotificationService.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.GestureManager::HandleCollectionViewSelection",
+      "status": "covered",
+      "reason": "a completed touch on a CollectionView item's content selects the item as on Windows: the Linux bridge observes the pointer without taking it, so the list selects the item itself (TouchBehavior_in_a_CollectionView_row_is_pressed_runs_its_command_and_the_row_is_selected)",
+      "by": "Handlers/ToolkitTouchBehavior.cs"
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.IconTintColorBehavior::ApplyImageTintColor",
@@ -519,6 +670,11 @@
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.IconTintColorBehavior::LoadAndApplyImageTintColor",
+      "status": "covered",
+      "by": "Handlers/ToolkitIconTint.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.IconTintColorBehavior::LoadSurfaceMaskAsync",
       "status": "covered",
       "by": "Handlers/ToolkitIconTint.cs"
     },
@@ -558,12 +714,22 @@
       "by": "Handlers/ToolkitIconTint.cs"
     },
     {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.IconTintColorBehavior::TryGetSourceImageStream",
+      "status": "covered",
+      "by": "Handlers/ToolkitIconTint.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.IconTintColorBehavior::TryGetSourceImageUri",
       "status": "covered",
       "by": "Handlers/ToolkitIconTint.cs"
     },
     {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.ImageTouchBehavior::OnAttachedTo",
+      "status": "covered",
+      "by": "Handlers/ToolkitTouchBehavior.cs,Services/CommunityToolkitPatches.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.TouchBehavior::HandlePointerReleased",
       "status": "covered",
       "by": "Handlers/ToolkitTouchBehavior.cs,Services/CommunityToolkitPatches.cs"
     },
@@ -608,6 +774,58 @@
       "by": "Handlers/ToolkitTouchBehavior.cs,Services/CommunityToolkitPatches.cs"
     },
     {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.TouchBehavior::PlatformDispose",
+      "status": "covered",
+      "by": "Handlers/ToolkitTouchBehavior.cs,Services/CommunityToolkitPatches.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Behaviors.TouchBehavior::RemovePointerHandlers",
+      "status": "covered",
+      "by": "Handlers/ToolkitTouchBehavior.cs,Services/CommunityToolkitPatches.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::AttachHostButtonImage",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::DetachHostButtonImage",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::FitHostButtonImage",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::GetRoomForPicture",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::OnHostButtonHandlerChanged",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::PlatformOnParentSet",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.ImageSources.GravatarImageSource::ReleaseHostButton",
+      "status": "covered",
+      "reason": "a GravatarImageSource as a Button's ImageSource is fitted to the button, as every Button image is on Linux (Windows 17 fits it to the room the padding and text leave)",
+      "by": "Views/SkiaButton.cs"
+    },
+    {
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.Expander::ForceUpdateCellSize",
       "status": "covered",
       "by": "Views/SkiaCollectionView.cs,Views/SkiaItemsView.cs"
@@ -616,6 +834,26 @@
       "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.Expander::IterateItemsInRow",
       "status": "covered",
       "by": "Views/SkiaCollectionView.cs,Views/SkiaItemsView.cs"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.Expander::UpdateHeaderAccessibility",
+      "status": "open",
+      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.ExpanderLayoutHandler::ConnectHandler",
+      "status": "open",
+      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.ExpanderLayoutHandler::CreatePlatformView",
+      "status": "open",
+      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
+    },
+    {
+      "id": "CommunityToolkit.Maui|windows-only|CommunityToolkit.Maui.Views.ExpanderLayoutHandler::SetVirtualView",
+      "status": "open",
+      "reason": "CommunityToolkit 17's Windows Expander header is a Tab stop with the system focus visual, Enter and Space toggle it, and screen readers see an expand/collapse button named after the header's content (ExpanderLayoutPanel's automation peer); on Linux the header is reached only by pointer and AT-SPI exposes no expandable or expanded state"
     },
     {
       "id": "Microsoft.Maui.Controls|stub|Microsoft.Maui.Controls.Button::MapLineBreakMode(Microsoft.Maui.Handlers.IButtonHandler,Microsoft.Maui.Controls.Button)",
@@ -7491,12 +7729,6 @@
       "by": "Syncfusion/Handlers/SfBridgeHandlers.cs"
     },
     {
-      "id": "Syncfusion.Maui.Buttons|windows-only|Syncfusion.Maui.Buttons.SfSegmentedControl::OnHandlerChanged",
-      "status": "covered",
-      "reason": "IsTabStop=true becomes a focusable platform view (with SfButton, SfCheckBox, SfRadioButton, SfSwitch), which Tab/Shift+Tab reach",
-      "by": "Syncfusion/Handlers/SfBridgeHandlers.cs, WindowContext.TabNavigation.cs"
-    },
-    {
       "id": "Syncfusion.Maui.Buttons|windows-only|Syncfusion.Maui.Buttons.SfSegmentedControl::UpdateNativeKeyBoardFocus",
       "status": "not-applicable",
       "reason": "sets WinUI's UseSystemFocusVisuals=false so the system focus rectangle does not draw over the control's own keyboard border; OpenMaui draws no system focus visual, so the control's own border is the only one already"
@@ -8179,10 +8411,34 @@
       "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs, Syncfusion/SfSignaturePadPatches.cs"
     },
     {
+      "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.PlatformSignaturePad::GetPadHeight()",
+      "status": "covered",
+      "reason": "LoadFromStrokeData (Syncfusion 35) loads the strokes through the bridge handler's LoadStrokes command, fitted to the pad, each in its own colour and width, as on Windows",
+      "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs"
+    },
+    {
+      "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.PlatformSignaturePad::GetPadWidth()",
+      "status": "covered",
+      "reason": "LoadFromStrokeData (Syncfusion 35) loads the strokes through the bridge handler's LoadStrokes command, fitted to the pad, each in its own colour and width, as on Windows",
+      "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs"
+    },
+    {
       "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.PlatformSignaturePad::Invalidate()",
       "status": "covered",
       "reason": "SfSignaturePad strokes, input and export through the bridge handler",
       "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs, Syncfusion/SfSignaturePadPatches.cs"
+    },
+    {
+      "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.PlatformSignaturePad::LoadLockedImage(System.IO.Stream)",
+      "status": "covered",
+      "reason": "LoadFromStrokeData (Syncfusion 35) loads the strokes through the bridge handler's LoadStrokes command, fitted to the pad, each in its own colour and width, as on Windows",
+      "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs"
+    },
+    {
+      "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.PlatformSignaturePad::SetLoadedStrokeColor(Microsoft.Maui.Graphics.Color)",
+      "status": "covered",
+      "reason": "LoadFromStrokeData (Syncfusion 35) loads the strokes through the bridge handler's LoadStrokes command, fitted to the pad, each in its own colour and width, as on Windows",
+      "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.PlatformSignaturePad::ToImageSource()",
@@ -8213,6 +8469,12 @@
       "status": "covered",
       "reason": "SfSignaturePad strokes, input and export through the bridge handler",
       "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs, Syncfusion/SfSignaturePadPatches.cs"
+    },
+    {
+      "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.SignaturePadHandler::MapLoadStrokes(Syncfusion.Maui.Graphics.Internals.ISignaturePadHandler,Syncfusion.Maui.Graphics.Internals.ISignaturePad,Object)",
+      "status": "covered",
+      "reason": "LoadFromStrokeData (Syncfusion 35) loads the strokes through the bridge handler's LoadStrokes command, fitted to the pad, each in its own colour and width, as on Windows",
+      "by": "Syncfusion/Handlers/SfSignaturePadBridgeHandler.cs, Syncfusion/Views/SkiaSfSignaturePad.cs"
     },
     {
       "id": "Syncfusion.Maui.Core|stub|Syncfusion.Maui.Graphics.Internals.SignaturePadHandler::MapMaximumStrokeThickness(Syncfusion.Maui.Graphics.Internals.SignaturePadHandler,Syncfusion.Maui.Graphics.Internals.ISignaturePad)",
@@ -11545,6 +11807,12 @@
       "by": "Syncfusion/SfDataGridPatches.cs"
     },
     {
+      "id": "Syncfusion.Maui.DataGrid|stub|Syncfusion.Maui.DataGrid.DataGridCellRenderer`2::ApplyPlatformSelection(Syncfusion.Maui.DataGrid.SfDataGridEntry,Int32,Int32)",
+      "status": "covered",
+      "reason": "EditorSelectionBehavior.SelectAll selects the editor's text through the CursorPosition and SelectionLength the neutral build sets after it, which OpenMaui's Entry maps; the Windows build also calls TextBox.Select",
+      "by": "Handlers/EntryHandler.cs"
+    },
+    {
       "id": "Syncfusion.Maui.DataGrid|stub|Syncfusion.Maui.DataGrid.DataGridColumnDragDropController::ChangeCursor(Boolean)",
       "status": "covered",
       "by": "Syncfusion/SfDataGridPatches.cs,Window/CursorType.cs,WindowContext.cs"
@@ -12121,6 +12389,12 @@
       "by": "Syncfusion/SfOverlayPatches.cs"
     },
     {
+      "id": "Syncfusion.Maui.Popup|windows-only|Syncfusion.Maui.Popup.PopupExtension::GetBlurHost",
+      "status": "covered",
+      "reason": "a popup opened over a ShowOverlayAlways popup blurs that popup too: the Linux overlay's backdrop blur covers everything drawn beneath it, the lower popups included",
+      "by": "Syncfusion/SfOverlayPatches.cs"
+    },
+    {
       "id": "Syncfusion.Maui.Popup|windows-only|Syncfusion.Maui.Popup.PopupExtension::GetBlurRadius",
       "status": "covered",
       "reason": "SfPopup helpers (screen size, view bounds, blur, shadow, corner radius, window resize, outside press) implemented",
@@ -12282,6 +12556,12 @@
       "id": "Syncfusion.Maui.Scheduler|stub|Syncfusion.Maui.Scheduler.HeaderLayout::Syncfusion.Maui.Core.Internals.ITouchListener.OnTouch(Syncfusion.Maui.Core.Internals.PointerEventArgs)",
       "status": "covered",
       "by": "Syncfusion/SfSchedulerPatches.cs"
+    },
+    {
+      "id": "Syncfusion.Maui.Scheduler|stub|Syncfusion.Maui.Scheduler.ResourceViewHelper::IsHorizontalResourceViewDesktop(Syncfusion.Maui.Scheduler.IResourceViewInfo,System.Collections.Generic.List`1<Syncfusion.Maui.Scheduler.SchedulerResource>)",
+      "status": "covered",
+      "reason": "answered as the desktop builds do, for the given resources (and false with the resource view's adaptive UI on)",
+      "by": "Syncfusion/SfSchedulerResourceView.cs"
     },
     {
       "id": "Syncfusion.Maui.Scheduler|stub|Syncfusion.Maui.Scheduler.SchedulerViewHelper::IsHorizontalResourceViewDesktop(Syncfusion.Maui.Scheduler.IResourceViewInfo)",
@@ -13375,6 +13655,21 @@
     },
     {
       "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.TimelineHeaderView::UpdateTotalTimeLineWidth",
+      "status": "not-applicable",
+      "reason": "Windows draws only the visible part of a timeline (a viewport-sized view moved with the horizontal scroll offset, with semantic nodes offset to match); the neutral build lays out and draws the whole timeline width, as Android and iOS do, and OpenMaui's scroll view clips it, so the timeline shows and reads the same"
+    },
+    {
+      "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.TimelineMonthWeekNumberLayout::UpdateScrollOffset",
+      "status": "not-applicable",
+      "reason": "Windows draws only the visible part of a timeline (a viewport-sized view moved with the horizontal scroll offset, with semantic nodes offset to match); the neutral build lays out and draws the whole timeline width, as Android and iOS do, and OpenMaui's scroll view clips it, so the timeline shows and reads the same"
+    },
+    {
+      "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.TimelineMonthWeekNumberLayout::UpdateSemanticNodePosition",
+      "status": "not-applicable",
+      "reason": "Windows draws only the visible part of a timeline (a viewport-sized view moved with the horizontal scroll offset, with semantic nodes offset to match); the neutral build lays out and draws the whole timeline width, as Android and iOS do, and OpenMaui's scroll view clips it, so the timeline shows and reads the same"
+    },
+    {
+      "id": "Syncfusion.Maui.Scheduler|windows-only|Syncfusion.Maui.Scheduler.TimelineMonthWeekNumberLayout::UpdateTotalTimeLineWidth",
       "status": "not-applicable",
       "reason": "Windows draws only the visible part of a timeline (a viewport-sized view moved with the horizontal scroll offset, with semantic nodes offset to match); the neutral build lays out and draws the whole timeline width, as Android and iOS do, and OpenMaui's scroll view clips it, so the timeline shows and reads the same"
     },

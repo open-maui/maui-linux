@@ -10,7 +10,7 @@ using Xunit;
 namespace OpenMaui.Compat.Tests;
 
 /// <summary>
-/// Syncfusion .NET MAUI controls (34.2.9, platform-neutral build) through
+/// Syncfusion .NET MAUI controls (35.2.12, platform-neutral build) through
 /// OpenMaui.Controls.Linux.Syncfusion (<c>UseLinuxSyncfusion()</c>): they lay
 /// out, and real pointer input reaches Syncfusion's gesture detectors.
 /// </summary>

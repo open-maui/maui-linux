@@ -97,6 +97,25 @@ public class GestureRecognizerTests
     }
 
     [Fact]
+    public void A_tap_handler_that_clears_the_recognizers_does_not_stop_the_others()
+    {
+        // A popup that closes on a tap clears its overlay's recognizers while the taps are raised.
+        var (label, platform) = Host(100, 50);
+        var first = new TapGestureRecognizer();
+        var second = new TapGestureRecognizer();
+        int secondTaps = 0;
+        first.Tapped += (_, _) => label.GestureRecognizers.Clear();
+        second.Tapped += (_, _) => secondTaps++;
+        label.GestureRecognizers.Add(first);
+        label.GestureRecognizers.Add(second);
+
+        var tap = () => Tap(platform, 150, 80);
+
+        tap.Should().NotThrow();
+        secondTaps.Should().Be(1, "the recognizers the tap began with all receive it");
+    }
+
+    [Fact]
     public void Tap_runs_the_command_with_its_parameter()
     {
         var (label, platform) = Host();

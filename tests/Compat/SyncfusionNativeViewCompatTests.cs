@@ -319,6 +319,40 @@ public sealed class SyncfusionNativeViewCompatTests
     }
 
     [Fact]
+    public void Exported_stroke_data_loads_back_in_its_own_colour_fitted_to_the_pad()
+    {
+        // Syncfusion 35: ExportStrokeData and LoadFromStrokeData round-trip a signature.
+        var source = new SfSignaturePad { WidthRequest = 300, HeightRequest = 200, StrokeColor = Colors.Blue, HorizontalOptions = LayoutOptions.Start };
+        string json;
+        using (var host = new CompatHost(PageWith(source), b => b.UseLinuxSyncfusion(), 400, 300))
+        {
+            host.Render();
+            Drag(host, 30, 100, 270, 60, steps: 24);
+            host.Render();
+            json = source.ExportStrokeData();
+        }
+
+        // Half the size: the strokes are scaled to fit and keep the colour they were exported with.
+        var target = new SfSignaturePad { WidthRequest = 150, HeightRequest = 100, StrokeColor = Colors.Red, HorizontalOptions = LayoutOptions.Start };
+        int started = 0;
+        target.DrawStarted += (_, _) => started++;
+        using var host2 = new CompatHost(PageWith(target), b => b.UseLinuxSyncfusion(), 400, 300);
+        host2.Render();
+        target.LoadFromStrokeData(json);
+        host2.Render();
+
+        host2.CountPixelsNear(Sk(Colors.Blue), new SKRectI(10, 20, 145, 60)).Should().BeGreaterThan(100, "the loaded stroke is inked in its exported colour, at half size");
+        host2.CountPixelsNear(Sk(Colors.Blue), new SKRectI(150, 0, 400, 300)).Should().Be(0, "it is fitted to the pad");
+        host2.CountPixelsNear(Sk(Colors.Red), host2.WindowRect).Should().Be(0);
+        target.GetSignaturePoints().Should().ContainSingle().Which.Count.Should().Be(2 * 27, "the exported points and the repeated end point");
+        started.Should().Be(0, "loading is not drawing");
+
+        target.Clear();
+        host2.Render();
+        host2.CountPixelsNear(Sk(Colors.Blue), host2.WindowRect).Should().Be(0);
+    }
+
+    [Fact]
     public void A_cancelled_DrawStarted_draws_nothing()
     {
         var pad = new SfSignaturePad { WidthRequest = 300, HeightRequest = 200, StrokeColor = Colors.Blue, HorizontalOptions = LayoutOptions.Start };

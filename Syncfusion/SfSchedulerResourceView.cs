@@ -66,6 +66,9 @@ internal static partial class SfSchedulerResourceView
     private static Func<object, ICollection?>? s_schedulerResources;
     private static Func<object, int>? s_visibleResourceCount, s_view;
 
+    // ResourceView.EnableAdaptiveUI (Syncfusion 35 and later; null on releases without it), compiled.
+    private static Func<object, bool>? s_enableAdaptiveUI;
+
     // SfScheduler.IsVirtualizationNeeded (the internal property behind ISchedulerViewInfo's), compiled:
     // the virtualized views read it on every draw.
     private static Func<object, bool>? s_getVirtualized;
@@ -109,6 +112,9 @@ internal static partial class SfSchedulerResourceView
 
         var harmony = new Harmony("com.openmaui.syncfusion.scheduler.resource-view");
         Patch(harmony, ViewHelper, "IsHorizontalResourceViewDesktop", nameof(IsHorizontalResourceViewDesktop_Prefix));
+        // Syncfusion 35 asks the same question with an explicit resource list too; earlier releases lack it.
+        if (ResourceHelper?.GetMethods(Any).Any(m => m.Name == "IsHorizontalResourceViewDesktop") == true)
+            Patch(harmony, ResourceHelper, "IsHorizontalResourceViewDesktop", nameof(IsHorizontalResourceViewDesktopWithResources_Prefix));
         InstallVirtualization(harmony);
         InstallDayViewControl(harmony);
         InstallResourceHeaderLayout(harmony);
@@ -142,21 +148,33 @@ internal static partial class SfSchedulerResourceView
             Expression.Condition(Expression.Equal(settings, Expression.Constant(null, resourceView.PropertyType)),
                 Expression.Constant(-1), Expression.Property(settings, count)), target).Compile();
         s_view = Expression.Lambda<Func<object, int>>(Expression.Convert(Expression.Property(typed, view), typeof(int)), target).Compile();
+        if (resourceView.PropertyType.GetProperty("EnableAdaptiveUI") is { PropertyType: var adaptiveType } adaptive && adaptiveType == typeof(bool))
+        {
+            s_enableAdaptiveUI = Expression.Lambda<Func<object, bool>>(
+                Expression.Condition(Expression.Equal(settings, Expression.Constant(null, resourceView.PropertyType)),
+                    Expression.Constant(false), Expression.Property(settings, adaptive)), target).Compile();
+        }
         return true;
     }
 
     /// <summary>
     /// SchedulerViewHelper.IsHorizontalResourceViewDesktop of the desktop builds: resources shown
     /// side by side when there are resources, the visible resource count is not zero and the
-    /// view is the day, week, work-week or month view.
+    /// view is the day, week, work-week or month view, unless the resource view's adaptive UI is
+    /// on (Syncfusion 35: the desktop builds then lay resources out as the mobile builds do).
     /// </summary>
-    internal static bool IsDesktop(object? info)
+    internal static bool IsDesktop(object? info) => IsDesktop(info, info == null || s_schedulerResources == null ? null : s_schedulerResources(info));
+
+    /// <summary>The same rule for the given resources (ResourceViewHelper.IsHorizontalResourceViewDesktop, Syncfusion 35).</summary>
+    private static bool IsDesktop(object? info, ICollection? resources)
     {
         if (info == null || s_schedulerResources == null)
             return false;
         try
         {
-            if (s_schedulerResources(info) is not { Count: > 0 } || s_visibleResourceCount!(info) == 0)
+            if (s_enableAdaptiveUI != null && s_enableAdaptiveUI(info))
+                return false;
+            if (resources is not { Count: > 0 } || s_visibleResourceCount!(info) == 0)
                 return false;
             return s_view!(info) is >= 0 and <= 3; // Day, Week, WorkWeek, Month
         }
@@ -228,6 +246,14 @@ internal static partial class SfSchedulerResourceView
     private static bool IsHorizontalResourceViewDesktop_Prefix(object schedulerViewInfo, ref bool __result)
     {
         __result = IsDesktop(schedulerViewInfo);
+        return false;
+    }
+
+    // Parameter names match ResourceViewHelper.IsHorizontalResourceViewDesktop(IResourceViewInfo schedulerViewInfo,
+    // List<SchedulerResource> schedulerResources) (Syncfusion 35).
+    private static bool IsHorizontalResourceViewDesktopWithResources_Prefix(object schedulerViewInfo, ICollection? schedulerResources, ref bool __result)
+    {
+        __result = IsDesktop(schedulerViewInfo, schedulerResources);
         return false;
     }
 

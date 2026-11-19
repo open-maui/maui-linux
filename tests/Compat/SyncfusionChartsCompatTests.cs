@@ -12,7 +12,7 @@ using Colors = Microsoft.Maui.Graphics.Colors;
 namespace OpenMaui.Compat.Tests;
 
 /// <summary>
-/// Syncfusion Charts (34.2.9, platform-neutral build) through
+/// Syncfusion Charts (35.2.12, platform-neutral build) through
 /// <c>UseLinuxSyncfusion()</c>: every chart type draws its series, data
 /// labels and legend, and the interactive behaviours (tooltip, trackball,
 /// zoom/pan, selection) answer real pointer and wheel input. Set

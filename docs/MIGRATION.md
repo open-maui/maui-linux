@@ -13,6 +13,8 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 
 **Dependencies:** MAUI 11.0.0 to 11.0.10 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move your own `Microsoft.Maui.Controls` reference (and the others, if your project references them) to 11.0.10, or restore fails with `NU1605`. The .NET 11 SDK and runtime are unchanged (`11.0.100`, `11.0.0`).
 
+**Other dependencies:** SkiaSharp 4.152.1 to 4.157.0 and HarfBuzzSharp 14.2.1.201 to 14.4.0.200 (core package). `OpenMaui.Controls.Linux.MediaElement` depends on CommunityToolkit.Maui.MediaElement 12.0.0 (the toolkit's first .NET 11 release, with CommunityToolkit.Maui 17.0.0), and `OpenMaui.Controls.Linux.Syncfusion` on Syncfusion.Maui.Core 35.2.12. An app that references any of these directly at an older version fails restore with `NU1605`: move SkiaSharp, CommunityToolkit.Maui (to 17.0.0) and MediaElement (to 12.0.0), and every Syncfusion.Maui package (to 35.2.12), together. Read the toolkit's and Syncfusion's own release notes for their changes.
+
 **Behaviour:** two MAUI changes that the 10.0 line already had arrive in MAUI 11 with 11.0.10:
 
 - A shape without a `Stroke` is no longer inset by its `StrokeThickness`: a fill-only Ellipse, Rectangle or Path now fills its whole bounds, as on Windows. A layout that relied on the old inset of a fill-only shape (half the `StrokeThickness` on each side, by default 0.5) draws it slightly larger.

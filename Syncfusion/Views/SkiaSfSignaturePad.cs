@@ -19,10 +19,12 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// smoothly.
 /// </summary>
 /// <remarks>
-/// The ink is kept as a path in the view's own coordinates: it draws at any
+/// The ink is kept as paths in the view's own coordinates: it draws at any
 /// scale and exports to a PNG (<see cref="ToPng"/>) without a second model.
 /// Changing the thickness or colour re-inks the recorded strokes, as the native
-/// builds' Redraw does.
+/// builds' Redraw does. Strokes loaded from stroke data
+/// (<see cref="LoadStrokes"/>, Syncfusion 35's <c>LoadFromStrokeData</c>) keep
+/// their own colour and width, as on Windows; drawn strokes take the pad's.
 /// </remarks>
 public class SkiaSfSignaturePad : SkiaView
 {
@@ -49,13 +51,29 @@ public class SkiaSfSignaturePad : SkiaView
         }
     }
 
-    private readonly List<List<TimedPoint>> _strokes = new();
+    /// <summary>A recorded stroke; a loaded one carries its own colour and width.</summary>
+    private sealed class Stroke
+    {
+        public readonly List<TimedPoint> Points = new();
+        public SKColor? Color;
+        public float? Width;
+    }
+
+    /// <summary>Ink of one colour (null: the pad's StrokeColor), in stroke order.</summary>
+    private sealed class InkGroup
+    {
+        public SKColor? Color;
+        public SKPathBuilder Builder = new();
+        public SKPath? Snapshot;
+        public SKPath Path => Snapshot ??= Builder.Snapshot();
+    }
+
+    private readonly List<Stroke> _strokes = new();
+    private readonly List<InkGroup> _ink = new();
     private readonly List<List<float>> _pointsCollection = new();
     private readonly List<TimedPoint> _window = new();
     private List<float>? _currentPoints;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
-    private SKPathBuilder _ink = new();
-    private SKPath? _inkSnapshot;
     private bool _hasInk;
 
     private float _previousVelocity;
@@ -110,6 +128,8 @@ public class SkiaSfSignaturePad : SkiaView
         _currentPoints = null;
         _drawing = false;
         ResetInk();
+        _strokeMinimum = _minimumWidth;
+        _strokeMaximum = _maximumWidth;
         ResetVelocity();
         Invalidate();
     }
@@ -118,38 +138,57 @@ public class SkiaSfSignaturePad : SkiaView
 
     private void ResetInk()
     {
-        _ink.Dispose();
-        _ink = new SKPathBuilder();
-        _inkSnapshot?.Dispose();
-        _inkSnapshot = null;
+        foreach (var group in _ink)
+        {
+            group.Builder.Dispose();
+            group.Snapshot?.Dispose();
+        }
+        _ink.Clear();
         _hasInk = false;
+    }
+
+    /// <summary>Starts inking a stroke: in the last group when it has the stroke's colour, else a new one.</summary>
+    private void BeginInk(SKColor? color)
+    {
+        if (_ink.Count == 0 || _ink[^1].Color != color)
+            _ink.Add(new InkGroup { Color = color });
     }
 
     private void AddDisc(float x, float y, float radius)
     {
-        _ink.AddCircle(x, y, radius, SKPathDirection.Clockwise);
-        _inkSnapshot?.Dispose();
-        _inkSnapshot = null;
+        var group = _ink[^1];
+        group.Builder.AddCircle(x, y, radius, SKPathDirection.Clockwise);
+        group.Snapshot?.Dispose();
+        group.Snapshot = null;
         _hasInk = true;
     }
 
-    /// <summary>The ink so far, as a path (cached until the next disc).</summary>
-    private SKPath Ink => _inkSnapshot ??= _ink.Snapshot();
+    // The thickness a stroke is inked with: a loaded stroke's own width, else the pad's range.
+    private float _strokeMinimum, _strokeMaximum;
+
+    private void UseWidths(Stroke stroke)
+    {
+        _strokeMinimum = stroke.Width ?? _minimumWidth;
+        _strokeMaximum = stroke.Width ?? _maximumWidth;
+    }
 
     private void ResetVelocity()
     {
         _previousVelocity = 0f;
-        _previousWidth = (_minimumWidth + _maximumWidth) / 2f;
+        _previousWidth = (_strokeMinimum + _strokeMaximum) / 2f;
     }
 
-    private void BeginStroke(float x, float y)
+    private void BeginStroke(float x, float y, SKColor? color = null, float? width = null)
     {
         _currentPoints = new List<float> { x, y };
         _window.Clear();
-        var stroke = new List<TimedPoint>();
+        var stroke = new Stroke { Color = color, Width = width };
         _strokes.Add(stroke);
+        UseWidths(stroke);
+        ResetVelocity();
+        BeginInk(color);
         var point = new TimedPoint(x, y, _clock.ElapsedMilliseconds);
-        stroke.Add(point);
+        stroke.Points.Add(point);
         AddPoint(point);
     }
 
@@ -160,7 +199,7 @@ public class SkiaSfSignaturePad : SkiaView
         _currentPoints.Add(x);
         _currentPoints.Add(y);
         var point = new TimedPoint(x, y, _clock.ElapsedMilliseconds);
-        _strokes[^1].Add(point);
+        _strokes[^1].Points.Add(point);
         AddPoint(point);
     }
 
@@ -187,7 +226,7 @@ public class SkiaSfSignaturePad : SkiaView
             var end = _window[2];
             float velocity = end.VelocityFrom(start);
             velocity = VelocityWeight * velocity + (1f - VelocityWeight) * _previousVelocity;
-            float width = Math.Max(_maximumWidth / (velocity + 1f), _minimumWidth);
+            float width = Math.Max(_strokeMaximum / (velocity + 1f), _strokeMinimum);
             InkCurve(start, c2, c3, end, _previousWidth, width);
             _previousVelocity = velocity;
             _previousWidth = width;
@@ -197,7 +236,7 @@ public class SkiaSfSignaturePad : SkiaView
         {
             // Duplicate the first point so the first curve starts at it.
             _window.Add(new TimedPoint(point.X, point.Y, point.Time));
-            AddDisc(point.X, point.Y, (_maximumWidth + _minimumWidth) / 2f);
+            AddDisc(point.X, point.Y, (_strokeMaximum + _strokeMinimum) / 2f);
         }
     }
 
@@ -261,11 +300,15 @@ public class SkiaSfSignaturePad : SkiaView
         ResetInk();
         foreach (var stroke in _strokes)
         {
+            UseWidths(stroke);
             ResetVelocity();
+            BeginInk(stroke.Color);
             _window.Clear();
-            foreach (var point in stroke)
+            foreach (var point in stroke.Points)
                 AddPoint(point);
         }
+        _strokeMinimum = _minimumWidth;
+        _strokeMaximum = _maximumWidth;
         ResetVelocity();
         Invalidate();
     }
@@ -288,9 +331,55 @@ public class SkiaSfSignaturePad : SkiaView
         canvas.Save();
         canvas.ClipRect(bounds);
         canvas.Translate(bounds.Left, bounds.Top);
-        using var paint = new SKPaint { Color = _strokeColor, Style = SKPaintStyle.Fill, IsAntialias = true };
-        canvas.DrawPath(Ink, paint);
+        DrawInk(canvas);
         canvas.Restore();
+    }
+
+    private void DrawInk(SKCanvas canvas)
+    {
+        using var paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        foreach (var group in _ink)
+        {
+            paint.Color = group.Color ?? _strokeColor;
+            canvas.DrawPath(group.Path, paint);
+        }
+    }
+
+    /// <summary>
+    /// Replaces the signature with strokes from stroke data (Syncfusion 35's LoadStrokes, as the
+    /// Windows build does): each stroke's points (x and y alternating, in the coordinates of a
+    /// canvas <paramref name="canvasWidth"/> by <paramref name="canvasHeight"/>) are scaled
+    /// uniformly to fit the pad and centred, and inked in the stroke's colour and width (a
+    /// width of 0 or less takes the pad's thickness range, no colour the pad's StrokeColor).
+    /// Strokes with fewer than two points or an odd count are skipped. No DrawStarted or
+    /// DrawCompleted is raised.
+    /// </summary>
+    public void LoadStrokes(IEnumerable<(IReadOnlyList<float> Points, Color? Color, double Width)> strokes, double canvasWidth, double canvasHeight)
+    {
+        Clear();
+        float scale = 1f, offsetX = 0f, offsetY = 0f;
+        float padWidth = (float)Bounds.Width, padHeight = (float)Bounds.Height;
+        if (canvasWidth > 0 && canvasHeight > 0 && padWidth > 0 && padHeight > 0)
+        {
+            scale = Math.Min(padWidth / (float)canvasWidth, padHeight / (float)canvasHeight);
+            offsetX = (padWidth - (float)canvasWidth * scale) / 2f;
+            offsetY = (padHeight - (float)canvasHeight * scale) / 2f;
+        }
+        foreach (var (points, color, width) in strokes)
+        {
+            if (points is not { Count: > 1 } || points.Count % 2 != 0)
+                continue;
+            float X(int i) => offsetX + points[i] * scale;
+            float Y(int i) => offsetY + points[i + 1] * scale;
+            BeginStroke(X(0), Y(0), color?.ToSKColor(), width > 0 ? (float)width : null);
+            for (int i = 2; i < points.Count; i += 2)
+                ContinueStroke(X(i), Y(i));
+            EndStroke(X(points.Count - 2), Y(points.Count - 2));
+        }
+        _strokeMinimum = _minimumWidth;
+        _strokeMaximum = _maximumWidth;
+        ResetVelocity();
+        Invalidate();
     }
 
     /// <summary>
@@ -310,8 +399,7 @@ public class SkiaSfSignaturePad : SkiaView
         var canvas = surface.Canvas;
         canvas.Clear(SKColors.Transparent);
         canvas.Scale(scale);
-        using (var paint = new SKPaint { Color = _strokeColor, Style = SKPaintStyle.Fill, IsAntialias = true })
-            canvas.DrawPath(Ink, paint);
+        DrawInk(canvas);
         canvas.Flush();
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
