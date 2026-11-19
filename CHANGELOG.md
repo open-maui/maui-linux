@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10, OpenMaui 11.0.x targets .NET 11 / MAUI 11).
 
+## [11.0.10.1] - unreleased
+
+> Built on .NET MAUI 11.0.10, the first MAUI 11 servicing release. The .NET 11 SDK and runtime are unchanged (`11.0.100`, `11.0.0`).
+
+### Changed
+
+- **MAUI 11.0.10**: every package depends on MAUI 11.0.10 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`), and so do the project templates and the Visual Studio template. Move an app's own `Microsoft.Maui.Controls` reference to 11.0.10, or restore fails with `NU1605` (see `docs/MIGRATION.md`). dotnet/maui's 11.0.10 device tests pass: Core 1631 (91 skipped), Controls 612 (4 skipped; 11.0.10 adds 4 tests), Essentials 242 (41 skipped). The stub scan's 53 new findings are reviewed: the Shape overload below, and internals of MAUI's Windows CarouselView, items views, TabbedPage, toolbar badges, Border, ScrollView, view container and WebView2 handlers, which OpenMaui's own handlers replace (2,434 findings reviewed, the same 4 open).
+- **`IView.Visibility` is the effective visibility (MAUI 11.0.10)**: a view inside a hidden parent reports `Collapsed`, as on MAUI 10.0.120 and later. The Linux handlers already map it without writing it back to the view's own `IsVisible` (10.0.120.1), so the children of a parent shown later appear with it.
+
+### Fixed
+
+- **A shape without a Stroke was inset by its StrokeThickness (MAUI 11.0.10)**: MAUI 11.0.10 builds a shape's path without the stroke inset when it has no `Stroke`, so a fill-only Ellipse, Rectangle or Path fills its whole bounds. OpenMaui's port of MAUI's Aspect transform now takes the same inset, as 10.0.130.1 does on MAUI 10.0.130 (with `StrokeThickness="20"`, a fill-only shape was 10 pixels short on every side).
+
 ## [11.0.0.1] - 2026-11-11
 
 .NET 11 and MAUI 11. Targets `net11.0` with Microsoft.Maui.* `11.0.0` (built from dotnet/maui tag 11.0.0) and the .NET 11 SDK (`11.0.100`). Everything in 10.0.130.1 is included, apart from its MAUI 10 moves (this line is on MAUI 11) and the shape stroke inset that follows MAUI 10.0.130, which MAUI 11.0.0 does not have (an app opts in to ReadyToRun from its own project with `<PublishReadyToRun>true</PublishReadyToRun>` for the `net11.0` target).

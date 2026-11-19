@@ -41,7 +41,7 @@ Popular MAUI libraries consumed unchanged from NuGet (their newest generic asset
 | CommunityToolkit.Mvvm | 8.4.2 | Runs unmodified | 5/5 | `CommunityToolkitMvvmCompatTests` | Source-generated properties and commands bound to Skia views; messenger. |
 | SkiaSharp.Views.Maui.Controls | 4.152.1 | Runs unmodified | 5/5 | `SkiaSharpViewsCompatTests` | SKCanvasView/SKGLView paint, invalidate and touch; UseSkiaSharp() chained after UseLinux() does not displace OpenMaui's handlers. |
 | LiveCharts2 (LiveChartsCore.SkiaSharpView.Maui) | 2.0.5 | Runs unmodified | 3/3 | `LiveChartsCompatTests` | Cartesian and pie charts render and redraw on data changes (built against SkiaSharp 3, runs on 4). Needed the AbsoluteLayout initial-children fix. Pointer interaction is a no-op in the library's generic build. |
-| Microsoft.Maui.Controls.Maps | 11.0.0 | Runs unmodified | 8/8 | `MauiMapsCompatTests` | Through OpenMaui.Controls.Linux.Maps; UseMauiMaps().UseLinuxMaps(). |
+| Microsoft.Maui.Controls.Maps | 11.0.10 | Runs unmodified | 8/8 | `MauiMapsCompatTests` | Through OpenMaui.Controls.Linux.Maps; UseMauiMaps().UseLinuxMaps(). |
 | ReactiveUI.Maui | 24.3.0 | Runs unmodified | 3/3 | `ReactiveUiCompatTests` | ReactiveContentPage activation, Bind/OneWayBind/BindCommand. |
 | Prism.DryIoc.Maui | 9.0.537 | Runs unmodified | 2/2 | `PrismCompatTests` | net8.0 asset. Startup window via IWindowCreator, auto-wired view models, URI navigation with parameters. Needed the startup ActivationState fix. |
 | Microsoft.Extensions.DependencyInjection page resolution | 11.0 | Runs unmodified | 2/2 | `DependencyInjectionCompatTests` | Constructor-injected root page; Shell content and routed pages from the container. |

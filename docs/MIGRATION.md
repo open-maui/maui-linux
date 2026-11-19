@@ -9,6 +9,15 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 3. Read the section for your jump below and check the behaviour changes it lists against your app.
 4. Run `OPENMAUI_DOCTOR=1 ./YourApp` on your target machines after upgrading; new releases can start using optional system libraries you do not have yet.
 
+## 11.0.0.1 to 11.0.10.1
+
+**Dependencies:** MAUI 11.0.0 to 11.0.10 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move your own `Microsoft.Maui.Controls` reference (and the others, if your project references them) to 11.0.10, or restore fails with `NU1605`. The .NET 11 SDK and runtime are unchanged (`11.0.100`, `11.0.0`).
+
+**Behaviour:** two MAUI changes that the 10.0 line already had arrive in MAUI 11 with 11.0.10:
+
+- A shape without a `Stroke` is no longer inset by its `StrokeThickness`: a fill-only Ellipse, Rectangle or Path now fills its whole bounds, as on Windows. A layout that relied on the old inset of a fill-only shape (half the `StrokeThickness` on each side, by default 0.5) draws it slightly larger.
+- `IView.Visibility` is the effective visibility: `Collapsed` for a view inside a hidden parent, even when its own `IsVisible` is true. Code that reads `((IView)view).Visibility` to mean the view's own `IsVisible` should read `IsVisible` instead.
+
 ## 10.0.110.7 to 10.0.110.8
 
 **API: a deliberate breaking change.** The types whose names clashed with MAUI's, and the concrete-handler `Map*` overloads, are removed in this release (see "Removed" below and `VERSIONING.md`). Everything else is additions. Recompile against 10.0.110.8.
