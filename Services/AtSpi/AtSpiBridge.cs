@@ -279,7 +279,8 @@ internal sealed partial class AtSpiBridge
         var windows = new List<IAccessible>();
         foreach (var context in app.WindowContexts)
         {
-            if (context.DisplayWindow == null)
+            // A native window, or GTK mode's GTK window (whose context has no native window).
+            if (context.DisplayWindow == null && context.GtkWindow == null)
                 continue;
             windows.Add(WindowOf(context));
         }
@@ -640,12 +641,8 @@ internal sealed partial class AtSpiBridge
     private static bool TryScreenOrigin(WindowContext? context, out double x, out double y, out double scale)
     {
         x = y = 0;
-        scale = context?.Scale ?? 1;
-        if (context?.DisplayWindow is not IScreenPositionedWindow positioned || !positioned.TryGetScreenOrigin(out int px, out int py))
-            return false;
-        x = px;
-        y = py;
-        return true;
+        scale = 1;
+        return context != null && context.TryGetScreenPosition(out x, out y, out scale);
     }
 
     internal static string Locale => CultureInfo.CurrentUICulture.Name.Replace('-', '_') is { Length: > 0 } name ? name : "C";

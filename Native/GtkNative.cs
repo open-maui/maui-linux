@@ -226,6 +226,36 @@ internal static partial class GtkNative
     [LibraryImport("libgdk-3.so.0")]
     public static partial void gdk_event_free(IntPtr eventPtr);
 
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial int gdk_window_get_origin(IntPtr window, out int x, out int y);
+
+    [LibraryImport("libgdk-3.so.0")]
+    public static partial int gdk_window_get_scale_factor(IntPtr window);
+
+    [LibraryImport("libgdk-3.so.0")]
+    private static partial IntPtr gdk_display_get_default();
+
+    [LibraryImport("libgdk-3.so.0")]
+    private static partial nuint gdk_x11_display_get_type();
+
+    [LibraryImport("libgobject-2.0.so.0")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool g_type_check_instance_is_a(IntPtr instance, nuint type);
+
+    /// <summary>Whether GDK's default display is an X11 display (a Wayland display tells a client nothing of where its windows are).</summary>
+    public static bool IsX11Display()
+    {
+        try
+        {
+            var display = gdk_display_get_default();
+            return display != IntPtr.Zero && g_type_check_instance_is_a(display, gdk_x11_display_get_type());
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false; // a GDK built without its X11 backend
+        }
+    }
+
     // Message Dialog support
     public const int GTK_DIALOG_MODAL = 1;
     public const int GTK_DIALOG_DESTROY_WITH_PARENT = 2;

@@ -293,8 +293,15 @@ public partial class LinuxApplication
                         mauiApplication.Windows.Count > 0 ? mauiApplication.Windows[0] : null,
                         mainPage);
 
+                    // The MAUI window's own Title wins (an app sets it in CreateWindow); this
+                    // overwrote it with the page's title or the default.
+                    var startupWindow = mauiApplication.Windows.Count > 0 ? mauiApplication.Windows[0] as Microsoft.Maui.Controls.Window : null;
                     string windowTitle = "OpenMaui App";
-                    if (mainPage is NavigationPage navPage)
+                    if (!string.IsNullOrEmpty(startupWindow?.Title))
+                    {
+                        windowTitle = startupWindow.Title;
+                    }
+                    else if (mainPage is NavigationPage navPage)
                     {
                         windowTitle = navPage.Title ?? windowTitle;
                     }

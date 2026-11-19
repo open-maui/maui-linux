@@ -53,7 +53,7 @@ internal sealed class HeadlessMauiHost : IDisposable
     /// the context gets a raster <see cref="SkiaRenderingEngine"/> whose
     /// frames land in <see cref="FakeDisplayWindow.LastFrame"/>.
     /// </summary>
-    public HeadlessMauiHost(Page rootPage, bool withEngine = false, int width = 800, int height = 600, Action<Microsoft.Maui.Hosting.MauiAppBuilder>? configure = null)
+    public HeadlessMauiHost(Page rootPage, bool withEngine = false, int width = 800, int height = 600, Action<Microsoft.Maui.Hosting.MauiAppBuilder>? configure = null, string? windowTitle = null)
     {
         LinuxApp = new LinuxApplication();
 
@@ -94,6 +94,8 @@ internal sealed class HeadlessMauiHost : IDisposable
         // AppInfo.Current for MatchParent, which throws on the generic TFM
         // unless the Essentials patches (applied by UseLinux) are in place.
         Window = new Microsoft.Maui.Controls.Window(rootPage) { FlowDirection = FlowDirection.LeftToRight };
+        if (windowTitle != null)
+            Window.Title = windowTitle; // as an app's CreateWindow sets it, before the window is adopted
         Application.StartupWindow = Window;
         ((IApplication)Application).CreateWindow(null!); // registers the window (Parent = Application)
 
