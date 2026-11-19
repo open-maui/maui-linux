@@ -78,6 +78,10 @@ public partial class LinuxApplication
         // The GTK host window (the hidden window that holds WebViews in X11 mode, the app's
         // window in GTK mode) is created on first use with this title and size, so an app
         // without a WebView does not create it or load the GTK theme CSS at startup.
+        DefaultWindowTitle = !string.IsNullOrEmpty(options.Title) && options.Title != "MAUI Application"
+            ? options.Title
+            : ResolveAppName();
+
         GtkHostService.Instance.Configure(
             options.Title ?? "MAUI Application",
             options.Width,
@@ -293,27 +297,8 @@ public partial class LinuxApplication
                         mauiApplication.Windows.Count > 0 ? mauiApplication.Windows[0] : null,
                         mainPage);
 
-                    // The MAUI window's own Title wins (an app sets it in CreateWindow); this
-                    // overwrote it with the page's title or the default.
-                    var startupWindow = mauiApplication.Windows.Count > 0 ? mauiApplication.Windows[0] as Microsoft.Maui.Controls.Window : null;
-                    string windowTitle = "OpenMaui App";
-                    if (!string.IsNullOrEmpty(startupWindow?.Title))
-                    {
-                        windowTitle = startupWindow.Title;
-                    }
-                    else if (mainPage is NavigationPage navPage)
-                    {
-                        windowTitle = navPage.Title ?? windowTitle;
-                    }
-                    else if (mainPage is Shell shell)
-                    {
-                        windowTitle = shell.Title ?? windowTitle;
-                    }
-                    else
-                    {
-                        windowTitle = mainPage.Title ?? windowTitle;
-                    }
-                    linuxApp.SetWindowTitle(windowTitle);
+                    // The window's title is applied when the context adopts the MAUI window (MAUI's
+                    // IWindow.Title: the window's, else a Shell's), not from the page here.
                 }
 
                 // Catch-all: whatever path produced the startup window, make
@@ -381,6 +366,27 @@ public partial class LinuxApplication
         {
             IsEventLoopRunning = false;
         }
+    }
+
+    /// <summary>
+    /// The title of a window that has none (no Window.Title, no Shell title): the title the app
+    /// gave <see cref="LinuxApplicationOptions.Title"/>, else the app's name (its ApplicationTitle,
+    /// else its assembly name), as an untitled window shows the app's name on MAUI's other platforms.
+    /// </summary>
+    internal static string DefaultWindowTitle { get; set; } = "MAUI Application";
+
+    private static string ResolveAppName()
+    {
+        try
+        {
+            if (Microsoft.Maui.ApplicationModel.AppInfo.Current.Name is { Length: > 0 } name)
+                return name;
+        }
+        catch (Exception)
+        {
+            // AppInfo throws on the generic TFM before the Essentials patches are in.
+        }
+        return System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "MAUI Application";
     }
 
     /// <summary>

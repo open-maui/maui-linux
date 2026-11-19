@@ -9,6 +9,10 @@ How to move an app between OpenMaui release lines. The policy behind these notes
 3. Read the section for your jump below and check the behaviour changes it lists against your app.
 4. Run `OPENMAUI_DOCTOR=1 ./YourApp` on your target machines after upgrading; new releases can start using optional system libraries you do not have yet.
 
+## 11.0.10.1 to 11.0.10.2
+
+**Behaviour:** the native window title (taskbar, window switcher) follows MAUI's rule, as on Windows and Mac Catalyst: `Window.Title`, else the Title the app set on its Shell. A ContentPage's or NavigationPage's `Title` no longer becomes the window title (it did at startup, and when it was swapped in with `Window.Page`, on Linux only). An app that titled its window that way sets `Window.Title` (in `CreateWindow`) instead; an untitled window shows `LinuxApplicationOptions.Title` when set, else the app's `ApplicationTitle`.
+
 ## 11.0.0.1 to 11.0.10.1
 
 **Dependencies:** MAUI 11.0.0 to 11.0.10 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`). Move your own `Microsoft.Maui.Controls` reference (and the others, if your project references them) to 11.0.10, or restore fails with `NU1605`. The .NET 11 SDK and runtime are unchanged (`11.0.100`, `11.0.0`).
