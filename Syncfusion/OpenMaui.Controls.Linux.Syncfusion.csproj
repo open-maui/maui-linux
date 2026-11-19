@@ -9,7 +9,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>OpenMaui.Controls.Linux.Syncfusion</PackageId>
-    <Version>11.0.0.1</Version>
+    <Version>11.0.10.1</Version>
     <Authors>MarketAlly Pte Ltd, David H. Friedel Jr.</Authors>
     <Company>MarketAlly Pte Ltd</Company>
     <Product>OpenMaui Syncfusion bridge (Linux)</Product>

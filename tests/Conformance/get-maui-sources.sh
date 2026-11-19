@@ -3,10 +3,10 @@
 # sparse, blob-less checkout of one revision).
 # Usage: tests/Conformance/get-maui-sources.sh [dest] [revision]
 #   revision: a commit SHA (fetched directly: init + fetch --depth 1), a tag or a branch.
-#   Default: tag 11.0.0, the release the Microsoft.Maui.* 11.0.0 packages were built from.
+#   Default: tag 11.0.10, the release the Microsoft.Maui.* 11.0.10 packages were built from.
 set -euo pipefail
 DEST="${1:-$HOME/.cache/openmaui-build/maui-src-11}"
-REV="${2:-11.0.0}"
+REV="${2:-11.0.10}"
 REPO=https://github.com/dotnet/maui
 
 # The suites compile the test folders; the product folders are read when porting
