@@ -131,8 +131,17 @@ internal sealed class HeadlessMauiHost : IDisposable
     /// tests can inject native events synchronously (as X11/Wayland do), and
     /// keeps a copy of the last presented raster frame for pixel assertions.
     /// </summary>
-    public sealed class FakeDisplayWindow : IDisplayWindow, IScaleAwareDisplayWindow, IDesktopWindowControl, IVisibilityAwareDisplayWindow, IClientDecoratedWindow
+    public sealed class FakeDisplayWindow : IDisplayWindow, IScaleAwareDisplayWindow, IDesktopWindowControl, IVisibilityAwareDisplayWindow, IClientDecoratedWindow, IScreenPositionedWindow
     {
+        /// <summary>Where the fake reports itself on the screen (physical pixels), as an X11 window does; null as on Wayland.</summary>
+        public (int X, int Y)? ScreenOrigin { get; set; }
+
+        bool IScreenPositionedWindow.TryGetScreenOrigin(out int x, out int y)
+        {
+            (x, y) = ScreenOrigin ?? (0, 0);
+            return ScreenOrigin != null;
+        }
+
         private readonly ClientDecorations _decorations = new();
         private bool? _clientDecorationsWanted;
 

@@ -832,7 +832,14 @@ public partial class SkiaLabel : SkiaView
 
         DrawTextWithSpacing(canvas, displayText, x, y, font, paint);
         DrawTextDecorations(canvas, paint, x, y, textBounds);
+        var origin = BoundsSK;
+        _plainLines = [new PlainLine(0, displayText, x - origin.Left, y - origin.Top)];
     }
+
+    /// <summary>A line of plain text as last drawn: its offset in the displayed text, its left edge and baseline (label-local).</summary>
+    private readonly record struct PlainLine(int Start, string Text, float X, float Baseline);
+
+    private List<PlainLine>? _plainLines;
 
     /// <summary>
     /// The baseline of a line in the box [<paramref name="top"/>, top + <paramref name="height"/>]:
@@ -913,6 +920,9 @@ public partial class SkiaLabel : SkiaView
             _ => 0f,
         };
         float y = bounds.Top + Math.Max(0f, offsetY);
+        var origin = BoundsSK;
+        var drawn = new List<PlainLine>(lines.Count);
+        int searchFrom = 0;
 
         foreach (var line in lines)
         {
@@ -936,9 +946,59 @@ public partial class SkiaLabel : SkiaView
             DrawTextWithSpacing(canvas, line, x, textY, font, paint);
             DrawTextDecorations(canvas, paint, x, textY, textBounds);
 
+            // Where the line is in the text: wrapping drops the spaces it breaks at.
+            int start = text.IndexOf(line, searchFrom, StringComparison.Ordinal);
+            if (start < 0) start = searchFrom;
+            drawn.Add(new PlainLine(start, line, x - origin.Left, textY - origin.Top));
+            searchFrom = start + line.Length;
+
             y += lineHeight;
             lineCount++;
         }
+        _plainLines = drawn;
+    }
+
+    /// <summary>
+    /// Where a character of the displayed text was last drawn (window-logical, as ScreenBounds):
+    /// its advance and the font's ascent to descent on its line, from the layout the label drew.
+    /// Before the label has drawn, its content bounds.
+    /// </summary>
+    internal Rect AccessibleCharacterBounds(int offset)
+    {
+        var screen = ScreenBounds;
+        float fontSize = FontSize > 0 ? (float)FontSize : 14f;
+        if (ShowsFormattedText && _formattedHits is { Count: > 0 } hits)
+        {
+            foreach (var hit in hits)
+            {
+                if (offset < hit.Start || offset >= hit.Start + hit.Text.Length)
+                    continue;
+                using var runFont = SkiaFontFactory.Create(hit.Typeface, hit.FontSize);
+                float from = RunPrefixWidth(runFont, hit.Text, offset - hit.Start);
+                float to = RunPrefixWidth(runFont, hit.Text, offset - hit.Start + 1);
+                return new Rect(screen.Left + hit.X + from, screen.Top + hit.Top, Math.Max(1f, to - from), hit.Height);
+            }
+        }
+        else if (_plainLines is { Count: > 0 } lines)
+        {
+            using var font = SkiaFontFactory.Create(Fonts.GetTypeface(string.IsNullOrEmpty(FontFamily) ? "Sans" : FontFamily, GetFontStyle()), fontSize);
+            var line = lines[^1];
+            foreach (var candidate in lines)
+            {
+                if (offset < candidate.Start + candidate.Text.Length + 1)
+                {
+                    line = candidate;
+                    break;
+                }
+            }
+            int index = Math.Clamp(offset - line.Start, 0, line.Text.Length);
+            float from = RunPrefixWidth(font, line.Text, index);
+            float to = index < line.Text.Length ? RunPrefixWidth(font, line.Text, index + 1) : from + TextRenderingHelper.MeasureWidth(font, " ");
+            var metrics = font.Metrics;
+            return new Rect(screen.Left + line.X + from, screen.Top + line.Baseline + metrics.Ascent, Math.Max(1f, to - from), metrics.Descent - metrics.Ascent);
+        }
+        var padding = Padding;
+        return new Rect(screen.Left + padding.Left, screen.Top + padding.Top, Math.Max(0, screen.Width - padding.HorizontalThickness), Math.Max(0, screen.Height - padding.VerticalThickness));
     }
 
     private void DrawTextWithSpacing(SKCanvas canvas, string text, float x, float y, SKFont font, SKPaint paint)

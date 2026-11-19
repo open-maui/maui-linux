@@ -16,12 +16,40 @@ namespace Microsoft.Maui.Platform.Linux.Handlers;
 /// </summary>
 internal static class LinuxViewMappers
 {
-    private static int s_registered;
+    private static readonly Lock s_gate = new();
+    private static volatile bool s_registered;
 
+    /// <summary>
+    /// Adds the mappings once. A caller returns only when they are in: a second thread that
+    /// returned as soon as the first had started connected handlers without them (parallel tests
+    /// building hosts at once lost a view's Semantics mapping).
+    /// </summary>
     internal static void Register()
     {
-        if (Interlocked.Exchange(ref s_registered, 1) == 1)
+        if (s_registered)
             return;
+        lock (s_gate)
+        {
+            if (s_registered)
+                return;
+            AddMappings();
+            s_registered = true;
+        }
+    }
+
+    /// <summary>
+    /// Registers the mappings when the assembly loads, before any handler of it exists: a handler's
+    /// mapper merges its chain on first use and keeps that merge, so a Label handler used before a
+    /// later <see cref="Register"/> kept MAUI's Semantics mapping without OpenMaui's (a test that
+    /// created handlers without a host lost the heading level of every later Label).
+    /// </summary>
+#pragma warning disable CA2255 // the mappings must be in ViewMapper before any of this assembly's handlers merges its mapper
+    [System.Runtime.CompilerServices.ModuleInitializer]
+    internal static void RegisterOnLoad() => Register();
+#pragma warning restore CA2255
+
+    private static void AddMappings()
+    {
         var mapper = ViewHandler.ViewMapper;
         mapper.AppendToMapping(nameof(IView.Opacity), MapOpacity);
         mapper.AppendToMapping(nameof(IView.Visibility), MapVisibility);

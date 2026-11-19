@@ -140,17 +140,30 @@ internal sealed class AtSpiNode : IAtSpiAccessible, IAtSpiComponent, IAtSpiActio
 
     // ---- org.a11y.atspi.Component --------------------------------------------------------
 
-    /// <summary>An object's extents: window-logical coordinates (no compositor tells a Wayland client where its window is), or relative to the parent.</summary>
+    /// <summary>
+    /// An object's extents in the coordinates asked for (AtspiCoordType: 0 screen, 1 window,
+    /// 2 parent; see <see cref="AtSpiBridge.CoordinateMap"/>). A frame's bounds are the window's own.
+    /// </summary>
     private static (int X, int Y, int W, int H) Extents(IAccessible a, uint coordType)
     {
-        var b = a.Bounds;
-        if (coordType == 2 && a.Parent is { } parent)
-        {
-            var p = parent.Bounds;
-            return (b.X - p.X, b.Y - p.Y, b.Width, b.Height);
-        }
-        return (b.X, b.Y, b.Width, b.Height);
+        var map = a is WindowAccessible window ? AtSpiBridge.FrameMap(window, coordType) : AtSpiBridge.CoordinateMap(a, coordType);
+        return Map(a.Bounds, map);
     }
+
+    private static (int X, int Y, int W, int H) Map(AccessibleRect r, (double X, double Y, double Scale) map) =>
+        ((int)Math.Round(r.X * map.Scale + map.X), (int)Math.Round(r.Y * map.Scale + map.Y),
+         (int)Math.Round(r.Width * map.Scale), (int)Math.Round(r.Height * map.Scale));
+
+    /// <summary>A point in the coordinates asked for, in view-tree coordinates.</summary>
+    private static (int X, int Y) ToTree(IAccessible a, int x, int y, uint coordType)
+    {
+        var map = AtSpiBridge.CoordinateMap(a, coordType);
+        return ((int)Math.Floor((x - map.X) / map.Scale), (int)Math.Floor((y - map.Y) / map.Scale));
+    }
+
+    /// <summary>A view-tree rectangle (a character's) in the coordinates asked for.</summary>
+    private static (int, int, int, int) FromTree(IAccessible a, AccessibleRect r, uint coordType) =>
+        Map(r, AtSpiBridge.CoordinateMap(a, coordType));
 
     public Task<bool> ContainsAsync(int x, int y, uint coordType) => Read(a =>
     {
@@ -160,14 +173,8 @@ internal sealed class AtSpiNode : IAtSpiAccessible, IAtSpiComponent, IAtSpiActio
 
     public Task<ValueTuple<Ref>> GetAccessibleAtPointAsync(int x, int y, uint coordType) => Read(a =>
     {
-        // The deepest showing child under the point (window coordinates; a parent-relative point is
-        // made window-relative first).
-        if (coordType == 2)
-        {
-            var b = a.Bounds;
-            x += b.X;
-            y += b.Y;
-        }
+        // The deepest showing child under the point, compared in view-tree coordinates.
+        (x, y) = ToTree(a, x, y, coordType);
         IAccessible? hit = null;
         var current = a;
         while (true)
@@ -197,7 +204,7 @@ internal sealed class AtSpiNode : IAtSpiAccessible, IAtSpiComponent, IAtSpiActio
 
     public Task<(int, int)> GetPositionAsync(uint coordType) => Read(a => Extents(a, coordType) is var (x, y, _, _) ? (x, y) : default, (0, 0));
 
-    public Task<(int, int)> GetSizeAsync() => Read(a => (a.Bounds.Width, a.Bounds.Height), (0, 0));
+    public Task<(int, int)> GetSizeAsync() => Read(a => Extents(a, 1) is var (_, _, w, h) ? (w, h) : default, (0, 0));
 
     public Task<uint> GetLayerAsync() => Read(a => a is WindowAccessible ? 7u : 3u, 0u); // ATSPI_LAYER_WINDOW / ATSPI_LAYER_WIDGET
 
@@ -324,14 +331,12 @@ internal sealed class AtSpiNode : IAtSpiAccessible, IAtSpiComponent, IAtSpiActio
 
     public Task<IDictionary<string, string>> GetDefaultAttributesAsync() => Task.FromResult<IDictionary<string, string>>(new Dictionary<string, string>());
 
-    public Task<(int, int, int, int)> GetCharacterExtentsAsync(int offset, uint coordType) => ReadText(t =>
-    {
-        var r = t.GetCharacterBounds(offset);
-        return (r.X, r.Y, r.Width, r.Height);
-    }, (0, 0, 0, 0));
+    public Task<(int, int, int, int)> GetCharacterExtentsAsync(int offset, uint coordType) =>
+        ReadText(t => FromTree(t, t.GetCharacterBounds(offset), coordType), (0, 0, 0, 0));
 
     public Task<int> GetOffsetAtPointAsync(int x, int y, uint coordType) => ReadText(t =>
     {
+        (x, y) = ToTree(t, x, y, coordType);
         var s = t.Text ?? string.Empty;
         for (int i = 0; i < s.Length; i++)
         {
@@ -368,7 +373,7 @@ internal sealed class AtSpiNode : IAtSpiAccessible, IAtSpiComponent, IAtSpiActio
             right = Math.Max(right, r.X + r.Width);
             bottom = Math.Max(bottom, r.Y + r.Height);
         }
-        return (left, top, right - left, bottom - top);
+        return FromTree(t, new AccessibleRect(left, top, right - left, bottom - top), coordType);
     }, (0, 0, 0, 0));
 
     public Task<(IDictionary<string, string>, int, int)> GetAttributeRunAsync(int offset, bool includeDefaults) =>
@@ -580,6 +585,8 @@ internal sealed class WindowAccessible : IAccessible
     public WindowAccessible(WindowContext context) => _context = new WeakReference<WindowContext>(context);
 
     internal bool IsActive { get; set; }
+
+    internal WindowContext? Context => _context.TryGetTarget(out var c) ? c : null;
 
     internal bool IsShown => _context.TryGetTarget(out var c) && c.DisplayWindow != null;
 

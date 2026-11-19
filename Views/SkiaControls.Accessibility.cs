@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Globalization;
+using Microsoft.Maui.Platform.Linux.Rendering;
 using Microsoft.Maui.Platform.Linux.Services;
 using Microsoft.Maui.Platform.Linux.Services.AtSpi;
 
@@ -53,10 +54,8 @@ public partial class SkiaView
 
 public partial class SkiaLabel : IAccessibleText
 {
-    /// <summary>The text shown: the formatted text's spans, else Text.</summary>
-    private string DisplayedText => FormattedText is { Spans.Count: > 0 } formatted
-        ? string.Concat(formatted.Spans.Select(s => s.Text))
-        : Text ?? string.Empty;
+    /// <summary>The text shown (the formatted text's spans, else Text, as displayed): the offsets its layout uses.</summary>
+    private string DisplayedText => SelectionSourceText();
 
     protected override AccessibleRole GetAccessibleRole() => RoleOrHeading(AccessibleRole.Label);
 
@@ -76,7 +75,10 @@ public partial class SkiaLabel : IAccessibleText
     bool IAccessibleText.SetSelection(int index, int start, int end) => false;
     char IAccessibleText.GetCharacterAtOffset(int offset) => offset >= 0 && offset < DisplayedText.Length ? DisplayedText[offset] : '\0';
     string IAccessibleText.GetTextInRange(int start, int end) => AccessibleTextRange(DisplayedText, start, end);
-    AccessibleRect IAccessibleText.GetCharacterBounds(int offset) => ((IAccessible)this).Bounds;
+    AccessibleRect IAccessibleText.GetCharacterBounds(int offset) => ToAccessibleRect(AccessibleCharacterBounds(offset));
+
+    internal static AccessibleRect ToAccessibleRect(Microsoft.Maui.Graphics.Rect r) =>
+        new((int)Math.Floor(r.X), (int)Math.Floor(r.Y), (int)Math.Ceiling(r.Width), (int)Math.Ceiling(r.Height));
 
     internal static string AccessibleTextRange(string text, int start, int end)
     {
@@ -487,7 +489,41 @@ public partial class SkiaEntry : IAccessibleText
 
     char IAccessibleText.GetCharacterAtOffset(int offset) => offset >= 0 && offset < AccessibleText.Length ? AccessibleText[offset] : '\0';
     string IAccessibleText.GetTextInRange(int start, int end) => SkiaLabel.AccessibleTextRange(AccessibleText, start, end);
-    AccessibleRect IAccessibleText.GetCharacterBounds(int offset) => ((IAccessible)this).Bounds;
+    AccessibleRect IAccessibleText.GetCharacterBounds(int offset) => SkiaLabel.ToAccessibleRect(AccessibleCharacterBounds(offset));
+
+    /// <summary>
+    /// Where a character is (window-logical): the entry's one line laid out as OnDraw lays it
+    /// out (padding, the clear button's room, the horizontal scroll and the vertical alignment),
+    /// the character's advance wide and the font's ascent to descent tall.
+    /// </summary>
+    private Microsoft.Maui.Graphics.Rect AccessibleCharacterBounds(int offset)
+    {
+        var bounds = BoundsSK;
+        var content = new SkiaSharp.SKRect(
+            bounds.Left + (float)Padding.Left, bounds.Top + (float)Padding.Top,
+            bounds.Right - (float)Padding.Right, bounds.Bottom - (float)Padding.Bottom);
+        if (ShouldShowClearButton())
+            content.Right -= 28f;
+        var typeface = Fonts.GetTypeface(GetEffectiveFontFamily(), GetFontStyle());
+        using var font = SkiaFontFactory.Create(typeface, (float)FontSize);
+        var text = GetDisplayText();
+        int index = Math.Clamp(offset, 0, text.Length);
+        font.MeasureText(text, out var ink);
+        float baseline = VerticalTextAlignment switch
+        {
+            TextAlignment.Start => content.Top - ink.Top,
+            TextAlignment.End => content.Bottom - ink.Bottom,
+            _ => TextRenderingHelper.BaselineForVerticalCenter(font, content.MidY),
+        };
+        float left = content.Left - _scrollOffset;
+        float from = font.MeasureText(text[..index]);
+        float to = index < text.Length ? font.MeasureText(text[..(index + 1)]) : from + font.MeasureText(" ");
+        var metrics = font.Metrics;
+        var screen = ScreenBounds;
+        return new Microsoft.Maui.Graphics.Rect(
+            screen.Left + (left + from - bounds.Left), screen.Top + (baseline + metrics.Ascent - bounds.Top),
+            Math.Max(1f, to - from), metrics.Descent - metrics.Ascent);
+    }
 }
 
 public partial class SkiaEditor : IAccessibleText
@@ -553,5 +589,30 @@ public partial class SkiaEditor : IAccessibleText
     }
 
     string IAccessibleText.GetTextInRange(int start, int end) => SkiaLabel.AccessibleTextRange(Text ?? string.Empty, start, end);
-    AccessibleRect IAccessibleText.GetCharacterBounds(int offset) => ((IAccessible)this).Bounds;
+    AccessibleRect IAccessibleText.GetCharacterBounds(int offset) => SkiaLabel.ToAccessibleRect(AccessibleCharacterBounds(offset));
+
+    /// <summary>
+    /// Where a character is (window-logical): on its wrapped line as OnDraw draws the lines (the
+    /// first baseline a font size below the content's top, each line LineHeight x FontSize below
+    /// the last), its advance wide and a line tall.
+    /// </summary>
+    private Microsoft.Maui.Graphics.Rect AccessibleCharacterBounds(int offset)
+    {
+        var bounds = BoundsSK;
+        float fontSize = (float)FontSize;
+        float lineSpacing = fontSize * (float)LineHeight;
+        float left = bounds.Left + (float)Padding.Left;
+        float top = bounds.Top + (float)Padding.Top;
+        using var font = SkiaFontFactory.Create(fontSize);
+        var (line, column) = GetLineColumn(Math.Clamp(offset, 0, (Text ?? string.Empty).Length));
+        var lineText = line < _lines.Count ? _lines[line] : string.Empty;
+        column = Math.Clamp(column, 0, lineText.Length);
+        float from = MeasureText(lineText[..column], font);
+        float to = column < lineText.Length ? MeasureText(lineText[..(column + 1)], font) : from + MeasureText(" ", font);
+        float baseline = top + fontSize + line * lineSpacing;
+        var screen = ScreenBounds;
+        return new Microsoft.Maui.Graphics.Rect(
+            screen.Left + (left + from - bounds.Left), screen.Top + (baseline - fontSize - bounds.Top),
+            Math.Max(1f, to - from), lineSpacing);
+    }
 }
