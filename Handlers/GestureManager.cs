@@ -329,7 +329,8 @@ public static class GestureManager
         {
             foreach (var child in children)
             {
-                foreach (var recognizer in child.GestureRecognizers)
+                // A snapshot: a tap handler may change the recognizers (a popup that closes on a tap).
+                foreach (var recognizer in child.GestureRecognizers.ToArray())
                 {
                     if (recognizer is TapGestureRecognizer childTap)
                         result |= ProcessTapRecognizer(childTap, view, child, x, y);
@@ -342,7 +343,9 @@ public static class GestureManager
         {
             return result;
         }
-        foreach (var item in recognizers)
+        // A snapshot: a tap handler may change the recognizers, as when it closes the popup the
+        // view belongs to (its overlay's recognizers are cleared while the taps are raised).
+        foreach (var item in recognizers.ToArray())
         {
             if (item is TapGestureRecognizer tapRecognizer)
                 result |= ProcessTapRecognizer(tapRecognizer, view, view, x, y);
@@ -674,7 +677,7 @@ public static class GestureManager
         var direction = DetermineSwipeDirection(deltaX, deltaY);
         double axisDistance = direction is SwipeDirection.Left or SwipeDirection.Right ? Math.Abs(deltaX) : Math.Abs(deltaY);
 
-        foreach (var item in recognizers)
+        foreach (var item in recognizers.ToArray())
         {
             if (item is not SwipeGestureRecognizer swipeRecognizer || !swipeRecognizer.Direction.HasFlag(direction))
             {
@@ -706,7 +709,7 @@ public static class GestureManager
         {
             return;
         }
-        foreach (var item in recognizers)
+        foreach (var item in recognizers.ToArray())
         {
             if (item is not PanGestureRecognizer panRecognizer)
             {
@@ -761,7 +764,7 @@ public static class GestureManager
         {
             return;
         }
-        foreach (var item in recognizers)
+        foreach (var item in recognizers.ToArray())
         {
             if (item is not PointerGestureRecognizer pointerRecognizer)
             {
@@ -861,7 +864,7 @@ public static class GestureManager
             return;
         }
 
-        foreach (var item in recognizers)
+        foreach (var item in recognizers.ToArray())
         {
             if (item is not PinchGestureRecognizer pinchRecognizer)
             {
@@ -1034,7 +1037,7 @@ public static class GestureManager
         var recognizers = view.GestureRecognizers;
         if (recognizers == null) return false;
 
-        foreach (var item in recognizers)
+        foreach (var item in recognizers.ToArray())
         {
             if (item is not DragGestureRecognizer dragRecognizer) continue;
             if (!dragRecognizer.CanDrag) continue;
@@ -1112,7 +1115,7 @@ public static class GestureManager
     {
         if (view?.GestureRecognizers == null) return;
 
-        foreach (var item in view.GestureRecognizers)
+        foreach (var item in view.GestureRecognizers.ToArray())
         {
             if (item is not DragGestureRecognizer dragRecognizer) continue;
             InvokeInternal(MauiInternals.SendDropCompleted, dragRecognizer, new DropCompletedEventArgs());
@@ -1336,7 +1339,7 @@ public static class GestureManager
         bool sawRecognizer = false;
         bool accepted = false;
 
-        foreach (var item in view.GestureRecognizers)
+        foreach (var item in view.GestureRecognizers.ToArray())
         {
             if (item is not DropGestureRecognizer { AllowDrop: true } dropRecognizer) continue;
 
@@ -1369,7 +1372,7 @@ public static class GestureManager
     {
         if (view?.GestureRecognizers == null) return;
 
-        foreach (var item in view.GestureRecognizers)
+        foreach (var item in view.GestureRecognizers.ToArray())
         {
             if (item is not DropGestureRecognizer { AllowDrop: true } dropRecognizer) continue;
 
@@ -1391,7 +1394,7 @@ public static class GestureManager
     {
         if (view?.GestureRecognizers == null) return;
 
-        foreach (var item in view.GestureRecognizers)
+        foreach (var item in view.GestureRecognizers.ToArray())
         {
             if (item is not DropGestureRecognizer { AllowDrop: true } dropRecognizer) continue;
 

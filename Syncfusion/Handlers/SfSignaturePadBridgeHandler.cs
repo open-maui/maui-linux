@@ -17,7 +17,8 @@ namespace Microsoft.Maui.Platform.Linux.Syncfusion;
 /// the control's own interaction callbacks. <c>SfSignaturePad</c> reaches
 /// <c>ToImageSource</c> and <c>GetSignaturePoints</c> only through
 /// Syncfusion's handler type, so <see cref="SfSignaturePadPatches"/> routes
-/// them here.
+/// them here. Stroke data loaded with <c>LoadFromStrokeData</c> (Syncfusion 35)
+/// arrives as the <c>LoadStrokes</c> command.
 /// </summary>
 public class SfSignaturePadBridgeHandler : LinuxViewHandler<ISignaturePad, SkiaSfSignaturePad>
 {
@@ -33,6 +34,8 @@ public class SfSignaturePadBridgeHandler : LinuxViewHandler<ISignaturePad, SkiaS
         new(ViewHandler.ViewCommandMapper)
         {
             [nameof(ISignaturePad.Clear)] = (h, _, _) => h.PlatformView?.Clear(),
+            // SfSignaturePad.LoadFromStrokeData (Syncfusion 35) sends the parsed stroke data here.
+            ["LoadStrokes"] = MapLoadStrokes,
         };
 
     public SfSignaturePadBridgeHandler() : base(Mapper, CommandMapper)
@@ -67,6 +70,19 @@ public class SfSignaturePadBridgeHandler : LinuxViewHandler<ISignaturePad, SkiaS
     }
 
     private void OnStrokeCompleted(object? sender, EventArgs e) => VirtualView?.EndInteraction();
+
+    /// <summary>
+    /// SignaturePadHandler.MapLoadStrokes: the strokes of <c>LoadFromStrokeData</c> replace the
+    /// signature, fitted to the pad, each in its own colour and width (as on Windows).
+    /// </summary>
+    public static void MapLoadStrokes(SfSignaturePadBridgeHandler handler, ISignaturePad pad, object? arg)
+    {
+        if (arg is not SignatureStrokeData { Strokes: { Count: > 0 } strokes } data || handler.PlatformView is not { } view)
+            return;
+        view.LoadStrokes(
+            strokes.Where(s => s != null).Select(s => ((IReadOnlyList<float>)(s.Points ?? new List<float>()), s.StrokeColor, s.StrokeWidth)),
+            data.CanvasWidth, data.CanvasHeight);
+    }
 
     /// <summary>
     /// The drawn signature as a PNG image source (strokes on a transparent

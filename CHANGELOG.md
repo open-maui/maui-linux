@@ -10,12 +10,24 @@ Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x tar
 
 ### Changed
 
-- **MAUI 11.0.10**: every package depends on MAUI 11.0.10 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`), and so do the project templates and the Visual Studio template. Move an app's own `Microsoft.Maui.Controls` reference to 11.0.10, or restore fails with `NU1605` (see `docs/MIGRATION.md`). dotnet/maui's 11.0.10 device tests pass: Core 1631 (91 skipped), Controls 612 (4 skipped; 11.0.10 adds 4 tests), Essentials 242 (41 skipped). The stub scan's 53 new findings are reviewed: the Shape overload below, and internals of MAUI's Windows CarouselView, items views, TabbedPage, toolbar badges, Border, ScrollView, view container and WebView2 handlers, which OpenMaui's own handlers replace (2,434 findings reviewed, the same 4 open).
+- **MAUI 11.0.10**: every package depends on MAUI 11.0.10 (`Microsoft.Maui.Controls`, `Graphics`, `Graphics.Skia`, `Controls.Maps`, `Components.WebView.Maui`), and so do the project templates and the Visual Studio template. Move an app's own `Microsoft.Maui.Controls` reference to 11.0.10, or restore fails with `NU1605` (see `docs/MIGRATION.md`). dotnet/maui's 11.0.10 device tests pass: Core 1631 (91 skipped), Controls 612 (4 skipped; 11.0.10 adds 4 tests), Essentials 242 (41 skipped). The stub scan's 53 new findings are reviewed: the Shape overload below, and internals of MAUI's Windows CarouselView, items views, TabbedPage, toolbar badges, Border, ScrollView, view container and WebView2 handlers, which OpenMaui's own handlers replace.
+- **Third-party libraries on their .NET 11 releases**: SkiaSharp 4.157.0 (with HarfBuzzSharp 14.4.0.200), CommunityToolkit.Maui 17.0.0 and MediaElement 12.0.0, Syncfusion 35.2.12 and ReactiveUI.Maui 27.0.1. `OpenMaui.Controls.Linux.MediaElement` now depends on CommunityToolkit.Maui.MediaElement 12.0.0 and `OpenMaui.Controls.Linux.Syncfusion` on Syncfusion.Maui.Core 35.2.12, so an app moves its own toolkit and Syncfusion references with them (see `docs/MIGRATION.md`). The compatibility suite passes on them (305 passed, the same 1 skipped). The stub scan's new findings for MAUI 11.0.10 and these releases are reviewed: 2,490 in all, 9 open (the 4 known, plus the two CommunityToolkit gaps under "Known gaps" below).
 - **`IView.Visibility` is the effective visibility (MAUI 11.0.10)**: a view inside a hidden parent reports `Collapsed`, as on MAUI 10.0.120 and later. The Linux handlers already map it without writing it back to the view's own `IsVisible` (10.0.120.1), so the children of a parent shown later appear with it.
+
+### Added
+
+- **`SfSignaturePad.LoadFromStrokeData`** (Syncfusion 35): stroke data exported with `ExportStrokeData` loads back into the pad, scaled uniformly to fit it and centred, each stroke in its own colour and width, as on Windows. Loading raises no `DrawStarted` or `DrawCompleted`.
 
 ### Fixed
 
+- **SfScheduler's desktop resource view on Syncfusion 35**: Syncfusion 35 removed the day view's `DayViewControlProxy`, through which the bridge subscribed the time ruler's and the resource header's scroll handlers, so building the resource view failed and resources fell back to the timeline layout. The handlers are now subscribed directly, as Syncfusion 35's Windows build does (and through the proxy on earlier releases). The bridge also answers Syncfusion 35's new `ResourceViewHelper.IsHorizontalResourceViewDesktop` overload, and keeps the mobile layout when the resource view's new `EnableAdaptiveUI` is on, as the desktop builds do.
+- **A tap or gesture handler that changed the view's gesture recognizers threw** `InvalidOperationException` ("Collection was modified") out of the input handler: a popup that closes on a tap of its overlay clears the overlay's recognizers while the tap is being raised. Taps, pointer, pan, pinch, swipe, drag and drop events now go to the recognizers the gesture began with.
 - **A shape without a Stroke was inset by its StrokeThickness (MAUI 11.0.10)**: MAUI 11.0.10 builds a shape's path without the stroke inset when it has no `Stroke`, so a fill-only Ellipse, Rectangle or Path fills its whole bounds. OpenMaui's port of MAUI's Aspect transform now takes the same inset, as 10.0.130.1 does on MAUI 10.0.130 (with `StrokeThickness="20"`, a fill-only shape was 10 pixels short on every side).
+
+### Known gaps
+
+- **CommunityToolkit 17's Expander header keyboard and screen-reader access** (Windows: a Tab stop, Enter and Space toggle it, an expand/collapse button for screen readers) is not on Linux yet.
+- **A TouchBehavior attached to a Button itself** gets no pointer input, because the Button does not route its pointer events (nor do gesture recognizers on a Button). This is not new in 11.0.10.1; a TouchBehavior on a layout or another view works.
 
 ## [11.0.0.1] - 2026-11-11
 

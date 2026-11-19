@@ -13,7 +13,7 @@ A comprehensive Linux platform implementation for .NET MAUI using SkiaSharp rend
 
 This project brings .NET MAUI to Linux desktops with native X11/Wayland support, hardware-accelerated Skia rendering, and full platform service integration.
 
-**.NET 11 and MAUI 11.** OpenMaui 11.0.x targets `net11.0` and MAUI 11 (11.0.10, the first MAUI 11 servicing release, on the .NET 11 SDK 11.0.100), and dotnet/maui's own MAUI 11.0.10 device tests pass against it. Version numbers follow MAUI's: 11.0.10.x is built on MAUI 11.0.10. Apps on .NET 10 stay on OpenMaui 10.0.x, built on MAUI 10. To move an app up, retarget its Linux framework to `net11.0`, set `Microsoft.Maui.Controls` (and the other MAUI packages it references) to 11.0.10 and every OpenMaui package to 11.0.10.1. CommunityToolkit.Maui, Syncfusion and the other third-party MAUI libraries have no .NET 11 builds yet; they run unmodified from their .NET 10 builds.
+**.NET 11 and MAUI 11.** OpenMaui 11.0.x targets `net11.0` and MAUI 11 (11.0.10, the first MAUI 11 servicing release, on the .NET 11 SDK 11.0.100), and dotnet/maui's own MAUI 11.0.10 device tests pass against it. Version numbers follow MAUI's: 11.0.10.x is built on MAUI 11.0.10. Apps on .NET 10 stay on OpenMaui 10.0.x, built on MAUI 10. To move an app up, retarget its Linux framework to `net11.0`, set `Microsoft.Maui.Controls` (and the other MAUI packages it references) to 11.0.10 and every OpenMaui package to 11.0.10.1. CommunityToolkit.Maui (17.0.0, with MediaElement 12.0.0), Syncfusion (35.2.12) and ReactiveUI.Maui (27.0.1) have .NET 11 builds, and the compatibility suite runs those; LiveCharts2, Prism and the other libraries without one run unmodified from their .NET 10 (or older) builds.
 
 ### Key Features
 
