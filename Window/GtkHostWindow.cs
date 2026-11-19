@@ -96,6 +96,9 @@ public sealed class GtkHostWindow : IDisposable, IActivatableWindow
     private readonly ButtonEventDelegate _buttonReleaseHandler;
     private readonly MotionEventDelegate _motionHandler;
     private readonly DestroyDelegate _destroyHandler;
+    private readonly ConfigureEventDelegate _focusInHandler;
+    private readonly ConfigureEventDelegate _focusOutHandler;
+    private string _title;
     private ulong _deleteSignalId;
     private ulong _configureSignalId;
     private ulong _buttonPressSignalId;
@@ -142,6 +145,7 @@ public sealed class GtkHostWindow : IDisposable, IActivatableWindow
         }
 
         GtkNative.gtk_window_set_title(_window, title);
+        _title = title;
         GtkNative.gtk_window_set_default_size(_window, width, height);
 
         // Create overlay container for layered content
@@ -165,6 +169,8 @@ public sealed class GtkHostWindow : IDisposable, IActivatableWindow
         _buttonReleaseHandler = OnButtonRelease;
         _motionHandler = OnMotion;
         _destroyHandler = OnWindowDestroyed;
+        _focusInHandler = (_, _, _) => { FocusGained?.Invoke(this, EventArgs.Empty); return false; };
+        _focusOutHandler = (_, _, _) => { FocusLost?.Invoke(this, EventArgs.Empty); return false; };
 
         // Connect event handlers
         _deleteSignalId = GtkNative.g_signal_connect_data(_window, "delete-event", Marshal.GetFunctionPointerForDelegate(_deleteEventHandler), IntPtr.Zero, IntPtr.Zero, 0);
@@ -173,6 +179,9 @@ public sealed class GtkHostWindow : IDisposable, IActivatableWindow
         // any late managed call (RequestRedraw from a pending idle, a dispose
         // path invalidating views) no-ops instead of touching freed widgets.
         _destroySignalId = GtkNative.g_signal_connect_data(_window, "destroy", Marshal.GetFunctionPointerForDelegate(_destroyHandler), IntPtr.Zero, IntPtr.Zero, 0);
+        // The window gaining and losing the keyboard (screen readers follow the active window).
+        GtkNative.g_signal_connect_data(_window, "focus-in-event", Marshal.GetFunctionPointerForDelegate(_focusInHandler), IntPtr.Zero, IntPtr.Zero, 0);
+        GtkNative.g_signal_connect_data(_window, "focus-out-event", Marshal.GetFunctionPointerForDelegate(_focusOutHandler), IntPtr.Zero, IntPtr.Zero, 0);
 
         // Add pointer event masks
         GtkNative.gtk_widget_add_events(_window, 772);
@@ -290,6 +299,36 @@ public sealed class GtkHostWindow : IDisposable, IActivatableWindow
     {
         if (_window == IntPtr.Zero) return;
         GtkNative.gtk_window_set_title(_window, title);
+        _title = title;
+    }
+
+    /// <summary>The window's title.</summary>
+    public string Title => _title;
+
+    /// <summary>Raised when the window gains the keyboard (GTK's focus-in-event).</summary>
+    public event EventHandler? FocusGained;
+
+    /// <summary>Raised when the window loses the keyboard (GTK's focus-out-event).</summary>
+    public event EventHandler? FocusLost;
+
+    /// <summary>
+    /// The window's top-left on the screen in physical pixels, and GDK's scale factor, when GDK
+    /// can tell (an X11 display). A Wayland client is never told where its window is.
+    /// </summary>
+    internal bool TryGetScreenOrigin(out int x, out int y, out int scale)
+    {
+        x = y = 0;
+        scale = 1;
+        if (_window == IntPtr.Zero || !GtkNative.IsX11Display())
+            return false;
+        var gdkWindow = GtkNative.gtk_widget_get_window(_window);
+        if (gdkWindow == IntPtr.Zero)
+            return false;
+        GtkNative.gdk_window_get_origin(gdkWindow, out int lx, out int ly);
+        scale = Math.Max(1, GtkNative.gdk_window_get_scale_factor(gdkWindow));
+        x = lx * scale;
+        y = ly * scale;
+        return true;
     }
 
     public void SetIcon(string iconPath)

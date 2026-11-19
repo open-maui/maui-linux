@@ -41,6 +41,9 @@ public partial class LinuxApplication : IDisposable, IPlatformApplication
     // FocusedView) forward to it so all existing consumers keep working.
     private readonly List<WindowContext> _windowContexts = new();
     private GtkHostWindow? _gtkWindow;
+
+    /// <summary>The GTK window in GTK mode (null in the native X11/Wayland mode).</summary>
+    internal GtkHostWindow? GtkWindow => _gtkWindow;
     private bool _disposed;
     private bool _useGtk;
 
@@ -590,6 +593,10 @@ public partial class LinuxApplication : IDisposable, IPlatformApplication
         {
             GtkHostService.Instance.SetWindowIcon(iconPath);
         }
+
+        // Screen readers follow the active window.
+        _gtkWindow.FocusGained += (_, _) => { if (PrimaryContext is { } ctx) Services.AtSpi.AtSpiBridge.Instance?.WindowActivated(ctx, active: true); };
+        _gtkWindow.FocusLost += (_, _) => { if (PrimaryContext is { } ctx) Services.AtSpi.AtSpiBridge.Instance?.WindowActivated(ctx, active: false); };
 
         if (_gtkWindow.SkiaSurface != null)
         {

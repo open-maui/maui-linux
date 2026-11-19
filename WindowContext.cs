@@ -112,6 +112,7 @@ public sealed partial class WindowContext : IDisposable
                 AttachMauiWindowHandler(newWindow);
                 newWindow.PropertyChanged += OnMauiWindowPropertyChanged;
                 ApplyInitialGeometry(newWindow);
+                ApplyTitle(newWindow);
                 UpdateClientDecorations();
                 // The native window is already mapped at its size; report it now rather than
                 // at the first resize, which may never come.
@@ -278,6 +279,36 @@ public sealed partial class WindowContext : IDisposable
     internal float CsdPointerInsetLogical =>
         RenderingEngine?.TopInsetLogical
         ?? (DisplayWindow is IClientDecoratedWindow { Decorations.Active: true } ? ClientDecorations.DefaultTitlebarHeight : 0f);
+
+    /// <summary>
+    /// The GTK window this context draws into in GTK mode (the application's one context there),
+    /// or null: a native X11/Wayland context has its <see cref="DisplayWindow"/> instead.
+    /// </summary>
+    internal GtkHostWindow? GtkWindow => DisplayWindow == null && ReferenceEquals(_app.PrimaryContext, this) ? _app.GtkWindow : null;
+
+    /// <summary>
+    /// Where this window is on the screen, in physical pixels, and the scale from the view tree's
+    /// logical pixels to them, when the backend can tell: an X11 window (native, or GTK on an X11
+    /// display). A Wayland client is never told where its window is.
+    /// </summary>
+    internal bool TryGetScreenPosition(out double x, out double y, out double scale)
+    {
+        x = y = 0;
+        scale = Scale;
+        if (DisplayWindow is Services.IScreenPositionedWindow positioned)
+        {
+            if (!positioned.TryGetScreenOrigin(out int px, out int py))
+                return false;
+            (x, y) = (px, py);
+            return true;
+        }
+        if (GtkWindow is { } gtk && gtk.TryGetScreenOrigin(out int gx, out int gy, out int gdkScale))
+        {
+            (x, y, scale) = (gx, gy, gdkScale);
+            return true;
+        }
+        return false;
+    }
 
     /// <summary>Window-physical pixels to the logical view-tree space pointer dispatch uses.</summary>
     internal (float X, float Y) ToLogicalPoint(double physicalX, double physicalY)
@@ -920,8 +951,7 @@ public sealed partial class WindowContext : IDisposable
                     ReplacePage(window);
                     break;
                 case nameof(Microsoft.Maui.Controls.Window.Title):
-                    if (!string.IsNullOrEmpty(window.Title))
-                        DisplayWindow?.SetTitle(window.Title);
+                    ApplyTitle(window);
                     break;
                 case nameof(Microsoft.Maui.Controls.Window.Width):
                 case nameof(Microsoft.Maui.Controls.Window.Height):
@@ -945,6 +975,26 @@ public sealed partial class WindowContext : IDisposable
         {
             DiagnosticLog.Error("WindowContext", $"Applying Window.{e.PropertyName} failed", ex);
         }
+    }
+
+    /// <summary>
+    /// The native window's title follows the MAUI window's: its Title, or its page's when it has
+    /// none (an app that leaves the window untitled), set when the window is adopted as well as
+    /// when it changes; a title set in <c>CreateWindow</c> was left at the native default (the
+    /// options' title) because only later changes were applied. Without either the native title
+    /// is left as it is. In GTK mode it is the GTK window's title.
+    /// </summary>
+    private void ApplyTitle(Microsoft.Maui.Controls.Window window)
+    {
+        var title = !string.IsNullOrEmpty(window.Title) ? window.Title : window.Page?.Title;
+        if (string.IsNullOrEmpty(title))
+            return;
+        if (DisplayWindow is { } native)
+            native.SetTitle(title);
+        else
+            GtkWindow?.SetTitle(title);
+        if (Services.AtSpi.AtSpiBridge.Instance is { } bridge)
+            bridge.NameChanged(bridge.WindowOf(this));
     }
 
     /// <summary>Renders the window's new Page as this window's root.</summary>
@@ -972,8 +1022,7 @@ public sealed partial class WindowContext : IDisposable
         RootView = root;
         if (ReferenceEquals(_app.PrimaryContext, this))
             LinuxApplication.TrackRootForHotReload(renderer, window, page);
-        if (string.IsNullOrEmpty(window.Title) && !string.IsNullOrEmpty(page.Title))
-            DisplayWindow?.SetTitle(page.Title);
+        ApplyTitle(window);
         RenderingEngine?.InvalidateAll();
         DiagnosticLog.Info("WindowContext", $"Window page replaced: {page.GetType().Name}");
     }

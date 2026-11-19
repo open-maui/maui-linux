@@ -588,7 +588,7 @@ internal sealed class WindowAccessible : IAccessible
 
     internal WindowContext? Context => _context.TryGetTarget(out var c) ? c : null;
 
-    internal bool IsShown => _context.TryGetTarget(out var c) && c.DisplayWindow != null;
+    internal bool IsShown => _context.TryGetTarget(out var c) && (c.DisplayWindow != null || c.GtkWindow != null);
 
     public string AccessibleId => _id;
 
@@ -600,7 +600,7 @@ internal sealed class WindowAccessible : IAccessible
             return title;
         if (context.MauiWindow is Microsoft.Maui.Controls.Window { Page: Microsoft.Maui.Controls.Page { Title: { Length: > 0 } pageTitle } })
             return pageTitle;
-        return context.MauiWindow?.Title ?? string.Empty;
+        return context.MauiWindow?.Title ?? context.GtkWindow?.Title ?? string.Empty;
     }
 
     public string AccessibleDescription => string.Empty;
@@ -625,10 +625,20 @@ internal sealed class WindowAccessible : IAccessible
     public IReadOnlyList<IAccessible> Children =>
         _context.TryGetTarget(out var c) && c.RootView is IAccessible root ? [root] : Array.Empty<IAccessible>();
 
-    public AccessibleRect Bounds =>
-        _context.TryGetTarget(out var c) && c.DisplayWindow is { } window
-            ? new AccessibleRect(0, 0, (int)(window.Width / Math.Max(1f, c.Scale)), (int)(window.Height / Math.Max(1f, c.Scale)))
-            : default;
+    /// <summary>The window's size in view-tree (logical) pixels: a native window's surface over its scale, a GTK window's own (GTK sizes in logical pixels).</summary>
+    public AccessibleRect Bounds
+    {
+        get
+        {
+            if (!_context.TryGetTarget(out var c))
+                return default;
+            if (c.DisplayWindow is { } window)
+                return new AccessibleRect(0, 0, (int)(window.Width / Math.Max(1f, c.Scale)), (int)(window.Height / Math.Max(1f, c.Scale)));
+            if (c.GtkWindow is { } gtk)
+                return new AccessibleRect(0, 0, gtk.Width, gtk.Height);
+            return default;
+        }
+    }
 
     public IReadOnlyList<AccessibleAction> Actions => Array.Empty<AccessibleAction>();
 
