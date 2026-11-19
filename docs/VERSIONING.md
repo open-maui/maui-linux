@@ -122,6 +122,6 @@ Required: `libwayland-client` and `libxkbcommon` (native Wayland) or `libX11` (X
 | WebKitGTK (`libwebkit2gtk-4.1.so.0`, or 4.0) | `WebView` fallback in GTK mode | |
 | GStreamer 1.x (`libgstreamer-1.0`, `libgstapp-1.0`) + plugin sets | `MediaElement` (`OpenMaui.Controls.Linux.MediaElement`) | |
 | `libcups.so.2` | Printing | |
-| `libatspi.so.0` (AT-SPI2) | Screen readers | |
+| at-spi2-core's accessibility bus and registry (`at-spi-bus-launcher`, `at-spi2-registryd`) | Screen readers: the app is exported to the accessibility bus while assistive technology runs | D-Bus services every desktop runs; OpenMaui loads no AT-SPI library |
 | `libayatana-appindicator3` or `libappindicator3` | System tray | |
 | CJK and emoji fonts | Fallback glyphs | |

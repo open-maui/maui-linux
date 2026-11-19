@@ -28,6 +28,67 @@ public static class SemanticMapper
     // Tracks views already subscribed so repeated Apply calls stay idempotent.
     private static readonly ConditionalWeakTable<INotifyPropertyChanged, PropertyChangedEventHandler> _subscriptions = new();
 
+    // AutomationProperties.LabeledBy: the label each control is followed through, and the
+    // controls each label names (the AT-SPI label-for relation).
+    private sealed class LabelLink
+    {
+        public required VisualElement Label;
+        public required PropertyChangedEventHandler Handler;
+    }
+
+    private static readonly ConditionalWeakTable<SkiaView, LabelLink> _labelLinks = new();
+    private static readonly ConditionalWeakTable<VisualElement, List<WeakReference<SkiaView>>> _labelled = new();
+
+    /// <summary>The Skia views of the controls <paramref name="label"/> currently labels (AutomationProperties.LabeledBy).</summary>
+    internal static IReadOnlyList<SkiaView> LabelledBy(VisualElement label)
+    {
+        if (!_labelled.TryGetValue(label, out var targets))
+            return Array.Empty<SkiaView>();
+        lock (targets)
+        {
+            var found = new List<SkiaView>();
+            targets.RemoveAll(w => !w.TryGetTarget(out _));
+            foreach (var weak in targets)
+            {
+                if (weak.TryGetTarget(out var target) && _labelLinks.TryGetValue(target, out var link) && ReferenceEquals(link.Label, label))
+                    found.Add(target);
+            }
+            return found;
+        }
+    }
+
+    /// <summary>
+    /// Follows the label <paramref name="platformView"/>'s control is labelled by: a change of its
+    /// text or description renames the control (the name it took was a copy).
+    /// </summary>
+    private static void FollowLabel(IView view, SkiaView platformView, VisualElement? label)
+    {
+        if (_labelLinks.TryGetValue(platformView, out var old))
+        {
+            if (ReferenceEquals(old.Label, label))
+                return;
+            old.Label.PropertyChanged -= old.Handler;
+            _labelLinks.Remove(platformView);
+        }
+        if (label == null)
+            return;
+        var weakPlatform = new WeakReference<SkiaView>(platformView);
+        PropertyChangedEventHandler handler = (_, e) =>
+        {
+            if (e.PropertyName is not (nameof(Label.Text) or nameof(Label.FormattedText)) && e.PropertyName != SemanticProperties.DescriptionProperty.PropertyName)
+                return;
+            if (!weakPlatform.TryGetTarget(out var target))
+                return;
+            Sync(view, target);
+            Services.AtSpi.AtSpiBridge.Instance?.NameChanged(target);
+        };
+        label.PropertyChanged += handler;
+        _labelLinks.Add(platformView, new LabelLink { Label = label, Handler = handler });
+        var targets = _labelled.GetValue(label, _ => new List<WeakReference<SkiaView>>());
+        lock (targets)
+            targets.Add(weakPlatform);
+    }
+
     // Property names BindableObject raises for the attached properties we map.
     private static readonly HashSet<string> SemanticPropertyNames = new(StringComparer.Ordinal)
     {
@@ -101,8 +162,10 @@ public static class SemanticMapper
             helpText = NullIfEmpty(AutomationProperties.GetHelpText(bindable));
             inTree = AutomationProperties.GetIsInAccessibleTree(bindable);
 
-            if (automationName == null && AutomationProperties.GetLabeledBy(bindable) is VisualElement labeledBy)
+            var labeledBy = AutomationProperties.GetLabeledBy(bindable);
+            if (automationName == null && labeledBy != null)
                 automationName = NullIfEmpty(DescribeLabel(labeledBy));
+            FollowLabel(view, platformView, labeledBy);
         }
 
         platformView.SemanticName = description ?? automationName;

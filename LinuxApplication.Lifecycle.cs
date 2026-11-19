@@ -112,6 +112,9 @@ public partial class LinuxApplication
         DispatcherProvider.SetCurrent(LinuxDispatcherProvider.Instance);
         DiagnosticLog.Debug("LinuxApplication", "Dispatcher initialized");
 
+        // Screen readers: export the app to the accessibility bus when assistive technology runs.
+        Services.AtSpi.AtSpiBridge.StartWhenRequested(appName);
+
         var linuxApp = new LinuxApplication();
         try
         {
@@ -361,6 +364,25 @@ public partial class LinuxApplication
     /// Shows the main window and runs the event loop.
     /// </summary>
     public void Run()
+    {
+        IsEventLoopRunning = true;
+        try
+        {
+            RunCore();
+        }
+        finally
+        {
+            IsEventLoopRunning = false;
+        }
+    }
+
+    /// <summary>
+    /// True while the application's event loop runs on the UI thread, which then runs what is
+    /// dispatched to it (without one, as in tests, nothing would).
+    /// </summary>
+    internal static bool IsEventLoopRunning { get; private set; }
+
+    private void RunCore()
     {
         if (_useGtk)
         {

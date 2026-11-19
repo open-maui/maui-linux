@@ -16,7 +16,7 @@ namespace Microsoft.Maui.Platform;
 /// - ThumbColor
 /// - Smooth animation on toggle
 /// </summary>
-public class SkiaSwitch : SkiaView
+public partial class SkiaSwitch : SkiaView
 {
     #region SKColor Helper
 

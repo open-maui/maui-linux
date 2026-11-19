@@ -342,6 +342,8 @@ public partial class LinuxApplication
         {
             var args = new TextInputEventArgs(text);
             focused.OnTextInput(args);
+            if (Services.AtSpi.AtSpiBridge.Instance != null)
+                focused.AfterAccessibleInput();
             _gtkWindow?.RequestRedraw();
         }
     }

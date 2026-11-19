@@ -1140,6 +1140,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
 
         child._parent = this;
         _children.Add(child);
+        OnAccessibleChildrenChanged();
 
         // Propagate binding context to new child
         if (BindingContext != null)
@@ -1156,6 +1157,13 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
         Invalidate();
     }
 
+    /// <summary>The children changed: assistive technology reads them again.</summary>
+    private void OnAccessibleChildrenChanged()
+    {
+        _accessibleChildren = null;
+        Linux.Services.AtSpi.AtSpiBridge.Instance?.ChildrenChanged(this);
+    }
+
     /// <summary>
     /// Removes a child view.
     /// </summary>
@@ -1166,6 +1174,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
 
         child._parent = null;
         _children.Remove(child);
+        OnAccessibleChildrenChanged();
         InvalidateMeasure();
         Invalidate();
     }
@@ -1180,6 +1189,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
 
         child._parent = this;
         _children.Insert(index, child);
+        OnAccessibleChildrenChanged();
 
         // Propagate binding context to new child
         if (BindingContext != null)
@@ -1205,6 +1215,7 @@ public abstract partial class SkiaView : BindableObject, IDisposable, IAccessibl
             child._parent = null;
         }
         _children.Clear();
+        OnAccessibleChildrenChanged();
         InvalidateMeasure();
         Invalidate();
     }

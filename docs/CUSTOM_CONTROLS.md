@@ -498,7 +498,8 @@ public override void OnPointerPressed(PointerEventArgs e)
 
 ### 3. Support Accessibility
 
-Override accessibility methods for screen reader support:
+Override the accessibility methods: screen readers (Orca) read them over AT-SPI2. The view's
+`SemanticProperties.Description` still wins over `GetDefaultAccessibleName`.
 
 ```csharp
 protected override string GetDefaultAccessibleName()
@@ -511,12 +512,17 @@ protected override AccessibleRole GetAccessibleRole()
     return AccessibleRole.Slider;
 }
 
+// A range control also gives its value (the AT-SPI Value interface).
+protected override double? GetAccessibleValue() => Value;
+protected override double? GetAccessibleMinValue() => 0;
+protected override double? GetAccessibleMaxValue() => MaxValue;
+
 protected override IReadOnlyList<AccessibleAction> GetAccessibleActions()
 {
     return new[]
     {
-        new AccessibleAction("Increment", "Increase rating"),
-        new AccessibleAction("Decrement", "Decrease rating")
+        new AccessibleAction { Name = "Increment", Description = "Increase rating" },
+        new AccessibleAction { Name = "Decrement", Description = "Decrease rating" },
     };
 }
 

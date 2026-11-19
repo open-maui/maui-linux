@@ -18,7 +18,7 @@ namespace Microsoft.Maui.Platform;
 /// - Value property for binding
 /// - Content property for label text
 /// </summary>
-public class SkiaRadioButton : SkiaView
+public partial class SkiaRadioButton : SkiaView
 {
     #region SKColor Helper
 

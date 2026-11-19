@@ -253,6 +253,7 @@ public partial class LinuxApplication
                     // No native window to stop and no run loop to reap it: close it now, as
                     // the reaper closes a native window whose toplevel went away.
                     _windowContexts.RemoveAt(i);
+                    Services.AtSpi.AtSpiBridge.Instance?.WindowsChanged(ctx, added: false);
                     if (_focusedContext == ctx) _focusedContext = null;
                     if (_dialogHostContext == ctx) _dialogHostContext = null;
                     ctx.NotifyDestroying();

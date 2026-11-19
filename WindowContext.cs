@@ -252,6 +252,9 @@ public sealed partial class WindowContext : IDisposable
 
                 // Call OnFocusGained on the new view (this sets IsFocused = true and invalidates)
                 _focusedView?.OnFocusGained();
+
+                // Screen readers follow the focus.
+                Services.AtSpi.AtSpiBridge.Instance?.FocusChanged(oldFocus, _focusedView);
             }
         }
     }
@@ -481,12 +484,14 @@ public sealed partial class WindowContext : IDisposable
     {
         _app.NotifyContextFocused(this);
         NotifyActivated();
+        Services.AtSpi.AtSpiBridge.Instance?.WindowActivated(this, active: true);
     }
 
     private void OnWindowFocusLost(object? sender, EventArgs e)
     {
         ToolTips.Reset();
         NotifyDeactivated();
+        Services.AtSpi.AtSpiBridge.Instance?.WindowActivated(this, active: false);
     }
 
     /// <summary>
@@ -524,6 +529,8 @@ public sealed partial class WindowContext : IDisposable
             focused.RaiseKeyEvent(down: true, e);
             if (!e.Handled)
                 SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Down, e);
+            if (Services.AtSpi.AtSpiBridge.Instance != null)
+                focused.AfterAccessibleInput();
         }
         TryTabNavigation(e);
     }
@@ -543,6 +550,8 @@ public sealed partial class WindowContext : IDisposable
             focused.RaiseKeyEvent(down: false, e);
             if (!e.Handled)
                 SkiaView.RaiseKeyRouted(focused, SkiaView.RoutedKeyKind.Up, e);
+            if (Services.AtSpi.AtSpiBridge.Instance != null)
+                focused.AfterAccessibleInput();
         }
     }
 
@@ -561,6 +570,8 @@ public sealed partial class WindowContext : IDisposable
         if (_focusedView != null)
         {
             _focusedView.OnTextInput(e);
+            if (Services.AtSpi.AtSpiBridge.Instance != null)
+                _focusedView.AfterAccessibleInput();
         }
     }
 
@@ -754,6 +765,9 @@ public sealed partial class WindowContext : IDisposable
         {
             // The press is over: later hit tests (hover) use the default button.
             GestureManager.CurrentButton = default;
+            // A click can move the caret of the focused text field.
+            if (Services.AtSpi.AtSpiBridge.Instance != null)
+                _focusedView?.AfterAccessibleInput();
         }
     }
 

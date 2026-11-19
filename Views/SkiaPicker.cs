@@ -19,7 +19,7 @@ namespace Microsoft.Maui.Platform;
 /// - TextColor, Font properties for styling
 /// - Items collection
 /// </summary>
-public class SkiaPicker : SkiaView
+public partial class SkiaPicker : SkiaView
 {
     #region SKColor Helper
 

@@ -744,7 +744,7 @@ public enum AnnouncementPriority { Polite, Assertive }
 | Package | Purpose |
 |---------|---------|
 | libibus-1.0 | IBus input method support |
-| libatspi | AT-SPI2 accessibility support |
+| at-spi2-core | The accessibility bus and registry screen readers use (D-Bus services; no library is loaded) |
 | libnotify | Desktop notification support |
 | xclip/xsel | Clipboard support |
 | zenity/kdialog | Native file dialogs |

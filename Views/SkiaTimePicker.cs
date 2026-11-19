@@ -29,7 +29,7 @@ public class SkiaTimeChangedEventArgs : EventArgs
 /// Skia-rendered time picker control with clock popup.
 /// Implements MAUI ITimePicker interface patterns.
 /// </summary>
-public class SkiaTimePicker : SkiaView
+public partial class SkiaTimePicker : SkiaView
 {
     #region BindableProperties
 

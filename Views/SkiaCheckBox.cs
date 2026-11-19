@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Platform;
 /// - Color property (maps to BoxColor when checked)
 /// - Foreground property (maps to CheckColor - the checkmark color)
 /// </summary>
-public class SkiaCheckBox : SkiaView
+public partial class SkiaCheckBox : SkiaView
 {
     #region SKColor Helper
 

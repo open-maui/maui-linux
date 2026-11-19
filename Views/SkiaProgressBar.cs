@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Platform;
 /// - Progress property (0.0 to 1.0)
 /// - ProgressColor for the filled portion
 /// </summary>
-public class SkiaProgressBar : SkiaView
+public partial class SkiaProgressBar : SkiaView
 {
     #region SKColor Helper
 

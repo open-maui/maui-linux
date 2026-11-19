@@ -10,7 +10,7 @@ namespace Microsoft.Maui.Platform;
 /// <summary>
 /// Skia-rendered scroll view container with full XAML styling support.
 /// </summary>
-public class SkiaScrollView : SkiaView
+public partial class SkiaScrollView : SkiaView
 {
     #region BindableProperties
 

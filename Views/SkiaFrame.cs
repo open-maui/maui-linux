@@ -11,7 +11,7 @@ namespace Microsoft.Maui.Platform;
 /// Mimics the MAUI Frame control appearance.
 /// Implements MAUI IFrame interface patterns.
 /// </summary>
-public class SkiaFrame : SkiaBorder
+public partial class SkiaFrame : SkiaBorder
 {
     public SkiaFrame()
     {

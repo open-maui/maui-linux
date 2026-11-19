@@ -315,7 +315,7 @@ The measured picture is in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md): a sco
 
 ## Accessibility
 
-- **AT-SPI2**: Screen reader support for ORCA and other assistive technologies
+- **AT-SPI2**: Screen reader support for Orca and other assistive technologies: while one runs, the app is exported to the accessibility bus, with each control's role, name, states, actions, value and text, and focus, state, value and text changes as events
 - **High Contrast**: Automatic detection and color palette support
 - **Keyboard Navigation**: Full keyboard accessibility
 

@@ -299,7 +299,7 @@ public abstract partial class SkiaView
     // IAccessible implementation
     string IAccessible.AccessibleId => _accessibleId;
 
-    string IAccessible.AccessibleName => SemanticName ?? _decorator?.Name ?? GetDefaultAccessibleName();
+    string IAccessible.AccessibleName => SemanticName ?? _decorator?.Name ?? LabelledByName() ?? GetDefaultAccessibleName();
 
     string IAccessible.AccessibleDescription => SemanticDescription ?? SemanticHint ?? _decorator?.Description ?? string.Empty;
 
@@ -350,8 +350,7 @@ public abstract partial class SkiaView
     {
         try
         {
-            if (_accessibilityInitialized && _accessibilityService is { IsEnabled: true } service)
-                service.NotifyStateChanged(accessible, state, value);
+            Linux.Services.AtSpi.AtSpiBridge.Instance?.StateChanged(accessible, AtSpi2AccessibilityService.StateName(state), value);
         }
         catch (Exception)
         {
@@ -367,8 +366,15 @@ public abstract partial class SkiaView
     {
         try
         {
-            if (_accessibilityInitialized && _accessibilityService is { IsEnabled: true } service)
-                service.NotifyPropertyChanged(accessible, property);
+            if (Linux.Services.AtSpi.AtSpiBridge.Instance is { } bridge)
+            {
+                if (property == AccessibleProperty.Name)
+                    bridge.NameChanged(accessible);
+                else if (property == AccessibleProperty.Description)
+                    bridge.DescriptionChanged(accessible);
+                else if (property == AccessibleProperty.Children)
+                    bridge.ChildrenChanged(accessible);
+            }
         }
         catch (Exception)
         {
@@ -384,7 +390,7 @@ public abstract partial class SkiaView
     /// <summary>
     /// Gets the accessible role for this view.
     /// </summary>
-    protected virtual AccessibleRole GetAccessibleRole() => AccessibleRole.Unknown;
+    protected virtual AccessibleRole GetAccessibleRole() => RoleOrHeading(AccessibleRole.Filler);
 
     /// <summary>
     /// Gets the current accessible states.
@@ -412,6 +418,13 @@ public abstract partial class SkiaView
             {
                 children.Add(accessible);
             }
+        }
+        // Content a view holds outside its children (a page's content, a scroll view's, a
+        // content presenter's): the same roots the theme walker follows.
+        foreach (var root in ExtraContentRoots)
+        {
+            if (root is IAccessible accessible && !root.IsExcludedWithChildren && !children.Contains(accessible))
+                children.Add(accessible);
         }
         return children;
     }
