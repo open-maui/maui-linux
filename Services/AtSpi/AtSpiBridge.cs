@@ -578,5 +578,75 @@ internal sealed partial class AtSpiBridge
         return true;
     }
 
+    // ---- Coordinates ----------------------------------------------------------------------
+
+    /// <summary>The window an object is in: its frame's, or the one whose root view it is under.</summary>
+    internal static WindowContext? ContextOf(IAccessible accessible)
+    {
+        if (accessible is WindowAccessible window)
+            return window.Context;
+        var top = accessible;
+        while (top.Parent is { } parent)
+            top = parent;
+        var app = LinuxApplication.Current;
+        if (app == null)
+            return null;
+        foreach (var context in app.WindowContexts)
+        {
+            if (ReferenceEquals(context.RootView, top))
+                return context;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// How view-tree positions (the logical space views are laid out in) become the coordinates a
+    /// client asked for about <paramref name="accessible"/>: coordinates = tree position x Scale
+    /// + (X, Y). A window that knows where it is on the screen (X11) speaks the X server's
+    /// physical pixels, as X11 screen readers and their pointer do: Scale is the window's, and
+    /// screen coordinates add its origin. A Wayland client is never told where its window is,
+    /// so there every coordinate type is the window's own, in logical pixels (as GTK 4 reports).
+    /// Window coordinates count from the window's top-left, above a title bar the app draws
+    /// itself; parent coordinates from the parent view (a root view's parent is its frame).
+    /// </summary>
+    internal static (double X, double Y, double Scale) CoordinateMap(IAccessible accessible, uint coordType)
+    {
+        var context = ContextOf(accessible);
+        double inset = context?.CsdPointerInsetLogical ?? 0;
+        bool positioned = TryScreenOrigin(context, out double ox, out double oy, out double scale);
+        if (!positioned)
+            scale = 1;
+        switch (coordType)
+        {
+            case 0 when positioned:
+                return (ox, oy + inset * scale, scale);
+            case 2 when accessible is not WindowAccessible && accessible.Parent is { } parent:
+                var p = parent.Bounds;
+                return (-p.X * scale, -p.Y * scale, scale);
+            default:
+                return (0, inset * scale, scale);
+        }
+    }
+
+    /// <summary>A frame's map: its bounds are the window's own (no title-bar offset).</summary>
+    internal static (double X, double Y, double Scale) FrameMap(WindowAccessible window, uint coordType)
+    {
+        if (!TryScreenOrigin(window.Context, out double ox, out double oy, out double scale))
+            return (0, 0, 1);
+        return coordType == 0 ? (ox, oy, scale) : (0, 0, scale);
+    }
+
+    /// <summary>The window's origin on the screen in physical pixels, and its scale, when the backend knows it (X11).</summary>
+    private static bool TryScreenOrigin(WindowContext? context, out double x, out double y, out double scale)
+    {
+        x = y = 0;
+        scale = context?.Scale ?? 1;
+        if (context?.DisplayWindow is not IScreenPositionedWindow positioned || !positioned.TryGetScreenOrigin(out int px, out int py))
+            return false;
+        x = px;
+        y = py;
+        return true;
+    }
+
     internal static string Locale => CultureInfo.CurrentUICulture.Name.Replace('-', '_') is { Length: > 0 } name ? name : "C";
 }

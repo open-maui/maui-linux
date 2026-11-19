@@ -31,6 +31,10 @@ internal static partial class X11
     public static partial IntPtr XRootWindow(IntPtr display, int screenNumber);
 
     [LibraryImport(LibX11)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool XTranslateCoordinates(IntPtr display, IntPtr srcWindow, IntPtr destWindow, int srcX, int srcY, out int destX, out int destY, out IntPtr child);
+
+    [LibraryImport(LibX11)]
     public static partial int XDisplayWidth(IntPtr display, int screenNumber);
 
     [LibraryImport(LibX11)]

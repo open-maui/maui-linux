@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Version numbers are aligned with .NET / MAUI versions (e.g., OpenMaui 10.0.x targets .NET 10 / MAUI 10, OpenMaui 11.0.x targets .NET 11 / MAUI 11).
 
+## [11.0.10.2] - 2026-11-19
+
+> Built on .NET MAUI 11.0.10, as 11.0.10.1.
+
+### Fixed
+
+- **Screen readers got a text control's whole box for every character**: AT-SPI's character extents (`GetCharacterExtents`, `GetRangeExtents`, `GetOffsetAtPoint`, what a screen magnifier and a review cursor follow) now give each character's own rectangle, from the layout the control draws: a Label's wrapped lines and formatted spans, an Entry's scrolled line, an Editor's wrapped lines.
+- **Screen coordinates were the window's**: on X11 an object's screen coordinates now add the window's position on the screen (from the X server, `XTranslateCoordinates`), and every X11 coordinate is in the X server's physical pixels, as an X11 screen reader and its pointer use them (at a fractional scale such as 1.75, sizes scale too); a point a client asks about (the object or character at a point) is mapped back the same way. Window coordinates now count from the window's top-left, above a title bar the app draws itself (`Window.TitleBar` with client-side decorations), where they counted from below it. A Wayland client is never told where its window is, so on Wayland screen coordinates remain the window's, in logical pixels, as GTK 4 reports them.
+- **A handler used before `UseLinux` kept MAUI's base view mappings without OpenMaui's**: a handler's mapper merges its chain on first use and keeps the merge, so a Linux handler mapped before OpenMaui added its Opacity, Visibility, Semantics and other base mappings to `ViewHandler.ViewMapper` never got them (in the tests, a later Label lost its heading level). The mappings are now added when the assembly loads, and a second caller waits until they are in.
+
 ## [11.0.10.1] - 2026-11-19
 
 > Built on .NET MAUI 11.0.10, the first MAUI 11 servicing release. The .NET 11 SDK and runtime are unchanged (`11.0.100`, `11.0.0`).

@@ -12,7 +12,7 @@ namespace Microsoft.Maui.Platform.Linux.Window;
 /// <summary>
 /// X11 window implementation for Linux.
 /// </summary>
-public partial class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow,
+public partial class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplayWindow, Microsoft.Maui.Platform.Linux.Services.IScreenPositionedWindow,
                         Microsoft.Maui.Platform.Linux.Services.IX11Surface,
                         Microsoft.Maui.Platform.Linux.Services.IScaleAwareDisplayWindow,
                         Microsoft.Maui.Platform.Linux.Services.IDesktopWindowControl,
@@ -124,6 +124,16 @@ public partial class X11Window : Microsoft.Maui.Platform.Linux.Services.IDisplay
     /// Gets the native window handle.
     /// </summary>
     public IntPtr Handle => _window;
+
+    /// <summary>The window's top-left on the screen (relative to the root window), in physical pixels.</summary>
+    public bool TryGetScreenOrigin(out int x, out int y)
+    {
+        x = y = 0;
+        if (_display == IntPtr.Zero || _window == IntPtr.Zero)
+            return false;
+        var root = _rootWindow != IntPtr.Zero ? _rootWindow : X11.XRootWindow(_display, _screen);
+        return X11.XTranslateCoordinates(_display, _window, root, 0, 0, out x, out y, out _);
+    }
 
     /// <summary>
     /// Gets the window width.

@@ -115,6 +115,51 @@ public class AtSpiBridgeTests
     }
 
     [Fact]
+    public void Coordinates_count_from_the_window_top_left_and_add_its_screen_position_where_known()
+    {
+        var label = new Label { Text = "Hello", Margin = new Thickness(10, 20) };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = new VerticalStackLayout { label } }, withEngine: true);
+        host.Context.Render();
+        var view = A(label);
+
+        // No title bar drawn by the app, no screen position (Wayland): window and screen coordinates are the view tree's.
+        AtSpiBridge.CoordinateMap(view, 1).Should().Be((0.0, 0.0, 1.0));
+        AtSpiBridge.CoordinateMap(view, 0).Should().Be((0.0, 0.0, 1.0), "a Wayland client is never told where its window is");
+
+        // An X11 window knows where it is, in the X server's physical pixels: screen coordinates add its origin.
+        host.DisplayWindow.ScreenOrigin = (300, 200);
+        AtSpiBridge.CoordinateMap(view, 0).Should().Be((300.0, 200.0, 1.0));
+        AtSpiBridge.CoordinateMap(view, 1).Should().Be((0.0, 0.0, 1.0));
+
+        // At scale 1.75 every X11 coordinate is physical: positions and sizes scale, the origin does not.
+        host.DisplayWindow.RaiseScaleChanged(1.75f);
+        host.Context.Render();
+        AtSpiBridge.CoordinateMap(view, 0).Should().Be((300.0, 200.0, 1.75));
+
+        // Parent coordinates count from the parent view.
+        var parentBounds = ((IAccessible)view.Parent!).Bounds;
+        AtSpiBridge.CoordinateMap(view, 2).Should().Be((-parentBounds.X * 1.75, -parentBounds.Y * 1.75, 1.75));
+    }
+
+    [Fact]
+    public void Window_coordinates_include_the_title_bar_the_app_draws()
+    {
+        Microsoft.Maui.Platform.Linux.Handlers.WindowOverlayPatches.Install();
+        var label = new Label { Text = "Hello" };
+        using var host = new HeadlessMauiHost(new ContentPage { Content = new VerticalStackLayout { label } }, withEngine: true);
+        host.DisplayWindow.GrantClientDecorations = true;
+        host.Window.TitleBar = new TitleBar { HeightRequest = 48, Title = "App" };
+        host.Context.Render();
+        host.Context.Render();
+        float inset = host.Context.CsdPointerInsetLogical;
+        inset.Should().BeGreaterThan(0, "the app draws the title bar");
+
+        AtSpiBridge.CoordinateMap(A(label), 1).Should().Be((0.0, (double)inset, 1.0), "views are drawn below the title bar");
+        host.DisplayWindow.ScreenOrigin = (50, 60);
+        AtSpiBridge.CoordinateMap(A(label), 0).Should().Be((50.0, 60.0 + inset, 1.0));
+    }
+
+    [Fact]
     public void States_map_to_the_AT_SPI_state_bits()
     {
         // AtspiStateType: enabled 8, focusable 11, checked 4, sensitive 24, showing 25, visible 30, read-only 43.
@@ -193,7 +238,18 @@ public class AtSpiBridgeTests
                 var text = client.CreateProxy<IAtSpiText>(entryRef.Item1, entryRef.Item2);
                 (await text.GetTextAsync(0, -1)).Should().Be("Ada");
                 ((int)await text.GetAsync("CharacterCount")).Should().Be(3);
-                (await client.CreateProxy<IAtSpiComponent>(entryRef.Item1, entryRef.Item2).GetExtentsAsync(1)).Item1.Item3.Should().BeGreaterThan(0);
+                var entryComponent = client.CreateProxy<IAtSpiComponent>(entryRef.Item1, entryRef.Item2);
+                var inWindow = (await entryComponent.GetExtentsAsync(1)).Item1;
+                inWindow.Item3.Should().BeGreaterThan(0);
+                host.DisplayWindow.ScreenOrigin = (400, 300);
+                var onScreen = (await entryComponent.GetExtentsAsync(0)).Item1;
+                onScreen.Should().Be((inWindow.Item1 + 400, inWindow.Item2 + 300, inWindow.Item3, inWindow.Item4), "screen coordinates add the window's position");
+                var firstChar = await text.GetCharacterExtentsAsync(0, 0);
+                var firstCharInWindow = await text.GetCharacterExtentsAsync(0, 1);
+                firstChar.Should().Be((firstCharInWindow.Item1 + 400, firstCharInWindow.Item2 + 300, firstCharInWindow.Item3, firstCharInWindow.Item4));
+                (await text.GetOffsetAtPointAsync(firstChar.Item1 + 1, firstChar.Item2 + 2, 0)).Should().Be(0, "a screen point is found in the window");
+                (await client.CreateProxy<IAtSpiComponent>(windows[0].Item1, windows[0].Item2).GetExtentsAsync(0)).Item1.Item1.Should().Be(400, "the frame is where the window is");
+                host.DisplayWindow.ScreenOrigin = null;
 
                 // Labelled by the "Your name" label: the relation set and the name come from it.
                 var nameLabel = (Label)((VerticalStackLayout)((ContentPage)host.Window.Page!).Content).Children[1];
