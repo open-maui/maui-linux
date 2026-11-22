@@ -226,6 +226,7 @@ public static partial class GStreamerInterop
     [DllImport(LibGObject, EntryPoint = "g_object_set", CharSet = CharSet.Ansi)]
     public static extern void g_object_set_string(IntPtr obj, [MarshalAs(UnmanagedType.LPStr)] string firstProperty, [MarshalAs(UnmanagedType.LPStr)] string value, IntPtr terminator);
 
+    [Obsolete("A double does not reach the variadic g_object_set intact on x86-64; the property ends up ~0. Use SetDoubleProperty.")]
     [DllImport(LibGObject, EntryPoint = "g_object_set", CharSet = CharSet.Ansi)]
     public static extern void g_object_set_double(IntPtr obj, [MarshalAs(UnmanagedType.LPStr)] string firstProperty, double value, IntPtr terminator);
 

@@ -132,6 +132,49 @@ public static partial class GStreamerInterop
     /// <summary>sizeof(GValue) on 64-bit: GType + two 8-byte data slots.</summary>
     internal const int GValueSize = 24;
 
+    /// <summary>G_TYPE_DOUBLE (fundamental 15 &lt;&lt; G_TYPE_FUNDAMENTAL_SHIFT).</summary>
+    internal const nuint GTypeDouble = 15 << 2;
+
+    [LibraryImport(LibGObject, EntryPoint = "g_value_set_double")]
+    internal static partial void g_value_set_double(IntPtr value, double number);
+
+    [LibraryImport(LibGObject, EntryPoint = "g_value_get_double")]
+    internal static partial double g_value_get_double(IntPtr value);
+
+    [LibraryImport(LibGObject, EntryPoint = "g_object_set_property", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void g_object_set_property(IntPtr obj, string propertyName, IntPtr value);
+
+    [LibraryImport(LibGObject, EntryPoint = "g_object_get_property", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial void g_object_get_property(IntPtr obj, string propertyName, IntPtr value);
+
+    /// <summary>
+    /// Sets a gdouble property. g_object_set is variadic, and a P/Invoke to it does
+    /// not pass a double the way C varargs expect on x86-64 (AL is not set, so the
+    /// callee reads the wrong register): playbin's volume became ~1e-322, i.e. silent.
+    /// g_object_set_property takes the value as a GValue, which has no such issue.
+    /// </summary>
+    internal static unsafe void SetDoubleProperty(IntPtr obj, string propertyName, double number)
+    {
+        var value = stackalloc long[GValueSize / sizeof(long)];
+        new Span<byte>(value, GValueSize).Clear();
+        g_value_init((IntPtr)value, GTypeDouble);
+        g_value_set_double((IntPtr)value, number);
+        g_object_set_property(obj, propertyName, (IntPtr)value);
+        g_value_unset((IntPtr)value);
+    }
+
+    /// <summary>Reads a gdouble property through a GValue (see <see cref="SetDoubleProperty"/>).</summary>
+    internal static unsafe double GetDoubleProperty(IntPtr obj, string propertyName)
+    {
+        var value = stackalloc long[GValueSize / sizeof(long)];
+        new Span<byte>(value, GValueSize).Clear();
+        g_value_init((IntPtr)value, GTypeDouble);
+        g_object_get_property(obj, propertyName, (IntPtr)value);
+        var number = g_value_get_double((IntPtr)value);
+        g_value_unset((IntPtr)value);
+        return number;
+    }
+
     /// <summary>
     /// Builds an "extra-headers" GstStructure (souphttpsrc's property type) from
     /// header pairs; the caller frees it with gst_structure_free.
