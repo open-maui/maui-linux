@@ -115,6 +115,7 @@ public class SkiaMediaElement : SkiaView, IDisposable
     private int _videoWidth, _videoHeight;
     private double _rate = 1.0;
     private bool _muted;
+    private double _volume = 1.0;
     private KeyValuePair<string, string>[] _httpHeaders = Array.Empty<KeyValuePair<string, string>>();
     private GStreamerInterop.SourceSetupCallback? _sourceSetupDelegate;
     private GStreamerInterop.DeepElementAddedCallback? _deepElementAddedDelegate;
@@ -517,9 +518,10 @@ public class SkiaMediaElement : SkiaView, IDisposable
 
     public void SetVolume(double volume)
     {
-        if (_playbin == IntPtr.Zero) return;
         // playbin's volume range is 0.0 - 1.0; the MediaElement contract is the same.
-        g_object_set_double(_playbin, "volume", Math.Clamp(volume, 0.0, 1.0), IntPtr.Zero);
+        _volume = Math.Clamp(volume, 0.0, 1.0);
+        if (_playbin == IntPtr.Zero) return;
+        SetDoubleProperty(_playbin, "volume", _volume);
     }
 
     public void SetMute(bool mute)
@@ -581,6 +583,10 @@ public class SkiaMediaElement : SkiaView, IDisposable
         // Hand the source URI to playbin and prime to Ready (the state where
         // caps are negotiated but no data has flowed yet).
         g_object_set_string(_playbin, "uri", uri, IntPtr.Zero);
+
+        // Volume and ShouldMute set before this source (or before a rebuild) apply to the new playbin too.
+        SetDoubleProperty(_playbin, "volume", _volume);
+        g_object_set_bool(_playbin, "mute", _muted, IntPtr.Zero);
 
         // Speed: keep the pitch when the rate changes, as MediaPlayer does.
         // scaletempo passes audio through untouched at rate 1.
